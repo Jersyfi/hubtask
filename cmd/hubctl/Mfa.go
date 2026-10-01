@@ -147,7 +147,7 @@ func mfaDisable(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := client.Post(ctx, mfaDisablePath, openapi.MfaDisable{Password: password}, nil); err != nil {
+	if err := client.Post(ctx, mfaDisablePath, openapi.MfaDisable{Password: &password}, nil); err != nil {
 		return err
 	}
 	printf(cli.Err, "the second factor is gone, and the remaining recovery codes with it\n")

@@ -3045,6 +3045,8 @@ func (e SortTermNulls) Valid() bool {
 // Defines values for StepUpGrantMethod.
 const (
 	StepUpGrantMethodPASSWORD StepUpGrantMethod = "PASSWORD"
+	StepUpGrantMethodPROVIDER StepUpGrantMethod = "PROVIDER"
+	StepUpGrantMethodRECOVERY StepUpGrantMethod = "RECOVERY"
 	StepUpGrantMethodTOTP     StepUpGrantMethod = "TOTP"
 )
 
@@ -3052,6 +3054,10 @@ const (
 func (e StepUpGrantMethod) Valid() bool {
 	switch e {
 	case StepUpGrantMethodPASSWORD:
+		return true
+	case StepUpGrantMethodPROVIDER:
+		return true
+	case StepUpGrantMethodRECOVERY:
 		return true
 	case StepUpGrantMethodTOTP:
 		return true
@@ -5989,8 +5995,9 @@ type MfaChallengeMethods string
 
 // MfaDisable defines model for MfaDisable.
 type MfaDisable struct {
-	// Password Checked afresh - a live session is deliberately not enough here.
-	Password string `json:"password"`
+	// Password **Deprecated** (ADR-0075 §3): the proof this route took before the step-up did. Still checked when sent without a step-up token, for one release; then removed.
+	// Deprecated: The step-up proves it, in the X-Hubtask-Step-Up header (ADR-0075 §3).
+	Password *string `json:"password,omitempty"`
 }
 
 // MoveResult defines model for MoveResult.
@@ -6360,6 +6367,19 @@ type ProcessingStateStatus string
 type ProviderOffer struct {
 	// Offered Whether this provider is a way into this workspace.
 	Offered bool `json:"offered"`
+}
+
+// ProviderStepUpAuthorization Where to send the browser for a `PROVIDER` step-up, and which provider that is.
+type ProviderStepUpAuthorization struct {
+	// AuthorizationUrl The provider's authorization endpoint with `prompt=login`, `max_age=0` and this flow's parameters. The verifier and the nonce stay on the server.
+	AuthorizationUrl string `json:"authorization_url"`
+
+	// ExpiresAt When the flow stops being answerable.
+	ExpiresAt  time.Time          `json:"expires_at"`
+	ProviderId openapi_types.UUID `json:"provider_id"`
+
+	// ProviderName The provider's name, as the sign-in button shows it.
+	ProviderName string `json:"provider_name"`
 }
 
 // ProviderSummary One way into this workspace, as a sign-in card needs it.
@@ -7373,10 +7393,18 @@ type StepUpGrant struct {
 // StepUpGrantMethod What proved it - recorded in the audit trail, never the credential.
 type StepUpGrantMethod string
 
-// StepUpRequest One of the two, never both: the password, or - where a factor is armed - the authenticator's current code. Either proves the person holding the session is still the person who opened it.
+// StepUpRequest Exactly one method (ADR-0075): the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.
 type StepUpRequest struct {
-	Code     *string `json:"code,omitempty"`
-	Password *string `json:"password,omitempty"`
+	// AuthorizationCode The code the provider issued. Presented together with `state`.
+	AuthorizationCode *string `json:"authorization_code,omitempty"`
+	Code              *string `json:"code,omitempty"`
+	Password          *string `json:"password,omitempty"`
+
+	// RecoveryCode One of the account's recovery codes. Consumed, as at sign-in.
+	RecoveryCode *string `json:"recovery_code,omitempty"`
+
+	// State The handle `POST /auth/step-up:provider` minted, as the provider echoed it.
+	State *string `json:"state,omitempty"`
 }
 
 // Suggestion One thing AI proposed about one entry, with its provenance. It has changed nothing: what a suggestion is, is a record.
@@ -8346,19 +8374,19 @@ type InviteAccountParams struct {
 
 // CreateInstanceIdentityProviderParams defines parameters for CreateInstanceIdentityProvider.
 type CreateInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RemoveInstanceIdentityProviderParams defines parameters for RemoveInstanceIdentityProvider.
 type RemoveInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ConfigureInstanceIdentityProviderParams defines parameters for ConfigureInstanceIdentityProvider.
 type ConfigureInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8376,7 +8404,7 @@ type ProvisionTenantParams struct {
 
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
 type RequestTenantDeletionParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8412,19 +8440,25 @@ type VerifyAuditChainJSONBody struct {
 
 // RegenerateRecoveryCodesParams defines parameters for RegenerateRecoveryCodes.
 type RegenerateRecoveryCodesParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// DisableTotpParams defines parameters for DisableTotp.
+type DisableTotpParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ChangePasswordParams defines parameters for ChangePassword.
 type ChangePasswordParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // CheckPasswordParams defines parameters for CheckPassword.
 type CheckPasswordParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8436,7 +8470,7 @@ type CreateServiceAccountParams struct {
 
 // ElevateSessionParams defines parameters for ElevateSession.
 type ElevateSessionParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8451,7 +8485,7 @@ type CreateAccessTokenParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8705,31 +8739,31 @@ type UpdateGroupParams struct {
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
 type ConfigureFirstIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // CreateIdentityProviderParams defines parameters for CreateIdentityProvider.
 type CreateIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RemoveIdentityProviderParams defines parameters for RemoveIdentityProvider.
 type RemoveIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ConfigureIdentityProviderParams defines parameters for ConfigureIdentityProvider.
 type ConfigureIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // OfferIdentityProviderParams defines parameters for OfferIdentityProvider.
 type OfferIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -9168,13 +9202,13 @@ type GrantMembershipParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RevokeMembershipParams defines parameters for RevokeMembership.
 type RevokeMembershipParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -9276,7 +9310,7 @@ type UpdateWorkspaceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -10366,21 +10400,23 @@ type ClientInterface interface {
 
 	// DisableTotpWithBody Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands the password afresh - the one case where "recently signed in" is not enough, because a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5). Under tenant enforcement an OWNER or ADMIN cannot disable at all; the refusal names the switch.
+	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /auth/mfa:disable (the `DisableTotp` operationId).
-	DisableTotpWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DisableTotpWithBody(ctx context.Context, params *DisableTotpParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DisableTotp Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands the password afresh - the one case where "recently signed in" is not enough, because a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5). Under tenant enforcement an OWNER or ADMIN cannot disable at all; the refusal names the switch.
+	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /auth/mfa:disable (the `DisableTotp` operationId).
-	DisableTotp(ctx context.Context, body DisableTotpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DisableTotp(ctx context.Context, params *DisableTotpParams, body DisableTotpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CompleteOidcSignInWithBody Finish the sign-in with the code the provider issued
 	//
@@ -10687,8 +10723,9 @@ type ClientInterface interface {
 
 	// StepUpWithBody Prove yourself again, for the irreversible
 	//
-	// A fresh re-authentication on the current session (security.md §5, H-03): the password, or the TOTP code where one is enrolled. The proof is recorded on the session with its moment, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore. A second privileged action needs a second proof.
-	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with: a space-separated list drawn from `PASSWORD` and `TOTP` - the password where the account holds one, the code only where a factor is armed. An account that signs in only through a provider and has no factor is named neither, and the list is empty: there is nothing it can prove itself with here until it sets a factor up (UC-ID-05). A client builds its prompt from that list, never from a guess. This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+	// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
+	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10697,13 +10734,22 @@ type ClientInterface interface {
 
 	// StepUp Prove yourself again, for the irreversible
 	//
-	// A fresh re-authentication on the current session (security.md §5, H-03): the password, or the TOTP code where one is enrolled. The proof is recorded on the session with its moment, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore. A second privileged action needs a second proof.
-	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with: a space-separated list drawn from `PASSWORD` and `TOTP` - the password where the account holds one, the code only where a factor is armed. An account that signs in only through a provider and has no factor is named neither, and the list is empty: there is nothing it can prove itself with here until it sets a factor up (UC-ID-05). A client builds its prompt from that list, never from a guess. This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+	// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
+	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /auth/step-up (the `StepUp` operationId).
 	StepUp(ctx context.Context, body StepUpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartProviderStepUp Begin a step-up at the provider this account is connected to
+	//
+	// The first of `PROVIDER`'s two calls (ADR-0075 §2). An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
+	// The browser comes back to this installation's own callback address, the one every registration already permits. Refused with `auth.step_up_no_provider` for an account with no such provider, and with `auth.step_up_session_required` for a caller without a session.
+	//
+	// Corresponds with POST /auth/step-up:provider (the `StartProviderStepUp` operationId).
+	StartProviderStepUp(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListAccessTokens The caller's own personal access tokens
 	//
@@ -14443,13 +14489,14 @@ func (c *Client) EnrollTotp(ctx context.Context, body EnrollTotpJSONRequestBody,
 
 // DisableTotpWithBody Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands the password afresh - the one case where "recently signed in" is not enough, because a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5). Under tenant enforcement an OWNER or ADMIN cannot disable at all; the refusal names the switch.
+// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes any type of body and a specified content type.
 //
 // Corresponds with POST /auth/mfa:disable (the `DisableTotp` operationId).
-func (c *Client) DisableTotpWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDisableTotpRequestWithBody(c.Server, contentType, body)
+func (c *Client) DisableTotpWithBody(ctx context.Context, params *DisableTotpParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDisableTotpRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -14462,13 +14509,14 @@ func (c *Client) DisableTotpWithBody(ctx context.Context, contentType string, bo
 
 // DisableTotp Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands the password afresh - the one case where "recently signed in" is not enough, because a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5). Under tenant enforcement an OWNER or ADMIN cannot disable at all; the refusal names the switch.
+// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with POST /auth/mfa:disable (the `DisableTotp` operationId).
-func (c *Client) DisableTotp(ctx context.Context, body DisableTotpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDisableTotpRequest(c.Server, body)
+func (c *Client) DisableTotp(ctx context.Context, params *DisableTotpParams, body DisableTotpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDisableTotpRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -15084,8 +15132,9 @@ func (c *Client) GetSignInRules(ctx context.Context, reqEditors ...RequestEditor
 
 // StepUpWithBody Prove yourself again, for the irreversible
 //
-// A fresh re-authentication on the current session (security.md §5, H-03): the password, or the TOTP code where one is enrolled. The proof is recorded on the session with its moment, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore. A second privileged action needs a second proof.
-// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with: a space-separated list drawn from `PASSWORD` and `TOTP` - the password where the account holds one, the code only where a factor is armed. An account that signs in only through a provider and has no factor is named neither, and the list is empty: there is nothing it can prove itself with here until it sets a factor up (UC-ID-05). A client builds its prompt from that list, never from a guess. This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
+// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15104,14 +15153,33 @@ func (c *Client) StepUpWithBody(ctx context.Context, contentType string, body io
 
 // StepUp Prove yourself again, for the irreversible
 //
-// A fresh re-authentication on the current session (security.md §5, H-03): the password, or the TOTP code where one is enrolled. The proof is recorded on the session with its moment, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore. A second privileged action needs a second proof.
-// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with: a space-separated list drawn from `PASSWORD` and `TOTP` - the password where the account holds one, the code only where a factor is armed. An account that signs in only through a provider and has no factor is named neither, and the list is empty: there is nothing it can prove itself with here until it sets a factor up (UC-ID-05). A client builds its prompt from that list, never from a guess. This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
+// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
 //
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with POST /auth/step-up (the `StepUp` operationId).
 func (c *Client) StepUp(ctx context.Context, body StepUpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStepUpRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartProviderStepUp Begin a step-up at the provider this account is connected to
+//
+// The first of `PROVIDER`'s two calls (ADR-0075 §2). An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
+// The browser comes back to this installation's own callback address, the one every registration already permits. Refused with `auth.step_up_no_provider` for an account with no such provider, and with `auth.step_up_session_required` for a caller without a session.
+//
+// Corresponds with POST /auth/step-up:provider (the `StartProviderStepUp` operationId).
+func (c *Client) StartProviderStepUp(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartProviderStepUpRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -22304,18 +22372,18 @@ func NewEnrollTotpRequestWithBody(server string, contentType string, body io.Rea
 }
 
 // NewDisableTotpRequest calls the generic DisableTotp builder with application/json body
-func NewDisableTotpRequest(server string, body DisableTotpJSONRequestBody) (*http.Request, error) {
+func NewDisableTotpRequest(server string, params *DisableTotpParams, body DisableTotpJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewDisableTotpRequestWithBody(server, "application/json", bodyReader)
+	return NewDisableTotpRequestWithBody(server, params, "application/json", bodyReader)
 }
 
 // NewDisableTotpRequestWithBody constructs an http.Request for the DisableTotp method, with any body, and a specified content type
-func NewDisableTotpRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewDisableTotpRequestWithBody(server string, params *DisableTotpParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -22339,6 +22407,21 @@ func NewDisableTotpRequestWithBody(server string, contentType string, body io.Re
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -23088,6 +23171,33 @@ func NewStepUpRequestWithBody(server string, contentType string, body io.Reader)
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStartProviderStepUpRequest constructs an http.Request for the StartProviderStepUp method
+func NewStartProviderStepUpRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/step-up:provider")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -34342,21 +34452,23 @@ type ClientWithResponsesInterface interface {
 
 	// DisableTotpWithBodyWithResponse Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands the password afresh - the one case where "recently signed in" is not enough, because a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5). Under tenant enforcement an OWNER or ADMIN cannot disable at all; the refusal names the switch.
+	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /auth/mfa:disable (the `DisableTotp` operationId).
-	DisableTotpWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DisableTotpResult, error)
+	DisableTotpWithBodyWithResponse(ctx context.Context, params *DisableTotpParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DisableTotpResult, error)
 
 	// DisableTotpWithResponse Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands the password afresh - the one case where "recently signed in" is not enough, because a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5). Under tenant enforcement an OWNER or ADMIN cannot disable at all; the refusal names the switch.
+	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /auth/mfa:disable (the `DisableTotp` operationId).
-	DisableTotpWithResponse(ctx context.Context, body DisableTotpJSONRequestBody, reqEditors ...RequestEditorFn) (*DisableTotpResult, error)
+	DisableTotpWithResponse(ctx context.Context, params *DisableTotpParams, body DisableTotpJSONRequestBody, reqEditors ...RequestEditorFn) (*DisableTotpResult, error)
 
 	// CompleteOidcSignInWithBodyWithResponse Finish the sign-in with the code the provider issued
 	//
@@ -34675,8 +34787,9 @@ type ClientWithResponsesInterface interface {
 
 	// StepUpWithBodyWithResponse Prove yourself again, for the irreversible
 	//
-	// A fresh re-authentication on the current session (security.md §5, H-03): the password, or the TOTP code where one is enrolled. The proof is recorded on the session with its moment, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore. A second privileged action needs a second proof.
-	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with: a space-separated list drawn from `PASSWORD` and `TOTP` - the password where the account holds one, the code only where a factor is armed. An account that signs in only through a provider and has no factor is named neither, and the list is empty: there is nothing it can prove itself with here until it sets a factor up (UC-ID-05). A client builds its prompt from that list, never from a guess. This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+	// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
+	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -34685,13 +34798,24 @@ type ClientWithResponsesInterface interface {
 
 	// StepUpWithResponse Prove yourself again, for the irreversible
 	//
-	// A fresh re-authentication on the current session (security.md §5, H-03): the password, or the TOTP code where one is enrolled. The proof is recorded on the session with its moment, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore. A second privileged action needs a second proof.
-	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with: a space-separated list drawn from `PASSWORD` and `TOTP` - the password where the account holds one, the code only where a factor is armed. An account that signs in only through a provider and has no factor is named neither, and the list is empty: there is nothing it can prove itself with here until it sets a factor up (UC-ID-05). A client builds its prompt from that list, never from a guess. This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+	// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
+	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /auth/step-up (the `StepUp` operationId).
 	StepUpWithResponse(ctx context.Context, body StepUpJSONRequestBody, reqEditors ...RequestEditorFn) (*StepUpResult, error)
+
+	// StartProviderStepUpWithResponse Begin a step-up at the provider this account is connected to
+	//
+	// The first of `PROVIDER`'s two calls (ADR-0075 §2). An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
+	// The browser comes back to this installation's own callback address, the one every registration already permits. Refused with `auth.step_up_no_provider` for an account with no such provider, and with `auth.step_up_session_required` for a caller without a session.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/step-up:provider (the `StartProviderStepUp` operationId).
+	StartProviderStepUpWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartProviderStepUpResult, error)
 
 	// ListAccessTokensWithResponse The caller's own personal access tokens
 	//
@@ -40385,6 +40509,54 @@ func (r StepUpResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r StepUpResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartProviderStepUpResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *ProviderStepUpAuthorization
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r StartProviderStepUpResult) GetJSON201() *ProviderStepUpAuthorization {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartProviderStepUpResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartProviderStepUpResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartProviderStepUpResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartProviderStepUpResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartProviderStepUpResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -51785,13 +51957,14 @@ func (c *ClientWithResponses) EnrollTotpWithResponse(ctx context.Context, body E
 
 // DisableTotpWithBodyWithResponse Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands the password afresh - the one case where "recently signed in" is not enough, because a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5). Under tenant enforcement an OWNER or ADMIN cannot disable at all; the refusal names the switch.
+// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /auth/mfa:disable (the `DisableTotp` operationId).
-func (c *ClientWithResponses) DisableTotpWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DisableTotpResult, error) {
-	rsp, err := c.DisableTotpWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) DisableTotpWithBodyWithResponse(ctx context.Context, params *DisableTotpParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DisableTotpResult, error) {
+	rsp, err := c.DisableTotpWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -51800,13 +51973,14 @@ func (c *ClientWithResponses) DisableTotpWithBodyWithResponse(ctx context.Contex
 
 // DisableTotpWithResponse Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands the password afresh - the one case where "recently signed in" is not enough, because a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5). Under tenant enforcement an OWNER or ADMIN cannot disable at all; the refusal names the switch.
+// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /auth/mfa:disable (the `DisableTotp` operationId).
-func (c *ClientWithResponses) DisableTotpWithResponse(ctx context.Context, body DisableTotpJSONRequestBody, reqEditors ...RequestEditorFn) (*DisableTotpResult, error) {
-	rsp, err := c.DisableTotp(ctx, body, reqEditors...)
+func (c *ClientWithResponses) DisableTotpWithResponse(ctx context.Context, params *DisableTotpParams, body DisableTotpJSONRequestBody, reqEditors ...RequestEditorFn) (*DisableTotpResult, error) {
+	rsp, err := c.DisableTotp(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -52310,8 +52484,9 @@ func (c *ClientWithResponses) GetSignInRulesWithResponse(ctx context.Context, re
 
 // StepUpWithBodyWithResponse Prove yourself again, for the irreversible
 //
-// A fresh re-authentication on the current session (security.md §5, H-03): the password, or the TOTP code where one is enrolled. The proof is recorded on the session with its moment, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore. A second privileged action needs a second proof.
-// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with: a space-separated list drawn from `PASSWORD` and `TOTP` - the password where the account holds one, the code only where a factor is armed. An account that signs in only through a provider and has no factor is named neither, and the list is empty: there is nothing it can prove itself with here until it sets a factor up (UC-ID-05). A client builds its prompt from that list, never from a guess. This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
+// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -52326,8 +52501,9 @@ func (c *ClientWithResponses) StepUpWithBodyWithResponse(ctx context.Context, co
 
 // StepUpWithResponse Prove yourself again, for the irreversible
 //
-// A fresh re-authentication on the current session (security.md §5, H-03): the password, or the TOTP code where one is enrolled. The proof is recorded on the session with its moment, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore. A second privileged action needs a second proof.
-// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with: a space-separated list drawn from `PASSWORD` and `TOTP` - the password where the account holds one, the code only where a factor is armed. An account that signs in only through a provider and has no factor is named neither, and the list is empty: there is nothing it can prove itself with here until it sets a factor up (UC-ID-05). A client builds its prompt from that list, never from a guess. This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
+// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -52338,6 +52514,22 @@ func (c *ClientWithResponses) StepUpWithResponse(ctx context.Context, body StepU
 		return nil, err
 	}
 	return ParseStepUpResult(rsp)
+}
+
+// StartProviderStepUpWithResponse Begin a step-up at the provider this account is connected to
+//
+// The first of `PROVIDER`'s two calls (ADR-0075 §2). An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
+// The browser comes back to this installation's own callback address, the one every registration already permits. Refused with `auth.step_up_no_provider` for an account with no such provider, and with `auth.step_up_session_required` for a caller without a session.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/step-up:provider (the `StartProviderStepUp` operationId).
+func (c *ClientWithResponses) StartProviderStepUpWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartProviderStepUpResult, error) {
+	rsp, err := c.StartProviderStepUp(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartProviderStepUpResult(rsp)
 }
 
 // ListAccessTokensWithResponse The caller's own personal access tokens
@@ -58933,6 +59125,39 @@ func ParseStepUpResult(rsp *http.Response) (*StepUpResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest StepUpGrant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartProviderStepUpResult parses an HTTP response from a StartProviderStepUpWithResponse call
+func ParseStartProviderStepUpResult(rsp *http.Response) (*StartProviderStepUpResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartProviderStepUpResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ProviderStepUpAuthorization
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

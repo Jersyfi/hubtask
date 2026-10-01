@@ -154,22 +154,30 @@ func (c *RestController) ConfirmTotp(w http.ResponseWriter, r *http.Request) {
 
 // DisableTotp answers POST /auth/mfa:disable. Written out for ListServiceAccounts' reason: the
 // identity helper's closure gives the linter nothing to trace the request's context through.
-func (c *RestController) DisableTotp(w http.ResponseWriter, r *http.Request) {
+func (c *RestController) DisableTotp(
+	w http.ResponseWriter, r *http.Request, _ openapi.DisableTotpParams,
+) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.UseCases == nil {
 		WriteProblem(w, errNotWired, requestID)
 		return
 	}
 
+	// The body is optional since the step-up proves the act (ADR-0075 §3): an empty one is a client
+	// that sends only the header, and the deprecated password is read where one was sent.
 	var body openapi.MfaDisable
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
+	if r.ContentLength != 0 {
+		if err := decodeJSON(r, &body); err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+	}
+	in := usecase.Input{}
+	if body.Password != nil {
+		in["password"] = *body.Password
 	}
 
-	if _, err := c.UseCases.Invoke(r.Context(), disableTotpUseCase, actorOf(r), usecase.Input{
-		"password": body.Password,
-	}); err != nil {
+	if _, err := c.UseCases.Invoke(r.Context(), disableTotpUseCase, actorOf(r), in); err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
