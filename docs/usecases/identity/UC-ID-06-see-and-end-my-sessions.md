@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11]
 state: partial
 tasks: [SI-08, SI-15, SC-09, SC-19]
-checked_by: [test/integration/session_test.go, presentation/rest/SessionProjection_test.go, apps/webapp/e2e/settings.test.mjs]
+checked_by: [test/integration/session_test.go, presentation/rest/SessionProjection_test.go, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/SessionListBounds_test.go]
 ---
 
 # See where I am signed in and end a session
@@ -41,10 +41,10 @@ marked. *End* ends one; *Sign out everywhere else* ends all others.
 
 ## Today
 
-Check 2 holds since SC-09: each session says how it was opened, the provider by its name
-(`TestAProviderSessionNamesItsProviderInItsOwnTenantOnly`, the sessions walk). Found while checking
-the rest, tracked in issue #1104 and cut as SC-19:
+Checks 1, 2, 3 and 5 hold: since SC-09 each session says how it was opened, the provider by its name
+(`TestAProviderSessionNamesItsProviderInItsOwnTenantOnly`); since SC-19 the list holds only what the
+next request accepts (`TestTheListShowsOnlyWhatTheNextRequestAccepts`). Found while checking the rest,
+tracked in issue #1113:
 
-* **Check 5 fails:** the list drops only revoked and expired sessions. One past the workspace's
-  maximum age, its idle time, or a required new password is refused on its next request but still
-  listed as open.
+* **Check 4 fails:** *Sign out everywhere* ends every session, the current one included, and the
+  screen then announces that every *other* session ended. There is no way to end all but this one.
