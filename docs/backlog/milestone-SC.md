@@ -27,6 +27,14 @@ are built:
   after that credential is proven once, for every provider kind and mode; an account with no
   credential yet is connected at once (SC-01).
 
+**Six tasks added on 2026-10-01** (SC-16 to SC-21), from the review of SC-03, SC-06 and SC-09: the
+owner agreed the proposals for what those three left open or the use cases left undefined. Two of
+them are decisions of their own, [ADR-0075](../adr/ADR-0075-step-up-with-what-the-account-holds.md)
+(a step-up proves the account with whatever it holds) and
+[ADR-0076](../adr/ADR-0076-withdrawing-an-offered-provider.md) (an offered provider is withdrawn with
+a count, a notice and a way back in). The order: SC-19 and SC-21 first, then SC-16, SC-17, SC-18,
+SC-20.
+
 **And one design the owner asked for:** AI offered by the installation, with locks on which sources
 a workspace may use — [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md), accepted on
 2026-09-30.
@@ -169,8 +177,12 @@ typed by kind; the lock column worded per kind ("make it stricter", "go higher",
 The workspace's legal links, language, time zone and week start show the installation's value. The
 overview's operator count is right on an empty register, with a plural.
 
+Since SC-09 the sign-in card shows the operator's accessibility statement only where one is set
+(`design-system.md` §10), so this screen is where the operator sets it. The health report names a
+multi-tenant installation (`D5`, `D6`) without one; a single-workspace installation never sees it.
+
 **Acceptance:** every key of every area saved from the screen in a walk; `hubctl admin settings` and
-the file refuse the same values.
+the file refuse the same values; the health hint on a multi-tenant installation without the link.
 
 ---
 
@@ -272,11 +284,124 @@ GitLab redraws replaced by the originals or by the letter tile; marks without a 
 
 ---
 
+## SC-16 — A step-up for every account **[L]**
+
+*Depends on: SC-09.* · [ADR-0075](../adr/ADR-0075-step-up-with-what-the-account-holds.md)
+
+**Use cases:** UC-ID-05 (5), UC-ID-03 (6), UC-ID-12 (4)
+
+The step-up learns `RECOVERY` (a recovery code, consumed) and `PROVIDER` (a fresh sign-in at the
+connected provider with `prompt=login` and `max_age=0`; the subject must be the identity already
+connected, `auth_time` must be present and fresh, otherwise `auth.step_up_provider_not_fresh`).
+`stepup.Methods` answers what the account holds; the dialog offers exactly that and, for a provider,
+names it and says after the return that the confirmation holds. `DisableTotp` takes the step-up
+token like every privileged action; its body's `password` stays accepted for one release, marked
+`deprecated`. The profile's "set up a second factor first" bridge from SC-09 goes, and *Turn off* is
+offered again wherever the workspace's rule does not require the factor.
+
+**Acceptance:** a test per method that a stolen session alone proves nothing; a test that a
+different identity at the same provider is refused; a test that a provider without `auth_time` is
+refused with the sentence; a walk as a provider-only administrator without a factor changing a
+sign-in rule, and as a provider-only member with a factor turning it off.
+
+---
+
+## SC-17 — Replace my authenticator **[L]**
+
+*Depends on: SC-16.*
+
+**Use cases:** UC-ID-03 (4, 5, 6), UC-ID-02 (6)
+
+*Replace authenticator* is its own action on the profile, offered whenever a factor is on — also
+where the workspace's rule requires one. A step-up with any method the account holds, a new secret
+with its QR code, confirmation with a code from the new app, then one atomic swap that answers ten
+new recovery codes in the one-time panel; the old factor and the old codes stay valid until the
+confirmation, so there is never a moment without a factor. The server keeps the replacement as a
+second, unconfirmed enrolment beside the active one, with its own audit action `mfa.replaced`.
+Somebody with neither the app, nor a code, nor a password, nor a provider is not let through:
+`NG-weaker-recovery` stands, and an administrator removes and re-invites.
+
+**Acceptance:** a test that the old factor signs in until the confirmation and not after; a test
+that the rule "required of everyone" is never broken during a replacement; the walk under a
+requiring rule.
+
+---
+
+## SC-18 — The code step ends honestly, and a recovery code leaves a note **[L]**
+
+*Depends on: SC-17, for the note's link.* · issue #1100
+
+**Use cases:** UC-ID-02 (2, 6)
+
+Sixty seconds before the code step expires, the line under the countdown says so, also through a
+live region. At `0:00` the card returns to step one with the address kept, empties both code fields
+and says that the sign-in waited too long. The window itself is not extended — it is a security
+bound. After a sign-in with a recovery code, the first page shows a note at the top of its content
+area (not in the header: ADR-0065 decision 4 concerns statements about the application, this one is
+about this person's sign-in): "You signed in with a recovery code. 7 of 10 left.", in the danger tone
+at zero, linking to *Replace authenticator*. It stays in the tab across a reload until it is closed
+or the authenticator is replaced — the tab, because the number arrived with this sign-in only.
+
+**Acceptance:** a walk that lets the step expire; a walk that signs in with a recovery code and
+follows the note's link.
+
+---
+
+## SC-19 — The session list shows only what is open **[L]**
+
+*Depends on: SC-09.* · issue #1104
+
+**Use cases:** UC-ID-06 (5)
+
+`ListSessions` filters with the checks the next request makes — `Session.Verify(now)` for maximum
+age and idle time, `VerifyAgainstRotation` for a required new password — so there is one definition
+of "open". Server only; no job tidies expired sessions, since nothing may enumerate tenants.
+
+**Acceptance:** one test per bound: a session past it is refused on its next request and absent
+from the list.
+
+---
+
+## SC-20 — Withdrawing an offered provider **[L]**
+
+*Depends on: SC-21.* · [ADR-0076](../adr/ADR-0076-withdrawing-an-offered-provider.md)
+
+**Use cases:** UC-ID-12 (6), UC-INS-11 (5)
+
+An offered provider carries the count of workspaces that switched it on, moved only by the
+workspace's own switch, in the same transaction. Withdrawing asks for a date (fourteen days by
+default) and shows the count; until then the provider works, the affected workspaces' sign-in screens
+say when it ends, and the operator can cancel. *Withdraw now* stays behind a step-up for a
+compromised provider. A workspace left with no way in after an offer ended falls back to the
+password for accounts that hold one — recorded in its trail, shown to its administrators until they
+switch on another way. The date is honoured where the offer is read; no scheduled job.
+
+**Acceptance:** a test that the count moves with the switch and never names a workspace; a test
+that a workspace whose only way was withdrawn signs in by password and an account without a
+password does not; a walk of announce, cancel and *Withdraw now*.
+
+---
+
+## SC-21 — A provider is switched in the list only **[L]**
+
+*Depends on: nothing.* · [ADR-0076](../adr/ADR-0076-withdrawing-an-offered-provider.md)
+
+**Use cases:** UC-ID-12 (6), UC-ID-11 (8)
+
+`PUT /identity-providers/{id}` refuses a change of `enabled` with `identity_provider.switch_in_list`
+and accepts the same value; a new provider is created switched off; the field is `deprecated` in the
+contract and goes with its next major version. hubctl and MCP follow the contract.
+
+**Acceptance:** a test that a changed `enabled` is refused and an echoed one accepted; the contract
+test.
+
+---
+
 ## SC-15 — The walk, by use case **[L]**
 
 *Depends on: all.*
 
-**Use cases:** UC-ID-01, UC-ID-02, UC-ID-03, UC-ID-04, UC-ID-05, UC-ID-06, UC-ID-08, UC-ID-10, UC-ID-11, UC-ID-12, UC-INS-01, UC-INS-04, UC-INS-05, UC-INS-09, UC-AI-05
+**Use cases:** UC-ID-01, UC-ID-02, UC-ID-03, UC-ID-04, UC-ID-05, UC-ID-06, UC-ID-08, UC-ID-10, UC-ID-11, UC-ID-12, UC-INS-01, UC-INS-04, UC-INS-05, UC-INS-09, UC-INS-11, UC-AI-05
 
 `/usecase-check` over the milestone, then a walk per deployment — `D1` fresh compose to first task;
 `D2` a household without mail; `D4` a company on Entra; `D5` a consumer on an offered model — with

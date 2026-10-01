@@ -794,6 +794,8 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0072 | AI at the installation level: an offered model, and who may bring their own | accepted |
 | 0073 | A private hub narrows what the workspace's roles reach | accepted |
 | 0074 | Managed accounts: a sign-in name, a start password, and who may renew it | accepted |
+| 0075 | A step-up proves the account with whatever it holds | accepted |
+| 0076 | Withdrawing an offered sign-in provider: a count, a notice, and a way back in | accepted |
 
 ---
 
