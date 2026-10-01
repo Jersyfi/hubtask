@@ -357,25 +357,8 @@
     </main>
   </div>
 
-  <!-- The way to the accessibility statement on the screens that have no other one
-       (design-system.md §10): signed out there is no account group and no "About Hubtask", so the
-       foot of the sign-in screen is the only place it can be - and it is the place it matters
-       most, because a barrier at the door is the one nothing behind the door makes up for. Signed
-       in the statement is on `/installation` beside the versions, and this footer is gone: a
-       landmark carrying one external link took 51 px off every screen, and off the canvas of a
-       board, for a link nobody follows while they are working.
-
-       The statement lives on the website, unversioned, so that what it says about a walk is not
-       tied to the build that shipped before the walk. A top-level navigation, which `connect-src`
-       does not govern; a new tab, because the application is what the reader was in the middle
-       of. -->
-  {#if !session.isSignedIn}
-    <footer class="foot">
-      <a href="https://hubtask.eu/accessibility/" target="_blank" rel="noopener">
-        {t('app.about.accessibility')}
-      </a>
-    </footer>
-  {/if}
+  <!-- No footer here. The signed-out screens are cards outside this frame, with the operator's own
+       links (UC-ID-18), and signed in the statement about Hubtask is on `/installation`. -->
 
   <!-- The primary destinations where a thumb is, on `compact` only; "You" opens the account group
        as a sheet from the bottom, because there is no avatar in the bar on a phone. -->
@@ -497,20 +480,6 @@
   /* Above `xlarge` the content is capped and centred rather than stretched across the screen;
      the cap is the token's and applies from wherever the screen is wider than it. */
   .content { max-inline-size: var(--layout-content-max); margin-inline: auto; }
-
-  .foot {
-    padding: var(--sp-200) var(--sp-300);
-    border-block-start: var(--bw-hairline) solid var(--border-subtle);
-    font-size: var(--fs-075);
-    color: var(--text-subtle);
-  }
-
-  .foot a { color: inherit; }
-
-  .foot a:focus-visible {
-    outline: var(--bw-ring) solid var(--focus-ring);
-    outline-offset: var(--sp-025);
-  }
 
   /* Below `medium` the bottom bar is fixed over the end of the page, so the page ends above it -
      the last row of a list is reachable rather than under the bar. Only where there is a bar:

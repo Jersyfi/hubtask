@@ -630,11 +630,14 @@ on the website at convergence (`roadmap.md` phase 5, the 1.0 site) and reachable
 application itself, unversioned like the site, and it is updated whenever an assessment is — a
 statement that describes a walk two releases ago is a statement that is false.
 
-**Where the application offers it.** In each of the two places that is the only place its reader
-has, and in neither more than once: *About Hubtask* (`/installation`) while there is a session,
-beside the versions somebody quotes when they report anything; and the foot of the screens before
-one — sign-in, an invitation, a consent — where there is no account group, and where a barrier is
-the one nothing behind the door makes up for. It is deliberately **not** a footer on every screen:
+**Where the application offers it.** *About Hubtask* (`/installation`) while there is a session,
+beside the versions somebody quotes when they report anything. The foot of the screens before one —
+sign-in, an invitation, a consent — carries the **operator's** links, the accessibility statement
+among them, and only where the operator set one ([UC-ID-18](../usecases/identity/UC-ID-18-show-the-legal-information-before-sign-in.md)
+checks 4 and 5): the service a person is signing in to is the operator's, and the project's
+statement standing in for one the operator never wrote would answer for an installation the project
+does not run. Until SC-09 (2026-10-01) the foot fell back to the project's statement. It is
+deliberately **not** a footer on every screen:
 a landmark carrying one external link takes a band off every page and off the canvas of a board,
 for a link nobody follows while they are working, and no comparable product keeps one.
 

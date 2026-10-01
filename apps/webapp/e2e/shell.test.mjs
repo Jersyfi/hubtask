@@ -513,7 +513,10 @@ test('chromium: the accessibility statement is reachable, signed in and signed o
 
   const signedOut = await open(browser, 1280, { signedIn: false });
   t.after(signedOut.close);
-  assert.equal(await signedOut.page.getByRole('contentinfo').getByRole('link', { name: STATEMENT }).count(), 1, 'no way to the statement from the sign-in screen');
+  // Signed out, the foot carries the operator's links and nothing of the project's (UC-ID-18 check
+  // 5, SC-09): an installation that set no accessibility statement shows none, rather than the
+  // project's standing in for a service it does not run.
+  assert.equal(await signedOut.page.locator('footer a[href*="hubtask.eu"]').count(), 0, 'the sign-in screen points at hubtask.eu');
 
   assert.deepEqual(failures, []);
   assert.deepEqual(signedOut.failures, []);
@@ -532,8 +535,6 @@ test('chromium: 375 px — signed out, nothing is reserved for a bar that is not
   assert.equal(await page.getByRole('navigation', { name: 'Sections' }).count(), 0, 'a bottom bar without a session');
   const box = await page.evaluate(() => ({ document: document.documentElement.scrollHeight, window: window.innerHeight }));
   assert.equal(box.document, box.window, `the sign-in screen scrolls ${box.document - box.window} px into nothing`);
-  // And the one link out is still at the foot of it, which is what the reservation was pushing.
-  assert.equal(await page.getByRole('contentinfo').getByRole('link', { name: STATEMENT }).count(), 1, 'no way to the statement on a phone');
 
   assert.deepEqual(failures, []);
 });

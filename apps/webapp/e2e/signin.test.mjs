@@ -593,3 +593,35 @@ test('no provider button before the rules name a provider', async () => {
     await close();
   }
 });
+
+// UC-ID-18 checks 4 and 5: the footer's links are the operator's, labelled neutrally whatever they
+// point at, and a link nobody set is not shown - the accessibility link included, which used to fall
+// back to hubtask.eu and say so in its label.
+test('the footer shows only the links that were set, with neutral labels', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    for (const [legal, expected] of [
+      [{}, []],
+      [{ imprint_url: 'https://op.example/imprint', accessibility_url: 'https://op.example/a11y' }, ['Imprint', 'Accessibility']],
+    ]) {
+      const context = await browser.newContext();
+      await context.route('**/api/v1/**', async (route) => {
+        if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sign-in-rules')) {
+          return route.fulfill({ json: { ...RULES, legal } });
+        }
+        return stubFor({ answer: refused })(route);
+      });
+      const page = await context.newPage();
+      await page.goto(origin);
+      await page.waitForSelector('text=to contoso.hubtask.eu');
+      const links = await page.locator('footer a').allTextContents();
+      assert.deepEqual(links.map((text) => text.trim()), expected);
+      assert.equal(await page.locator('footer a[href*="hubtask.eu"]').count(), 0, 'the footer points at hubtask.eu');
+      await context.close();
+    }
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
