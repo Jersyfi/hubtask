@@ -1459,7 +1459,6 @@
   "app.sign_in.use_code": "Use a code instead",
   "app.sign_in.second_factor_hint": "Your password was right. This account also asks for a code from your authenticator.",
   "app.sign_in.second_factor_after_reset": "Your new password is set. This account also asks for a code from your authenticator before you are signed in.",
-  "app.sign_in.provider": "Sign in with my organisation's provider",
   "app.sign_in.provider_working": "Handing you over",
   "app.sign_in.or": "or",
   "app.sign_in.to_workspace": "to {host}",

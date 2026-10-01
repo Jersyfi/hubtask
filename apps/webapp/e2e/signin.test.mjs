@@ -568,3 +568,28 @@ test('a provider arrival that meets a password is asked for it on the card, then
     await close();
   }
 });
+
+// UC-ID-01 check 5: a provider button appears only when the rules name a provider. Before they are
+// read - or when they cannot be - the card offers the password and nothing it cannot back.
+test('no provider button before the rules name a provider', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    // The rules never arrive: what is asserted is what the card offers in the meantime.
+    if (path.endsWith('/api/v1/auth/sign-in-rules')) return new Promise(() => {});
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(origin);
+    await page.locator('input[type="email"]').waitFor();
+    await page.waitForTimeout(500);
+    assert.equal(await page.getByRole('button', { name: /Sign in with/ }).count(), 0, 'a provider button before any provider was named');
+    assert.equal(await page.getByText('or', { exact: true }).count(), 0, 'an "or" with nothing after it');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
