@@ -43,7 +43,7 @@
   import { tour } from '../tour.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
-  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { t } from '../i18n/i18n.svelte.ts';
   import { ADMINISTRATION, DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
   import type { Resolution } from '../router.ts';
 
@@ -74,22 +74,6 @@
   $effect(() => {
     if (!session.isSignedIn) return;
     return containers.start();
-  });
-
-  /**
-   * The one place the language is decided, because it is the one place that knows both halves:
-   * what the reader prefers (their account, then their browser) and what the installation has
-   * (the manifest). `i18n-l10n.md` §2's order, with the parenthesis that inverts its top - the
-   * account wins over `Accept-Language`, which is what answers before there is an account.
-   *
-   * It runs again whenever either half changes, which is what makes the manifest's arrival turn
-   * the document round on an installation that serves a right-to-left locale.
-   */
-  $effect(() => {
-    messages.adopt(
-      { account: actor.locale, requested: navigator.languages },
-      manifest.supportedLocales,
-    );
   });
 
   /**
@@ -448,7 +432,6 @@
   }
 
   .body { display: flex; flex: 1; min-width: 0; }
-
 
   /* The pinned navigation, from `expanded`: as wide as the token says, and it stays in view while
      the page scrolls under the bar. Its own scroll, so a long tree does not lengthen the page. */

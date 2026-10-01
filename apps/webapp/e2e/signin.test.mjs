@@ -16,6 +16,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
+import { ENROLLMENT, walkSetup } from './secondfactor.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -166,6 +167,8 @@ test('a second factor becomes the second step, with the code field and the ident
 
     await page.waitForSelector('text=Signing in as');
     assert.ok(await page.locator('text=walker@example.invalid').count());
+    // UC-ID-02 check 7: the step carries the name the profile gives the feature.
+    assert.equal(await page.locator('h1').innerText(), 'Second factor');
 
     // One field, six places: pasting works, which is what one field buys and six do not.
     const code = page.getByLabel('Code from your authenticator');
@@ -177,6 +180,177 @@ test('a second factor becomes the second step, with the code field and the ident
 
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.waitForFunction(() => !document.querySelector('input[autocomplete="one-time-code"]'));
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// UC-ID-02 check 4: the recovery code as it was shown - four groups of four letters and digits,
+// pasted in one go with its dashes - reaches the server whole, from a field with a text keyboard.
+// Before SC-03 the field was numeric and eight long, so every recovery code was cut off and refused.
+test('a recovery code is taken as it was shown, dashes and all, with a text keyboard', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = {};
+  const { browser, page } = await open(origin, async (route) => {
+    const request = route.request();
+    if (new URL(request.url()).pathname.endsWith('/api/v1/auth/sessions:verify')) {
+      sent.verify = request.postDataJSON();
+      return route.fulfill({ status: 201, json: { ...TOKENS, recovery_codes_remaining: 7 } });
+    }
+    return stubFor({ answer: owed })(route);
+  });
+  try {
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+    await page.getByRole('button', { name: 'I do not have my authenticator' }).click();
+    const field = page.getByLabel('Recovery code');
+    // The focus follows the step: the field is where the next keystroke lands.
+    await page.waitForFunction(() => document.activeElement?.getAttribute('autocomplete') === 'off');
+    assert.equal(await field.getAttribute('inputmode'), 'text', 'a recovery code holds letters');
+    assert.equal(await field.getAttribute('maxlength'), null, 'nothing cuts a pasted code off');
+
+    // Pasted, not typed: one insertion of the whole code, as a password manager or the clipboard
+    // delivers it.
+    await field.focus();
+    await page.keyboard.insertText('K7QM-2XRT-P4ZL-3VWA');
+    assert.equal(await field.inputValue(), 'K7QM-2XRT-P4ZL-3VWA');
+
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await field.waitFor({ state: 'detached' });
+    assert.equal(sent.verify?.recovery_code, 'K7QM-2XRT-P4ZL-3VWA', 'the code reached the server whole');
+    assert.equal(sent.verify?.code, undefined, 'the recovery code was not sent as an authenticator code');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// UC-ID-04 check 5: a reset of an account with a second factor continues on the card into the code
+// step - whose account, how long the step waits, the code field - and only the code signs in.
+// Before SC-03 the reset card stayed on its form after the 202, with the link already spent.
+test('a reset of an account with a second factor continues into the code step, to the end', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = {};
+  const inFourMinutes = new Date(Date.now() + 4 * 60 * 1000).toISOString();
+  const { browser, page } = await open(origin, async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/password:reset')) {
+      sent.reset = request.postDataJSON();
+      return route.fulfill({
+        status: 202,
+        json: {
+          pending_token: 'totp-after-reset', methods: ['TOTP', 'RECOVERY'],
+          expires_at: inFourMinutes, email: 'anna@contoso.example',
+        },
+      });
+    }
+    if (path.endsWith('/api/v1/auth/sessions:verify')) {
+      sent.verify = request.postDataJSON();
+      return route.fulfill({ status: 201, json: TOKENS });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  try {
+    await page.goto(`${origin}/reset#token=e2e-reset`);
+    await page.getByLabel('New password').fill('seven blue lanterns above the harbour');
+    await page.getByRole('button', { name: 'Set the password' }).click();
+
+    // The same card moves on: the step, whose account, the clock, the code field.
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+    assert.deepEqual(sent.reset, { token: 'e2e-reset', password: 'seven blue lanterns above the harbour' });
+    assert.ok(await page.getByText('anna@contoso.example').isVisible(), 'the identity line names the account');
+    assert.ok(await page.getByRole('button', { name: 'Not you?' }).isVisible(), 'the way back is offered');
+    assert.match(await page.getByText(/This sign-in waits/).innerText(), /[34]:\d\d/, 'the remaining time is shown');
+    assert.ok(await page.getByText(/new password is set/i).isVisible(), 'the step says the password was set, not that it was right');
+
+    await page.locator('input[autocomplete="one-time-code"]').fill('123456');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.locator('input[autocomplete="one-time-code"]').waitFor({ state: 'detached' });
+    assert.deepEqual(sent.verify, { pending_token: 'totp-after-reset', code: '123456' });
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// UC-ID-03 checks 1 and 2 during a sign-in the workspace routed into setup: the same field and the
+// same panel as on the profile, and only *Continue* opens the session.
+test('a setup forced during sign-in confirms in the code field and shows the codes once', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = {};
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, permissions: ['clipboard-read', 'clipboard-write'] });
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/mfa/totp:enroll')) {
+      sent.enroll = request.postDataJSON();
+      return route.fulfill({ json: ENROLLMENT });
+    }
+    if (path.endsWith('/api/v1/auth/mfa/totp:confirm')) {
+      sent.confirm = request.postDataJSON();
+      return route.fulfill({ json: { armed: true, tokens: { access_token: 'e2e-access', refresh_token: 'e2e-refresh' } } });
+    }
+    return stubFor({
+      answer: () => ({ status: 202, json: { pending_token: 'enroll-1', methods: ['ENROLL'], expires_at: new Date(Date.now() + 300_000).toISOString() } }),
+    })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(origin);
+    await page.waitForSelector('text=to contoso.hubtask.eu');
+    await page.locator('input[type="email"]').fill('anna@contoso.example');
+    await page.locator('input[autocomplete="current-password"]').fill('annas-own-password');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+    // UC-ID-03 check 7: why this step is here, and whose account it is for.
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+    assert.ok(await page.getByText('Your workspace requires a second factor.', { exact: false }).isVisible(), 'the card does not say why');
+    assert.ok(await page.getByText('anna@contoso.example').isVisible(), 'the identity line names the account');
+    assert.ok(await page.getByRole('button', { name: 'Not you?' }).isVisible(), 'the way back is offered');
+
+    await walkSetup(page, sent);
+    assert.deepEqual(sent.enroll, { pending_token: 'enroll-1' });
+    assert.equal(sent.confirm?.pending_token, 'enroll-1');
+    // Continue is what signs in: the card is gone.
+    await page.getByRole('button', { name: 'Continue' }).waitFor({ state: 'detached' });
+    assert.equal(await page.getByText(ENROLLMENT.recovery_codes[0]).count(), 0, 'the codes outlived the panel');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// Before there is an account, the browser's language decides (i18n-l10n.md §2) - on the signed-out
+// card as much as inside the application. The card used to render the source language whatever the
+// browser asked for, because only the frame read the installation's list of languages.
+test('the signed-out card speaks the browser’s language where the installation has it', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, locale: 'de-DE' });
+  await context.route('**/api/v1/**', async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/meta/capabilities')) {
+      return route.fulfill({ json: { product_version: 'e2e', api_version: 'v1', tenancy_mode: 'multi', item_types: [], view_layouts: [], supported_locales: [{ locale: 'en', direction: 'ltr' }, { locale: 'de', direction: 'ltr' }], roles: [], limits: {}, features: { sign_in_rules: true } } });
+    }
+    return stubFor({ answer: owed })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(origin);
+    await page.getByRole('heading', { name: 'Anmelden' }).waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.lang), 'de');
+
+    // And the second step with it: the identity line and the clock, in the same language.
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.locator('button[type="submit"]').click();
+    await page.getByRole('heading', { name: 'Zweiter Faktor' }).waitFor();
+    assert.ok(await page.getByText('Anmeldung als').isVisible(), 'the identity line is not German');
+    assert.ok(await page.getByRole('button', { name: 'Nicht du?' }).isVisible());
   } finally {
     await browser.close();
     await close();
@@ -280,6 +454,59 @@ test('every provider is a button of its own, and only the pressed one is working
   }
 });
 
+// UC-ID-08 check 5: the return from the provider is drawn on the signed-out card - one landmark, one
+// heading, no navigation of an application nobody is signed into - and a failure there offers the
+// way back. Before SC-03 it rendered inside the app's frame while signed out.
+test('the return from a provider happens on the card, and a refusal offers the way back', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.route('**/api/v1/**', stubFor({ answer: refused }));
+  const page = await context.newPage();
+  try {
+    // The provider sent the browser back with a refusal rather than a code.
+    await page.goto(`${origin}/auth/callback?error=access_denied&state=the-state`);
+    await page.getByRole('heading', { name: 'Not signed in' }).waitFor();
+    assert.ok(await page.getByText('to contoso.hubtask.eu').isVisible(), 'this is not the sign-in card');
+    assert.equal(await page.locator('main').count(), 1);
+    assert.equal(await page.locator('h1').count(), 1);
+    assert.equal(await page.getByRole('navigation').count(), 0, 'the frame of the application is drawn while signed out');
+    assert.equal(new URL(page.url()).search, '', 'the provider’s answer stayed in the address');
+
+    await page.getByRole('button', { name: 'Back to sign-in' }).click();
+    await page.getByRole('heading', { name: 'Sign in' }).waitFor();
+    assert.ok(await page.locator('input[type="email"]').isVisible(), 'the way back does not lead to the form');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+test('a provider return that signs in leaves the card for the application', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const sent = {};
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    if (new URL(request.url()).pathname.endsWith('/api/v1/auth/oidc:callback')) {
+      sent.callback = request.postDataJSON();
+      return route.fulfill({ status: 201, json: TOKENS });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/auth/callback?code=the-code&state=the-state`);
+    await page.waitForFunction(() => location.pathname === '/', null, { timeout: 10_000 });
+    assert.deepEqual(sent.callback, { code: 'the-code', state: 'the-state' });
+    assert.equal(await page.getByRole('heading', { name: 'Signing you in' }).count(), 0, 'the card stayed after the session opened');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // ADR-0071's addendum (E2): a provider arrival whose address matches an account with a password
 // is not signed in on the provider's word. The callback hands the step to the card, the card asks
 // for the account's password once, and - where the account has a second factor - continues into the
@@ -329,7 +556,7 @@ test('a provider arrival that meets a password is asked for it on the card, then
     await page.getByRole('button', { name: 'Confirm and connect' }).click();
 
     // The account has a second factor: the ordinary code step follows on the same card.
-    await page.getByRole('heading', { name: 'Second factor' }).or(page.getByRole('heading', { name: 'One more step' })).first().waitFor();
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
     assert.deepEqual(sent.link, { pending_token: 'link-1', password: 'annas-own-password' });
 
     await page.locator('input[autocomplete="one-time-code"]').fill('123456');

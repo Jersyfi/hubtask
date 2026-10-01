@@ -5,8 +5,8 @@ context: identity
 actors: [PE-person, PE-member, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13]
-state: partial
-tasks: [SI-04, SI-15]
+state: built
+tasks: [SI-04, SI-15, SC-03]
 checked_by: [core/application/service/identity/Reset_test.go, apps/webapp/e2e/signin.test.mjs]
 ---
 
@@ -56,8 +56,3 @@ person falls back to recovery codes or a local recovery (see *Where it ends*).
 * No security questions, no hints, no SMS.
 * A household without a mail server is not served by this use case; that is a separate use case
   for local recovery.
-
-## Today
-
-* **Check 5 fails in the web app.** The server answers the code step (202), but the reset card
-  never shows it and the link is already spent — the person is stuck. Tracked as SC-03.

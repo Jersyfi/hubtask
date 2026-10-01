@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13]
 state: partial
-tasks: [H-02, SI-13, SI-14, SI-15]
+tasks: [H-02, SI-13, SI-14, SI-15, SC-03]
 checked_by: [apps/webapp/e2e/signin.test.mjs]
 ---
 
@@ -49,7 +49,13 @@ page says how many codes remain and leads to setting the authenticator up again.
 
 ## Today
 
-* **Check 4 fails:** the recovery field is a six-to-eight digit numeric field (`maxlength=8`,
-  `inputmode="numeric"`), so a pasted recovery code is cut off and always refused — signing in with
-  a recovery code is impossible in the web app.
-* **Check 7 fails:** the step is titled "One more step".
+Checks 4 and 7 hold since SC-03 (`signin.test.mjs`: the recovery code pasted with its dashes into a
+text field, and the heading asserted exactly). Found while checking the rest, tracked in
+issue #1100:
+
+* **Check 2 fails at its end:** the remaining time is shown and counts down, but when it reaches
+  zero the card stays on the step at `0:00` — nothing says the time ran out and nothing returns to
+  step one; the next submit is refused by the server.
+* **Check 6 fails:** after a recovery code the count is announced to a screen reader once
+  (`AppFrame.svelte`), not shown as a banner, and there is no link to set the authenticator up
+  again.

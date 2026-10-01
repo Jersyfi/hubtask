@@ -24,9 +24,9 @@ export const invalid: Story = {
   args: { mode: 'invalid' },
 };
 
-export const recovery: Story = {
+export const eight: Story = {
   name: 'Eight places, grouped in fours',
   about:
-    'The contract allows six to eight characters, and a recovery code is the long one. The group is where the eye breaks the number, and it is a prop rather than a second component.',
-  args: { mode: 'recovery' },
+    'The contract allows six to eight digits, for an authenticator set to eight. The group is where the eye breaks the number, and it is a prop rather than a second component. A recovery code is not this field: it holds letters and arrives pasted with dashes, so it takes a plain field.',
+  args: { mode: 'eight' },
 };

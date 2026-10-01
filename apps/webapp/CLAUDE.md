@@ -89,7 +89,9 @@ from the same commit and cannot be a version apart.
   second unauthenticated health surface; and `lib/maturity.ts` carries the stage of
   [ADR-0035](../../docs/adr/ADR-0035-one-product-version.md) §2, which is what the banner reads and
   what convergence changes by changing one line. The language is applied in exactly one place, the
-  frame, for the reason the theme is: an attribute two modules set is an attribute nobody owns.
+  application root (`App.svelte`) - above the frame, because the signed-out card is not inside it and
+  speaks the browser's language too - for the reason the theme is: an attribute two modules set is
+  an attribute nobody owns.
 * **The session is a bearer pair, and the browser holds it for as long as the tab.**
   `POST /auth/sessions` answers an access token of fifteen minutes beside a refresh token of thirty
   days (H-01), and every route in the contract takes the first as its bearer — including the one

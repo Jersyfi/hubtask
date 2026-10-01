@@ -24,9 +24,11 @@
   // already shows a blinking caret in an accented place is a field claiming to be typed into while
   // somebody is reading a different part of the screen.
   //
-  // Six or eight, because the contract allows both (`SignInCompletion.code`, 6..8) and a TOTP code
-  // is six while a recovery code may be eight. The group is where a human eye breaks a number,
-  // which is where an authenticator app breaks it too.
+  // Six or eight, because the contract allows both (`SignInCompletion.code`, 6..8): an
+  // authenticator's code is six digits, and some authenticators are set to eight. A recovery code
+  // is not this field's - it is sixteen letters and digits in four groups, pasted with its dashes,
+  // and it needs a text keyboard and no length cut. The group is where a human eye breaks a
+  // number, which is where an authenticator app breaks it too.
 
   import Field from './_Field.svelte';
 
@@ -37,7 +39,7 @@
     isRequired?: boolean;
     /** Ids of anything else that describes the control, appended to the field's own. */
     describedBy?: string;
-    /** How many places. Six for an authenticator's code, eight for a recovery code. */
+    /** How many places. Six for an authenticator's code, eight where an authenticator is set so. */
     length?: 6 | 8;
     /** Where the eye breaks the number. `0` draws one run. */
     groupOf?: number;
