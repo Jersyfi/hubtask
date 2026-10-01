@@ -12,7 +12,7 @@ import (
 // P-12 and UC-ID-02 check 7 (SC-09): one concept has one name everywhere - *second factor* - and
 // nothing internal reaches a reader: no field name, no "enrolment", no "armed". Held as a test so
 // that the catalogue grep the task was accepted on stays empty.
-var retired = regexp.MustCompile(`2FA|TOTP|[Tt]wo-step|[Ee]nrol|\b[Aa]rmed\b|recovery_code|\bscharf|Zwei-Faktor`)
+var retired = regexp.MustCompile(`(?i)2FA|TOTP|two-step|enrol|armed|recovery_code|scharf|entschärf|Zwei-Faktor`)
 
 func TestNoRetiredWordReachesAReader(t *testing.T) {
 	for _, name := range []string{"en.json", "de.json"} {

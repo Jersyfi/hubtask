@@ -2524,7 +2524,7 @@
   "app.retention.hold_not_retain": "A hold is not the same as keeping one entry: keeping takes a single entry out of a running period, a hold overrides every rule and reaches everything below it.",
   "app.retention.written_announced": "Policy written.",
   "app.retention.armed_announced": "Rule switched on.",
-  "app.retention.disarmed_announced": "Policy disarmed.",
+  "app.retention.disarmed_announced": "Rule switched off.",
   "app.retention.withdrawn_announced": "Policy withdrawn.",
   "app.retention.released_announced": "Hold lifted.",
   "app.retention.placed_announced": "Hold placed.",
