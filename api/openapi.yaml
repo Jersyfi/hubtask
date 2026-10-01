@@ -4344,7 +4344,8 @@ paths:
         a public provider held to `INVITED_ONLY`. Auditable.
 
         The client secret is required when there is nothing to keep, and optional afterwards, as on
-        the collection.
+        the collection. And as there, `enabled` is not switched here: a created provider is off, and
+        a changed value is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
       requestBody:
         required: true
         content:
@@ -4407,6 +4408,10 @@ paths:
         account that already exists to whoever arrives with its address.
 
         The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+
+        **A new provider is created switched off** - configuring is not offering. It becomes a way
+        in when the list of ways to sign in switches it on (`:offer`); `enabled: true` here is
+        refused with `identity_provider.switch_in_list` (ADR-0076 §5).
       requestBody:
         required: true
         content:
@@ -4439,6 +4444,10 @@ paths:
 
         A provider of the `installation` scope is answered `404` here: it is offered to this
         workspace and is not its to change. Auditable.
+
+        Whether the provider is a way in is not set here: a changed `enabled` is refused with
+        `identity_provider.switch_in_list`, and the list of ways to sign in switches it
+        (`:offer`, ADR-0076 §5).
       requestBody:
         required: true
         content:
@@ -9188,7 +9197,17 @@ components:
           default: 0
         enabled:
           type: boolean
-          default: true
+          deprecated: true
+          x-deprecated-reason: Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.
+          description: >
+            **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of
+            ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a
+            workspace's own provider (`/identity-providers`, `/identity-provider`) a value that
+            differs from the provider's is refused with `identity_provider.switch_in_list`; the same
+            value, or none, is accepted and changes nothing, so a client that echoes the field keeps
+            working. A workspace's new provider is created switched off. On the installation's
+            (`/admin/identity-providers`) it is still whether the installation offers the provider,
+            and absent there is `true`. Removed with the next major version of the contract.
         allowed_email_domains:
           type: array
           items: { type: string }

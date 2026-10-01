@@ -5294,8 +5294,11 @@ type IdentityProviderConfiguration struct {
 
 	// DisplayName The name on the button. Absent is the issuer's host.
 	DisplayName *string `json:"display_name,omitempty"`
-	Enabled     *bool   `json:"enabled,omitempty"`
-	Issuer      string  `json:"issuer"`
+
+	// Enabled **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it is still whether the installation offers the provider, and absent there is `true`. Removed with the next major version of the contract.
+	// Deprecated: Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.
+	Enabled *bool  `json:"enabled,omitempty"`
+	Issuer  string `json:"issuer"`
 
 	// Kind Absent is read from the issuer.
 	Kind     *IdentityProviderKind `json:"kind,omitempty"`
