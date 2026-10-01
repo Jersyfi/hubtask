@@ -57,5 +57,6 @@ issue #1100 and cut as SC-18 (the note links to SC-17's *Replace authenticator*)
   zero the card stays on the step at `0:00` — nothing says the time ran out and nothing returns to
   step one; the next submit is refused by the server.
 * **Check 6 fails:** after a recovery code the count is announced to a screen reader once
-  (`AppFrame.svelte`), not shown as a banner, and there is no link to set the authenticator up
-  again.
+  (`AppFrame.svelte`), not shown as a banner. The link's target exists since SC-17 - *Replace your
+  authenticator* on the profile, which sets the authenticator up again without a moment without a
+  factor - but nothing after the sign-in leads to it yet; the banner is SC-18.

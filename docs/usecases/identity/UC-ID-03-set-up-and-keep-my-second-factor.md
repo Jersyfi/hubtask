@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-11, P-13]
 state: built
 tasks: [H-02, SI-09, SI-15, SC-03, SC-06, SC-09, SC-16, SC-17]
-checked_by: [core/application/service/identity/Mfa_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/DisableTotpStepUp_test.go, core/application/service/identity/StepUpRecovery_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/settings.test.mjs]
+checked_by: [core/application/service/identity/Mfa_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/DisableTotpStepUp_test.go, core/application/service/identity/StepUpRecovery_test.go, core/application/service/identity/ReplaceAuthenticator_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/settings.test.mjs]
 ---
 
 # Set up my second factor and keep my recovery codes
