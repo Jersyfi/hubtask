@@ -83,8 +83,17 @@ func stepUpDemand(err error) (string, bool) {
 	if !errors.As(err, &refusal) || refusal.DetailCode != stepup.CodeRequired {
 		return "", false
 	}
-	return refusal.Params["methods"], true
+	methods, named := refusal.Params["methods"]
+	if named && strings.TrimSpace(methods) == "" {
+		// Named, and empty: the account holds neither a password nor a factor (UC-ID-05 check 5).
+		return noMethod, true
+	}
+	return methods, true
 }
+
+// noMethod stands for a demand that named an empty list, which is an answer rather than an old
+// server that named nothing: there is no proof this account can give here.
+const noMethod = "-"
 
 // stepUp proves the person afresh and hands back the token the retry carries.
 func (cli *CLI) stepUp(ctx context.Context, client *Client, methods string) (string, error) {
@@ -120,6 +129,10 @@ func (cli *CLI) stepUp(ctx context.Context, client *Client, methods string) (str
 // Where there is none, the password is what is left, and the demand's own list is what says
 // whether that is accepted.
 func (cli *CLI) stepUpRequest(methods string) (openapi.StepUpRequest, error) {
+	if methods == noMethod {
+		message, _ := cli.Catalogue.Message("app.step_up.no_method", nil)
+		return openapi.StepUpRequest{}, errorString(message + "\n  Set up a second factor on your profile in the web app, then run this again.")
+	}
 	offersTOTP := methods == "" || strings.Contains(methods, "TOTP")
 	if offersTOTP && (cli.Env(envTotp) != "" || !strings.Contains(methods, "PASSWORD")) {
 		code, err := cli.readCredential(envTotp, "This needs proving again. The authenticator's current code: ")

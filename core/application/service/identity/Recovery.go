@@ -121,10 +121,10 @@ func (w SessionWriter) requireStepUp(
 	ctx context.Context, actor appshared.ActorContext, token string,
 ) error {
 	// Through the port's own Demand rather than by hand. Demand is what puts `params.methods` on
-	// the refusal - the password for every account, the code where a factor is armed - and the
-	// contract promises that list at `POST /auth/step-up`: "a client builds its prompt from that
-	// list, never from a guess". Written out here, the list was missing, so every client fell back
-	// to the password and an account with an authenticator was asked for the wrong thing.
+	// the refusal - the password where the account holds one, the code where a factor is armed -
+	// and the contract promises that list at `POST /auth/step-up`: "a client builds its prompt from
+	// that list, never from a guess". Written out here, the list was missing, so every client fell
+	// back to the password and an account with an authenticator was asked for the wrong thing.
 	return stepupport.Demand(
 		ctx, StepUpVerifier{Writer: w}, actor.TenantID, actor.AccountID, token)
 }
