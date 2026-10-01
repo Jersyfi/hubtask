@@ -241,7 +241,7 @@ test('chromium: 1280 px — a provider-only account is offered no password and a
       return route.fulfill({ json: { ...ACCOUNT, has_password: false, has_second_factor: true, recovery_codes_remaining: 4 } });
     }
     if (path === '/auth/mfa/recovery:regenerate') {
-      return route.fulfill({ status: 403, json: { code: 'errors.forbidden', detail_code: 'auth.step_up_required', status: 403, params: { methods: '' }, request_id: 'req_s' } });
+      return route.fulfill({ status: 403, json: { code: 'errors.forbidden', detail_code: 'auth.step_up_required', status: 403, params: { methods: 'TOTP' }, request_id: 'req_s' } });
     }
     return answer(route);
   });
@@ -261,9 +261,9 @@ test('chromium: 1280 px — a provider-only account is offered no password and a
   const dialog = page.getByRole('dialog');
   await dialog.waitFor();
   assert.equal(await dialog.locator('input[type="password"]').count(), 0, 'the step-up asks a provider-only account for a password');
-  // A refusal that names nothing - the server's answer for an account with neither a password nor
-  // a factor - is a sentence and the way to make a proof possible.
-  assert.ok(await dialog.getByRole('link', { name: 'Set up a second factor' }).isVisible(), 'the dialog does not say what would make the proof possible');
+  // The account holds a factor and no password, so the server names the code alone and the dialog
+  // asks for nothing else. (A refusal naming nothing at all is `stepup.test.ts`'s.)
+  assert.equal(await dialog.locator('input[autocomplete="one-time-code"]').count(), 1, 'the dialog does not ask for the code');
 });
 
 // UC-ID-06 check 2: every session says how it was opened, in words, and the provider by its name.

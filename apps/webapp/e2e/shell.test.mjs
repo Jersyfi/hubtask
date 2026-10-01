@@ -481,7 +481,7 @@ test('chromium: 1280 px — a hub with nothing in it offers nothing to open, and
 // each of which is the only place its reader has: "About Hubtask" while there is a session, and
 // the foot of the sign-in screen while there is not - a barrier at the door is the one that
 // nothing behind the door makes up for.
-test('chromium: the accessibility statement is reachable, signed in and signed out', async (t) => {
+test('chromium: the accessibility statement is reachable signed in, and signed out only as the operator sets it', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
 
