@@ -309,6 +309,54 @@ func (c *RestController) RegenerateRecoveryCodes(
 	})
 }
 
+const (
+	startAuthenticatorReplacementUseCase   = "StartAuthenticatorReplacement"
+	confirmAuthenticatorReplacementUseCase = "ConfirmAuthenticatorReplacement"
+)
+
+// StartAuthenticatorReplacement answers POST /auth/mfa/totp:replace (SC-17).
+func (c *RestController) StartAuthenticatorReplacement(
+	w http.ResponseWriter, r *http.Request, params openapi.StartAuthenticatorReplacementParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), startAuthenticatorReplacementUseCase, actor, usecase.Input{
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+		})
+	}, func(out usecase.Output) {
+		// The new secret's single showing, as the enrolment's: here and in no projection.
+		writeJSON(w, r, http.StatusCreated, openapi.AuthenticatorReplacement{
+			Secret:     out.String("secret"),
+			OtpauthUri: out.String("otpauth_uri"),
+			ExpiresAt:  timeValue(out["expires_at"]),
+		})
+	})
+}
+
+// ConfirmAuthenticatorReplacement answers POST /auth/mfa/totp/replacement:confirm (SC-17).
+func (c *RestController) ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.AuthenticatorReplacementConfirmation
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), confirmAuthenticatorReplacementUseCase, actorOf(r), usecase.Input{
+		"code": body.Code,
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	// The new codes' single showing, as the regenerated ones': here and in no projection.
+	writeJSON(w, r, http.StatusCreated, openapi.RecoveryCodes{
+		RecoveryCodes: recoveryCodeList(out["recovery_codes"]),
+	})
+}
+
 func recoveryCodeList(value any) []string {
 	values, _ := value.([]any)
 	codes := make([]string, 0, len(values))

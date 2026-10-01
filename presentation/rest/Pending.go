@@ -169,7 +169,6 @@ func (pending) DisableTotp(w http.ResponseWriter, r *http.Request, _ openapi.Dis
 
 func (pending) StartProviderStepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-// The authenticator's replacement lands with SC-17's use cases.
 func (pending) StartAuthenticatorReplacement(
 	w http.ResponseWriter, r *http.Request, _ openapi.StartAuthenticatorReplacementParams,
 ) {

@@ -1275,6 +1275,8 @@ func run() error {
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),
 		identity.ConfirmTotp{Writer: sessionWriter}.Descriptor(),
 		identity.DisableTotp{Writer: sessionWriter}.Descriptor(),
+		identity.StartAuthenticatorReplacement{Writer: sessionWriter}.Descriptor(),
+		identity.ConfirmAuthenticatorReplacement{Writer: sessionWriter}.Descriptor(),
 		identity.StepUp{Writer: sessionWriter}.Descriptor(),
 		identity.StartProviderStepUp{Writer: sessionWriter}.Descriptor(),
 		identity.RegisterOauthClient{Writer: oauthWriter}.Descriptor(),
