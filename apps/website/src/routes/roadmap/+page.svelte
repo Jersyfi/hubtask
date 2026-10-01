@@ -67,14 +67,52 @@
           encryption with key rotation, and the fleet deployment under load.
         </p>
       </li>
-      <li data-state="now">
+      <li data-state="done">
         <div class="rail-head"><span class="rail-version">0.7 – 0.9</span><span class="rail-state">AI, languages, offline, ecosystem</span></div>
         <p>
           The MCP server complete, the AI port with a local and a hosted provider, suggestions and
-          hybrid semantic search — all optional. Then the full internationalisation surface,
-          accessibility, and offline synchronisation with per-field merging and conflict
-          preservation. Then the ecosystem: connectors, client SDKs, CalDAV, and imports from the
+          hybrid semantic search — all optional. Then the full internationalisation surface and
+          offline synchronisation with per-field merging and conflict preservation. Then the
+          ecosystem: client libraries, the n8n and Zapier connectors, CalDAV, and imports from the
           tools people are leaving.
+        </p>
+      </li>
+      <li data-state="done">
+        <div class="rail-head"><span class="rail-version">F1 – F10</span><span class="rail-state">The web app</span></div>
+        <p>
+          The client, built beside the core: the design system and its workbench, the working
+          surface with boards and drag and drop, collaboration and time, automation drawn as a flow,
+          the administration, AI and languages, offline work in the browser, a tour and a small
+          celebration, and the shell on a phone, a tablet and a desk.
+        </p>
+      </li>
+      <li data-state="done">
+        <div class="rail-head"><span class="rail-version">SI</span><span class="rail-state">Signing in</span></div>
+        <p>
+          The password over its lifetime with a rule in three levels and a lock, recovery codes,
+          several sign-in providers with their owners’ marks, and the installation level above every
+          workspace — operators, defaults with a lock, an elevated hour and a dashboard.
+        </p>
+      </li>
+      <li data-state="now">
+        <div class="rail-head"><span class="rail-version">SC · PH</span><span class="rail-state">Coherent, and private</span></div>
+        <p>
+          Measured for the first time against written use cases and the seven ways Hubtask is run.
+          Signing in and the installation made coherent: one rule in one place, the first start in
+          the browser, operators and machines on the screen, terms agreed, AI offered by the
+          installation, invitations without mail. Then privacy and the household: private hubs,
+          accounts without a mail address, a legal hold that wins over an erasure, and each
+          person’s say over AI.
+        </p>
+        <Proof href="{docs}/usecases/README.md" label="the use cases" />
+      </li>
+      <li>
+        <div class="rail-head"><span class="rail-version">Next</span><span class="rail-state">Passkeys, plans, domains</span></div>
+        <p>
+          In that order, each with its own decision record: signing in without a password; plans
+          with their own limits, features and locks, and events that tell a purchase platform what
+          happened; and a workspace’s own domain. Beside them, the installed desktop and mobile
+          apps, once their signing certificates exist.
         </p>
       </li>
       <li>
