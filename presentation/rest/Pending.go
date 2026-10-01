@@ -1183,7 +1183,7 @@ func (pending) GetImport(w http.ResponseWriter, r *http.Request, _ openapi.Impor
 	notAvailable(w, r)
 }
 
-// The withdrawal of an offered provider lands with SC-20's use cases (ADR-0076).
+// The withdrawal of an offered provider (ADR-0076): served by RestController since SC-20.
 func (pending) WithdrawInstanceIdentityProvider(
 	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
 	_ openapi.WithdrawInstanceIdentityProviderParams,

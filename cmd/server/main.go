@@ -1306,6 +1306,8 @@ func run() error {
 		adminservice.ListInstanceIdentityProviders{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.ConfigureInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.RemoveInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.WithdrawInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.CancelInstanceIdentityProviderWithdrawal{Writer: instanceProviderWriter}.Descriptor(),
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),

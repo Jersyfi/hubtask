@@ -232,6 +232,8 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.ListInstanceIdentityProviders{}.Descriptor(),
 		adminservice.ConfigureInstanceIdentityProvider{}.Descriptor(),
 		adminservice.RemoveInstanceIdentityProvider{}.Descriptor(),
+		adminservice.WithdrawInstanceIdentityProvider{}.Descriptor(),
+		adminservice.CancelInstanceIdentityProviderWithdrawal{}.Descriptor(),
 		integration.ConfigureAiProvider{}.Descriptor(),
 		integration.ReadAiProvider{}.Descriptor(),
 		integration.RemoveAiProvider{}.Descriptor(),
