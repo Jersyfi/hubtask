@@ -5,7 +5,7 @@ context: identity
 actors: [PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-06, P-07, P-10, P-12]
-state: built
+state: partial
 tasks: [SI-07, SI-08, SI-16, SC-06]
 checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs]
 ---
@@ -56,3 +56,17 @@ the installation is the same person and set nothing.
 * No presets ("strict", "relaxed"): every rule stands on its own with a sentence about its cost.
 * Rate limits and the lockout curve are not settings ([ADR-0068](../../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md)).
 * Regular expressions for passwords are never offered ([NG-regex-rules](../../vision/non-goals.md)).
+
+## Today
+
+Checks 1, 2, 3, 4, 5, 7, 8 and 9 hold since SC-06 (`AdminFlag_test.go`, `FactorRule_test.go`,
+`LastWayIn_test.go`, `cmd/server/Wiring_test.go`, `signinsettings.test.mjs`). Check 6 holds for every
+door a workspace has, and not yet for two others; both are the owner's to decide:
+
+* **The installation's own doors.** An operator who switches off or removes a provider the
+  installation offers can still leave a workspace that uses it as its only way in with none. Guarding
+  it would mean reading every workspace's choice, which an installation-level action is not allowed
+  to do.
+* **`enabled` on a provider's configuration.** The screen no longer switches a provider on its form,
+  but `PUT /identity-providers/{id}` still accepts `enabled`, a second door to the same switch (P-06).
+  It meets the last-way-in guard; taking the field away would be a removal from the contract.

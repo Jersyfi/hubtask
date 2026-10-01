@@ -63,4 +63,7 @@ or a role, or a group.
 
 * **Check 1 fails:** the screen offers the modes as developer-style labels.
 * **Check 5 fails:** there is no *New people get* setting (SC-02).
+* **Check 8 holds on the screen, not at the API:** the list of ways to sign in is the one place a
+  provider is switched, but `PUT /identity-providers/{id}` still accepts `enabled` (see UC-ID-12's
+  *Today*); removing it is a contract removal for the owner.
 * **Check 6 fails:** the address is inside a sentence, without a copy button.
