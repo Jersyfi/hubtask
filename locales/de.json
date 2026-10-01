@@ -90,6 +90,7 @@
   "auth.mfa_code_required": "Diese Anmeldung braucht den Code aus deinem Authenticator oder einen deiner Wiederherstellungscodes.",
   "auth.link_password_required": "Gib das Passwort dieses Kontos ein, um den Anbieter damit zu verbinden.",
   "auth.mfa_not_enrolled": "Für dieses Konto ist kein zweiter Faktor eingerichtet.",
+  "auth.mfa_replacement_unknown": "Hier wartet kein Ersatz deines Authenticators auf die Bestätigung - er wurde in einer anderen Sitzung begonnen, ist abgelaufen oder wurde neu begonnen. Beginne ihn noch einmal.",
   "auth.mfa_already_armed": "Ein zweiter Faktor ist bereits aktiv. Schalte ihn mit deinem Passwort ab, bevor du ihn neu einrichtest.",
   "auth.mfa_required_by_tenant": "Dein Arbeitsbereich verlangt von dir einen zweiten Faktor, deshalb kann er nicht abgeschaltet werden.",
   "auth.mfa_credential_required": "Diese Operation braucht eine angemeldete Sitzung oder die ausstehende Berechtigung einer Anmeldung.",

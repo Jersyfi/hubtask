@@ -208,6 +208,8 @@ func Descriptors() []usecase.Descriptor {
 		identity.EnrollTotp{}.Descriptor(),
 		identity.ConfirmTotp{}.Descriptor(),
 		identity.DisableTotp{}.Descriptor(),
+		identity.StartAuthenticatorReplacement{}.Descriptor(),
+		identity.ConfirmAuthenticatorReplacement{}.Descriptor(),
 		identity.StepUp{}.Descriptor(),
 		identity.StartProviderStepUp{}.Descriptor(),
 		identity.RegisterOauthClient{}.Descriptor(),

@@ -161,6 +161,7 @@
   "auth.mfa_code_required": "This sign-in needs the code from your authenticator, or one of your recovery codes.",
   "auth.link_password_required": "Type the password of this account to connect the provider to it.",
   "auth.mfa_not_enrolled": "This account has no second factor set up.",
+  "auth.mfa_replacement_unknown": "There is no replacement of your authenticator waiting to be confirmed here - it was started in another session, it timed out, or it was started again. Begin it once more.",
   "auth.mfa_already_armed": "A second factor is already on. Turn it off with your password before setting it up again.",
   "auth.mfa_required_by_tenant": "Your workspace requires a second factor of you, so it cannot be turned off.",
   "auth.mfa_credential_required": "This operation needs a signed-in session or the pending credential of a sign-in.",
