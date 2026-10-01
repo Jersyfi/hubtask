@@ -59,6 +59,9 @@ type WorkspaceWriter struct {
 	// answers none, which is what an installation whose workspaces predate migration 0104 has -
 	// and nothing resolves a request through them, so an empty list costs nobody anything.
 	Hosts repository.TenantHosts
+	// Providers is the workspace's ways in beside the password, so that switching the password off
+	// is refused where no provider is on (UC-ID-12 check 6). Nil counts none.
+	Providers repository.IdentityProviders
 	// StepUp is the proof a policy change demands (H-03). A workspace's sign-in rule is what
 	// decides whether a stolen tab can weaken the way in, so the one patch that touches it asks
 	// the person to prove themselves afresh - and the name, the locale and the zone do not.

@@ -1066,7 +1066,9 @@ func run() error {
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		// The hosts the workspace answers at (SI-12). Read-only: nothing resolves a request
 		// through them yet.
-		Hosts:      postgres.NewTenantHostRepository(),
+		Hosts: postgres.NewTenantHostRepository(),
+		// The ways in beside the password, so that the last one cannot be switched off (SC-06).
+		Providers:  postgres.NewIdentityProviderRepository(),
 		Authorizer: authorizer,
 		Audit:      auditSink,
 		UnitOfWork: unitOfWork,

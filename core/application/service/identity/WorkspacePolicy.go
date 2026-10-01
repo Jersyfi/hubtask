@@ -122,6 +122,8 @@ func (w WorkspaceWriter) applyPolicy(
 
 	if _, moved, err := resolved.Effective.Tightened(resolved.Installation, patch); err != nil {
 		return domain.Workspace{}, nil, err
+	} else if err := w.keepsAWayIn(ctx, stored, patch); err != nil {
+		return domain.Workspace{}, nil, err
 	} else if len(moved) > 0 || change.RotateNow {
 		changed := stored
 		changed.Settings.SignIn = stored.Settings.SignIn.Merge(patch)
@@ -149,6 +151,34 @@ func (w WorkspaceWriter) applyPolicy(
 	changed := stored
 	changed.Settings.Legal = links
 	return changed, legalMoved, nil
+}
+
+// keepsAWayIn refuses switching the password off where no provider is on here: a workspace nobody
+// can sign in to is the one arrangement the switches must not reach (UC-ID-12 check 6). Against the
+// rule's own field, so the screen can show it at the rule.
+func (w WorkspaceWriter) keepsAWayIn(
+	ctx context.Context, stored domain.Workspace, patch domain.PolicyPatch,
+) error {
+	if patch.Methods == nil {
+		return nil
+	}
+	for _, method := range *patch.Methods {
+		if method == domain.MethodDirect {
+			return nil
+		}
+	}
+	on, err := providerOnHere(ctx, w.Providers, stored.Settings, "")
+	if err != nil {
+		return err
+	}
+	if on {
+		return nil
+	}
+	return shared.ErrValidation.
+		WithDetail("identity_provider.last_way_in").
+		WithFields(shared.FieldError{
+			Path: "/sign_in_policy/methods", Code: "identity_provider.last_way_in",
+		})
 }
 
 // applyLegal folds the four links in, refusing one the instance locked.

@@ -210,7 +210,44 @@ func (h ConfigureIdentityProvider) Execute(
 	}); err != nil {
 		return domain.IdentityProvider{}, err
 	}
+	// A form saved with its provider off takes a way in away, so it meets the switch's guard: the
+	// last way in cannot be switched off from here either (UC-ID-11 check 8).
+	if !cmd.ID.IsZero() && !cmd.Enabled {
+		if err := w.keepsAWayIn(ctx, actor, cmd.ID); err != nil {
+			return domain.IdentityProvider{}, err
+		}
+	}
 	return w.ConfigureAt(ctx, actor.PersistenceScope(), actor, cmd, actor.TenantID)
+}
+
+// keepsAWayIn refuses a change that would take away the workspace's last way in: the provider named
+// is on here, and nothing else is. Read before the write, which leaves a window two administrators
+// could both pass through at once; the switch's own guard sits inside its write for that reason,
+// and the form and the removal are rarer doors.
+func (w IdentityProviderWriter) keepsAWayIn(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID,
+) error {
+	return w.Session.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := w.Providers.Find(ctx, id)
+		if err != nil {
+			if errors.Is(err, shared.ErrNotFound) {
+				return nil
+			}
+			return err
+		}
+		var settings domain.WorkspaceSettings
+		if w.Workspaces != nil {
+			workspace, err := w.Workspaces.Find(ctx)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			settings = workspace.Settings
+		}
+		if offeredHere(found, settings) && !anotherWayIn(ctx, w.Providers, w.Workspaces, id) {
+			return lastWayIn()
+		}
+		return nil
+	})
 }
 
 // ConfigureAt is the whole of the write at one level, and the two levels share it: one set of the
@@ -324,6 +361,11 @@ func (h RemoveIdentityProvider) Execute(
 		TargetType: identityProviderTarget,
 	}); err != nil {
 		return err
+	}
+	if !id.IsZero() {
+		if err := w.keepsAWayIn(ctx, actor, id); err != nil {
+			return err
+		}
 	}
 	return w.RemoveAt(ctx, actor.PersistenceScope(), actor, id, actor.TenantID, stepUpToken)
 }
