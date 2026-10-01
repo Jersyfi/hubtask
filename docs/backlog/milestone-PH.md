@@ -62,7 +62,8 @@ register shows both dates.
 **Use cases:** UC-PRV-05 (4, 5, 7, 8, 9, 10, 11, 12)
 
 The workspace value `ai.person_opt_out` — `OFFERED` (default) or `NOT_OFFERED` with a required legal
-basis — with the installation's and the plan's default and lock. The profile's *Keep my content out
+basis — with the installation's and the plan's lock, which can hold a workspace at `OFFERED` only
+(decided 2026-10-01: only the workspace can name the basis `NOT_OFFERED` needs). The profile's *Keep my content out
 of AI*, shown only where AI is on and the workspace has more than one person. The prompt builder
 reads the objections: authored content excluded, names replaced, AI actions not offered to the
 person. `NOT_OFFERED` shows the basis instead of the switch and tells each person whose earlier

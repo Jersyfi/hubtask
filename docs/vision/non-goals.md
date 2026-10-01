@@ -14,8 +14,8 @@ missing one of these; a session about to build one of them should stop and ask.
 | `NG-magic-link` | sign people in by a mailbox link alone | Mailbox control is weaker than password plus second factor ([P-02](./principles.md#p-02-an-account-is-opened-only-by-its-own-strongest-proof)) | Reset links (which keep the second factor), passkeys (planned) |
 | `NG-sms` | send codes by SMS | No carrier from a self-hosted product, and NIST rates it down | Authenticator apps, passkeys (planned) |
 | `NG-security-questions` | ask for password hints or security questions | They are guessable and unrecoverable | Recovery codes |
-| `NG-ai-required` | make any feature depend on AI | [P-14](./principles.md#p-14-ai-is-optional-and-consent-is-a-persons) | AI suggests; people decide |
-| `NG-ai-consent-by-default` | let a plan, an operator or a default consent to AI processing for a workspace | [P-14](./principles.md#p-14-ai-is-optional-and-consent-is-a-persons) | The workspace consents itself; a provider may only *offer* a model |
+| `NG-ai-required` | make any feature depend on AI | [P-14](./principles.md#p-14-ai-is-optional-and-nobody-consents-in-anothers-place) | AI suggests; people decide |
+| `NG-ai-consent-by-default` | let a plan, an operator or a default consent to AI processing for a workspace | [P-14](./principles.md#p-14-ai-is-optional-and-nobody-consents-in-anothers-place) | The workspace consents itself; a provider may only *offer* a model |
 | `NG-page-numbers` | show page numbers or a pager | The owner's product rule (2026-09-27): lists scroll and load on | Continuous lists, search, filters |
 | `NG-regex-rules` | accept administrator-written regular expressions for password rules | A regex is a denial-of-service vector and its refusal has no sentence that names the fix | The eighteen named switches of [ADR-0068](../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md) |
 | `NG-saml-before-1` | speak SAML or SCIM before 1.0 | OpenID Connect covers every directory named so far ([security.md](../architecture/security.md) §15) | OIDC with directory admission ([ADR-0071](../adr/ADR-0071-provider-admission.md)) |
