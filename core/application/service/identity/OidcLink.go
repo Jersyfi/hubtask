@@ -170,9 +170,13 @@ func (h CompleteLink) Execute(ctx context.Context, cmd CompleteLinkCommand) (Sig
 		return SignInResult{Challenge: challenge}, nil
 	}
 
+	bounds, err := s.sessionBounds(ctx, token.TenantID(), account)
+	if err != nil {
+		return SignInResult{}, err
+	}
 	pair, err := s.openSessionWithHint(ctx, scope, token.TenantID(), account,
 		credential.UserAgent, credential.IPClass, OidcSignedInAction,
-		domain.SessionPolicy{}, domain.SignedInWithOidc)
+		bounds, domain.SignedInWithOidc)
 	if err != nil {
 		return SignInResult{}, err
 	}

@@ -121,7 +121,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-ID-01](./identity/UC-ID-01-sign-in-with-a-password.md) | Sign in with my address and password | identity | built |
 | [UC-ID-02](./identity/UC-ID-02-prove-it-is-me-with-a-second-factor.md) | Prove it is me with a second factor when I sign in | identity | partial |
 | [UC-ID-03](./identity/UC-ID-03-set-up-and-keep-my-second-factor.md) | Set up my second factor and keep my recovery codes | identity | partial |
-| [UC-ID-04](./identity/UC-ID-04-reset-a-forgotten-password.md) | Reset a forgotten password | identity | partial |
+| [UC-ID-04](./identity/UC-ID-04-reset-a-forgotten-password.md) | Reset a forgotten password | identity | built |
 | [UC-ID-05](./identity/UC-ID-05-change-my-password.md) | Change my password | identity | partial |
 | [UC-ID-06](./identity/UC-ID-06-see-and-end-my-sessions.md) | See where I am signed in and end a session | identity | partial |
 | [UC-ID-07](./identity/UC-ID-07-accept-an-invitation.md) | Accept an invitation and set up my account | identity | partial |

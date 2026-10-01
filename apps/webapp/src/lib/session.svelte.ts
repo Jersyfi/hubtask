@@ -92,6 +92,11 @@ export interface SecondFactorOwed {
    * which one it is connecting.
    */
   readonly providerName?: string;
+  /**
+   * Whether this step follows a password reset rather than a typed password. The card's sentence
+   * differs: "your password was right" is not what somebody who just chose a new one should read.
+   */
+  readonly afterReset?: boolean;
 }
 
 class Session {
@@ -201,11 +206,17 @@ class Session {
   owe(
     pendingToken: string,
     methods: readonly string[],
-    context: { expiresAt?: string; email?: string; providerName?: string } = {},
+    context: { expiresAt?: string; email?: string; providerName?: string; afterReset?: boolean } = {},
   ): void {
     this.#pending = pendingToken;
-    this.#owed = { methods, expiresAt: context.expiresAt, providerName: context.providerName };
-    // A provider arrival typed no address, so the identity line takes the one the server matched.
+    this.#owed = {
+      methods,
+      expiresAt: context.expiresAt,
+      providerName: context.providerName,
+      afterReset: context.afterReset,
+    };
+    // A provider arrival and a reset link typed no address, so the identity line takes the one the
+    // server names.
     if (context.email !== undefined) this.#email = context.email;
     this.#status = 'signed-out';
   }

@@ -11,12 +11,13 @@
   // No sentence is written in this file. `Hubtask` is a name rather than a message, and everything
   // else is a code rendered from `locales/en.json` (ADR-0011, F1-07).
   import AppFrame from './lib/frame/AppFrame.svelte';
-  import { t } from './lib/i18n/i18n.svelte.ts';
+  import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
   import { ROUTES, paneFor } from './lib/routes.ts';
   import { ADMINISTRATION, firstScreen } from './lib/navigation.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
+  import { manifest } from './lib/data/capabilities.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
@@ -109,6 +110,26 @@ import ContainerView from './views/ContainerView.svelte';
   });
 
   /**
+   * The one place the language is decided, because it is the one place that knows both halves:
+   * what the reader prefers (their account, then their browser) and what the installation has
+   * (the manifest). `i18n-l10n.md` §2's order, with the parenthesis that inverts its top - the
+   * account wins over `Accept-Language`, which is what answers before there is an account.
+   *
+   * Here rather than in the frame, because the signed-out card is not inside the frame: decided
+   * there, the card, the reset and the provider's return rendered the source language whatever the
+   * browser asked for, which is exactly the half of the table that speaks before an account does.
+   *
+   * It runs again whenever either half changes, which is what makes the manifest's arrival turn
+   * the document round on an installation that serves a right-to-left locale.
+   */
+  $effect(() => {
+    messages.adopt(
+      { account: actor.locale, requested: navigator.languages },
+      manifest.supportedLocales,
+    );
+  });
+
+  /**
    * The address the sign-in card is reached at when somebody types it or follows a link to it.
    *
    * Deliberately not a route: the card is drawn for anybody who is signed out, wherever they are,
@@ -169,7 +190,15 @@ import ContainerView from './views/ContainerView.svelte';
      The two link screens are here whether or not somebody is signed in: an invitation and a reset
      link are proof about an account that need not be the one in this tab, and a person who opened
      one from their mail while signed in used to meet "there is nothing at this address". -->
-{#if (!session.isSignedIn || route.name === 'reset' || route.name === 'redeem') && route.name !== 'oidc-callback'}
+{#if route.name === 'oidc-callback'}
+  <!-- The provider's return, on the card and never in the frame (UC-ID-08 check 5): this address
+       is reached by a redirect into a fresh document, before there is a session, and the frame of
+       an application nobody is signed into is furniture around one sentence. Whether or not a
+       session exists: the moment the exchange opens one, this screen sends the reader on, and a
+       second copy of it mounted inside the frame would find the address already cleaned and
+       report a refusal for a sign-in that succeeded. -->
+  <OidcCallbackView onnavigate={(path) => router.navigate(path)} />
+{:else if !session.isSignedIn || route.name === 'reset' || route.name === 'redeem'}
   {#if route.name === 'reset'}
     <!-- Before the sign-in screen, exactly as the invitation is: somebody who arrives with a
          reset link is here to set a password, not to remember the one they forgot. -->
@@ -183,12 +212,7 @@ import ContainerView from './views/ContainerView.svelte';
   {/if}
 {:else}
 <AppFrame {route} onnavigate={(path) => router.navigate(path)}>
-  {#if route.name === 'oidc-callback'}
-    <!-- Without asking whether there is a session: this address is reached by a provider's
-         redirect into a fresh document, and the screen's own business is finishing that
-         exchange. It sends the reader on once there is a session. -->
-    <OidcCallbackView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'consent'}
+  {#if route.name === 'consent'}
     <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
          arrives here signed out meets the sign-in screen first and lands back on this address. -->
     <ConsentView />

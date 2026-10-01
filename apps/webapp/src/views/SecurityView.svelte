@@ -154,7 +154,7 @@
                   label={t('app.recovery.title')}
                   hint={t('app.mfa.recovery_hint')}
                   revealLabel={t('app.recovery.reveal')}
-                  hideLabel={t('app.password.hide')}
+                  hideLabel={t('app.recovery.hide')}
                   copyLabel={canCopy(navigator.clipboard) ? t('app.recovery.copy') : undefined}
                   copiedLabel={t('app.recovery.copied')}
                   acknowledgementLabel={t('app.recovery.acknowledge')}

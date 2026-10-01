@@ -22,7 +22,7 @@ Ten content pages plus the two legal ones. The order is the priority order of th
 |---|---|---|---|
 | `/` | The whole proposition in one scroll | All four | “Built like infrastructure. Shaped like a to-do list.” |
 | `/product/` | Every capability, at the level it lives at | 1, 2 | The capability matrix — five levels are one model, not five entities |
-| `/use-cases/` | The four readers, each with their own anchor (audiences, not the requirements in `docs/usecases/`) | 1, 2, 3, 4 | You are one of these people, and here is your paragraph |
+| `/use-cases/` | The seven shapes D1–D7, grouped by the four readers, each with its own anchor (audiences, not the requirements in `docs/usecases/`) | 1, 2, 3, 4 | You run it like one of these, and here is what you get — today and planned |
 | `/security/` | Isolation, the trail, data protection, the gates | 3, 2 | Every claim links to the mechanism |
 | `/developers/` | REST, MCP, CLI, events, SDKs, sync | 4 | The API is the product, and the agent runs on your box |
 | `/self-hosting/` | Requirements, support matrix, backup, operations | 1, 2 | PostgreSQL, and that is the list |

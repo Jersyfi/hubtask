@@ -131,6 +131,27 @@ type SignInRuleReader interface {
 	) (SignInVerdict, error)
 }
 
+// sessionBounds is what a session opened without a password in hand answers to: the workspace's
+// two bounds, read through the same rule the password door reads (ADR-0068 §3). A provider arrival,
+// the second factor's step and a forced setup all end here, and every one of them opened unbounded
+// sessions until SC-03 - which is how a workspace that ends idle sessions after half an hour kept a
+// provider's open for a month (UC-ID-08 check 4).
+//
+// Asked with no password, so the verdict's password answers stay silent and only the bounds (and
+// who a factor is demanded of) are read. Nil rule is the installation wired before there was one.
+func (w SessionWriter) sessionBounds(
+	ctx context.Context, tenantID shared.ID, account domain.Account,
+) (domain.SessionPolicy, error) {
+	if w.Rule == nil {
+		return domain.SessionPolicy{}, nil
+	}
+	verdict, err := w.Rule.JudgeSignIn(ctx, tenantID, account, secret.Secret{})
+	if err != nil {
+		return domain.SessionPolicy{}, err
+	}
+	return verdict.Sessions, nil
+}
+
 // SignInChallenge is the second step a two-step sign-in owes (H-02).
 type SignInChallenge struct {
 	Token     secret.Secret
@@ -140,10 +161,11 @@ type SignInChallenge struct {
 	// asks for a new password needs the rule in the same answer, or the list under the field
 	// arrives a round trip after the field does.
 	PasswordRules *PasswordRulesView
-	// Email and ProviderName travel with a LINK challenge and with no other (ADR-0071's addendum):
-	// the card that asks for the account's password has to say whose account it is and which
-	// provider will sign them in afterwards, and the person arrived from the provider rather than
-	// by typing an address into step one.
+	// Email and ProviderName travel with a LINK challenge (ADR-0071's addendum): the card that asks
+	// for the account's password has to say whose account it is and which provider will sign them
+	// in afterwards, and the person arrived from the provider rather than by typing an address into
+	// step one. Email travels with every step a reset answers too, for the same reason: the person
+	// arrived from the mail's link.
 	Email        string
 	ProviderName string
 }

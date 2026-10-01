@@ -7,8 +7,11 @@
   // sent - the same care `RedeemView` takes, in the one function both now share.
   //
   // **A reset does not walk past a second factor.** Where the account has one, the server answers
-  // the second step rather than a session, and the sign-in screen finishes it. Control of a
-  // mailbox is one proof; it does not replace the one the account already demanded.
+  // the second step rather than a session, and the sign-in card finishes it - the session store
+  // carries the step, so this screen hands the reader to the card rather than drawing a second
+  // copy of it. Control of a mailbox is one proof; it does not replace the one the account already
+  // demanded. Staying on this form after the `202` was the defect SC-03 closed: the link was spent
+  // and nothing on the screen said what came next.
   //
   // **One field, not two.** The eye is what replaces "repeat it", and the rules under the field
   // are the workspace's own, live - so nobody learns what was wrong by pressing the button.
@@ -21,6 +24,7 @@
   import { password as passwordApi } from '../lib/data/password.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
+  import { session } from '../lib/session.svelte.ts';
 
   interface Props {
     /** Where to go once there is a session, as the other signed-out screens take it. */
@@ -40,6 +44,9 @@
     const signedIn = await passwordApi.reset(token, newPassword);
     newPassword = '';
     if (signedIn) onnavigate?.('/');
+    // The account demands a step the password could not give: the card at the sign-in address
+    // draws it, and a successful step there lands on the overview.
+    else if (session.secondFactorOwed) onnavigate?.('/sign-in');
   }
 </script>
 

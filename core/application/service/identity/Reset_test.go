@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -80,6 +81,37 @@ func TestAResetSetsThePasswordAndOpensASession(t *testing.T) {
 	// Every session, this time: the person asking has none of their own to keep.
 	if len(fixture.sessions.revoked) != 1 || fixture.sessions.revoked[0] != sessionRowID {
 		t.Errorf("sessions ended: %v, want all of them", fixture.sessions.revoked)
+	}
+}
+
+// UC-ID-04 check 5: a reset of an account with a second factor opens no session - it answers the
+// code step - and the step says whose account it is, because the person arrived from a mail link
+// and typed no address the card could show.
+func TestAResetOfAnAccountWithAFactorAnswersTheCodeStepAndWhoseItIs(t *testing.T) {
+	fixture := newResetFixture(now)
+	armed := newEnrollments()
+	armed.rows[account] = &repository.MfaEnrollment{AccountID: account, ConfirmedAt: now.Add(-time.Hour)}
+	fixture.writer.Session.Enrollments = armed
+	token := fixture.mintedFor(t, now, domain.PendingReset)
+
+	result, err := ResetPassword{Writer: fixture.writer}.Execute(t.Context(), ResetPasswordCommand{
+		Token: secret.New(token), Password: secret.New("seven blue lanterns"),
+	})
+	if err != nil {
+		t.Fatalf("the reset was refused: %v", err)
+	}
+	if result.Pair != nil {
+		t.Fatal("a reset opened a session past the account's second factor")
+	}
+	challenge := result.Challenge
+	if challenge == nil || len(challenge.Methods) != 2 || challenge.Methods[0] != methodTotp {
+		t.Fatalf("the reset answered %+v, want the code step", challenge)
+	}
+	if challenge.Email != "bert@example.org" {
+		t.Errorf("the step names %q, want the account's address for the identity line", challenge.Email)
+	}
+	if challenge.ExpiresAt.IsZero() {
+		t.Error("the step carries no end the card could count down to")
 	}
 }
 

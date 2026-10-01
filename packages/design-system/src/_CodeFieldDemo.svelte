@@ -4,10 +4,10 @@
   import CodeField from './CodeField.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'resting' }: { mode?: 'resting' | 'invalid' | 'recovery' } = $props();
+  const { mode = 'resting' }: { mode?: 'resting' | 'invalid' | 'eight' } = $props();
 
   let code = $state('482');
-  let recovery = $state('');
+  let eight = $state('');
 </script>
 
 <Stack gap="300" class="codes">
@@ -17,11 +17,11 @@
       bind:value={code}
       error="That code did not verify. Enter the current code from your authenticator."
     />
-  {:else if mode === 'recovery'}
+  {:else if mode === 'eight'}
     <CodeField
-      label="Recovery code"
-      hint="One of the ten shown when you set the factor up. Each works once."
-      bind:value={recovery}
+      label="Code from your authenticator"
+      hint="Eight digits, the one showing now."
+      bind:value={eight}
       length={8}
       groupOf={4}
     />

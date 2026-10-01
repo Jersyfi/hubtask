@@ -1,10 +1,15 @@
 <!-- SPDX-License-Identifier: BUSL-1.1
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // Enrolling a second factor (H-02), from two places: a person doing it from their profile, and
-  // an administrator a tenant switch routed into it instead of into a session.
+  // Setting up a second factor (H-02), from two places: a person doing it from their profile, and
+  // a person the workspace's rule routed into it instead of into a session.
   //
-  // **The QR code is drawn by the design system, and it is an aid rather than the enrolment.**
+  // **One walk for both places, in the order UC-ID-03 tells it**: the secret, one code to confirm
+  // it, then the ten recovery codes once, and *Continue*. The two places used to differ - the
+  // profile's first setup was a plain input and a plain list, while *New codes* had the one-time
+  // panel - and a person met two answers to one question.
+  //
+  // **The QR code is drawn by the design system, and it is an aid rather than the setup.**
   // [ADR-0053](../../../../docs/adr/ADR-0053-totp-qr-code.md) chose an encoder over a dependency;
   // the image stands beside what F4-04 shipped and does not replace it: the base32 secret in
   // groups of four, which every authenticator accepts typed in, and the `otpauth://` URI as a
@@ -12,31 +17,37 @@
   // encoder cannot draw - past its thirteen versions, which takes a very long issuer and address
   // together - is not an error here: the image is left out and the two ways in remain.
   //
-  // **The secret and the codes are shown once.** No call answers them again, so they are held in
-  // memory by `mfa.svelte.ts` for as long as this panel lives and dropped when it leaves. The
-  // reader has to confirm they have the recovery codes before the code field appears — not
-  // ceremony: ten codes scrolled past are ten codes nobody wrote down, and they are the way back
-  // when the phone is gone.
+  // **The confirmation is the sign-in's own code field** (`CodeField`), so the field a person
+  // learns here is the field they meet at every sign-in after it.
   //
-  // **Enrolling arms nothing.** Sign-in is unchanged until a valid code confirms it, so a reader
-  // who closes the tab halfway through is exactly where they started.
+  // **The codes come after the confirmation, in the one-time panel.** No call answers them again,
+  // so they are held here from the moment the setup answered them until *Continue*, and dropped
+  // with the panel. *Continue* stays unavailable until the reader ticks that they stored them - ten
+  // codes scrolled past are ten codes nobody wrote down, and they are the way back when the phone
+  // is gone. During a sign-in *Continue* is also what opens the session: the pair the confirmation
+  // answered waits for it, so nobody lands in the product with their codes still unread.
+  //
+  // **Setting up arms nothing until the code confirms it.** A reader who closes the tab before that
+  // is exactly where they started.
 
-  import { Banner, Button, Checkbox, Input, QrCode, Stack, encodeQr } from '@hubtask/design-system/components';
+  import { canCopy } from '@hubtask/design-system/components';
+  import { Banner, Button, CodeField, OneTimeSecret, QrCode, Stack, encodeQr } from '@hubtask/design-system/components';
 
   import { mfa } from '../data/mfa.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
-    /** The credential an enforcement sign-in answered. Absent for a signed-in caller. */
+    /** The credential a sign-in that demands a factor answered. Absent for a signed-in caller. */
     pendingToken?: string;
-    /** Called when the factor is armed, with the pair where the confirmation *was* the sign-in. */
+    /** Called at *Continue*, with the pair where the confirmation *was* the sign-in. */
     onarmed?: (pair?: { access: string; refresh: string }) => void;
   }
 
   let { pendingToken, onarmed }: Props = $props();
 
   let code = $state('');
-  let keptCodes = $state(false);
+  /** The codes and the pair between the confirmation and *Continue*. */
+  let armed = $state<{ codes: readonly string[]; pair?: { access: string; refresh: string } } | undefined>(undefined);
 
   const enrollment = $derived(mfa.enrollment);
 
@@ -60,20 +71,43 @@
 
   async function confirm(event: SubmitEvent): Promise<void> {
     event.preventDefault();
+    // Taken before the confirmation: the store drops the whole setup once it is confirmed, and the
+    // codes are what the reader still has to see.
+    const codes = enrollment?.recovery_codes ?? [];
     const answer = await mfa.confirm(code.trim(), pendingToken);
     code = '';
-    if (answer?.armed) onarmed?.(answer.tokens);
+    if (answer?.armed) armed = { codes, pair: answer.tokens };
+  }
+
+  function proceed(): void {
+    const pair = armed?.pair;
+    armed = undefined;
+    onarmed?.(pair);
   }
 </script>
 
 <Stack gap="200">
   {#if mfa.failure}
-    <!-- The server's own code: an enrolment refused while one is already armed says so, and a
-         tenant that forbids disabling names its own switch. -->
+    <!-- The server's own code: a setup refused while one is already armed says so, and a wrong code
+         is the sign-in's own sentence. -->
     <Banner tone="danger">{t(mfa.failure)}</Banner>
   {/if}
 
-  {#if !enrollment}
+  {#if armed}
+    <OneTimeSecret
+      value={armed.codes.join('\n')}
+      label={t('app.recovery.title')}
+      hint={t('app.mfa.recovery_hint')}
+      revealLabel={t('app.recovery.reveal')}
+      hideLabel={t('app.recovery.hide')}
+      copyLabel={canCopy(navigator.clipboard) ? t('app.recovery.copy') : undefined}
+      copiedLabel={t('app.recovery.copied')}
+      acknowledgementLabel={t('app.recovery.acknowledge')}
+      notAcknowledgedReason={t('app.recovery.not_acknowledged')}
+      dismissLabel={t('app.mfa.continue')}
+      onDismiss={proceed}
+    />
+  {:else if !enrollment}
     <p class="quiet">{t('app.mfa.intro')}</p>
     <div>
       <Button
@@ -102,46 +136,26 @@
       </p>
     </Stack>
 
-    <Stack gap="150">
-      <h3 class="section">{t('app.mfa.recovery_title')}</h3>
-      <p class="quiet">{t('app.mfa.recovery_hint')}</p>
-      <ul class="codes">
-        {#each enrollment.recovery_codes as recovery (recovery)}
-          <li>{recovery}</li>
-        {/each}
-      </ul>
-      <Checkbox
-        label={t('app.mfa.kept_codes')}
-        checked={keptCodes}
-        onchange={(event: Event) => (keptCodes = (event.currentTarget as HTMLInputElement).checked)}
-      />
-    </Stack>
-
-    {#if keptCodes}
-      <form onsubmit={confirm}>
-        <Stack gap="200">
-          <Input
-            label={t('app.mfa.code_label')}
-            hint={t('app.mfa.code_hint')}
-            bind:value={code}
-            autocomplete="one-time-code"
-            inputmode="numeric"
-            spellcheck={false}
-            isRequired
-          />
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={mfa.isWorking}
-              busyLabel={t('app.mfa.confirming')}
-            >
-              {t('app.mfa.confirm')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
-    {/if}
+    <form onsubmit={confirm}>
+      <Stack gap="200">
+        <CodeField
+          label={t('app.mfa.code_label')}
+          hint={t('app.mfa.code_hint')}
+          bind:value={code}
+          isRequired
+        />
+        <div>
+          <Button
+            type="submit"
+            tone="primary"
+            isBusy={mfa.isWorking}
+            busyLabel={t('app.mfa.confirming')}
+          >
+            {t('app.mfa.confirm')}
+          </Button>
+        </div>
+      </Stack>
+    </form>
   {/if}
 </Stack>
 
@@ -158,16 +172,6 @@
     font-family: var(--font-mono);
     font-size: var(--fs-300);
     overflow-wrap: anywhere;
-  }
-
-  .codes {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(12ch, 1fr));
-    gap: var(--sp-100);
-    font-family: var(--font-mono);
   }
 
   form { margin: 0; }

@@ -77,6 +77,17 @@
   });
   const expiry = $derived(owed?.expiresAt ? remaining(owed.expiresAt, now) : undefined);
 
+  /**
+   * The focus goes into the recovery field when it appears. This step exists to receive a code and
+   * nothing else on it can be answered first, so leaving the caret nowhere would cost every reader
+   * a click or a Tab before they could type what they came here to type - the code field does the
+   * same for the authenticator's code.
+   */
+  let recoveryBox = $state<HTMLDivElement | undefined>(undefined);
+  $effect(() => {
+    if (usingRecovery) recoveryBox?.querySelector('input')?.focus();
+  });
+
   async function complete(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     await session.completeSecondFactor(
@@ -189,13 +200,23 @@
     </form>
   </SignInCard>
 {:else if mustEnroll}
-  <!-- Not a code: this workspace demands a second factor of its administrators and this one has
-       none yet, so the server routed the sign-in into enrolment. Confirming it *is* the sign-in. -->
-  <SignInCard title={t('app.mfa.title')} step={{ index: 2, total: 2 }} {notice}>
-    <TotpEnrollment
-      pendingToken={session.pendingCredential}
-      onarmed={(pair) => pair && session.hold(pair)}
-    />
+  <!-- Not a code: this workspace demands a second factor of this person and they have none yet,
+       so the server routed the sign-in into setup. Confirming it *is* the sign-in. The card says
+       why before it asks for anything, and whose account it is for - a setup nobody explained is
+       a step somebody abandons (UC-ID-03 check 7). -->
+  <SignInCard
+    title={t('app.mfa.title')}
+    step={{ index: 2, total: 2 }}
+    lead={t('app.mfa.required_at_sign_in')}
+    {notice}
+  >
+    <Stack gap="200">
+      {@render identity()}
+      <TotpEnrollment
+        pendingToken={session.pendingCredential}
+        onarmed={(pair) => pair && session.hold(pair)}
+      />
+    </Stack>
   </SignInCard>
 {:else if mustChange}
   <SignInCard
@@ -257,25 +278,30 @@
   <SignInCard
     title={t('app.sign_in.second_factor')}
     step={{ index: 2, total: 2 }}
-    lead={t('app.sign_in.second_factor_hint')}
+    lead={t(owed.afterReset ? 'app.sign_in.second_factor_after_reset' : 'app.sign_in.second_factor_hint')}
     {notice}
   >
     <form onsubmit={complete}>
       <Stack gap="200">
         {@render identity()}
         {#if usingRecovery}
-          <!-- The focus goes into the code. This step exists to receive one and nothing else on
-               it can be answered first, so leaving the caret nowhere would cost every reader a
-               click or a Tab before they could type what they came here to type. -->
-          <CodeField
-            label={t('app.sign_in.recovery_label')}
-            hint={t('app.sign_in.recovery_hint')}
-            bind:value={recoveryCode}
-            length={8}
-            groupOf={4}
-            isRequired
-            isAutofocused
-          />
+          <!-- A plain field, not the code field: a recovery code is sixteen letters and digits in
+               four groups, and it arrives pasted with its dashes. The code field is six numeric
+               places, and drawn as places it would not fit a phone. Nothing here cuts or reshapes
+               what is pasted - the server takes the code with or without dashes and spaces, in
+               either case - and the keyboard is a text one, because the code holds letters. -->
+          <div class="recovery" bind:this={recoveryBox}>
+            <Input
+              label={t('app.sign_in.recovery_label')}
+              hint={t('app.sign_in.recovery_hint')}
+              bind:value={recoveryCode}
+              inputmode="text"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck={false}
+              isRequired
+            />
+          </div>
         {:else}
           <CodeField
             label={t('app.sign_in.code_label')}

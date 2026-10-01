@@ -36,6 +36,16 @@ func TestTheLinkChallengeCarriesWhoseAccountAndWhichProvider(t *testing.T) {
 	if plain.Email != nil || plain.ProviderName != nil {
 		t.Errorf("a TOTP challenge carried %v / %v", plain.Email, plain.ProviderName)
 	}
+
+	// The code step a reset answers names whose account it is (UC-ID-04 check 5): the person
+	// arrived from the mail's link and typed no address.
+	afterReset := mfaChallengeResponse(usecase.Output{
+		"mfa_required": true, "pending_token": "hbt_pnd_z", "expires_at": time.Now().UTC(),
+		"methods": []any{"TOTP", "RECOVERY"}, "email": "anna@example.org",
+	})
+	if afterReset.Email == nil || *afterReset.Email != "anna@example.org" || afterReset.ProviderName != nil {
+		t.Errorf("the reset's step answered %v / %v", afterReset.Email, afterReset.ProviderName)
+	}
 }
 
 func TestAPresetAnswersTheModesOfBothLevels(t *testing.T) {

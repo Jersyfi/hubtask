@@ -6,8 +6,8 @@ actors: [PE-member, PE-admin]
 deployments: [D4, D6]
 serves: [P-02, P-07, P-10, P-12]
 state: partial
-tasks: [H-04, SI-10, SI-14]
-checked_by: [core/application/service/identity/OidcSignIn_test.go, core/domain/model/identity/ProviderAdmission_test.go]
+tasks: [H-04, SI-10, SI-14, SC-02, SC-03]
+checked_by: [core/application/service/identity/OidcSignIn_test.go, core/domain/model/identity/ProviderAdmission_test.go, core/application/service/identity/ProviderSessionBounds_test.go, apps/webapp/e2e/signin.test.mjs]
 ---
 
 # Sign in with my organisation's directory
@@ -52,8 +52,8 @@ organisation is turned away with a sentence that says this workspace does not ad
 
 ## Today
 
+Checks 4 and 5 hold since SC-03 (`ProviderSessionBounds_test.go`; the callback walked in
+`signin.test.mjs`).
+
 * **Check 2 fails:** an account created on arrival has no membership and sees an empty workspace;
-  there is no *New people get* setting.
-* **Check 4 fails:** a provider session opens with no session rules at all (`SessionPolicy{}` in
-  `OidcSignIn.go`).
-* **Check 5 fails:** the callback renders inside the app frame while signed out.
+  there is no *New people get* setting. Tracked as SC-02.

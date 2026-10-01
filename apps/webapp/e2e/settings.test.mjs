@@ -20,6 +20,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { ENROLLMENT, walkSetup } from './secondfactor.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -239,4 +240,48 @@ test('chromium: 1280 px — the workspace screen has no second-factor switch of 
   await page.waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'Acme'), null, { timeout: 15_000 });
   assert.equal(await page.getByText('Administrators need a second factor').count(), 0, 'the second place for the rule is still there');
   assert.equal(await page.getByRole('switch').count() + await page.locator('input[type="checkbox"]').count(), 0, 'a switch is left on the workspace screen');
+});
+
+// UC-ID-03 checks 1 and 2 on the profile: the same walk the forced setup during sign-in takes, and
+// *Continue* ends it with the factor on and the codes gone from the screen.
+test('chromium: 375 px — setting up a second factor on the profile confirms in the code field and shows the codes once', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, permissions: ['clipboard-read', 'clipboard-write'] });
+  t.after(() => context.close());
+  const sent = {};
+  let armed = false;
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/auth/mfa/totp:enroll') {
+      sent.enroll = request.postDataJSON();
+      return route.fulfill({ json: ENROLLMENT });
+    }
+    if (path === '/auth/mfa/totp:confirm') {
+      sent.confirm = request.postDataJSON();
+      armed = true;
+      return route.fulfill({ json: { armed: true } });
+    }
+    if (path === '/accounts/me') {
+      return route.fulfill({ json: { ...ACCOUNT, has_second_factor: armed, ...(armed ? { recovery_codes_remaining: 10 } : {}) } });
+    }
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+
+  await page.goto(`${served.origin}/profile/security`);
+  await walkSetup(page, sent);
+  assert.deepEqual(sent.enroll, {}, 'a signed-in setup presents no pending credential');
+  assert.equal(sent.confirm?.pending_token, undefined);
+
+  await page.getByText('The second factor is on.', { exact: false }).first().waitFor();
+  assert.equal(await page.getByText(ENROLLMENT.recovery_codes[0]).count(), 0, 'the codes outlived the panel');
+  assert.deepEqual(failures, []);
 });

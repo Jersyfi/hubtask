@@ -364,16 +364,13 @@ func (h CompleteSignIn) Execute(
 		account, hint = lookup.Account, lookup.Credential
 		return nil
 	})
-	if err == nil && w.Rule != nil {
-		// The bounds the session it is about to open answers to. Read after the credential was
-		// spent, because the password is not in hand here - the verdict's other answers were
-		// settled at the first step, and what is needed now is only the two numbers.
-		verdict, ruleErr := w.Rule.JudgeSignIn(ctx, token.TenantID(), account, secret.Secret{})
-		if ruleErr != nil {
-			return SessionPair{}, -1, ruleErr
-		}
-		bounds = verdict.Sessions
+	if err != nil {
+		return SessionPair{}, -1, err
 	}
+	// The bounds the session it is about to open answers to. Read after the credential was spent,
+	// because the password is not in hand here - the verdict's other answers were settled at the
+	// first step, and what is needed now is only the two numbers.
+	bounds, err = w.sessionBounds(ctx, token.TenantID(), account)
 	if err != nil {
 		return SessionPair{}, -1, err
 	}

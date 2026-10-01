@@ -13232,7 +13232,7 @@
               "string",
               "null"
             ],
-            "description": "Present with `LINK` and with no other step: whose account the provider's address matched, for the identity line on the card - the person arrived from the provider and typed no address.\n"
+            "description": "Whose account the step is for, for the identity line on the card, where the person typed no address: with `LINK`, the account the provider's address matched - the person arrived from the provider; and with every step a password reset answers - the person arrived from the link in the mail. Absent after a password sign-in, whose first step the address was typed into.\n"
           },
           "provider_name": {
             "type": [
