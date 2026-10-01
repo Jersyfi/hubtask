@@ -6,6 +6,8 @@ package rest
 import (
 	"net/http"
 
+	"github.com/google/uuid"
+
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -233,9 +235,11 @@ func (c *RestController) StepUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), stepUpUseCase, actorOf(r), usecase.Input{
-		"password":      optionalStringField(body.Password),
-		"code":          optionalStringField(body.Code),
-		"recovery_code": optionalStringField(body.RecoveryCode),
+		"password":           optionalStringField(body.Password),
+		"code":               optionalStringField(body.Code),
+		"recovery_code":      optionalStringField(body.RecoveryCode),
+		"state":              optionalStringField(body.State),
+		"authorization_code": optionalStringField(body.AuthorizationCode),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
@@ -246,6 +250,33 @@ func (c *RestController) StepUp(w http.ResponseWriter, r *http.Request) {
 		StepUpToken: out.String("step_up_token"),
 		ExpiresAt:   timeValue(out["expires_at"]),
 		Method:      openapi.StepUpGrantMethod(out.String("method")),
+	})
+}
+
+const startProviderStepUpUseCase = "StartProviderStepUp"
+
+// StartProviderStepUp answers POST /auth/step-up:provider (ADR-0075 §2).
+func (c *RestController) StartProviderStepUp(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), startProviderStepUpUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	providerID, err := uuid.Parse(out.String("provider_id"))
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusCreated, openapi.ProviderStepUpAuthorization{
+		AuthorizationUrl: out.String("authorization_url"),
+		ExpiresAt:        timeValue(out["expires_at"]),
+		ProviderId:       providerID,
+		ProviderName:     out.String("provider_name"),
 	})
 }
 

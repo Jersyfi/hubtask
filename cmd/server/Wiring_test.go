@@ -4,6 +4,9 @@
 package main
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -29,5 +32,74 @@ func TestTheRuleReachesEveryWriterThatOpensASession(t *testing.T) {
 		if rule == nil {
 			t.Errorf("%s opens sessions without the rule", name)
 		}
+	}
+}
+
+// The step-up at the provider (ADR-0075 §2) is the same trap the other way round: every verifier a
+// privileged operation holds is a copy of the session writer, so the stores PROVIDER needs have to
+// be in the writer's own literal. Assigned after it, the copies taken in between would neither name
+// PROVIDER in a refusal nor prove it - and a provider-only administrator would meet a dialog with
+// nothing in it on exactly the operations whose copy came first.
+func TestTheProviderStepUpIsInTheSessionWritersOwnLiteral(t *testing.T) {
+	parsed, err := parser.ParseFile(token.NewFileSet(), "main.go", nil, 0)
+	if err != nil {
+		t.Fatalf("parsing main.go: %v", err)
+	}
+	var literal *ast.CompositeLit
+	late := false
+	ast.Inspect(parsed, func(node ast.Node) bool {
+		switch statement := node.(type) {
+		case *ast.AssignStmt:
+			for i, target := range statement.Lhs {
+				name := exprString(target)
+				if name == "sessionWriter.StepUpProviders" {
+					late = true
+				}
+				if name == "sessionWriter" && statement.Tok == token.DEFINE && i < len(statement.Rhs) {
+					if found, ok := statement.Rhs[i].(*ast.CompositeLit); ok {
+						literal = found
+					}
+				}
+			}
+		}
+		return true
+	})
+	if late {
+		t.Error("sessionWriter.StepUpProviders is assigned after the literal - the copies taken before miss it")
+	}
+	if literal == nil {
+		t.Fatal("main.go builds no `sessionWriter := identity.SessionWriter{...}` literal")
+	}
+	stores := map[string]bool{}
+	for _, element := range literal.Elts {
+		field, ok := element.(*ast.KeyValueExpr)
+		if !ok || exprString(field.Key) != "StepUpProviders" {
+			continue
+		}
+		inner, ok := field.Value.(*ast.CompositeLit)
+		if !ok {
+			t.Fatal("StepUpProviders is not built in place")
+		}
+		for _, store := range inner.Elts {
+			if pair, ok := store.(*ast.KeyValueExpr); ok {
+				stores[exprString(pair.Key)] = true
+			}
+		}
+	}
+	for _, want := range []string{"Providers", "Flows", "External", "Workspaces", "Relying", "RedirectURL"} {
+		if !stores[want] {
+			t.Errorf("the session writer's literal gives the step-up at the provider no %s", want)
+		}
+	}
+}
+
+func exprString(expression ast.Expr) string {
+	switch e := expression.(type) {
+	case *ast.Ident:
+		return e.Name
+	case *ast.SelectorExpr:
+		return exprString(e.X) + "." + e.Sel.Name
+	default:
+		return ""
 	}
 }

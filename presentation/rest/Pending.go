@@ -167,7 +167,6 @@ func (pending) DisableTotp(w http.ResponseWriter, r *http.Request, _ openapi.Dis
 	notAvailable(w, r)
 }
 
-// StartProviderStepUp lands with the PROVIDER step-up (ADR-0075 §2, SC-16).
 func (pending) StartProviderStepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) StepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
