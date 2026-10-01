@@ -28,21 +28,30 @@ const StepUpAction audit.Action = "auth.step_up"
 func stepUpSubject(accountID shared.ID) string { return "stepup:" + accountID.String() }
 
 // StepUpCommand carries the fresh proof - exactly one of the methods the account holds
-// (ADR-0075 §1): the password, the authenticator's code, or a recovery code.
+// (ADR-0075 §1): the password, the authenticator's code, a recovery code, or the provider's return
+// after StartProviderStepUp - its state and its authorization code, together.
 type StepUpCommand struct {
-	Password     secret.Secret
-	Code         string
-	RecoveryCode secret.Secret
+	Password          secret.Secret
+	Code              string
+	RecoveryCode      secret.Secret
+	State             secret.Secret
+	AuthorizationCode string
 }
 
 // methodsGiven counts the proofs a command carries. One is a step-up; none is nothing to check, and
-// two would be asking the server to choose which credential to believe.
+// two would be asking the server to choose which credential to believe. The provider's return is one
+// proof in two halves, and half of it is none.
 func (cmd StepUpCommand) methodsGiven() int {
 	given := 0
-	for _, present := range []bool{!cmd.Password.IsEmpty(), cmd.Code != "", !cmd.RecoveryCode.IsEmpty()} {
+	for _, present := range []bool{
+		!cmd.Password.IsEmpty(), cmd.Code != "", !cmd.RecoveryCode.IsEmpty(), cmd.presentedProviderProof(),
+	} {
 		if present {
 			given++
 		}
+	}
+	if cmd.presentedProviderProof() && (cmd.State.IsEmpty() || cmd.AuthorizationCode == "") {
+		return 0
 	}
 	return given
 }
@@ -75,29 +84,17 @@ func (h StepUp) Execute(
 
 	// The session first: TokenID names one exactly when the actor signed in, and a proof that
 	// could land nowhere is refused before any credential is examined.
-	var session domain.Session
-	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		credential, err := w.Sessions.FindForAuth(ctx, actor.TokenID)
-		if err != nil {
-			if errors.Is(err, shared.ErrNotFound) {
-				return shared.ErrForbidden.WithDetail("auth.step_up_session_required")
-			}
-			return err
-		}
-		if credential.Session.AccountID != actor.AccountID {
-			return shared.ErrForbidden.WithDetail("auth.step_up_session_required")
-		}
-		session = credential.Session
-		return nil
-	})
+	session, err := w.stepUpSession(ctx, actor)
 	if err != nil {
 		return StepUpGrant{}, err
 	}
-	if err := session.Verify(w.Clock.Now()); err != nil {
-		return StepUpGrant{}, err
-	}
 
-	method, err := h.prove(ctx, actor, cmd)
+	method := domain.StepUpProvider
+	if cmd.presentedProviderProof() {
+		err = w.proveAtProvider(ctx, actor, session, cmd)
+	} else {
+		method, err = h.prove(ctx, actor, cmd)
+	}
 	if err != nil {
 		return StepUpGrant{}, err
 	}
@@ -324,26 +321,31 @@ func (v StepUpVerifier) Methods(
 				methods = append(methods, stepupport.MethodPassword)
 			}
 			enrollment, err := w.Enrollments.Find(ctx, accountID)
-			if err != nil {
-				if errors.Is(err, shared.ErrNotFound) {
-					return nil
-				}
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
 				return err
 			}
-			if enrollment.ConfirmedAt.IsZero() {
-				return nil
+			if err == nil && !enrollment.ConfirmedAt.IsZero() {
+				methods = append(methods, stepupport.MethodTotp)
+				// A recovery code where one is left: offering a method nobody can answer is the
+				// prompt issue 544 was about.
+				if w.Recovery != nil {
+					left, err := w.Recovery.Remaining(ctx, accountID)
+					if err != nil {
+						return err
+					}
+					if left > 0 {
+						methods = append(methods, stepupport.MethodRecovery)
+					}
+				}
 			}
-			methods = append(methods, stepupport.MethodTotp)
-			// A recovery code where one is left: offering a method nobody can answer is the
-			// prompt issue 544 was about.
-			if w.Recovery != nil {
-				left, err := w.Recovery.Remaining(ctx, accountID)
-				if err != nil {
-					return err
-				}
-				if left > 0 {
-					methods = append(methods, stepupport.MethodRecovery)
-				}
+			// The provider last: a fresh sign-in there, where the account is connected to one that
+			// is switched on for its workspace (ADR-0075 §2).
+			_, connected, err := w.stepUpProvider(ctx, accountID)
+			if err != nil {
+				return err
+			}
+			if connected {
+				methods = append(methods, stepupport.MethodProvider)
 			}
 			return nil
 		})
@@ -359,7 +361,8 @@ func (h StepUp) Descriptor() usecase.Descriptor {
 		Name: StepUpName,
 		Summary: "Proves the caller afresh for one privileged action (security.md §5), with " +
 			"exactly one method the account holds (ADR-0075): the password, the TOTP code where a " +
-			"factor is armed, or a recovery code, which the step-up consumes. The proof lands on the current " +
+			"factor is armed, a recovery code, which the step-up consumes, or the state and code a " +
+			"provider sent the browser back with after StartProviderStepUp. The proof lands on the current " +
 			"session, is valid for a short window, and is consumed by the one action it is " +
 			"presented to - a second privileged action needs a second proof.",
 		SideEffects: "Records the proof on the session, writes an audit entry naming the method, " +
@@ -377,6 +380,14 @@ func (h StepUp) Descriptor() usecase.Descriptor {
 				Name: "recovery_code", Kind: usecase.KindString,
 				Description: "One of the account's recovery codes, consumed by the step-up.",
 			},
+			{
+				Name: "state", Kind: usecase.KindString,
+				Description: "PROVIDER: the handle StartProviderStepUp minted, as the provider echoed it.",
+			},
+			{
+				Name: "authorization_code", Kind: usecase.KindString,
+				Description: "PROVIDER: the code the provider issued, presented together with the state.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: StepUpAction, TargetType: sessionTarget,
@@ -393,9 +404,11 @@ func (h StepUp) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	grant, err := h.Execute(ctx, actor, StepUpCommand{
-		Password:     secret.New(in.String("password")),
-		Code:         in.String("code"),
-		RecoveryCode: secret.New(in.String("recovery_code")),
+		Password:          secret.New(in.String("password")),
+		Code:              in.String("code"),
+		RecoveryCode:      secret.New(in.String("recovery_code")),
+		State:             secret.New(in.String("state")),
+		AuthorizationCode: in.String("authorization_code"),
 	})
 	if err != nil {
 		return nil, err

@@ -16,6 +16,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 	provider "github.com/Jersyfi/hubtask/core/port/identityprovider"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/text"
@@ -470,21 +471,34 @@ func (w OidcWriter) challengeLink(
 func (w OidcWriter) provider(
 	ctx context.Context, scope persistence.Scope, providerID shared.ID,
 ) (domain.IdentityProvider, secret.Secret, error) {
+	return openProvider(ctx, w.Session, w.Providers, scope, providerID, w.onlyProvider)
+}
+
+// openProvider is provider's body, shared with the step-up at the provider (ADR-0075 §2), which
+// opens a provider exactly as a sign-in does and needs nothing else of the sign-in's writer. `only`
+// answers the one way in where no identifier came; nil refuses that case as not configured.
+func openProvider(
+	ctx context.Context, session SessionWriter, providers repository.IdentityProviders,
+	scope persistence.Scope, providerID shared.ID, only func(context.Context) (shared.ID, error),
+) (domain.IdentityProvider, secret.Secret, error) {
 	var (
 		configured domain.IdentityProvider
 		opened     secret.Secret
 	)
-	err := w.Session.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+	err := session.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
 		chosen := providerID
 		if chosen.IsZero() {
-			only, err := w.onlyProvider(ctx)
+			if only == nil {
+				return shared.ErrValidation.WithDetail("identity_provider.not_configured")
+			}
+			sole, err := only(ctx)
 			if err != nil {
 				return err
 			}
-			chosen = only
+			chosen = sole
 		}
 
-		found, sealed, err := w.Providers.FindWithSecret(ctx, chosen)
+		found, sealed, err := providers.FindWithSecret(ctx, chosen)
 		if err != nil {
 			if errors.Is(err, shared.ErrNotFound) {
 				return shared.ErrValidation.WithDetail("identity_provider.not_configured")
@@ -497,7 +511,7 @@ func (w OidcWriter) provider(
 		// The purpose is the level's, so a row of the installation's opens under the installation's
 		// purpose and a workspace's under its own - which is what keeps a ciphertext from opening
 		// in a workspace it was not sealed for (E-02).
-		plaintext, err := w.Session.Encryptor.Open(ctx, sealed, ClientSecretPurpose(found.TenantID))
+		plaintext, err := session.Encryptor.Open(ctx, sealed, ClientSecretPurpose(found.TenantID))
 		if err != nil {
 			return err
 		}
@@ -535,7 +549,12 @@ func (w OidcWriter) onlyProvider(ctx context.Context) (shared.ID, error) {
 
 // draw mints the three unguessable values one flow needs, through the entropy port (rule 4).
 func (w OidcWriter) draw(tenantID shared.ID) (domain.Token, string, string, error) {
-	material, err := w.Session.Entropy.Bytes(domain.TokenSecretBytes)
+	return drawFlow(w.Session.Entropy, tenantID)
+}
+
+// drawFlow is draw's body, shared with the step-up at the provider.
+func drawFlow(entropy clock.Entropy, tenantID shared.ID) (domain.Token, string, string, error) {
+	material, err := entropy.Bytes(domain.TokenSecretBytes)
 	if err != nil {
 		return domain.Token{}, "", "", shared.ErrInternal.
 			WithDetail("auth.session_unmintable").WithCause(err)
@@ -545,12 +564,12 @@ func (w OidcWriter) draw(tenantID shared.ID) (domain.Token, string, string, erro
 		return domain.Token{}, "", "", err
 	}
 
-	verifierBytesDrawn, err := w.Session.Entropy.Bytes(verifierBytes)
+	verifierBytesDrawn, err := entropy.Bytes(verifierBytes)
 	if err != nil {
 		return domain.Token{}, "", "", shared.ErrInternal.
 			WithDetail("auth.session_unmintable").WithCause(err)
 	}
-	nonceBytesDrawn, err := w.Session.Entropy.Bytes(nonceBytes)
+	nonceBytesDrawn, err := entropy.Bytes(nonceBytes)
 	if err != nil {
 		return domain.Token{}, "", "", shared.ErrInternal.
 			WithDetail("auth.session_unmintable").WithCause(err)
