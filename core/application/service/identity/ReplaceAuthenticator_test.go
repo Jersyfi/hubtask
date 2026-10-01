@@ -100,6 +100,15 @@ func TestTheOldFactorSignsInUntilTheConfirmationAndNotAfter(t *testing.T) {
 	if err := completeWith(t, fixture, step2, fresh); err == nil {
 		t.Fatal("the new authenticator signed in before it was confirmed")
 	}
+	// The old recovery codes too: they are the old factor's escape hatch until the swap.
+	oldCode := liveRecoveryCode(t, fixture)
+	if _, _, err := (CompleteSignIn{Writer: fixture.writer}).Execute(t.Context(), CompleteSignInCommand{
+		PendingToken: signInChallenge(t, fixture), RecoveryCode: secret.New(oldCode),
+	}); err != nil {
+		t.Fatalf("an old recovery code stopped signing in before the confirmation: %v", err)
+	}
+	// Another old code, still live, kept aside to try after the swap.
+	staleCode := liveRecoveryCode(t, fixture)
 
 	// The confirmation: a code from the new app, the swap, ten new codes.
 	confirmer := fixture.writer
@@ -126,7 +135,13 @@ func TestTheOldFactorSignsInUntilTheConfirmationAndNotAfter(t *testing.T) {
 	if err := completeWith(t, fixture, step5, fresh); err != nil {
 		t.Fatalf("the new authenticator does not sign in after the confirmation: %v", err)
 	}
-	// And the old codes went with the old factor: the store holds exactly the ten new ones.
+	// And the old codes went with the old factor: the one left from before no longer signs in, and
+	// the store holds exactly the ten new ones.
+	if _, _, err := (CompleteSignIn{Writer: fixture.writer}).Execute(t.Context(), CompleteSignInCommand{
+		PendingToken: signInChallenge(t, fixture), RecoveryCode: secret.New(staleCode),
+	}); err == nil {
+		t.Fatal("an old recovery code still signs in after the confirmation")
+	}
 	left, _ := fixture.writer.Recovery.Remaining(t.Context(), account)
 	if left != domain.RecoveryCodeCount {
 		t.Errorf("%d codes left, want the ten new ones", left)
