@@ -22,6 +22,12 @@
 
   const pending = $derived(stepUp.pending);
   const wantsCode = $derived(pending?.methods.includes('TOTP') ?? false);
+  /**
+   * Nothing this account can prove itself with: it signs in only through a provider and has no
+   * second factor. No field is drawn - a password field there would ask for something the account
+   * does not have (UC-ID-05 check 5) - and the sentence says what would make the proof possible.
+   */
+  const cannotProve = $derived(pending !== undefined && pending.methods.length === 0);
 
   // Cleared whenever a new prompt opens, so a value typed for the last privileged action is not
   // sitting in the field for the next one.
@@ -57,6 +63,9 @@
         <Banner tone="danger">{t(stepUp.failure)}</Banner>
       {/if}
 
+      {#if cannotProve}
+        <p>{t('app.step_up.no_method')} <a href="/profile/security" onclick={() => stepUp.cancel()}>{t('app.step_up.no_method_link')}</a></p>
+      {:else}
       <form id="step-up" onsubmit={prove}>
         {#if wantsCode}
           <!-- The same field the sign-in's second step draws, because it is the same six digits
@@ -79,19 +88,22 @@
           />
         {/if}
       </form>
+      {/if}
     </Stack>
 
     {#snippet actions()}
       <Button tone="subtle" onclick={() => stepUp.cancel()}>{t('app.step_up.cancel')}</Button>
-      <Button
-        type="submit"
-        form="step-up"
-        tone="primary"
-        isBusy={stepUp.isWorking}
-        busyLabel={t('app.step_up.working')}
-      >
-        {t('app.step_up.submit')}
-      </Button>
+      {#if !cannotProve}
+        <Button
+          type="submit"
+          form="step-up"
+          tone="primary"
+          isBusy={stepUp.isWorking}
+          busyLabel={t('app.step_up.working')}
+        >
+          {t('app.step_up.submit')}
+        </Button>
+      {/if}
     {/snippet}
   </Dialog>
 {/if}

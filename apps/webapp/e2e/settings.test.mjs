@@ -226,3 +226,42 @@ test('chromium: 375 px — setting up a second factor on the profile confirms in
   assert.equal(await page.getByText(ENROLLMENT.recovery_codes[0]).count(), 0, 'the codes outlived the panel');
   assert.deepEqual(failures, []);
 });
+
+// UC-ID-05 check 5: an account that signs in only through a provider has no password, so the profile
+// offers no password change, and no proof it is asked for is a password - a step-up names nothing
+// it could give and the dialog says so instead of drawing a field.
+test('chromium: 1280 px — a provider-only account is offered no password and asked for none', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/accounts/me') {
+      return route.fulfill({ json: { ...ACCOUNT, has_password: false, has_second_factor: true, recovery_codes_remaining: 4 } });
+    }
+    if (path === '/auth/mfa/recovery:regenerate') {
+      return route.fulfill({ status: 403, json: { code: 'errors.forbidden', detail_code: 'auth.step_up_required', status: 403, params: { methods: '' }, request_id: 'req_s' } });
+    }
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/security`);
+  await page.getByText('Left: 4 of 10.').waitFor();
+
+  assert.equal(await page.getByRole('button', { name: 'Change the password' }).count(), 0, 'a password change is offered to an account without one');
+  assert.equal(await page.locator('input[autocomplete="current-password"]').count(), 0, 'a password is asked for on the profile');
+  assert.ok(await page.getByText('signs in through a provider', { exact: false }).first().isVisible(), 'the profile does not say why');
+
+  await page.getByRole('button', { name: 'Make new codes' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.waitFor();
+  assert.equal(await dialog.locator('input[type="password"]').count(), 0, 'the step-up asks a provider-only account for a password');
+  // A refusal that names nothing - the server's answer for an account with neither a password nor
+  // a factor - is a sentence and the way to make a proof possible.
+  assert.ok(await dialog.getByRole('link', { name: 'Set up a second factor' }).isVisible(), 'the dialog does not say what would make the proof possible');
+});
