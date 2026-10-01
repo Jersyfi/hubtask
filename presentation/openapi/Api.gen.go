@@ -5281,8 +5281,11 @@ type IdentityProvider struct {
 	// Kind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
 
-	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's (ADR-0070 §2).
+	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's (ADR-0070 §2). False from the moment an announced withdrawal takes effect.
 	OfferedHere *bool `json:"offered_here,omitempty"`
+
+	// OfferedWorkspaces For a row the installation offers, answered to the operator only: how many workspaces have it switched on (ADR-0076 §1). A number, never names - kept by each workspace's own switch in the same transaction. Absent from a workspace's listing.
+	OfferedWorkspaces *int `json:"offered_workspaces,omitempty"`
 
 	// Position The order the buttons are drawn in.
 	Position int `json:"position"`
@@ -5298,6 +5301,9 @@ type IdentityProvider struct {
 
 	// Version The optimistic lock, as everywhere else.
 	Version int `json:"version"`
+
+	// WithdrawAt For a row the installation offers: when the installation withdraws it (ADR-0076 §2). Null while it is offered without an end. Until that moment the provider keeps working; from it, it is a way in nowhere - and the connected identities stay, so cancelling the withdrawal restores sign-in. A workspace that switched it on reads this to say when it ends.
+	WithdrawAt *time.Time `json:"withdraw_at,omitempty"`
 }
 
 // IdentityProviderScope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
@@ -5319,7 +5325,7 @@ type IdentityProviderConfiguration struct {
 	// DisplayName The name on the button. Absent is the issuer's host.
 	DisplayName *string `json:"display_name,omitempty"`
 
-	// Enabled **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it is still whether the installation offers the provider, and absent there is `true`. Removed with the next major version of the contract.
+	// Enabled **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it says at creation whether the installation offers the provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed value is refused with `identity_provider.withdraw_instead` (ADR-0076 §2). Removed with the next major version of the contract.
 	// Deprecated: Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.
 	Enabled *bool  `json:"enabled,omitempty"`
 	Issuer  string `json:"issuer"`
@@ -6414,6 +6420,15 @@ type ProviderSummary struct {
 // ProviderSummaryScope Whether every workspace is offered it, or this one configured it.
 type ProviderSummaryScope string
 
+// ProviderWithdrawal When an offered provider is withdrawn, and for *Withdraw now* the count confirmed.
+type ProviderWithdrawal struct {
+	// ConfirmCount Required for *Withdraw now*: the number of workspaces that have the provider switched on, as the operator read it before confirming.
+	ConfirmCount *int `json:"confirm_count,omitempty"`
+
+	// WithdrawAt When the offer ends. Absent is fourteen days from now; now or past is *Withdraw now*.
+	WithdrawAt *time.Time `json:"withdraw_at,omitempty"`
+}
+
 // ProvisionedTenant defines model for ProvisionedTenant.
 type ProvisionedTenant struct {
 	CreatedAt           time.Time          `json:"created_at"`
@@ -7374,8 +7389,11 @@ type SignInRules struct {
 
 	// Password What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 	// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
-	Password  PasswordRules     `json:"password"`
-	Providers []ProviderSummary `json:"providers"`
+	Password PasswordRules `json:"password"`
+
+	// PasswordFallback True while `PASSWORD` is among the methods only because the workspace's last way in was a provider the installation offered and has withdrawn (ADR-0076 §4): the password opens again for the accounts that hold one, under the workspace's own rules, until an administrator switches on another way. The administrators' screen says so.
+	PasswordFallback *bool             `json:"password_fallback,omitempty"`
+	Providers        []ProviderSummary `json:"providers"`
 
 	// WorkspaceHost The host this answer was resolved for, which is what the card shows.
 	WorkspaceHost string `json:"workspace_host"`
@@ -8405,6 +8423,18 @@ type ConfigureInstanceIdentityProviderParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// CancelInstanceIdentityProviderWithdrawalParams defines parameters for CancelInstanceIdentityProviderWithdrawal.
+type CancelInstanceIdentityProviderWithdrawalParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// WithdrawInstanceIdentityProviderParams defines parameters for WithdrawInstanceIdentityProvider.
+type WithdrawInstanceIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListInstanceJournalParams defines parameters for ListInstanceJournal.
 type ListInstanceJournalParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -9404,6 +9434,9 @@ type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfigurati
 // ConfigureInstanceIdentityProviderJSONRequestBody defines body for ConfigureInstanceIdentityProvider for application/json ContentType.
 type ConfigureInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
+// WithdrawInstanceIdentityProviderJSONRequestBody defines body for WithdrawInstanceIdentityProvider for application/json ContentType.
+type WithdrawInstanceIdentityProviderJSONRequestBody = ProviderWithdrawal
+
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
@@ -9790,6 +9823,12 @@ type ServerInterface interface {
 	// ConfigureInstanceIdentityProvider Replace one of the installation's providers
 	// (PUT /admin/identity-providers/{providerId})
 	ConfigureInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId, params ConfigureInstanceIdentityProviderParams)
+	// CancelInstanceIdentityProviderWithdrawal Keep offering a provider whose withdrawal was announced
+	// (POST /admin/identity-providers/{providerId}:cancel-withdrawal)
+	CancelInstanceIdentityProviderWithdrawal(w http.ResponseWriter, r *http.Request, providerId ProviderId, params CancelInstanceIdentityProviderWithdrawalParams)
+	// WithdrawInstanceIdentityProvider Announce the withdrawal of an offered provider, or withdraw it now
+	// (POST /admin/identity-providers/{providerId}:withdraw)
+	WithdrawInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId, params WithdrawInstanceIdentityProviderParams)
 	// ListInstanceJournal The installation's own record
 	// (GET /admin/journal)
 	ListInstanceJournal(w http.ResponseWriter, r *http.Request, params ListInstanceJournalParams)
@@ -10952,6 +10991,106 @@ func (siw *ServerInterfaceWrapper) ConfigureInstanceIdentityProvider(w http.Resp
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfigureInstanceIdentityProvider(w, r, providerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelInstanceIdentityProviderWithdrawal operation middleware
+func (siw *ServerInterfaceWrapper) CancelInstanceIdentityProviderWithdrawal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CancelInstanceIdentityProviderWithdrawalParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelInstanceIdentityProviderWithdrawal(w, r, providerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// WithdrawInstanceIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) WithdrawInstanceIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params WithdrawInstanceIdentityProviderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WithdrawInstanceIdentityProvider(w, r, providerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20626,6 +20765,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/identity-providers", wrapper.CreateInstanceIdentityProvider)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/identity-providers/{providerId}", wrapper.RemoveInstanceIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/identity-providers/{providerId}", wrapper.ConfigureInstanceIdentityProvider)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/identity-providers/{providerId}:withdraw", wrapper.WithdrawInstanceIdentityProvider)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/identity-providers/{providerId}:cancel-withdrawal", wrapper.CancelInstanceIdentityProviderWithdrawal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/encryption", wrapper.ReadEncryptionStatus)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/encryption:reseal", wrapper.ResealSecrets)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}/quotas", wrapper.UpdateTenantQuotas)

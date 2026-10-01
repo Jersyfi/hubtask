@@ -4206,6 +4206,11 @@ paths:
       description: >
         Set whole, with the secret's one exception: omitting it keeps the one that is sealed.
         Journalled.
+
+        Whether the installation offers the provider is not changed here: an offer ends through
+        `:withdraw`, announced for a date or confirmed with the count (ADR-0076 §2-3), and is kept
+        with `:cancel-withdrawal`. A changed `enabled` is refused with
+        `identity_provider.withdraw_instead`; the same value, or none, changes nothing.
       requestBody:
         required: true
         content:
@@ -4233,6 +4238,65 @@ paths:
       responses:
         "204":
           description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/identity-providers/{providerId}:withdraw:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    post:
+      tags: [admin]
+      operationId: withdrawInstanceIdentityProvider
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      summary: Announce the withdrawal of an offered provider, or withdraw it now
+      description: >
+        ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is
+        given - and until then the provider keeps working everywhere while every workspace that has
+        it switched on tells its administrators when it ends; it can be cancelled. On the date the
+        offer ends: off everywhere, the connected identities left in place.
+
+        A date that is now or past is **Withdraw now**, the answer to a compromised provider: it
+        additionally asks for `confirm_count`, the number of workspaces that have it switched on as
+        the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it
+        does not match. A workspace left with no way in afterwards falls back to the password for
+        the accounts that hold one (§4). Journalled.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderWithdrawal"
+      responses:
+        "200":
+          description: The provider with its withdrawal date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/identity-providers/{providerId}:cancel-withdrawal:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    post:
+      tags: [admin]
+      operationId: cancelInstanceIdentityProviderWithdrawal
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      summary: Keep offering a provider whose withdrawal was announced
+      description: >
+        Clears the withdrawal (ADR-0076 §2, P-04). Before the date nothing changes for anybody;
+        after it, the offer is back and the workspaces that had it switched on sign in through it
+        again, because the connected identities were never removed. Journalled.
+      responses:
+        "200":
+          description: The provider, offered without an end
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProvider"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -9203,7 +9267,26 @@ components:
             Whether this provider is a way into **this** workspace. Always true for its own rows
             while they are enabled; for a row the installation offers, it is this workspace's own
             switch, and it is **false until somebody turns it on** — offering it is the
-            installation's decision, taking it is the workspace's (ADR-0070 §2).
+            installation's decision, taking it is the workspace's (ADR-0070 §2). False from the
+            moment an announced withdrawal takes effect.
+        withdraw_at:
+          type: [string, "null"]
+          format: date-time
+          readOnly: true
+          description: >
+            For a row the installation offers: when the installation withdraws it (ADR-0076 §2).
+            Null while it is offered without an end. Until that moment the provider keeps working;
+            from it, it is a way in nowhere - and the connected identities stay, so cancelling the
+            withdrawal restores sign-in. A workspace that switched it on reads this to say when it
+            ends.
+        offered_workspaces:
+          type: [integer, "null"]
+          minimum: 0
+          readOnly: true
+          description: >
+            For a row the installation offers, answered to the operator only: how many workspaces
+            have it switched on (ADR-0076 §1). A number, never names - kept by each workspace's own
+            switch in the same transaction. Absent from a workspace's listing.
         allowed_email_domains:
           type: array
           items: { type: string }
@@ -9312,8 +9395,10 @@ components:
             differs from the provider's is refused with `identity_provider.switch_in_list`; the same
             value, or none, is accepted and changes nothing, so a client that echoes the field keeps
             working. A workspace's new provider is created switched off. On the installation's
-            (`/admin/identity-providers`) it is still whether the installation offers the provider,
-            and absent there is `true`. Removed with the next major version of the contract.
+            (`/admin/identity-providers`) it says at creation whether the installation offers the
+            provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed
+            value is refused with `identity_provider.withdraw_instead` (ADR-0076 §2). Removed with
+            the next major version of the contract.
         allowed_email_domains:
           type: array
           items: { type: string }
@@ -9335,6 +9420,22 @@ components:
             **Required for a multi-directory issuer.** `login.microsoftonline.com/common/v2.0`
             with no directories named is every organisation in the world, and that is a decision
             rather than a default.
+
+    ProviderWithdrawal:
+      type: object
+      description: When an offered provider is withdrawn, and for *Withdraw now* the count confirmed.
+      properties:
+        withdraw_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When the offer ends. Absent is fourteen days from now; now or past is *Withdraw now*.
+        confirm_count:
+          type: [integer, "null"]
+          minimum: 0
+          description: >
+            Required for *Withdraw now*: the number of workspaces that have the provider switched
+            on, as the operator read it before confirming.
 
     IdentityProviderPreset:
       type: object
@@ -9827,6 +9928,13 @@ components:
           items: { $ref: "#/components/schemas/ProviderSummary" }
         password: { $ref: "#/components/schemas/PasswordRules" }
         legal: { $ref: "#/components/schemas/LegalLinks" }
+        password_fallback:
+          type: boolean
+          description: >
+            True while `PASSWORD` is among the methods only because the workspace's last way in was a
+            provider the installation offered and has withdrawn (ADR-0076 §4): the password opens
+            again for the accounts that hold one, under the workspace's own rules, until an
+            administrator switches on another way. The administrators' screen says so.
 
     MfaChallenge:
       type: object

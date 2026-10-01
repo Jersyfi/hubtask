@@ -5287,8 +5287,11 @@ type IdentityProvider struct {
 	// Kind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
 
-	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's (ADR-0070 §2).
+	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's (ADR-0070 §2). False from the moment an announced withdrawal takes effect.
 	OfferedHere *bool `json:"offered_here,omitempty"`
+
+	// OfferedWorkspaces For a row the installation offers, answered to the operator only: how many workspaces have it switched on (ADR-0076 §1). A number, never names - kept by each workspace's own switch in the same transaction. Absent from a workspace's listing.
+	OfferedWorkspaces *int `json:"offered_workspaces,omitempty"`
 
 	// Position The order the buttons are drawn in.
 	Position int `json:"position"`
@@ -5304,6 +5307,9 @@ type IdentityProvider struct {
 
 	// Version The optimistic lock, as everywhere else.
 	Version int `json:"version"`
+
+	// WithdrawAt For a row the installation offers: when the installation withdraws it (ADR-0076 §2). Null while it is offered without an end. Until that moment the provider keeps working; from it, it is a way in nowhere - and the connected identities stay, so cancelling the withdrawal restores sign-in. A workspace that switched it on reads this to say when it ends.
+	WithdrawAt *time.Time `json:"withdraw_at,omitempty"`
 }
 
 // IdentityProviderScope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
@@ -5325,7 +5331,7 @@ type IdentityProviderConfiguration struct {
 	// DisplayName The name on the button. Absent is the issuer's host.
 	DisplayName *string `json:"display_name,omitempty"`
 
-	// Enabled **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it is still whether the installation offers the provider, and absent there is `true`. Removed with the next major version of the contract.
+	// Enabled **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it says at creation whether the installation offers the provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed value is refused with `identity_provider.withdraw_instead` (ADR-0076 §2). Removed with the next major version of the contract.
 	// Deprecated: Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.
 	Enabled *bool  `json:"enabled,omitempty"`
 	Issuer  string `json:"issuer"`
@@ -6420,6 +6426,15 @@ type ProviderSummary struct {
 // ProviderSummaryScope Whether every workspace is offered it, or this one configured it.
 type ProviderSummaryScope string
 
+// ProviderWithdrawal When an offered provider is withdrawn, and for *Withdraw now* the count confirmed.
+type ProviderWithdrawal struct {
+	// ConfirmCount Required for *Withdraw now*: the number of workspaces that have the provider switched on, as the operator read it before confirming.
+	ConfirmCount *int `json:"confirm_count,omitempty"`
+
+	// WithdrawAt When the offer ends. Absent is fourteen days from now; now or past is *Withdraw now*.
+	WithdrawAt *time.Time `json:"withdraw_at,omitempty"`
+}
+
 // ProvisionedTenant defines model for ProvisionedTenant.
 type ProvisionedTenant struct {
 	CreatedAt           time.Time          `json:"created_at"`
@@ -7380,8 +7395,11 @@ type SignInRules struct {
 
 	// Password What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 	// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
-	Password  PasswordRules     `json:"password"`
-	Providers []ProviderSummary `json:"providers"`
+	Password PasswordRules `json:"password"`
+
+	// PasswordFallback True while `PASSWORD` is among the methods only because the workspace's last way in was a provider the installation offered and has withdrawn (ADR-0076 §4): the password opens again for the accounts that hold one, under the workspace's own rules, until an administrator switches on another way. The administrators' screen says so.
+	PasswordFallback *bool             `json:"password_fallback,omitempty"`
+	Providers        []ProviderSummary `json:"providers"`
 
 	// WorkspaceHost The host this answer was resolved for, which is what the card shows.
 	WorkspaceHost string `json:"workspace_host"`
@@ -8411,6 +8429,18 @@ type ConfigureInstanceIdentityProviderParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// CancelInstanceIdentityProviderWithdrawalParams defines parameters for CancelInstanceIdentityProviderWithdrawal.
+type CancelInstanceIdentityProviderWithdrawalParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// WithdrawInstanceIdentityProviderParams defines parameters for WithdrawInstanceIdentityProvider.
+type WithdrawInstanceIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListInstanceJournalParams defines parameters for ListInstanceJournal.
 type ListInstanceJournalParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -9410,6 +9440,9 @@ type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfigurati
 // ConfigureInstanceIdentityProviderJSONRequestBody defines body for ConfigureInstanceIdentityProvider for application/json ContentType.
 type ConfigureInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
+// WithdrawInstanceIdentityProviderJSONRequestBody defines body for WithdrawInstanceIdentityProvider for application/json ContentType.
+type WithdrawInstanceIdentityProviderJSONRequestBody = ProviderWithdrawal
+
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
@@ -10034,6 +10067,7 @@ type ClientInterface interface {
 	// ConfigureInstanceIdentityProviderWithBody Replace one of the installation's providers
 	//
 	// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+	// Whether the installation offers the provider is not changed here: an offer ends through `:withdraw`, announced for a date or confirmed with the count (ADR-0076 §2-3), and is kept with `:cancel-withdrawal`. A changed `enabled` is refused with `identity_provider.withdraw_instead`; the same value, or none, changes nothing.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10043,11 +10077,39 @@ type ClientInterface interface {
 	// ConfigureInstanceIdentityProvider Replace one of the installation's providers
 	//
 	// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+	// Whether the installation offers the provider is not changed here: an offer ends through `:withdraw`, announced for a date or confirmed with the count (ADR-0076 §2-3), and is kept with `:cancel-withdrawal`. A changed `enabled` is refused with `identity_provider.withdraw_instead`; the same value, or none, changes nothing.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
 	ConfigureInstanceIdentityProvider(ctx context.Context, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CancelInstanceIdentityProviderWithdrawal Keep offering a provider whose withdrawal was announced
+	//
+	// Clears the withdrawal (ADR-0076 §2, P-04). Before the date nothing changes for anybody; after it, the offer is back and the workspaces that had it switched on sign in through it again, because the connected identities were never removed. Journalled.
+	//
+	// Corresponds with POST /admin/identity-providers/{providerId}:cancel-withdrawal (the `CancelInstanceIdentityProviderWithdrawal` operationId).
+	CancelInstanceIdentityProviderWithdrawal(ctx context.Context, providerId ProviderId, params *CancelInstanceIdentityProviderWithdrawalParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WithdrawInstanceIdentityProviderWithBody Announce the withdrawal of an offered provider, or withdraw it now
+	//
+	// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
+	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/identity-providers/{providerId}:withdraw (the `WithdrawInstanceIdentityProvider` operationId).
+	WithdrawInstanceIdentityProviderWithBody(ctx context.Context, providerId ProviderId, params *WithdrawInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WithdrawInstanceIdentityProvider Announce the withdrawal of an offered provider, or withdraw it now
+	//
+	// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
+	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/identity-providers/{providerId}:withdraw (the `WithdrawInstanceIdentityProvider` operationId).
+	WithdrawInstanceIdentityProvider(ctx context.Context, providerId ProviderId, params *WithdrawInstanceIdentityProviderParams, body WithdrawInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListInstanceJournal The installation's own record
 	//
@@ -13755,6 +13817,7 @@ func (c *Client) RemoveInstanceIdentityProvider(ctx context.Context, providerId 
 // ConfigureInstanceIdentityProviderWithBody Replace one of the installation's providers
 //
 // Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+// Whether the installation offers the provider is not changed here: an offer ends through `:withdraw`, announced for a date or confirmed with the count (ADR-0076 §2-3), and is kept with `:cancel-withdrawal`. A changed `enabled` is refused with `identity_provider.withdraw_instead`; the same value, or none, changes nothing.
 //
 // Takes any type of body and a specified content type.
 //
@@ -13774,12 +13837,70 @@ func (c *Client) ConfigureInstanceIdentityProviderWithBody(ctx context.Context, 
 // ConfigureInstanceIdentityProvider Replace one of the installation's providers
 //
 // Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+// Whether the installation offers the provider is not changed here: an offer ends through `:withdraw`, announced for a date or confirmed with the count (ADR-0076 §2-3), and is kept with `:cancel-withdrawal`. A changed `enabled` is refused with `identity_provider.withdraw_instead`; the same value, or none, changes nothing.
 //
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
 func (c *Client) ConfigureInstanceIdentityProvider(ctx context.Context, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConfigureInstanceIdentityProviderRequest(c.Server, providerId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CancelInstanceIdentityProviderWithdrawal Keep offering a provider whose withdrawal was announced
+//
+// Clears the withdrawal (ADR-0076 §2, P-04). Before the date nothing changes for anybody; after it, the offer is back and the workspaces that had it switched on sign in through it again, because the connected identities were never removed. Journalled.
+//
+// Corresponds with POST /admin/identity-providers/{providerId}:cancel-withdrawal (the `CancelInstanceIdentityProviderWithdrawal` operationId).
+func (c *Client) CancelInstanceIdentityProviderWithdrawal(ctx context.Context, providerId ProviderId, params *CancelInstanceIdentityProviderWithdrawalParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCancelInstanceIdentityProviderWithdrawalRequest(c.Server, providerId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WithdrawInstanceIdentityProviderWithBody Announce the withdrawal of an offered provider, or withdraw it now
+//
+// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
+// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/identity-providers/{providerId}:withdraw (the `WithdrawInstanceIdentityProvider` operationId).
+func (c *Client) WithdrawInstanceIdentityProviderWithBody(ctx context.Context, providerId ProviderId, params *WithdrawInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWithdrawInstanceIdentityProviderRequestWithBody(c.Server, providerId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WithdrawInstanceIdentityProvider Announce the withdrawal of an offered provider, or withdraw it now
+//
+// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
+// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/identity-providers/{providerId}:withdraw (the `WithdrawInstanceIdentityProvider` operationId).
+func (c *Client) WithdrawInstanceIdentityProvider(ctx context.Context, providerId ProviderId, params *WithdrawInstanceIdentityProviderParams, body WithdrawInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWithdrawInstanceIdentityProviderRequest(c.Server, providerId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -21378,6 +21499,117 @@ func NewConfigureInstanceIdentityProviderRequestWithBody(server string, provider
 	}
 
 	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCancelInstanceIdentityProviderWithdrawalRequest constructs an http.Request for the CancelInstanceIdentityProviderWithdrawal method
+func NewCancelInstanceIdentityProviderWithdrawalRequest(server string, providerId ProviderId, params *CancelInstanceIdentityProviderWithdrawalParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "providerId", providerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/identity-providers/%s:cancel-withdrawal", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewWithdrawInstanceIdentityProviderRequest calls the generic WithdrawInstanceIdentityProvider builder with application/json body
+func NewWithdrawInstanceIdentityProviderRequest(server string, providerId ProviderId, params *WithdrawInstanceIdentityProviderParams, body WithdrawInstanceIdentityProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewWithdrawInstanceIdentityProviderRequestWithBody(server, providerId, params, "application/json", bodyReader)
+}
+
+// NewWithdrawInstanceIdentityProviderRequestWithBody constructs an http.Request for the WithdrawInstanceIdentityProvider method, with any body, and a specified content type
+func NewWithdrawInstanceIdentityProviderRequestWithBody(server string, providerId ProviderId, params *WithdrawInstanceIdentityProviderParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "providerId", providerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/identity-providers/%s:withdraw", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -34238,6 +34470,7 @@ type ClientWithResponsesInterface interface {
 	// ConfigureInstanceIdentityProviderWithBodyWithResponse Replace one of the installation's providers
 	//
 	// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+	// Whether the installation offers the provider is not changed here: an offer ends through `:withdraw`, announced for a date or confirmed with the count (ADR-0076 §2-3), and is kept with `:cancel-withdrawal`. A changed `enabled` is refused with `identity_provider.withdraw_instead`; the same value, or none, changes nothing.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -34247,11 +34480,41 @@ type ClientWithResponsesInterface interface {
 	// ConfigureInstanceIdentityProviderWithResponse Replace one of the installation's providers
 	//
 	// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+	// Whether the installation offers the provider is not changed here: an offer ends through `:withdraw`, announced for a date or confirmed with the count (ADR-0076 §2-3), and is kept with `:cancel-withdrawal`. A changed `enabled` is refused with `identity_provider.withdraw_instead`; the same value, or none, changes nothing.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
 	ConfigureInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error)
+
+	// CancelInstanceIdentityProviderWithdrawalWithResponse Keep offering a provider whose withdrawal was announced
+	//
+	// Clears the withdrawal (ADR-0076 §2, P-04). Before the date nothing changes for anybody; after it, the offer is back and the workspaces that had it switched on sign in through it again, because the connected identities were never removed. Journalled.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/identity-providers/{providerId}:cancel-withdrawal (the `CancelInstanceIdentityProviderWithdrawal` operationId).
+	CancelInstanceIdentityProviderWithdrawalWithResponse(ctx context.Context, providerId ProviderId, params *CancelInstanceIdentityProviderWithdrawalParams, reqEditors ...RequestEditorFn) (*CancelInstanceIdentityProviderWithdrawalResult, error)
+
+	// WithdrawInstanceIdentityProviderWithBodyWithResponse Announce the withdrawal of an offered provider, or withdraw it now
+	//
+	// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
+	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/identity-providers/{providerId}:withdraw (the `WithdrawInstanceIdentityProvider` operationId).
+	WithdrawInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, params *WithdrawInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WithdrawInstanceIdentityProviderResult, error)
+
+	// WithdrawInstanceIdentityProviderWithResponse Announce the withdrawal of an offered provider, or withdraw it now
+	//
+	// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
+	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/identity-providers/{providerId}:withdraw (the `WithdrawInstanceIdentityProvider` operationId).
+	WithdrawInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *WithdrawInstanceIdentityProviderParams, body WithdrawInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*WithdrawInstanceIdentityProviderResult, error)
 
 	// ListInstanceJournalWithResponse The installation's own record
 	//
@@ -38553,6 +38816,102 @@ func (r ConfigureInstanceIdentityProviderResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ConfigureInstanceIdentityProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CancelInstanceIdentityProviderWithdrawalResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *IdentityProvider
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CancelInstanceIdentityProviderWithdrawalResult) GetJSON200() *IdentityProvider {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CancelInstanceIdentityProviderWithdrawalResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CancelInstanceIdentityProviderWithdrawalResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CancelInstanceIdentityProviderWithdrawalResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CancelInstanceIdentityProviderWithdrawalResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CancelInstanceIdentityProviderWithdrawalResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type WithdrawInstanceIdentityProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *IdentityProvider
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r WithdrawInstanceIdentityProviderResult) GetJSON200() *IdentityProvider {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r WithdrawInstanceIdentityProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r WithdrawInstanceIdentityProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r WithdrawInstanceIdentityProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r WithdrawInstanceIdentityProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r WithdrawInstanceIdentityProviderResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -51633,6 +51992,7 @@ func (c *ClientWithResponses) RemoveInstanceIdentityProviderWithResponse(ctx con
 // ConfigureInstanceIdentityProviderWithBodyWithResponse Replace one of the installation's providers
 //
 // Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+// Whether the installation offers the provider is not changed here: an offer ends through `:withdraw`, announced for a date or confirmed with the count (ADR-0076 §2-3), and is kept with `:cancel-withdrawal`. A changed `enabled` is refused with `identity_provider.withdraw_instead`; the same value, or none, changes nothing.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -51648,6 +52008,7 @@ func (c *ClientWithResponses) ConfigureInstanceIdentityProviderWithBodyWithRespo
 // ConfigureInstanceIdentityProviderWithResponse Replace one of the installation's providers
 //
 // Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+// Whether the installation offers the provider is not changed here: an offer ends through `:withdraw`, announced for a date or confirmed with the count (ADR-0076 §2-3), and is kept with `:cancel-withdrawal`. A changed `enabled` is refused with `identity_provider.withdraw_instead`; the same value, or none, changes nothing.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -51658,6 +52019,53 @@ func (c *ClientWithResponses) ConfigureInstanceIdentityProviderWithResponse(ctx 
 		return nil, err
 	}
 	return ParseConfigureInstanceIdentityProviderResult(rsp)
+}
+
+// CancelInstanceIdentityProviderWithdrawalWithResponse Keep offering a provider whose withdrawal was announced
+//
+// Clears the withdrawal (ADR-0076 §2, P-04). Before the date nothing changes for anybody; after it, the offer is back and the workspaces that had it switched on sign in through it again, because the connected identities were never removed. Journalled.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/identity-providers/{providerId}:cancel-withdrawal (the `CancelInstanceIdentityProviderWithdrawal` operationId).
+func (c *ClientWithResponses) CancelInstanceIdentityProviderWithdrawalWithResponse(ctx context.Context, providerId ProviderId, params *CancelInstanceIdentityProviderWithdrawalParams, reqEditors ...RequestEditorFn) (*CancelInstanceIdentityProviderWithdrawalResult, error) {
+	rsp, err := c.CancelInstanceIdentityProviderWithdrawal(ctx, providerId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCancelInstanceIdentityProviderWithdrawalResult(rsp)
+}
+
+// WithdrawInstanceIdentityProviderWithBodyWithResponse Announce the withdrawal of an offered provider, or withdraw it now
+//
+// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
+// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/identity-providers/{providerId}:withdraw (the `WithdrawInstanceIdentityProvider` operationId).
+func (c *ClientWithResponses) WithdrawInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, params *WithdrawInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WithdrawInstanceIdentityProviderResult, error) {
+	rsp, err := c.WithdrawInstanceIdentityProviderWithBody(ctx, providerId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWithdrawInstanceIdentityProviderResult(rsp)
+}
+
+// WithdrawInstanceIdentityProviderWithResponse Announce the withdrawal of an offered provider, or withdraw it now
+//
+// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
+// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/identity-providers/{providerId}:withdraw (the `WithdrawInstanceIdentityProvider` operationId).
+func (c *ClientWithResponses) WithdrawInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *WithdrawInstanceIdentityProviderParams, body WithdrawInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*WithdrawInstanceIdentityProviderResult, error) {
+	rsp, err := c.WithdrawInstanceIdentityProvider(ctx, providerId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWithdrawInstanceIdentityProviderResult(rsp)
 }
 
 // ListInstanceJournalWithResponse The installation's own record
@@ -57987,6 +58395,72 @@ func ParseConfigureInstanceIdentityProviderResult(rsp *http.Response) (*Configur
 	}
 
 	response := &ConfigureInstanceIdentityProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest IdentityProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCancelInstanceIdentityProviderWithdrawalResult parses an HTTP response from a CancelInstanceIdentityProviderWithdrawalWithResponse call
+func ParseCancelInstanceIdentityProviderWithdrawalResult(rsp *http.Response) (*CancelInstanceIdentityProviderWithdrawalResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CancelInstanceIdentityProviderWithdrawalResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest IdentityProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseWithdrawInstanceIdentityProviderResult parses an HTTP response from a WithdrawInstanceIdentityProviderWithResponse call
+func ParseWithdrawInstanceIdentityProviderResult(rsp *http.Response) (*WithdrawInstanceIdentityProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &WithdrawInstanceIdentityProviderResult{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

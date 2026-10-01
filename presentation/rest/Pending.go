@@ -1182,3 +1182,18 @@ func (pending) ImportEntries(w http.ResponseWriter, r *http.Request, _ openapi.I
 func (pending) GetImport(w http.ResponseWriter, r *http.Request, _ openapi.ImportId) {
 	notAvailable(w, r)
 }
+
+// The withdrawal of an offered provider lands with SC-20's use cases (ADR-0076).
+func (pending) WithdrawInstanceIdentityProvider(
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+	_ openapi.WithdrawInstanceIdentityProviderParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) CancelInstanceIdentityProviderWithdrawal(
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+	_ openapi.CancelInstanceIdentityProviderWithdrawalParams,
+) {
+	notAvailable(w, r)
+}
