@@ -30,11 +30,12 @@ export function defaultWithdrawalDate(zone: string, now: number = Date.now()): s
 }
 
 /**
- * The earliest day an announced withdrawal may name: tomorrow. Today has already begun, so naming it
- * would be *Withdraw now* - which is its own control, with the count to repeat.
+ * The earliest day an announced withdrawal may name: the day after tomorrow. The server counts less
+ * than a day's notice as *Withdraw now* and asks for the count, and tomorrow's midnight can be a few
+ * hours away - so the first day this control offers is one that is always a day ahead.
  */
 export function earliestWithdrawalDate(zone: string, now: number = Date.now()): string {
-  return daysAhead(zone, 1, now);
+  return daysAhead(zone, 2, now);
 }
 
 /** The instant a chosen day begins in `zone`, or nothing for a value that is not a day. */

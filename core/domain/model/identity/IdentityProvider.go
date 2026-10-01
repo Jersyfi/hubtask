@@ -110,6 +110,11 @@ type IdentityProvider struct {
 // (ADR-0076 §2): two weeks for every workspace that uses the provider to switch on another way.
 const WithdrawalNotice = 14 * 24 * time.Hour
 
+// MinimumWithdrawalNotice is the least that counts as notice at all. A withdrawal sooner than this
+// is Withdraw now in all but name, and asks for the count as Withdraw now does - otherwise the
+// confirmation could be skipped by naming a moment a second away.
+const MinimumWithdrawalNotice = 24 * time.Hour
+
 // OfferedAt reports whether the row is a way in at all at this moment: switched on, and not past an
 // announced withdrawal. The date is honoured where the offer is read, so no job has to end it.
 func (p IdentityProvider) OfferedAt(now time.Time) bool {

@@ -6425,7 +6425,7 @@ type ProviderWithdrawal struct {
 	// ConfirmCount Required for *Withdraw now*: the number of workspaces that have the provider switched on, as the operator read it before confirming.
 	ConfirmCount *int `json:"confirm_count,omitempty"`
 
-	// WithdrawAt When the offer ends. Absent is fourteen days from now; now or past is *Withdraw now*.
+	// WithdrawAt When the offer ends. Absent is fourteen days from now; now or past is *Withdraw now*, and less than a day ahead asks for the count as *Withdraw now* does.
 	WithdrawAt *time.Time `json:"withdraw_at,omitempty"`
 }
 
@@ -8425,13 +8425,13 @@ type ConfigureInstanceIdentityProviderParams struct {
 
 // CancelInstanceIdentityProviderWithdrawalParams defines parameters for CancelInstanceIdentityProviderWithdrawal.
 type CancelInstanceIdentityProviderWithdrawalParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // WithdrawInstanceIdentityProviderParams defines parameters for WithdrawInstanceIdentityProvider.
 type WithdrawInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 

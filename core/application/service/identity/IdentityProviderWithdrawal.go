@@ -43,17 +43,25 @@ func (w IdentityProviderWriter) WithdrawOfferAt(
 		if err != nil {
 			return err
 		}
+		// An offer that has ended is not withdrawn again: a fresh notice would revive it, and a
+		// provider withdrawn now because it was compromised must not come back by a second call.
+		// The cancellation is the one way back.
+		if !found.OfferedAt(now) {
+			return shared.ErrValidation.WithDetail("identity_provider.already_withdrawn")
+		}
 		when := at
 		if when.IsZero() {
 			when = now.Add(domain.WithdrawalNotice)
 		}
-		if !now.Before(when) {
-			// Withdraw now. The count is read inside this transaction, so a workspace that
-			// switched the provider on since the operator looked makes the confirmation wrong
-			// rather than unseen.
+		if when.Before(now.Add(domain.MinimumWithdrawalNotice)) {
+			// Withdraw now, or a notice too short to be one. The count is read inside this
+			// transaction, so a workspace that switched the provider on since the operator looked
+			// makes the confirmation wrong rather than unseen.
 			if confirmCount == nil || *confirmCount != found.OfferedWorkspaces {
 				return withdrawCountMismatch(found.OfferedWorkspaces)
 			}
+		}
+		if !now.Before(when) {
 			// The moment it actually ended, not one in the past it never ended at.
 			when = now
 		}

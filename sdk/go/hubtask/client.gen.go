@@ -6431,7 +6431,7 @@ type ProviderWithdrawal struct {
 	// ConfirmCount Required for *Withdraw now*: the number of workspaces that have the provider switched on, as the operator read it before confirming.
 	ConfirmCount *int `json:"confirm_count,omitempty"`
 
-	// WithdrawAt When the offer ends. Absent is fourteen days from now; now or past is *Withdraw now*.
+	// WithdrawAt When the offer ends. Absent is fourteen days from now; now or past is *Withdraw now*, and less than a day ahead asks for the count as *Withdraw now* does.
 	WithdrawAt *time.Time `json:"withdraw_at,omitempty"`
 }
 
@@ -8431,13 +8431,13 @@ type ConfigureInstanceIdentityProviderParams struct {
 
 // CancelInstanceIdentityProviderWithdrawalParams defines parameters for CancelInstanceIdentityProviderWithdrawal.
 type CancelInstanceIdentityProviderWithdrawalParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // WithdrawInstanceIdentityProviderParams defines parameters for WithdrawInstanceIdentityProvider.
 type WithdrawInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -10094,7 +10094,7 @@ type ClientInterface interface {
 	// WithdrawInstanceIdentityProviderWithBody Announce the withdrawal of an offered provider, or withdraw it now
 	//
 	// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
-	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A date less than a day ahead is no notice either, and asks for the count the same way. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). An offer that has already ended is not withdrawn again - refused with `identity_provider.already_withdrawn`, so a call cannot revive it; it is offered again only through `:cancel-withdrawal`. Journalled.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10104,7 +10104,7 @@ type ClientInterface interface {
 	// WithdrawInstanceIdentityProvider Announce the withdrawal of an offered provider, or withdraw it now
 	//
 	// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
-	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A date less than a day ahead is no notice either, and asks for the count the same way. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). An offer that has already ended is not withdrawn again - refused with `identity_provider.already_withdrawn`, so a call cannot revive it; it is offered again only through `:cancel-withdrawal`. Journalled.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -13874,7 +13874,7 @@ func (c *Client) CancelInstanceIdentityProviderWithdrawal(ctx context.Context, p
 // WithdrawInstanceIdentityProviderWithBody Announce the withdrawal of an offered provider, or withdraw it now
 //
 // ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
-// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A date less than a day ahead is no notice either, and asks for the count the same way. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). An offer that has already ended is not withdrawn again - refused with `identity_provider.already_withdrawn`, so a call cannot revive it; it is offered again only through `:cancel-withdrawal`. Journalled.
 //
 // Takes any type of body and a specified content type.
 //
@@ -13894,7 +13894,7 @@ func (c *Client) WithdrawInstanceIdentityProviderWithBody(ctx context.Context, p
 // WithdrawInstanceIdentityProvider Announce the withdrawal of an offered provider, or withdraw it now
 //
 // ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
-// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A date less than a day ahead is no notice either, and asks for the count the same way. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). An offer that has already ended is not withdrawn again - refused with `identity_provider.already_withdrawn`, so a call cannot revive it; it is offered again only through `:cancel-withdrawal`. Journalled.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -34499,7 +34499,7 @@ type ClientWithResponsesInterface interface {
 	// WithdrawInstanceIdentityProviderWithBodyWithResponse Announce the withdrawal of an offered provider, or withdraw it now
 	//
 	// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
-	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A date less than a day ahead is no notice either, and asks for the count the same way. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). An offer that has already ended is not withdrawn again - refused with `identity_provider.already_withdrawn`, so a call cannot revive it; it is offered again only through `:cancel-withdrawal`. Journalled.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -34509,7 +34509,7 @@ type ClientWithResponsesInterface interface {
 	// WithdrawInstanceIdentityProviderWithResponse Announce the withdrawal of an offered provider, or withdraw it now
 	//
 	// ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
-	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+	// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A date less than a day ahead is no notice either, and asks for the count the same way. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). An offer that has already ended is not withdrawn again - refused with `identity_provider.already_withdrawn`, so a call cannot revive it; it is offered again only through `:cancel-withdrawal`. Journalled.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -52039,7 +52039,7 @@ func (c *ClientWithResponses) CancelInstanceIdentityProviderWithdrawalWithRespon
 // WithdrawInstanceIdentityProviderWithBodyWithResponse Announce the withdrawal of an offered provider, or withdraw it now
 //
 // ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
-// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A date less than a day ahead is no notice either, and asks for the count the same way. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). An offer that has already ended is not withdrawn again - refused with `identity_provider.already_withdrawn`, so a call cannot revive it; it is offered again only through `:cancel-withdrawal`. Journalled.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -52055,7 +52055,7 @@ func (c *ClientWithResponses) WithdrawInstanceIdentityProviderWithBodyWithRespon
 // WithdrawInstanceIdentityProviderWithResponse Announce the withdrawal of an offered provider, or withdraw it now
 //
 // ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is given - and until then the provider keeps working everywhere while every workspace that has it switched on tells its administrators when it ends; it can be cancelled. On the date the offer ends: off everywhere, the connected identities left in place.
-// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). Journalled.
+// A date that is now or past is **Withdraw now**, the answer to a compromised provider: it additionally asks for `confirm_count`, the number of workspaces that have it switched on as the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it does not match. A date less than a day ahead is no notice either, and asks for the count the same way. A workspace left with no way in afterwards falls back to the password for the accounts that hold one (§4). An offer that has already ended is not withdrawn again - refused with `identity_provider.already_withdrawn`, so a call cannot revive it; it is offered again only through `:cancel-withdrawal`. Journalled.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

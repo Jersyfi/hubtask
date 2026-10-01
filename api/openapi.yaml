@@ -4259,8 +4259,11 @@ paths:
         A date that is now or past is **Withdraw now**, the answer to a compromised provider: it
         additionally asks for `confirm_count`, the number of workspaces that have it switched on as
         the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it
-        does not match. A workspace left with no way in afterwards falls back to the password for
-        the accounts that hold one (§4). Journalled.
+        does not match. A date less than a day ahead is no notice either, and asks for the count
+        the same way. A workspace left with no way in afterwards falls back to the password for the
+        accounts that hold one (§4). An offer that has already ended is not withdrawn again -
+        refused with `identity_provider.already_withdrawn`, so a call cannot revive it; it is
+        offered again only through `:cancel-withdrawal`. Journalled.
       requestBody:
         required: false
         content:
@@ -9429,7 +9432,8 @@ components:
           type: [string, "null"]
           format: date-time
           description: >
-            When the offer ends. Absent is fourteen days from now; now or past is *Withdraw now*.
+            When the offer ends. Absent is fourteen days from now; now or past is *Withdraw now*,
+            and less than a day ahead asks for the count as *Withdraw now* does.
         confirm_count:
           type: [integer, "null"]
           minimum: 0

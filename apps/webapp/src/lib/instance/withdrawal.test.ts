@@ -21,8 +21,10 @@ test('the default date is two weeks ahead, on the operator’s own calendar', ()
   assert.equal(defaultWithdrawalDate('Australia/Sydney', Date.parse('2026-10-02T14:00:00Z')), '2026-10-17');
 });
 
-test('an announcement names tomorrow at the earliest: today is Withdraw now', () => {
-  assert.equal(earliestWithdrawalDate('UTC', noon), '2026-10-03');
+test('an announcement names a day at least a day ahead: anything sooner is Withdraw now', () => {
+  assert.equal(earliestWithdrawalDate('UTC', noon), '2026-10-04');
+  // Late in the evening, tomorrow's midnight is a few hours away; the earliest day is still a day out.
+  assert.equal(earliestWithdrawalDate('UTC', Date.parse('2026-10-02T23:00:00Z')), '2026-10-04');
 });
 
 test('a chosen date ends the offer when that day begins where the operator is', () => {

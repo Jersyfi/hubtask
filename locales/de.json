@@ -193,6 +193,7 @@
   "identity_provider.withdraw_instead": "Ob die Installation einen Anbieter anbietet, wird nicht in seinem Formular geändert. Zieh ihn stattdessen zurück – angekündigt zu einem Datum oder sofort mit bestätigter Anzahl.",
   "identity_provider.withdraw_count_mismatch": "Gerade nutzen {count} Arbeitsbereiche diesen Anbieter. Lies die Zahl noch einmal und bestätige sie, um ihn sofort zurückzuziehen.",
   "identity_provider.withdraw_at_malformed": "{value} ist kein Datum mit Uhrzeit.",
+  "identity_provider.already_withdrawn": "Dieser Anbieter ist bereits zurückgezogen. Biete ihn zuerst weiter an, wenn er wieder angeboten werden soll.",
   "accounts.email_empty": "Eine Einladung braucht eine E-Mail-Adresse.",
   "accounts.email_malformed": "{value} sieht nicht wie eine E-Mail-Adresse aus.",
   "accounts.email_too_long": "Eine E-Mail-Adresse darf höchstens {maximum} Zeichen lang sein.",

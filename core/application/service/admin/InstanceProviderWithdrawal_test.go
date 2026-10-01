@@ -209,3 +209,47 @@ func TestTheWithdrawalUseCasesGoThroughTheRegistry(t *testing.T) {
 }
 
 func ptr(n int) *int { return &n }
+
+// A withdrawal is no way back: an offer that has already ended is refused rather than given a
+// fresh notice, which is what would revive a provider withdrawn now because it was compromised.
+// Only the cancellation offers it again.
+func TestWithdrawingAnEndedOfferDoesNotReviveIt(t *testing.T) {
+	writer, store, _, _ := newInstanceProviderWriter(newRegister(operatorID))
+	offeredRow(store)
+	store.rows[0].WithdrawAt = fixed.Add(-time.Hour) // withdrawn now, an hour ago
+
+	_, err := WithdrawInstanceIdentityProvider{Writer: writer}.Execute(
+		t.Context(), operator(), WithdrawCommand{ID: withdrawnRow})
+	if detailOf(err) != "identity_provider.already_withdrawn" {
+		t.Fatalf("withdrawing an ended offer answered %v", err)
+	}
+	if !store.rows[0].WithdrawAt.Equal(fixed.Add(-time.Hour)) {
+		t.Errorf("the ended offer was moved to %v", store.rows[0].WithdrawAt)
+	}
+}
+
+// Less than a day ahead is no notice: it asks for the count as Withdraw now does, so the
+// confirmation cannot be skipped by naming a moment a second away.
+func TestADateLessThanADayAheadAsksForTheCount(t *testing.T) {
+	writer, store, _, _ := newInstanceProviderWriter(newRegister(operatorID))
+	offeredRow(store)
+	withdraw := WithdrawInstanceIdentityProvider{Writer: writer}
+	soon := fixed.Add(time.Minute)
+
+	if _, err := withdraw.Execute(t.Context(), operator(), WithdrawCommand{ID: withdrawnRow, At: soon}); detailOf(err) !=
+		"identity_provider.withdraw_count_mismatch" {
+		t.Fatalf("a minute's notice without the count answered %v", err)
+	}
+	announced, err := withdraw.Execute(t.Context(), operator(),
+		WithdrawCommand{ID: withdrawnRow, At: soon, ConfirmCount: ptr(12)})
+	if err != nil {
+		t.Fatalf("a minute's notice with the count: %v", err)
+	}
+	if !announced.WithdrawAt.Equal(soon) {
+		t.Errorf("the confirmed short notice ends at %v, want %v", announced.WithdrawAt, soon)
+	}
+	if _, err := withdraw.Execute(t.Context(), operator(),
+		WithdrawCommand{ID: withdrawnRow, At: fixed.Add(domain.MinimumWithdrawalNotice)}); err != nil {
+		t.Errorf("a day's notice asked for the count: %v", err)
+	}
+}
