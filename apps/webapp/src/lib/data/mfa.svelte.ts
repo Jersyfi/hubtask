@@ -224,9 +224,20 @@ class Mfa {
       codes = answer.recovery_codes;
       return true;
     });
-    if (!ok) return undefined;
+    if (!ok) {
+      // A replacement the server no longer knows - lapsed, begun again elsewhere - is a dead secret
+      // on the screen. It goes, so *Begin the replacement* is offered again beside the sentence.
+      if (this.#failure === 'auth.mfa_replacement_unknown') this.#replacement = undefined;
+      return undefined;
+    }
     this.#replacement = undefined;
     return codes;
+  }
+
+  /** The replacement's window ran out on the screen: it goes, and the sentence says why. */
+  lapse(): void {
+    this.#replacement = undefined;
+    this.#failure = 'auth.mfa_replacement_unknown';
   }
 
   /** Drops the secret and the codes. Called when the screen leaves, and after a confirmation. */

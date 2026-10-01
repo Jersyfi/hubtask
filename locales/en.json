@@ -1485,6 +1485,7 @@
   "app.mfa.replace_secret_hint": "Add this to the new authenticator - scan the code, or type the secret. Nothing has changed yet.",
   "app.mfa.replace_code_label": "Code from the new authenticator",
   "app.mfa.replace_confirm": "Confirm and replace",
+  "app.mfa.replace_waits": "This replacement can be confirmed for {remaining} more.",
   "app.mfa.replace_codes_hint": "Ten new recovery codes. The old ten stopped working with the old authenticator - store these instead.",
   "app.mfa.replaced": "Your authenticator is replaced. The old one no longer works.",
   "app.mfa.required_by_workspace": "Your workspace requires a second factor, so it stays on.",

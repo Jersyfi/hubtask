@@ -471,6 +471,7 @@
   "app.mfa.replace_secret_hint": "Füge das dem neuen Authenticator hinzu - scanne den Code oder tippe das Geheimnis ab. Noch hat sich nichts geändert.",
   "app.mfa.replace_code_label": "Code aus dem neuen Authenticator",
   "app.mfa.replace_confirm": "Bestätigen und ersetzen",
+  "app.mfa.replace_waits": "Dieser Ersatz kann noch {remaining} lang bestätigt werden.",
   "app.mfa.replace_codes_hint": "Zehn neue Wiederherstellungscodes. Die alten zehn funktionieren mit dem alten Authenticator nicht mehr - bewahre stattdessen diese auf.",
   "app.mfa.replaced": "Dein Authenticator ist ersetzt. Der alte funktioniert nicht mehr.",
   "app.mfa.required_by_workspace": "Dein Arbeitsbereich verlangt einen zweiten Faktor, deshalb bleibt er an.",

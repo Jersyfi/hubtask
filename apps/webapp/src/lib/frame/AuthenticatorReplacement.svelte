@@ -18,6 +18,7 @@
 
   import { mfa } from '../data/mfa.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { remaining } from '../signin/expiry.ts';
 
   interface Props {
     /** Called once the new codes have been seen: the account is read again. */
@@ -41,6 +42,20 @@
   });
 
   $effect(() => () => mfa.forget());
+
+  // The window, said (P-11): the replacement can be confirmed for ten minutes, and the screen counts
+  // them down rather than letting a code fail for a reason nobody was told. At zero the dead secret
+  // goes and *Begin* is offered again.
+  let now = $state(Date.now());
+  $effect(() => {
+    if (!replacement) return;
+    const tick = setInterval(() => (now = Date.now()), 1000);
+    return () => clearInterval(tick);
+  });
+  const waits = $derived(replacement ? remaining(replacement.expires_at, now) : undefined);
+  $effect(() => {
+    if (replacement && Date.parse(replacement.expires_at) <= now) mfa.lapse();
+  });
 
   async function confirm(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -94,6 +109,7 @@
       {/if}
       <p class="secret">{grouped}</p>
       <p><a href={replacement.otpauth_uri}>{t('app.mfa.open_in_app')}</a></p>
+      {#if waits}<p class="quiet">{t('app.mfa.replace_waits', { remaining: waits })}</p>{/if}
     </Stack>
 
     <form onsubmit={confirm}>
