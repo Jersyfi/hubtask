@@ -28,10 +28,29 @@ func (MfaResealer) Store() string { return "account_mfa" }
 
 func (r MfaResealer) Reseal(ctx context.Context, _ shared.ID) (sealing.Outcome, error) {
 	var outcome sealing.Outcome
-	rows, err := r.Enrollments.SealedNotUnder(ctx, r.Encryptor.ActiveKeyID())
+	active := r.Encryptor.ActiveKeyID()
+	rows, err := r.Enrollments.SealedNotUnder(ctx, active)
 	if err != nil {
 		return outcome, err
 	}
+	if err := r.move(ctx, rows, r.Enrollments.Rewrap, &outcome); err != nil {
+		return outcome, err
+	}
+	// The replacements waiting to be confirmed (SC-17) under the same purpose: each becomes the
+	// factor it is bound to, so it is sealed for that factor, and the census counts it.
+	waiting, err := r.Enrollments.ReplacementsSealedNotUnder(ctx, active)
+	if err != nil {
+		return outcome, err
+	}
+	return outcome, r.move(ctx, waiting, r.Enrollments.RewrapReplacement, &outcome)
+}
+
+// move rewraps each row under its account's purpose and writes it back with the given guard.
+func (r MfaResealer) move(
+	ctx context.Context, rows []repository.MfaEnrollment,
+	write func(context.Context, shared.ID, cryptoport.Sealed, string) (bool, error),
+	outcome *sealing.Outcome,
+) error {
 	for _, row := range rows {
 		moved, err := r.Encryptor.Rewrap(ctx, row.Secret, mfaSecretPurpose(row.AccountID))
 		if err != nil {
@@ -39,17 +58,17 @@ func (r MfaResealer) Reseal(ctx context.Context, _ shared.ID) (sealing.Outcome, 
 				outcome.Skipped++
 				continue
 			}
-			return outcome, err
+			return err
 		}
-		rewrapped, err := r.Enrollments.Rewrap(ctx, row.AccountID, moved, row.Secret.KeyID)
+		rewrapped, err := write(ctx, row.AccountID, moved, row.Secret.KeyID)
 		if err != nil {
-			return outcome, err
+			return err
 		}
 		if rewrapped {
 			outcome.Rewrapped++
 		}
 	}
-	return outcome, nil
+	return nil
 }
 
 // providerSealing is the slice of the identity provider store the resealer uses: the read of every

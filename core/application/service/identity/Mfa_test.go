@@ -71,6 +71,37 @@ func (s *enrollmentsStore) RecordStep(
 	return true, nil
 }
 
+// StartReplacement and SwapReplacement are the two statements of SC-17, with their guards written
+// out: only an armed factor takes a replacement, and only the session that began it swaps it in,
+// inside its window, while the waiting secret is still the one verified.
+func (s *enrollmentsStore) StartReplacement(
+	_ context.Context, accountID shared.ID, sealed cryptoport.Sealed,
+	sessionID shared.ID, expiresAt, _ time.Time,
+) (bool, error) {
+	row, ok := s.rows[accountID]
+	if !ok || row.ConfirmedAt.IsZero() {
+		return false, nil
+	}
+	waiting := sealed
+	row.Replacement, row.ReplacementSession, row.ReplacementExpiresAt = &waiting, sessionID, expiresAt
+	return true, nil
+}
+
+func (s *enrollmentsStore) SwapReplacement(
+	_ context.Context, accountID, sessionID shared.ID, expected cryptoport.Sealed,
+	step int64, now time.Time,
+) (bool, error) {
+	row, ok := s.rows[accountID]
+	if !ok || row.ConfirmedAt.IsZero() || row.Replacement == nil ||
+		row.ReplacementSession != sessionID || !now.Before(row.ReplacementExpiresAt) ||
+		string(row.Replacement.Ciphertext) != string(expected.Ciphertext) {
+		return false, nil
+	}
+	row.Secret, row.LastStep = *row.Replacement, step
+	row.Replacement, row.ReplacementSession, row.ReplacementExpiresAt = nil, "", time.Time{}
+	return true, nil
+}
+
 func (s *enrollmentsStore) Disable(_ context.Context, accountID shared.ID) (bool, error) {
 	if _, ok := s.rows[accountID]; !ok {
 		return false, nil
