@@ -39,7 +39,12 @@
 Hubtask is an open, self-hostable task manager with five hierarchy levels
 (Hub → Collection → Task → Work Package → Activity). It targets private individuals equally
 (one container, one database, `docker compose up`) and service providers who run the application
-multi-tenant for thousands of end customers (Kubernetes, horizontal scaling).
+multi-tenant for thousands of end customers (Kubernetes, horizontal scaling). Between the two poles
+lie seven shapes — a private person, a family, a club, a company running it itself, a provider for
+consumers, one for companies, a managed service provider — which
+[`docs/vision/deployments.md`](../vision/deployments.md) names D1–D7; with the principles P-01…P-15
+and the personas they are the yardstick the use cases are written against
+([`docs/vision/`](../vision/README.md)).
 
 The application is built **backend first, API first, and AI first**: the business core and its API
 are the product; every frontend, every integration, and every AI agent are equal clients of the
@@ -103,6 +108,9 @@ automated proof that breaks the build ([security.md](./security.md) §13,
 [observability-reliability.md](./observability-reliability.md) §12).
 
 ### 1.3 Stakeholders
+
+The roles below are the architecture's; the people who use the product, and in which of the
+seven shapes, are [`docs/vision/personas.md`](../vision/personas.md).
 
 | Role | Expectation of the architecture |
 |---|---|
@@ -897,6 +905,9 @@ Quality
 | Template | `Template` | A predefined item tree |
 | View | `SavedView` | A saved query plus a layout hint |
 | Tenant | `Tenant` | The topmost isolation boundary (a customer or organisation) |
+| Use case | `UC-…` / an operation | Two meanings: a person-level requirement with numbered checks in [`docs/usecases/`](../usecases/README.md), and an operation of the application layer registered in three channels (domain-model.md §5) |
+| Private hub | `container.private` | A hub only its own members reach; no role higher up flows into it ([ADR-0073](../adr/ADR-0073-private-hubs.md)) |
+| Managed account | `Account.sign_in_name` | An account without a mail address, signing in with a name and a start password ([ADR-0074](../adr/ADR-0074-managed-accounts.md)) |
 | Capability profile | `ItemCapabilityProfile` | Defines the permitted fields and features per item type |
 | Rule | `AutomationRule` | A trigger plus conditions plus actions |
 | Rule run | `RuleRun` | The execution log of a rule |

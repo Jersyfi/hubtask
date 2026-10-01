@@ -21,7 +21,7 @@ Which means:
 | File | Trigger | Purpose |
 |---|---|---|
 | `ci.yml` | Pull request, push to `main` | The PR gates: format, lint, generation, build, tests, security, architecture, data, chart, Compose, documentation and licences |
-| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the privacy gates that need a database — PG-2 and PG-7 (`make gate-privacy-full`) — and `make gate-selftest` on the other architecture, the point-in-time recovery drill against a real operator and object store (`make gate-pitr`, H-10), the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
+| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the privacy gates that need a database — PG-2 and PG-7 (`make gate-privacy-full`, on arm64; on amd64 they run in every pull request's data job since #246) — and `make gate-selftest` on the other architecture, the point-in-time recovery drill against a real operator and object store (`make gate-pitr`, H-10), the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
 | `release.yml` | Tag `v*` | Compute the version, build the multi-arch image, SBOM, signature, provenance, Helm chart, GitHub release |
 | `deploy.yml` | Push to `main`, manual dispatch | `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
 | `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/` or the lockfile; manual dispatch | Build `apps/website/dist`, prove it is plain static files, mirror it to the webspace over SFTP (§CI-4). A failure files an issue labelled `claude:task` |
@@ -101,7 +101,7 @@ outputs whether it has work to do.
 | `design_system` | Additionally: all token targets are regenerated and the committed `LabelTokens.go` must not move |
 | `webapp`, `website`, `design_system`, `api_client` | Lint, typecheck, test and build — for the affected packages and the packages they consume |
 | `webapp`, `design_system`, `api_client`, `go`, `deploy` | The container build, because the image contains both halves ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
-| documentation only | The documentation gate, the secret scan, the dependency review and the licence gate — the four that are behind no filter |
+| documentation only | The documentation gate, the secret scan, the dependency review and the licence gate — the four that are behind no filter — and, on a pull request, the description check |
 | `.github/**` | Everything, no exceptions |
 
 Four jobs are behind no filter at all — `secrets`, `dependencies`, `licences` and `docs`. A key
@@ -111,6 +111,17 @@ second one: it takes 24 seconds, and `checkdocs` reconciles the Go version acros
 workflows and the Dockerfile, reconciles the support matrix with the nightly's jobs, and resolves
 ADR citations in `.go`, `.md`, `.sql`, `.yaml` and `.tpl` — so a change confined to `db/` or
 `deploy/` used to skip the gate that reads it.
+
+**`pr-description` reads the description, not the tree.** On every pull request that is not a
+bot's, `tools/checkpr` holds the description to the current template — every section present, in
+order, filled or marked n/a; `Closes #n` at the start of a line or `No issue: <why>`; use cases that
+exist; one ADR answer ticked and named; every Definition of Done item ticked or n/a; no placeholder
+left in Impact. It reads the description from the API, so a re-run judges it as it stands, and
+`pr-description-rerun.yml` re-runs the failed jobs of the latest run when the description is edited
+— fixing the text is enough to turn `CI required` green. It exists because sessions wrote
+descriptions from scratch with `gh pr create --body`, which never shows the template, and the
+sections they judged irrelevant went missing (2026-09-30). `make gate-pr BODY=<file>` runs it
+locally.
 
 **The filters name trees, and `test/architecture` checks that they name all of them.** They used
 to name patterns — `**/*.go` and a list of manifests — which left every non-Go file a Go test

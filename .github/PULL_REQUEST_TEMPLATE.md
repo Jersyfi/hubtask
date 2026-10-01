@@ -1,8 +1,14 @@
+<!-- The job "Pull request description" reads this (tools/checkpr, `make gate-pr BODY=<file>`):
+     every section stays, in this order, and says n/a where it does not apply. Writing the
+     description with `gh pr create --body` skips this template - start from a copy of it. -->
+
 ## What and why
 
 <!-- Keep it short. The why matters more than the what — the what is in the diff. -->
 
 Closes #
+
+<!-- Or, when there is no issue: `No issue: <why>` on a line of its own. -->
 
 ## Use cases
 

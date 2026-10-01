@@ -9,7 +9,7 @@ on which a service provider serves thousands of end customers — comparable to 
 
 | Mode | `HUBTASK_TENANCY_MODE` | Behaviour |
 |---|---|---|
-| Single | `single` (default) | Exactly one tenant is created on first startup; no tenant selection in the API; registration optionally open |
+| Single | `single` (default) | Exactly one tenant — today created by `scripts/dev-workspace.sh --bootstrap` or the admin API, from SC-04 by the web app's *Set up Hubtask* with a one-time code the first start prints ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)); no tenant selection in the API; registration optionally open |
 | Multi | `multi` | Tenants are provisioned through the control/admin API; resolved by subdomain, header, or token claim; self-service signup optional |
 
 The code **always** knows about a tenant; "single" is merely the special case with one row in
@@ -158,7 +158,10 @@ circuit answer, so nothing that calls AI has a second way to degrade. Unlimited 
 because a self-hoster is either running a local model or paying their own provider directly, and
 a default ceiling there would be this project deciding how much of somebody's own machine they
 may use; a real number in multi because AI is the one feature whose marginal cost leaves the
-installation.
+installation. *Since [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) §4 the budget counts
+per source:* `ai_tokens_per_day` limits the model the installation **offers**, which the provider
+pays for; a workspace's own model is limited only by its own optional `ai_own_tokens_per_day`, off
+by default.
 
 Further fairness mechanisms: a weighted job queue (one tenant cannot monopolise the workers), query
 timeouts (`statement_timeout` per role), and cost estimation for query DSL requests with rejection

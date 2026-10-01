@@ -31,7 +31,7 @@ injected.
 ## 2. Definition of Ready (the story may be implemented)
 
 1. The bounded context and aggregate are named.
-2. The affected use cases are named (using the names from the catalogue in [domain-model.md](./domain-model.md)).
+2. The use cases the work serves are named in the task's `**Use cases:**` line, from [`docs/usecases/`](../usecases/README.md), with the checks it makes true; the operations it adds or changes are named from the catalogue in [domain-model.md](./domain-model.md) §5.
 3. The API impact is settled: new/changed operations, field names, error codes; if it breaks something → an ADR.
 4. Domain events are named (new/changed) including a compatibility assessment.
 5. Permissions are defined: which role, which scope may do this.
@@ -65,6 +65,7 @@ injected.
 13. Documentation updated (the arc42 section, an ADR for an architectural decision, the changelog via the commit).
 14. The Conventional Commit title is correct; a breaking change is marked.
 15. **Client impact** settled: a change to `api/openapi.yaml` carries its client fix in the same pull request — `packages/api-client` regenerated and the web app building green ([ADR-0035](../adr/ADR-0035-one-product-version.md) §4). A core task adds no screens, but it may not leave the client lane red either.
+16. **Use cases met**: every check of every use case the task names holds, with a test or a walk as evidence; the use case's `state:`, `checked_by:` and *Today* say so; `/usecase-check` over the branch finds nothing open; and the pull request's *Use cases* section reports each check ([`docs/usecases/README.md`](../usecases/README.md)).
 
 ---
 

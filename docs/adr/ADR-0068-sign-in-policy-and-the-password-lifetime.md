@@ -45,7 +45,10 @@ factor and the methods, two for sessions, and one action that is an event rather
 | The action | `rotation_from` — a moment, set by "require a new password from everyone" |
 
 `require_admin_totp` on the workspace is not renamed or removed: it is what `mfa_required_for`
-derives from and writes back to, so no client and no stored row has to move.
+derives from and writes back to, so no client and no stored row has to move. *Reversed by SC-06
+(2026-09-30, [P-06](../vision/principles.md#p-06-one-setting-one-place-every-level-visible-there)):*
+`require_admin_totp` becomes derived from `mfa_required_for` and read-only, because two writable
+fields for one rule showed on two screens that disagreed.
 
 **The four classes are counted separately *and* as "n of four."** They cannot be expressed in each
 other — "one digit and one symbol" is not "two of four" — and both are what real policies ask for.
@@ -143,7 +146,8 @@ A regular expression (an admin-supplied one is a ReDoS vector and its violation 
 that names the fix, SC 3.3.3) · keyboard and alphabet sequences (layout-dependent; the common-
 password list catches the real cases) · forbidding spaces (NIST requires the opposite) · password
 hints and security questions · a strength meter as a *requirement* · a reset performed by an
-administrator (they invite again, which exists) · magic links as an everyday method · SMS codes.
+administrator (they invite again, which exists — except for a managed account without an address,
+which [ADR-0074](./ADR-0074-managed-accounts.md) §4 lets an administrator give a new start password) · magic links as an everyday method · SMS codes.
 
 ### 9. What this changes in `security.md` §5
 

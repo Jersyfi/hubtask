@@ -90,9 +90,13 @@ change to the engine.
 
 Evaluated in this order; the first matching rule wins:
 
-1. **Legal hold** on a tenant, container, or item → no deletion, no anonymisation. Lifting it is auditable. Placed and lifted through `/legal-holds` since E-08, and both ends carry a reason and an author: a hold is never deleted, it gains an end, because an auditor has to be able to tell "there was never a hold" from "somebody lifted it". An entry a hold is keeping back says so - it carries the rule, the action, and `blocked_by: legal_hold`, with no date, because it is not waiting for a moment, it is being overruled.
+1. **Legal hold** on a tenant, container, item, or (from PH-01) an account → no deletion, no anonymisation. Lifting it is auditable. Placed and lifted through `/legal-holds` since E-08, and both ends carry a reason and an author: a hold is never deleted, it gains an end, because an auditor has to be able to tell "there was never a hold" from "somebody lifted it". An entry a hold is keeping back says so - it carries the rule, the action, and `blocked_by: legal_hold`, with no date, because it is not waiting for a moment, it is being overruled.
 
-   **The `ACCOUNT` scope is refused.** The schema's check constraint accepts it and `Holds.Blocking` deliberately ignores it: a hold on an account is about one person's own data, which is erased where a data subject request is answered rather than kept where a workspace's entries are, and E-10 is the task that answers one. Storing one meanwhile would store a hold nothing honours, which is worse than none - somebody believes it is in force. The value stays in the model and in the constraint, so E-10 needs no migration to start honouring it (E-08).
+   **The `ACCOUNT` scope is refused — until PH-01.** *Decided 2026-09-30
+   ([data-protection.md §4.1](./data-protection.md#41-three-decisions-of-2026-09-30)), and the reasoning
+   below is withdrawn:* an `ACCOUNT` hold covers the person's contributions and the account, and stops
+   their erasure rather than their sign-in; an erasure keeps what any hold reaches and erases the
+   rest. What follows describes the code until PH-01 lands. The schema's check constraint accepts it and `Holds.Blocking` deliberately ignores it: a hold on an account is about one person's own data, which is erased where a data subject request is answered rather than kept where a workspace's entries are, and E-10 is the task that answers one. Storing one meanwhile would store a hold nothing honours, which is worse than none - somebody believes it is in force. The value stays in the model and in the constraint, so E-10 needs no migration to start honouring it (E-08).
 2. **A restriction of processing** (GDPR Art. 18) → processing is restricted, and the object is neither deleted nor changed.
 
    The wording here said "a data subject request with **status** `RESTRICTION`" until E-10, and an
