@@ -34,7 +34,7 @@
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import { session } from '../lib/session.svelte.ts';
   import { remaining } from '../lib/signin/expiry.ts';
-  import { ordered, readLastProvider, rememberProvider } from '../lib/signin/lastMethod.ts';
+  import { ordered, readLastProvider, rememberPassword, rememberProvider } from '../lib/signin/lastMethod.ts';
 
   let email = $state('');
   let password = $state('');
@@ -139,7 +139,9 @@
     missingPassword = password === '';
     if (missingEmail || missingPassword) return;
 
-    await session.signIn(address, password);
+    // The password was right when there is a session or a step after it: that is the way in this
+    // browser used, and the card remembers it as it remembers a provider.
+    if ((await session.signIn(address, password)) || session.secondFactorOwed) rememberPassword();
     // Out of the component's state whatever happened. A password kept for a retry is a password
     // sitting in memory for as long as the tab is open.
     password = '';
