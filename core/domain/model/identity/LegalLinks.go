@@ -121,6 +121,20 @@ func EffectiveLegal(instance, workspace LegalLayer) (LegalLinks, map[LegalLink]L
 	return resolved, locks
 }
 
+// LegalSourceOf answers which level a link in force came from, EffectiveLegal's order (P-06). A
+// lock is the installation's decision even where it pinned "no link".
+func LegalSourceOf(name LegalLink, instance, workspace LegalLayer) PolicySource {
+	switch {
+	case instance.Locks[name]:
+		return SourceInstance
+	case workspace.Links.Of(name) != "":
+		return SourceWorkspace
+	case instance.Links.Of(name) != "":
+		return SourceInstance
+	}
+	return SourceDefault
+}
+
 // ValidLegalURL bounds and checks one link.
 //
 // Absolute, and `http`/`https` only: a link a sign-in screen renders is a link somebody clicks, and

@@ -53,6 +53,11 @@ type ResolvedPolicy struct {
 	// control so that a reader can tell their own tightening from the default they inherited.
 	Installation      domain.SignInPolicy
 	InstallationLegal domain.LegalLinks
+	// InstallationEffective is the level above with who decided each switch of it, so a screen can
+	// say "set by the installation" only where the installation set something (P-06, P-10).
+	InstallationEffective domain.EffectivePolicy
+	// InstanceLegal is the installation's own layer of the four links, for where a link came from.
+	InstanceLegal domain.LegalLayer
 	// Workspace is the row the rule was resolved for. Zero where none was.
 	Workspace domain.Workspace
 	// BlocklistFile is the operator's own list, instance-only.
@@ -106,6 +111,7 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 		return ResolvedPolicy{}, err
 	}
 
+	installation := domain.Effective(instance.Policy, domain.PolicyLayer{}, domain.PolicyLayer{})
 	legal, legalLocks := domain.EffectiveLegal(instance.Legal, workspace.Settings.LegalLayer())
 	above, _ := domain.EffectiveLegal(instance.Legal, domain.LegalLayer{})
 	return ResolvedPolicy{
@@ -114,10 +120,12 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 		Legal:     legal,
 		LegalLock: legalLocks,
 		// The same two levels without the workspace's, which is the default it may tighten.
-		Installation:      domain.Effective(instance.Policy, domain.PolicyLayer{}, domain.PolicyLayer{}).Policy,
-		InstallationLegal: above,
-		Workspace:         workspace,
-		BlocklistFile:     instance.BlocklistFile,
+		Installation:          installation.Policy,
+		InstallationLegal:     above,
+		InstallationEffective: installation,
+		InstanceLegal:         instance.Legal,
+		Workspace:             workspace,
+		BlocklistFile:         instance.BlocklistFile,
 	}, nil
 }
 

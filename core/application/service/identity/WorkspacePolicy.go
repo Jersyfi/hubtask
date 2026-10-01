@@ -42,6 +42,54 @@ func (c WorkspacePolicyChange) IsEmpty() bool {
 	return c.Policy.IsEmpty() && len(c.Legal) == 0 && !c.RotateNow
 }
 
+// translateAdminFlag turns a write of the old boolean into the rule's own switch (UC-ID-12 check 2).
+//
+// Against the rule in force, because "on" means "administrators or stricter": a workspace whose
+// rule reaches everyone already has the flag on, and switching it on again must not loosen the rule
+// to administrators. Where the same body also names `mfa_required_for`, that is the newer statement
+// of the same thing and is kept - unless the two contradict each other, which is refused against the
+// old field rather than guessed at.
+func (w WorkspaceWriter) translateAdminFlag(
+	ctx context.Context, tenantID shared.ID, flag bool, change WorkspacePolicyChange,
+) (WorkspacePolicyChange, error) {
+	if sent := change.Policy.MfaRequiredFor; sent != nil {
+		if sent.CoversAdmins() != flag {
+			return WorkspacePolicyChange{}, shared.ErrValidation.
+				WithDetail("workspace.admin_flag_contradicts_rule").
+				WithFields(shared.FieldError{
+					Path: "/require_admin_totp", Code: "workspace.admin_flag_contradicts_rule",
+				})
+		}
+		return change, nil
+	}
+	if w.Resolver.Instance == nil {
+		// No rule to write into, applyPolicy's reasoning: refusing is more honest than storing a
+		// flag nothing reads.
+		return WorkspacePolicyChange{}, shared.ErrConflict.WithDetail("auth.policy_unavailable")
+	}
+	resolved, err := w.Resolver.Resolve(ctx, tenantID)
+	if err != nil {
+		return WorkspacePolicyChange{}, err
+	}
+	if wanted, moves := domain.RequirementForAdminFlag(
+		flag, resolved.Effective.Policy.MfaRequiredFor); moves {
+		change.Policy.MfaRequiredFor = &wanted
+	}
+	return change, nil
+}
+
+// adminFlagOf answers the old boolean from the rule in force, which is the only place it is read
+// from (UC-ID-12 check 2). The stored boolean could disagree with the rule - the SI review found it
+// did, in both directions - and the rule is what signing in has always obeyed. Without a level
+// above to resolve against, the workspace's own layer answers, the old boolean folded into it.
+func adminFlagOf(workspace domain.Workspace, resolved *ResolvedPolicy) bool {
+	if resolved != nil {
+		return resolved.Effective.Policy.MfaRequiredFor.CoversAdmins()
+	}
+	own := workspace.Settings.SignInLayer().Patch.MfaRequiredFor
+	return own != nil && own.CoversAdmins()
+}
+
 // applyPolicy folds the sign-in half of a patch into the workspace, refusing what the level above
 // forbids, and answers the fields that moved for the trail.
 func (w WorkspaceWriter) applyPolicy(
@@ -74,6 +122,8 @@ func (w WorkspaceWriter) applyPolicy(
 
 	if _, moved, err := resolved.Effective.Tightened(resolved.Installation, patch); err != nil {
 		return domain.Workspace{}, nil, err
+	} else if err := w.keepsAWayIn(ctx, stored, patch); err != nil {
+		return domain.Workspace{}, nil, err
 	} else if len(moved) > 0 || change.RotateNow {
 		changed := stored
 		changed.Settings.SignIn = stored.Settings.SignIn.Merge(patch)
@@ -101,6 +151,34 @@ func (w WorkspaceWriter) applyPolicy(
 	changed := stored
 	changed.Settings.Legal = links
 	return changed, legalMoved, nil
+}
+
+// keepsAWayIn refuses switching the password off where no provider is on here: a workspace nobody
+// can sign in to is the one arrangement the switches must not reach (UC-ID-12 check 6). Against the
+// rule's own field, so the screen can show it at the rule.
+func (w WorkspaceWriter) keepsAWayIn(
+	ctx context.Context, stored domain.Workspace, patch domain.PolicyPatch,
+) error {
+	if patch.Methods == nil {
+		return nil
+	}
+	for _, method := range *patch.Methods {
+		if method == domain.MethodDirect {
+			return nil
+		}
+	}
+	on, err := providerOnHere(ctx, w.Providers, stored.Settings, "")
+	if err != nil {
+		return err
+	}
+	if on {
+		return nil
+	}
+	return shared.ErrValidation.
+		WithDetail("identity_provider.last_way_in").
+		WithFields(shared.FieldError{
+			Path: "/sign_in_policy/methods", Code: "identity_provider.last_way_in",
+		})
 }
 
 // applyLegal folds the four links in, refusing one the instance locked.
@@ -156,7 +234,12 @@ func signInPolicyOutput(resolved ResolvedPolicy) usecase.Output {
 	policy, above := resolved.Effective.Policy, resolved.Installation
 
 	setting := func(name domain.PolicySwitch, value, installation any) usecase.Output {
-		out := usecase.Output{"value": value, "installation": installation, "lock": nil}
+		out := usecase.Output{
+			"value": value, "installation": installation, "lock": nil,
+			// Where the value came from, and who decided the level above it (UC-ID-12 check 4).
+			"source":              string(resolved.Effective.SourceOf(name)),
+			"installation_source": string(resolved.InstallationEffective.SourceOf(name)),
+		}
 		if origin := resolved.Effective.LockOf(name); origin != domain.LockNone {
 			out["lock"] = string(origin)
 		}
@@ -185,6 +268,10 @@ func signInPolicyOutput(resolved ResolvedPolicy) usecase.Output {
 			"value":        resolved.Legal.Of(name),
 			"installation": resolved.InstallationLegal.Of(name),
 			"lock":         nil,
+			"source": string(domain.LegalSourceOf(
+				name, resolved.InstanceLegal, resolved.Workspace.Settings.LegalLayer())),
+			"installation_source": string(domain.LegalSourceOf(
+				name, resolved.InstanceLegal, domain.LegalLayer{})),
 		}
 		if origin := resolved.LegalLock[name]; origin != domain.LockNone {
 			out["lock"] = string(origin)

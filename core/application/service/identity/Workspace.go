@@ -59,6 +59,9 @@ type WorkspaceWriter struct {
 	// answers none, which is what an installation whose workspaces predate migration 0104 has -
 	// and nothing resolves a request through them, so an empty list costs nobody anything.
 	Hosts repository.TenantHosts
+	// Providers is the workspace's ways in beside the password, so that switching the password off
+	// is refused where no provider is on (UC-ID-12 check 6). Nil counts none.
+	Providers repository.IdentityProviders
 	// StepUp is the proof a policy change demands (H-03). A workspace's sign-in rule is what
 	// decides whether a stolen tab can weaken the way in, so the one patch that touches it asks
 	// the person to prove themselves afresh - and the name, the locale and the zone do not.
@@ -132,6 +135,10 @@ type UpdateWorkspaceCommand struct {
 	ExpectedVersion int
 	// SignIn is the sign-in half (SI-07), empty where the patch says nothing about it.
 	SignIn WorkspacePolicyChange
+	// RequireAdminTotp is the old boolean, where the caller sent it. It is not stored as itself:
+	// it is translated into the rule's `mfa_required_for` and meets every check the rule has
+	// (UC-ID-12 check 2). Nil is a caller that did not send it.
+	RequireAdminTotp *bool
 	// StepUpToken is demanded exactly when SignIn says something.
 	StepUpToken string
 }
@@ -159,6 +166,17 @@ func (h UpdateWorkspace) Execute(
 		TargetID:   actor.TenantID,
 	}); err != nil {
 		return domain.Workspace{}, err
+	}
+
+	// The old boolean is the rule's switch under its old name, so it becomes that switch before
+	// anything else is decided - and with it the proof, the lock and the direction the rule demands.
+	// A flag sent as it stands moves nothing and so asks for nothing.
+	if cmd.RequireAdminTotp != nil {
+		translated, err := w.translateAdminFlag(ctx, actor.TenantID, *cmd.RequireAdminTotp, cmd.SignIn)
+		if err != nil {
+			return domain.Workspace{}, err
+		}
+		cmd.SignIn = translated
 	}
 
 	// The sign-in rule is the one part of this patch that needs a fresh proof. Checked before the
@@ -285,7 +303,7 @@ func workspaceOutput(
 		"status":             string(workspace.Status),
 		"default_locale":     workspace.DefaultLocale,
 		"default_time_zone":  workspace.DefaultTimeZone,
-		"require_admin_totp": workspace.Settings.RequireAdminTotp,
+		"require_admin_totp": adminFlagOf(workspace, resolved),
 		"created_at":         workspace.CreatedAt,
 		"version":            workspace.Version,
 	}
@@ -336,8 +354,8 @@ func (h ReadWorkspace) Descriptor() usecase.Descriptor {
 		Name: ReadWorkspaceName,
 		Summary: "The workspace the caller is in: the slug it is reached by, its display name, " +
 			"its standing, the locale and time zone every member without a preference of their " +
-			"own falls back to, and whether it demands a second factor of its administrators. " +
-			"Not the installation's listing of workspaces, which is the operator's.",
+			"own falls back to, and its sign-in rule - `require_admin_totp` among it, read from " +
+			"the rule in force. Not the installation's listing of workspaces, which is the operator's.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  workspaceRead,
 		ReadOnly:    true,
@@ -367,8 +385,8 @@ func (h UpdateWorkspace) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: UpdateWorkspaceName,
 		Summary: "Changes how the workspace is set up: its display name, the locale and time " +
-			"zone its members fall back to, and whether it demands a second factor of its " +
-			"OWNER and ADMIN role holders. A field the caller does not send does not move. The " +
+			"zone its members fall back to, and its sign-in rule. A field the caller does not " +
+			"send does not move. The " +
 			"slug does not move here at all - it is the hostname in multi mode and the base of " +
 			"the registered OIDC redirect, so renaming it is the operator's operation.",
 		SideEffects: "Writes the workspace and an audit entry naming every field that moved.",
@@ -381,7 +399,9 @@ func (h UpdateWorkspace) Descriptor() usecase.Descriptor {
 			{Name: "default_time_zone", Kind: usecase.KindString,
 				Description: "An IANA zone, for the same position in the same chain."},
 			{Name: "require_admin_totp", Kind: usecase.KindBool,
-				Description: "Whether an OWNER or ADMIN has to hold a second factor."},
+				Description: "The old name for `sign_in_policy.mfa_required_for`: true asks for " +
+					"`ADMINS` where the rule demands less, false for `NONE`. Not stored as itself - " +
+					"it is that change to the rule, with the rule's step-up, lock and direction."},
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. Omitted means the caller named none."},
 			{Name: "sign_in_policy", Kind: usecase.KindObject,
@@ -413,9 +433,10 @@ func (h UpdateWorkspace) invoke(
 		DefaultLocale:   in.OptionalString("default_locale"),
 		DefaultTimeZone: in.OptionalString("default_time_zone"),
 	}
+	var adminFlag *bool
 	if in.Present("require_admin_totp") {
 		wanted := in.Bool("require_admin_totp")
-		change.RequireAdminTotp = &wanted
+		adminFlag = &wanted
 	}
 
 	sent, _ := in["sign_in_policy"].(map[string]any)
@@ -426,7 +447,7 @@ func (h UpdateWorkspace) invoke(
 
 	workspace, err := h.Execute(ctx, actor, UpdateWorkspaceCommand{
 		Change: change, ExpectedVersion: in.Int("expected_version"),
-		SignIn: signIn, StepUpToken: in.String("step_up_token"),
+		SignIn: signIn, StepUpToken: in.String("step_up_token"), RequireAdminTotp: adminFlag,
 	})
 	if err != nil {
 		return nil, err

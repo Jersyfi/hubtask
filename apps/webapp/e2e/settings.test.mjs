@@ -183,6 +183,65 @@ test('chromium: 1280 px — the two lists are tables, this device first and the 
   assert.deepEqual(failures, []);
 });
 
+// UC-ID-03 checks 5 and 6: where the workspace requires a second factor of this person, the profile
+// says so and offers no way to turn it off; where nothing requires it, turning it off is offered.
+test('chromium: 1280 px — the profile does not offer to turn off a factor the workspace requires', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  for (const required of [true, false]) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.route('**/api/v1/**', async (route) => {
+      const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+      if (path === '/accounts/me') {
+        return route.fulfill({ json: { ...ACCOUNT, has_second_factor: true, recovery_codes_remaining: 8, second_factor_required: required } });
+      }
+      return answer(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    await page.goto(`${served.origin}/profile/security`);
+    await page.getByText('Left: 8 of 10.').waitFor();
+    const offered = await page.getByText('Turn the second factor off').count();
+    const said = await page.getByText('Your workspace requires a second factor', { exact: false }).count();
+    if (required) {
+      assert.equal(offered, 0, 'turning off is offered although the workspace requires the factor');
+      assert.ok(said > 0, 'the profile does not say why there is no way to turn it off');
+    } else {
+      assert.equal(offered, 1, 'turning off is not offered although nothing requires the factor');
+      assert.equal(said, 0);
+    }
+    await context.close();
+  }
+});
+
+// UC-ID-12 check 1: who needs a second factor is set in one place, the sign-in screen. The
+// Workspace screen had its own switch for it, stored apart from the rule and able to disagree.
+test('chromium: 1280 px — the workspace screen has no second-factor switch of its own', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/tenant') {
+      return route.fulfill({ json: { id: 'w1', slug: 'acme', display_name: 'Acme', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'Europe/Berlin', require_admin_totp: true, created_at: '2026-09-01T00:00:00Z', version: 3 } });
+    }
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/workspace`);
+  await page.waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'Acme'), null, { timeout: 15_000 });
+  assert.equal(await page.getByText('Administrators need a second factor').count(), 0, 'the second place for the rule is still there');
+  assert.equal(await page.getByRole('switch').count() + await page.locator('input[type="checkbox"]').count(), 0, 'a switch is left on the workspace screen');
+});
+
 // UC-ID-03 checks 1 and 2 on the profile: the same walk the forced setup during sign-in takes, and
 // *Continue* ends it with the factor on and the codes gone from the screen.
 test('chromium: 375 px — setting up a second factor on the profile confirms in the code field and shows the codes once', async (t) => {

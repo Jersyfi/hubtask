@@ -6,7 +6,7 @@ actors: [PE-operator, PE-admin]
 deployments: [D5, D6]
 serves: [P-02, P-05, P-06, P-07]
 state: partial
-tasks: [SI-10, SI-17, SC-01]
+tasks: [SI-10, SI-17, SC-01, SC-20]
 checked_by: [core/application/service/admin/InstanceProvider_test.go]
 ---
 
@@ -48,4 +48,4 @@ installation puts it on everywhere and removes the switch.
 * **Check 6 fails:** the re-seal runs per workspace only; the installation's provider secrets stay
   under the key they were sealed with (ADR-0070, "one gap").
 * **Check 5 is not verified:** nobody has checked yet whether withdrawing keeps the connected
-  identities.
+  identities. SC-20 makes the withdrawal announced and adds the test.

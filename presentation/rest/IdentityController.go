@@ -416,6 +416,10 @@ func accountResponse(out usecase.Output) openapi.Account {
 		// here rather than a plain field: the same projection renders a colleague's account.
 		account.HasSecondFactor = &armed
 	}
+	if required, held := out["second_factor_required"].(bool); held {
+		// The caller's own account only, for has_second_factor's reason.
+		account.SecondFactorRequired = &required
+	}
 	if password, held := out["has_password"].(bool); held {
 		// The caller's own account only, for has_second_factor's reason.
 		account.HasPassword = &password

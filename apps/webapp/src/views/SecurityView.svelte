@@ -194,7 +194,11 @@
           </div>
 
           <div class="section">
-            {#if !actor.hasPassword}
+            {#if actor.secondFactorRequired}
+              <!-- Not a switch the server would refuse (P-05): the workspace's rule demands the
+                   factor of this person, and the sentence says so where the control would be. -->
+              <p class="quiet">{t('app.mfa.required_by_workspace')}</p>
+            {:else if !actor.hasPassword}
               <!-- Turning the factor off asks for the password afresh, and this account has none.
                    No field it cannot fill (UC-ID-05 check 5); the sentence says why. -->
               <p class="quiet">{t('app.mfa.disable_needs_password')}</p>

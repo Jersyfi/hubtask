@@ -1066,7 +1066,9 @@ func run() error {
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		// The hosts the workspace answers at (SI-12). Read-only: nothing resolves a request
 		// through them yet.
-		Hosts:      postgres.NewTenantHostRepository(),
+		Hosts: postgres.NewTenantHostRepository(),
+		// The ways in beside the password, so that the last one cannot be switched off (SC-06).
+		Providers:  postgres.NewIdentityProviderRepository(),
 		Authorizer: authorizer,
 		Audit:      auditSink,
 		UnitOfWork: unitOfWork,
@@ -1182,6 +1184,7 @@ func run() error {
 		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
+			Factor:   sessionWriter,
 			Password: sessionWriter,
 		}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
