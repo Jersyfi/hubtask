@@ -5,9 +5,9 @@ context: identity
 actors: [PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-06, P-07, P-10, P-12]
-state: partial
-tasks: [SI-07, SI-08, SI-16]
-checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go]
+state: built
+tasks: [SI-07, SI-08, SI-16, SC-06]
+checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs]
 ---
 
 # Set how people in our workspace sign in, in one place
@@ -56,16 +56,3 @@ the installation is the same person and set nothing.
 * No presets ("strict", "relaxed"): every rule stands on its own with a sentence about its cost.
 * Rate limits and the lockout curve are not settings ([ADR-0068](../../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md)).
 * Regular expressions for passwords are never offered ([NG-regex-rules](../../vision/non-goals.md)).
-
-## Today
-
-* **Checks 1, 2 and 3 fail:** *Workspace* has its own switch "Administrators need a second factor",
-  stored separately, writable without step-up or lock check, and read by *turn off my factor*
-  while sign-in reads *Required of*. The two can disagree in both directions. Found in the owner's
-  walk on 2026-09-30.
-* **Check 4 fails in part:** only three rules show the installation's default; legal links show a
-  lock without the inherited link.
-* **Check 5 fails:** every choice is offered and the server refuses the looser ones.
-* **Check 6 and 7 fail:** `methods` and *earliest change after* have no control.
-* **Check 8 fails:** refusals land in a banner; a missing policy spins forever.
-* **Check 9 fails:** the German catalogue has none of the 44 sign-in settings keys.

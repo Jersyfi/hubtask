@@ -6,8 +6,8 @@ actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-11, P-13]
 state: partial
-tasks: [H-02, SI-09, SI-15]
-checked_by: [core/application/service/identity/Mfa_test.go]
+tasks: [H-02, SI-09, SI-15, SC-03, SC-06]
+checked_by: [core/application/service/identity/Mfa_test.go, core/application/service/identity/FactorRule_test.go, apps/webapp/e2e/settings.test.mjs]
 ---
 
 # Set up my second factor and keep my recovery codes
@@ -52,7 +52,4 @@ same setup during sign-in, told why.
 
 * **Check 1 and 2 fail on the first setup:** the setup uses a plain input and shows the first codes
   as a plain list without copy (`TotpEnrollment.svelte`); only *New codes* uses the one-time panel.
-* **Check 5 fails:** *Turn off* is offered to everybody; the server refuses it only for
-  administrators and only through the old `require_admin_totp` flag, so under *Everyone* any member
-  can remove a factor the workspace demands.
 * **Check 7 fails:** the setup step during sign-in gives no reason and no identity line.

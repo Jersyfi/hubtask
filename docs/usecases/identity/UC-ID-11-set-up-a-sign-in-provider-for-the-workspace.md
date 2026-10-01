@@ -6,8 +6,8 @@ actors: [PE-admin, PE-owner]
 deployments: [D3, D4, D6]
 serves: [P-02, P-05, P-06, P-08, P-12]
 state: partial
-tasks: [SI-10, SI-11, SI-16, SC-01]
-checked_by: [core/application/service/identity/IdentityProviderConfig_test.go]
+tasks: [SI-10, SI-11, SI-16, SC-01, SC-06]
+checked_by: [core/application/service/identity/IdentityProviderConfig_test.go, core/application/service/identity/LastWayIn_test.go, apps/webapp/e2e/signinsettings.test.mjs]
 ---
 
 # Set up a sign-in provider for our workspace
@@ -64,5 +64,3 @@ or a role, or a group.
 * **Check 1 fails:** the screen offers the modes as developer-style labels.
 * **Check 5 fails:** there is no *New people get* setting (SC-02).
 * **Check 6 fails:** the address is inside a sentence, without a copy button.
-* **Check 8 fails:** a provider is switched on its form, on an inherited offer, and through
-  `methods`, which has no control at all.
