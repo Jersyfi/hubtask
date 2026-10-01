@@ -41,6 +41,12 @@ const (
 	MethodPassword Method = "PASSWORD"
 	// MethodTotp is the authenticator's code, offered only where a factor is armed.
 	MethodTotp Method = "TOTP"
+	// MethodRecovery is a recovery code, offered where a factor is armed and a code is left
+	// (ADR-0075 §1). The step-up consumes it.
+	MethodRecovery Method = "RECOVERY"
+	// MethodProvider is a fresh sign-in at the provider the account is connected to, offered where
+	// that provider is switched on for the account's workspace (ADR-0075 §2).
+	MethodProvider Method = "PROVIDER"
 )
 
 // Required is the demand itself, minted in exactly one place, naming the methods this account can

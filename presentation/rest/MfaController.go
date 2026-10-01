@@ -233,8 +233,9 @@ func (c *RestController) StepUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), stepUpUseCase, actorOf(r), usecase.Input{
-		"password": optionalStringField(body.Password),
-		"code":     optionalStringField(body.Code),
+		"password":      optionalStringField(body.Password),
+		"code":          optionalStringField(body.Code),
+		"recovery_code": optionalStringField(body.RecoveryCode),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)

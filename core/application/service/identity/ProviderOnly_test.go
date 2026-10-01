@@ -34,11 +34,12 @@ func TestAProviderOnlyAccountIsNotAskedForAPassword(t *testing.T) {
 		t.Errorf("an account without a password or a factor is asked for %q, want nothing", methods)
 	}
 
-	// With a factor armed, the code is the proof - and only the code.
+	// With a factor armed, the code is the proof, and a recovery code beside it (ADR-0075 §1) -
+	// never the password the account does not hold.
 	enrolled(t, fixture)
 	err = stepup.Demand(t.Context(), verifier, actor.TenantID, actor.AccountID, "")
-	if methods := demandedMethods(t, err); methods != "TOTP" {
-		t.Errorf("a provider-only account with a factor is asked for %q, want TOTP", methods)
+	if methods := demandedMethods(t, err); methods != "TOTP RECOVERY" {
+		t.Errorf("a provider-only account with a factor is asked for %q, want TOTP RECOVERY", methods)
 	}
 }
 
