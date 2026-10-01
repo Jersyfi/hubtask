@@ -117,3 +117,22 @@ func mustRefuse(t *testing.T, raw string) *shared.Error {
 	}
 	return refusal
 }
+
+// A link says where it came from, in the order it resolves (UC-ID-12 check 4).
+func TestALinkSaysWhichLevelSetIt(t *testing.T) {
+	instance := LegalLayer{
+		Links: LegalLinks{ImprintURL: "https://host.example/imprint", PrivacyURL: "https://host.example/privacy"},
+		Locks: map[LegalLink]bool{LinkImprint: true, LinkTerms: true},
+	}
+	workspace := LegalLayer{Links: LegalLinks{ImprintURL: "https://acme.example/imprint", PrivacyURL: "https://acme.example/privacy"}}
+	for name, want := range map[LegalLink]PolicySource{
+		LinkImprint:       SourceInstance,  // locked, whatever the workspace holds
+		LinkPrivacy:       SourceWorkspace, // the workspace's own
+		LinkTerms:         SourceInstance,  // locked to "no link"
+		LinkAccessibility: SourceDefault,   // nobody set one
+	} {
+		if got := LegalSourceOf(name, instance, workspace); got != want {
+			t.Errorf("%s comes from %q, want %q", name, got, want)
+		}
+	}
+}

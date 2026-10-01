@@ -43,7 +43,6 @@ export interface WorkspaceChange {
   display_name?: string;
   default_locale?: string;
   default_time_zone?: string;
-  require_admin_totp?: boolean;
 }
 
 class WorkspaceStore {

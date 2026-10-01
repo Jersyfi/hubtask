@@ -129,25 +129,23 @@ func TestChangingTheWorkspaceNeedsTheStructurePermissionAlone(t *testing.T) {
 	}
 }
 
-// The enforcement switch H-02 has read since 0.6.0 becomes settable, and the change is in the
-// trail with its before and after - which is what "who turned enforcement off" needs.
+// The enforcement switch H-02 has read since 0.6.0 is the rule's switch under its old name: setting
+// it changes `mfa_required_for`, behind the proof, and the trail says so with the rule's own field -
+// which is what "who turned enforcement off" needs (UC-ID-12 check 2).
 func TestTheEnforcementSwitchIsSetAndRecorded(t *testing.T) {
-	f := newWorkspaceFixture(at())
+	f := newWorkspacePolicyFixture(at())
 	wanted := true
 
 	changed, err := (UpdateWorkspace{Writer: f.writer}).Execute(t.Context(), workspaceActor(),
-		UpdateWorkspaceCommand{Change: domain.WorkspaceChange{RequireAdminTotp: &wanted}})
+		UpdateWorkspaceCommand{RequireAdminTotp: &wanted, StepUpToken: "hbt_stp_x"})
 	if err != nil {
 		t.Fatalf("changing: %v", err)
 	}
-	if !changed.Settings.RequireAdminTotp {
-		t.Error("the answer does not carry the switch that was set")
+	if rule := changed.Settings.SignIn.MfaRequiredFor; rule == nil || *rule != domain.MfaForAdmins {
+		t.Errorf("the answer carries the rule %v, want ADMINS", rule)
 	}
 	if changed.Version != 5 {
 		t.Errorf("version %d, want 5", changed.Version)
-	}
-	if !f.store.row.Settings.RequireAdminTotp {
-		t.Error("the store does not carry it either")
 	}
 
 	if len(f.audit.entries) != 1 {
@@ -160,16 +158,13 @@ func TestTheEnforcementSwitchIsSetAndRecorded(t *testing.T) {
 	if entry.TargetID != tenant {
 		t.Errorf("the entry names %v rather than the workspace", entry.TargetID)
 	}
-	if len(entry.Changes) != 1 {
-		t.Fatalf("%d changes recorded, want one", len(entry.Changes))
-	}
-	change, held := entry.Changes["require_admin_totp"].(map[string]any)
+	change, held := entry.Changes["mfa_required_for"].(map[string]any)
 	if !held {
-		t.Fatalf("the entry records %v rather than the switch", entry.Changes)
+		t.Fatalf("the entry records %v rather than the rule", entry.Changes)
 	}
 	// Open rather than masked: the switch is configuration, and an entry that hid it could not
 	// answer "who turned enforcement off".
-	if change["from"] != "false" || change["to"] != "true" {
+	if change["from"] != "NONE" || change["to"] != "ADMINS" {
 		t.Errorf("the change is %v", change)
 	}
 }
@@ -179,12 +174,9 @@ func TestTheEnforcementSwitchIsSetAndRecorded(t *testing.T) {
 func TestAPatchThatMovesNothingWritesNothing(t *testing.T) {
 	f := newWorkspaceFixture(at())
 	same := "Acme"
-	off := false
 
 	answer, err := (UpdateWorkspace{Writer: f.writer}).Execute(t.Context(), workspaceActor(),
-		UpdateWorkspaceCommand{Change: domain.WorkspaceChange{
-			DisplayName: &same, RequireAdminTotp: &off,
-		}})
+		UpdateWorkspaceCommand{Change: domain.WorkspaceChange{DisplayName: &same}})
 	if err != nil {
 		t.Fatalf("changing: %v", err)
 	}

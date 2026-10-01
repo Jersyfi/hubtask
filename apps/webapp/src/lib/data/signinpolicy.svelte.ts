@@ -18,7 +18,7 @@
  * that had to guess between them would be a screen that tells somebody to ask the wrong person.
  */
 
-import { TransportError } from '@hubtask/sync-engine';
+import { TransportError, type ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
@@ -29,6 +29,13 @@ const TENANT = '/tenant';
 
 /** Where a lock comes from, or `null` where there is none. */
 export type LockOrigin = 'INSTANCE' | 'PLAN' | null;
+
+/**
+ * Which level a value came from (P-06): Hubtask's own default, the installation, the plan, or this
+ * workspace. The screen says it beside every rule, and names the installation's value only where
+ * the installation decided one - a private installation that decided nothing is not a column.
+ */
+export type PolicySource = 'DEFAULT' | 'INSTANCE' | 'PLAN' | 'WORKSPACE';
 
 /**
  * One switch: what is in force, what the level above set, and whether it may be changed here.
@@ -43,6 +50,10 @@ export interface Setting<T> {
   /** What the installation (or the plan) set as the default. */
   readonly installation: T;
   readonly lock: LockOrigin;
+  /** Where the value in force came from. */
+  readonly source: PolicySource;
+  /** Who decided the installation's value - `DEFAULT` where nobody above this workspace did. */
+  readonly installation_source: PolicySource;
 }
 
 /** The eighteen, in the three groups the settings screen draws. */
@@ -88,6 +99,8 @@ interface Workspace {
 
 class SignInPolicyStore {
   #workspace = $state<Workspace | undefined>(undefined);
+  #state = $state<ResourceState<Workspace>>({ status: 'idle' });
+  #failure = $state<TransportError | undefined>(undefined);
   #problem = $state<RenderedProblem | undefined>(undefined);
   #working = $state(false);
   #saved = $state(false);
@@ -95,6 +108,28 @@ class SignInPolicyStore {
 
   get policy(): SignInPolicy | undefined {
     return this.#workspace?.sign_in_policy;
+  }
+
+  /**
+   * How the read went, so that a failure is a sentence and a retry rather than a spinner nobody can
+   * leave (UC-ID-12 check 8).
+   */
+  get state(): ResourceState<Workspace> {
+    return this.#state;
+  }
+
+  /**
+   * The last failed read, kept until a read succeeds. The engine reads a failed resource again on
+   * its own, and each attempt passes through "loading" - a screen that drew the state as it came
+   * would trade the sentence and its retry for a spinner once a second.
+   */
+  get failure(): TransportError | undefined {
+    return this.#failure;
+  }
+
+  /** Reads the rule again, after a failure. */
+  retry(): void {
+    void engine.refresh<Workspace>({ path: TENANT });
   }
 
   get workspaceName(): string | undefined {
@@ -117,7 +152,12 @@ class SignInPolicyStore {
     if (this.#opened) return () => {};
     this.#opened = true;
     return engine.subscribe<Workspace>({ path: TENANT }, (next) => {
-      if (next.status === 'ready') this.#workspace = next.data;
+      this.#state = next;
+      if (next.status === 'failed') this.#failure = next.error;
+      if (next.status === 'ready') {
+        this.#workspace = next.data;
+        this.#failure = undefined;
+      }
     });
   }
 

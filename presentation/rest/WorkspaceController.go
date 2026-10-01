@@ -68,6 +68,10 @@ func (c *RestController) UpdateWorkspace(
 			// the catalogue's input is one shape for three channels, and eighteen of them would be
 			// eighteen places for a name to drift from the one the domain knows.
 			in["sign_in_policy"] = signInPolicyChange(*body.SignInPolicy)
+		}
+		if body.SignInPolicy != nil || body.RequireAdminTotp != nil {
+			// The old boolean is a change to the rule too (UC-ID-12 check 2), so it carries the
+			// proof the rule demands.
 			in["step_up_token"] = stepUpHeaderField(params.XHubtaskStepUp)
 		}
 		return c.UseCases.Invoke(r.Context(), updateWorkspaceUseCase, actor, in)
@@ -183,6 +187,9 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 			Value:        intValue(row["value"]),
 			Installation: intValue(row["installation"]),
 			Lock:         policyLock(row["lock"]),
+			Source:       policySource(row["source"]),
+			// Who decided the level above: the screen names the installation only where it did.
+			InstallationSource: policySource(row["installation_source"]),
 		}
 	}
 	flag := func(document usecase.Output, field string) openapi.SignInPolicyFlag {
@@ -191,6 +198,9 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 			Value:        boolValue(row["value"]),
 			Installation: boolValue(row["installation"]),
 			Lock:         policyLock(row["lock"]),
+			Source:       policySource(row["source"]),
+			// Who decided the level above: the screen names the installation only where it did.
+			InstallationSource: policySource(row["installation_source"]),
 		}
 	}
 	word := func(document usecase.Output, field string) openapi.SignInPolicyText {
@@ -199,6 +209,9 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 			Value:        textValue(row["value"]),
 			Installation: textValue(row["installation"]),
 			Lock:         policyLock(row["lock"]),
+			Source:       policySource(row["source"]),
+			// Who decided the level above: the screen names the installation only where it did.
+			InstallationSource: policySource(row["installation_source"]),
 		}
 	}
 
@@ -225,9 +238,11 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 		},
 		MfaRequiredFor: word(out, "mfa_required_for"),
 		Methods: openapi.SignInPolicyMethods{
-			Value:        methodEnums(methods["value"]),
-			Installation: methodEnums(methods["installation"]),
-			Lock:         policyLock(methods["lock"]),
+			Value:              methodEnums(methods["value"]),
+			Installation:       methodEnums(methods["installation"]),
+			Lock:               policyLock(methods["lock"]),
+			Source:             policySource(methods["source"]),
+			InstallationSource: policySource(methods["installation_source"]),
 		},
 		Session: openapi.SessionPolicySettings{
 			MaxDays:     number(session, "max_days"),
@@ -260,6 +275,15 @@ func policyLock(value any) *openapi.PolicyLock {
 	}
 	lock := openapi.PolicyLock(origin)
 	return &lock
+}
+
+// policySource maps where a value came from (UC-ID-12 check 4). A row that says nothing is the
+// product's default, which is the honest reading of "no level decided it".
+func policySource(value any) openapi.PolicySource {
+	if source, isString := value.(string); isString && source != "" {
+		return openapi.PolicySource(source)
+	}
+	return openapi.PolicySourceDEFAULT
 }
 
 func methodEnums(value any) []openapi.SignInMethod {

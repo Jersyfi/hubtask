@@ -63,6 +63,7 @@ class Account(TypedDict, total=False):
     onboarding_completed_at: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
+    second_factor_required: bool
 
 class Actor(TypedDict, total=False):
     """Who did something. The label is not here: the account is one request away (`GET /accounts/{accountId}`) and the records that carry an actor are deleted with the thing they are about, so there is nothing for a copy of somebody's name to outlive."""
@@ -292,16 +293,22 @@ class SignInPolicyNumber(TypedDict, total=False):
     value: Required[int]
     installation: Required[int]
     lock: Required["PolicyLock"]
+    source: Required["PolicySource"]
+    installation_source: Required["PolicySource"]
 
 class SignInPolicyFlag(TypedDict, total=False):
     value: Required[bool]
     installation: Required[bool]
     lock: Required["PolicyLock"]
+    source: Required["PolicySource"]
+    installation_source: Required["PolicySource"]
 
 class SignInPolicyText(TypedDict, total=False):
     value: Required[str]
     installation: Required[str]
     lock: Required["PolicyLock"]
+    source: Required["PolicySource"]
+    installation_source: Required["PolicySource"]
 
 SignInMethod = Literal["PASSWORD", "OIDC"]
 
@@ -309,6 +316,10 @@ class SignInPolicyMethods(TypedDict, total=False):
     value: Required[list["SignInMethod"]]
     installation: Required[list["SignInMethod"]]
     lock: Required["PolicyLock"]
+    source: Required["PolicySource"]
+    installation_source: Required["PolicySource"]
+
+PolicySource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]
 
 PolicyLock = Literal["INSTANCE", "PLAN"] | None
 

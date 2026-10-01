@@ -2025,6 +2025,30 @@ func (e PolicyLock) Valid() bool {
 	}
 }
 
+// Defines values for PolicySource.
+const (
+	PolicySourceDEFAULT   PolicySource = "DEFAULT"
+	PolicySourceINSTANCE  PolicySource = "INSTANCE"
+	PolicySourcePLAN      PolicySource = "PLAN"
+	PolicySourceWORKSPACE PolicySource = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the PolicySource enum.
+func (e PolicySource) Valid() bool {
+	switch e {
+	case PolicySourceDEFAULT:
+		return true
+	case PolicySourceINSTANCE:
+		return true
+	case PolicySourcePLAN:
+		return true
+	case PolicySourceWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
@@ -3685,6 +3709,9 @@ type Account struct {
 	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else (SI-09). **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
 	// The same number has ridden along with a sign-in since H-02, where nobody could act on it. Here it is beside the account, which is where the screen that makes new ones is.
 	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
+
+	// SecondFactorRequired Whether the workspace's sign-in rule in force demands a second factor of this person, answered on `GET /accounts/me` and on nothing else (UC-ID-03). The same reading signing in and turning the factor off make, so a screen can say "your workspace requires it" instead of offering a control the server would refuse (P-05).
+	SecondFactorRequired *bool `json:"second_factor_required,omitempty"`
 
 	// Status `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
 	// stays, and what stops is this system deciding anything about the person by machine.
@@ -6283,6 +6310,9 @@ type PasswordViolation struct {
 // PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
 type PolicyLock string
 
+// PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+type PolicySource string
+
 // Problem defines model for Problem.
 type Problem struct {
 	// Code A stable, machine-readable error code (part of the contract).
@@ -7234,18 +7264,30 @@ type SignInPolicyChangeRotationFrom string
 type SignInPolicyFlag struct {
 	Installation bool `json:"installation"`
 
+	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	InstallationSource PolicySource `json:"installation_source"`
+
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
-	Lock  *PolicyLock `json:"lock"`
-	Value bool        `json:"value"`
+	Lock *PolicyLock `json:"lock"`
+
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	Source PolicySource `json:"source"`
+	Value  bool         `json:"value"`
 }
 
 // SignInPolicyMethods defines model for SignInPolicyMethods.
 type SignInPolicyMethods struct {
 	Installation []SignInMethod `json:"installation"`
 
+	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	InstallationSource PolicySource `json:"installation_source"`
+
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
-	Lock  *PolicyLock    `json:"lock"`
-	Value []SignInMethod `json:"value"`
+	Lock *PolicyLock `json:"lock"`
+
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	Source PolicySource   `json:"source"`
+	Value  []SignInMethod `json:"value"`
 }
 
 // SignInPolicyNumber One numeric switch, at the three levels that decide it. Zero is off for every one of them.
@@ -7253,8 +7295,14 @@ type SignInPolicyNumber struct {
 	// Installation What the level above set, which is what this workspace may tighten.
 	Installation int `json:"installation"`
 
+	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	InstallationSource PolicySource `json:"installation_source"`
+
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
 	Lock *PolicyLock `json:"lock"`
+
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	Source PolicySource `json:"source"`
 
 	// Value What is in force in this workspace.
 	Value int `json:"value"`
@@ -7264,9 +7312,15 @@ type SignInPolicyNumber struct {
 type SignInPolicyText struct {
 	Installation string `json:"installation"`
 
+	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	InstallationSource PolicySource `json:"installation_source"`
+
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
-	Lock  *PolicyLock `json:"lock"`
-	Value string      `json:"value"`
+	Lock *PolicyLock `json:"lock"`
+
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	Source PolicySource `json:"source"`
+	Value  string       `json:"value"`
 }
 
 // SignInRules The least a sign-in screen needs, and deliberately no more.
@@ -8105,7 +8159,7 @@ type Workspace struct {
 	Hosts *[]WorkspaceHost   `json:"hosts,omitempty"`
 	Id    openapi_types.UUID `json:"id"`
 
-	// RequireAdminTotp Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0` and, until this operation, was writable by nothing.
+	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree (UC-ID-12); it was a stored value of its own until SC-06 and came apart from the rule in both directions. Kept for the clients that read it.
 	RequireAdminTotp bool `json:"require_admin_totp"`
 
 	// SignInPolicy How people in this workspace prove who they are (ADR-0068 §2). Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.
@@ -8150,9 +8204,11 @@ type WorkspaceUpdate struct {
 	DefaultLocale *string `json:"default_locale,omitempty"`
 
 	// DefaultTimeZone An IANA zone. One that does not load is a field error.
-	DefaultTimeZone  *string `json:"default_time_zone,omitempty"`
-	DisplayName      *string `json:"display_name,omitempty"`
-	RequireAdminTotp *bool   `json:"require_admin_totp,omitempty"`
+	DefaultTimeZone *string `json:"default_time_zone,omitempty"`
+	DisplayName     *string `json:"display_name,omitempty"`
+
+	// RequireAdminTotp The old name of `sign_in_policy.mfa_required_for`: true asks for `ADMINS` where the rule demands less, false for `NONE`. A change to the rule, so it demands the step-up whenever it moves anything - see the operation.
+	RequireAdminTotp *bool `json:"require_admin_totp,omitempty"`
 
 	// SignInPolicy The switches this workspace is tightening. Flat, and merge-patch like everything else here: a switch the body does not name does not move.
 	// Three refusals, each against its own field. A switch the level above locked is `auth.policy_locked` with the origin in its parameters; one that would loosen the rule is `auth.policy_loosens`; a value of the wrong kind is `auth.policy_value_invalid`. Sending this member demands the step-up header - a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in.
@@ -13101,9 +13157,9 @@ type ClientInterface interface {
 	// UpdateWorkspaceWithBody Change how the workspace is set up
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
-	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
+	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself any more (UC-ID-12): true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
-	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
+	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes any type of body and a specified content type.
@@ -13114,9 +13170,9 @@ type ClientInterface interface {
 	// UpdateWorkspaceWithApplicationMergePatchPlusJSONBody Change how the workspace is set up
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
-	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
+	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself any more (UC-ID-12): true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
-	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
+	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes a body of the `application/merge-patch+json` content type.
@@ -20338,9 +20394,9 @@ func (c *Client) ReadWorkspace(ctx context.Context, reqEditors ...RequestEditorF
 // UpdateWorkspaceWithBody Change how the workspace is set up
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
-// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
+// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself any more (UC-ID-12): true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
-// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
+// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes any type of body and a specified content type.
@@ -20361,9 +20417,9 @@ func (c *Client) UpdateWorkspaceWithBody(ctx context.Context, params *UpdateWork
 // UpdateWorkspaceWithApplicationMergePatchPlusJSONBody Change how the workspace is set up
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
-// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
+// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself any more (UC-ID-12): true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
-// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
+// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes a body of the `application/merge-patch+json` content type.
@@ -37389,9 +37445,9 @@ type ClientWithResponsesInterface interface {
 	// UpdateWorkspaceWithBodyWithResponse Change how the workspace is set up
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
-	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
+	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself any more (UC-ID-12): true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
-	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
+	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -37402,9 +37458,9 @@ type ClientWithResponsesInterface interface {
 	// UpdateWorkspaceWithApplicationMergePatchPlusJSONBodyWithResponse Change how the workspace is set up
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
-	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
+	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself any more (UC-ID-12): true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
-	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
+	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
@@ -56728,9 +56784,9 @@ func (c *ClientWithResponses) ReadWorkspaceWithResponse(ctx context.Context, req
 // UpdateWorkspaceWithBodyWithResponse Change how the workspace is set up
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
-// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
+// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself any more (UC-ID-12): true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
-// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
+// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -56747,9 +56803,9 @@ func (c *ClientWithResponses) UpdateWorkspaceWithBodyWithResponse(ctx context.Co
 // UpdateWorkspaceWithApplicationMergePatchPlusJSONBodyWithResponse Change how the workspace is set up
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
-// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
+// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself any more (UC-ID-12): true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
-// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
+// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).

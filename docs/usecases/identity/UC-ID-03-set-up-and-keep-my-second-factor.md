@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-11, P-13]
 state: partial
 tasks: [H-02, SI-09, SI-15, SC-03, SC-06]
-checked_by: [core/application/service/identity/Mfa_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/settings.test.mjs]
+checked_by: [core/application/service/identity/Mfa_test.go, core/application/service/identity/FactorRule_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/settings.test.mjs]
 ---
 
 # Set up my second factor and keep my recovery codes
@@ -51,8 +51,10 @@ same setup during sign-in, told why.
 ## Today
 
 Checks 1, 2 and 7 hold since SC-03: the same walk on the profile and during a forced sign-in
-(`apps/webapp/e2e/secondfactor.mjs`, used by `settings.test.mjs` and `signin.test.mjs`).
+(`apps/webapp/e2e/secondfactor.mjs`, used by `settings.test.mjs` and `signin.test.mjs`). Check 5
+holds since SC-06: the profile reads the workspace's rule and offers no way to turn off a factor it
+requires (`FactorRule_test.go`, `settings.test.mjs`).
 
-* **Check 5 fails:** *Turn off* is offered to everybody; the server refuses it only for
-  administrators and only through the old `require_admin_totp` flag, so under *Everyone* any member
-  can remove a factor the workspace demands. Tracked as SC-06.
+* **Check 6 fails for an account without a password:** turning the factor off asks for the
+  password, so a person who signs in only through a provider cannot prove themselves for it.
+  Tracked as SC-09 and SC-16.

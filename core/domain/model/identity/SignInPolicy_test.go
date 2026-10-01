@@ -498,3 +498,66 @@ func TestAnUndeclaredSwitchIsCarriedByNothing(t *testing.T) {
 		t.Errorf("an empty patch moved %v (%v)", moved, err)
 	}
 }
+
+// The old boolean, written, as the rule it has always meant (UC-ID-12 check 2): on is
+// "administrators or stricter", off is nobody, and a flag sent as it stands moves nothing.
+func TestTheOldFlagTranslatesIntoTheRule(t *testing.T) {
+	cases := []struct {
+		flag    bool
+		inForce MfaRequirement
+		want    MfaRequirement
+		moves   bool
+	}{
+		{true, MfaForNobody, MfaForAdmins, true},
+		{true, MfaForAdmins, MfaForAdmins, false},
+		{true, MfaForEveryone, MfaForEveryone, false},
+		{false, MfaForNobody, MfaForNobody, false},
+		{false, MfaForAdmins, MfaForNobody, true},
+		{false, MfaForEveryone, MfaForNobody, true},
+	}
+	for _, c := range cases {
+		got, moves := RequirementForAdminFlag(c.flag, c.inForce)
+		if got != c.want || moves != c.moves {
+			t.Errorf("flag %v over %s: (%s, %v), want (%s, %v)", c.flag, c.inForce, got, moves, c.want, c.moves)
+		}
+		if reads := got.CoversAdmins(); reads != c.flag {
+			t.Errorf("flag %v over %s reads back as %v", c.flag, c.inForce, reads)
+		}
+	}
+}
+
+// Every switch says where its value came from (UC-ID-12 check 4, P-06): the product's default, the
+// installation, or this workspace - and a workspace value the resolution ignored, because a lock or
+// the level above overruled it, is not called the workspace's.
+func TestEverySwitchSaysWhichLevelDecidedIt(t *testing.T) {
+	sixteen, twelve, ten := 16, 12, 10
+	instance := PolicyLayer{
+		Patch: PolicyPatch{MinLength: &twelve, HistoryCount: &ten},
+		Locks: map[PolicySwitch]bool{SwitchHistoryCount: true},
+	}
+	workspace := PolicyLayer{Patch: PolicyPatch{
+		MinLength:    &sixteen, // tightens: the workspace's
+		HistoryCount: &sixteen, // locked above: the installation's
+		MaxAgeDays:   &ten,     // set here alone
+	}}
+	effective := Effective(instance, PolicyLayer{}, workspace)
+
+	for name, want := range map[PolicySwitch]PolicySource{
+		SwitchMinLength:      SourceWorkspace,
+		SwitchHistoryCount:   SourceInstance,
+		SwitchMaxAgeDays:     SourceWorkspace,
+		SwitchBreachCheck:    SourceDefault,
+		SwitchMfaRequiredFor: SourceDefault,
+	} {
+		if got := effective.SourceOf(name); got != want {
+			t.Errorf("%s comes from %q, want %q", name, got, want)
+		}
+	}
+
+	// A workspace value the installation has since moved past is ignored, and so not the workspace's.
+	eight := 8
+	stale := Effective(instance, PolicyLayer{}, PolicyLayer{Patch: PolicyPatch{MinLength: &eight}})
+	if got := stale.SourceOf(SwitchMinLength); got != SourceInstance {
+		t.Errorf("an overruled workspace value reads as %q, want the installation's", got)
+	}
+}

@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: BUSL-1.1
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // How the workspace is set up: its name, what its members fall back to, and the one switch that
-  // changes how they sign in (F4-01, F4-08).
+  // How the workspace is set up: its name and what its members fall back to (F4-01). How they sign
+  // in is the sign-in screen's alone (UC-ID-12 check 1).
   //
   // **The three defaults are stated as what they are.** The locale and the zone here are not "the
   // workspace's language" — they are the third link of `i18n-l10n.md` §2's chain: what a member
@@ -12,15 +12,10 @@
   // **The slug is shown and not editable, with the reason.** It is the subdomain the workspace is
   // reached by; changing it would break every link anybody has bookmarked or pasted, and the
   // contract does not offer it. Showing it without the reason would look like an oversight.
-  //
-  // **The enforcement switch says what switching it on costs.** It demands a second factor of
-  // every `OWNER` and `ADMIN` at their next sign-in — including the person pressing it, who may be
-  // the only administrator. That is not a warning invented here: it is what `security.md` §5 says
-  // the switch does, and the sentence is in the catalogue.
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -34,7 +29,6 @@
   let displayName = $state('');
   let locale = $state('');
   let zone = $state('');
-  let requireAdminTotp = $state(false);
   let isWorking = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let saved = $state(false);
@@ -61,7 +55,6 @@
     displayName = held.display_name;
     locale = held.default_locale;
     zone = held.default_time_zone;
-    requireAdminTotp = held.require_admin_totp;
   });
 
   /** Only what moved. Merge-patch means an absent key changes nothing, so absence is the default. */
@@ -72,9 +65,6 @@
       ...(displayName.trim() !== held.display_name ? { display_name: displayName.trim() } : {}),
       ...(locale !== held.default_locale ? { default_locale: locale } : {}),
       ...(zone !== held.default_time_zone ? { default_time_zone: zone } : {}),
-      ...(requireAdminTotp !== held.require_admin_totp
-        ? { require_admin_totp: requireAdminTotp }
-        : {}),
     };
   }
 
@@ -193,11 +183,9 @@
             />
           {/if}
 
-          <Switch
-            label={t('app.workspace.require_totp')}
-            hint={t('app.workspace.require_totp_hint')}
-            bind:checked={requireAdminTotp}
-          />
+          <!-- No second-factor switch here: who needs one is the sign-in rule's, set on the sign-in
+               screen with its step-up, its lock and its direction. A switch here was a second place
+               for the same rule, stored apart from it, and the two disagreed (UC-ID-12 check 1). -->
 
           <div>
             <Button

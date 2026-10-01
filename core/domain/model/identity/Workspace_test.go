@@ -28,7 +28,6 @@ func workspace(t *testing.T) identity.Workspace {
 }
 
 func setting(value string) *string { return &value }
-func flag(value bool) *bool        { return &value }
 
 // The patch is a merge-patch: an absent key moves nothing, a present one moves its field, and a
 // present one carrying the value already held moves nothing either - which is what keeps a client
@@ -48,16 +47,6 @@ func TestWithAppliesOnlyWhatMoved(t *testing.T) {
 		{
 			"the same name, spaced, does not",
 			identity.WorkspaceChange{DisplayName: setting("  Acme  ")},
-			nil,
-		},
-		{
-			"the enforcement switch moves",
-			identity.WorkspaceChange{RequireAdminTotp: flag(true)},
-			[]identity.FieldChange{{Field: "require_admin_totp", From: "false", To: "true"}},
-		},
-		{
-			"switching off what is already off does not",
-			identity.WorkspaceChange{RequireAdminTotp: flag(false)},
 			nil,
 		},
 		{
@@ -102,10 +91,6 @@ func TestWithAppliesOnlyWhatMoved(t *testing.T) {
 				case "default_time_zone":
 					if changed.DefaultTimeZone != change.To {
 						t.Errorf("zone %q, want %q", changed.DefaultTimeZone, change.To)
-					}
-				case "require_admin_totp":
-					if changed.Settings.RequireAdminTotp != (change.To == "true") {
-						t.Errorf("the enforcement switch did not follow its change")
 					}
 				}
 			}

@@ -70,18 +70,19 @@ func TestAWorkspaceReadsAndChangesItselfAndNothingNextDoor(t *testing.T) {
 		return nil
 	})
 
-	// A changes its name and switches enforcement on, guarded on the version it read.
+	// A changes its name and its zone, guarded on the version it read - and the stored boolean the
+	// rule writes back beside `mfa_required_for` rides along, so the round trip covers it.
 	changed, moved, err := stored.With(domain.WorkspaceChange{
-		DisplayName:      settingOf("Workspace A GmbH"),
-		DefaultTimeZone:  settingOf("Europe/Berlin"),
-		RequireAdminTotp: settingOf(true),
+		DisplayName:     settingOf("Workspace A GmbH"),
+		DefaultTimeZone: settingOf("Europe/Berlin"),
 	}, text.Composing{})
 	if err != nil {
 		t.Fatalf("applying the change: %v", err)
 	}
-	if len(moved) != 3 {
-		t.Fatalf("%d fields moved, want three", len(moved))
+	if len(moved) != 2 {
+		t.Fatalf("%d fields moved, want two", len(moved))
 	}
+	changed.Settings.RequireAdminTotp = true
 
 	inTenant(t, uow, wsTenantA, func(ctx context.Context) error {
 		written, err := workspaces.Update(ctx, changed, stored.Version, now)

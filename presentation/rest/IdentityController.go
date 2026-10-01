@@ -416,6 +416,10 @@ func accountResponse(out usecase.Output) openapi.Account {
 		// here rather than a plain field: the same projection renders a colleague's account.
 		account.HasSecondFactor = &armed
 	}
+	if required, held := out["second_factor_required"].(bool); held {
+		// The caller's own account only, for has_second_factor's reason.
+		account.SecondFactorRequired = &required
+	}
 	if remaining, held := out["recovery_codes_remaining"].(int); held {
 		// Present exactly where a factor is armed, and then zero is answered as zero, because there
 		// zero is the number to act on (SI-09). Absent is not zero: an account holding no factor

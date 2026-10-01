@@ -148,6 +148,18 @@ func TestTheSecondFactorAndTheCodeCountReachTheBody(t *testing.T) {
 		t.Errorf("recovery_codes_remaining = %v, want zero answered as zero", body.RecoveryCodesRemaining)
 	}
 
+	// Whether the workspace requires one of this person (UC-ID-03 check 5), through the same
+	// hand-written projection.
+	out["second_factor_required"] = true
+	recorder = identityRequest(t, &catalogue{out: out}, http.MethodGet, "/accounts/me")
+	var required openapi.Account
+	if err := json.Unmarshal(recorder.Body.Bytes(), &required); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if required.SecondFactorRequired == nil || !*required.SecondFactorRequired {
+		t.Errorf("second_factor_required = %v, want true", required.SecondFactorRequired)
+	}
+
 	// An account holding no factor answers neither number, and absent is not zero.
 	bare := ownAccount()
 	bare["has_second_factor"] = false

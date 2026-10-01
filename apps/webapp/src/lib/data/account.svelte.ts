@@ -74,6 +74,15 @@ class Actor {
   }
 
   /**
+   * Whether the workspace's rule demands a second factor of this person - the reading turning it
+   * off would meet. `true` only where the server said so: the permissive reading of an unanswered
+   * question would hide a control somebody is entitled to (UC-ID-03 checks 5 and 6).
+   */
+  get secondFactorRequired(): boolean {
+    return this.account?.second_factor_required === true;
+  }
+
+  /**
    * How many recovery codes are left, or `undefined` where there is nothing to count.
    *
    * Absent is not zero. It is answered only for an account that holds a second factor, so a screen

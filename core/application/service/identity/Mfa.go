@@ -361,21 +361,21 @@ func (h DisableTotp) Execute(
 		return domain.ErrSignInFailed()
 	}
 
+	// The rule in force, read the way signing in reads it (UC-ID-12 check 3): the old boolean asked
+	// only about administrators and could disagree with the rule, so under *Everyone* any member
+	// could remove the factor the workspace demands of them.
+	verdict, err := w.ownVerdict(ctx, actor)
+	if err != nil {
+		return err
+	}
+
 	return w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		if w.Policy != nil && w.Memberships != nil {
-			required, err := w.Policy.RequireAdminTotp(ctx)
-			if err != nil {
-				return err
-			}
-			if required {
-				admin, err := w.holdsAdminRole(ctx, actor.AccountID)
-				if err != nil {
-					return err
-				}
-				if admin {
-					return shared.ErrForbidden.WithDetail("auth.mfa_required_by_tenant")
-				}
-			}
+		demanded, err := w.factorDemandedOf(ctx, ownAccount(actor), verdict)
+		if err != nil {
+			return err
+		}
+		if demanded {
+			return shared.ErrForbidden.WithDetail("auth.mfa_required_by_tenant")
 		}
 
 		now := w.Clock.Now()
@@ -546,4 +546,42 @@ func (h DisableTotp) invoke(
 		return nil, err
 	}
 	return usecase.Output{}, nil
+}
+
+// ownAccount is the signed-in person as the rule asks about them. A person, because only a person
+// holds an authenticator: a service account never reaches the second factor's routes.
+func ownAccount(actor appshared.ActorContext) domain.Account {
+	return domain.Account{
+		ID: actor.AccountID, TenantID: actor.TenantID, Kind: domain.AccountUser,
+		DisplayName: actor.AccountName,
+	}
+}
+
+// ownVerdict reads the rule in force for the signed-in person, with no password to judge - the
+// same reading the second step of a sign-in makes. Empty where no rule is wired, and then
+// factorDemandedOf falls back to the old boolean, which is all such an installation has.
+func (w SessionWriter) ownVerdict(
+	ctx context.Context, actor appshared.ActorContext,
+) (SignInVerdict, error) {
+	if w.Rule == nil {
+		return SignInVerdict{}, nil
+	}
+	return w.Rule.JudgeSignIn(ctx, actor.TenantID, ownAccount(actor), secret.Secret{})
+}
+
+// DemandsFactorOf answers whether the workspace's rule demands a second factor of the signed-in
+// person - the one question signing in, turning the factor off and the profile all ask, answered
+// in one place so that no two of them can read different values (UC-ID-12 check 3).
+func (w SessionWriter) DemandsFactorOf(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	verdict, err := w.ownVerdict(ctx, actor)
+	if err != nil {
+		return false, err
+	}
+	var demanded bool
+	err = w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		answer, err := w.factorDemandedOf(ctx, ownAccount(actor), verdict)
+		demanded = answer
+		return err
+	})
+	return demanded, err
 }

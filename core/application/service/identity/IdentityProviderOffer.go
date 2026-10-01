@@ -79,8 +79,8 @@ func (h OfferIdentityProvider) Execute(
 		// The last way in cannot be switched off. Counted rather than assumed: a workspace whose
 		// only method is a provider and who switches it off is a workspace nobody can reach, and
 		// the refusal belongs here rather than in a screen that might not be the one asking.
-		if !offered && !h.anotherWayIn(ctx, found) {
-			return shared.ErrValidation.WithDetail("identity_provider.last_way_in")
+		if !offered && !anotherWayIn(ctx, h.Writer.Providers, h.Workspaces, found.ID) {
+			return lastWayIn()
 		}
 
 		if found.Installation() {
@@ -143,35 +143,61 @@ func (h OfferIdentityProvider) offerInstallationRow(
 	return found, nil
 }
 
-// anotherWayIn answers whether this workspace would still have one after the switch.
+// anotherWayIn answers whether this workspace would still have a way in without the provider named.
 //
 // A password method counts, and so does any other provider that is on here. What it is guarding is
 // the workspace with `methods: [OIDC]` and one provider — the arrangement in which one switch locks
-// everybody out.
-func (h OfferIdentityProvider) anotherWayIn(
-	ctx context.Context, switching domain.IdentityProvider,
+// everybody out. Every door that can take a provider away asks it: the switch, the provider's own
+// form and its removal (UC-ID-12 check 6, UC-ID-11 check 8).
+func anotherWayIn(
+	ctx context.Context, providers repository.IdentityProviders, workspaces repository.Workspaces,
+	excluding shared.ID,
 ) bool {
-	inForce, err := h.Writer.Providers.List(ctx)
+	var workspace domain.Workspace
+	if workspaces != nil {
+		found, err := workspaces.Find(ctx)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			// Unreadable is not "there is another": a guard that fails open is not a guard.
+			return false
+		}
+		workspace = found
+	}
+	on, err := providerOnHere(ctx, providers, workspace.Settings, excluding)
 	if err != nil {
-		// Unreadable is not "there is another": a guard that fails open is not a guard.
 		return false
 	}
-	workspace, err := h.Workspaces.Find(ctx)
-	if err != nil && !errors.Is(err, shared.ErrNotFound) {
-		return false
-	}
-	for _, candidate := range inForce {
-		if candidate.ID == switching.ID {
-			continue
-		}
-		if offeredHere(candidate, workspace.Settings) {
-			return true
-		}
+	if on {
+		return true
 	}
 	// No other provider. The workspace still has a way in when a password opens one, which is what
 	// the effective policy's methods say — and a workspace with no policy above it signs in with a
 	// password, because that is the product's own default.
 	return !onlyProviderMethods(workspace)
+}
+
+// providerOnHere answers whether any provider other than the one named is a way into this workspace.
+func providerOnHere(
+	ctx context.Context, providers repository.IdentityProviders, settings domain.WorkspaceSettings,
+	excluding shared.ID,
+) (bool, error) {
+	if providers == nil {
+		return false, nil
+	}
+	inForce, err := providers.List(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, candidate := range inForce {
+		if candidate.ID != excluding && offeredHere(candidate, settings) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// lastWayIn is the one refusal every door gives.
+func lastWayIn() error {
+	return shared.ErrValidation.WithDetail("identity_provider.last_way_in")
 }
 
 // onlyProviderMethods reports whether this workspace has switched password sign-in off.
