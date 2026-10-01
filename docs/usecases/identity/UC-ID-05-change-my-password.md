@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-12]
-state: partial
-tasks: [SI-03, SI-15]
-checked_by: [core/application/service/identity/Password_test.go]
+state: built
+tasks: [SI-03, SI-15, SC-09]
+checked_by: [core/application/service/identity/Password_test.go, core/application/service/identity/ProviderOnly_test.go, apps/webapp/e2e/settings.test.mjs]
 ---
 
 # Change my password
@@ -38,8 +38,3 @@ other sessions were signed out." Personal access tokens keep working.
 
 * No "repeat the new password" field: the eye replaces it.
 * Setting a first password on a provider-only account is not part of this use case.
-
-## Today
-
-* **Check 5 fails:** provider-only accounts are offered *Change password* and a password step-up
-  they cannot answer; `/accounts/me` does not say whether the account has a password.

@@ -6,8 +6,8 @@ actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11]
 state: partial
-tasks: [SI-08, SI-15]
-checked_by: []
+tasks: [SI-08, SI-15, SC-09]
+checked_by: [test/integration/session_test.go, presentation/rest/SessionProjection_test.go, apps/webapp/e2e/settings.test.mjs]
 ---
 
 # See where I am signed in and end a session
@@ -41,5 +41,10 @@ marked. *End* ends one; *Sign out everywhere else* ends all others.
 
 ## Today
 
-* **Check 2 fails:** the server stores and answers how a session was opened (`signed_in_with`), but
-  the session list does not show it.
+Check 2 holds since SC-09: each session says how it was opened, the provider by its name
+(`TestAProviderSessionNamesItsProviderInItsOwnTenantOnly`, the sessions walk). Found while checking
+the rest, tracked in issue #1104:
+
+* **Check 5 fails:** the list drops only revoked and expired sessions. One past the workspace's
+  maximum age, its idle time, or a required new password is refused on its next request but still
+  listed as open.

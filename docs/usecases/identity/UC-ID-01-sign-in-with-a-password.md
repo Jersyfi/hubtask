@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-guest, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-12, P-13]
 state: built
-tasks: [H-01, SI-13, SI-14]
+tasks: [H-01, SI-13, SI-14, SC-09]
 checked_by: [apps/webapp/e2e/signin.test.mjs]
 ---
 

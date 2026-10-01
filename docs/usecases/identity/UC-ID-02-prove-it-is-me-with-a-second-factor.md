@@ -6,8 +6,8 @@ actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13]
 state: partial
-tasks: [H-02, SI-13, SI-14, SI-15, SC-03]
-checked_by: [apps/webapp/e2e/signin.test.mjs]
+tasks: [H-02, SI-13, SI-14, SI-15, SC-03, SC-09]
+checked_by: [apps/webapp/e2e/signin.test.mjs, locales/Terms_test.go]
 ---
 
 # Prove it is me with a second factor when I sign in
