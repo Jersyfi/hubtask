@@ -176,7 +176,7 @@ func (h CompleteLink) Execute(ctx context.Context, cmd CompleteLinkCommand) (Sig
 	}
 	pair, err := s.openSessionWithHint(ctx, scope, token.TenantID(), account,
 		credential.UserAgent, credential.IPClass, OidcSignedInAction,
-		bounds, domain.SignedInWithOidc)
+		bounds, domain.SignedInWithOidc, credential.Link.ProviderID)
 	if err != nil {
 		return SignInResult{}, err
 	}

@@ -47,14 +47,17 @@ export async function withStepUp<T>(
  * for an account with a factor armed, `PASSWORD` for one without — and the contract says so at
  * `POST /auth/step-up`. Splitting on commas as well costs nothing and is what this once did
  * alone, which read the whole list as one unknown name and offered the password to exactly the
- * accounts a step-up protects (issue 544). A refusal that names none still has to produce a
- * usable prompt, and the password is the one every account has. A name this client does not
+ * accounts a step-up protects (issue 544). A refusal without the parameter is an older server,
+ * which named the password for everybody; one that names an empty list is an account that signs in
+ * only through a provider and holds no factor, and the prompt says so instead of drawing a field. A name this client does not
  * know is dropped rather than shown: a prompt with a field nobody can fill is worse than one
  * field fewer.
  */
 export function methodsOf(cause: TransportError): readonly StepUpMethod[] {
   const named = cause.params?.methods;
-  if (typeof named !== 'string' || named.trim() === '') return ['PASSWORD'];
+  if (typeof named !== 'string') return ['PASSWORD'];
+  // Named, and empty: the account holds neither a password nor a factor (UC-ID-05 check 5).
+  if (named.trim() === '') return [];
   const methods = named
     .split(/[\s,]+/)
     .map((method) => method.trim().toUpperCase())

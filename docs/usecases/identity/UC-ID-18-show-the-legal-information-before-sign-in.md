@@ -6,8 +6,8 @@ actors: [PE-operator, PE-owner, PE-admin, PE-person]
 deployments: [D1, D4, D5, D6]
 serves: [P-06, P-07, P-10, P-12]
 state: partial
-tasks: [SI-12, SI-14, SI-16]
-checked_by: [core/domain/model/identity/LegalLinks_test.go]
+tasks: [SI-12, SI-14, SI-16, SC-09]
+checked_by: [core/domain/model/identity/LegalLinks_test.go, apps/webapp/e2e/signin.test.mjs]
 ---
 
 # Show the legal information people are owed before they sign in
@@ -46,5 +46,3 @@ the footer is empty.
 ## Today
 
 * **Check 3 fails:** the workspace screen shows only a lock, not the inherited link.
-* **Checks 4 and 5 fail:** the accessibility link is always shown, falling back to hubtask.eu, and
-  its label says "on hubtask.eu" even when the operator points it elsewhere.

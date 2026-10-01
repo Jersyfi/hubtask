@@ -64,6 +64,7 @@ class Account(TypedDict, total=False):
     has_second_factor: bool
     recovery_codes_remaining: int
     second_factor_required: bool
+    has_password: bool
 
 class Actor(TypedDict, total=False):
     """Who did something. The label is not here: the account is one request away (`GET /accounts/{accountId}`) and the records that carry an actor are deleted with the thing they are about, so there is nothing for a copy of somebody's name to outlive."""
@@ -155,6 +156,7 @@ class Session(TypedDict, total=False):
     ip_class: str | None
     current: Required[bool]
     signed_in_with: Literal["PASSWORD", "PASSWORD_TOTP", "PASSWORD_RECOVERY", "OIDC", "INVITATION", "RESET"] | None
+    signed_in_provider: str | None
 
 class SessionTokens(TypedDict, total=False):
     """The pair and its session, shown for the only time. What is stored of the refresh token is a hash under its own purpose label; the access token is not stored at all - it verifies by its signature."""

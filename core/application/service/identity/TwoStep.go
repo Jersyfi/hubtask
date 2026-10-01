@@ -381,7 +381,7 @@ func (h CompleteSignIn) Execute(
 		method = domain.SignedInWithPasswordRecovery
 	}
 	pair, err := w.openSessionWithHint(ctx, scope, token.TenantID(), account,
-		hint.UserAgent, hint.IPClass, SignedInAction, bounds, method)
+		hint.UserAgent, hint.IPClass, SignedInAction, bounds, method, "")
 	if err != nil {
 		return SessionPair{}, -1, err
 	}
@@ -470,10 +470,10 @@ func (w SessionWriter) recordRecoveryUse(
 func (w SessionWriter) openSessionWithHint(
 	ctx context.Context, scope persistence.Scope, tenantID shared.ID, account domain.Account,
 	userAgent, ipClass string, action audit.Action,
-	bounds domain.SessionPolicy, method string,
+	bounds domain.SessionPolicy, method string, via shared.ID,
 ) (SessionPair, error) {
-	pair, err := w.openSessionWith(ctx, scope, tenantID, account, userAgent, "", action, nil,
-		bounds, method)
+	pair, err := w.openSessionVia(ctx, scope, tenantID, account, userAgent, "", action, nil,
+		bounds, method, via)
 	if err != nil {
 		return SessionPair{}, err
 	}

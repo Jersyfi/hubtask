@@ -297,3 +297,33 @@ func TestMintingAProofPrintsItOnceAndWarnsBesideIt(t *testing.T) {
 		t.Errorf("nothing says what to do with it: %q", errOut)
 	}
 }
+
+// UC-ID-05 check 5: a refusal that names no method is an account with neither a password nor a
+// factor - one that signs in through a provider. hubctl asks it for nothing it cannot give, and
+// says so, rather than reading the empty list as "offer the code".
+func TestAnEmptyListOfMethodsAsksForNothing(t *testing.T) {
+	asked := false
+	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == APIPath+stepUpPath {
+			asked = true
+		}
+		problemJSON(w, http.StatusForbidden, map[string]any{
+			"status": 403, "code": "forbidden", "detail_code": "auth.step_up_required",
+			"params": map[string]any{"methods": ""},
+		})
+	})
+
+	profile := filepath.Join(t.TempDir(), "profile.json")
+	saveSession(t, profile, stub.server.URL, time.Now().Add(10*time.Minute))
+	code, _, errOut := invokeAgainst(t, stub, map[string]string{envProfile: profile}, "123456\n",
+		"admin", "tenant", "delete", acmeID, "--confirm", "Acme")
+	if code != exitError {
+		t.Fatalf("exit %d, want %d", code, exitError)
+	}
+	if asked {
+		t.Error("a proof was sent for an account that can give none")
+	}
+	if !strings.Contains(errOut, "second factor") {
+		t.Errorf("the refusal does not say what would make a proof possible: %q", errOut)
+	}
+}

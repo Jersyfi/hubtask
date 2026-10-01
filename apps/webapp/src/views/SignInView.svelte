@@ -34,7 +34,7 @@
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import { session } from '../lib/session.svelte.ts';
   import { remaining } from '../lib/signin/expiry.ts';
-  import { ordered, readLastProvider, rememberProvider } from '../lib/signin/lastMethod.ts';
+  import { ordered, readLastProvider, rememberPassword, rememberProvider } from '../lib/signin/lastMethod.ts';
 
   let email = $state('');
   let password = $state('');
@@ -139,7 +139,9 @@
     missingPassword = password === '';
     if (missingEmail || missingPassword) return;
 
-    await session.signIn(address, password);
+    // The password was right when there is a session or a step after it: that is the way in this
+    // browser used, and the card remembers it as it remembers a provider.
+    if ((await session.signIn(address, password)) || session.secondFactorOwed) rememberPassword();
     // Out of the component's state whatever happened. A password kept for a retry is a password
     // sitting in memory for as long as the tab is open.
     password = '';
@@ -371,39 +373,28 @@
         </form>
       {/if}
 
-      {#if providers.length > 0 || signInRules.rules === undefined}
+      <!-- Only providers the rules name (UC-ID-01 check 5): before the rules are read, or when they
+           cannot be, the card offers nothing it cannot back - a generic button there was a way in the
+           server might refuse, and an "or" with nothing after it. -->
+      {#if providers.length > 0}
         {#if signInRules.hasPassword}
           <p class="or"><span>{t('app.sign_in.or')}</span></p>
         {/if}
         <Stack gap="100">
-          {#if providers.length === 0}
-            <!-- Nothing has been read yet, or the installation answers no list: the button is
-                 offered and the server decides, exactly as F4 settled it. -->
+          {#each providers as provider (provider.id)}
             <Button
               tone="secondary"
               isFull
-              isBusy={oidc.isWorking}
+              isBusy={oidc.isHandingOverTo(provider.id)}
               busyLabel={t('app.sign_in.provider_working')}
-              onclick={() => void useProvider()}
+              onclick={() => void useProvider(provider.id)}
             >
-              {t('app.sign_in.provider')}
+              {#snippet lead()}
+                <ProviderMark kind={provider.kind} name={provider.display_name} />
+              {/snippet}
+              {t('app.sign_in.provider_named', { name: provider.display_name })}
             </Button>
-          {:else}
-            {#each providers as provider (provider.id)}
-              <Button
-                tone="secondary"
-                isFull
-                isBusy={oidc.isHandingOverTo(provider.id)}
-                busyLabel={t('app.sign_in.provider_working')}
-                onclick={() => void useProvider(provider.id)}
-              >
-                {#snippet lead()}
-                  <ProviderMark kind={provider.kind} name={provider.display_name} />
-                {/snippet}
-                {t('app.sign_in.provider_named', { name: provider.display_name })}
-              </Button>
-            {/each}
-          {/if}
+          {/each}
         </Stack>
       {/if}
     </Stack>

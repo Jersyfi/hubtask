@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-11, P-13]
 state: partial
-tasks: [H-02, SI-09, SI-15, SC-03, SC-06]
+tasks: [H-02, SI-09, SI-15, SC-03, SC-06, SC-09, SC-16, SC-17]
 checked_by: [core/application/service/identity/Mfa_test.go, core/application/service/identity/FactorRule_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/settings.test.mjs]
 ---
 
@@ -56,5 +56,6 @@ holds since SC-06: the profile reads the workspace's rule and offers no way to t
 requires (`FactorRule_test.go`, `settings.test.mjs`).
 
 * **Check 6 fails for an account without a password:** turning the factor off asks for the
-  password, so a person who signs in only through a provider cannot prove themselves for it.
-  Tracked as SC-09 and SC-16.
+  password, so a person who signs in only through a provider cannot prove themselves for it. Since
+  SC-09 the profile says so instead of offering a field they cannot fill; SC-16 makes the step-up
+  accept whatever the account holds.

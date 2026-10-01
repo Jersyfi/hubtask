@@ -29,13 +29,31 @@ function storage(): Storage | undefined {
   }
 }
 
-/** The identifier of the provider used last, or nothing - which means the password. */
-export function readLastProvider(): string | undefined {
+/**
+ * What a password sign-in records. Not a provider identifier, so it can never match one - and a
+ * provider used once does not stay on top of the card for somebody who has signed in with their
+ * password every day since (SC-09).
+ */
+const PASSWORD = 'PASSWORD';
+
+/** The way in used last: a provider's identifier, `PASSWORD`, or nothing where none was recorded. */
+export function readLastMethod(): string | undefined {
   try {
     return storage()?.getItem(KEY) ?? undefined;
   } catch {
     return undefined;
   }
+}
+
+/** The identifier of the provider used last, or nothing where it was the password or nothing at all. */
+export function readLastProvider(): string | undefined {
+  const last = readLastMethod();
+  return last === PASSWORD ? undefined : last;
+}
+
+/** Records a sign-in with the password. */
+export function rememberPassword(): void {
+  rememberProvider(PASSWORD);
 }
 
 export function rememberProvider(id: string): void {

@@ -170,7 +170,7 @@ test('chromium: 1280 px — the two lists are tables, this device first and the 
   // A column per fact, so a reader scans down rather than reading every row to its end.
   assert.deepEqual(
     (await sessions.locator('thead th').allTextContents()).map((head) => head.trim()),
-    ['Client', 'Signed in', 'Last active', 'Network', 'End'],
+    ['Client', 'Signed in', 'Signed in with', 'Last active', 'Network', 'End'],
   );
 
   await page.goto(`${served.origin}/profile/devices`);
@@ -284,4 +284,75 @@ test('chromium: 375 px — setting up a second factor on the profile confirms in
   await page.getByText('The second factor is on.', { exact: false }).first().waitFor();
   assert.equal(await page.getByText(ENROLLMENT.recovery_codes[0]).count(), 0, 'the codes outlived the panel');
   assert.deepEqual(failures, []);
+});
+
+// UC-ID-05 check 5: an account that signs in only through a provider has no password, so the profile
+// offers no password change, and no proof it is asked for is a password - a step-up names nothing
+// it could give and the dialog says so instead of drawing a field.
+test('chromium: 1280 px — a provider-only account is offered no password and asked for none', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/accounts/me') {
+      return route.fulfill({ json: { ...ACCOUNT, has_password: false, has_second_factor: true, recovery_codes_remaining: 4 } });
+    }
+    if (path === '/auth/mfa/recovery:regenerate') {
+      return route.fulfill({ status: 403, json: { code: 'errors.forbidden', detail_code: 'auth.step_up_required', status: 403, params: { methods: 'TOTP' }, request_id: 'req_s' } });
+    }
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/security`);
+  await page.getByText('Left: 4 of 10.').waitFor();
+
+  assert.equal(await page.getByRole('button', { name: 'Change the password' }).count(), 0, 'a password change is offered to an account without one');
+  assert.equal(await page.locator('input[autocomplete="current-password"]').count(), 0, 'a password is asked for on the profile');
+  assert.ok(await page.getByText('signs in through a provider', { exact: false }).first().isVisible(), 'the profile does not say why');
+
+  await page.getByRole('button', { name: 'Make new codes' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.waitFor();
+  assert.equal(await dialog.locator('input[type="password"]').count(), 0, 'the step-up asks a provider-only account for a password');
+  // The account holds a factor and no password, so the server names the code alone and the dialog
+  // asks for nothing else. (A refusal naming nothing at all is `stepup.test.ts`'s.)
+  assert.equal(await dialog.locator('input[autocomplete="one-time-code"]').count(), 1, 'the dialog does not ask for the code');
+});
+
+// UC-ID-06 check 2: every session says how it was opened, in words, and the provider by its name.
+test('chromium: 1280 px — every session says how it was opened', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const opened = [
+    { id: 'm1', user_agent: 'Firefox on Linux', created_at: '2026-09-01T08:00:00Z', last_used_at: null, ip_class: null, current: true, signed_in_with: 'PASSWORD_TOTP' },
+    { id: 'm2', user_agent: 'Safari on iPhone', created_at: '2026-09-02T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: 'OIDC', signed_in_provider: 'Contoso Entra ID' },
+    { id: 'm3', user_agent: 'Chrome on macOS', created_at: '2026-09-03T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: 'PASSWORD_RECOVERY' },
+    { id: 'm4', user_agent: 'Edge on Windows', created_at: '2026-09-04T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: null },
+  ];
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/auth/sessions') return route.fulfill({ json: opened });
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/sessions`);
+  await page.getByText('Safari on iPhone').waitFor();
+
+  const row = async (client) => (await page.locator('tr', { hasText: client }).innerText()).replace(/\s+/g, ' ');
+  assert.match(await row('Firefox on Linux'), /Password and second factor/);
+  assert.match(await row('Safari on iPhone'), /Contoso Entra ID/);
+  assert.match(await row('Chrome on macOS'), /Recovery code/);
+  assert.doesNotMatch(await row('Edge on Windows'), /OIDC|PASSWORD|undefined|null/);
 });

@@ -104,6 +104,12 @@
     <div class="panel">
       <Stack gap="150">
         <h2>{t('app.password.change_title')}</h2>
+        {#if !actor.hasPassword}
+          <!-- An account that signs in only through a provider: there is no password to change,
+               and offering to would be offering a control the server cannot honour (UC-ID-05
+               check 5). -->
+          <p class="quiet">{t('app.password.none')}</p>
+        {:else}
         <p class="quiet">{t('app.password.change_body')}</p>
         {#if passwordApi.problem}
           <Banner tone="danger" title={passwordApi.problem.message}>
@@ -131,6 +137,7 @@
             </div>
           </Stack>
         </form>
+        {/if}
       </Stack>
     </div>
 
@@ -191,6 +198,10 @@
               <!-- Not a switch the server would refuse (P-05): the workspace's rule demands the
                    factor of this person, and the sentence says so where the control would be. -->
               <p class="quiet">{t('app.mfa.required_by_workspace')}</p>
+            {:else if !actor.hasPassword}
+              <!-- Turning the factor off asks for the password afresh, and this account has none.
+                   No field it cannot fill (UC-ID-05 check 5); the sentence says why. -->
+              <p class="quiet">{t('app.mfa.disable_needs_password')}</p>
             {:else}
             <details>
               <summary>{t('app.mfa.disable_summary')}</summary>

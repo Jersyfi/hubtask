@@ -32,13 +32,15 @@ WHERE lower(a.email) = lower(sqlc.arg('email')) AND a.deleted_at IS NULL;
 -- person's own.
 INSERT INTO session
   (id, tenant_id, account_id, created_at, user_agent, ip_class, expires_at, grant_id, scopes,
-   hard_expires_at, idle_minutes, signed_in_with)
+   hard_expires_at, idle_minutes, signed_in_with, signed_in_provider_id)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('created_at'),
   sqlc.narg('user_agent'), sqlc.narg('ip_class'), sqlc.arg('expires_at'),
   sqlc.narg('grant_id'), sqlc.narg('scopes'),
   -- The session's own bounds and how it was opened (migration 0100, ADR-0068 §3).
-  sqlc.narg('hard_expires_at'), sqlc.narg('idle_minutes'), sqlc.narg('signed_in_with')
+  sqlc.narg('hard_expires_at'), sqlc.narg('idle_minutes'), sqlc.narg('signed_in_with'),
+  -- Which provider opened it, for one opened through a provider (migration 0111).
+  sqlc.narg('signed_in_provider_id')
 );
 
 -- name: FindSessionForAuth :one
@@ -71,13 +73,18 @@ WHERE s.id = sqlc.arg('id') AND a.deleted_at IS NULL;
 -- name: SessionsForAccount :many
 -- One's own live sessions, newest first. The dead ones are deliberately absent: a listing is for
 -- deciding what to end, and what is already ended or run out is nothing anybody can act on.
-SELECT id, account_id, created_at, last_seen_at, user_agent, ip_class, expires_at, revoked_at,
-       hard_expires_at, idle_minutes, signed_in_with
-FROM session
-WHERE account_id = sqlc.arg('account_id')
-  AND revoked_at IS NULL
-  AND expires_at > sqlc.arg('now')
-ORDER BY created_at DESC, id DESC;
+--
+-- The provider's name is joined under the reader's own row policy (migration 0111): one this tenant
+-- can see - its own or the installation's - is named, and a removed one or another tenant's is not.
+SELECT s.id, s.account_id, s.created_at, s.last_seen_at, s.user_agent, s.ip_class, s.expires_at,
+       s.revoked_at, s.hard_expires_at, s.idle_minutes, s.signed_in_with, s.signed_in_provider_id,
+       p.display_name AS signed_in_provider_name
+FROM session s
+LEFT JOIN identity_provider p ON p.id = s.signed_in_provider_id
+WHERE s.account_id = sqlc.arg('account_id')
+  AND s.revoked_at IS NULL
+  AND s.expires_at > sqlc.arg('now')
+ORDER BY s.created_at DESC, s.id DESC;
 
 -- name: TouchSession :exec
 UPDATE session SET last_seen_at = $2 WHERE id = $1;

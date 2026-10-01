@@ -160,6 +160,17 @@ func TestTheSecondFactorAndTheCodeCountReachTheBody(t *testing.T) {
 		t.Errorf("second_factor_required = %v, want true", required.SecondFactorRequired)
 	}
 
+	// Whether the account holds a password (UC-ID-05 check 5), through the same projection.
+	out["has_password"] = false
+	recorder = identityRequest(t, &catalogue{out: out}, http.MethodGet, "/accounts/me")
+	var providerOnly openapi.Account
+	if err := json.Unmarshal(recorder.Body.Bytes(), &providerOnly); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if providerOnly.HasPassword == nil || *providerOnly.HasPassword {
+		t.Errorf("has_password = %v, want false", providerOnly.HasPassword)
+	}
+
 	// An account holding no factor answers neither number, and absent is not zero.
 	bare := ownAccount()
 	bare["has_second_factor"] = false

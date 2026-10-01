@@ -102,6 +102,12 @@ type Session struct {
 	// a session opened before the column existed - which is not "unknown method" so much as
 	// "before this was recorded", and the list says so by leaving the line out.
 	SignedInWith string
+	// SignedInVia is the provider that opened a session opened through one (UC-ID-06 check 2):
+	// the list names it. Zero for every other session.
+	SignedInVia shared.ID
+	// SignedInViaName is that provider's name as the listing read it, empty where the reader cannot
+	// see it or it is gone. Read only - nothing writes it.
+	SignedInViaName string
 	// ElevatedUntil is when this session stops carrying the control plane's scope (ADR-0070 §4).
 	// Zero is "not elevated", which is what a session is for all but an hour of its life.
 	ElevatedUntil time.Time
@@ -154,6 +160,8 @@ type NewSessionInput struct {
 	Bounds SessionPolicy
 	// Method is how this session was opened.
 	Method string
+	// Via is the provider that opened it, where one did.
+	Via shared.ID
 }
 
 // NewSession opens the row a sign-in creates. The address is coarsened here, at recording time,
@@ -172,6 +180,7 @@ func NewSession(in NewSessionInput) (Session, error) {
 		ExpiresAt:    in.Now.Add(RefreshTokenLifetime).UTC(),
 		IdleMinutes:  in.Bounds.IdleMinutes,
 		SignedInWith: in.Method,
+		SignedInVia:  in.Via,
 	}
 	if in.Bounds.MaxDays > 0 {
 		opened.HardExpiresAt = in.Now.

@@ -86,9 +86,12 @@
     {#if legal.terms_url}
       <a href={legal.terms_url} target="_blank" rel="noopener">{t('app.legal.terms')}</a>
     {/if}
-    <a href={legal.accessibility_url ?? 'https://hubtask.eu/accessibility/'} target="_blank" rel="noopener">
-      {t('app.about.accessibility')}
-    </a>
+    <!-- The operator's, like the other three, and absent when unset (UC-ID-18 check 5). It used
+         to fall back to hubtask.eu and say so in its label, which made the project answer for an
+         installation it does not run. -->
+    {#if legal.accessibility_url}
+      <a href={legal.accessibility_url} target="_blank" rel="noopener">{t('app.legal.accessibility')}</a>
+    {/if}
   </footer>
 </div>
 

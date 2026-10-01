@@ -803,28 +803,31 @@ const insertSession = `-- name: InsertSession :exec
 
 INSERT INTO session
   (id, tenant_id, account_id, created_at, user_agent, ip_class, expires_at, grant_id, scopes,
-   hard_expires_at, idle_minutes, signed_in_with)
+   hard_expires_at, idle_minutes, signed_in_with, signed_in_provider_id)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8,
   -- The session's own bounds and how it was opened (migration 0100, ADR-0068 §3).
-  $9, $10, $11
+  $9, $10, $11,
+  -- Which provider opened it, for one opened through a provider (migration 0111).
+  $12
 )
 `
 
 type InsertSessionParams struct {
-	ID            pgtype.UUID
-	AccountID     pgtype.UUID
-	CreatedAt     pgtype.Timestamptz
-	UserAgent     *string
-	IpClass       *string
-	ExpiresAt     pgtype.Timestamptz
-	GrantID       pgtype.UUID
-	Scopes        []string
-	HardExpiresAt pgtype.Timestamptz
-	IdleMinutes   *int32
-	SignedInWith  *string
+	ID                 pgtype.UUID
+	AccountID          pgtype.UUID
+	CreatedAt          pgtype.Timestamptz
+	UserAgent          *string
+	IpClass            *string
+	ExpiresAt          pgtype.Timestamptz
+	GrantID            pgtype.UUID
+	Scopes             []string
+	HardExpiresAt      pgtype.Timestamptz
+	IdleMinutes        *int32
+	SignedInWith       *string
+	SignedInProviderID pgtype.UUID
 }
 
 // ============================== Sessions ==============================
@@ -843,6 +846,7 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 		arg.HardExpiresAt,
 		arg.IdleMinutes,
 		arg.SignedInWith,
+		arg.SignedInProviderID,
 	)
 	return err
 }
@@ -1097,13 +1101,15 @@ func (q *Queries) SealedMfaEnrollmentsNotUnder(ctx context.Context, keyID string
 }
 
 const sessionsForAccount = `-- name: SessionsForAccount :many
-SELECT id, account_id, created_at, last_seen_at, user_agent, ip_class, expires_at, revoked_at,
-       hard_expires_at, idle_minutes, signed_in_with
-FROM session
-WHERE account_id = $1
-  AND revoked_at IS NULL
-  AND expires_at > $2
-ORDER BY created_at DESC, id DESC
+SELECT s.id, s.account_id, s.created_at, s.last_seen_at, s.user_agent, s.ip_class, s.expires_at,
+       s.revoked_at, s.hard_expires_at, s.idle_minutes, s.signed_in_with, s.signed_in_provider_id,
+       p.display_name AS signed_in_provider_name
+FROM session s
+LEFT JOIN identity_provider p ON p.id = s.signed_in_provider_id
+WHERE s.account_id = $1
+  AND s.revoked_at IS NULL
+  AND s.expires_at > $2
+ORDER BY s.created_at DESC, s.id DESC
 `
 
 type SessionsForAccountParams struct {
@@ -1112,21 +1118,26 @@ type SessionsForAccountParams struct {
 }
 
 type SessionsForAccountRow struct {
-	ID            pgtype.UUID
-	AccountID     pgtype.UUID
-	CreatedAt     pgtype.Timestamptz
-	LastSeenAt    pgtype.Timestamptz
-	UserAgent     *string
-	IpClass       *string
-	ExpiresAt     pgtype.Timestamptz
-	RevokedAt     pgtype.Timestamptz
-	HardExpiresAt pgtype.Timestamptz
-	IdleMinutes   *int32
-	SignedInWith  *string
+	ID                   pgtype.UUID
+	AccountID            pgtype.UUID
+	CreatedAt            pgtype.Timestamptz
+	LastSeenAt           pgtype.Timestamptz
+	UserAgent            *string
+	IpClass              *string
+	ExpiresAt            pgtype.Timestamptz
+	RevokedAt            pgtype.Timestamptz
+	HardExpiresAt        pgtype.Timestamptz
+	IdleMinutes          *int32
+	SignedInWith         *string
+	SignedInProviderID   pgtype.UUID
+	SignedInProviderName *string
 }
 
 // One's own live sessions, newest first. The dead ones are deliberately absent: a listing is for
 // deciding what to end, and what is already ended or run out is nothing anybody can act on.
+//
+// The provider's name is joined under the reader's own row policy (migration 0111): one this tenant
+// can see - its own or the installation's - is named, and a removed one or another tenant's is not.
 func (q *Queries) SessionsForAccount(ctx context.Context, arg SessionsForAccountParams) ([]SessionsForAccountRow, error) {
 	rows, err := q.db.Query(ctx, sessionsForAccount, arg.AccountID, arg.Now)
 	if err != nil {
@@ -1148,6 +1159,8 @@ func (q *Queries) SessionsForAccount(ctx context.Context, arg SessionsForAccount
 			&i.HardExpiresAt,
 			&i.IdleMinutes,
 			&i.SignedInWith,
+			&i.SignedInProviderID,
+			&i.SignedInProviderName,
 		); err != nil {
 			return nil, err
 		}

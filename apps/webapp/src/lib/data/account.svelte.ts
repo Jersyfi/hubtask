@@ -69,6 +69,13 @@ class Actor {
    * and a screen must treat that as "not answered" rather than as "no". Guessing in either
    * direction is how the security screen came to offer actions the server refuses.
    */
+  /** Whether this account holds a password. One that signs in only through a provider holds none. */
+  get hasPassword(): boolean {
+    // `false` only where the server said so: an older server answers nothing, and every account
+    // had a password before providers existed (UC-ID-05 check 5).
+    return this.account?.has_password !== false;
+  }
+
   get hasSecondFactor(): boolean | undefined {
     return this.account?.has_second_factor;
   }

@@ -3415,8 +3415,11 @@ paths:
 
         The operation that found the proof missing answered `403` with `auth.step_up_required`
         and, in `params.methods`, the methods this account can answer with: a space-separated
-        list drawn from `PASSWORD` and `TOTP` - the password for every account, the code only
-        where a factor is armed. A client builds its prompt from that list, never from a guess.
+        list drawn from `PASSWORD` and `TOTP` - the password where the account holds one, the code
+        only where a factor is armed. An account that signs in only through a provider and has no
+        factor is named neither, and the list is empty: there is nothing it can prove itself with
+        here until it sets a factor up (UC-ID-05). A client builds its prompt from that list, never
+        from a guess.
         This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up`
         header - or, for the restore, in the request field the contract has carried since 0.4.5.
       requestBody:
@@ -7680,7 +7683,8 @@ components:
         The proof a privileged operation demanded (H-03, security.md §5): the token
         `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that
         needs one refuses with `auth.step_up_required`, naming in `params.methods` what this
-        account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+        account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an
+        account with neither).
       schema: { type: string }
 
     ContainerId:
@@ -8073,6 +8077,12 @@ components:
             answered on `GET /accounts/me` and on nothing else (UC-ID-03). The same reading signing in
             and turning the factor off make, so a screen can say "your workspace requires it"
             instead of offering a control the server would refuse (P-05).
+        has_password:
+          type: boolean
+          description: >
+            Whether this account holds a password, answered on `GET /accounts/me` and on nothing
+            else (UC-ID-05). An account that signs in only through a provider holds none: a screen
+            does not offer it a password change, and no step-up asks it for one.
 
     Actor:
       type: object
@@ -8335,6 +8345,12 @@ components:
             How this session was opened (ADR-0068 §3). Null for one opened before this was
             recorded, which is not "unknown method" so much as "before this existed" - a client
             leaves the line out rather than printing a word nobody can act on.
+        signed_in_provider:
+          type: [string, "null"]
+          description: >
+            For a session a sign-in provider opened, that provider's name (UC-ID-06), so a
+            person can tell their sessions apart by the way in. Absent for every other session, and
+            for one whose provider was removed since.
 
     SessionTokens:
       type: object

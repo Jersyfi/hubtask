@@ -117,9 +117,13 @@ test('the methods offered are the refusal’s, and the password is the floor', (
   assert.deepEqual(methodsOf(refusal({ methods: 'PASSWORD TOTP' })), ['PASSWORD', 'TOTP']);
   assert.deepEqual(methodsOf(refusal({ methods: 'PASSWORD' })), ['PASSWORD']);
   assert.deepEqual(methodsOf(refusal({ methods: 'password, totp' })), ['PASSWORD', 'TOTP']);
-  // Named nothing: every account has a password, so that is the prompt that always works.
+  // No list at all is an older server, which named the password for everybody.
   assert.deepEqual(methodsOf(refusal()), ['PASSWORD']);
-  assert.deepEqual(methodsOf(refusal({ methods: '   ' })), ['PASSWORD']);
+  // An empty list is an answer: an account that signs in only through a provider and has no
+  // factor can prove itself with nothing here, and a password field would be one it cannot fill
+  // (UC-ID-05 check 5).
+  assert.deepEqual(methodsOf(refusal({ methods: '' })), []);
+  assert.deepEqual(methodsOf(refusal({ methods: '   ' })), []);
   // A method this client cannot render is dropped rather than shown as a field nobody can fill.
   assert.deepEqual(methodsOf(refusal({ methods: 'WEBAUTHN' })), ['PASSWORD']);
   assert.deepEqual(methodsOf(refusal({ methods: 'WEBAUTHN,TOTP' })), ['TOTP']);
