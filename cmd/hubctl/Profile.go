@@ -31,6 +31,9 @@ const (
 	// The authenticator's current code, for the same reason - and because a code is worth six
 	// digits for thirty seconds, which is exactly as long as a shell history is unhelpful.
 	envTotp = "HUBTASK_TOTP"
+	// A recovery code, for a step-up by somebody whose authenticator is not at hand (ADR-0075 §1).
+	// The step-up consumes it, so it is good for one command.
+	envRecovery = "HUBTASK_RECOVERY_CODE"
 	// The workspace, in multi mode. A sign-in has no credential to read the tenant off yet
 	// (multi-tenancy.md §3), so it has to be said.
 	envTenant = "HUBTASK_TENANT"

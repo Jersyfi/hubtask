@@ -142,12 +142,11 @@ func mfaDisable(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
-	password, err := cli.readCredential(envPassword,
-		"Removing the second factor asks for the password (it will be visible): ")
-	if err != nil {
-		return err
-	}
-	if err := client.Post(ctx, mfaDisablePath, openapi.MfaDisable{Password: &password}, nil); err != nil {
+	// The step-up, like every privileged act (ADR-0075 §3): the removal is refused for want of a
+	// proof, this asks for one the account holds, and the same call goes again with it.
+	if err := cli.proveAgain(ctx, client, func(stepUp string) error {
+		return client.PostWithHeader(ctx, mfaDisablePath, openapi.MfaDisable{}, stepUpProof(stepUp), nil)
+	}); err != nil {
 		return err
 	}
 	printf(cli.Err, "the second factor is gone, and the remaining recovery codes with it\n")
