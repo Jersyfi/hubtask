@@ -6,7 +6,7 @@ actors: [PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-06, P-07, P-10, P-12]
 state: partial
-tasks: [SI-07, SI-08, SI-16, SC-06]
+tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21]
 checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs]
 ---
 
@@ -61,12 +61,14 @@ the installation is the same person and set nothing.
 
 Checks 1, 2, 3, 4, 5, 7, 8 and 9 hold since SC-06 (`AdminFlag_test.go`, `FactorRule_test.go`,
 `LastWayIn_test.go`, `cmd/server/Wiring_test.go`, `signinsettings.test.mjs`). Check 6 holds for every
-door a workspace has, and not yet for two others; both are the owner's to decide:
+door a workspace has, and not yet for two others; the owner decided both on 2026-10-01,
+and they are cut as tasks:
 
 * **The installation's own doors.** An operator who switches off or removes a provider the
   installation offers can still leave a workspace that uses it as its only way in with none. Guarding
   it would mean reading every workspace's choice, which an installation-level action is not allowed
-  to do.
+  to do. Tracked as SC-20: a count instead of names, a notice period, and a password fallback.
 * **`enabled` on a provider's configuration.** The screen no longer switches a provider on its form,
   but `PUT /identity-providers/{id}` still accepts `enabled`, a second door to the same switch (P-06).
-  It meets the last-way-in guard; taking the field away would be a removal from the contract.
+  It meets the last-way-in guard. Tracked as SC-21: a change is refused, and the field is removed
+  at the next major version.

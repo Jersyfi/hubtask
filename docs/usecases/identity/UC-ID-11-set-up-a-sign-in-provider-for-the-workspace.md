@@ -6,7 +6,7 @@ actors: [PE-admin, PE-owner]
 deployments: [D3, D4, D6]
 serves: [P-02, P-05, P-06, P-08, P-12]
 state: partial
-tasks: [SI-10, SI-11, SI-16, SC-01, SC-06]
+tasks: [SI-10, SI-11, SI-16, SC-01, SC-06, SC-21]
 checked_by: [core/application/service/identity/IdentityProviderConfig_test.go, core/application/service/identity/LastWayIn_test.go, apps/webapp/e2e/signinsettings.test.mjs]
 ---
 
@@ -65,5 +65,5 @@ or a role, or a group.
 * **Check 5 fails:** there is no *New people get* setting (SC-02).
 * **Check 8 holds on the screen, not at the API:** the list of ways to sign in is the one place a
   provider is switched, but `PUT /identity-providers/{id}` still accepts `enabled` (see UC-ID-12's
-  *Today*); removing it is a contract removal for the owner.
+  *Today*). Tracked as SC-21: a change is refused, and the field goes at the next major version.
 * **Check 6 fails:** the address is inside a sentence, without a copy button.
