@@ -10550,7 +10550,7 @@ type ClientInterface interface {
 
 	// ListSessions The caller's active sessions
 	//
-	// One's own sessions, newest first: where each was opened (the user agent and the IP class recorded at sign-in - a hint for recognising one's own devices, never a precise address), when it was created, when it last acted, and which one is answering this very call. Never anybody else's, whatever the role: a session is the person's, and an administrator who suspects one acts by disabling the account, not by reading its sessions.
+	// One's own sessions, newest first: where each was opened (the user agent and the IP class recorded at sign-in - a hint for recognising one's own devices, never a precise address), when it was created, when it last acted, and which one is answering this very call. Never anybody else's, whatever the role: a session is the person's, and an administrator who suspects one acts by disabling the account, not by reading its sessions. Only open sessions are listed - those the next request accepts: one ended, run out, past the workspace's maximum age or idle time, or opened before it required a new password from everyone is absent.
 	//
 	// Corresponds with GET /auth/sessions (the `ListSessions` operationId).
 	ListSessions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -14807,7 +14807,7 @@ func (c *Client) RevokeAllSessions(ctx context.Context, reqEditors ...RequestEdi
 
 // ListSessions The caller's active sessions
 //
-// One's own sessions, newest first: where each was opened (the user agent and the IP class recorded at sign-in - a hint for recognising one's own devices, never a precise address), when it was created, when it last acted, and which one is answering this very call. Never anybody else's, whatever the role: a session is the person's, and an administrator who suspects one acts by disabling the account, not by reading its sessions.
+// One's own sessions, newest first: where each was opened (the user agent and the IP class recorded at sign-in - a hint for recognising one's own devices, never a precise address), when it was created, when it last acted, and which one is answering this very call. Never anybody else's, whatever the role: a session is the person's, and an administrator who suspects one acts by disabling the account, not by reading its sessions. Only open sessions are listed - those the next request accepts: one ended, run out, past the workspace's maximum age or idle time, or opened before it required a new password from everyone is absent.
 //
 // Corresponds with GET /auth/sessions (the `ListSessions` operationId).
 func (c *Client) ListSessions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -34530,7 +34530,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListSessionsWithResponse The caller's active sessions
 	//
-	// One's own sessions, newest first: where each was opened (the user agent and the IP class recorded at sign-in - a hint for recognising one's own devices, never a precise address), when it was created, when it last acted, and which one is answering this very call. Never anybody else's, whatever the role: a session is the person's, and an administrator who suspects one acts by disabling the account, not by reading its sessions.
+	// One's own sessions, newest first: where each was opened (the user agent and the IP class recorded at sign-in - a hint for recognising one's own devices, never a precise address), when it was created, when it last acted, and which one is answering this very call. Never anybody else's, whatever the role: a session is the person's, and an administrator who suspects one acts by disabling the account, not by reading its sessions. Only open sessions are listed - those the next request accepts: one ended, run out, past the workspace's maximum age or idle time, or opened before it required a new password from everyone is absent.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -52081,7 +52081,7 @@ func (c *ClientWithResponses) RevokeAllSessionsWithResponse(ctx context.Context,
 
 // ListSessionsWithResponse The caller's active sessions
 //
-// One's own sessions, newest first: where each was opened (the user agent and the IP class recorded at sign-in - a hint for recognising one's own devices, never a precise address), when it was created, when it last acted, and which one is answering this very call. Never anybody else's, whatever the role: a session is the person's, and an administrator who suspects one acts by disabling the account, not by reading its sessions.
+// One's own sessions, newest first: where each was opened (the user agent and the IP class recorded at sign-in - a hint for recognising one's own devices, never a precise address), when it was created, when it last acted, and which one is answering this very call. Never anybody else's, whatever the role: a session is the person's, and an administrator who suspects one acts by disabling the account, not by reading its sessions. Only open sessions are listed - those the next request accepts: one ended, run out, past the workspace's maximum age or idle time, or opened before it required a new password from everyone is absent.
 //
 // Returns a wrapper object for the known response body format(s).
 //
