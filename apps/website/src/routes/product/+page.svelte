@@ -11,7 +11,7 @@
   <title>What Hubtask does — the product</title>
   <meta
     name="description"
-    content="Five levels with capability profiles, four layouts, a composable query language, recurrence across time zones, templates, calendar feeds, automation rules, an inbox for anything unsorted, and a synchronisation design that does not lose concurrent edits."
+    content="Five levels with capability profiles, four layouts, a composable query language, recurrence across time zones, templates, calendar feeds and CalDAV, imports, sign-in on your own rules, automation rules, an inbox for anything unsorted, backups, an installation level for operators, and offline work that does not lose concurrent edits."
   />
 </svelte:head>
 
@@ -21,8 +21,9 @@
     <h1>Everything it does, and where each thing lives</h1>
     <p class="lede">
       Hubtask is one model with a lot of surface. This page walks the surface — what you can put on
-      a task, how you look at a list, what happens while you are asleep, and what it does when the
-      network is gone.
+      a task, how you look at a list, who gets in and how, what happens while you are asleep, what
+      it does when the network is gone, and how an installation is run. What is decided and still
+      being built is marked <span class="site-chip site-chip-amber">Planned</span>.
     </p>
     <Levels />
   </div>
@@ -185,6 +186,11 @@
         the credential, it is shown once, and it can be withdrawn.
       </li>
       <li>
+        <strong>CalDAV, both ways</strong>
+        Tick a task off or move its date in the calendar app you already use, and the change goes
+        through the same rules as one made in Hubtask.
+      </li>
+      <li>
         <strong>Live updates</strong>
         A server-sent event stream, so a second window and a second device do not disagree about
         what is done.
@@ -253,6 +259,103 @@
 <section class="section">
   <div class="wrap">
     <div class="section-head">
+      <p class="kicker">Who gets in</p>
+      <h2>Signing in, on your own rules</h2>
+    </div>
+    <div class="site-rows">
+      <div class="site-row">
+        <h3>The password rule</h3>
+        <div><p>
+          Eighteen switches in three groups — the password, the second factor, the session — set by
+          the installation with a lock where it decides, and tightened by a workspace where it may.
+          Shipped at what NIST advises: length over composition, common passwords refused, no forced
+          expiry. The rules show under the field as you type, in your language.
+        </p>
+        <Proof href="{docs}/adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md" label="ADR-0068" /></div>
+      </div>
+      <div class="site-row">
+        <h3>A second factor, and the way back</h3>
+        <div><p>
+          An authenticator app, required of administrators or of everybody. Ten recovery codes you
+          can copy and replace. A forgotten password is reset by mail, and the reset still asks for
+          the second factor. Every session is listed and can be ended.
+        </p></div>
+      </div>
+      <div class="site-row">
+        <h3>Google, Microsoft, your own directory</h3>
+        <div><p>
+          Several providers per workspace, each with its own button. A provider admits by directory,
+          never by the text of an address, and connecting it to an account that already exists asks
+          for that account’s own proof first. An installation can offer providers to every workspace
+          without showing any of them a secret.
+        </p>
+        <Proof href="{docs}/adr/ADR-0071-provider-admission.md" label="ADR-0071" /></div>
+      </div>
+      <div class="site-row">
+        <h3>Tokens and apps</h3>
+        <div><p>
+          Personal access tokens with scopes and an expiry, service accounts for machines, and
+          third-party apps a person lets act for them through OAuth — and takes back.
+        </p></div>
+      </div>
+      <div class="site-row">
+        <h3>Next</h3>
+        <div><p>
+          <span class="site-chip site-chip-amber">Planned</span> Passkeys. Terms of use agreed at the invitation and again when they change.
+          Accounts for a child or a grandparent without a mail address. Private hubs another
+          administrator cannot open. People arriving from a directory landing with a role.
+        </p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">In, out, and back</p>
+      <h2>Nothing is stuck, nothing is lost</h2>
+    </div>
+    <ul class="ticks ticks-2">
+      <li>
+        <strong>Imports</strong>
+        From a spreadsheet, Trello, Google Tasks or Microsoft To Do, with a report of what came in
+        and what was refused and why. Running the same import twice creates nothing twice.
+      </li>
+      <li>
+        <strong>Trash and archive</strong>
+        A deleted hub, collection or task waits in the trash, thirty days by default; finished work is archived
+        rather than deleted, and both come back with their history.
+      </li>
+      <li>
+        <strong>Retention you can see coming</strong>
+        A rule shows what it would remove before it acts, warns the people whose work it touches,
+        and a legal hold stops it.
+      </li>
+      <li>
+        <strong>Backups that are checked</strong>
+        Encrypted, to your own target, on a schedule with generations, and opened by the code that
+        would restore them. Restore the whole workspace or bring one hub back.
+      </li>
+      <li>
+        <strong>Mail when it matters</strong>
+        When work lands on you, before something is due, when something you set up stops working —
+        and each person chooses which mails they get. <span class="site-chip site-chip-amber">Planned</span> Channels other than the mailbox,
+        and rules that tell people something.
+      </li>
+      <li>
+        <strong>Small things that save time</strong>
+        Duplicate a task with its subtree, change many entries at once, see what is on you when you
+        arrive, a short tour on the first visit, and a small celebration when work gets done —
+        switchable per account.
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
       <p class="kicker">While you are away</p>
       <h2>Automation, intake and agents</h2>
     </div>
@@ -278,8 +381,9 @@
         <h3>Webhooks out</h3>
         <p>
           Signed subscriptions with retries and a dead-letter path, carrying published CloudEvents
-          schemas. Connectors for n8n and Zapier are generated from the same contract, and ship
-          with the ecosystem milestone.
+          schemas, a secret that can be replaced without dropping a delivery, and a replay of what
+          a server missed. Connectors for n8n and Zapier are generated from the same contract,
+          built and tested, and published with the convergence milestone.
         </p>
       </div>
       <div class="site-card">
@@ -289,6 +393,11 @@
           the provider behind a port, configurable per workspace, and Ollama on your own machine as
           a first-class choice. Switched off, none of it is there, and the rest of the product is
           unchanged.
+        </p>
+        <p>
+          <span class="site-chip site-chip-amber">Planned</span> A model the provider offers, switched on with one click and counted against a
+          budget; and each person keeping their own content out, unless the workspace names a
+          legal basis for AI as part of everybody’s work.
         </p>
         <Proof href="{docs}/architecture/ai-first.md" label="ai-first.md §2" />
       </div>
@@ -305,10 +414,12 @@
     <div class="two-up">
       <div>
         <p>
-          The synchronisation contract is written and fixed, and the data model has carried what it
-          needs since the first migration — a change log, tombstones, a clock per field change and
-          fractional indices, none of which can be added later without a break. The installed
-          clients that will use it are being built.
+          The web app keeps a copy of your workspace in the browser and goes on working when the
+          connection drops: changes wait in a queue and are sent when it returns, and the devices
+          you used are listed and can be forgotten. The data model has carried what this needs since
+          the first migration — a change log, tombstones, a clock per field change and fractional
+          indices. <span class="site-chip site-chip-amber">Planned</span> The installed desktop and mobile apps, and reminders, recurrence and
+          templates changed while offline.
         </p>
         <p>
           <strong>No client merges.</strong> Merging happens on the server, per field, with
@@ -328,6 +439,55 @@
           requirements on every client rather than a later project.
         </p>
         <Proof href="{docs}/architecture/i18n-l10n.md" label="i18n-l10n.md" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Running the installation</p>
+      <h2>One level above every workspace</h2>
+      <p class="lede">
+        For whoever runs Hubtask for others — and, on a private installation, simply one more
+        section of the administration.
+      </p>
+    </div>
+    <div class="site-cards site-cards-2">
+      <div class="site-card">
+        <h3>Operators, and an hour at a time</h3>
+        <p>
+          A register of the people and machines who may run the installation, separate from every
+          workspace’s administrators. A person raises their own session for one hour after a fresh
+          proof, and every start and end is in the installation’s journal.
+        </p>
+        <Proof href="{docs}/adr/ADR-0070-the-instance-layer.md" label="ADR-0070" />
+      </div>
+      <div class="site-card">
+        <h3>Defaults with a lock</h3>
+        <p>
+          Sign-in rules, legal texts, limits and language defaults set once for every workspace —
+          each with a lock that decides whether a workspace may change it, and a screen that says
+          which level decided. From the dashboard, from <code>hubctl</code>, or from a file.
+        </p>
+      </div>
+      <div class="site-card">
+        <h3>The dashboard</h3>
+        <p>
+          Workspaces and their state — create, suspend, resume, delete, export — limits per
+          workspace, the health report, the journal, and key rotation with a census of what moved.
+          Numbers and states, never a workspace’s content.
+        </p>
+      </div>
+      <div class="site-card">
+        <h3>Next</h3>
+        <p>
+          <span class="site-chip site-chip-amber">Planned</span> The first start in the browser with a one-time code. AI models the installation
+          offers, with a budget per source. Plans with their own limits, features and locks.
+          Events that tell a purchase platform what happened. A workspace’s own domain.
+        </p>
+        <a href="/roadmap/">The order they come in</a>
       </div>
     </div>
   </div>
