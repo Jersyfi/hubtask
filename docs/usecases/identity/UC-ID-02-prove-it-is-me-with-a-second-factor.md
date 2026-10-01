@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13]
 state: partial
-tasks: [H-02, SI-13, SI-14, SI-15, SC-03, SC-09]
+tasks: [H-02, SI-13, SI-14, SI-15, SC-03, SC-09, SC-17, SC-18]
 checked_by: [apps/webapp/e2e/signin.test.mjs, locales/Terms_test.go]
 ---
 
@@ -51,7 +51,7 @@ page says how many codes remain and leads to setting the authenticator up again.
 
 Checks 4 and 7 hold since SC-03 (`signin.test.mjs`: the recovery code pasted with its dashes into a
 text field, and the heading asserted exactly). Found while checking the rest, tracked in
-issue #1100:
+issue #1100 and cut as SC-18 (the note links to SC-17's *Replace authenticator*):
 
 * **Check 2 fails at its end:** the remaining time is shown and counts down, but when it reaches
   zero the card stays on the step at `0:00` — nothing says the time ran out and nothing returns to

@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11]
 state: partial
-tasks: [SI-08, SI-15, SC-09]
+tasks: [SI-08, SI-15, SC-09, SC-19]
 checked_by: [test/integration/session_test.go, presentation/rest/SessionProjection_test.go, apps/webapp/e2e/settings.test.mjs]
 ---
 
@@ -43,7 +43,7 @@ marked. *End* ends one; *Sign out everywhere else* ends all others.
 
 Check 2 holds since SC-09: each session says how it was opened, the provider by its name
 (`TestAProviderSessionNamesItsProviderInItsOwnTenantOnly`, the sessions walk). Found while checking
-the rest, tracked in issue #1104:
+the rest, tracked in issue #1104 and cut as SC-19:
 
 * **Check 5 fails:** the list drops only revoked and expired sessions. One past the workspace's
   maximum age, its idle time, or a required new password is refused on its next request but still
