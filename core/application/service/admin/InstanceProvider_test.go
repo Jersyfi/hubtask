@@ -87,6 +87,25 @@ func (s *instanceProviderStore) Update(
 	return domain.IdentityProvider{}, false, nil
 }
 
+func (s *instanceProviderStore) MoveOfferCount(context.Context, shared.ID, int) error { return nil }
+
+func (s *instanceProviderStore) SetWithdrawal(
+	_ context.Context, id shared.ID, at, now time.Time,
+) (domain.IdentityProvider, bool, error) {
+	for i, row := range s.rows {
+		if row.ID == id {
+			row.WithdrawAt = at
+			if at.IsZero() {
+				row.Enabled = true
+			}
+			row.UpdatedAt, row.Version = now, row.Version+1
+			s.rows[i] = row
+			return row, true, nil
+		}
+	}
+	return domain.IdentityProvider{}, false, nil
+}
+
 // Reconfigure is never the installation's: its form still writes the offer. A call here is a
 // defect the test should see.
 func (s *instanceProviderStore) Reconfigure(

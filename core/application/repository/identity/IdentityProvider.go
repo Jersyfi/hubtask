@@ -56,6 +56,16 @@ type IdentityProviders interface {
 	// and a save cannot undo a switch made while the form was open.
 	Reconfigure(ctx context.Context, provider identity.IdentityProvider, sealed *crypto.Sealed, now time.Time) (identity.IdentityProvider, bool, error)
 
+	// MoveOfferCount moves an installation row's count of workspaces that switched it on by one
+	// step, inside the caller's transaction (ADR-0076 §1). The workspace's own switch is the only
+	// caller; a workspace's row, or a step other than one, moves nothing.
+	MoveOfferCount(ctx context.Context, providerID shared.ID, step int) error
+
+	// SetWithdrawal sets when an installation's offer ends - a zero moment keeps offering it, and
+	// switches back on an offer an older binary ended through the form - and answers the row. False
+	// means no installation row of that identifier is writable here.
+	SetWithdrawal(ctx context.Context, providerID shared.ID, at, now time.Time) (identity.IdentityProvider, bool, error)
+
 	// Delete removes one and its sealed secret. False is "there was none", which is not an error -
 	// a caller asking for it to be gone got what they asked for.
 	Delete(ctx context.Context, id shared.ID) (bool, error)

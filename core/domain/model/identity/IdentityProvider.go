@@ -98,6 +98,28 @@ type IdentityProvider struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Version     int
+	// WithdrawAt is when the installation's offer ends (ADR-0076 §2); zero while it is offered
+	// without an end. Until then the provider works; from then it is a way in nowhere.
+	WithdrawAt time.Time
+	// OfferedWorkspaces is how many workspaces have the installation's row switched on - a number,
+	// never names (ADR-0076 §1). Answered to the operator only.
+	OfferedWorkspaces int
+}
+
+// WithdrawalNotice is how far ahead a withdrawal is announced where the operator names no date
+// (ADR-0076 §2): two weeks for every workspace that uses the provider to switch on another way.
+const WithdrawalNotice = 14 * 24 * time.Hour
+
+// OfferedAt reports whether the row is a way in at all at this moment: switched on, and not past an
+// announced withdrawal. The date is honoured where the offer is read, so no job has to end it.
+func (p IdentityProvider) OfferedAt(now time.Time) bool {
+	return p.Enabled && (p.WithdrawAt.IsZero() || now.Before(p.WithdrawAt))
+}
+
+// Withdrawing reports whether an announced withdrawal is still ahead: the time in which the
+// workspaces that use it are told when it ends.
+func (p IdentityProvider) Withdrawing(now time.Time) bool {
+	return !p.WithdrawAt.IsZero() && now.Before(p.WithdrawAt)
 }
 
 // Installation reports whether this row belongs to no workspace.
