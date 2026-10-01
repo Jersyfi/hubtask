@@ -252,9 +252,9 @@ func (h CompleteOidcSignIn) Execute(
 	if err != nil {
 		return SignInResult{}, err
 	}
-	pair, err := w.Session.openSessionWith(ctx, scope, state.TenantID(), account,
+	pair, err := w.Session.openSessionVia(ctx, scope, state.TenantID(), account,
 		cmd.UserAgent, cmd.RemoteAddr, OidcSignedInAction, nil,
-		bounds, domain.SignedInWithOidc)
+		bounds, domain.SignedInWithOidc, configured.ID)
 	if err != nil {
 		return SignInResult{}, err
 	}

@@ -196,6 +196,7 @@ func sessionResponse(row usecase.Output) openapi.Session {
 		opened := openapi.SessionSignedInWith(*method)
 		answer.SignedInWith = &opened
 	}
+	answer.SignedInProvider = optionalTextField(row["signed_in_provider"])
 	return answer
 }
 

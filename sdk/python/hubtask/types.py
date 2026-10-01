@@ -155,6 +155,7 @@ class Session(TypedDict, total=False):
     ip_class: str | None
     current: Required[bool]
     signed_in_with: Literal["PASSWORD", "PASSWORD_TOTP", "PASSWORD_RECOVERY", "OIDC", "INVITATION", "RESET"] | None
+    signed_in_provider: str | None
 
 class SessionTokens(TypedDict, total=False):
     """The pair and its session, shown for the only time. What is stored of the refresh token is a hash under its own purpose label; the access token is not stored at all - it verifies by its signature."""

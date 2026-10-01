@@ -55,6 +55,10 @@ func (r SessionRepository) Insert(ctx context.Context, session identity.Session)
 	if err != nil {
 		return err
 	}
+	via, err := optionalUUID(session.SignedInVia)
+	if err != nil {
+		return err
+	}
 	grantID, err := optionalUUID(session.GrantID)
 	if err != nil {
 		return err
@@ -74,6 +78,8 @@ func (r SessionRepository) Insert(ctx context.Context, session identity.Session)
 		HardExpiresAt: nullableTime(session.HardExpiresAt),
 		IdleMinutes:   nullableInt32(session.IdleMinutes),
 		SignedInWith:  nullableString(session.SignedInWith),
+		// Which provider opened it, where one did (migration 0111).
+		SignedInProviderID: via,
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -230,8 +236,14 @@ func (r SessionRepository) ForAccount(
 		if err != nil {
 			return nil, err
 		}
+		via, err := optionalID(row.SignedInProviderID)
+		if err != nil {
+			return nil, err
+		}
 		sessions = append(sessions, identity.Session{
-			ID: sessionID, AccountID: accountID,
+			SignedInVia:     via,
+			SignedInViaName: stringFrom(row.SignedInProviderName),
+			ID:              sessionID, AccountID: accountID,
 			CreatedAt:  timeFrom(row.CreatedAt),
 			LastSeenAt: timeFrom(row.LastSeenAt),
 			UserAgent:  stringFrom(row.UserAgent),

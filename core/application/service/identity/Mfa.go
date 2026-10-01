@@ -307,7 +307,7 @@ func (h ConfirmTotp) Execute(
 	}
 	pair, err := w.openSessionWithHint(ctx, scope, caller.tenantID, caller.account,
 		caller.pending.UserAgent, caller.pending.IPClass, SignedInAction,
-		bounds, domain.SignedInWithPasswordTotp)
+		bounds, domain.SignedInWithPasswordTotp, "")
 	if err != nil {
 		return ConfirmedEnrollment{}, err
 	}

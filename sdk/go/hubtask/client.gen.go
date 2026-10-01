@@ -7085,6 +7085,9 @@ type Session struct {
 	// LastUsedAt When the session last acted, to the minute rather than to the request - the value exists so a person can spot a session nobody uses.
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 
+	// SignedInProvider For a session a sign-in provider opened, that provider's name (UC-ID-06), so a person can tell their sessions apart by the way in. Absent for every other session, and for one whose provider was removed since.
+	SignedInProvider *string `json:"signed_in_provider,omitempty"`
+
 	// SignedInWith How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
 	SignedInWith *SessionSignedInWith `json:"signed_in_with,omitempty"`
 

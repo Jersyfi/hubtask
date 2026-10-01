@@ -299,6 +299,9 @@ CREATE TABLE session (
   -- session list, so that a person reading their own sessions can tell them apart. NULL is a
   -- session opened before the column existed.
   signed_in_with text,
+  -- Which provider opened it, for a session opened through one (migration 0111): named in the
+  -- session list. No foreign key - a removed provider is no reason to touch the sessions it opened.
+  signed_in_provider_id uuid,
   CONSTRAINT session_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );

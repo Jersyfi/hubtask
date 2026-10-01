@@ -895,7 +895,7 @@ func (h SetPasswordAndSignIn) Execute(
 
 	return w.Session.openSessionWithHint(ctx, scope, tenantID, lookup.Account,
 		lookup.Credential.UserAgent, lookup.Credential.IPClass, SignedInAction,
-		rules.Effective.Policy.Sessions, domain.SignedInWithPassword)
+		rules.Effective.Policy.Sessions, domain.SignedInWithPassword, "")
 }
 
 // Descriptor is the catalogue entry.

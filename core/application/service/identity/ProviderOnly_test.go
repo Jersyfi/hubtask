@@ -66,3 +66,17 @@ func TestTheOwnAccountSaysWhetherItHasAPassword(t *testing.T) {
 		}
 	}
 }
+
+// UC-ID-06 check 2: a session a provider opened remembers which provider, so the list can name it.
+func TestAProviderSessionRemembersItsProvider(t *testing.T) {
+	f := newOidcFixture(t, now)
+	result, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(), CompleteOidcSignInCommand{
+		Code: "the-code", State: start(t, f),
+	})
+	if err != nil || result.Pair == nil {
+		t.Fatalf("the arrival answered (%+v, %v)", result, err)
+	}
+	if via := result.Pair.Session.SignedInVia; via != f.provider.ID {
+		t.Errorf("the session names provider %q, want %q", via, f.provider.ID)
+	}
+}

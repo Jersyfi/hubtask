@@ -711,3 +711,67 @@ func TestAStepUpProofBurnsOnceAndOnlyInItsTenant(t *testing.T) {
 		return nil
 	})
 }
+
+// UC-ID-06 check 2 (SC-09): a session opened through a provider names the provider in the listing a
+// person reads - and only a provider this tenant can see. A row naming another tenant's provider
+// lists no name, because the listing reads the provider under the reader's own row policy.
+func TestAProviderSessionNamesItsProviderInItsOwnTenantOnly(t *testing.T) {
+	ctx := context.Background()
+	sessionFixtures(ctx, t)
+	admin := adminPool(ctx, t)
+	// An account of its own, so the sessions written here are nobody else's count.
+	viaAccount := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000c9")
+	providerA := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000d1")
+	providerB := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000d2")
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO account (id, tenant_id, kind, email, display_name, status)
+		VALUES ($1, $2, 'USER', 'via@example.org', 'Via', 'ACTIVE') ON CONFLICT (id) DO NOTHING`,
+		viaAccount.String(), tenantA.String()); err != nil {
+		t.Fatalf("seeding the account: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO identity_provider
+			(id, tenant_id, issuer, client_id, client_secret_enc, client_secret_key_id, display_name, created_at)
+		VALUES
+			($1, $3, 'https://login.a.example', 'hubtask', '\x00', 'k', 'Contoso Entra ID', now()),
+			($2, $4, 'https://login.b.example', 'hubtask', '\x00', 'k', 'Fabrikam', now())
+		ON CONFLICT (id) DO NOTHING`,
+		providerA.String(), providerB.String(), tenantA.String(), tenantB.String()); err != nil {
+		t.Fatalf("seeding providers: %v", err)
+	}
+
+	sessions, _, _, uow := sessionStores(ctx, t)
+	own := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000e1")
+	foreign := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000e2")
+	now := time.Now().UTC()
+	t.Cleanup(func() {
+		_, _ = admin.Exec(context.Background(), `DELETE FROM session WHERE id IN ($1, $2)`, own.String(), foreign.String())
+	})
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		for id, via := range map[shared.ID]shared.ID{own: providerA, foreign: providerB} {
+			if err := sessions.Insert(ctx, identity.Session{
+				ID: id, TenantID: tenantA, AccountID: viaAccount, CreatedAt: now,
+				ExpiresAt: now.Add(24 * time.Hour), SignedInWith: identity.SignedInWithOidc, SignedInVia: via,
+			}); err != nil {
+				t.Fatalf("inserting: %v", err)
+			}
+		}
+		listed, err := sessions.ForAccount(ctx, viaAccount, now)
+		if err != nil || len(listed) != 2 {
+			t.Fatalf("listing = %v, %v; want the two sessions", listed, err)
+		}
+		for _, row := range listed {
+			switch row.ID {
+			case own:
+				if row.SignedInVia != providerA || row.SignedInViaName != "Contoso Entra ID" {
+					t.Errorf("the provider session reads %v / %q", row.SignedInVia, row.SignedInViaName)
+				}
+			case foreign:
+				if row.SignedInViaName != "" {
+					t.Errorf("another tenant's provider is named here: %q", row.SignedInViaName)
+				}
+			}
+		}
+		return nil
+	})
+}

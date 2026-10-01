@@ -439,6 +439,17 @@ func (w SessionWriter) openSessionWith(
 	userAgent, remoteAddr string, action audit.Action, subjects []string,
 	bounds domain.SessionPolicy, method string,
 ) (SessionPair, error) {
+	return w.openSessionVia(ctx, scope, tenantID, account, userAgent, remoteAddr, action, subjects,
+		bounds, method, "")
+}
+
+// openSessionVia is openSessionWith told which provider opened the session, where one did, so the
+// session list can name it (UC-ID-06 check 2).
+func (w SessionWriter) openSessionVia(
+	ctx context.Context, scope persistence.Scope, tenantID shared.ID, account domain.Account,
+	userAgent, remoteAddr string, action audit.Action, subjects []string,
+	bounds domain.SessionPolicy, method string, via shared.ID,
+) (SessionPair, error) {
 	material, err := w.Entropy.Bytes(domain.TokenSecretBytes)
 	if err != nil {
 		return SessionPair{}, shared.ErrInternal.WithDetail("auth.session_unmintable").WithCause(err)
@@ -457,7 +468,7 @@ func (w SessionWriter) openSessionWith(
 		session, err := domain.NewSession(domain.NewSessionInput{
 			ID: w.IDs.NewID(), TenantID: tenantID, AccountID: account.ID,
 			UserAgent: userAgent, RemoteAddr: remoteAddr, Now: now,
-			Bounds: bounds, Method: method,
+			Bounds: bounds, Method: method, Via: via,
 		})
 		if err != nil {
 			return err
@@ -688,6 +699,10 @@ func sessionOutput(session domain.Session, currentID shared.ID) usecase.Output {
 		// Absent rather than "unknown" for a session opened before this was recorded: a line
 		// saying "unknown" is a line a reader tries to act on.
 		out["signed_in_with"] = session.SignedInWith
+	}
+	if session.SignedInViaName != "" {
+		// The provider by name, for a session it opened and the reader can see (UC-ID-06 check 2).
+		out["signed_in_provider"] = session.SignedInViaName
 	}
 	if !session.LastSeenAt.IsZero() {
 		out["last_used_at"] = session.LastSeenAt.UTC()
