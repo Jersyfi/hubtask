@@ -15,6 +15,7 @@ import { TransportError } from '@hubtask/sync-engine';
 import {
   heldGrant,
   holdGrant,
+  isReturning,
   methodsOf,
   providerOf,
   rememberReturn,
@@ -149,24 +150,34 @@ test('the four methods are read, and the provider by its name', () => {
   assert.equal(providerOf(refusal({ methods: 'PASSWORD' })), undefined);
 });
 
-test('a held grant is tried first, and once', async () => {
+test('a held grant answers the first call that asks for a proof, and only one that asks', async () => {
   // The provider's round trip leaves the page: the grant it answered is held until the person does
-  // what they were doing again, and then it is that call's - and nobody's after.
+  // what they were doing again - and a call that needs no proof does not spend it.
+  let taken = 0;
+  const held = () => {
+    taken += 1;
+    return 'held-grant';
+  };
+  const plain = await withStepUp(async () => 'plain', async () => 'asked', held);
+  assert.equal(plain, 'plain');
+  assert.equal(taken, 0, 'a call that needed no proof took the held grant');
+
   const presented: (string | undefined)[] = [];
   let asked = 0;
   const answer = await withStepUp(
     async (token) => {
       presented.push(token);
+      if (token === undefined) throw refusal({ methods: 'PROVIDER' });
       return 'done';
     },
     async () => {
       asked += 1;
       return 'grant';
     },
-    () => 'held-grant',
+    held,
   );
   assert.equal(answer, 'done');
-  assert.deepEqual(presented, ['held-grant']);
+  assert.deepEqual(presented, [undefined, 'held-grant']);
   assert.equal(asked, 0);
 });
 
@@ -181,7 +192,7 @@ test('a held grant the server refuses falls back to asking', async () => {
     async () => 'fresh',
     () => 'stale-grant',
   );
-  assert.deepEqual(presented, ['stale-grant', 'fresh']);
+  assert.deepEqual(presented, [undefined, 'stale-grant', 'fresh']);
 });
 
 /** A Storage the module can be handed, without a browser. */
@@ -196,12 +207,20 @@ function memory(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
 
 test('the way back is remembered across the provider and taken once', () => {
   const store = memory();
-  rememberReturn(store, '/administration/sign-in', 'Contoso Entra ID');
+  const now = Date.parse('2026-10-01T12:00:00Z');
+  rememberReturn(store, '/administration/sign-in', 'Contoso Entra ID', now);
+  assert.equal(isReturning(store, now + 60_000), true);
   assert.deepEqual(takeReturn(store), { returnTo: '/administration/sign-in', provider: 'Contoso Entra ID' });
   assert.equal(takeReturn(store), undefined, 'a second callback is not a step-up');
   // Only a path of this application: a value that named another origin would be a redirect.
-  rememberReturn(store, 'https://elsewhere.example/', 'X');
+  rememberReturn(store, 'https://elsewhere.example/', 'X', now);
   assert.equal(takeReturn(store)?.returnTo, '/');
+
+  // A trip abandoned with Back is not a step-up an hour later: the tab's next provider sign-in is a
+  // sign-in, and the stale note is gone.
+  rememberReturn(store, '/administration/sign-in', 'Contoso Entra ID', now);
+  assert.equal(isReturning(store, now + 11 * 60_000), false);
+  assert.equal(takeReturn(store), undefined);
 });
 
 test('a held grant lives until it is used or its window ends', () => {

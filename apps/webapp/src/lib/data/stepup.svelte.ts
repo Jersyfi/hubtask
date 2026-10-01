@@ -32,6 +32,7 @@ import { engine } from './engine.ts';
 import type { Handoff } from './oidc.ts';
 import { navigableUrl } from './oidc.ts';
 import {
+  forgetReturn,
   heldGrant,
   holdGrant,
   isReturning,
@@ -191,7 +192,7 @@ class StepUp {
         this.#failure = 'errors.internal';
         return;
       }
-      rememberReturn(store, location.pathname + location.search, started.provider_name);
+      rememberReturn(store, location.pathname + location.search, started.provider_name, Date.now());
       location.assign(url);
     } catch (cause) {
       this.#failure = codeOf(cause);
@@ -202,7 +203,17 @@ class StepUp {
 
   /** Whether this callback is the return of a step-up rather than a sign-in. Read before completing. */
   isReturning(): boolean {
-    return isReturning(store);
+    return isReturning(store, Date.now());
+  }
+
+  /**
+   * Forgets everything this tab holds of a step-up: the note of a trip to the provider and a grant
+   * the return earned. Called at sign-out, because both belong to the session that is ending.
+   */
+  forget(): void {
+    forgetReturn(store);
+    takeGrant(store, Date.now());
+    this.#confirmed = undefined;
   }
 
   /**

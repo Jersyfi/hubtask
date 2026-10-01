@@ -33,11 +33,23 @@ export async function withStepUp<T>(
   held: () => string | undefined = () => undefined,
 ): Promise<T> {
   try {
-    // A grant held from the provider's round trip (ADR-0075 §2) is this call's: the person left the
-    // page to prove themselves and came back to do what they were doing.
-    return await call(held());
-  } catch (cause) {
-    if (!(cause instanceof TransportError) || !cause.needsStepUp) throw cause;
+    return await call();
+  } catch (first) {
+    if (!(first instanceof TransportError) || !first.needsStepUp) throw first;
+
+    // A grant held from the provider's round trip (ADR-0075 §2) answers the first call that asks
+    // for a proof - only one that asks, so a call that needed none never spends it. Refused, it
+    // was not what this call wanted, and the person is asked as if there had been none.
+    let cause: TransportError = first;
+    const carried = held();
+    if (carried !== undefined) {
+      try {
+        return await call(carried);
+      } catch (again) {
+        if (!(again instanceof TransportError) || !again.needsStepUp) throw again;
+        cause = again;
+      }
+    }
 
     const token = await ask(methodsOf(cause), providerOf(cause));
     if (token === undefined) throw cause;
@@ -101,14 +113,35 @@ export interface HeldGrant {
   readonly provider: string;
 }
 
+/**
+ * How long the note that a step-up left for the provider is believed: the server's flow lives ten
+ * minutes, and a note older than that is a trip abandoned with Back, which must not turn the tab's
+ * next provider sign-in into a step-up.
+ */
+const RETURN_LIFETIME_MS = 10 * 60_000;
+
 /** Whether a step-up is on its way back from the provider - the callback's question. */
-export function isReturning(store: Store): boolean {
-  return store.getItem(RETURN) !== null;
+export function isReturning(store: Store, now: number): boolean {
+  const raw = store.getItem(RETURN);
+  if (raw === null) return false;
+  try {
+    const left = (JSON.parse(raw) as { at?: number }).at;
+    if (typeof left === 'number' && now - left < RETURN_LIFETIME_MS) return true;
+  } catch {
+    // Unreadable is not a trip.
+  }
+  store.removeItem(RETURN);
+  return false;
 }
 
-/** Notes where to come back to before the browser leaves for the provider. */
-export function rememberReturn(store: Store, returnTo: string, provider: string): void {
-  store.setItem(RETURN, JSON.stringify({ returnTo, provider }));
+/** Notes where to come back to before the browser leaves for the provider, and when it left. */
+export function rememberReturn(store: Store, returnTo: string, provider: string, now: number): void {
+  store.setItem(RETURN, JSON.stringify({ returnTo, provider, at: now }));
+}
+
+/** Forgets a trip to the provider: the tab signed out, or the callback found it was a sign-in after all. */
+export function forgetReturn(store: Store): void {
+  store.removeItem(RETURN);
 }
 
 /**

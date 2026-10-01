@@ -34,6 +34,7 @@
   import { readArrival } from '../lib/data/oidc.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { stepUp } from '../lib/data/stepup.svelte.ts';
+  import { session } from '../lib/session.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
 
   interface Props {
@@ -51,8 +52,18 @@
    */
   const arrival = $state(takeArrival());
 
-  /** Whether this return finishes a step-up, read once - completing it takes the note away. */
-  const isStepUp = stepUp.isReturning();
+  /**
+   * Whether this return finishes a step-up, read once - completing it takes the note away. Only for
+   * a tab with a session: one that has none is signing in, whatever an old note says, and the note
+   * goes.
+   */
+  const isStepUp = takeStepUp();
+
+  function takeStepUp(): boolean {
+    const returning = stepUp.isReturning();
+    if (returning && !session.isSignedIn) stepUp.forget();
+    return returning && session.isSignedIn;
+  }
   /** Where the person was before they left for the provider, once known. */
   let returnTo = $state('/');
   const failure = $derived(isStepUp ? stepUp.failure : oidc.failure);

@@ -130,10 +130,12 @@ test('chromium: a provider-only administrator confirms at the provider and the c
   assert.deepEqual(sent.proofs, [{ state: 'the-state', authorization_code: 'the-code' }]);
   assert.equal(new URL(page.url()).search, '', 'the code stayed in the address');
 
-  // The same change again: it carries the held proof and goes through, and the note is gone.
+  // The same change again: refused once more, answered with the held proof rather than a second
+  // dialog, and the note is gone.
   await changeARule(page);
   await page.waitForFunction(() => !document.body.innerText.includes('Confirmed with Contoso Entra ID.'));
-  assert.deepEqual(sent.patches, [null, GRANT]);
+  for (let tries = 0; tries < 50 && sent.patches.length < 3; tries += 1) await page.waitForTimeout(100);
+  assert.deepEqual(sent.patches, [null, null, GRANT]);
   assert.equal(await page.getByRole('dialog').count(), 0, 'the dialog asked again although the proof was held');
 });
 
