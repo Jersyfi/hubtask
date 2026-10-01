@@ -581,7 +581,12 @@ CREATE TABLE oidc_flow (
   nonce         text NOT NULL,
   created_at    timestamptz NOT NULL,
   expires_at    timestamptz NOT NULL,
-  consumed_at   timestamptz
+  consumed_at   timestamptz,
+  -- The session a step-up at the provider belongs to (ADR-0075 §2, migration 0112). NULL is a
+  -- sign-in flow. Each callback consumes only its own kind.
+  session_id    uuid,
+  CONSTRAINT oidc_flow_session_fkey FOREIGN KEY (tenant_id, session_id)
+    REFERENCES session (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX oidc_flow_state_uq ON oidc_flow (state_hash);
 CREATE INDEX oidc_flow_expiry_idx ON oidc_flow (expires_at);

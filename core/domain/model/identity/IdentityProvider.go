@@ -575,6 +575,9 @@ type OidcFlow struct {
 	Verifier   string
 	CreatedAt  time.Time
 	ExpiresAt  time.Time
+	// SessionID binds the flow to the session that asked for a step-up at the provider (ADR-0075
+	// §2). Zero is a sign-in flow, which finishes a sign-in and no step-up.
+	SessionID shared.ID
 }
 
 // NewOidcFlowInput is what starting a sign-in needs.
@@ -585,6 +588,8 @@ type NewOidcFlowInput struct {
 	Nonce      string
 	Verifier   string
 	Now        time.Time
+	// SessionID makes the flow a step-up of that session. Zero for a sign-in.
+	SessionID shared.ID
 }
 
 // NewOidcFlow opens one.
@@ -599,7 +604,7 @@ func NewOidcFlow(in NewOidcFlowInput) (OidcFlow, error) {
 	}
 	return OidcFlow{
 		ID: in.ID, TenantID: in.TenantID, ProviderID: in.ProviderID,
-		Nonce: in.Nonce, Verifier: in.Verifier,
+		Nonce: in.Nonce, Verifier: in.Verifier, SessionID: in.SessionID,
 		CreatedAt: in.Now.UTC(), ExpiresAt: in.Now.Add(OidcFlowLifetime).UTC(),
 	}, nil
 }

@@ -307,7 +307,12 @@ func (r OidcFlowRepository) Insert(
 	if err != nil {
 		return err
 	}
+	session, err := optionalUUID(flow.SessionID)
+	if err != nil {
+		return err
+	}
 	if err := queries.InsertOidcFlow(ctx, sqlc.InsertOidcFlowParams{
+		SessionID:    session,
 		ID:           id,
 		ProviderID:   provider,
 		StateHash:    r.stateHasher.Hash(presented.Secret()),
@@ -351,15 +356,52 @@ func (r OidcFlowRepository) Consume(
 	// A flow the previous binary opened carries no provider, which the caller reads as "the one
 	// this workspace had". Zero rather than an error: the row is valid, it is just older than the
 	// column.
-	var providerID shared.ID
-	if row.ProviderID.Valid {
-		providerID, err = idFrom(row.ProviderID)
-		if err != nil {
-			return identity.OidcFlow{}, false, err
-		}
+	providerID, err := optionalID(row.ProviderID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
 	}
 	return identity.OidcFlow{
 		ID: id, TenantID: presented.TenantID(), ProviderID: providerID,
+		Nonce: row.Nonce, Verifier: row.CodeVerifier,
+	}, true, nil
+}
+
+// ConsumeForStepUp burns a step-up's flow, and only one bound to this session (ADR-0075 §2).
+func (r OidcFlowRepository) ConsumeForStepUp(
+	ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time,
+) (identity.OidcFlow, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	session, err := uuidOf(sessionID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	row, err := queries.ConsumeStepUpOidcFlow(ctx, sqlc.ConsumeStepUpOidcFlowParams{
+		Now:       pgtype.Timestamptz{Time: now, Valid: true},
+		StateHash: r.stateHasher.Hash(presented.Secret()),
+		SessionID: session,
+	})
+	if err != nil {
+		if IsNoRows(err) {
+			// Unknown, expired, spent, another session's or a sign-in's - one answer.
+			return identity.OidcFlow{}, false, nil
+		}
+		return identity.OidcFlow{}, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("consuming the step-up flow: %w", err))
+	}
+	id, err := idFrom(row.ID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	providerID, err := optionalID(row.ProviderID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	return identity.OidcFlow{
+		ID: id, TenantID: presented.TenantID(), ProviderID: providerID, SessionID: sessionID,
 		Nonce: row.Nonce, Verifier: row.CodeVerifier,
 	}, true, nil
 }
