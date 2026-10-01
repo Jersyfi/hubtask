@@ -88,15 +88,15 @@ and deadline monitoring. They live in the **Privacy & Compliance** bounded conte
 |---|---|---|
 | Access (Art. 15) | `CreateDataSubjectRequest(ACCESS)` | An asynchronous job produces a complete copy of all the person's data across *every* tenant of the installation in which they are a member; structured JSON plus media plus metadata (purpose, recipients, deadline) |
 | Rectification (Art. 16) | Ordinary write operations | No special handling needed, the change appears in the audit |
-| Erasure (Art. 17) | `CreateDataSubjectRequest(ERASURE)` | Two-stage: **anonymisation** (authorship remains as "former user", the tenant's content is preserved) or **full deletion** including the person's own comments — the choice rests with the controller, because tenant data can belong to third parties |
+| Erasure (Art. 17) | `CreateDataSubjectRequest(ERASURE)` | Two-stage: **anonymisation** (authorship remains as "former user", the tenant's content is preserved) or **full deletion** including the person's own comments — the choice rests with the controller, because tenant data can belong to third parties. What a legal hold covers is kept and restricted, and the case closes partly completed (§4.1) |
 | Restriction (Art. 18) | `RestrictProcessing` | Account status `RESTRICTED`: readable, not processed, excluded from automation and AI |
 | Portability (Art. 20) | `CreateDataSubjectRequest(PORTABILITY)` | A machine-readable, documented format (JSON Lines + schema), not just a PDF |
 | Objection (Art. 21) | `WithdrawConsent`; a formal case as `CreateDataSubjectRequest(OBJECTION)` | Affects optional processing (AI, metering, notification channels); the core features stay usable. For AI, whether a person may keep their own content out is the workspace's setting (§4.1) |
 | No automated individual decision-making (Art. 22) | — | AI results are exclusively **suggestions** with provenance; automatic assignment is a work-organisation measure with no legal effect, overridable at any time and traceable in the audit |
 
 Carried technically by the `data_subject_request` table with a state machine
-(`RECEIVED → IN_PROGRESS → COMPLETED | REJECTED`), the statutory deadline (30 days by default), an
-assignee, a reason on rejection, and a deadline alert (`A-19`) as it approaches. Without deadline
+(`RECEIVED → IN_PROGRESS → COMPLETED | REJECTED`), the statutory deadline (30 days by default,
+extended once with a reason under §4.1), an assignee, a reason on rejection, and a deadline alert (`A-19`) as it approaches. Without deadline
 monitoring, the right gets violated in practice even though the feature exists.
 
 Built with E-10, and four things about it are decisions rather than mechanics:
@@ -164,8 +164,13 @@ milestone PH.
     possible as a data subject request, which the controller decides — it switches nothing off by
     itself.
 
-  The installation and a plan may set the position as a default or lock it, like every workspace
-  value ([P-07](../vision/principles.md#p-07-the-stricter-level-wins-and-says-who-decided)).
+  The installation and a plan may set a default and lock it only **towards the person**: they may
+  hold a workspace at *each person may keep their content out*, never at *AI for everybody* —
+  that position needs a legal basis, and only the controller, the workspace, can name one
+  ([P-07](../vision/principles.md#p-07-the-stricter-level-wins-and-says-who-decided),
+  [P-14](../vision/principles.md#p-14-ai-is-optional-and-nobody-consents-in-anothers-place); decided
+  2026-10-01, the same shape as [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) §2's lock
+  that holds a workspace out of a source, never in one).
   Administrators see who objected in the consent register, which is where accountability needs it,
   and nowhere else.
 
@@ -299,6 +304,7 @@ every runbook in that directory answers an alert.
 | Setting | Default |
 |---|---|
 | AI processing | Off |
+| A person's objection to AI for their own content | Offered; a workspace may withdraw the offer only on a named legal basis (§4.1) |
 | External search index | Off (PostgreSQL full text is data-local) |
 | Telemetry / usage statistics sent to the project | Does not exist |
 | Metering (usage figures for billing) | Off; when enabled, aggregates only, no content |
@@ -337,7 +343,7 @@ clean deletion concept becomes untrue over two years.
 | Gate | Runs in | Note |
 |---|---|---|
 | PG-1, PG-3, PG-4, PG-5, PG-6, PG-8 | `make gate-privacy`, part of `make verify` and of every pull request | They read the source and the declarations; no database, a second or two |
-| PG-2, PG-7 | `make gate-privacy-full`, in every pull request's data job and in the nightly on arm64, with containers | Both need a migrated database; PG-2 additionally runs the real erasure. In the pull request since #246, when four tables reached `main` uncatalogued |
+| PG-2, PG-7 | `make gate-privacy-full`, in every pull request's data job and in the nightly on arm64, with containers | Both need a migrated database; PG-2 additionally runs the real erasure. In the pull request since #1095, after four tables reached `main` uncatalogued and only the nightly noticed (#246) |
 
 Each one is proved to go red by `make gate-selftest` against a deliberate violation — which is what
 distinguishes a gate from a table like this one. The probes for PG-2 and PG-7 are skipped where

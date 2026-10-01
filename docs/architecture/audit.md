@@ -134,17 +134,17 @@ write down):
 
 | Area | Events |
 |---|---|
-| Authentication | Login (success/failure/lockout), logout, MFA enabled/disabled, password change, refresh token reuse detected, step-up |
+| Authentication | Login (success/failure/lockout), logout, MFA enabled/disabled, password change, refresh token reuse detected, step-up, an account connected to a sign-in provider (`LINK`) |
 | Tokens | PAT created/revoked/first used, service account created, OAuth2 consent granted/withdrawn |
-| Permissions | Role changed, invitation created/accepted/revoked, group changed, **denied access** (`outcome=DENIED`) |
+| Permissions | Role changed, invitation created/accepted/revoked, group changed, **denied access** (`outcome=DENIED`); from milestone PH a private hub opened through the emergency access and a managed account's start password issued |
 | Tenant | Provisioning, suspension, settings change, deletion requested/executed |
 | Data | Deletion, restore, trash emptied, archiving, bulk operation (with its scope), import |
 | Export/access | Export requested, produced, **downloaded**, link expired; access to media marked sensitive |
 | Automation | Rule created/changed/enabled/disabled, rule auto-disabled due to a loop or errors, outbound call blocked (SSRF) |
 | AI | Agent action executed, AI processing with a third party, AI feature enabled/disabled |
 | Integration | Webhook subscription created/changed, calendar feed created/revoked |
-| Data protection | Data subject request created/fulfilled/rejected, retention period changed, anonymisation performed, data breach documented |
-| Administration | Security-relevant configuration change, migration executed, audit retention changed |
+| Data protection | Data subject request created/fulfilled/rejected (and, from PH-02, extended), retention period changed, anonymisation performed, data breach documented |
+| Administration | Security-relevant configuration change, sign-in provider configured/offered/removed, migration executed, audit retention changed |
 
 **Not** in the audit trail: the content of tasks, notes, comments, or attachments; passwords,
 tokens, or secrets in any form; full IP addresses (truncated: IPv4 /24, IPv6 /48); AI prompts and

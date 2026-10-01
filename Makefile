@@ -489,6 +489,11 @@ gate-security:
 gate-privacy:
 	$(call go_test,,./test/privacy/...,)
 
+## gate-pr: The pull request description against the template (BODY=<file>, or stdin)
+.PHONY: gate-pr
+gate-pr:
+	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),)
+
 ## gate-privacy-full: PG-2 and PG-7 against a real PostgreSQL (every pull request, and the nightly on arm64)
 .PHONY: gate-privacy-full
 gate-privacy-full:

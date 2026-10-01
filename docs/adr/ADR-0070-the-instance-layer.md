@@ -72,6 +72,11 @@ mint. By the time there are two, somebody was an operator and could have registe
 oldest workspace had no active owner at all, which left the installation with no operator and no
 way to appoint one.)
 
+*Not true in practice, found 2026-09-30.* An installation can still end up with nobody able to run
+it — the integration environment did, and needed SQL that day — and the way back migration 0108
+names, `hubctl` against the database, does not exist: `hubctl` is an API client. The way back is
+SC-04's, a command in the server binary ([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)).
+
 **A service account may be an operator.** A purchase platform that provisions workspaces needs a
 credential that does not belong to a person who may leave, and the first day of a platform is the
 day that becomes true — not the day plans arrive.
@@ -245,7 +250,8 @@ register answers *yes* to `is_operator`, so the first `POST /admin/operators` on
 installation is made by whoever can already mint the scope, and from that row onwards the register
 is the bound. One mechanism instead of two, and no address parsed at start-up. An environment
 variable can still be added later for an installation that wants the register present before its
-first request; nothing here forecloses it.
+first request; nothing here forecloses it. *SC-04 adds it (2026-09-30), beside the first start's
+setup code ([UC-INS-02](../usecases/admin/UC-INS-02-bring-an-installation-up-from-a-file.md)).*
 
 ## What the implementation settled
 
@@ -291,7 +297,9 @@ Three things decided while SI-05 and SI-06 were built, and seven more while SI-1
    meaningful on a ceiling — "Tarif, Ausnahme je Bereich" — and **forbidden** on a language, which
    §5.7 says in its own words: "eine Instanz gibt einen Standard, nie ein Schloss". So
    `LocalisationDefaults` has nowhere to put a lock and a write that carries one is refused rather
-   than partly obeyed. A type that cannot hold the thing cannot grow it by accident.
+   than partly obeyed. A type that cannot hold the thing cannot grow it by accident. *A fifth area,
+   `ai`, is added by [ADR-0072](ADR-0072-ai-at-the-installation-level.md) §2 (2026-09-30), with
+   locks.*
 
 7. **The quota level resolves as `Effective(product, instance, plan, workspace)` from the first
    day.** §6.7 asks for exactly that, with `plan = nil` until there are plans, and `Resolve` takes
