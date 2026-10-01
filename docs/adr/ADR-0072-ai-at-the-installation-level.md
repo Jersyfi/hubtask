@@ -22,7 +22,7 @@ for one. See [UC-AI-05](../usecases/suggestion/UC-AI-05-use-the-model-our-provid
 
 Three constraints frame the answer:
 
-* **Consent is a workspace's own decision** ([P-14](../vision/principles.md#p-14-ai-is-optional-and-consent-is-a-persons),
+* **Consent is a workspace's own decision** ([P-14](../vision/principles.md#p-14-ai-is-optional-and-nobody-consents-in-anothers-place),
   `NG-ai-consent-by-default`). An installation or a plan may offer a model; it may never switch
   processing on.
 * **One model for every value that crosses workspaces** ([ADR-0070](./ADR-0070-the-instance-layer.md)):

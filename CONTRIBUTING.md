@@ -6,9 +6,11 @@ accident, it is the basis you work from.
 ## Before you write code
 
 1. Read `CLAUDE.md`. The fifteen rules it lists apply to humans just the same.
-2. Read the document under `docs/architecture/` that matches what you are doing, and the ADRs it
+2. Read the use cases your task names (`docs/usecases/`) and the principles they serve
+   (`docs/vision/principles.md`). They say what must be true for the person; the rest says how.
+3. Read the document under `docs/architecture/` that matches what you are doing, and the ADRs it
    links to.
-3. Open an issue before starting anything substantial. For architectural changes open an ADR
+4. Open an issue before starting anything substantial. For architectural changes open an ADR
    issue, not a pull request presenting a decision as already made.
 
 ## The loop
@@ -122,7 +124,10 @@ assistant loses its context mid-task.
 
 ## What makes a pull request acceptable
 
-The template lists the Definition of Done. Two items are missed most often:
+The template lists the Definition of Done, and the job *Pull request description* holds the
+description to it: every section stays, n/a where one does not apply, and a pull request without an
+issue says `No issue: <why>`. Start the description from the template — `gh pr create --body`
+never shows it. `make gate-pr BODY=<file>` checks a draft locally. Two items are missed most often:
 
 * **A cross-tenant negative test** for every new repository method. Without it, gate SG-3 fails.
 * **A merge rule** for every new field on `WorkItem` (LWW, OR-set, fractional index, or

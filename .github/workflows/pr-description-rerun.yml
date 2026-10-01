@@ -1,0 +1,44 @@
+name: Pull request description (edited)
+
+# When a pull request's description is edited, the `Pull request description` job of its latest
+# CI run is judged again - so fixing a description is enough to turn `CI required` green, and
+# nobody has to know to press "Re-run".
+#
+# Only that job and the one that sums it up, `CI required`, are re-run, and only when the latest run
+# for the head commit failed. The whole pipeline is not started again: a description changes
+# nothing the other jobs read.
+on:
+  pull_request:
+    types: [edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-description-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  rerun:
+    name: Judge the edited description again
+    if: github.event.pull_request.user.type != 'Bot' && github.event.changes.body != null
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Re-run the description job of the latest CI run, if it failed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${SHA}&event=pull_request&per_page=1" \
+            --jq '.workflow_runs[0] | select(.status == "completed" and .conclusion == "failure") | .id')"
+          if [ -z "${run_id}" ]; then
+            echo "the latest CI run for ${SHA} is still running or did not fail; it reads the description itself"
+            exit 0
+          fi
+          # Re-running the failed jobs re-runs exactly what failed and the jobs that depend on it:
+          # when only the description failed, that is the description job and `CI required`.
+          gh run rerun "${run_id}" --failed --repo "${GITHUB_REPOSITORY}"
+          echo "re-ran the failed jobs of CI run ${run_id}"

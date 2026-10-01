@@ -82,7 +82,7 @@ permitted child types. No schema change, no API change.
 | `defaultTimeZone` | IANA | e.g. `Europe/Berlin` |
 | `settings` | JSONB | Retention, feature toggles, automation quotas |
 
-In self-hosting mode exactly one tenant exists (`SINGLE`), created automatically.
+In self-hosting mode exactly one tenant exists (`SINGLE`). Nothing creates it automatically yet: until SC-04 it is created by `scripts/dev-workspace.sh --bootstrap` or the admin API, and from SC-04 by the first start's setup ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)).
 
 ### 3.2 `Account`, `Membership`, `Group`
 
@@ -92,13 +92,13 @@ In self-hosting mode exactly one tenant exists (`SINGLE`), created automatically
 |---|---|---|
 | `id`, `tenantId` | UUIDv7 | |
 | `kind` | `USER` \| `SERVICE_ACCOUNT` | |
-| `email` | string | Unique per tenant (for `USER`) |
+| `email` | string | Unique per tenant (for `USER`); absent on a managed account, which signs in with its `sign_in_name` instead ([ADR-0074](../adr/ADR-0074-managed-accounts.md)) |
 | `externalSubject` | string? | The OIDC `sub`, for JIT provisioning |
 | `locale`, `timeZone` | BCP-47 / IANA | Override the tenant default |
 | `status` | `ACTIVE` \| `INVITED` \| `DISABLED` | |
 
 `Membership(accountId, scopeType, scopeId, role)` with `scopeType ∈ {TENANT, HUB, COLLECTION, ITEM}`.
-The effective permission is the highest role along the path (inheritance downwards). One exception, by decision: a **private hub** is reached only through a membership on the hub itself — roles held higher up the path do not flow into it, and the workspace owner reaches it only through the transparent emergency access of [ADR-0073](../adr/ADR-0073-private-hubs.md).
+The effective permission is the highest role along the path (inheritance downwards). One exception, by decision: a **private hub** is reached only through a membership on the hub itself or below it — roles held higher up the path do not flow into it, and the workspace owner reaches it only through the transparent emergency access of [ADR-0073](../adr/ADR-0073-private-hubs.md).
 `Group(id, tenantId, name, members[])` — the target object for assignment strategies and
 permissions.
 
@@ -343,6 +343,11 @@ Every use case is a `Command`/`Query` struct plus a handler, and is registered i
 channels: REST, an MCP tool, and an automation action (see arc42 §4). An extract — the list is the
 implementation backlog:
 
+*Two meanings of one word.* The entries here are **operations** — what the application layer can
+do. A **use case** in [`docs/usecases/`](../usecases/README.md) is the person-level requirement
+above them: a goal, a story and numbered checks, served by one or more of these operations. A task
+names both: the use cases whose checks it makes true, and the operations it adds or changes.
+
 **Work management**
 `CreateContainer`, `RenameContainer`, `UpdateContainerPolicies`, `MoveContainer`, `ArchiveContainer`,
 `UnarchiveContainer`, `TrashContainer`, `RestoreContainer`,
@@ -411,8 +416,9 @@ reaches only what is assigned to it does not get to keep somebody else's work ou
 rule.
 
 Placing a legal hold asks for the owner's right too, and it is the sharpest case for that line in
-the system: a hold overrides the workspace's own configured retention periods *and* a person
-emptying their own trash. Somebody who can freeze a workspace's data against the workspace's own
+the system: a hold overrides the workspace's own configured retention periods, a person
+emptying their own trash *and* an erasure request, as far as the hold reaches
+([data-protection.md §4.1](./data-protection.md#41-three-decisions-of-2026-09-30)). Somebody who can freeze a workspace's data against the workspace's own
 decisions is exercising the owner's authority rather than an administrator's. Reading which holds
 exist is `STRUCTURE`, for the reason listing backup targets is: somebody who may not place one still
 has to be able to see that one exists.

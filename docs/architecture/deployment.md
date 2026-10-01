@@ -37,6 +37,11 @@ reference: the database is not published externally, the application runs with `
 `no-new-privileges`, there are volumes for media and backups, and the migration is a separate
 service gated on `service_completed_successfully`.
 
+**The first workspace and its owner** do not come into being by themselves yet: until SC-04 they
+are created with `scripts/dev-workspace.sh --bootstrap`, afterwards through the web app's *Set up
+Hubtask* with the one-time code the first start prints
+([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)).
+
 The application connects as `hubtask_app` — the role the migration creates without `SUPERUSER` or
 `BYPASSRLS` — never as the database owner, so row level security is the last boundary in
 self-hosting too. The migrator grants that role its login (`HUBTASK_DB_APP_PASSWORD`); the

@@ -58,7 +58,7 @@ another customer's session. Those are not features their users asked for. They a
 their users discover the absence of on a bad day.
 
 **Feature sprawl produced a counter-movement.** Linear's rise showed that an opinionated, fast,
-visibly well-made tool beats a configurable one. The lesson for a project with 109 use cases in its
+visibly well-made tool beats a configurable one. The lesson for a project with 109 operations in its
 catalogue is not to hide them — it is to never present them as a list of 109 things.
 
 ### 1.2 The competitors, read honestly
@@ -127,6 +127,11 @@ Three deliberate exclusions, because a position is defined as much by what it re
 Audience 1 is the volume and the community. Audience 2 is where money would come from. Audience 3
 is what makes audience 2 *choose* Hubtask over a cheaper neighbour. Audience 4 is who writes about
 it. The site is built in that order.
+
+*Against the deployments of [`docs/vision/deployments.md`](../vision/deployments.md) (2026-09-30):*
+audience 1 is D1, audience 2 is D6 and D7, audience 3 is D4 and the customers of D6, and audience 4
+cuts across all of them. D2 (a family) and D5 (a provider for consumers) have no audience here;
+whether the site speaks to them is the owner's to decide.
 
 ---
 

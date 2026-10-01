@@ -171,7 +171,8 @@ hubtask/
 │   ├── golden-archives/            # one reference archive per major version, for BK-4
 │   ├── resilience/                 # RT-1…RT-12 (dependency failure, process death, overload, chaos)
 │   └── fixtures/
-├── docs/                           # arc42, ADRs, roadmap (this repository)
+├── docs/                           # vision/ (why), usecases/ (what, one file each), architecture/,
+│                                   # adr/, backlog/, roadmap
 ├── tools/                          # checkdocs/ (make gate-docs), openapijson/ and sdkgen/
 │                                   # (make generate), licenses.md.tpl (make licenses)
 ├── .github/workflows/              # CI/CD (ADR-0022, docs/architecture/ci-cd.md)

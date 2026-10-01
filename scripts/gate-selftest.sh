@@ -1061,6 +1061,19 @@ else
 fi
 cleanup
 
+header "The pull request description (make gate-pr)"
+
+# The template as GitHub offers it, untouched, is what a description looks like when nobody filled
+# it in - the one description the check must never pass. And a filled one with its ADR section cut
+# out is the mistake that made the check necessary (2026-09-30).
+CHECKS=$((CHECKS + 1))
+if make --no-print-directory gate-pr BODY=.github/PULL_REQUEST_TEMPLATE.md >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-pr stayed green\n' "the unfilled template as a description"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-pr\n' "the unfilled template as a description"
+fi
+
 header "Licences (make gate-licenses)"
 
 # The licence gate cannot be shown a GPL dependency without adding one, so it is shown the other
