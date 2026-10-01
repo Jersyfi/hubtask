@@ -165,6 +165,9 @@ type SignInRules struct {
 	Providers     []ProviderSummary
 	Password      PasswordRulesView
 	Legal         domain.LegalLinks
+	// PasswordFallback is true while the password is among the methods only because the
+	// workspace's last way in was an offer that ended (ADR-0076 §4).
+	PasswordFallback bool
 }
 
 // PasswordRulesView is the password half, flattened to what a screen can act on.
@@ -267,12 +270,16 @@ func (h GetSignInRules) Execute(
 		return SignInRules{}, err
 	}
 
-	providers, err := h.providersOf(ctx, tenantID)
+	providers, fallback, err := h.providersOf(ctx, tenantID, resolved.Effective.Policy.Methods)
 	if err != nil {
 		return SignInRules{}, err
 	}
 
 	methods := make([]string, 0, 2)
+	if fallback {
+		// The password first, where the policy would have put it.
+		methods = append(methods, domain.MethodDirect)
+	}
 	for _, method := range resolved.Effective.Policy.Methods {
 		// A provider nobody configured is not a way in, however the policy is set: a button that
 		// leads to a flow with no provider behind it is a button that answers an error.
@@ -283,11 +290,12 @@ func (h GetSignInRules) Execute(
 	}
 
 	return SignInRules{
-		WorkspaceHost: strings.TrimSpace(cmd.Host),
-		Methods:       methods,
-		Providers:     providers,
-		Password:      passwordRulesView(resolved, cmd.HasAccount),
-		Legal:         resolved.Legal,
+		WorkspaceHost:    strings.TrimSpace(cmd.Host),
+		Methods:          methods,
+		Providers:        providers,
+		Password:         passwordRulesView(resolved, cmd.HasAccount),
+		Legal:            resolved.Legal,
+		PasswordFallback: fallback,
 	}, nil
 }
 
@@ -325,15 +333,18 @@ func (h GetSignInRules) resolveTenant(ctx context.Context, slug, header string) 
 	return tenantID
 }
 
-// providersOf answers the ways in that are configured here.
+// providersOf answers the ways in that are configured here, and whether the password opens only
+// as the fallback for an offer that ended (ADR-0076 §4) - read from the same rows at the same moment.
 //
 // Plural since SI-10, and both levels: what a workspace configured and what its installation offers
 // every workspace, which is what the read policy admits together (migration 0103). A provider that
 // is switched off is not a way in and is not in the answer - a button that leads to a refusal is
 // worse than no button.
-func (h GetSignInRules) providersOf(ctx context.Context, tenantID shared.ID) ([]ProviderSummary, error) {
+func (h GetSignInRules) providersOf(
+	ctx context.Context, tenantID shared.ID, methods []string,
+) ([]ProviderSummary, bool, error) {
 	if tenantID.IsZero() || h.Providers == nil {
-		return []ProviderSummary{}, nil
+		return []ProviderSummary{}, false, nil
 	}
 
 	var (
@@ -362,7 +373,7 @@ func (h GetSignInRules) providersOf(ctx context.Context, tenantID shared.ID) ([]
 			return nil
 		})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	now := h.now()
@@ -385,7 +396,7 @@ func (h GetSignInRules) providersOf(ctx context.Context, tenantID shared.ID) ([]
 			Scope:       scope,
 		})
 	}
-	return summaries, nil
+	return summaries, fallbackOpens(methods, inForce, settings, now), nil
 }
 
 // rulesOutput is the projection every channel gets.
@@ -409,6 +420,8 @@ func rulesOutput(rules SignInRules) usecase.Output {
 		"providers":      providers,
 		"password":       passwordRulesOutput(rules.Password),
 		"legal":          legalOutput(rules.Legal),
+		// Only ever true while the password is open as ADR-0076 §4's fallback.
+		"password_fallback": rules.PasswordFallback,
 	}
 }
 

@@ -1159,8 +1159,16 @@ func run() error {
 		Session:  sessionWriter,
 		Resolver: signInPolicyResolver,
 		Accounts: passwordStore, Histories: passwordStore,
-		Pending:    mfaStore,
-		StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
+		Pending: mfaStore,
+		StepUp:  identity.StepUpVerifier{Writer: sessionWriter},
+		// ADR-0076 §4: a workspace whose last way in was an offer that ended signs in by password
+		// again, and the sign-in records it. Set here, in the literal, so that every copy
+		// teachTheRule hands out below carries it.
+		WaysIn: identity.WaysIn{
+			Providers:  postgres.NewIdentityProviderRepository(),
+			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		},
 		Text:       forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}

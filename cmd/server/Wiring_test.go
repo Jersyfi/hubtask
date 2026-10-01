@@ -103,3 +103,40 @@ func exprString(expression ast.Expr) string {
 		return ""
 	}
 }
+
+// The rule teachTheRule hands out is the password writer as main.go builds it, so a field the
+// sign-in's verdict needs has to be in that literal - a test fixture that wires its own never shows
+// it missing. WaysIn is ADR-0076 §4's fallback: without it the card offers the password back and the
+// trail never records who signed in through it.
+func TestThePasswordWriterCarriesTheWaysIn(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "main.go", nil, 0)
+	if err != nil {
+		t.Fatalf("reading main.go: %v", err)
+	}
+	found, carries := false, false
+	ast.Inspect(file, func(node ast.Node) bool {
+		literal, ok := node.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		selector, ok := literal.Type.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "PasswordWriter" {
+			return true
+		}
+		found = true
+		for _, element := range literal.Elts {
+			if pair, ok := element.(*ast.KeyValueExpr); ok {
+				if key, ok := pair.Key.(*ast.Ident); ok && key.Name == "WaysIn" {
+					carries = true
+				}
+			}
+		}
+		return true
+	})
+	if !found {
+		t.Fatal("main.go builds no identity.PasswordWriter")
+	}
+	if !carries {
+		t.Error("main.go builds the password writer without WaysIn: no workspace falls back to the password")
+	}
+}
