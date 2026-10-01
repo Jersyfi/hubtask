@@ -202,3 +202,72 @@ func TestASignInThroughAnInstallationsProviderReadsTheWorkspacesOffer(t *testing
 		t.Errorf("a withdrawn provider answered %v, want identity_provider.disabled", err)
 	}
 }
+
+// UC-INS-11 check 5: withdrawing the offer turns it off everywhere and leaves the connected identities
+// in place, so offering it again restores sign-in - the same person, through the same link, with
+// nothing made anew.
+func TestAWithdrawalKeepsTheConnectedIdentitiesAndOfferingAgainRestoresSignIn(t *testing.T) {
+	at := time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC)
+	ada := domain.Account{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000e2"), TenantID: tenant,
+		Kind: domain.AccountUser, Email: "ada@example.org", DisplayName: "Ada",
+		Status: domain.AccountActive,
+	}
+	f := newOidcFixture(t, at, ada)
+	f.store.rows = nil // the installation's provider is this workspace's only one
+	installationRow := shared.ID("01936f2a-7c1e-7000-8000-0000000000c4")
+	configureFixtureProvider(t, f, installationRow, "", "https://login.platform.example", at)
+	// The identity connected while the offer stood: what a withdrawal must leave in place.
+	f.external.bySubject[linkKey(installationRow, "provider-subject-1")] = ada
+	workspaces := &workspaceStore{row: domain.Workspace{
+		Tenant: domain.Tenant{ID: tenant, Slug: "acme", Status: domain.TenantActive},
+	}}
+	workspaces.row.Settings = workspaces.row.Settings.WithOffer(installationRow, true)
+	f.writer.Workspaces = workspaces
+
+	withdrawAt := func(moment time.Time) {
+		for i, row := range f.store.rows {
+			if row.ID == installationRow {
+				f.store.rows[i].WithdrawAt = moment
+			}
+		}
+	}
+	arrive := func(code string) (SessionPair, error) {
+		authorization, err := StartOidcSignIn{Writer: f.writer}.
+			Execute(t.Context(), StartOidcSignInCommand{ProviderID: installationRow})
+		if err != nil {
+			return SessionPair{}, err
+		}
+		result, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(),
+			CompleteOidcSignInCommand{Code: code, State: authorization.State})
+		return pairOf(result), err
+	}
+
+	first, err := arrive("one")
+	if err != nil {
+		t.Fatalf("signing in through the offered provider: %v", err)
+	}
+	connected, accounts := len(f.external.bySubject), len(f.accounts.byID)
+
+	// Withdrawn: a way in nowhere, and nothing connected to it is touched.
+	withdrawAt(at)
+	if _, err := arrive("two"); detailOf(err) != "identity_provider.disabled" {
+		t.Fatalf("a withdrawn provider answered %v", err)
+	}
+	if len(f.external.bySubject) != connected {
+		t.Errorf("the withdrawal removed connected identities: %d, were %d", len(f.external.bySubject), connected)
+	}
+
+	// Offered again - the cancellation clears the date - and the same person signs in.
+	withdrawAt(time.Time{})
+	again, err := arrive("three")
+	if err != nil {
+		t.Fatalf("signing in after the offer was restored: %v", err)
+	}
+	if again.Session.AccountID != first.Session.AccountID {
+		t.Error("offering it again signed somebody else in")
+	}
+	if len(f.accounts.byID) != accounts {
+		t.Errorf("restoring the offer made an account: %d, want %d", len(f.accounts.byID), accounts)
+	}
+}
