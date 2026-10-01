@@ -12,7 +12,16 @@ import assert from 'node:assert/strict';
 
 import { TransportError } from '@hubtask/sync-engine';
 
-import { methodsOf, withStepUp } from './stepup.ts';
+import {
+  heldGrant,
+  holdGrant,
+  methodsOf,
+  providerOf,
+  rememberReturn,
+  takeGrant,
+  takeReturn,
+  withStepUp,
+} from './stepup.ts';
 
 function refusal(params?: Record<string, string>): TransportError {
   return new TransportError('problem', {
@@ -127,4 +136,83 @@ test('the methods offered are the refusal’s, and the password is the floor', (
   // A method this client cannot render is dropped rather than shown as a field nobody can fill.
   assert.deepEqual(methodsOf(refusal({ methods: 'WEBAUTHN' })), ['PASSWORD']);
   assert.deepEqual(methodsOf(refusal({ methods: 'WEBAUTHN,TOTP' })), ['TOTP']);
+});
+
+test('the four methods are read, and the provider by its name', () => {
+  // ADR-0075 §1: the account's own ways, in the server's order.
+  assert.deepEqual(
+    methodsOf(refusal({ methods: 'PASSWORD TOTP RECOVERY PROVIDER', provider: 'Contoso Entra ID' })),
+    ['PASSWORD', 'TOTP', 'RECOVERY', 'PROVIDER'],
+  );
+  assert.deepEqual(methodsOf(refusal({ methods: 'PROVIDER' })), ['PROVIDER']);
+  assert.equal(providerOf(refusal({ methods: 'PROVIDER', provider: 'Contoso Entra ID' })), 'Contoso Entra ID');
+  assert.equal(providerOf(refusal({ methods: 'PASSWORD' })), undefined);
+});
+
+test('a held grant is tried first, and once', async () => {
+  // The provider's round trip leaves the page: the grant it answered is held until the person does
+  // what they were doing again, and then it is that call's - and nobody's after.
+  const presented: (string | undefined)[] = [];
+  let asked = 0;
+  const answer = await withStepUp(
+    async (token) => {
+      presented.push(token);
+      return 'done';
+    },
+    async () => {
+      asked += 1;
+      return 'grant';
+    },
+    () => 'held-grant',
+  );
+  assert.equal(answer, 'done');
+  assert.deepEqual(presented, ['held-grant']);
+  assert.equal(asked, 0);
+});
+
+test('a held grant the server refuses falls back to asking', async () => {
+  const presented: (string | undefined)[] = [];
+  await withStepUp(
+    async (token) => {
+      presented.push(token);
+      if (token !== 'fresh') throw refusal({ methods: 'TOTP' });
+      return 'done';
+    },
+    async () => 'fresh',
+    () => 'stale-grant',
+  );
+  assert.deepEqual(presented, ['stale-grant', 'fresh']);
+});
+
+/** A Storage the module can be handed, without a browser. */
+function memory(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
+  const held = new Map<string, string>();
+  return {
+    getItem: (key) => held.get(key) ?? null,
+    setItem: (key, value) => void held.set(key, value),
+    removeItem: (key) => void held.delete(key),
+  };
+}
+
+test('the way back is remembered across the provider and taken once', () => {
+  const store = memory();
+  rememberReturn(store, '/administration/sign-in', 'Contoso Entra ID');
+  assert.deepEqual(takeReturn(store), { returnTo: '/administration/sign-in', provider: 'Contoso Entra ID' });
+  assert.equal(takeReturn(store), undefined, 'a second callback is not a step-up');
+  // Only a path of this application: a value that named another origin would be a redirect.
+  rememberReturn(store, 'https://elsewhere.example/', 'X');
+  assert.equal(takeReturn(store)?.returnTo, '/');
+});
+
+test('a held grant lives until it is used or its window ends', () => {
+  const store = memory();
+  const now = Date.parse('2026-10-01T12:00:00Z');
+  holdGrant(store, { token: 'hbt_sup_x', expiresAt: '2026-10-01T12:05:00Z', provider: 'Contoso' });
+  assert.equal(heldGrant(store, now)?.provider, 'Contoso');
+  assert.equal(takeGrant(store, now), 'hbt_sup_x');
+  assert.equal(takeGrant(store, now), undefined, 'one action consumes it');
+
+  holdGrant(store, { token: 'hbt_sup_y', expiresAt: '2026-10-01T12:05:00Z', provider: 'Contoso' });
+  assert.equal(takeGrant(store, now + 6 * 60_000), undefined, 'a grant past its window is not offered');
+  assert.equal(heldGrant(store, now), undefined, 'and is forgotten');
 });

@@ -21,7 +21,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, BottomBar, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
@@ -40,6 +40,7 @@
   import { containers } from '../data/containers.svelte.ts';
   import { recents } from '../recents.svelte.ts';
   import { session } from '../session.svelte.ts';
+  import { stepUp } from '../data/stepup.svelte.ts';
   import { tour } from '../tour.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
@@ -352,6 +353,16 @@
          so it draws no ring when it does. -->
     <main id="main" tabindex="-1" data-filled={page.fills ? '' : undefined} bind:this={mainElement}>
       <div class="content">
+        {#if stepUp.confirmed}
+          <!-- The return from a step-up at the provider (ADR-0075 §2): the confirmation holds, and
+               the action the person left to confirm goes through when they take it again. Gone
+               once that action has used it, or its few minutes are over. -->
+          <div class="confirmed">
+            <Banner tone="success">
+              {t('app.step_up.confirmed', { provider: stepUp.confirmed.provider || t('app.step_up.your_provider') })}
+            </Banner>
+          </div>
+        {/if}
         {@render children()}
       </div>
     </main>
@@ -521,4 +532,6 @@
     white-space: nowrap;
     border: 0;
   }
+
+  .confirmed { margin-block-end: var(--sp-200); }
 </style>
