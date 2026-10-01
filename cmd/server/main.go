@@ -1148,12 +1148,9 @@ func run() error {
 		Text:       forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
-	// And the sign-in path learns the rule. Assigned rather than passed, and here rather than where
-	// the writer is built, because the two read each other: the password writer holds a copy of the
-	// session writer for the hasher and the trail, and the copy needs no rule of its own - it *is*
-	// the rule. Every value built from `sessionWriter` before this line reads the second factor and
-	// not the policy, which is why none of them is affected.
-	sessionWriter.Rule = passwordWriter
+	// And the sign-in path learns the rule - with the two copies of it that open sessions of their
+	// own, which is what `teachTheRule` is for.
+	teachTheRule(&sessionWriter, &passwordWriter, &oidcWriter)
 	// And the second factor's step learns to finish a provider link (ADR-0071's addendum, E2): a
 	// LINK that met an armed factor connects the provider when the code is right. Assigned here for
 	// the same reason as the rule - every value built from `sessionWriter` after this line carries it,
@@ -3042,6 +3039,24 @@ func start(ctx context.Context, name string, loop func(context.Context)) <-chan 
 
 // runsBackgroundWork reports whether this process runs a loop of its own rather than only serving
 // requests.
+// teachTheRule hands the sign-in rule to the session writer and to the two copies of it that open
+// sessions themselves. Assigned rather than passed, because the two read each other: the password
+// writer holds a copy of the session writer for the hasher and the trail.
+//
+// The copies are the point (SC-03, SC-06). The writers are values, so a copy taken before the rule
+// is assigned never learns it: the password writer's, which a reset opens its session through, read
+// the old boolean instead of the rule and gave its session no bounds; the provider's, which a
+// provider sign-in and the LINK step open theirs through, gave its sessions no bounds either. Every
+// other value built from `sessionWriter` before this reads the second factor and not the policy.
+func teachTheRule(
+	session *identity.SessionWriter, passwords *identity.PasswordWriter, oidc *identity.OidcWriter,
+) {
+	rule := *passwords
+	session.Rule = rule
+	passwords.Session.Rule = rule
+	oidc.Session.Rule = rule
+}
+
 func runsBackgroundWork(cfg envport.Config) bool {
 	return cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleScheduler)
 }

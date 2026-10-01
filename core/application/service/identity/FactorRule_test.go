@@ -124,3 +124,29 @@ func TestTheOwnAccountSaysWhetherTheWorkspaceRequiresAFactor(t *testing.T) {
 		}
 	}
 }
+
+// UC-ID-12 check 3, the reset's door: a member without a factor under *Everyone* who resets the
+// password is led into setting one up, not signed straight in - the same rule signing in asks.
+func TestAResetAsksTheRuleSigningInAsks(t *testing.T) {
+	fixture := newResetFixture(now)
+	fixture.instance.level.Policy.Patch = domain.PolicyPatch{MfaRequiredFor: requirementOf(domain.MfaForEveryone)}
+	fixture.writer.Session.Rule = fixture.writer
+	fixture.writer.Session.Enrollments = newEnrollments()
+	fixture.writer.Session.Memberships = membershipsFake{roles: []domain.Role{domain.RoleMember}}
+	// The old boolean says nobody - a row stored before SC-06 - and must not be what is read.
+	fixture.writer.Session.Policy = policyFake{required: false}
+	token := fixture.mintedFor(t, now, domain.PendingReset)
+
+	result, err := ResetPassword{Writer: fixture.writer}.Execute(t.Context(), ResetPasswordCommand{
+		Token: secret.New(token), Password: secret.New("seven blue lanterns"),
+	})
+	if err != nil {
+		t.Fatalf("the reset was refused: %v", err)
+	}
+	if result.Pair != nil {
+		t.Fatal("a member under Everyone was signed in by a reset without a second factor")
+	}
+	if result.Challenge == nil || len(result.Challenge.Methods) != 1 || result.Challenge.Methods[0] != methodEnroll {
+		t.Errorf("the reset answered %+v, want the setup step", result.Challenge)
+	}
+}
