@@ -178,13 +178,18 @@ func TestTheInstallationsProviderBelongsToNoWorkspace(t *testing.T) {
 	stored, err := ConfigureInstanceIdentityProvider{Writer: writer}.Execute(
 		t.Context(), operator(), identityservice.ConfigureIdentityProviderCommand{
 			Issuer: "https://accounts.google.com", ClientID: "hubtask", Kind: "GOOGLE",
-			ClientSecret: secret.New("s3cr3t"), Enabled: true,
+			ClientSecret: secret.New("s3cr3t"),
 		})
 	if err != nil {
 		t.Fatalf("configuring the installation's provider: %v", err)
 	}
 	if !stored.Installation() {
 		t.Errorf("the row belongs to %q, want no workspace", stored.TenantID)
+	}
+	// The installation has no list of ways to sign in: its form is still the offer, and absent is
+	// on. Only a workspace's own doors stopped switching (ADR-0076 §5, SC-21).
+	if !stored.Enabled {
+		t.Error("the installation's provider was added off")
 	}
 	if len(relying.checked) != 1 {
 		t.Errorf("discovery ran %d times", len(relying.checked))
@@ -218,7 +223,7 @@ func TestTheInstanceProviderOperationsDemandTheRegisterAsWellAsTheScope(t *testi
 
 	cmd := identityservice.ConfigureIdentityProviderCommand{
 		Issuer: "https://accounts.google.com", ClientID: "hubtask", Kind: "GOOGLE",
-		ClientSecret: secret.New("s3cr3t"), Enabled: true,
+		ClientSecret: secret.New("s3cr3t"),
 	}
 	if _, err := (ConfigureInstanceIdentityProvider{Writer: writer}).
 		Execute(t.Context(), operator(), cmd); !errors.Is(err, shared.ErrForbidden) {

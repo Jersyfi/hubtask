@@ -185,7 +185,6 @@ func configureCommand() ConfigureIdentityProviderCommand {
 		ClientID:            "hubtask",
 		ClientSecret:        secret.New("s3cr3t"),
 		AllowedEmailDomains: []string{"Example.org"},
-		Enabled:             true,
 	}
 }
 
@@ -388,7 +387,6 @@ func TestTheProviderUseCasesGoThroughTheRegistry(t *testing.T) {
 		"provisioning":          "DOMAINS",
 		"position":              1,
 		"allowed_email_domains": []any{"example.org"},
-		"enabled":               true,
 	})
 	if err != nil {
 		t.Fatalf("adding through the registry: %v", err)

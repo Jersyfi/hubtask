@@ -130,7 +130,7 @@ func TestTheSingularSurfaceIsReachableThroughTheRegistry(t *testing.T) {
 			"display_name":          "Example",
 			"allowed_email_domains": []any{"example.org"},
 			"provisioning":          string(domain.ProvisionDomains),
-			"enabled":               true,
+			"enabled":               false, // echoed by an older client: created off, so accepted
 		})
 	if err != nil {
 		t.Fatalf("configuring: %v", err)
