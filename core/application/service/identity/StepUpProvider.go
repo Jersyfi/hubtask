@@ -248,6 +248,17 @@ func (w SessionWriter) proveAtProvider(
 		if err := w.checkLocked(ctx, []string{subject}, now); err != nil {
 			return err
 		}
+		// Still a way in here, as the start found it: a provider switched off in the workspace - its
+		// own row, or the workspace's switch for one the installation offers - while the person was
+		// away proves nothing on the way back.
+		current, held, err := w.stepUpProvider(ctx, actor.AccountID)
+		if err != nil {
+			return err
+		}
+		if !held || current.ID != configured.ID {
+			w.failure(ctx, FailureOidc)
+			return shared.ErrValidation.WithDetail("auth.step_up_no_provider")
+		}
 		// The identity already connected to this account, and no other: a colleague signed in at
 		// the same provider on this machine proves nothing about this account, and is not
 		// connected to it either.

@@ -172,3 +172,31 @@ func TestAProviderSwitchedOffIsNotOffered(t *testing.T) {
 		t.Fatalf("starting with the provider off answered %v", err)
 	}
 }
+
+// Switched off while the person was at the provider: the return proves nothing. An installation's
+// provider, whose row stays on and whose switch is the workspace's - the one a re-read of the row
+// alone would miss.
+func TestAProviderSwitchedOffDuringTheRoundTripProvesNothing(t *testing.T) {
+	f := providerStepUpFixture(t)
+	offered := shared.MustParseID("22222222-2222-4222-8222-222222222222")
+	configureFixtureProvider(t, f, offered, shared.ID(""), "https://login.platform.example", now)
+	f.store.rows = f.store.rows[1:] // only the installation's: the workspace's own is not the way in here
+	if _, err := f.external.LinkSubject(t.Context(), offered, account, "bert-at-the-provider", now); err != nil {
+		t.Fatalf("connecting: %v", err)
+	}
+	workspaces := &workspaceStore{row: domain.Workspace{Tenant: domain.Tenant{ID: tenant}, Version: 1}}
+	workspaces.row.Settings = workspaces.row.Settings.WithOffer(offered, true)
+	f.session.writer.StepUpProviders.Workspaces = workspaces
+
+	if _, err := (StartProviderStepUp{Writer: f.session.writer}).Execute(t.Context(), signedInActor()); err != nil {
+		t.Fatalf("starting: %v", err)
+	}
+	workspaces.row.Settings = workspaces.row.Settings.WithOffer(offered, false)
+
+	_, err := StepUp{Writer: f.session.writer}.Execute(t.Context(), signedInActor(), StepUpCommand{
+		State: secret.New(f.relying.asked.State), AuthorizationCode: "the-code",
+	})
+	if err == nil || !strings.Contains(err.Error(), "auth.step_up_no_provider") {
+		t.Fatalf("a provider switched off during the round trip answered %v", err)
+	}
+}

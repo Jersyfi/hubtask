@@ -478,8 +478,7 @@ func (ExternalAccountRepository) LinkSubject(
 	return linked > 0, nil
 }
 
-// HasIdentity answers whether the account already signs in through some provider - a credential of
-// its own, which ADR-0071's addendum does not let another provider's word override.
+// ProvidersOf answers the providers the account is connected to (ADR-0075 §2).
 func (ExternalAccountRepository) ProvidersOf(ctx context.Context, accountID shared.ID) ([]shared.ID, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -506,6 +505,8 @@ func (ExternalAccountRepository) ProvidersOf(ctx context.Context, accountID shar
 	return providers, nil
 }
 
+// HasIdentity answers whether the account already signs in through some provider - a credential of
+// its own, which ADR-0071's addendum does not let another provider's word override.
 func (ExternalAccountRepository) HasIdentity(ctx context.Context, accountID shared.ID) (bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
