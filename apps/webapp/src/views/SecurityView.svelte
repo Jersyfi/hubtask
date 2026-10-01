@@ -30,6 +30,7 @@
   import { Banner, Button, EmptyState, OneTimeSecret, Stack } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import AuthenticatorReplacement from '../lib/frame/AuthenticatorReplacement.svelte';
   import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
   import PasswordField from '../lib/signin/PasswordField.svelte';
 
@@ -78,6 +79,12 @@
 
   async function armedFactor(): Promise<void> {
     notice = t('app.mfa.armed');
+    announcer.say(notice);
+    await actor.reread();
+  }
+
+  async function replaced(): Promise<void> {
+    notice = t('app.mfa.replaced');
     announcer.say(notice);
     await actor.reread();
   }
@@ -187,6 +194,16 @@
                 </div>
               {/if}
             </Stack>
+          </div>
+
+          <div class="section">
+            <!-- Offered whenever a factor is on, also where the workspace requires one: the old
+                 factor works until the new app confirms the swap, so there is never a moment
+                 without a factor (SC-17). -->
+            <details>
+              <summary>{t('app.mfa.replace_summary')}</summary>
+              <AuthenticatorReplacement onreplaced={() => void replaced()} />
+            </details>
           </div>
 
           <div class="section">
