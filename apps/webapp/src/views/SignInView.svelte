@@ -33,7 +33,7 @@
   import { password as passwordApi } from '../lib/data/password.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import { session } from '../lib/session.svelte.ts';
-  import { remaining } from '../lib/signin/expiry.ts';
+  import { phaseOf, remaining } from '../lib/signin/expiry.ts';
   import { ordered, readLastProvider, rememberPassword, rememberProvider } from '../lib/signin/lastMethod.ts';
 
   let email = $state('');
@@ -76,6 +76,20 @@
     return () => clearInterval(tick);
   });
   const expiry = $derived(owed?.expiresAt ? remaining(owed.expiresAt, now) : undefined);
+  /** Running, the last minute, or over (UC-ID-02 check 2). */
+  const phase = $derived(owed?.expiresAt ? phaseOf(owed.expiresAt, now) : undefined);
+
+  // At zero the card does not offer a step the server will refuse: back to step one, with the
+  // address kept in its field, both code fields emptied, and a sentence saying the sign-in waited
+  // too long. The window is not extended - it is a security bound.
+  $effect(() => {
+    if (phase !== 'over') return;
+    code = '';
+    recoveryCode = '';
+    linkPassword = '';
+    usingRecovery = false;
+    session.timedOut();
+  });
 
   /**
    * The focus goes into the recovery field when it appears. This step exists to receive a code and
@@ -153,6 +167,14 @@
   }
 </script>
 
+{#snippet closing()}
+  <!-- The last minute, said under the countdown and through a live region: inserted once, so it is
+       heard once rather than every second the countdown moves (UC-ID-02 check 2). -->
+  {#if phase === 'closing'}
+    <p class="closing" role="status">{t('app.sign_in.expires_soon')}</p>
+  {/if}
+{/snippet}
+
 {#snippet notice()}
   <!-- One slot, and the second step does not use it: the heading and the sentence under it already
        say what is owed, and a banner repeating them is the same sentence twice on one card. What
@@ -169,6 +191,12 @@
          `role="alert"` is `Banner`'s own for a danger tone: a refusal beside a form is heard. -->
     <Banner tone={session.problem.isServerFault ? 'warning' : 'danger'} title={session.problem.message}>
       {#if session.problem.reference}{session.problem.reference}{/if}
+    </Banner>
+  {:else if session.waitedTooLong}
+    <!-- The second step's time ran out. Not a refusal of anything the reader typed: an info tone,
+         and the address is still in its field. -->
+    <Banner tone="info" title={t('app.sign_in.waited_too_long')}>
+      {t('app.sign_in.waited_too_long_body')}
     </Banner>
   {:else if session.endedNotice}
     <!-- Not a refusal: nothing was wrong, the path is remembered, and the tone says so. -->
@@ -267,6 +295,7 @@
         />
         {#if expiry}
           <p class="expiry">{t('app.sign_in.expires_in', { remaining: expiry })}</p>
+          {@render closing()}
         {/if}
         <div class="row">
           <Button type="submit" tone="primary" {isBusy} busyLabel={t('app.sign_in.working')}>
@@ -315,6 +344,7 @@
         {/if}
         {#if expiry}
           <p class="expiry">{t('app.sign_in.expires_in', { remaining: expiry })}</p>
+          {@render closing()}
         {/if}
         <div class="row">
           <Button type="submit" tone="primary" {isBusy} busyLabel={t('app.sign_in.working')}>
@@ -431,6 +461,11 @@
 
   .identity .address { color: var(--text-primary); font-weight: var(--fw-medium); }
   .identity .link { margin-inline-start: auto; }
+
+  .closing {
+    margin: 0;
+    color: var(--text-warning);
+  }
 
   .expiry {
     margin: 0;

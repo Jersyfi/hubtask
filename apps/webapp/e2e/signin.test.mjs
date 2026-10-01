@@ -62,11 +62,13 @@ function stubFor({ answer, onCheck }) {
   };
 }
 
-async function open(origin, stub) {
+async function open(origin, stub, { clock } = {}) {
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', stub);
   const page = await context.newPage();
+  // A clock the test moves, for the walks about time: installed before the page has one of its own.
+  if (clock !== undefined) await page.clock.install({ time: clock });
   await page.goto(origin);
   await page.waitForSelector('text=to contoso.hubtask.eu');
   return { browser, page };
@@ -180,6 +182,38 @@ test('a second factor becomes the second step, with the code field and the ident
 
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.waitForFunction(() => !document.querySelector('input[autocomplete="one-time-code"]'));
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// UC-ID-02 check 2 (SC-18): the code step says when its last minute begins - under the countdown and
+// through a live region - and at 0:00 the card returns to step one with the address kept, both code
+// fields emptied, and a sentence saying the sign-in waited too long. The window is not extended.
+test('the code step says its last minute, and at zero returns to step one with the address kept', async () => {
+  const { origin, close } = await serve(DIST);
+  const { browser, page } = await open(origin, stubFor({
+    answer: () => ({ status: 202, json: { pending_token: 'p-short', methods: ['TOTP', 'RECOVERY'], expires_at: new Date(Date.parse('2026-10-01T12:00:00Z') + 90_000).toISOString() } }),
+  }), { clock: Date.parse('2026-10-01T12:00:00Z') });
+  try {
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.waitForSelector('text=Signing in as');
+    await page.getByLabel('Code from your authenticator').fill('482');
+
+    assert.equal(await page.getByRole('status').filter({ hasText: 'Less than a minute left' }).count(), 0,
+      'the last minute is announced before it begins');
+    await page.clock.runFor(31_000);
+    await page.getByText('Less than a minute left.').waitFor();
+    assert.equal(await page.getByRole('status').filter({ hasText: 'Less than a minute left' }).count(), 1,
+      'the last minute is not in a live region');
+
+    await page.clock.runFor(60_000);
+    await page.getByText('The sign-in waited too long').waitFor();
+    assert.equal(await page.locator('input[type="email"]').inputValue(), 'walker@example.invalid', 'the address was lost');
+    assert.equal(await page.getByLabel('Code from your authenticator').count(), 0, 'the code step is still offered');
   } finally {
     await browser.close();
     await close();
