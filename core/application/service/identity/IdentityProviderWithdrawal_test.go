@@ -1,0 +1,204 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package identity
+
+import (
+	"errors"
+	"testing"
+	"time"
+
+	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/clock"
+)
+
+// The count and the date of ADR-0076, on the workspace's side.
+//
+// The count is kept by the workspace's own switch and by nothing else (§1), so what is asserted is
+// that the switch moves it exactly when the switch changes something. The date is honoured where
+// the offer is read (§2), so what is asserted is every reader: the list, the sign-in card, the
+// sign-in itself, and the switch.
+
+// detailOf is the refusal's message code, and empty where nothing was refused.
+func detailOf(err error) string {
+	if err == nil {
+		return ""
+	}
+	return shared.AsError(err).DetailCode
+}
+
+// offeredCount reads the installation row's count from the store.
+func (f *offerFixture) offeredCount(id shared.ID) int {
+	for _, row := range f.store.rows {
+		if row.ID == id {
+			return row.OfferedWorkspaces
+		}
+	}
+	return -1
+}
+
+// withdrawAt announces the installation row's withdrawal, as the operator's use case would.
+func (f *offerFixture) withdrawAt(id shared.ID, at time.Time) {
+	for i, row := range f.store.rows {
+		if row.ID == id {
+			f.store.rows[i].WithdrawAt = at
+		}
+	}
+}
+
+func TestTheCountMovesWithTheWorkspacesSwitchAndOnlyWhenItChanges(t *testing.T) {
+	f := newOfferFixture(time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC))
+	own := f.own(t, true) // another way in, so the guard is not what is being measured here
+	id := f.installation(t)
+
+	for i, step := range []struct {
+		offered bool
+		want    int
+	}{
+		{true, 1},  // switched on: one more workspace uses it
+		{true, 1},  // on again: nothing changed, so nothing moves
+		{false, 0}, // switched off
+		{false, 0}, // off again: never below what the switches say
+	} {
+		if _, err := f.offer.Execute(t.Context(), providerActor(), id, step.offered, ""); err != nil {
+			t.Fatalf("switch %d: %v", i, err)
+		}
+		if got := f.offeredCount(id); got != step.want {
+			t.Errorf("after switch %d (%v) the count is %d, want %d", i, step.offered, got, step.want)
+		}
+	}
+
+	// A workspace's own row has no count: nobody but this workspace can take it.
+	if _, err := f.offer.Execute(t.Context(), providerActor(), own, false, ""); err != nil {
+		t.Fatalf("switching the own row off: %v", err)
+	}
+	if got := f.offeredCount(own); got != 0 {
+		t.Errorf("the workspace's own row carries a count of %d", got)
+	}
+}
+
+func TestAWithdrawnProviderIsAWayInNowhereFromItsDate(t *testing.T) {
+	at := time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC)
+	f := newOfferFixture(at)
+	f.own(t, true)
+	id := f.installation(t)
+	f.workspaces.row.Settings = f.workspaces.row.Settings.WithOffer(id, true)
+	f.withdrawAt(id, at.Add(time.Hour))
+
+	list := func(now time.Time) domain.IdentityProvider {
+		t.Helper()
+		writer := f.writer
+		writer.Workspaces = f.workspaces
+		writer.Session.Clock = clock.Fixed(now)
+		rows, err := ListIdentityProviders{Writer: writer}.Execute(t.Context(), providerActor())
+		if err != nil {
+			t.Fatalf("listing: %v", err)
+		}
+		for _, row := range rows {
+			if row.ID == id {
+				return row
+			}
+		}
+		t.Fatal("the installation's row is not listed")
+		return domain.IdentityProvider{}
+	}
+
+	// Until the date it keeps working, and the workspace can read when it ends.
+	before := list(at)
+	if !before.OfferedHere {
+		t.Error("a provider whose withdrawal is still ahead is not a way in")
+	}
+	if !before.WithdrawAt.Equal(at.Add(time.Hour)) {
+		t.Errorf("the listing answers withdraw_at %v", before.WithdrawAt)
+	}
+
+	// From the date it is a way in nowhere - the workspace's switch is still on, and is not read.
+	if list(at.Add(time.Hour)).OfferedHere {
+		t.Error("a withdrawn provider is still a way in")
+	}
+	if !f.workspaces.row.Settings.Offers(id) {
+		t.Error("the withdrawal wrote the workspace's switch; it is honoured by reading, not by a job")
+	}
+}
+
+func TestAWithdrawnProviderCannotBeSwitchedOnAgain(t *testing.T) {
+	at := time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC)
+	f := newOfferFixture(at)
+	f.own(t, true)
+	id := f.installation(t)
+	f.withdrawAt(id, at)
+
+	_, err := f.offer.Execute(t.Context(), providerActor(), id, true, "")
+	if !errors.Is(err, shared.ErrValidation) || detailOf(err) != "identity_provider.withdrawn" {
+		t.Fatalf("switching on a withdrawn provider answered %v, want identity_provider.withdrawn", err)
+	}
+	if f.workspaces.row.Settings.Offers(id) || f.offeredCount(id) != 0 {
+		t.Error("the refused switch was written")
+	}
+}
+
+// The sign-in card resolves the same reading: the button is there until the date, and not after.
+func TestTheSignInCardDropsAWithdrawnProviderOnItsDate(t *testing.T) {
+	at := time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC)
+	handler, workspace, _ := newRulesFixture()
+	handler.Workspaces = workspace
+	offered := shared.ID("01936f2a-7c1e-7000-8000-0000000000b2")
+	handler.Providers = rulesProviders(domain.IdentityProvider{
+		ID: offered, Kind: domain.KindGoogle, DisplayName: "Google",
+		Issuer: "https://accounts.google.com", Enabled: true, WithdrawAt: at.Add(time.Hour),
+	})
+	workspace.row.Settings = workspace.row.Settings.WithOffer(offered, true)
+
+	for _, probe := range []struct {
+		now  time.Time
+		want int
+	}{{at, 1}, {at.Add(time.Hour), 0}} {
+		handler.Clock = clock.Fixed(probe.now)
+		rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+		if err != nil {
+			t.Fatalf("reading the rules: %v", err)
+		}
+		if len(rules.Providers) != probe.want {
+			t.Errorf("at %v the card shows %d providers, want %d", probe.now, len(rules.Providers), probe.want)
+		}
+	}
+}
+
+// The sign-in itself reads the offer the way the card does: an installation's provider this
+// workspace did not take, or one whose withdrawal has come, opens no flow - whatever identifier a
+// caller sends. The card not showing a button is not what refuses it.
+func TestASignInThroughAnInstallationsProviderReadsTheWorkspacesOffer(t *testing.T) {
+	at := time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC)
+	f := newOidcFixture(t, at)
+	installationRow := shared.ID("01936f2a-7c1e-7000-8000-0000000000c3")
+	configureFixtureProvider(t, f, installationRow, "", "https://login.platform.example", at)
+	workspaces := &workspaceStore{row: domain.Workspace{
+		Tenant: domain.Tenant{ID: tenant, Slug: "acme", Status: domain.TenantActive},
+	}}
+	f.writer.Workspaces = workspaces
+
+	startWith := func() error {
+		_, err := StartOidcSignIn{Writer: f.writer}.
+			Execute(t.Context(), StartOidcSignInCommand{ProviderID: installationRow})
+		return err
+	}
+
+	if err := startWith(); detailOf(err) != "identity_provider.disabled" {
+		t.Errorf("a provider this workspace never took answered %v, want identity_provider.disabled", err)
+	}
+
+	workspaces.row.Settings = workspaces.row.Settings.WithOffer(installationRow, true)
+	if err := startWith(); err != nil {
+		t.Errorf("a provider this workspace took did not start: %v", err)
+	}
+
+	for i, row := range f.store.rows {
+		if row.ID == installationRow {
+			f.store.rows[i].WithdrawAt = at
+		}
+	}
+	if err := startWith(); detailOf(err) != "identity_provider.disabled" {
+		t.Errorf("a withdrawn provider answered %v, want identity_provider.disabled", err)
+	}
+}

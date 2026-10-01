@@ -7,12 +7,14 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -237,9 +239,21 @@ type GetSignInRules struct {
 	Workspaces repository.Workspaces
 
 	UnitOfWork persistence.UnitOfWork
+	// Clock is the moment an offer is read at: an installation's provider whose withdrawal has
+	// come is not a button (ADR-0076 §2). Nil reads every announced withdrawal as still ahead,
+	// which is the shape before the date existed.
+	Clock clock.Clock
 	// Multi is decision 3's mode switch, SessionWriter's: in single mode there is one workspace
 	// and no subdomain to read.
 	Multi bool
+}
+
+// now is the moment the offer is read at.
+func (h GetSignInRules) now() time.Time {
+	if h.Clock == nil {
+		return time.Time{}
+	}
+	return h.Clock.Now()
 }
 
 // Execute resolves and answers.
@@ -351,12 +365,13 @@ func (h GetSignInRules) providersOf(ctx context.Context, tenantID shared.ID) ([]
 		return nil, err
 	}
 
+	now := h.now()
 	summaries := make([]ProviderSummary, 0, len(inForce))
 	for _, configured := range inForce {
 		// A provider the installation offers is not a button until this workspace took it: "für
 		// alle Arbeitsbereiche angeboten, nirgends an" (SI-10). A button that led to a way in
 		// nobody here chose would be the installation deciding for the workspace.
-		if configured.Issuer == "" || !offeredHere(configured, settings) {
+		if configured.Issuer == "" || !offeredHere(configured, settings, now) {
 			continue
 		}
 		scope := ProviderScopeWorkspace

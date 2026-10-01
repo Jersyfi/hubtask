@@ -972,10 +972,13 @@ func run() error {
 	}
 
 	oidcWriter := identity.OidcWriter{
-		Domains:     domains,
-		Text:        forms,
-		Session:     sessionWriter,
-		Providers:   postgres.NewIdentityProviderRepository(),
+		Domains:   domains,
+		Text:      forms,
+		Session:   sessionWriter,
+		Providers: postgres.NewIdentityProviderRepository(),
+		// Which of the installation's providers this workspace took: a flow through one it did not
+		// take, or one whose withdrawal has come, is refused at the start and at the return.
+		Workspaces:  postgres.NewWorkspaceSettingsRepository(),
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 		External:    postgres.NewExternalAccountRepository(),
 		Accounts:    accounts,
@@ -1261,6 +1264,8 @@ func run() error {
 			// Which of the installation's providers this workspace took: an offered one is not a
 			// button until somebody here switched it on (SI-10).
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			// The moment an offer is read at: a withdrawn provider is not a button (ADR-0076 §2).
+			Clock:      clockadapter.System{},
 			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.SignIn{Writer: sessionWriter}.Descriptor(),

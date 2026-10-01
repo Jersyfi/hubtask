@@ -157,9 +157,10 @@ func (w IdentityProviderWriter) withOffers(
 		}
 		settings = workspace.Settings
 	}
+	now := w.Session.Clock.Now()
 	answered := make([]domain.IdentityProvider, 0, len(rows))
 	for _, row := range rows {
-		row.OfferedHere = offeredHere(row, settings)
+		row.OfferedHere = offeredHere(row, settings, now)
 		answered = append(answered, row)
 	}
 	return answered, nil
@@ -275,7 +276,8 @@ func (w IdentityProviderWriter) keepsAWayIn(
 			}
 			settings = workspace.Settings
 		}
-		if offeredHere(found, settings) && !anotherWayIn(ctx, w.Providers, w.Workspaces, id) {
+		now := w.Session.Clock.Now()
+		if offeredHere(found, settings, now) && !anotherWayIn(ctx, w.Providers, w.Workspaces, id, now) {
 			return lastWayIn()
 		}
 		return nil
