@@ -390,8 +390,10 @@ func identityFrom(token *gooidc.IDToken, directoryClaim string) (port.Identity, 
 		// unverified and therefore refused - which is what it did until ADR-0071.
 		DomainOwnerVerified json.RawMessage `json:"xms_edov"`
 		// AuthTime is when the person last authenticated there, in seconds since the epoch - what
-		// a step-up judges freshness by (ADR-0075 §2). Absent is zero.
-		AuthTime int64 `json:"auth_time"`
+		// a step-up judges freshness by (ADR-0075 §2). Absent is zero. A JSON number rather than an
+		// integer: RFC 7519 lets a NumericDate carry a fraction, and a claim this product reads only
+		// for a step-up must not refuse every sign-in at a provider that sends one.
+		AuthTime float64 `json:"auth_time"`
 	}
 	if err := token.Claims(&claims); err != nil {
 		return port.Identity{}, invalidToken(fmt.Errorf("reading the claims: %w", err))
@@ -422,7 +424,7 @@ func identityFrom(token *gooidc.IDToken, directoryClaim string) (port.Identity, 
 
 	var authTime time.Time
 	if claims.AuthTime > 0 {
-		authTime = time.Unix(claims.AuthTime, 0).UTC()
+		authTime = time.Unix(int64(claims.AuthTime), 0).UTC()
 	}
 
 	return port.Identity{

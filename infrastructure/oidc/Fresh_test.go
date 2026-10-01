@@ -69,3 +69,22 @@ func TestTheIdentityCarriesWhenThePersonLastSignedIn(t *testing.T) {
 		t.Errorf("a token without auth_time answered %v", identity.AuthTime)
 	}
 }
+
+// RFC 7519 lets a NumericDate carry a fraction. A provider that sends one must not lose every
+// sign-in for a claim only a step-up reads.
+func TestAFractionalAuthTimeIsRead(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	idp := newFakeIDP(t)
+	idp.token = idp.wellFormed(now)
+	idp.extraClaims = map[string]any{"auth_time": float64(now.Add(-time.Minute).Unix()) + 0.5}
+
+	identity, err := relyingParty(idp, now).Exchange(t.Context(), configFor(idp), port.Exchange{
+		Code: "the-code", CodeVerifier: strings.Repeat("v", 43), Nonce: testNonce,
+	})
+	if err != nil {
+		t.Fatalf("a fractional auth_time refused the sign-in: %v", err)
+	}
+	if want := now.Add(-time.Minute); !identity.AuthTime.Equal(want) {
+		t.Errorf("auth_time came back as %v, want %v", identity.AuthTime, want)
+	}
+}
