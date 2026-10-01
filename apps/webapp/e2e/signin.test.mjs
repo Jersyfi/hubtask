@@ -262,6 +262,51 @@ test('a recovery code is taken as it was shown, dashes and all, with a text keyb
   }
 });
 
+// UC-ID-02 check 6 (SC-18): after a sign-in with a recovery code the first page carries a note -
+// how many are left, and the way to set the authenticator up again - which survives a reload, leads
+// to the replacement, and goes when it is closed.
+test('a recovery code leaves a note that survives a reload and leads to the replacement', async () => {
+  const { origin, close } = await serve(DIST);
+  const { browser, page } = await open(origin, async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/sessions:verify')) {
+      return route.fulfill({ status: 201, json: { ...TOKENS, recovery_codes_remaining: 7 } });
+    }
+    if (path.endsWith('/api/v1/accounts/me')) {
+      return route.fulfill({ json: { id: '01936f2a-7c1e-7000-8000-0000000000aa', display_name: 'Walker', email: 'walker@example.invalid', locale: 'en', time_zone: 'UTC', has_password: true, has_second_factor: true, recovery_codes_remaining: 7, second_factor_required: false, onboarding_completed_at: '2026-01-01T00:00:00Z' } });
+    }
+    return stubFor({ answer: owed })(route);
+  });
+  try {
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('button', { name: 'I do not have my authenticator' }).click();
+    await page.getByLabel('Recovery code').fill('K7QM-2XRT-P4ZL-3VWA');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+    const note = page.getByText('You signed in with a recovery code. 7 of 10 left.');
+    await note.waitFor({ timeout: 15_000 });
+    await page.reload();
+    await note.waitFor({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: 'Replace your authenticator' }).first().click();
+    await page.waitForURL('**/profile/security');
+    assert.equal(await page.locator('details[open] summary', { hasText: 'Replace your authenticator' }).count(), 1,
+      'the replacement is not open where the note leads');
+
+    await page.getByRole('button', { name: 'Close' }).first().click();
+    await note.waitFor({ state: 'detached' });
+    await page.reload();
+    await page.getByText('Password and sign-in').first().waitFor({ timeout: 15_000 });
+    assert.equal(await note.count(), 0, 'a closed note came back');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // UC-ID-04 check 5: a reset of an account with a second factor continues on the card into the code
 // step - whose account, how long the step waits, the code field - and only the code signs in.
 // Before SC-03 the reset card stayed on its form after the 202, with the link already spent.

@@ -41,6 +41,7 @@ import { platform } from './platform/index.ts';
 import { renderProblem, type RenderedProblem } from './problem.ts';
 import { recents } from './recents.svelte.ts';
 import { search } from './data/search.svelte.ts';
+import { recoveryNote } from './data/recoverynote.svelte.ts';
 import { stepUp } from './data/stepup.svelte.ts';
 
 const SESSIONS = '/auth/sessions';
@@ -479,6 +480,7 @@ class Session {
     search.forget();
     // A trip to the provider and the grant it earned belong to the session that is ending too.
     stepUp.forget();
+    recoveryNote.close();
     this.#status = 'signed-out';
     // And the manifest, which the reset above unsubscribed with everything else: the sign-in
     // screen is drawn from its supported locales, and reading it again is also what re-attaches

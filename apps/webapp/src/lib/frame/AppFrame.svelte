@@ -21,7 +21,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
@@ -41,6 +41,7 @@
   import { recents } from '../recents.svelte.ts';
   import { session } from '../session.svelte.ts';
   import { stepUp } from '../data/stepup.svelte.ts';
+  import { recoveryNote } from '../data/recoverynote.svelte.ts';
   import { tour } from '../tour.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
@@ -221,7 +222,12 @@
   });
 
   /**
-   * How many recovery codes are left, said once, on the other side of a sign-in that spent one.
+   * How many recovery codes are left, on the other side of a sign-in that spent one (UC-ID-02 check
+   * 6, SC-18): a note at the top of the content area, and said once besides.
+   *
+   * The note is in the content area and not in the bar, which is ADR-0065 decision 4 holding: the
+   * bar keeps statements about the application, and this one is about this person's sign-in. It
+   * stays across pages and reloads until it is closed or the authenticator is replaced.
    *
    * `SessionTokens.recovery_codes_remaining` has carried this since H-02, with "zero is the number
    * to act on" written beside it in the contract, and no client had ever read it - so somebody
@@ -240,6 +246,7 @@
     if (!session.isSignedIn) return;
     const left = session.takeRecoveryLeft();
     if (left === undefined) return;
+    recoveryNote.hold(left);
     announcer.say(
       left === 0 ? t('app.sign_in.recovery_none') : t('app.sign_in.recovery_left', { count: String(left) }),
     );
@@ -353,6 +360,25 @@
          so it draws no ring when it does. -->
     <main id="main" tabindex="-1" data-filled={page.fills ? '' : undefined} bind:this={mainElement}>
       <div class="content">
+        {#if recoveryNote.note}
+          <!-- After a sign-in with a recovery code (UC-ID-02 check 6). The danger tone at zero,
+               because that is the number to act on; the link is the action that makes it true
+               again. -->
+          <div class="confirmed">
+            <Banner
+              tone={recoveryNote.note.left === 0 ? 'danger' : 'info'}
+              dismissLabel={t('app.recovery_note.close')}
+              onDismiss={() => recoveryNote.close()}
+            >
+              {recoveryNote.note.left === 0
+                ? t('app.recovery_note.none')
+                : t('app.recovery_note.left', { count: String(recoveryNote.note.left), total: '10' })}
+              {#snippet action()}
+                <Button tone="subtle" onclick={() => go('/profile/security')}>{t('app.recovery_note.replace')}</Button>
+              {/snippet}
+            </Banner>
+          </div>
+        {/if}
         {#if stepUp.confirmed}
           <!-- The return from a step-up at the provider (ADR-0075 §2): the confirmation holds, and
                the action the person left to confirm goes through when they take it again. Gone
