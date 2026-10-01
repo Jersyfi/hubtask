@@ -65,7 +65,9 @@ Check 8 holds since SC-21: the provider's form - its screen, `POST` and `PUT /id
 and the singular route - switches nothing; a changed `enabled` is refused with a sentence pointing to
 the list, a new provider is created off, and the field is deprecated until the next major version
 (`IdentityProviderSwitch_test.go`, `test/contract/identity_provider_test.go`, the provider screen's
-walk in `signinsettings.test.mjs`).
+walk in `signinsettings.test.mjs`). Its second half - the last way in cannot be turned off - holds at
+every door a workspace has; the installation's own withdrawal of a provider it offers is the one door
+left, tracked in UC-ID-12's *Today* as SC-20.
 
 * **Check 1 fails:** the screen offers the modes as developer-style labels.
 * **Check 5 fails:** there is no *New people get* setting (SC-02).
