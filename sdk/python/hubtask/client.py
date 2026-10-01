@@ -571,6 +571,14 @@ class Client:
         """Begin a step-up at the provider this account is connected to"""
         return self._call("POST", "/auth/step-up:provider", {}, None, {}, None, "none", None, "json")
 
+    def start_authenticator_replacement(self, *, step_up: str | None = None) -> "AuthenticatorReplacement":
+        """Begin replacing the authenticator"""
+        return self._call("POST", "/auth/mfa/totp:replace", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
+    def confirm_authenticator_replacement(self, body: "AuthenticatorReplacementConfirmation") -> "RecoveryCodes":
+        """Confirm the new authenticator, and swap"""
+        return self._call("POST", "/auth/mfa/totp/replacement:confirm", {}, None, {}, body, "json", "application/json", "json")
+
     def regenerate_recovery_codes(self, *, step_up: str | None = None) -> "RecoveryCodes":
         """Replace the ten recovery codes"""
         return self._call("POST", "/auth/mfa/recovery:regenerate", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")

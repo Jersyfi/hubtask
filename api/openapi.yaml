@@ -3478,6 +3478,65 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/mfa/totp:replace:
+    post:
+      tags: [auth]
+      operationId: startAuthenticatorReplacement
+      summary: Begin replacing the authenticator
+      description: >
+        For a new phone, or an authenticator that is gone (SC-17): a new secret, kept beside the
+        armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and
+        its recovery codes keep working until the new authenticator is confirmed, so there is never
+        a moment without a factor, whatever the workspace's rule requires.
+
+        Behind a step-up with whatever the account holds (ADR-0075): replacing the factor is the
+        same power as removing it. Offered while a factor is armed, also where the workspace
+        requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed
+        within its window lapses. Bound to the session that began it: only that session confirms
+        it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to
+        replace, and setting one up is enrolment's.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      responses:
+        "201":
+          description: The new secret, for the only time it is shown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticatorReplacement"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/mfa/totp/replacement:confirm:
+    post:
+      tags: [auth]
+      operationId: confirmAuthenticatorReplacement
+      summary: Confirm the new authenticator, and swap
+      description: >
+        A code from the new authenticator proves it holds the new secret. Then, in one statement,
+        the new secret becomes the armed one and the old stops working, and ten new recovery codes
+        replace the old ten - answered here, for the only time they are shown. Audited as
+        `auth.mfa_replaced`.
+
+        Only the session that began the replacement confirms it, and only inside its window;
+        otherwise `auth.mfa_replacement_unknown`. A wrong code counts against the second factor's
+        ledger and changes nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthenticatorReplacementConfirmation"
+      responses:
+        "201":
+          description: Swapped; the new recovery codes, for the only time they are shown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodes"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/mfa/recovery:regenerate:
     post:
       tags: [auth]
@@ -9863,6 +9922,34 @@ components:
           description: >
             Ten single-use codes, stored only as hashes. Each works once; the sign-in answer
             counts down what remains.
+
+    AuthenticatorReplacement:
+      type: object
+      description: >
+        The new secret's single showing (SC-17). Nothing is armed yet: the factor in force and its
+        recovery codes keep working until the replacement is confirmed.
+      required: [secret, otpauth_uri, expires_at]
+      properties:
+        secret:
+          type: string
+          description: Base32, for typing by hand where no camera reaches the QR.
+        otpauth_uri:
+          type: string
+          description: What a QR image is rendered from - the rendering is the client's job.
+        expires_at:
+          type: string
+          format: date-time
+          description: Until when the replacement can be confirmed; after that it lapses unarmed.
+
+    AuthenticatorReplacementConfirmation:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 8
+          description: The current code of the new authenticator.
 
     TotpConfirmation:
       type: object
