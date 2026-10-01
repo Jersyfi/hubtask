@@ -250,16 +250,25 @@ func (v StepUpVerifier) Satisfied(
 	return satisfied, nil
 }
 
-// Methods names what this account can prove itself with: the password always, and the code
-// where a factor is armed. An unconfirmed enrolment is no factor - the person has not shown they
-// hold the authenticator yet - so it is not offered either.
+// Methods names what this account can prove itself with: the password where it holds one, and the
+// code where a factor is armed. An account that signs in only through a provider holds no password,
+// so it is not asked for one (UC-ID-05 check 5) - and one with neither is named nothing, which the
+// client says in a sentence rather than drawing a field nobody can fill. An unconfirmed enrolment is
+// no factor - the person has not shown they hold the authenticator yet - so it is not offered either.
 func (v StepUpVerifier) Methods(
 	ctx context.Context, tenantID, accountID shared.ID,
 ) ([]stepupport.Method, error) {
 	w := v.Writer
-	methods := []stepupport.Method{stepupport.MethodPassword}
+	methods := []stepupport.Method{}
 	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID, ActorID: accountID},
 		func(ctx context.Context) error {
+			hash, err := w.Accounts.PasswordHashOf(ctx, accountID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			if !hash.IsEmpty() {
+				methods = append(methods, stepupport.MethodPassword)
+			}
 			enrollment, err := w.Enrollments.Find(ctx, accountID)
 			if err != nil {
 				if errors.Is(err, shared.ErrNotFound) {

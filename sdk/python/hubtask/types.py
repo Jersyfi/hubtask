@@ -63,6 +63,7 @@ class Account(TypedDict, total=False):
     onboarding_completed_at: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
+    has_password: bool
 
 class Actor(TypedDict, total=False):
     """Who did something. The label is not here: the account is one request away (`GET /accounts/{accountId}`) and the records that carry an actor are deleted with the thing they are about, so there is nothing for a copy of somebody's name to outlive."""

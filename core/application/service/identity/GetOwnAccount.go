@@ -52,6 +52,16 @@ type GetOwnAccount struct {
 	// authenticator from one whose codes have all been spent, so it showed somebody with no
 	// authenticator a red "none left" and offered them two actions the server would refuse.
 	Enrollments repository.MfaEnrollments
+	// Password answers whether the account holds a password at all (UC-ID-05 check 5): one that
+	// signs in only through a provider has none, and a screen offering to change it would offer a
+	// control the server cannot honour. Nil answers true, the shape of every account before
+	// providers existed.
+	Password PasswordHolder
+}
+
+// PasswordHolder answers whether the signed-in account holds a password.
+type PasswordHolder interface {
+	HasPassword(ctx context.Context, actor appshared.ActorContext) (bool, error)
 }
 
 // Execute returns the account of the authenticated actor.
@@ -78,6 +88,9 @@ type OwnAccount struct {
 	// confirmed protects nobody and locks nobody out, so it counts as none here - the same reading
 	// the sign-in path takes.
 	HasSecondFactor bool
+	// HasPassword is whether the account holds a password, so that nothing offers to change one or
+	// asks for one as a proof where there is none.
+	HasPassword bool
 	// RecoveryCodesRemaining is -1 where there is nothing to count: an installation wired without
 	// the second factor, or an account that holds none. Its codes are not "zero left", they are a
 	// thing that does not exist yet, and a screen told zero sends somebody to make codes the server
@@ -145,7 +158,14 @@ func (h GetOwnAccount) ExecuteWithRecovery(
 		return OwnAccount{}, err
 	}
 
-	answer := OwnAccount{Account: account, RecoveryCodesRemaining: -1}
+	answer := OwnAccount{Account: account, RecoveryCodesRemaining: -1, HasPassword: true}
+	if h.Password != nil {
+		held, err := h.Password.HasPassword(ctx, actor)
+		if err != nil {
+			return OwnAccount{}, err
+		}
+		answer.HasPassword = held
+	}
 	if h.Recovery == nil || h.Enrollments == nil {
 		return answer, nil
 	}
@@ -185,6 +205,7 @@ func (h GetOwnAccount) invoke(
 	}
 	out := accountOutput(own.Account)
 	out["has_second_factor"] = own.HasSecondFactor
+	out["has_password"] = own.HasPassword
 	if own.RecoveryCodesRemaining >= 0 {
 		out["recovery_codes_remaining"] = own.RecoveryCodesRemaining
 	}

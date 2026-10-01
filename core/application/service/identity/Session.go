@@ -829,3 +829,17 @@ func (h RefreshSession) invoke(
 	}
 	return pairOutput(pair), nil
 }
+
+// HasPassword answers whether the signed-in account holds a password (UC-ID-05 check 5).
+func (w SessionWriter) HasPassword(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	var held bool
+	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		hash, err := w.Accounts.PasswordHashOf(ctx, actor.AccountID)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return err
+		}
+		held = !hash.IsEmpty()
+		return nil
+	})
+	return held, err
+}

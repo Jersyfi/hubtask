@@ -52,6 +52,13 @@ func Required(methods ...Method) error {
 	if len(methods) == 0 {
 		methods = []Method{MethodPassword}
 	}
+	return requiredOf(methods)
+}
+
+// requiredOf is the demand naming exactly the methods given - none at all for an account that
+// holds neither a password nor a factor (one that signs in only through a provider, UC-ID-05 check
+// 5). Naming the password there would send the person to a field they cannot fill.
+func requiredOf(methods []Method) error {
 	names := make([]string, 0, len(methods))
 	for _, method := range methods {
 		names = append(names, string(method))
@@ -90,7 +97,7 @@ func refuse(ctx context.Context, verifier Verifier, tenantID, accountID shared.I
 	if err != nil {
 		return err
 	}
-	return Required(methods...)
+	return requiredOf(methods)
 }
 
 // Verifier judges the proof.
@@ -111,6 +118,7 @@ type Verifier interface {
 	Satisfied(ctx context.Context, accountID shared.ID, token string) (bool, error)
 
 	// Methods answers which proofs this account can give, for the refusal to name: the password
-	// always, the code where a factor is armed. Asked only when a demand is about to refuse.
+	// where it holds one, the code where a factor is armed - possibly neither. Asked only when a
+	// demand is about to refuse.
 	Methods(ctx context.Context, tenantID, accountID shared.ID) ([]Method, error)
 }

@@ -1185,6 +1185,7 @@ func run() error {
 		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
+			Password: sessionWriter,
 		}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.UpdateAccountPreferences{
