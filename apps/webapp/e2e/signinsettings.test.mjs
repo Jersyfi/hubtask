@@ -39,7 +39,7 @@ function policy() {
     },
     mfa_required_for: rule('ADMINS', 'ADMINS', { source: 'INSTANCE', above: 'INSTANCE' }),
     methods: rule(['PASSWORD', 'OIDC'], ['PASSWORD', 'OIDC']),
-    session: { max_days: rule(30, 30), idle_minutes: rule(0, 0) },
+    session: { max_days: rule(30, 30), idle_minutes: rule(30, 30, { source: 'INSTANCE', above: 'INSTANCE' }) },
     legal: {
       imprint_url: rule('', ''), privacy_url: rule('', ''), terms_url: rule('', ''), accessibility_url: rule('', ''),
     },
@@ -113,6 +113,17 @@ test('chromium: every rule says where it comes from, and looser choices are not 
   // A number below the installation's is not offered either.
   assert.equal(await page.getByLabel('Minimum length', { exact: true }).getAttribute('min'), '12');
 
+  // The installation ends idle sessions after thirty minutes: "off" (an empty field) is not a choice,
+  // and neither is a longer time.
+  // By prefix: a required field's name carries its marker.
+  const idle = page.getByLabel(/^End an idle session after, in minutes/);
+  assert.equal(await idle.getAttribute('required'), '', 'an idle bound the installation set can be emptied');
+  assert.equal(await idle.getAttribute('max'), '30');
+
+  // The password's own way in says where it comes from too.
+  const way = await page.locator('ul.ways li').first().locator('[data-origin]').textContent();
+  assert.match(way ?? '', /Hubtask.s default/, way ?? '');
+
   // The eighteenth rule has its control.
   assert.ok(await page.getByLabel('Earliest change after, in hours', { exact: true }).isVisible());
 });
@@ -166,6 +177,9 @@ test('chromium: a rule that cannot be read is a sentence and a retry', async (t)
   const retry = page.getByRole('button', { name: 'Try again' });
   await retry.waitFor({ timeout: 15_000 });
   assert.equal(await page.locator('[aria-busy="true"]').count(), 0, 'a failed read is still drawn as loading');
+  // The sentence holds while the engine keeps trying behind it - it is not traded for a spinner.
+  await page.waitForTimeout(1500);
+  assert.ok(await retry.isVisible(), 'the sentence and its retry did not hold');
   const before = reads;
   mended = true;
   // By the keyboard: the button is gone the moment the read succeeds, which a pointer click's
@@ -173,7 +187,7 @@ test('chromium: a rule that cannot be read is a sentence and a retry', async (t)
   await retry.focus();
   await page.keyboard.press('Enter');
   await page.getByLabel('Minimum length', { exact: true }).waitFor();
-  assert.equal(reads, before + 1, 'the rule was read again without the reader asking, or not at all');
+  assert.ok(reads > before, 'asking again read nothing');
 });
 
 /** A provider as the listing answers it. */

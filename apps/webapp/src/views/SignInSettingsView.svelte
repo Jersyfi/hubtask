@@ -191,6 +191,9 @@
     return setting.installation > 0 ? { min: 1, max: setting.installation } : {};
   }
 
+  /** Whether "empty is off" is a choice here: not where the installation set a value, because off is looser. */
+  const mayBeOff = (setting: Setting<number>): boolean => setting.installation === 0;
+
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const changes = moved();
@@ -213,7 +216,8 @@
   const passwordOn = $derived(policy?.methods.value.includes('PASSWORD') ?? false);
   const waysOn = $derived((passwordOn ? 1 : 0) + providers.filter((one) => one.offered_here === true).length);
   let switching = $state<string | undefined>(undefined);
-  let wayFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+  /** The last refusal of a provider's switch, with the row it belongs to. */
+  let wayFailure = $state<{ id: string; problem: ReturnType<typeof renderProblem> } | undefined>(undefined);
 
   /** Why a way that is on cannot be switched off: it is the only one left. */
   function lastWay(isOn: boolean): string | undefined {
@@ -252,7 +256,7 @@
     try {
       await identityProvider.offer(id, on);
     } catch (cause) {
-      wayFailure = cause instanceof TransportError ? renderProblem(cause, messages) : undefined;
+      if (cause instanceof TransportError) wayFailure = { id, problem: renderProblem(cause, messages) };
     } finally {
       switching = undefined;
     }
@@ -279,6 +283,7 @@
       type="number"
       min={bounds.min}
       max={bounds.max}
+      isRequired={emptyIsOff && !mayBeOff(setting)}
       value={emptyIsOff && !draft[key] ? '' : String(draft[key] ?? '')}
       oninput={(event) => {
         const raw = (event.currentTarget as HTMLInputElement).value;
@@ -383,11 +388,11 @@
               </fieldset>
 
               {@render countRow('min_classes', policy.password.min_classes, t('app.signin_settings.min_classes'))}
-              {@render countRow('max_repeat', policy.password.max_repeat, t('app.signin_settings.max_repeat'), t('app.signin_settings.max_repeat_hint'), capped(policy.password.max_repeat), true)}
+              {@render countRow('max_repeat', policy.password.max_repeat, t('app.signin_settings.max_repeat'), mayBeOff(policy.password.max_repeat) ? t('app.signin_settings.max_repeat_hint') : undefined, capped(policy.password.max_repeat), true)}
               {@render flagRow('common_passwords', policy.password.common_passwords, t('app.signin_settings.common_passwords'), t('app.signin_settings.adds_a_line'))}
               {@render flagRow('context_words', policy.password.context_words, t('app.signin_settings.context_words'), t('app.signin_settings.adds_a_line'))}
               {@render flagRow('breach_check', policy.password.breach_check, t('app.signin_settings.breach_check'), t('app.signin_settings.breach_hint'))}
-              {@render countRow('max_age_days', policy.password.max_age_days, t('app.signin_settings.max_age_days'), t('app.signin_settings.max_age_hint'), capped(policy.password.max_age_days), true)}
+              {@render countRow('max_age_days', policy.password.max_age_days, t('app.signin_settings.max_age_days'), mayBeOff(policy.password.max_age_days) ? t('app.signin_settings.max_age_hint') : undefined, capped(policy.password.max_age_days), true)}
               {@render countRow('history_count', policy.password.history_count, t('app.signin_settings.history_count'), t('app.signin_settings.history_hint'))}
               <!-- The eighteenth rule, which had no control until SC-06 (check 7). -->
               {@render countRow('min_age_hours', policy.password.min_age_hours, t('app.signin_settings.min_age_hours'), t('app.signin_settings.min_age_hint'))}
@@ -416,11 +421,6 @@
             <Stack gap="200">
               <h2 id="ways">{t('app.signin_settings.ways')}</h2>
               <p class="quiet small">{t('app.signin_settings.ways_hint')}</p>
-              {#if wayFailure}
-                <Banner tone="danger" title={wayFailure.message}>
-                  {#if wayFailure.reference}{wayFailure.reference}{/if}
-                </Banner>
-              {/if}
               <ul class="ways" aria-labelledby="ways">
                 <li class="way" data-rule>
                   <Switch
@@ -431,6 +431,7 @@
                     disabledReason={switching === 'password' ? t('app.signin_settings.switching') : passwordFixed()}
                   />
                   {#if refusalOf('methods')}<p class="refusal" role="alert">{refusalOf('methods')}</p>{/if}
+                  {@render origin(originOf(policy.methods, (value) => (value.includes('PASSWORD') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
                 </li>
                 {#each providers as one (one.id)}
                   <li class="way" data-rule>
@@ -448,6 +449,8 @@
                         onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
                         disabledReason={switching === one.id ? t('app.signin_settings.switching') : lastWay(one.offered_here === true)}
                       />
+                      <!-- A refusal for this switch lands at this row (check 8), not above the list. -->
+                      {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
                     {/if}
                   </li>
                 {/each}
@@ -460,7 +463,7 @@
             <Stack gap="200">
               <h2>{t('app.signin_settings.sessions')}</h2>
               {@render countRow('session_max_days', policy.session.max_days, t('app.signin_settings.session_max_days'), undefined, { min: 1, max: policy.session.max_days.installation || undefined })}
-              {@render countRow('session_idle_minutes', policy.session.idle_minutes, t('app.signin_settings.session_idle'), t('app.signin_settings.session_idle_hint'), capped(policy.session.idle_minutes), true)}
+              {@render countRow('session_idle_minutes', policy.session.idle_minutes, t('app.signin_settings.session_idle'), mayBeOff(policy.session.idle_minutes) ? t('app.signin_settings.session_idle_hint') : undefined, capped(policy.session.idle_minutes), true)}
             </Stack>
           </section>
 
