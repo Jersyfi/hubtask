@@ -23,6 +23,7 @@ package stepup
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -64,7 +65,7 @@ func Required(methods ...Method) error {
 // requiredOf is the demand naming exactly the methods given - none at all for an account that
 // holds neither a password nor a factor (one that signs in only through a provider, UC-ID-05 check
 // 5). Naming the password there would send the person to a field they cannot fill.
-func requiredOf(methods []Method) error {
+func requiredOf(methods []Method) *shared.Error {
 	names := make([]string, 0, len(methods))
 	for _, method := range methods {
 		names = append(names, string(method))
@@ -97,13 +98,31 @@ func Demand(
 	return nil
 }
 
-// refuse is the demand with the account's own methods in it.
+// refuse is the demand with the account's own methods in it - and, where one of them is PROVIDER,
+// the provider's name, which is what lets a prompt say whom the person confirms with.
 func refuse(ctx context.Context, verifier Verifier, tenantID, accountID shared.ID) error {
 	methods, err := verifier.Methods(ctx, tenantID, accountID)
 	if err != nil {
 		return err
 	}
-	return requiredOf(methods)
+	demand := requiredOf(methods)
+	namer, names := verifier.(ProviderNamer)
+	if !names || !slices.Contains(methods, MethodProvider) {
+		return demand
+	}
+	name, err := namer.ProviderName(ctx, tenantID, accountID)
+	if err != nil {
+		return err
+	}
+	return demand.WithParams(map[string]string{
+		"methods": demand.Params["methods"], "provider": name,
+	})
+}
+
+// ProviderNamer is what a verifier that offers PROVIDER answers beside the methods: the name of the
+// provider the proof goes to, as its sign-in button shows it. Asked only when PROVIDER is named.
+type ProviderNamer interface {
+	ProviderName(ctx context.Context, tenantID, accountID shared.ID) (string, error)
 }
 
 // Verifier judges the proof.

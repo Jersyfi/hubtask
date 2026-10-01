@@ -344,3 +344,27 @@ func TestASessionOpenedBeforeARotationIsOver(t *testing.T) {
 		t.Errorf("a session opened before the rotation answered %v", err)
 	}
 }
+
+// ADR-0075 §2: a step-up at the provider counts only with an auth_time that is named, inside the
+// step-up's window, and not from beyond the clock skew.
+func TestProviderProofFresh(t *testing.T) {
+	at := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	window := 5 * time.Minute
+	cases := map[string]struct {
+		authTime time.Time
+		fresh    bool
+	}{
+		"not named":                  {time.Time{}, false},
+		"a moment ago":               {at.Add(-10 * time.Second), true},
+		"at the window's edge":       {at.Add(-window), true},
+		"older than the window":      {at.Add(-window - time.Second), false},
+		"ahead within the skew":      {at.Add(30 * time.Second), true},
+		"ahead beyond the skew":      {at.Add(ProviderClockSkew + time.Second), false},
+		"an hour ago, a stale proof": {at.Add(-time.Hour), false},
+	}
+	for name, tc := range cases {
+		if got := ProviderProofFresh(tc.authTime, at, window); got != tc.fresh {
+			t.Errorf("%s: fresh %v, want %v", name, got, tc.fresh)
+		}
+	}
+}

@@ -480,6 +480,32 @@ func (ExternalAccountRepository) LinkSubject(
 
 // HasIdentity answers whether the account already signs in through some provider - a credential of
 // its own, which ADR-0071's addendum does not let another provider's word override.
+func (ExternalAccountRepository) ProvidersOf(ctx context.Context, accountID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.AccountIdentityProviders(ctx, account)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading an account's providers: %w", err))
+	}
+	providers := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		providers = append(providers, id)
+	}
+	return providers, nil
+}
+
 func (ExternalAccountRepository) HasIdentity(ctx context.Context, accountID shared.ID) (bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

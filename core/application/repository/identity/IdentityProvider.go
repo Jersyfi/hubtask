@@ -88,6 +88,10 @@ type ExternalAccounts interface {
 	// because two sign-ins racing must not both win.
 	LinkSubject(ctx context.Context, providerID, accountID shared.ID, subject string, now time.Time) (bool, error)
 
+	// ProvidersOf answers the providers the account is connected to, for a step-up at the provider
+	// (ADR-0075 §2). Whether one is switched on here is the caller's question.
+	ProvidersOf(ctx context.Context, accountID shared.ID) ([]shared.ID, error)
+
 	// HasIdentity answers whether the account already signs in through any provider. Such an
 	// identity is a credential, and an account that holds one is not connected to a second provider
 	// on that provider's word (ADR-0071's addendum, E2).

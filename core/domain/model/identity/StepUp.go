@@ -3,7 +3,11 @@
 
 package identity
 
-import "github.com/Jersyfi/hubtask/core/domain/model/shared"
+import (
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+)
 
 // The step-up (H-03, security.md §5): a fresh re-authentication on the current session,
 // recorded there, valid for a configured window, consumed by the one privileged action it is
@@ -30,4 +34,23 @@ func ParseStepUpToken(raw string) (Token, error) { return parsePrefixed(raw, Ste
 
 func NewStepUpToken(tenantID shared.ID, secret []byte) (Token, error) {
 	return newPrefixed(StepUpTokenPrefix, tenantID, secret)
+}
+
+// ProviderClockSkew is how far a provider's clock may run ahead of this one before a moment it names
+// is not believed - the minute T-13 allows an ID token's own times.
+const ProviderClockSkew = time.Minute
+
+// ProviderProofFresh reports whether a provider's word that the person signed in at authTime proves
+// a step-up at now (ADR-0075 §2): the moment is named, it lies inside the step-up's own window, and
+// it is not further ahead than a clock explains. A zero authTime is a provider that did not say -
+// which ignored `max_age`, or never sends `auth_time` - and proves nothing fresh, however recent
+// the round trip was.
+func ProviderProofFresh(authTime, now time.Time, window time.Duration) bool {
+	if authTime.IsZero() {
+		return false
+	}
+	if authTime.After(now.Add(ProviderClockSkew)) {
+		return false
+	}
+	return now.Sub(authTime) <= window
 }

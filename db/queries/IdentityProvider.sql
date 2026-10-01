@@ -137,6 +137,11 @@ WHERE link.provider_id = sqlc.arg('provider_id')
   AND link.subject = sqlc.arg('subject')
   AND a.deleted_at IS NULL;
 
+-- name: AccountIdentityProviders :many
+-- The providers an account is connected to (ADR-0075 §2): a step-up at the provider is offered only
+-- at one of these, and only where it is switched on for the workspace - which the caller decides.
+SELECT provider_id FROM account_identity WHERE account_id = sqlc.arg('account_id');
+
 -- name: AccountHasIdentity :one
 -- Whether the account already signs in through some provider (ADR-0071's addendum): such an
 -- identity is a credential of its own, and an account holding one is not connected to another

@@ -27,6 +27,32 @@ func (q *Queries) AccountHasIdentity(ctx context.Context, accountID pgtype.UUID)
 	return held, err
 }
 
+const accountIdentityProviders = `-- name: AccountIdentityProviders :many
+SELECT provider_id FROM account_identity WHERE account_id = $1
+`
+
+// The providers an account is connected to (ADR-0075 §2): a step-up at the provider is offered only
+// at one of these, and only where it is switched on for the workspace - which the caller decides.
+func (q *Queries) AccountIdentityProviders(ctx context.Context, accountID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, accountIdentityProviders, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var provider_id pgtype.UUID
+		if err := rows.Scan(&provider_id); err != nil {
+			return nil, err
+		}
+		items = append(items, provider_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const consumeOidcFlow = `-- name: ConsumeOidcFlow :one
 UPDATE oidc_flow SET consumed_at = $1
 WHERE state_hash = $2
