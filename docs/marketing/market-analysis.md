@@ -119,19 +119,22 @@ Three deliberate exclusions, because a position is defined as much by what it re
 
 | # | Who | What they arrive worried about | The page that answers them |
 |---|---|---|---|
-| 1 | **The sovereign individual** — homelab, prosumer, developer running their own stack | "Will this still be mine in five years, and can I get my data out?" | Start → Self-hosting → Licence (the Change Date) |
-| 2 | **The small provider** — agency, freelancer, consultancy running work for several clients | "Can one instance hold five clients without them seeing each other?" | Use cases → Security → Licence |
-| 3 | **The compliance-bound European team** | "Can I answer an access request, prove the trail, and show an accessibility statement?" | Security and privacy → Accessibility |
+| 1 | **The sovereign individual and their household** — homelab, prosumer, developer running their own stack, and the family sharing it (D1, D2) | "Will this still be mine in five years, and can I get my data out?" | Start → Self-hosting → Licence (the Change Date) |
+| 2 | **The provider** — agency, freelancer, consultancy running work for several clients; a platform selling workspaces to consumers or to companies; a managed service provider (D5, D6, D7) | "Can one instance hold five clients without them seeing each other?" | Use cases → Security → Licence |
+| 3 | **The team, from a club to a compliance-bound European company** (D3, D4, and the customers of D6) | "Can I answer an access request, prove the trail, and show an accessibility statement?" | Security and privacy → Accessibility |
 | 4 | **The automation and agent builder** | "Is the API real, or is it a UI with an export button?" | Developers and agents → Roadmap |
 
 Audience 1 is the volume and the community. Audience 2 is where money would come from. Audience 3
 is what makes audience 2 *choose* Hubtask over a cheaper neighbour. Audience 4 is who writes about
 it. The site is built in that order.
 
-*Against the deployments of [`docs/vision/deployments.md`](../vision/deployments.md) (2026-09-30):*
-audience 1 is D1, audience 2 is D6 and D7, audience 3 is D4 and the customers of D6, and audience 4
-cuts across all of them. D2 (a family) and D5 (a provider for consumers) have no audience here;
-whether the site speaks to them is the owner's to decide.
+**Every deployment is spoken to** (decided by the owner on 2026-10-01): the four audiences carry
+the seven shapes of [`docs/vision/deployments.md`](../vision/deployments.md) — audience 1 is D1 and
+D2, audience 2 is D5, D6 and D7, audience 3 is D3, D4 and the customers of D6, and audience 4 cuts
+across all of them. `/use-cases/` gives each shape its own anchor. **Everything the project builds
+or has decided to build is named on the site**, because what is not named is lost to the reader:
+what is built as available, what is decided and not built yet as *planned*, with its milestone. A
+planned capability is never described as if it worked today.
 
 ---
 

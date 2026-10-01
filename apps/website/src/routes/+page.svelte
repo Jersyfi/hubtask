@@ -290,32 +290,35 @@ curl /api/v1/meta/capabilities</code></pre>
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Who runs it</p>
-      <h2>Four people this was built for</h2>
+      <h2>Seven ways it is run, one product</h2>
     </div>
     <div class="site-cards">
       <div class="site-card">
-        <h3>You, on your own hardware</h3>
+        <h3>You and your household</h3>
         <p>
-          Free, complete, with no feature held back and nothing phoning home. The licence converts
-          to Apache-2.0 on a schedule, so an abandoned project is still yours.
+          Free, complete, with no feature held back and nothing phoning home — for one person or a
+          family sharing some hubs and keeping others to themselves. The licence converts to
+          Apache-2.0 on a schedule, so an abandoned project is still yours.
         </p>
         <a href="/use-cases/#individual">How that looks</a>
       </div>
       <div class="site-card">
-        <h3>An agency with several clients</h3>
+        <h3>A provider, for companies or consumers</h3>
         <p>
-          One instance, one workspace per client, a boundary the database enforces — and a backup
-          and an export per workspace rather than one undifferentiated dump.
+          One instance, one workspace per client or customer, a boundary the database enforces —
+          provisioned by your platform, with your legal texts and your locks, and a backup and an
+          export per workspace rather than one undifferentiated dump.
         </p>
         <a href="/use-cases/#provider">How that looks</a>
       </div>
       <div class="site-card">
-        <h3>A team with obligations</h3>
+        <h3>A club, a team, a company</h3>
         <p>
-          An audit trail that verifies, retention with a legal hold, data subject requests with a
-          deadline, and an accessibility standard the clients are measured against.
+          Roles, groups and reminders for a club; your own directory and password rules for a
+          company — and an audit trail that verifies, retention with a legal hold and data subject
+          requests with a deadline.
         </p>
-        <a href="/security/">What it gives you</a>
+        <a href="/use-cases/#team">How that looks</a>
       </div>
       <div class="site-card">
         <h3>Somebody automating their work</h3>
