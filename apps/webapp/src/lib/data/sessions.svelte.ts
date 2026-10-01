@@ -36,6 +36,10 @@ export interface HeldSession {
   readonly ip_class?: string | null;
   /** Whether this is the session answering the very call that read the list. */
   readonly current: boolean;
+  /** How it was opened; null for a session from before this was recorded. */
+  readonly signed_in_with?: 'PASSWORD' | 'PASSWORD_TOTP' | 'PASSWORD_RECOVERY' | 'OIDC' | 'INVITATION' | 'RESET' | null;
+  /** The provider's name, for a session one opened (UC-ID-06 check 2). */
+  readonly signed_in_provider?: string | null;
 }
 
 class Sessions {

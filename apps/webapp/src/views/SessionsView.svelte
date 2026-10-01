@@ -43,6 +43,8 @@
   const columns = $derived([
     { id: 'client', label: t('app.sessions.client'), isSortable: true },
     { id: 'created', label: t('app.sessions.created'), isSortable: true },
+    // How it was opened (UC-ID-06 check 2): the way in a person recognises a session by.
+    { id: 'method', label: t('app.sessions.method'), isSortable: true },
     { id: 'used', label: t('app.sessions.last_used'), isSortable: true },
     { id: 'network', label: t('app.sessions.network'), isSortable: true },
     // The action column is **start**-aligned, like every other one in these settings. Ending it
@@ -78,11 +80,23 @@
       if (columnId === 'created') return row.created_at;
       if (columnId === 'used') return row.last_used_at;
       if (columnId === 'network') return row.ip_class;
+      if (columnId === 'method') return methodOf(row);
       return row.user_agent;
     },
   });
 
   const shown = $derived(order.rows);
+
+  /**
+   * How a session was opened, in words: the provider by its name where one opened it, and nothing
+   * at all for a session from before this was recorded - a word nobody can act on is not printed.
+   */
+  function methodOf(row: { signed_in_with?: string | null; signed_in_provider?: string | null }): string {
+    const method = row.signed_in_with;
+    if (!method) return '';
+    if (method === 'OIDC') return row.signed_in_provider || t('app.sessions.method_OIDC');
+    return t(`app.sessions.method_${method}`);
+  }
 
   /** An instant as this reader reads one: their locale, their clock (`i18n-l10n.md` §4). */
   function when(at: string | null | undefined): string {
@@ -156,6 +170,7 @@
                 {#if row.current}<span class="here">{t('app.sessions.this_device')}</span>{/if}
               </th>
               <td>{when(row.created_at)}</td>
+              <td>{methodOf(row)}</td>
               <td>{when(row.last_used_at)}</td>
               <td>{row.ip_class ?? '—'}</td>
               <td>

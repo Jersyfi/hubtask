@@ -170,7 +170,7 @@ test('chromium: 1280 px — the two lists are tables, this device first and the 
   // A column per fact, so a reader scans down rather than reading every row to its end.
   assert.deepEqual(
     (await sessions.locator('thead th').allTextContents()).map((head) => head.trim()),
-    ['Client', 'Signed in', 'Last active', 'Network', 'End'],
+    ['Client', 'Signed in', 'Signed in with', 'Last active', 'Network', 'End'],
   );
 
   await page.goto(`${served.origin}/profile/devices`);
@@ -264,4 +264,36 @@ test('chromium: 1280 px — a provider-only account is offered no password and a
   // A refusal that names nothing - the server's answer for an account with neither a password nor
   // a factor - is a sentence and the way to make a proof possible.
   assert.ok(await dialog.getByRole('link', { name: 'Set up a second factor' }).isVisible(), 'the dialog does not say what would make the proof possible');
+});
+
+// UC-ID-06 check 2: every session says how it was opened, in words, and the provider by its name.
+test('chromium: 1280 px — every session says how it was opened', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const opened = [
+    { id: 'm1', user_agent: 'Firefox on Linux', created_at: '2026-09-01T08:00:00Z', last_used_at: null, ip_class: null, current: true, signed_in_with: 'PASSWORD_TOTP' },
+    { id: 'm2', user_agent: 'Safari on iPhone', created_at: '2026-09-02T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: 'OIDC', signed_in_provider: 'Contoso Entra ID' },
+    { id: 'm3', user_agent: 'Chrome on macOS', created_at: '2026-09-03T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: 'PASSWORD_RECOVERY' },
+    { id: 'm4', user_agent: 'Edge on Windows', created_at: '2026-09-04T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: null },
+  ];
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/auth/sessions') return route.fulfill({ json: opened });
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/sessions`);
+  await page.getByText('Safari on iPhone').waitFor();
+
+  const row = async (client) => (await page.locator('tr', { hasText: client }).innerText()).replace(/\s+/g, ' ');
+  assert.match(await row('Firefox on Linux'), /Password and second factor/);
+  assert.match(await row('Safari on iPhone'), /Contoso Entra ID/);
+  assert.match(await row('Chrome on macOS'), /Recovery code/);
+  assert.doesNotMatch(await row('Edge on Windows'), /OIDC|PASSWORD|undefined|null/);
 });
