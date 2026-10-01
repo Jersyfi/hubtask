@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { stub } from './fixture.mjs';
+import { ACCOUNT, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -251,4 +251,27 @@ test('chromium: the provider screen has no switch of its own', async (t) => {
   await page.getByRole('button', { name: 'Change' }).first().click();
   assert.equal(await page.locator('main input[type="checkbox"], main [role="switch"]').count(), 0,
     'a provider is still switched on its own screen');
+});
+
+// UC-ID-12 check 9: the screen reads in German, with no rule falling back to English.
+test('chromium: the sign-in rules read in German', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, (route, path) => {
+    if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale: 'de' } });
+    if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: policy() } });
+    if (path === '/identity-providers') return route.fulfill({ json: [provider('own', 'Contoso Entra ID', 'workspace')] });
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.getByLabel('Mindestlänge', { exact: true }).waitFor({ timeout: 15_000 });
+  const text = await page.locator('main').innerText();
+  for (const german of ['Wege der Anmeldung', 'Hier festgelegt.', 'Voreinstellung von Hubtask.', 'Frühestens änderbar nach, in Stunden', 'Verlangt von']) {
+    assert.ok(text.includes(german), `"${german}" is missing`);
+  }
+  for (const english of ['Minimum length', 'Ways to sign in', 'Set here.', "Hubtask's default", 'Required of', 'Sessions', 'Imprint', 'Where you are in the administration']) {
+    assert.ok(!text.includes(english), `"${english}" fell back to English`);
+  }
 });
