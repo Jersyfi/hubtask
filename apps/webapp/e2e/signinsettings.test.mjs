@@ -175,3 +175,80 @@ test('chromium: a rule that cannot be read is a sentence and a retry', async (t)
   await page.getByLabel('Minimum length', { exact: true }).waitFor();
   assert.equal(reads, before + 1, 'the rule was read again without the reader asking, or not at all');
 });
+
+/** A provider as the listing answers it. */
+const provider = (id, name, scope, { enabled = true, offered = enabled } = {}) => ({
+  id, scope, issuer: `https://${id}.example`, client_id: 'hubtask', display_name: name, kind: 'GENERIC',
+  provisioning: 'INVITED_ONLY', position: 0, enabled, offered_here: offered,
+  allowed_email_domains: [], allowed_directories: [], created_at: '2026-09-01T00:00:00Z', version: 1,
+});
+
+// UC-ID-12 check 6 and UC-ID-11 check 8: every way in - the password, the workspace's own providers
+// and the ones the installation offers - is one row with one switch, in one list; the last way in
+// that is on cannot be switched off.
+test('chromium: the ways to sign in are one list, one switch each, and the last cannot go', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const sent = [];
+  const onlyProvider = policy();
+  onlyProvider.methods = rule(['OIDC'], ['PASSWORD', 'OIDC'], { source: 'WORKSPACE' });
+  const { page, close } = await open(browser, (route, path) => {
+    const request = route.request();
+    if (path === '/tenant' && request.method() === 'GET') {
+      return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: onlyProvider } });
+    }
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [
+        provider('own', 'Contoso Entra ID', 'workspace'),
+        provider('platform', 'The platform', 'installation', { enabled: true, offered: false }),
+      ] });
+    }
+    if (path.endsWith(':offer')) {
+      sent.push({ path, body: request.postDataJSON() });
+      return route.fulfill({ json: provider('platform', 'The platform', 'installation', { offered: true }) });
+    }
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const list = page.getByRole('list', { name: 'Ways to sign in' });
+  await list.waitFor();
+  const rows = (await list.getByRole('listitem').allTextContents()).map((row) => row.replace(/\s+/g, ' ').trim());
+  assert.equal(rows.length, 3, rows.join(' | '));
+  assert.match(rows[0], /Password/);
+  assert.equal(await list.getByRole('switch').count() + await list.locator('input[type="checkbox"]').count() > 0, true);
+
+  // The password is off and one provider is on: that provider is the last way in.
+  const own = list.getByRole('listitem').filter({ hasText: 'Contoso Entra ID' }).locator('input');
+  assert.equal(await own.isDisabled(), true, 'the last way in can be switched off');
+  assert.match(rows[1], /only way in/i, rows[1]);
+
+  // Taking the installation's provider is the one verb, from this list.
+  await list.getByRole('listitem').filter({ hasText: 'The platform' }).locator('input').check();
+  await page.waitForFunction(() => true);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.deepEqual(sent, [{ path: '/identity-providers/platform:offer', body: { offered: true } }]);
+});
+
+// UC-ID-11 check 8: the provider screen configures; it switches nothing.
+test('chromium: the provider screen has no switch of its own', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, (route, path) => {
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [
+        provider('own', 'Contoso Entra ID', 'workspace'),
+        provider('platform', 'The platform', 'installation', { offered: false }),
+      ] });
+    }
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/identity-provider`);
+  await page.getByText('Contoso Entra ID').first().waitFor();
+  await page.getByRole('button', { name: 'Change' }).first().click();
+  assert.equal(await page.locator('main input[type="checkbox"], main [role="switch"]').count(), 0,
+    'a provider is still switched on its own screen');
+});

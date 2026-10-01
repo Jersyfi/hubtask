@@ -5,11 +5,11 @@
   //
   // **Plural, and two levels deep.** The listing carries this workspace's own rows and the ones its
   // installation offers every workspace on it. An inherited row is not this workspace's to change,
-  // so it carries no field and no remove — and exactly one switch, which is the workspace's own:
-  // whether the offer is taken here. "Für alle Arbeitsbereiche angeboten, nirgends an: jeder Owner
-  // schaltet selbst" (ADR-0070 §2). It starts off, because offering is the installation's decision
-  // and taking is this workspace's, and a provider the installation adds tomorrow must not be a way
-  // in here tonight.
+  // so it carries no field and no remove. Whether it is a way in here is the workspace's own call -
+  // "Für alle Arbeitsbereiche angeboten, nirgends an: jeder Owner schaltet selbst" (ADR-0070 §2) -
+  // and since SC-06 that call, like switching any provider on or off, is made in one place: the list
+  // of ways to sign in on the sign-in screen (UC-ID-11 check 8). This screen configures; it says
+  // whether a provider is on here, and switches nothing.
   //
   // **The client secret goes one way, and this screen says so rather than pretending.** It is sealed
   // on the way in and is a member of no answer (E-02), so editing an existing provider shows an empty
@@ -28,7 +28,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
   import type { IdentityProvider, IdentityProviderConfiguration } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -41,8 +41,6 @@
 
   /** Which row the form is editing. `undefined` is closed; the empty string is a new one. */
   let editing = $state<string | undefined>(undefined);
-  /** Which inherited row is being switched, so its control is not pressed twice. */
-  let offering = $state<string | undefined>(undefined);
   let issuer = $state('');
   let clientId = $state('');
   let clientSecret = $state('');
@@ -120,7 +118,9 @@
     provisioning = 'DOMAINS';
     domains = '';
     directories = '';
-    enabled = true;
+    // Off until it is switched on in the list of ways to sign in, the one place a way in is turned
+    // on or off (UC-ID-11 check 8). Configuring is not offering.
+    enabled = false;
     position = identityProvider.own.length;
     failure = undefined;
     saved = false;
@@ -200,26 +200,6 @@
     }
   }
 
-  /**
-   * Takes an offered provider, or gives it back.
-   *
-   * The server answers the refusal when this was the last way in, and the listing is re-read either
-   * way: the switch draws what the server stored rather than what was pressed, so a refused switch
-   * springs back instead of sitting on a state nothing holds.
-   */
-  async function offer(id: string, offered: boolean): Promise<void> {
-    offering = id;
-    failure = undefined;
-    saved = false;
-    try {
-      await identityProvider.offer(id, offered);
-    } catch (cause) {
-      failure = problemOf(cause);
-    } finally {
-      offering = undefined;
-    }
-  }
-
   /** One domain per line, or separated by commas — whichever somebody pastes. */
   function readDomains(written: string): string[] {
     return written
@@ -254,6 +234,10 @@
 
   <Stack gap="300">
     <p class="quiet">{t('app.identity_provider.intro')}</p>
+    <p class="quiet">
+      {t('app.identity_provider.switched_in_sign_in')}
+      <a href="/administration/sign-in">{t('app.identity_provider.to_ways')}</a>
+    </p>
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="quiet">
@@ -291,14 +275,11 @@
                   <span class="detail">{provider.issuer}</span>
                 </div>
                 {#if provider.enabled}
-                  <Switch
-                    label={t('app.identity_provider.offered_here_label')}
-                    hint={t('app.identity_provider.offered_here_hint')}
-                    checked={provider.offered_here === true}
-                    disabledReason={offering === provider.id ? t('app.identity_provider.offering') : undefined}
-                    onchange={(event) =>
-                      void offer(provider.id, (event.currentTarget as HTMLInputElement).checked)}
-                  />
+                  <!-- Said, not switched: whether it is a way in here is set in the list of ways to
+                       sign in, the one place for it (UC-ID-11 check 8). -->
+                  <Badge tone={provider.offered_here ? 'success' : 'neutral'}>
+                    {provider.offered_here ? t('app.identity_provider.badge_on_here') : t('app.identity_provider.badge_off_here')}
+                  </Badge>
                 {:else}
                   <!-- Switched off at the installation. Not a refusal this workspace can lift, and
                        not a switch: a control that cannot do anything is a control somebody presses
@@ -465,11 +446,9 @@
                    the directories named. -->
               <Banner tone="info">{t('app.identity_provider.shared_endpoint')}</Banner>
             {/if}
-            <Switch
-              label={t('app.identity_provider.enabled_label')}
-              hint={t('app.identity_provider.enabled_hint')}
-              bind:checked={enabled}
-            />
+            <!-- No switch here: a provider is turned on or off in the list of ways to sign in,
+                 and nowhere else (UC-ID-11 check 8). A new one is saved off. -->
+            <p class="quiet">{t('app.identity_provider.switched_in_sign_in')}</p>
             <div class="row">
               <Button
                 type="submit"

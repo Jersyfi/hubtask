@@ -25,14 +25,23 @@
   // **A refusal lands at its rule** (check 8): the server names the switch in the field's path, and
   // the sentence is drawn under that control rather than in a banner at the top of eighteen rows.
   //
+  // **Every way in is one row with one switch** (check 6, UC-ID-11 check 8): the password, the
+  // workspace's own providers and the ones the installation offers, in one list. A switch there acts
+  // at once, behind the step-up - the password's through `methods`, a provider's through `:offer`,
+  // the one verb for both kinds - and the provider screen switches nothing any more. The last way in
+  // that is on cannot be switched off, here and at the server.
+  //
   // **Asking everybody for a new password is a button, not a field.** It sets a moment, and every
   // password older than it meets the change step at the next sign-in. It is red, it is behind a
   // confirmation, and its sentence says what it does to sessions.
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Dialog, ErrorState, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, ErrorState, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { TransportError } from '@hubtask/sync-engine';
 
+  import ProviderMark from '../lib/signin/ProviderMark.svelte';
+  import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
   import { signInPolicy, type LockOrigin, type Setting } from '../lib/data/signinpolicy.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -41,6 +50,7 @@
   import { renderProblem } from '../lib/problem.ts';
 
   $effect(() => untrack(() => signInPolicy.open()));
+  $effect(() => untrack(() => identityProvider.open()));
 
   const policy = $derived(signInPolicy.policy);
   const reading = $derived(signInPolicy.state);
@@ -195,6 +205,56 @@
       // value it bounded is a value this form has to show.
       fill();
       announcer.say(t('app.signin_settings.saved'));
+    }
+  }
+
+  // The ways in, and how many of them are on. The last one on cannot be switched off.
+  const providers = $derived(identityProvider.all);
+  const passwordOn = $derived(policy?.methods.value.includes('PASSWORD') ?? false);
+  const waysOn = $derived((passwordOn ? 1 : 0) + providers.filter((one) => one.offered_here === true).length);
+  let switching = $state<string | undefined>(undefined);
+  let wayFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+
+  /** Why a way that is on cannot be switched off: it is the only one left. */
+  function lastWay(isOn: boolean): string | undefined {
+    return isOn && waysOn <= 1 ? t('app.signin_settings.last_way') : undefined;
+  }
+
+  /** Why the password cannot be switched here, where it cannot. */
+  function passwordFixed(): string | undefined {
+    if (!policy) return undefined;
+    const locked = lockedBecause(policy.methods.lock);
+    if (locked) return locked;
+    if (!passwordOn && !policy.methods.installation.includes('PASSWORD')) return t('app.signin_settings.not_offered_above');
+    return lastWay(passwordOn);
+  }
+
+  /**
+   * The password on or off, through the rule's `methods`. The providers stay a way in as far as the
+   * rule goes wherever the installation permits them, and each provider's own switch decides it.
+   */
+  async function setPassword(on: boolean): Promise<void> {
+    if (!policy) return;
+    switching = 'password';
+    wayFailure = undefined;
+    const methods = [
+      ...(on ? ['PASSWORD'] : []),
+      ...(policy.methods.installation.includes('OIDC') ? ['OIDC'] : []),
+    ];
+    await signInPolicy.save({ methods });
+    switching = undefined;
+  }
+
+  /** A provider on or off as a way in here: `:offer`, the one verb for both kinds of row. */
+  async function setProvider(id: string, on: boolean): Promise<void> {
+    switching = id;
+    wayFailure = undefined;
+    try {
+      await identityProvider.offer(id, on);
+    } catch (cause) {
+      wayFailure = cause instanceof TransportError ? renderProblem(cause, messages) : undefined;
+    } finally {
+      switching = undefined;
     }
   }
 
@@ -354,6 +414,50 @@
 
           <section class="panel">
             <Stack gap="200">
+              <h2 id="ways">{t('app.signin_settings.ways')}</h2>
+              <p class="quiet small">{t('app.signin_settings.ways_hint')}</p>
+              {#if wayFailure}
+                <Banner tone="danger" title={wayFailure.message}>
+                  {#if wayFailure.reference}{wayFailure.reference}{/if}
+                </Banner>
+              {/if}
+              <ul class="ways" aria-labelledby="ways">
+                <li class="way" data-rule>
+                  <Switch
+                    label={t('app.signin_settings.way_password')}
+                    hint={t('app.signin_settings.way_password_hint')}
+                    checked={passwordOn}
+                    onchange={(event) => void setPassword((event.currentTarget as HTMLInputElement).checked)}
+                    disabledReason={switching === 'password' ? t('app.signin_settings.switching') : passwordFixed()}
+                  />
+                  {#if refusalOf('methods')}<p class="refusal" role="alert">{refusalOf('methods')}</p>{/if}
+                </li>
+                {#each providers as one (one.id)}
+                  <li class="way" data-rule>
+                    <ProviderMark kind={one.kind} name={one.display_name} />
+                    {#if one.scope === 'installation' && !one.enabled}
+                      <!-- Switched off where it is offered: not a choice this workspace has, so no
+                           switch - a sentence saying so. -->
+                      <span class="name">{one.display_name}</span>
+                      <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
+                    {:else}
+                      <Switch
+                        label={one.display_name}
+                        hint={one.scope === 'installation' ? t('app.signin_settings.way_offered') : t('app.signin_settings.way_own')}
+                        checked={one.offered_here === true}
+                        onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
+                        disabledReason={switching === one.id ? t('app.signin_settings.switching') : lastWay(one.offered_here === true)}
+                      />
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+              <p class="small"><a href="/administration/identity-provider">{t('app.signin_settings.configure_providers')}</a></p>
+            </Stack>
+          </section>
+
+          <section class="panel">
+            <Stack gap="200">
               <h2>{t('app.signin_settings.sessions')}</h2>
               {@render countRow('session_max_days', policy.session.max_days, t('app.signin_settings.session_max_days'), undefined, { min: 1, max: policy.session.max_days.installation || undefined })}
               {@render countRow('session_idle_minutes', policy.session.idle_minutes, t('app.signin_settings.session_idle'), t('app.signin_settings.session_idle_hint'), capped(policy.session.idle_minutes), true)}
@@ -447,6 +551,12 @@
     color: var(--text-danger);
     font-size: var(--fs-075);
   }
+
+  .ways { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-150); }
+
+  .way { display: flex; align-items: flex-start; gap: var(--sp-150); }
+
+  .way .name { color: var(--text-primary); }
 
   .classes { margin: 0; padding: 0; border: 0; }
 
