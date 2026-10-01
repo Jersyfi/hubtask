@@ -155,7 +155,7 @@ func (c *RestController) ConfirmTotp(w http.ResponseWriter, r *http.Request) {
 // DisableTotp answers POST /auth/mfa:disable. Written out for ListServiceAccounts' reason: the
 // identity helper's closure gives the linter nothing to trace the request's context through.
 func (c *RestController) DisableTotp(
-	w http.ResponseWriter, r *http.Request, _ openapi.DisableTotpParams,
+	w http.ResponseWriter, r *http.Request, params openapi.DisableTotpParams,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.UseCases == nil {
@@ -172,7 +172,7 @@ func (c *RestController) DisableTotp(
 			return
 		}
 	}
-	in := usecase.Input{}
+	in := usecase.Input{"step_up_token": stepUpHeaderField(params.XHubtaskStepUp)}
 	if body.Password != nil {
 		in["password"] = *body.Password
 	}
