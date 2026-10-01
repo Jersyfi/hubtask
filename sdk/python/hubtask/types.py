@@ -293,16 +293,22 @@ class SignInPolicyNumber(TypedDict, total=False):
     value: Required[int]
     installation: Required[int]
     lock: Required["PolicyLock"]
+    source: Required["PolicySource"]
+    installation_source: Required["PolicySource"]
 
 class SignInPolicyFlag(TypedDict, total=False):
     value: Required[bool]
     installation: Required[bool]
     lock: Required["PolicyLock"]
+    source: Required["PolicySource"]
+    installation_source: Required["PolicySource"]
 
 class SignInPolicyText(TypedDict, total=False):
     value: Required[str]
     installation: Required[str]
     lock: Required["PolicyLock"]
+    source: Required["PolicySource"]
+    installation_source: Required["PolicySource"]
 
 SignInMethod = Literal["PASSWORD", "OIDC"]
 
@@ -310,6 +316,10 @@ class SignInPolicyMethods(TypedDict, total=False):
     value: Required[list["SignInMethod"]]
     installation: Required[list["SignInMethod"]]
     lock: Required["PolicyLock"]
+    source: Required["PolicySource"]
+    installation_source: Required["PolicySource"]
+
+PolicySource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]
 
 PolicyLock = Literal["INSTANCE", "PLAN"] | None
 

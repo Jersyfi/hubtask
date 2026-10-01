@@ -204,7 +204,12 @@ func signInPolicyOutput(resolved ResolvedPolicy) usecase.Output {
 	policy, above := resolved.Effective.Policy, resolved.Installation
 
 	setting := func(name domain.PolicySwitch, value, installation any) usecase.Output {
-		out := usecase.Output{"value": value, "installation": installation, "lock": nil}
+		out := usecase.Output{
+			"value": value, "installation": installation, "lock": nil,
+			// Where the value came from, and who decided the level above it (UC-ID-12 check 4).
+			"source":              string(resolved.Effective.SourceOf(name)),
+			"installation_source": string(resolved.InstallationEffective.SourceOf(name)),
+		}
 		if origin := resolved.Effective.LockOf(name); origin != domain.LockNone {
 			out["lock"] = string(origin)
 		}
@@ -233,6 +238,10 @@ func signInPolicyOutput(resolved ResolvedPolicy) usecase.Output {
 			"value":        resolved.Legal.Of(name),
 			"installation": resolved.InstallationLegal.Of(name),
 			"lock":         nil,
+			"source": string(domain.LegalSourceOf(
+				name, resolved.InstanceLegal, resolved.Workspace.Settings.LegalLayer())),
+			"installation_source": string(domain.LegalSourceOf(
+				name, resolved.InstanceLegal, domain.LegalLayer{})),
 		}
 		if origin := resolved.LegalLock[name]; origin != domain.LockNone {
 			out["lock"] = string(origin)

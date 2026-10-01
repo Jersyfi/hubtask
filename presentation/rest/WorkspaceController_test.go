@@ -213,3 +213,25 @@ func TestNamingTheSlugIsRefusedRatherThanIgnored(t *testing.T) {
 		t.Errorf("the refusal points at %v, want /slug", problem.FieldErrors)
 	}
 }
+
+// Where each value came from reaches the body (UC-ID-12 check 4). The projection is written by
+// hand, and a member it does not copy validates, generates and never arrives.
+func TestEveryRuleCarriesItsSourceToTheBody(t *testing.T) {
+	row := func(source, above string) usecase.Output {
+		return usecase.Output{"value": 12, "installation": 12, "lock": nil, "source": source, "installation_source": above}
+	}
+	answer := signInPolicyResponse(usecase.Output{
+		"password":         usecase.Output{"min_length": row("WORKSPACE", "INSTANCE")},
+		"mfa_required_for": usecase.Output{"value": "NONE", "installation": "NONE", "source": "DEFAULT", "installation_source": "DEFAULT"},
+		"methods":          usecase.Output{"value": []any{"PASSWORD"}, "installation": []any{"PASSWORD"}, "source": "INSTANCE", "installation_source": "INSTANCE"},
+		"session":          usecase.Output{"max_days": row("DEFAULT", "DEFAULT")},
+		"legal":            usecase.Output{"imprint_url": usecase.Output{"value": "", "installation": "", "source": "INSTANCE", "installation_source": "INSTANCE"}},
+	})
+	if answer.Password.MinLength.Source != "WORKSPACE" || answer.Password.MinLength.InstallationSource != "INSTANCE" {
+		t.Errorf("min_length carries %q / %q", answer.Password.MinLength.Source, answer.Password.MinLength.InstallationSource)
+	}
+	if answer.MfaRequiredFor.Source != "DEFAULT" || answer.Methods.Source != "INSTANCE" ||
+		answer.Legal.ImprintUrl.Source != "INSTANCE" || answer.Session.MaxDays.Source != "DEFAULT" {
+		t.Errorf("a rule lost its source: %+v", answer)
+	}
+}

@@ -525,3 +525,39 @@ func TestTheOldFlagTranslatesIntoTheRule(t *testing.T) {
 		}
 	}
 }
+
+// Every switch says where its value came from (UC-ID-12 check 4, P-06): the product's default, the
+// installation, or this workspace - and a workspace value the resolution ignored, because a lock or
+// the level above overruled it, is not called the workspace's.
+func TestEverySwitchSaysWhichLevelDecidedIt(t *testing.T) {
+	sixteen, twelve, ten := 16, 12, 10
+	instance := PolicyLayer{
+		Patch: PolicyPatch{MinLength: &twelve, HistoryCount: &ten},
+		Locks: map[PolicySwitch]bool{SwitchHistoryCount: true},
+	}
+	workspace := PolicyLayer{Patch: PolicyPatch{
+		MinLength:    &sixteen, // tightens: the workspace's
+		HistoryCount: &sixteen, // locked above: the installation's
+		MaxAgeDays:   &ten,     // set here alone
+	}}
+	effective := Effective(instance, PolicyLayer{}, workspace)
+
+	for name, want := range map[PolicySwitch]PolicySource{
+		SwitchMinLength:      SourceWorkspace,
+		SwitchHistoryCount:   SourceInstance,
+		SwitchMaxAgeDays:     SourceWorkspace,
+		SwitchBreachCheck:    SourceDefault,
+		SwitchMfaRequiredFor: SourceDefault,
+	} {
+		if got := effective.SourceOf(name); got != want {
+			t.Errorf("%s comes from %q, want %q", name, got, want)
+		}
+	}
+
+	// A workspace value the installation has since moved past is ignored, and so not the workspace's.
+	eight := 8
+	stale := Effective(instance, PolicyLayer{}, PolicyLayer{Patch: PolicyPatch{MinLength: &eight}})
+	if got := stale.SourceOf(SwitchMinLength); got != SourceInstance {
+		t.Errorf("an overruled workspace value reads as %q, want the installation's", got)
+	}
+}

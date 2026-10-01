@@ -149,3 +149,43 @@ func TestTheOldFlagMeetsEveryCheckTheRuleHas(t *testing.T) {
 		t.Errorf("%d writes from refused changes", len(fixture.store.updates))
 	}
 }
+
+// UC-ID-12 check 4: every rule answers where its value in force came from and who decided the level
+// above it - so the screen can say "set by the installation" or "set here", and say nothing about
+// an installation that decided nothing (the private installation of D1, P-10).
+func TestEveryRuleAnswersWhereItsValueCameFrom(t *testing.T) {
+	fixture := newWorkspacePolicyFixture(now)
+	fixture.instance.level.Policy.Patch = domain.PolicyPatch{MinLength: intOf(14)}
+	fixture.instance.level.Legal = domain.LegalLayer{
+		Links: domain.LegalLinks{ImprintURL: "https://host.example/imprint"},
+		Locks: map[domain.LegalLink]bool{},
+	}
+	fixture.store.row.Settings.SignIn = domain.PolicyPatch{HistoryCount: intOf(4)}
+
+	resolved, err := fixture.writer.Resolver.Resolve(t.Context(), tenant)
+	if err != nil {
+		t.Fatalf("resolving: %v", err)
+	}
+	out := signInPolicyOutput(resolved)
+	password, _ := out["password"].(usecase.Output)
+	legal, _ := out["legal"].(usecase.Output)
+
+	for _, c := range []struct {
+		name          string
+		setting       any
+		source, above string
+	}{
+		{"min_length", password["min_length"], "INSTANCE", "INSTANCE"},
+		{"history_count", password["history_count"], "WORKSPACE", "DEFAULT"},
+		{"breach_check", password["breach_check"], "DEFAULT", "DEFAULT"},
+		{"mfa_required_for", out["mfa_required_for"], "DEFAULT", "DEFAULT"},
+		{"imprint_url", legal["imprint_url"], "INSTANCE", "INSTANCE"},
+		{"privacy_url", legal["privacy_url"], "DEFAULT", "DEFAULT"},
+	} {
+		row, _ := c.setting.(usecase.Output)
+		if row["source"] != c.source || row["installation_source"] != c.above {
+			t.Errorf("%s answers source %v / installation_source %v, want %s / %s",
+				c.name, row["source"], row["installation_source"], c.source, c.above)
+		}
+	}
+}

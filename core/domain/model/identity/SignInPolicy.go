@@ -405,10 +405,33 @@ type PolicyLayer struct {
 type EffectivePolicy struct {
 	Policy SignInPolicy
 	Locks  map[PolicySwitch]LockOrigin
+	// Sources is which level each switch's value came from, where one decided it. Absent is the
+	// product's default.
+	Sources map[PolicySwitch]PolicySource
 }
+
+// PolicySource is where a value in force came from (P-06): Hubtask's default, the installation,
+// the plan or this workspace. The screen says it beside every rule, so nobody meets a value without
+// learning who set it.
+type PolicySource string
+
+const (
+	SourceDefault   PolicySource = "DEFAULT"
+	SourceInstance  PolicySource = "INSTANCE"
+	SourcePlan      PolicySource = "PLAN"
+	SourceWorkspace PolicySource = "WORKSPACE"
+)
 
 // LockOf answers where a switch is locked, or LockNone.
 func (e EffectivePolicy) LockOf(name PolicySwitch) LockOrigin { return e.Locks[name] }
+
+// SourceOf answers which level decided a switch's value in force.
+func (e EffectivePolicy) SourceOf(name PolicySwitch) PolicySource {
+	if source, held := e.Sources[name]; held {
+		return source
+	}
+	return SourceDefault
+}
 
 // IsLocked is LockOf as the question a writer asks.
 func (e EffectivePolicy) IsLocked(name PolicySwitch) bool { return e.Locks[name] != LockNone }
@@ -425,11 +448,13 @@ func (e EffectivePolicy) IsLocked(name PolicySwitch) bool { return e.Locks[name]
 func Effective(instance, plan, workspace PolicyLayer) EffectivePolicy {
 	resolved := DefaultSignInPolicy()
 	locks := map[PolicySwitch]LockOrigin{}
+	sources := map[PolicySwitch]PolicySource{}
 
 	for _, level := range []struct {
 		layer  PolicyLayer
 		origin LockOrigin
-	}{{instance, LockInstance}, {plan, LockPlan}, {workspace, LockNone}} {
+		source PolicySource
+	}{{instance, LockInstance, SourceInstance}, {plan, LockPlan, SourcePlan}, {workspace, LockNone, SourceWorkspace}} {
 		for _, name := range level.layer.Patch.Decided() {
 			if locks[name] != LockNone && level.origin == LockNone {
 				// A locked switch: the workspace's value is ignored rather than refused here.
@@ -446,6 +471,7 @@ func Effective(instance, plan, workspace PolicyLayer) EffectivePolicy {
 				continue
 			}
 			resolved = applySwitch(resolved, name, level.layer.Patch)
+			sources[name] = level.source
 		}
 		if level.origin == LockNone {
 			continue
@@ -457,7 +483,7 @@ func Effective(instance, plan, workspace PolicyLayer) EffectivePolicy {
 		}
 	}
 
-	return EffectivePolicy{Policy: bounded(resolved), Locks: locks}
+	return EffectivePolicy{Policy: bounded(resolved), Locks: locks, Sources: sources}
 }
 
 // applySwitch writes one switch of a patch onto the policy. Every switch is here once, which is

@@ -11984,7 +11984,9 @@
         "required": [
           "value",
           "installation",
-          "lock"
+          "lock",
+          "source",
+          "installation_source"
         ],
         "properties": {
           "value": {
@@ -11997,6 +11999,13 @@
           },
           "lock": {
             "$ref": "#/components/schemas/PolicyLock"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PolicySource"
+          },
+          "installation_source": {
+            "$ref": "#/components/schemas/PolicySource",
+            "description": "Who decided the level above's value - `DEFAULT` where the installation decided nothing."
           }
         }
       },
@@ -12005,7 +12014,9 @@
         "required": [
           "value",
           "installation",
-          "lock"
+          "lock",
+          "source",
+          "installation_source"
         ],
         "properties": {
           "value": {
@@ -12016,6 +12027,13 @@
           },
           "lock": {
             "$ref": "#/components/schemas/PolicyLock"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PolicySource"
+          },
+          "installation_source": {
+            "$ref": "#/components/schemas/PolicySource",
+            "description": "Who decided the level above's value - `DEFAULT` where the installation decided nothing."
           }
         }
       },
@@ -12024,7 +12042,9 @@
         "required": [
           "value",
           "installation",
-          "lock"
+          "lock",
+          "source",
+          "installation_source"
         ],
         "properties": {
           "value": {
@@ -12035,6 +12055,13 @@
           },
           "lock": {
             "$ref": "#/components/schemas/PolicyLock"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PolicySource"
+          },
+          "installation_source": {
+            "$ref": "#/components/schemas/PolicySource",
+            "description": "Who decided the level above's value - `DEFAULT` where the installation decided nothing."
           }
         }
       },
@@ -12051,7 +12078,9 @@
         "required": [
           "value",
           "installation",
-          "lock"
+          "lock",
+          "source",
+          "installation_source"
         ],
         "properties": {
           "value": {
@@ -12068,8 +12097,25 @@
           },
           "lock": {
             "$ref": "#/components/schemas/PolicyLock"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PolicySource"
+          },
+          "installation_source": {
+            "$ref": "#/components/schemas/PolicySource",
+            "description": "Who decided the level above's value - `DEFAULT` where the installation decided nothing."
           }
         }
+      },
+      "PolicySource": {
+        "type": "string",
+        "enum": [
+          "DEFAULT",
+          "INSTANCE",
+          "PLAN",
+          "WORKSPACE"
+        ],
+        "description": "Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.\n"
       },
       "PolicyLock": {
         "type": [

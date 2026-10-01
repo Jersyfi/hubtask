@@ -2025,6 +2025,30 @@ func (e PolicyLock) Valid() bool {
 	}
 }
 
+// Defines values for PolicySource.
+const (
+	PolicySourceDEFAULT   PolicySource = "DEFAULT"
+	PolicySourceINSTANCE  PolicySource = "INSTANCE"
+	PolicySourcePLAN      PolicySource = "PLAN"
+	PolicySourceWORKSPACE PolicySource = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the PolicySource enum.
+func (e PolicySource) Valid() bool {
+	switch e {
+	case PolicySourceDEFAULT:
+		return true
+	case PolicySourceINSTANCE:
+		return true
+	case PolicySourcePLAN:
+		return true
+	case PolicySourceWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
@@ -6286,6 +6310,9 @@ type PasswordViolation struct {
 // PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
 type PolicyLock string
 
+// PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+type PolicySource string
+
 // Problem defines model for Problem.
 type Problem struct {
 	// Code A stable, machine-readable error code (part of the contract).
@@ -7237,18 +7264,30 @@ type SignInPolicyChangeRotationFrom string
 type SignInPolicyFlag struct {
 	Installation bool `json:"installation"`
 
+	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	InstallationSource PolicySource `json:"installation_source"`
+
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
-	Lock  *PolicyLock `json:"lock"`
-	Value bool        `json:"value"`
+	Lock *PolicyLock `json:"lock"`
+
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	Source PolicySource `json:"source"`
+	Value  bool         `json:"value"`
 }
 
 // SignInPolicyMethods defines model for SignInPolicyMethods.
 type SignInPolicyMethods struct {
 	Installation []SignInMethod `json:"installation"`
 
+	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	InstallationSource PolicySource `json:"installation_source"`
+
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
-	Lock  *PolicyLock    `json:"lock"`
-	Value []SignInMethod `json:"value"`
+	Lock *PolicyLock `json:"lock"`
+
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	Source PolicySource   `json:"source"`
+	Value  []SignInMethod `json:"value"`
 }
 
 // SignInPolicyNumber One numeric switch, at the three levels that decide it. Zero is off for every one of them.
@@ -7256,8 +7295,14 @@ type SignInPolicyNumber struct {
 	// Installation What the level above set, which is what this workspace may tighten.
 	Installation int `json:"installation"`
 
+	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	InstallationSource PolicySource `json:"installation_source"`
+
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
 	Lock *PolicyLock `json:"lock"`
+
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	Source PolicySource `json:"source"`
 
 	// Value What is in force in this workspace.
 	Value int `json:"value"`
@@ -7267,9 +7312,15 @@ type SignInPolicyNumber struct {
 type SignInPolicyText struct {
 	Installation string `json:"installation"`
 
+	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	InstallationSource PolicySource `json:"installation_source"`
+
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
-	Lock  *PolicyLock `json:"lock"`
-	Value string      `json:"value"`
+	Lock *PolicyLock `json:"lock"`
+
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	Source PolicySource `json:"source"`
+	Value  string       `json:"value"`
 }
 
 // SignInRules The least a sign-in screen needs, and deliberately no more.
