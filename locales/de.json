@@ -474,8 +474,6 @@
   "app.workspace.zone": "Ausweichzeitzone",
   "app.workspace.zone_hint": "Worin Zeiten für jemanden gezeigt werden, der keine eigene Zone eingestellt hat.",
   "app.workspace.zone_free": "Eine IANA-Zone wie Europe/Berlin.",
-  "app.workspace.require_totp": "Administratoren brauchen einen zweiten Faktor",
-  "app.workspace.require_totp_hint": "Ist das an, wird jeder Eigentümer und Administrator bei der nächsten Anmeldung nach einem zweiten Faktor gefragt – auch du. Wer keinen hat, wird zum Einrichten geschickt, bevor er hineinkommt; niemand wird also ausgesperrt, aber das Telefon muss griffbereit sein.",
   "app.workspace.save": "Speichern",
   "app.workspace.saving": "Wird gespeichert",
   "app.workspace.saved": "Gespeichert.",

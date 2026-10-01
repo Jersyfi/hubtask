@@ -1838,8 +1838,6 @@
   "app.workspace.zone": "Fallback time zone",
   "app.workspace.zone_hint": "What times are shown in for somebody who has set no zone of their own.",
   "app.workspace.zone_free": "An IANA zone, such as Europe/Berlin.",
-  "app.workspace.require_totp": "Administrators need a second factor",
-  "app.workspace.require_totp_hint": "Switching this on asks every owner and administrator for a second factor at their next sign-in — including you. Somebody who has none is sent to set one up before they get in, so nobody is locked out, but they will need their phone to hand.",
   "app.workspace.save": "Save",
   "app.workspace.saving": "Saving",
   "app.workspace.saved": "Saved.",

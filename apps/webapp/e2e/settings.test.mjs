@@ -215,3 +215,28 @@ test('chromium: 1280 px — the profile does not offer to turn off a factor the 
     await context.close();
   }
 });
+
+// UC-ID-12 check 1: who needs a second factor is set in one place, the sign-in screen. The
+// Workspace screen had its own switch for it, stored apart from the rule and able to disagree.
+test('chromium: 1280 px — the workspace screen has no second-factor switch of its own', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/tenant') {
+      return route.fulfill({ json: { id: 'w1', slug: 'acme', display_name: 'Acme', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'Europe/Berlin', require_admin_totp: true, created_at: '2026-09-01T00:00:00Z', version: 3 } });
+    }
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/workspace`);
+  await page.waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'Acme'), null, { timeout: 15_000 });
+  assert.equal(await page.getByText('Administrators need a second factor').count(), 0, 'the second place for the rule is still there');
+  assert.equal(await page.getByRole('switch').count() + await page.locator('input[type="checkbox"]').count(), 0, 'a switch is left on the workspace screen');
+});
