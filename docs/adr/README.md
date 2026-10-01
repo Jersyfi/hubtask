@@ -82,3 +82,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0073](./ADR-0073-private-hubs.md) | A private hub narrows what the workspace's roles reach | accepted | Authorization, domain, data protection |
 | [0074](./ADR-0074-managed-accounts.md) | Managed accounts: a sign-in name, a start password, and who may renew it | accepted | Identity, security |
 | [0075](./ADR-0075-step-up-with-what-the-account-holds.md) | A step-up proves the account with whatever it holds | accepted | Identity, security |
+| [0076](./ADR-0076-withdrawing-an-offered-provider.md) | Withdrawing an offered sign-in provider: a count, a notice, and a way back in | accepted | Identity, multi-tenancy |
