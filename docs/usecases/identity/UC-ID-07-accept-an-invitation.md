@@ -6,8 +6,8 @@ actors: [PE-member, PE-guest, PE-child, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-10, P-12, P-13]
 state: partial
-tasks: [H-01, SI-14, SI-15]
-checked_by: [apps/webapp/e2e/signin.test.mjs]
+tasks: [H-01, SI-14, SI-15, SC-24]
+checked_by: [apps/webapp/e2e/signin.test.mjs, core/application/service/identity/OidcInvitation_test.go, test/integration/invitation_by_provider_test.go]
 ---
 
 # Accept an invitation and set up my account
@@ -48,5 +48,10 @@ invitation used twice, or after it expired, gets one plain sentence and the name
 ## Today
 
 * **Check 4 fails:** there is no terms agreement at all — see UC-ID-19.
-* **Check 5 fails in the web app:** the invitation card offers no provider. Signing in through an
-  `INVITED_ONLY` provider does claim the invited account, but only from the sign-in card.
+* **Check 5 holds since SC-24.** Signing in through the workspace's provider accepts the invitation:
+  the account becomes ACTIVE and the invitation is spent in one statement, unless it ran out
+  (`TestAnInvitedPersonAcceptsTheInvitationThroughTheProvider`, `invitation_by_provider_test.go`).
+  Before, the arrival connected the provider and then refused the account as not active - the server
+  half was missing too. The invitation card offers the provider beside the password, and in a
+  workspace that switched the password off offers only the provider (`signin.test.mjs`, against a
+  stubbed API).
