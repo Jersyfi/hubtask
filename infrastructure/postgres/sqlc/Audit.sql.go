@@ -186,23 +186,25 @@ FROM audit_log
 WHERE tenant_id = current_tenant_id()
   AND ($1::timestamptz IS NULL OR occurred_at >= $1::timestamptz)
   AND ($2::timestamptz IS NULL OR occurred_at < $2::timestamptz)
-  AND ($3::text IS NULL OR starts_with(action, $3::text))
-  AND ($4::uuid IS NULL OR actor_id = $4::uuid)
-  AND ($5::text IS NULL OR target_type = $5::text)
-  AND ($6::uuid IS NULL OR target_id = $6::uuid)
-  AND ($7::text IS NULL OR outcome = $7::text)
+  AND ($3::text IS NULL OR starts_with(action, $3::text)
+       OR action = ANY($4::text[]))
+  AND ($5::uuid IS NULL OR actor_id = $5::uuid)
+  AND ($6::text IS NULL OR target_type = $6::text)
+  AND ($7::uuid IS NULL OR target_id = $7::uuid)
+  AND ($8::text IS NULL OR outcome = $8::text)
   AND (
-    $8::timestamptz IS NULL
-    OR (occurred_at, id) < ($8::timestamptz, $9::uuid)
+    $9::timestamptz IS NULL
+    OR (occurred_at, id) < ($9::timestamptz, $10::uuid)
   )
 ORDER BY occurred_at DESC, id DESC
-LIMIT $10
+LIMIT $11
 `
 
 type ListAuditEntriesParams struct {
 	FromTime         pgtype.Timestamptz
 	ToTime           pgtype.Timestamptz
 	ActionPrefix     *string
+	ActionAlso       []string
 	ActorID          pgtype.UUID
 	TargetType       *string
 	TargetID         pgtype.UUID
@@ -221,7 +223,8 @@ type ListAuditEntriesParams struct {
 //
 // `starts_with` rather than LIKE for the action, because a caller's `%` would otherwise be a
 // wildcard: `action` is a dotted code and a prefix filter on `auth.` is the whole point, so the
-// prefix is compared as text rather than as a pattern.
+// prefix is compared as text rather than as a pattern. `action_also` is the other names of a renamed
+// action (SC-29), matched whole: the stored entry keeps the name it was written with.
 //
 // The boundary is the pair (occurred_at, id): entries written in the same transaction share a
 // timestamp, so a cursor on the time alone would either skip one or return one forever. The pair
@@ -236,6 +239,7 @@ func (q *Queries) ListAuditEntries(ctx context.Context, arg ListAuditEntriesPara
 		arg.FromTime,
 		arg.ToTime,
 		arg.ActionPrefix,
+		arg.ActionAlso,
 		arg.ActorID,
 		arg.TargetType,
 		arg.TargetID,

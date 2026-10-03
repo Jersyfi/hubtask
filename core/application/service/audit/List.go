@@ -253,9 +253,11 @@ func (h ListAuditEntries) invoke(
 ) (usecase.Output, error) {
 	filter := repository.Filter{
 		ActionPrefix: in.String("action"),
-		TargetType:   in.String("target_type"),
-		Outcome:      port.Outcome(in.String("outcome")),
-		Page:         repository.Page{Cursor: in.String("cursor"), Size: in.Int("size")},
+		// A renamed action is one action under two names (SC-29): stored entries keep the old one.
+		ActionAlso: port.Aliases(in.String("action")),
+		TargetType: in.String("target_type"),
+		Outcome:    port.Outcome(in.String("outcome")),
+		Page:       repository.Page{Cursor: in.String("cursor"), Size: in.Int("size")},
 	}
 	if raw := in.String("from"); raw != "" {
 		from, err := parseInstant(raw, "from")
