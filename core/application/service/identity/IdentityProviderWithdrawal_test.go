@@ -26,16 +26,6 @@ func detailOf(err error) string {
 	return shared.AsError(err).DetailCode
 }
 
-// offeredCount reads the installation row's count from the store.
-func (f *offerFixture) offeredCount(id shared.ID) int {
-	for _, row := range f.store.rows {
-		if row.ID == id {
-			return row.OfferedWorkspaces
-		}
-	}
-	return -1
-}
-
 // withdrawAt announces the installation row's withdrawal, as the operator's use case would.
 func (f *offerFixture) withdrawAt(id shared.ID, at time.Time) {
 	for i, row := range f.store.rows {
@@ -100,7 +90,7 @@ func TestAWithdrawnProviderCannotBeSwitchedOnAgain(t *testing.T) {
 	if !errors.Is(err, shared.ErrValidation) || detailOf(err) != "identity_provider.withdrawn" {
 		t.Fatalf("switching on a withdrawn provider answered %v, want identity_provider.withdrawn", err)
 	}
-	if f.workspaces.row.Settings.Offers(id) || f.offeredCount(id) != 0 {
+	if f.workspaces.row.Settings.Offers(id) {
 		t.Error("the refused switch was written")
 	}
 }

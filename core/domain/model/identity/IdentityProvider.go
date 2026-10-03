@@ -102,7 +102,9 @@ type IdentityProvider struct {
 	// without an end. Until then the provider works; from then it is a way in nowhere.
 	WithdrawAt time.Time
 	// OfferedWorkspaces is how many workspaces have the installation's row switched on - a number,
-	// never names (ADR-0076 §1). Answered to the operator only.
+	// never names (ADR-0076 §1). Counted from the workspaces' own switches where the installation
+	// reads it, so every write to them leaves it true, and zero wherever a workspace reads it
+	// (ADR-0077 §1). Answered to the operator only.
 	OfferedWorkspaces int
 }
 
