@@ -6,7 +6,6 @@ package admin
 import (
 	"context"
 	"errors"
-	"strconv"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -159,12 +158,7 @@ func (w InstanceProviderWriter) offerEnded(ctx context.Context, id shared.ID) er
 			}
 			return err
 		}
-		if found.OfferedAt(w.Instance.Clock.Now()) && found.OfferedWorkspaces > 0 {
-			return shared.ErrValidation.
-				WithDetail("identity_provider.withdraw_first").
-				WithParams(map[string]string{"count": strconv.Itoa(found.OfferedWorkspaces)})
-		}
-		return nil
+		return found.RemovableAt(w.Instance.Clock.Now())
 	})
 }
 
