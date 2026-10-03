@@ -257,8 +257,12 @@ type ResetLink struct {
 	// HasPassword is false for an account that signs in through a provider. The mail then says so
 	// rather than carrying a link to a password screen that would set a second way in.
 	HasPassword bool
-	Address     string
-	Locale      string
+	// First is the one exception (ADR-0077 §3): a provider-only account in a workspace whose last
+	// way in was an offer that ended. There is no provider left to point to, so the mail carries a
+	// link to set a first password - the way back in for somebody who never held one.
+	First   bool
+	Address string
+	Locale  string
 }
 
 // MintResetToken draws, stores the hash, and answers the plaintext for the mail.
@@ -283,14 +287,17 @@ func (m MintResetToken) MintResetToken(
 	}
 	// A workspace that switched the password off gets the mail that points to its provider, for
 	// every account in it (SC-24): a link to set a password there would offer a closed door.
-	open, _, err := w.PasswordOpen(ctx, tenantID)
+	open, fallback, err := w.PasswordOpen(ctx, tenantID)
 	if err != nil {
 		return ResetLink{}, err
 	}
 	if !open {
 		link.HasPassword = false
 	}
-	if !link.HasPassword {
+	// Nobody is left without a way in (ADR-0077 §3): under the fallback the provider the mail would
+	// point to is gone, and the mailbox is the proof a reset accepts from every other account.
+	link.First = fallback && !link.HasPassword
+	if !link.HasPassword && !link.First {
 		return link, nil
 	}
 
@@ -355,7 +362,8 @@ func (h ResetPassword) Execute(
 	tenantID := token.TenantID()
 	scope := persistence.Scope{TenantID: tenantID}
 	// A link mailed before the workspace switched the password off sets nothing after (SC-24).
-	if err := refuseShut(w.PasswordOpen(ctx, tenantID)); err != nil {
+	open, fallback, err := w.PasswordOpen(ctx, tenantID)
+	if err := refuseShut(open, fallback, err); err != nil {
 		return SignInResult{}, err
 	}
 
@@ -388,6 +396,11 @@ func (h ResetPassword) Execute(
 	held, err := w.AccountFor(ctx, tenantID, lookup.Account.ID)
 	if err != nil {
 		return SignInResult{}, err
+	}
+	// A first password is set only while the fallback that mailed the link stands (ADR-0077 §3).
+	// Once another way is in force again, the account has one, and the link is a spent one.
+	if held.PasswordHash.IsEmpty() && !fallback {
+		return SignInResult{}, resetRefused()
 	}
 	rules, err := w.ResolveFor(ctx, tenantID)
 	if err != nil {
@@ -425,6 +438,12 @@ func (h ResetPassword) Execute(
 	}
 
 	// The address from the account's own row: the pending credential's read carries none.
+	// A session the fallback opens is recorded as one, whichever step follows - the sign-in's rule.
+	if fallback {
+		if err := w.Session.recordFallback(ctx, scope, lookup.Account); err != nil {
+			return SignInResult{}, err
+		}
+	}
 	return h.answer(ctx, scope, tenantID, lookup.Account, held.Account.Email, cmd)
 }
 

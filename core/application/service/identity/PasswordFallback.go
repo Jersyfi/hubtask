@@ -26,8 +26,8 @@ import (
 // accounts that hold one, under the workspace's own password and second-factor rules. It is read,
 // like the offer itself, wherever the ways in are resolved, so nothing has to run on the day. It
 // ends the moment an administrator switches on another way, which is what the screen asks them to
-// do. An account without a password gains nothing: there is nothing to sign in with, and an
-// administrator re-invites it.
+// do. An account without a password is let back in through its mailbox: the reset mails it a link to
+// set one (ADR-0077 §3, MintResetToken).
 
 // PasswordFallbackAction is a password sign-in that the fallback let through, in the workspace's
 // own trail (ADR-0076 §4, "the workspace's trail records it").
