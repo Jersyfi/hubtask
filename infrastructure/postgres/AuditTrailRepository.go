@@ -253,6 +253,7 @@ func auditQueryParams(
 		FromTime:         timestampOf(filter.From),
 		ToTime:           timestampOf(filter.To),
 		ActionPrefix:     optionalText(filter.ActionPrefix),
+		ActionAlso:       nonNilTexts(filter.ActionAlso),
 		ActorID:          actorID,
 		TargetType:       optionalText(filter.TargetType),
 		TargetID:         targetID,
@@ -421,4 +422,13 @@ func (r AuditPartitionRepository) Ensure(ctx context.Context, month time.Time) (
 			WithCause(fmt.Errorf("ensuring the audit partition of %s: %w", month.Format("2006-01"), err))
 	}
 	return name, nil
+}
+
+// nonNilTexts is a list the statement can compare with `= ANY(...)`: an empty array rather than
+// NULL, so that "no other names" is false rather than unknown.
+func nonNilTexts(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
 }

@@ -194,6 +194,14 @@ not the rule would have to ask an administrator what the workspace was configure
 asking the audited party to describe their own configuration, and is the arrangement this role
 exists to avoid.
 
+**A renamed action stays one action.** An action code may be renamed - so that a family reads as one,
+`auth.mfa_*` for the second factor (SC-29) - but a stored entry is never rewritten: the hash covers
+the stored shape (§3), and a rewritten row is indistinguishable from a tampered one. New entries carry
+the new name, old entries keep theirs, and the trail's `action` filter matches both: a search by either
+name, or by a family either belongs to, finds the other as well. The renames are listed in one place,
+`audit.Renamed` (`core/port/audit/Renamed.go`); today that is `mfa.recovery_regenerated`, written as
+`auth.mfa_recovery_regenerated` since SC-29.
+
 Access: `GET /audit` with the shared query DSL (filters on period, `action`, `actor`, `target`,
 `outcome`), `POST /audit:export` as a signed JSON Lines or CSV archive with a checksum manifest and
 a stated period, and `POST /audit:verify` for the chain check. Two scopes rather than one:

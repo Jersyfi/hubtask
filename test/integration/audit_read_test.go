@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -301,6 +302,43 @@ func TestTheFiltersNarrowTheTrail(t *testing.T) {
 	}
 	if len(within) == 0 {
 		t.Error("the period filter answered nothing at all")
+	}
+}
+
+// SC-29: a renamed action is one action under two names. The stored entry keeps the name it was
+// written with - the hash covers it - and a search by the family finds the old name and the new.
+func TestARenamedActionIsFoundUnderEitherName(t *testing.T) {
+	ctx := context.Background()
+	tenant := auditTenant(ctx, t)
+	entries := mixedEntries(t, tenant, 2)
+	entries[0].Action = "mfa.recovery_regenerated"
+	entries[1].Action = "auth.mfa_recovery_regenerated"
+	appendTo(ctx, t, tenant, entries)
+
+	trail := auditTrailRepo()
+	actions := func(prefix string) []string {
+		t.Helper()
+		var found repository.RecordPage
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			found, err = trail.Query(ctx, repository.Filter{
+				ActionPrefix: prefix, ActionAlso: port.Aliases(prefix), Page: repository.Page{Size: 500},
+			})
+			return err
+		}); err != nil {
+			t.Fatalf("reading the trail: %v", err)
+		}
+		names := []string{}
+		for _, record := range found.Records {
+			names = append(names, string(record.Entry.Action))
+		}
+		return names
+	}
+	for _, prefix := range []string{"auth.mfa", "mfa.recovery"} {
+		got := actions(prefix)
+		if !slices.Contains(got, "mfa.recovery_regenerated") || !slices.Contains(got, "auth.mfa_recovery_regenerated") {
+			t.Errorf("searching %q found %v, want both names", prefix, got)
+		}
 	}
 }
 

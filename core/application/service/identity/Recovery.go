@@ -31,7 +31,10 @@ const RegenerateRecoveryCodesName = "RegenerateRecoveryCodes"
 
 // RecoveryRegeneratedAction is a fresh set. Notice rather than info: the old ten stopped working at
 // that moment, and somebody reading the trail after being locked out needs to see it.
-const RecoveryRegeneratedAction audit.Action = "mfa.recovery_regenerated"
+//
+// Named in the second factor's family since SC-29; entries written before keep
+// `mfa.recovery_regenerated`, and the trail finds both (audit.Renamed).
+const RecoveryRegeneratedAction audit.Action = "auth.mfa_recovery_regenerated"
 
 // RegenerateRecoveryCodes answers `POST /auth/mfa/recovery:regenerate`.
 type RegenerateRecoveryCodes struct{ Writer SessionWriter }

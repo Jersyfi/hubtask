@@ -86,9 +86,10 @@ func TestEveryUsedMessageCodeIsInTheCatalogue(t *testing.T) {
 				// accident rather than by design.
 				// `port.Action` is the same declaration seen from inside the application's own
 				// audit package, which imports the port under an alias because the two share a
-				// name (core/application/service/audit, E-09).
+				// name (core/application/service/audit, E-09). And `Action("…")` is the conversion
+				// the port itself writes, in its table of renamed actions (SC-29).
 				if strings.Contains(line, "audit.Action") || strings.Contains(line, "port.Action") ||
-					strings.Contains(line, "Kind = \"") {
+					strings.Contains(line, "Action(\"") || strings.Contains(line, "Kind = \"") {
 					continue
 				}
 				for _, match := range messageCode.FindAllStringSubmatch(line, -1) {
