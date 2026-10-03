@@ -680,7 +680,7 @@ class Client:
         return self._call("PUT", "/admin/identity-providers/{providerId}", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
     def remove_instance_identity_provider(self, provider_id: str, *, step_up: str | None = None) -> None:
-        """Withdraw a provider from every workspace at once"""
+        """Remove a provider whose offer has ended"""
         return self._call("DELETE", "/admin/identity-providers/{providerId}", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
     def withdraw_instance_identity_provider(self, provider_id: str, body: "ProviderWithdrawal", *, step_up: str | None = None) -> "IdentityProvider":
