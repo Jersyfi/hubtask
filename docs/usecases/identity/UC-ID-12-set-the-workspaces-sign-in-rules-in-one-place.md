@@ -79,8 +79,16 @@ through it is in the trail as `auth.password_fallback`, until another way is swi
 invitation - the limit ADR-0076 §4 sets. The walks of these screens run against a stubbed API.
 
 Since SC-24 the password's own switch holds at the server too
-([#1119](https://github.com/Jersyfi/hubtask/issues/1119)): where a workspace switched it off, every
-password door refuses it with `auth.password_not_offered` - the sign-in for every address alike, an
-invitation redeemed with a password, a reset link - and the reset mail points to the provider; stored
-passwords are kept and work again when it is switched back on, and ADR-0076 §4's fallback is the one
-exception (`PasswordSwitch_test.go`). All nine checks hold.
+([#1119](https://github.com/Jersyfi/hubtask/issues/1119)): where a workspace switched it off, the
+password is refused with `auth.password_not_offered` at the sign-in (for every address alike, before
+any account is looked up), an invitation redeemed with a password, a reset link, the change step a
+password sign-in was owed, and the step-up, which no longer offers it; the reset mail points to the
+provider. Stored passwords are kept and work again when the password is switched back on, and
+ADR-0076 §4's fallback is the one exception, at every one of those doors (`PasswordSwitch_test.go`,
+service tests over fakes). All nine checks hold.
+
+Two things stay open, said so that nobody reads more into it. A sign-in already past its password when
+the switch flips may finish its second-factor step within the pending credential's five minutes - the
+credential does not record whether a password or a provider began it. And the LINK step still asks an
+account that holds a password for it before a provider is connected: that is ADR-0071's safeguard
+(E2), and closing it would leave such an account no way in.

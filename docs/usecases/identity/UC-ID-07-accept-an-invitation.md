@@ -54,4 +54,7 @@ invitation used twice, or after it expired, gets one plain sentence and the name
   Before, the arrival connected the provider and then refused the account as not active - the server
   half was missing too. The invitation card offers the provider beside the password, and in a
   workspace that switched the password off offers only the provider (`signin.test.mjs`, against a
-  stubbed API).
+  stubbed API). An account connected by an arrival before SC-24 - connected, then refused - is
+  accepted on its next arrival. The way through the provider works where the provider admits the
+  invited address; one that would refuse it is offered all the same, and the person reads the
+  provider's refusal.
