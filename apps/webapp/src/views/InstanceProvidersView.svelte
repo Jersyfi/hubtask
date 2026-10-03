@@ -306,7 +306,15 @@
                         {t('app.instance.provider_keep_offering')}
                       </Button>
                     {/if}
-                    <Button tone="danger" onclick={() => open('remove', provider)}>
+                    <!-- Removal comes after the withdrawal (ADR-0077 §2): while the offer stands and a
+                         workspace uses it, the button says so instead of acting. -->
+                    <Button
+                      tone="danger"
+                      disabledReason={withdrawalPhase(provider) !== 'withdrawn' && usedBy(provider) > 0
+                        ? t('app.instance.provider_remove_first')
+                        : undefined}
+                      onclick={() => open('remove', provider)}
+                    >
                       {t('app.instance.provider_remove')}
                     </Button>
                   </div>
