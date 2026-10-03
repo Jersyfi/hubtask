@@ -6,7 +6,7 @@ actors: [PE-operator, PE-admin]
 deployments: [D5, D6]
 serves: [P-02, P-05, P-06, P-07]
 state: partial
-tasks: [SI-10, SI-17, SC-01, SC-20, SC-26]
+tasks: [SI-10, SI-17, SC-01, SC-20, SC-26, SC-27]
 checked_by: [core/application/service/admin/InstanceProvider_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, core/application/service/identity/IdentityProviderWithdrawal_test.go, test/integration/provider_withdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs]
 ---
 
@@ -54,7 +54,10 @@ installation puts it on everywhere and removes the switch.
   identities stay, and *Keep offering it* restores sign-in for the same people through the same links
   (`TestAWithdrawalKeepsTheConnectedIdentitiesAndOfferingAgainRestoresSignIn`,
   `InstanceProviderWithdrawal_test.go`, `instanceproviders.test.mjs` against a stubbed API). *Remove*
-  is still immediate; a workspace it leaves without a way in falls back to the password (ADR-0076 §4).
+  comes after the withdrawal since SC-27 ([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §2):
+  while the offer stands and a workspace uses it, removal is refused (`identity_provider.withdraw_first`)
+  and the screen says to withdraw first, because removal deletes the connections and offering the
+  provider again does not restore them (`TestAnOfferedProviderIsRemovedOnlyAfterItsOfferEnded`).
   Since SC-26 the number of workspaces is counted from their own switches where the installation
   reads it ([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §1), so it stays true when a
   workspace is deleted for good, restored or imported, still counts one waiting out its deletion

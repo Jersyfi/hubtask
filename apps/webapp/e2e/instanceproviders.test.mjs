@@ -85,6 +85,8 @@ test('chromium: a withdrawal shows the count, is announced for a day, and can be
   await row.waitFor();
   // A number, never which workspaces.
   assert.match(await row.textContent() ?? '', /Workspaces using it: 12/);
+  // Removal comes after the withdrawal (ADR-0077 §2): offered and used, it says so instead of acting.
+  assert.match(await row.textContent() ?? '', /Withdraw it first/);
 
   await row.getByRole('button', { name: 'Withdraw', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Withdraw this provider' });
@@ -137,4 +139,6 @@ test('chromium: withdraw now needs the number typed back, and a wrong one is ref
   assert.equal(sent[1].body.confirm_count, 12);
   await row.getByText('Withdrawn', { exact: true }).waitFor();
   assert.ok(await row.getByRole('button', { name: 'Keep offering it' }).isVisible());
+  // Withdrawn, it may be removed.
+  assert.doesNotMatch(await row.textContent() ?? '', /Withdraw it first/);
 });

@@ -253,3 +253,37 @@ func TestADateLessThanADayAheadAsksForTheCount(t *testing.T) {
 		t.Errorf("a day's notice asked for the count: %v", err)
 	}
 }
+
+// ADR-0077 §2 (SC-27): an offered provider is removed only once its offer has ended, or when no
+// workspace uses it. Removal deletes the connections between people and the provider, which
+// offering it again would not restore - so it comes after a withdrawal that announced itself.
+func TestAnOfferedProviderIsRemovedOnlyAfterItsOfferEnded(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		withdrawAt time.Time
+		used       int
+		removed    bool
+	}{
+		{"offered and used", time.Time{}, 12, false},
+		{"being withdrawn, still used", fixed.Add(time.Hour), 12, false},
+		{"withdrawn, its day reached", fixed.Add(-time.Hour), 12, true},
+		{"offered, used by nobody", time.Time{}, 0, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			writer, store, _, _ := newInstanceProviderWriter(newRegister(operatorID))
+			offeredRow(store)
+			store.rows[0].WithdrawAt, store.rows[0].OfferedWorkspaces = tc.withdrawAt, tc.used
+
+			err := RemoveInstanceIdentityProvider{Writer: writer}.Execute(t.Context(), operator(), withdrawnRow, "")
+			if tc.removed {
+				if err != nil || len(store.rows) != 0 {
+					t.Errorf("removing answered %v and left %d rows", err, len(store.rows))
+				}
+				return
+			}
+			if detailOf(err) != "identity_provider.withdraw_first" || len(store.rows) != 1 {
+				t.Errorf("removing answered %v and left %d rows, want a refusal and the row", err, len(store.rows))
+			}
+		})
+	}
+}
