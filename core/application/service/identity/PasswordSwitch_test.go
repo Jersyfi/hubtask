@@ -6,7 +6,9 @@ package identity
 import (
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	stepupport "github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
@@ -90,5 +92,76 @@ func TestAnInvitationIsNotRedeemedWithAPasswordWhereThePasswordIsOff(t *testing.
 	}
 	if f.session.accounts.redeemedHash != "" {
 		t.Error("the refused redemption stored a password")
+	}
+}
+
+// The step-up neither offers nor takes a password the workspace switched off: an account signed in
+// through its provider proves itself there, or with its factor (ADR-0075).
+func TestTheStepUpTakesNoPasswordWhereThePasswordIsOff(t *testing.T) {
+	f := newStepFixture(now)
+	f.session.writer.StepUps = newStepUps()
+	credential, _ := refreshCredential(now)
+	f.session.sessions.sessions[sessionRowID] = repository.SessionCredential{
+		TenantStatus: domain.TenantActive, Session: credential.Session, Account: credential.Account,
+	}
+	f.session.withAccount("bert@example.org", "correct horse battery")
+	passwordOff(f.passwords)
+
+	_, err := StepUp{Writer: f.session.writer}.Execute(t.Context(), signedInActor(),
+		StepUpCommand{Password: secret.New("correct horse battery")})
+	if detailOf(err) != "auth.password_not_offered" {
+		t.Fatalf("a password step-up in a workspace without it answered %v", err)
+	}
+	methods, err := StepUpVerifier{Writer: f.session.writer}.Methods(t.Context(), tenant, account)
+	if err != nil {
+		t.Fatalf("reading the methods: %v", err)
+	}
+	for _, method := range methods {
+		if method == stepupport.MethodPassword {
+			t.Error("the step-up offers a password the workspace switched off")
+		}
+	}
+}
+
+// A sign-in that was owed a new password started with the password; once the password is off, the
+// step that sets the new one and signs in is refused like every other password door.
+func TestThePasswordChangeStepIsRefusedOnceThePasswordIsOff(t *testing.T) {
+	f := newStepFixture(now)
+	f.passwords.instance.level.Policy.Patch = domain.PolicyPatch{MinLength: intOf(30)}
+	challenge := f.signsIn(t, "correct horse battery").Challenge
+	if challenge == nil {
+		t.Fatal("no change step to walk")
+	}
+	passwordOff(f.passwords)
+
+	_, err := SetPasswordAndSignIn{Writer: f.passwords.writer}.Execute(t.Context(), SetPasswordAndSignInCommand{
+		PendingToken: challenge.Token, Password: secret.New("a much longer passphrase than thirty characters"),
+	})
+	if detailOf(err) != "auth.password_not_offered" {
+		t.Fatalf("the change step answered %v", err)
+	}
+}
+
+// ADR-0076 §4's fallback is the one exception at every door, not only at the sign-in: where the
+// workspace's last way in was an offer that ended, the reset mails its link and an invitation is
+// redeemed with a password.
+func TestTheFallbackOpensTheResetAndTheInvitationToo(t *testing.T) {
+	f := fallbackFixture(t)
+
+	link, err := MintResetToken{Writer: f.passwords.writer}.MintResetToken(t.Context(), tenant, account)
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+	if !link.HasPassword || link.Token.IsEmpty() {
+		t.Errorf("under the fallback the reset mailed no link: %+v", link)
+	}
+
+	token := redemptionToken(t)
+	f.session.accounts.redemption[token.Secret()] = waitingRedemption()
+	passwords := f.passwords.writer
+	_, err = RedeemInvitation{Writer: f.session.writer, Passwords: &passwords}.Execute(t.Context(),
+		RedeemInvitationCommand{Token: secret.New(token.Secret()), Password: secret.New("seven blue lanterns over the harbour")})
+	if detailOf(err) == "auth.password_not_offered" {
+		t.Errorf("under the fallback the invitation refused the password: %v", err)
 	}
 }

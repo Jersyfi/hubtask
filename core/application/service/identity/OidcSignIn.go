@@ -287,6 +287,15 @@ func (w OidcWriter) settleAccount(
 		found, err := w.External.FindBySubject(ctx, configured.ID, arriving.Subject)
 		switch {
 		case err == nil:
+			// Connected before, and still invited: an arrival before SC-24 connected the provider
+			// and was then refused as an account that may not act. The invitation is accepted now.
+			if found.Status == domain.AccountInvited {
+				accepted, err := w.acceptInvitation(ctx, found, configured)
+				if err != nil {
+					return err
+				}
+				found = accepted
+			}
 			account = found
 			return nil
 		case !errors.Is(err, shared.ErrNotFound):

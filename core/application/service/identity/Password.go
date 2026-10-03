@@ -842,6 +842,11 @@ func (h SetPasswordAndSignIn) Execute(
 
 	tenantID := token.TenantID()
 	scope := persistence.Scope{TenantID: tenantID}
+	// The step a password sign-in was owed: once the workspace switched the password off, it completes
+	// nothing (SC-24).
+	if err := refuseShut(w.PasswordOpen(ctx, tenantID)); err != nil {
+		return SessionPair{}, err
+	}
 
 	var lookup repository.PendingLookup
 	err = w.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
