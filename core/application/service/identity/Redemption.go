@@ -126,6 +126,13 @@ func (h RedeemInvitation) Execute(
 	if cmd.TenantHeader != "" && cmd.TenantHeader != token.TenantID().String() {
 		return SessionPair{}, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
+	// A workspace that switched the password off sets none, however the invitation arrived (SC-24):
+	// the person signs in through the workspace's provider. Asked before the token is looked up.
+	if h.Passwords != nil {
+		if err := refuseShut(h.Passwords.PasswordOpen(ctx, token.TenantID())); err != nil {
+			return SessionPair{}, err
+		}
+	}
 	// The policy binds where a password is set - and the part of it that needs no account is
 	// checked before the token is looked up, so this half of the refusal says nothing about
 	// whether the token was real. The workspace's own rule is used, resolved from the tenant the
