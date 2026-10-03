@@ -6,8 +6,8 @@ actors: [PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-06, P-07, P-10, P-12]
 state: built
-tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21, SC-24, SC-31]
-checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordSwitch_test.go, test/integration/password_fallback_test.go]
+tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21, SC-24, SC-25, SC-31]
+checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordSwitch_test.go, test/integration/password_fallback_test.go, core/application/service/identity/FallbackReset_test.go]
 ---
 
 # Set how people in our workspace sign in, in one place
@@ -76,9 +76,10 @@ day, withdrawn now, or removed - is never left without one: the sign-in card off
 for the accounts that hold one, under this workspace's rules, the screen says so, and each sign-in
 through it is in the trail as `auth.password_fallback`, until another way is switched on here
 (`PasswordFallback_test.go`). Since SC-25 an account without a password is let back in too, by mail:
-*Forgot your password?* sends it a link to set one while the fallback stands
-([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §3, `FallbackReset_test.go`). The walks of these
-screens run against a stubbed API.
+*Forgot your password?* sends it a link to set one while the fallback stands, and wherever the
+password is on but no provider it is connected to lets it in any more
+([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §3, §4, `FallbackReset_test.go`). The walks of
+these screens run against a stubbed API.
 
 Since SC-31 ([#1138](https://github.com/Jersyfi/hubtask/issues/1138), the owner's decision of
 2026-10-04, E2) the fallback answers **every** cause, not only an ended offer: wherever the rule this

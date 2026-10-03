@@ -72,13 +72,17 @@ password but was never connected to the provider, and has forgotten the password
 by mail - the owner's decision of 2026-10-04 ([ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §1),
 check 8, SC-33.
 
-Since SC-25 the one place the provider mail had nothing to point to is closed
-([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §3): in a workspace whose last way in was an
-offer that ended, a provider-only account is mailed a link to **set** a password, and with it signs
-in under the workspace's rules - its second factor still asked for (checks 4 and 5), every other
-session ended (check 6), the request answering the same for every address (check 1), the link
-refused once another way is switched on again, and the session recorded as `auth.password_fallback`
-(`FallbackReset_test.go`, `SendPasswordReset_test.go`).
+Since SC-25 the places where the provider mail had nothing to point to are closed
+([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §3, §4): an account without a password that no
+provider lets in any more - its workspace's last way in was an offer that ended, or the password is on
+and the provider it is connected to has ended, is gone or is switched off - is mailed a link to
+**set** a password, and with it signs in under the workspace's rules (check 4), with its second
+factor still asked for (check 5) and every other session ended (check 6). The request answers the
+same for every address (check 1); the link is refused once a provider lets the account in again; a
+session the fallback opened is recorded as `auth.password_fallback` (`FallbackReset_test.go`,
+`SendPasswordReset_test.go`). Check 7 names the trail's actions as `account.password_reset_requested`
+and `account.password_reset`; the code writes `auth.password_reset_requested` and
+`account.password_changed` - the same events under the names the audit catalogue gave them.
 
 A workspace that switched the password off but has no provider switched on either - whatever the
 cause - is not such a workspace: since SC-31 ([#1138](https://github.com/Jersyfi/hubtask/issues/1138),
