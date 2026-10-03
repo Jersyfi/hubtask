@@ -4616,7 +4616,10 @@ type Capabilities struct {
 
 	// CompletionPolicies The values a collection's `completion_policy` may take, in the domain's order. A policies form is built from this list rather than from a copy of the enum: the schema says which values exist, this says which this installation serves.
 	CompletionPolicies *[]CompletionPolicy `json:"completion_policies,omitempty"`
-	EventTypes         *[]string           `json:"event_types,omitempty"`
+
+	// Deprecations Every request field this contract has marked `deprecated`, with the operations that take it, since when, and the major version it goes away with (`versioning-release.md` §5, SC-28). Read from the contract itself, so the list and the specification cannot disagree. A request that sends one of them is answered with the `Deprecation` header (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.
+	Deprecations *[]DeprecatedField `json:"deprecations,omitempty"`
+	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
 	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search` and `natural_ordering`.
@@ -5045,6 +5048,29 @@ type DependencyHealth struct {
 
 // DependencyHealthCircuitState defines model for DependencyHealth.CircuitState.
 type DependencyHealthCircuitState string
+
+// DeprecatedField One deprecated request field, and when it goes.
+type DeprecatedField struct {
+	// Field The field in the request body.
+	Field       string `json:"field"`
+	Method      string `json:"method"`
+	OperationId string `json:"operation_id"`
+
+	// Path The operation's path as the specification writes it.
+	Path string `json:"path"`
+
+	// Reason What replaces it.
+	Reason string `json:"reason"`
+
+	// RemovedIn The major version of the contract it goes away with.
+	RemovedIn string `json:"removed_in"`
+
+	// Since When it was marked deprecated.
+	Since openapi_types.Date `json:"since"`
+
+	// Sunset The day it stops being accepted, once one is set. Null until then.
+	Sunset *openapi_types.Date `json:"sunset,omitempty"`
+}
 
 // DroppedReference defines model for DroppedReference.
 type DroppedReference struct {

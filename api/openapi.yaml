@@ -9390,6 +9390,8 @@ components:
         enabled:
           type: boolean
           deprecated: true
+          x-deprecated-since: "2026-10-03"
+          x-removed-in: v2
           x-deprecated-reason: Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.
           description: >
             **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of
@@ -10453,6 +10455,8 @@ components:
           type: string
           maxLength: 1024
           deprecated: true
+          x-deprecated-since: "2026-10-03"
+          x-removed-in: v2
           x-deprecated-reason: The step-up proves it, in the X-Hubtask-Step-Up header (ADR-0075 §3).
           description: >
             **Deprecated** (ADR-0075 §3): the proof this route took before the step-up did. Still
@@ -14655,6 +14659,31 @@ components:
             does not draw a control somebody may not use and then refuse it: what the installation
             permits is read, never compiled in, and a capability that is refused outright is absent
             rather than disabled (`apps/webapp/CLAUDE.md`).
+        deprecations:
+          type: array
+          items: { $ref: "#/components/schemas/DeprecatedField" }
+          description: >
+            Every request field this contract has marked `deprecated`, with the operations that
+            take it, since when, and the major version it goes away with (`versioning-release.md`
+            §5, SC-28). Read from the contract itself, so the list and the specification cannot
+            disagree. A request that sends one of them is answered with the `Deprecation` header
+            (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.
+    DeprecatedField:
+      type: object
+      description: One deprecated request field, and when it goes.
+      required: [operation_id, method, path, field, since, removed_in, reason]
+      properties:
+        operation_id: { type: string }
+        method: { type: string }
+        path: { type: string, description: The operation's path as the specification writes it. }
+        field: { type: string, description: The field in the request body. }
+        since: { type: string, format: date, description: When it was marked deprecated. }
+        removed_in: { type: string, description: The major version of the contract it goes away with. }
+        sunset:
+          type: [string, "null"]
+          format: date
+          description: The day it stops being accepted, once one is set. Null until then.
+        reason: { type: string, description: What replaces it. }
     RoleDescription:
       type: object
       description: >
