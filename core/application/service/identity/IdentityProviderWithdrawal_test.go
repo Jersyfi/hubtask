@@ -13,12 +13,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// The count and the date of ADR-0076, on the workspace's side.
-//
-// The count is kept by the workspace's own switch and by nothing else (§1), so what is asserted is
-// that the switch moves it exactly when the switch changes something. The date is honoured where
-// the offer is read (§2), so what is asserted is every reader: the list, the sign-in card, the
-// sign-in itself, and the switch.
+// The date of ADR-0076, on the workspace's side: honoured where the offer is read (§2), so what is
+// asserted is every reader - the list, the sign-in card, the sign-in itself, and the switch. The
+// count is counted in the database where the installation reads it (ADR-0077 §1), and its test is
+// the integration test of the provider store.
 
 // detailOf is the refusal's message code, and empty where nothing was refused.
 func detailOf(err error) string {
@@ -28,53 +26,12 @@ func detailOf(err error) string {
 	return shared.AsError(err).DetailCode
 }
 
-// offeredCount reads the installation row's count from the store.
-func (f *offerFixture) offeredCount(id shared.ID) int {
-	for _, row := range f.store.rows {
-		if row.ID == id {
-			return row.OfferedWorkspaces
-		}
-	}
-	return -1
-}
-
 // withdrawAt announces the installation row's withdrawal, as the operator's use case would.
 func (f *offerFixture) withdrawAt(id shared.ID, at time.Time) {
 	for i, row := range f.store.rows {
 		if row.ID == id {
 			f.store.rows[i].WithdrawAt = at
 		}
-	}
-}
-
-func TestTheCountMovesWithTheWorkspacesSwitchAndOnlyWhenItChanges(t *testing.T) {
-	f := newOfferFixture(time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC))
-	own := f.own(t, true) // another way in, so the guard is not what is being measured here
-	id := f.installation(t)
-
-	for i, step := range []struct {
-		offered bool
-		want    int
-	}{
-		{true, 1},  // switched on: one more workspace uses it
-		{true, 1},  // on again: nothing changed, so nothing moves
-		{false, 0}, // switched off
-		{false, 0}, // off again: never below what the switches say
-	} {
-		if _, err := f.offer.Execute(t.Context(), providerActor(), id, step.offered, ""); err != nil {
-			t.Fatalf("switch %d: %v", i, err)
-		}
-		if got := f.offeredCount(id); got != step.want {
-			t.Errorf("after switch %d (%v) the count is %d, want %d", i, step.offered, got, step.want)
-		}
-	}
-
-	// A workspace's own row has no count: nobody but this workspace can take it.
-	if _, err := f.offer.Execute(t.Context(), providerActor(), own, false, ""); err != nil {
-		t.Fatalf("switching the own row off: %v", err)
-	}
-	if got := f.offeredCount(own); got != 0 {
-		t.Errorf("the workspace's own row carries a count of %d", got)
 	}
 }
 
@@ -133,7 +90,7 @@ func TestAWithdrawnProviderCannotBeSwitchedOnAgain(t *testing.T) {
 	if !errors.Is(err, shared.ErrValidation) || detailOf(err) != "identity_provider.withdrawn" {
 		t.Fatalf("switching on a withdrawn provider answered %v, want identity_provider.withdrawn", err)
 	}
-	if f.workspaces.row.Settings.Offers(id) || f.offeredCount(id) != 0 {
+	if f.workspaces.row.Settings.Offers(id) {
 		t.Error("the refused switch was written")
 	}
 }

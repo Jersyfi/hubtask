@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
@@ -17,18 +19,19 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// ADR-0076 (SC-20): an offered provider carries the count of workspaces that switched it on - moved
-// by a workspace's own switch, inside that workspace's transaction, and by nothing else - and the
-// date its offer ends. Gate SG-3: a workspace moves the count of an installation's row and of
-// nothing else, and only the installation's scope sets a withdrawal.
+// ADR-0076 (SC-20) with ADR-0077 §1 (SC-26): an offered provider answers the number of workspaces that
+// switched it on - counted from their own switches where the installation reads it, so it is true
+// after every write to them, and a workspace reads none - and the date its offer ends. Gate SG-3:
+// only the installation's scope sets a withdrawal.
 
 var withdrawnRow = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd31")
 
-func TestAnOfferedProvidersCountMovesWithTheSwitchAndItsWithdrawalIsTheInstallations(t *testing.T) {
+func TestAnOfferedProvidersCountIsCountedAndItsWithdrawalIsTheInstallations(t *testing.T) {
 	ctx := context.Background()
 	seedIdentityProviderTenants(ctx, t)
 	providers := postgres.NewIdentityProviderRepository()
-	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	app := appPool(ctx, t)
+	uow := postgres.NewUnitOfWork(app)
 	admin := adminPool(ctx, t)
 	t.Cleanup(func() {
 		_, _ = admin.Exec(context.Background(), `DELETE FROM identity_provider WHERE id = $1`, withdrawnRow.String())
@@ -49,38 +52,81 @@ func TestAnOfferedProvidersCountMovesWithTheSwitchAndItsWithdrawalIsTheInstallat
 		t.Fatalf("offering it: %v", err)
 	}
 
-	count := func() int {
+	// The count is counted where it is read (ADR-0077 §1, SC-26): from the workspaces' own switches,
+	// so every write that changes them - a switch, a deletion for good, a restore or an import that
+	// writes the settings whole - leaves it true. Two workspaces of this test's own.
+	countA := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000026a1")
+	countB := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000026a2")
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO tenant (id, slug, display_name, default_locale, default_time_zone)
+		VALUES ($1, 'count-a', 'Count A', 'en', 'UTC'), ($2, 'count-b', 'Count B', 'en', 'UTC')
+		ON CONFLICT (id) DO UPDATE SET status = 'ACTIVE', purge_after = NULL, deleted_at = NULL`, countA.String(), countB.String()); err != nil {
+		t.Fatalf("seeding the workspaces: %v", err)
+	}
+	switchOn := func(tenant shared.ID, on bool) {
+		t.Helper()
+		taken := "[]"
+		if on {
+			taken = `["` + withdrawnRow.String() + `"]`
+		}
+		if _, err := admin.Exec(ctx, `
+			UPDATE tenant SET settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{offered_providers}', $2::jsonb)
+			WHERE id = $1`, tenant.String(), taken); err != nil {
+			t.Fatalf("switching: %v", err)
+		}
+	}
+	count := func(scope persistence.Scope) int {
 		t.Helper()
 		var counted int
-		if err := admin.QueryRow(ctx, `SELECT offered_workspaces FROM identity_provider WHERE id = $1`,
-			withdrawnRow.String()).Scan(&counted); err != nil {
+		if err := uow.Within(ctx, scope, func(ctx context.Context) error {
+			found, err := providers.Find(ctx, withdrawnRow)
+			counted = found.OfferedWorkspaces
+			return err
+		}); err != nil {
 			t.Fatalf("reading the count: %v", err)
 		}
 		return counted
 	}
 
-	// Two workspaces switch it on, one switches it off again: the count follows, from inside each
-	// workspace's own transaction, although neither may write the installation's row.
-	inTenant(t, uow, idpTenantA, func(ctx context.Context) error { return providers.MoveOfferCount(ctx, withdrawnRow, 1) })
-	inTenant(t, uow, idpTenantB, func(ctx context.Context) error { return providers.MoveOfferCount(ctx, withdrawnRow, 1) })
-	inTenant(t, uow, idpTenantB, func(ctx context.Context) error { return providers.MoveOfferCount(ctx, withdrawnRow, -1) })
-	if got := count(); got != 1 {
-		t.Errorf("the count is %d, want one workspace", got)
+	switchOn(countA, true)
+	switchOn(countB, true)
+	if got := count(persistence.SystemScope()); got != 2 {
+		t.Errorf("two workspaces switched it on and the count is %d", got)
 	}
-	// It never goes below zero, and nothing but one step at a time moves it.
-	inTenant(t, uow, idpTenantA, func(ctx context.Context) error { return providers.MoveOfferCount(ctx, withdrawnRow, -1) })
-	inTenant(t, uow, idpTenantA, func(ctx context.Context) error { return providers.MoveOfferCount(ctx, withdrawnRow, -1) })
-	inTenant(t, uow, idpTenantA, func(ctx context.Context) error { return providers.MoveOfferCount(ctx, withdrawnRow, 7) })
-	if got := count(); got != 0 {
-		t.Errorf("the count is %d, want zero - not below, and not moved by seven", got)
+	// A workspace reads no count at all: it learns nothing of the others (P-01) - not through the
+	// provider statements, and not by calling the function itself, which counts only outside one.
+	if got := count(persistence.Scope{TenantID: countA}); got != 0 {
+		t.Errorf("a workspace reads a count of %d", got)
 	}
-
-	// Gate SG-3: a workspace's own row has no count anybody moves - not its own, not another's.
-	inTenant(t, uow, idpTenantB, func(ctx context.Context) error { return providers.MoveOfferCount(ctx, idpRowA, 1) })
-	var ownCount int
-	if err := admin.QueryRow(ctx, `SELECT offered_workspaces FROM identity_provider WHERE id = $1`,
-		idpRowA.String()).Scan(&ownCount); err == nil && ownCount != 0 {
-		t.Errorf("a workspace moved another workspace's row: %d", ownCount)
+	inRawTenant(ctx, t, app, countA.String(), false, func(tx pgx.Tx) {
+		var direct int
+		if err := tx.QueryRow(ctx, `SELECT count_provider_offers($1)`, withdrawnRow.String()).Scan(&direct); err != nil {
+			t.Errorf("calling the function from a workspace: %v", err)
+		} else if direct != 0 {
+			t.Errorf("a workspace calling the function directly counts %d", direct)
+		}
+	})
+	// Waiting to be deleted, and still restorable within its grace (H-06): it still uses it.
+	if _, err := admin.Exec(ctx, `
+		UPDATE tenant SET status = 'PENDING_DELETION', purge_after = now() + interval '30 days'
+		WHERE id = $1`, countB.String()); err != nil {
+		t.Fatalf("requesting the deletion: %v", err)
+	}
+	if got := count(persistence.SystemScope()); got != 2 {
+		t.Errorf("a workspace pending deletion is not counted: %d, want 2", got)
+	}
+	// Deleted for good - the row removed, as the hard delete does (HardDeleteTenant): it no longer
+	// uses anything.
+	if _, err := admin.Exec(ctx, `DELETE FROM tenant WHERE id = $1`, countB.String()); err != nil {
+		t.Fatalf("deleting for good: %v", err)
+	}
+	if got := count(persistence.SystemScope()); got != 1 {
+		t.Errorf("after a deletion for good the count is %d, want 1", got)
+	}
+	// Restored or imported with settings that do not take it: the number follows.
+	switchOn(countA, false)
+	if got := count(persistence.SystemScope()); got != 0 {
+		t.Errorf("after the settings were written whole the count is %d, want 0", got)
 	}
 
 	// The withdrawal is the installation's: a workspace's scope sets nothing.

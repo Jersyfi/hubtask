@@ -268,26 +268,6 @@ func withOffer(
 	return configured
 }
 
-// MoveOfferCount moves an installation row's count by one step (ADR-0076 §1).
-func (IdentityProviderRepository) MoveOfferCount(ctx context.Context, providerID shared.ID, step int) error {
-	queries, err := queriesFrom(ctx)
-	if err != nil {
-		return err
-	}
-	id, err := uuidOf(providerID)
-	if err != nil {
-		return err
-	}
-	if err := queries.MoveProviderOffer(ctx, sqlc.MoveProviderOfferParams{
-		ProviderID: id, Step: int32(step), //nolint:gosec // G115: the function moves only -1 and 1
-	}); err != nil {
-		return shared.ErrUnavailable.
-			WithDetail("postgres.query_failed").
-			WithCause(fmt.Errorf("moving the provider's count: %w", err))
-	}
-	return nil
-}
-
 // SetWithdrawal sets or clears when an installation's offer ends (ADR-0076 §2).
 func (IdentityProviderRepository) SetWithdrawal(
 	ctx context.Context, providerID shared.ID, at, now time.Time,

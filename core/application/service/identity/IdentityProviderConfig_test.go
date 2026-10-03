@@ -133,17 +133,6 @@ func (s *providerStore) Reconfigure(
 	return s.Update(ctx, configured, sealed, now)
 }
 
-// MoveOfferCount is the function's guard written out: an installation row, one step, never below
-// zero (ADR-0076 §1).
-func (s *providerStore) MoveOfferCount(_ context.Context, id shared.ID, step int) error {
-	for i, row := range s.rows {
-		if row.ID == id && row.Installation() && (step == 1 || step == -1) {
-			s.rows[i].OfferedWorkspaces = max(0, row.OfferedWorkspaces+step)
-		}
-	}
-	return nil
-}
-
 // SetWithdrawal writes only the installation's rows, and only from the installation's own scope -
 // which a fake standing in for a workspace is not.
 func (s *providerStore) SetWithdrawal(

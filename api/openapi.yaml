@@ -9288,8 +9288,8 @@ components:
           readOnly: true
           description: >
             For a row the installation offers, answered to the operator only: how many workspaces
-            have it switched on (ADR-0076 §1). A number, never names - kept by each workspace's own
-            switch in the same transaction. Absent from a workspace's listing.
+            have it switched on (ADR-0076 §1). A number, never names - counted from the workspaces'
+            own switches when it is read (ADR-0077 §1). Absent from a workspace's listing.
         allowed_email_domains:
           type: array
           items: { type: string }
