@@ -20,7 +20,9 @@ const (
 	listSessionsUseCase      = "ListSessions"
 	revokeSessionUseCase     = "RevokeSession"
 	revokeAllSessionsUseCase = "RevokeAllSessions"
-	redeemInvitationUseCase  = "RedeemInvitation"
+	// revokeOtherSessionsUseCase is *Sign out everywhere else* (UC-ID-06 check 4).
+	revokeOtherSessionsUseCase = "RevokeOtherSessions"
+	redeemInvitationUseCase    = "RedeemInvitation"
 )
 
 // SignIn answers POST /auth/sessions.
@@ -135,6 +137,23 @@ func (c *RestController) RevokeAllSessions(w http.ResponseWriter, r *http.Reques
 
 	if _, err := c.UseCases.Invoke(
 		r.Context(), revokeAllSessionsUseCase, actorOf(r), usecase.Input{},
+	); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RevokeOtherSessions answers POST /auth/sessions:revoke-others.
+func (c *RestController) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	if _, err := c.UseCases.Invoke(
+		r.Context(), revokeOtherSessionsUseCase, actorOf(r), usecase.Input{},
 	); err != nil {
 		WriteProblem(w, err, requestID)
 		return

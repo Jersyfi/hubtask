@@ -75,13 +75,17 @@ class Sessions {
   }
 
   /**
-   * Ends every session of the account, this one included.
+   * Ends every session of the account but this one (UC-ID-06 check 4) - the answer to a lost phone,
+   * asked from the laptop still in hand. The list is re-read, so what remains is what the server
+   * kept: this session alone.
    *
-   * Nothing is invalidated afterwards and nothing needs to be: the caller's own credential is
-   * among the ones that just died, so what follows is a sign-out rather than a re-read.
+   * `DELETE /auth/sessions`, which ends this one too, stays in the API for hubctl and automations;
+   * this screen does not need it, because *Sign out* ends this one.
    */
-  async endAll(): Promise<void> {
-    await engine.mutate('DELETE', SESSIONS_PATH, undefined);
+  async endOthers(): Promise<void> {
+    await engine.mutate('POST', `${SESSIONS_PATH}:revoke-others`, undefined, {
+      invalidates: [SESSIONS_PATH],
+    });
   }
 }
 

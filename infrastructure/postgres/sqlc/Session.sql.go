@@ -994,6 +994,28 @@ func (q *Queries) RevokeAllSessionsForAccount(ctx context.Context, arg RevokeAll
 	return result.RowsAffected(), nil
 }
 
+const revokeOtherSessionsForAccount = `-- name: RevokeOtherSessionsForAccount :execrows
+UPDATE session SET revoked_at = $1
+WHERE account_id = $2 AND revoked_at IS NULL
+  AND ($3::uuid IS NULL OR id <> $3::uuid)
+`
+
+type RevokeOtherSessionsForAccountParams struct {
+	RevokedAt pgtype.Timestamptz
+	AccountID pgtype.UUID
+	Keep      pgtype.UUID
+}
+
+// Every device but the one asking (UC-ID-06 check 4). A NULL `keep` spares nothing: the comparison
+// is written so that it can never become `id <> ”`, which would compare against nothing at all.
+func (q *Queries) RevokeOtherSessionsForAccount(ctx context.Context, arg RevokeOtherSessionsForAccountParams) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeOtherSessionsForAccount, arg.RevokedAt, arg.AccountID, arg.Keep)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const revokeSession = `-- name: RevokeSession :execrows
 UPDATE session SET revoked_at = $1
 WHERE id = $2 AND account_id = $3 AND revoked_at IS NULL
