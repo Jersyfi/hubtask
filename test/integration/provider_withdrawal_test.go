@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
@@ -28,7 +30,8 @@ func TestAnOfferedProvidersCountIsCountedAndItsWithdrawalIsTheInstallations(t *t
 	ctx := context.Background()
 	seedIdentityProviderTenants(ctx, t)
 	providers := postgres.NewIdentityProviderRepository()
-	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	app := appPool(ctx, t)
+	uow := postgres.NewUnitOfWork(app)
 	admin := adminPool(ctx, t)
 	t.Cleanup(func() {
 		_, _ = admin.Exec(context.Background(), `DELETE FROM identity_provider WHERE id = $1`, withdrawnRow.String())
@@ -57,7 +60,7 @@ func TestAnOfferedProvidersCountIsCountedAndItsWithdrawalIsTheInstallations(t *t
 	if _, err := admin.Exec(ctx, `
 		INSERT INTO tenant (id, slug, display_name, default_locale, default_time_zone)
 		VALUES ($1, 'count-a', 'Count A', 'en', 'UTC'), ($2, 'count-b', 'Count B', 'en', 'UTC')
-		ON CONFLICT (id) DO UPDATE SET deleted_at = NULL`, countA.String(), countB.String()); err != nil {
+		ON CONFLICT (id) DO UPDATE SET status = 'ACTIVE', purge_after = NULL, deleted_at = NULL`, countA.String(), countB.String()); err != nil {
 		t.Fatalf("seeding the workspaces: %v", err)
 	}
 	switchOn := func(tenant shared.ID, on bool) {
@@ -90,16 +93,35 @@ func TestAnOfferedProvidersCountIsCountedAndItsWithdrawalIsTheInstallations(t *t
 	if got := count(persistence.SystemScope()); got != 2 {
 		t.Errorf("two workspaces switched it on and the count is %d", got)
 	}
-	// A workspace reads no count at all: it learns nothing of the others (P-01).
+	// A workspace reads no count at all: it learns nothing of the others (P-01) - not through the
+	// provider statements, and not by calling the function itself, which counts only outside one.
 	if got := count(persistence.Scope{TenantID: countA}); got != 0 {
 		t.Errorf("a workspace reads a count of %d", got)
 	}
-	// Deleted for good: it no longer uses anything.
-	if _, err := admin.Exec(ctx, `UPDATE tenant SET deleted_at = now() WHERE id = $1`, countB.String()); err != nil {
-		t.Fatalf("deleting: %v", err)
+	inRawTenant(ctx, t, app, countA.String(), false, func(tx pgx.Tx) {
+		var direct int
+		if err := tx.QueryRow(ctx, `SELECT count_provider_offers($1)`, withdrawnRow.String()).Scan(&direct); err != nil {
+			t.Errorf("calling the function from a workspace: %v", err)
+		} else if direct != 0 {
+			t.Errorf("a workspace calling the function directly counts %d", direct)
+		}
+	})
+	// Waiting to be deleted, and still restorable within its grace (H-06): it still uses it.
+	if _, err := admin.Exec(ctx, `
+		UPDATE tenant SET status = 'PENDING_DELETION', purge_after = now() + interval '30 days'
+		WHERE id = $1`, countB.String()); err != nil {
+		t.Fatalf("requesting the deletion: %v", err)
+	}
+	if got := count(persistence.SystemScope()); got != 2 {
+		t.Errorf("a workspace pending deletion is not counted: %d, want 2", got)
+	}
+	// Deleted for good - the row removed, as the hard delete does (HardDeleteTenant): it no longer
+	// uses anything.
+	if _, err := admin.Exec(ctx, `DELETE FROM tenant WHERE id = $1`, countB.String()); err != nil {
+		t.Fatalf("deleting for good: %v", err)
 	}
 	if got := count(persistence.SystemScope()); got != 1 {
-		t.Errorf("after a deletion the count is %d, want 1", got)
+		t.Errorf("after a deletion for good the count is %d, want 1", got)
 	}
 	// Restored or imported with settings that do not take it: the number follows.
 	switchOn(countA, false)
