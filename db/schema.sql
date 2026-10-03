@@ -339,8 +339,19 @@ CREATE TABLE account_mfa (
   last_step     bigint,
   created_at    timestamptz NOT NULL,
   updated_at    timestamptz NOT NULL,
+  -- The authenticator's replacement (SC-17, migration 0113): a second, unconfirmed secret beside
+  -- the armed one, the session that began it and the end of its window. All four or none.
+  replacement_secret_enc    bytea,
+  replacement_secret_key_id text,
+  replacement_session_id    uuid,
+  replacement_expires_at    timestamptz,
   CONSTRAINT account_mfa_account_fkey FOREIGN KEY (tenant_id, account_id)
-    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT account_mfa_replacement_whole CHECK (
+    (replacement_secret_enc IS NULL) = (replacement_secret_key_id IS NULL)
+    AND (replacement_secret_enc IS NULL) = (replacement_session_id IS NULL)
+    AND (replacement_secret_enc IS NULL) = (replacement_expires_at IS NULL)
+  )
 );
 
 -- Ten single-use recovery codes per enrolment, stored only as hashes, burned by first use.
@@ -506,7 +517,12 @@ CREATE TABLE identity_provider (
   enabled               boolean NOT NULL DEFAULT true,
   created_at            timestamptz NOT NULL,
   updated_at            timestamptz,
-  version               integer NOT NULL DEFAULT 1
+  version               integer NOT NULL DEFAULT 1,
+  -- An installation row's count of workspaces that switched it on, moved only through
+  -- move_provider_offer, and when its offer ends (ADR-0076, migration 0114). A workspace's own row
+  -- keeps zero and NULL.
+  offered_workspaces    integer NOT NULL DEFAULT 0,
+  withdraw_at           timestamptz
 );
 -- One registration per issuer per level. NULLS NOT DISTINCT is what makes that true of the
 -- installation's rows: without it every NULL tenant is its own.
@@ -581,7 +597,12 @@ CREATE TABLE oidc_flow (
   nonce         text NOT NULL,
   created_at    timestamptz NOT NULL,
   expires_at    timestamptz NOT NULL,
-  consumed_at   timestamptz
+  consumed_at   timestamptz,
+  -- The session a step-up at the provider belongs to (ADR-0075 §2, migration 0112). NULL is a
+  -- sign-in flow. Each callback consumes only its own kind.
+  session_id    uuid,
+  CONSTRAINT oidc_flow_session_fkey FOREIGN KEY (tenant_id, session_id)
+    REFERENCES session (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX oidc_flow_state_uq ON oidc_flow (state_hash);
 CREATE INDEX oidc_flow_expiry_idx ON oidc_flow (expires_at);
@@ -2644,6 +2665,18 @@ $$;
 
 REVOKE ALL ON FUNCTION resolve_tenant(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION resolve_tenant(text) TO hubtask_app;
+
+-- ============ An offered provider's count (ADR-0076 §1) ====================
+-- A workspace's switch moves the installation row's count by one step, and nothing else.
+CREATE OR REPLACE FUNCTION move_provider_offer(provider uuid, step integer) RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  UPDATE identity_provider
+  SET offered_workspaces = greatest(0, offered_workspaces + step)
+  WHERE id = provider AND tenant_id IS NULL AND step IN (-1, 1)
+$$;
+
+REVOKE ALL ON FUNCTION move_provider_offer(uuid, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION move_provider_offer(uuid, integer) TO hubtask_app;
 
 -- ============ The control plane's two narrow acts (H-06) ====================
 -- The one legitimate tenant enumerator (0.6.0 decision 6): provisioning and lifecycle are the

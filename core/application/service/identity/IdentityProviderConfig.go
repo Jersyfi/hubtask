@@ -157,9 +157,10 @@ func (w IdentityProviderWriter) withOffers(
 		}
 		settings = workspace.Settings
 	}
+	now := w.Session.Clock.Now()
 	answered := make([]domain.IdentityProvider, 0, len(rows))
 	for _, row := range rows {
-		row.OfferedHere = offeredHere(row, settings)
+		row.OfferedHere = offeredHere(row, settings, now)
 		answered = append(answered, row)
 	}
 	return answered, nil
@@ -187,9 +188,10 @@ type ConfigureIdentityProviderCommand struct {
 	// AllowedDirectories are the organisations this row admits, in the provider's own identifiers
 	// (ADR-0071 §2): Microsoft tenant ids, Google Workspace domains.
 	AllowedDirectories []string
-	// Enabled is the deprecated switch on the form (ADR-0076 §5). Nil is "not given". At the
-	// installation it is still whether the installation offers the provider, and absent is on; at a
-	// workspace's own doors it may only repeat what the row holds - see switchInList.
+	// Enabled is the deprecated switch on the form (ADR-0076 §5). Nil is "not given". At a
+	// workspace's own doors it may only repeat what the row holds - see switchInList. At the
+	// installation it says at creation whether the provider is offered, absent being on; afterwards
+	// an offer ends through the withdrawal (§2) and a changed value is refused.
 	Enabled *bool
 	// StepUpToken is the fresh proof the change carries (the X-Hubtask-Step-Up header).
 	StepUpToken string
@@ -234,12 +236,12 @@ func switchInList() error {
 		WithFields(shared.FieldError{Path: "/enabled", Code: "identity_provider.switch_in_list"})
 }
 
-// enabledAt answers the switch a write leaves on the row. At a workspace's own door it is the row's
-// own - nothing on the form changes it, and a value that differs is refused; a new provider starts
-// off, because configuring is not offering. At the installation the form still holds the offer, and
-// absent is on.
+// enabledAt answers the switch a write leaves on the row: the row's own, which nothing on the form
+// changes - a value that differs is refused, with the sentence that names where it is changed. A new
+// provider starts off at a workspace's door, because configuring is not offering, and on at the
+// installation's, absent being on: there, adding a provider is offering it.
 func (cmd ConfigureIdentityProviderCommand) enabledAt(stored *domain.IdentityProvider) (bool, error) {
-	if !cmd.switchInList {
+	if stored == nil && !cmd.switchInList {
 		return cmd.Enabled == nil || *cmd.Enabled, nil
 	}
 	held := false
@@ -247,7 +249,12 @@ func (cmd ConfigureIdentityProviderCommand) enabledAt(stored *domain.IdentityPro
 		held = stored.Enabled
 	}
 	if cmd.Enabled != nil && *cmd.Enabled != held {
-		return false, switchInList()
+		if cmd.switchInList {
+			return false, switchInList()
+		}
+		// The installation's form ended an offer by itself before ADR-0076: unannounced, and
+		// with no count in front of whoever pressed it. That is the withdrawal's now.
+		return false, withdrawInstead()
 	}
 	return held, nil
 }
@@ -275,7 +282,8 @@ func (w IdentityProviderWriter) keepsAWayIn(
 			}
 			settings = workspace.Settings
 		}
-		if offeredHere(found, settings) && !anotherWayIn(ctx, w.Providers, w.Workspaces, id) {
+		now := w.Session.Clock.Now()
+		if offeredHere(found, settings, now) && !anotherWayIn(ctx, w.Providers, w.Workspaces, id, now) {
 			return lastWayIn()
 		}
 		return nil
@@ -367,13 +375,10 @@ func (w IdentityProviderWriter) ConfigureAt(
 		if err := w.holdSwitch(ctx, cmd, &configured); err != nil {
 			return err
 		}
-		write := w.Providers.Update
-		if cmd.switchInList {
-			// The form's write leaves the switch to the statement, so a switch made in the list
-			// between the read above and this write is kept rather than written back.
-			write = w.Providers.Reconfigure
-		}
-		written, found, err := write(ctx, configured, sealed, w.Session.Clock.Now())
+		// The form's write leaves the switch to the statement, at both levels: a switch made in the
+		// list - or a withdrawal cancelled - between the read above and this write is kept rather
+		// than written back.
+		written, found, err := w.Providers.Reconfigure(ctx, configured, sealed, w.Session.Clock.Now())
 		if err != nil {
 			return err
 		}
@@ -392,18 +397,13 @@ func (w IdentityProviderWriter) ConfigureAt(
 	return stored, nil
 }
 
-// holdSwitch settles a replaced row's switch inside the write's transaction. At a workspace's door it
-// reads the row and refuses a form whose `enabled` differs from it; the write that follows is
-// Reconfigure, which does not touch the switch at all. The installation's half has no list, so its
-// form still writes the offer.
+// holdSwitch settles a replaced row's switch inside the write's transaction: it reads the row and
+// refuses a form whose `enabled` differs from it; the write that follows is Reconfigure, which does
+// not touch the switch at all. A workspace's door switches in its list, the installation's through
+// the withdrawal (ADR-0076 §2, §5).
 func (w IdentityProviderWriter) holdSwitch(
 	ctx context.Context, cmd ConfigureIdentityProviderCommand, configured *domain.IdentityProvider,
 ) error {
-	if !cmd.switchInList {
-		decided, err := cmd.enabledAt(nil)
-		configured.Enabled = decided
-		return err
-	}
 	stored, err := w.Providers.Find(ctx, configured.ID)
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
@@ -411,7 +411,7 @@ func (w IdentityProviderWriter) holdSwitch(
 		}
 		return err
 	}
-	if stored.Installation() {
+	if cmd.switchInList && stored.Installation() {
 		// Readable here and not this workspace's to change: the answer the write policy would give.
 		return shared.ErrNotFound.WithDetail("identity_provider.not_found")
 	}
@@ -536,6 +536,12 @@ func ProviderOutput(configured domain.IdentityProvider) usecase.Output {
 		"offered_here":          configured.OfferedHere,
 		"created_at":            configured.CreatedAt,
 		"version":               configured.Version,
+		// When the installation's offer ends, for every workspace that reads it (ADR-0076 §2).
+		// The count beside it is the operator's alone and is not in this projection.
+		"withdraw_at": nil,
+	}
+	if !configured.WithdrawAt.IsZero() {
+		out["withdraw_at"] = configured.WithdrawAt.UTC()
 	}
 	if !configured.UpdatedAt.IsZero() {
 		out["updated_at"] = configured.UpdatedAt

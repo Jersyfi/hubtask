@@ -325,6 +325,127 @@ test('chromium: 1280 px — a provider-only account is offered no password and a
   assert.equal(await dialog.locator('input[autocomplete="one-time-code"]').count(), 1, 'the dialog does not ask for the code');
 });
 
+// UC-ID-03 check 6, UC-ID-05 check 5 (SC-16): a provider-only member with a factor turns it off. The
+// profile offers it where nothing requires the factor, asks for no password, and the step-up takes
+// the authenticator's code - the account's own way, named by the refusal.
+test('chromium: 1280 px — a provider-only member turns the factor off with a code', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  let armed = true;
+  const disables = [];
+  const proofs = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/accounts/me') {
+      return route.fulfill({ json: { ...ACCOUNT, has_password: false, has_second_factor: armed, second_factor_required: false, ...(armed ? { recovery_codes_remaining: 6 } : {}) } });
+    }
+    if (path === '/auth/mfa:disable') {
+      const proof = request.headers()['x-hubtask-step-up'] ?? null;
+      disables.push({ proof, body: request.postDataJSON() });
+      if (proof !== 'hbt_sup_off') {
+        return route.fulfill({ status: 403, json: { code: 'errors.forbidden', detail_code: 'auth.step_up_required', status: 403, params: { methods: 'TOTP RECOVERY PROVIDER', provider: 'Contoso Entra ID' }, request_id: 'req_s' } });
+      }
+      armed = false;
+      return route.fulfill({ status: 204 });
+    }
+    if (path === '/auth/step-up') {
+      proofs.push(request.postDataJSON());
+      return route.fulfill({ status: 201, json: { step_up_token: 'hbt_sup_off', expires_at: '2099-01-01T00:00:00Z', method: 'TOTP' } });
+    }
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/security`);
+  await page.getByText('Left: 6 of 10.').waitFor();
+
+  await page.getByText('Turn the second factor off').click();
+  assert.equal(await page.locator('input[autocomplete="current-password"]').count(), 0, 'turning off asks for a password the account does not have');
+  await page.getByRole('button', { name: 'Turn it off' }).click();
+
+  const dialog = page.getByRole('dialog');
+  await dialog.waitFor();
+  assert.ok(await dialog.getByRole('button', { name: 'Confirm with Contoso Entra ID' }).isVisible(), 'the provider is not offered');
+  await dialog.getByLabel('Code from your authenticator').fill('123456');
+  await dialog.getByRole('button', { name: 'Prove it' }).click();
+
+  await page.getByText('The second factor is off.').first().waitFor({ timeout: 15_000 });
+  assert.deepEqual(proofs, [{ code: '123456' }]);
+  assert.deepEqual(disables.map((each) => each.proof), [null, 'hbt_sup_off']);
+  assert.ok(disables.every((each) => !('password' in (each.body ?? {}))), 'the deprecated password was sent');
+});
+
+// SC-17, UC-ID-03 checks 4-6: under a rule that requires a second factor, the profile offers no way
+// to turn it off but does offer to replace the authenticator - behind the step-up, confirmed with the
+// new app, and ending in ten new codes shown once.
+test('chromium: 1280 px — under a requiring rule the authenticator is replaced, never turned off', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const steps = [];
+  const NEW = ['AAAA-BBBB-CCCC-DDDD', 'EEEE-FFFF-GGGG-HHHH', 'IIII-JJJJ-KKKK-LLLL', 'MMMM-NNNN-OOOO-PPPP', 'QQQQ-RRRR-SSSS-TTTT',
+    'UUUU-VVVV-WWWW-XXXX', 'YYYY-ZZZZ-2222-3333', '4444-5555-6666-7777', '8888-9999-AAAA-BBBB', 'CCCC-DDDD-EEEE-FFFF'];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/accounts/me') {
+      return route.fulfill({ json: { ...ACCOUNT, has_second_factor: true, recovery_codes_remaining: 7, second_factor_required: true } });
+    }
+    if (path === '/auth/mfa/totp:replace') {
+      const proof = request.headers()['x-hubtask-step-up'] ?? null;
+      steps.push(`replace ${proof}`);
+      if (proof !== 'hbt_sup_rep') {
+        return route.fulfill({ status: 403, json: { code: 'errors.forbidden', detail_code: 'auth.step_up_required', status: 403, params: { methods: 'TOTP RECOVERY' }, request_id: 'req_r' } });
+      }
+      return route.fulfill({ status: 201, json: { secret: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP', otpauth_uri: 'otpauth://totp/Hubtask:bert@example.org?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Hubtask', expires_at: '2099-01-01T00:00:00Z' } });
+    }
+    if (path === '/auth/step-up') {
+      steps.push('step-up');
+      return route.fulfill({ status: 201, json: { step_up_token: 'hbt_sup_rep', expires_at: '2099-01-01T00:00:00Z', method: 'TOTP' } });
+    }
+    if (path === '/auth/mfa/totp/replacement:confirm') {
+      steps.push(`confirm ${request.postDataJSON().code}`);
+      return route.fulfill({ status: 201, json: { recovery_codes: NEW } });
+    }
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/security`);
+  await page.getByText('Left: 7 of 10.').waitFor();
+
+  assert.equal(await page.getByText('Turn the second factor off').count(), 0, 'turning off is offered under a requiring rule');
+  await page.getByText('Replace your authenticator').click();
+  await page.getByRole('button', { name: 'Begin the replacement' }).click();
+
+  const dialog = page.getByRole('dialog');
+  await dialog.waitFor();
+  await dialog.getByLabel('Code from your authenticator').fill('111111');
+  await dialog.getByRole('button', { name: 'Prove it' }).click();
+
+  await page.getByLabel('Code from the new authenticator').waitFor({ timeout: 15_000 });
+  assert.ok(await page.getByText('JBSW Y3DP', { exact: false }).isVisible(), 'the new secret is not shown');
+  await page.getByLabel('Code from the new authenticator').fill('222222');
+  await page.getByRole('button', { name: 'Confirm and replace' }).click();
+
+  // The ten new codes, once, behind the acknowledgement.
+  await page.getByText('Ten new recovery codes.', { exact: false }).waitFor();
+  assert.deepEqual(steps, ['replace null', 'step-up', 'replace hbt_sup_rep', 'confirm 222222']);
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByText('Your authenticator is replaced.', { exact: false }).first().waitFor();
+});
+
 // UC-ID-06 check 2: every session says how it was opened, in words, and the provider by its name.
 test('chromium: 1280 px — every session says how it was opened', async (t) => {
   const browser = await chromium.launch();

@@ -167,7 +167,7 @@ func (w WorkspaceWriter) keepsAWayIn(
 			return nil
 		}
 	}
-	on, err := providerOnHere(ctx, w.Providers, stored.Settings, "")
+	on, err := providerOnHere(ctx, w.Providers, stored.Settings, "", w.Clock.Now())
 	if err != nil {
 		return err
 	}

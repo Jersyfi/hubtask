@@ -396,6 +396,17 @@ func TestOneWorkspacesSignInFlowsAndSubjectsStayHome(t *testing.T) {
 		if _, err := external.FindBySubject(ctx, idpRowA, "subject-in-a"); err == nil {
 			t.Error("B found A's account by its provider subject")
 		}
+		// Gate SG-3: ProvidersOf.
+		if providers, err := external.ProvidersOf(ctx, idpAccount); err != nil || len(providers) != 0 {
+			t.Errorf("B read the providers of A's account: (%v, %v)", providers, err)
+		}
+		return nil
+	})
+	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
+		providers, err := external.ProvidersOf(ctx, idpAccount)
+		if err != nil || len(providers) != 1 || providers[0] != idpRowA {
+			t.Errorf("A's account is connected to %v (%v), want the one provider", providers, err)
+		}
 		return nil
 	})
 	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {

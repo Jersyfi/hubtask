@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-12]
-state: partial
+state: built
 tasks: [SI-03, SI-15, SC-09, SC-16]
-checked_by: [core/application/service/identity/Password_test.go, core/application/service/identity/ProviderOnly_test.go, apps/webapp/e2e/settings.test.mjs]
+checked_by: [core/application/service/identity/Password_test.go, core/application/service/identity/ProviderOnly_test.go, core/application/service/identity/DisableTotpStepUp_test.go, core/application/service/identity/StepUpProvider_test.go, apps/webapp/e2e/settings.test.mjs, apps/webapp/e2e/stepup.test.mjs]
 ---
 
 # Change my password
@@ -38,14 +38,3 @@ other sessions were signed out." Personal access tokens keep working.
 
 * No "repeat the new password" field: the eye replaces it.
 * Setting a first password on a provider-only account is not part of this use case.
-
-## Today
-
-Check 5 holds in the web app and at the step-up since SC-09: a provider-only account is offered no
-password change, no screen asks it for a password, and a step-up names only what it holds
-(`ProviderOnly_test.go`, the provider-only walk). It does not hold at one door, cut as SC-16:
-
-* **Turning the second factor off** asks for the account's password (`DisableTotp`, over REST, MCP
-  and automation). A provider-only account with a factor therefore cannot turn it off; the profile
-  says why instead of offering it. The owner decided on 2026-10-01 that it takes a step-up with
-  whatever the account holds, like every privileged action.

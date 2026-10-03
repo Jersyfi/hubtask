@@ -215,6 +215,13 @@ type MfaEnrollment struct {
 	ConfirmedAt time.Time
 	// LastStep is the highest accepted RFC 6238 step - the replay refusal's floor.
 	LastStep int64
+	// Replacement is a new secret waiting beside the armed one to be confirmed (SC-17), nil where
+	// there is none. It protects nobody until the swap.
+	Replacement *crypto.Sealed
+	// ReplacementSession is the session that began it, the only one that may confirm it.
+	ReplacementSession shared.ID
+	// ReplacementExpiresAt is the end of its window; after it the replacement lapses unarmed.
+	ReplacementExpiresAt time.Time
 }
 
 // MfaEnrollments maintains the one enrolment an account can hold.
@@ -236,6 +243,21 @@ type MfaEnrollments interface {
 
 	// Disable removes the enrolment whole. False means there was none.
 	Disable(ctx context.Context, accountID shared.ID) (bool, error)
+
+	// StartReplacement puts a new secret beside an armed one (SC-17), replacing a replacement begun
+	// earlier. False means no factor is armed - there is nothing to replace.
+	StartReplacement(
+		ctx context.Context, accountID shared.ID, sealed crypto.Sealed,
+		sessionID shared.ID, expiresAt, now time.Time,
+	) (bool, error)
+
+	// SwapReplacement makes the replacement the armed secret in one statement, with step as the new
+	// replay floor - only for the session that began it, inside its window, and only if the waiting
+	// secret is still `expected`, the one the confirmation verified. False means none of that held.
+	SwapReplacement(
+		ctx context.Context, accountID, sessionID shared.ID, expected crypto.Sealed,
+		step int64, now time.Time,
+	) (bool, error)
 }
 
 // RecoveryCodes maintains the factor's escape hatch. Presented codes travel whole and are hashed
@@ -373,4 +395,11 @@ type MfaSealings interface {
 	// Rewrap writes the moved wrapping, guarded by the key the row named when it was read. False
 	// means the row changed in between and this rewrap is stale; the next pass reads it again.
 	Rewrap(ctx context.Context, accountID shared.ID, sealed crypto.Sealed, expectedKeyID string) (bool, error)
+
+	// ReplacementsSealedNotUnder answers the waiting replacements (SC-17) whose wrapping names a key
+	// other than keyID, as enrolments whose Secret is the replacement's.
+	ReplacementsSealedNotUnder(ctx context.Context, keyID string) ([]MfaEnrollment, error)
+
+	// RewrapReplacement is Rewrap for a replacement's wrapping.
+	RewrapReplacement(ctx context.Context, accountID shared.ID, sealed crypto.Sealed, expectedKeyID string) (bool, error)
 }

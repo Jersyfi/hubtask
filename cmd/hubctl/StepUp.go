@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/Jersyfi/hubtask/core/port/stepup"
@@ -121,20 +122,34 @@ func (cli *CLI) stepUp(ctx context.Context, client *Client, methods string) (str
 	return grant.StepUpToken, nil
 }
 
-// stepUpRequest asks for one of the two proofs the contract accepts - "one of the two, never
-// both".
+// stepUpRequest asks for exactly one of the proofs the account holds (ADR-0075 §1).
 //
-// The authenticator's code wins where there is one to hand, because it is the stronger of the two
-// and because a session under an armed factor is one whose password has already been typed today.
-// Where there is none, the password is what is left, and the demand's own list is what says
-// whether that is accepted.
+// A recovery code handed in the environment wins, because somebody who set it meant it. Then the
+// authenticator's code where there is one to hand, because it is the stronger proof and because a
+// session under an armed factor is one whose password has already been typed today; then the
+// password; then a recovery code asked for. A provider is the one method a terminal cannot answer
+// - a fresh sign-in there takes a browser - so an account that holds only that is pointed to the
+// web app rather than asked for something it could not use.
 func (cli *CLI) stepUpRequest(methods string) (openapi.StepUpRequest, error) {
 	if methods == noMethod {
 		message, _ := cli.Catalogue.Message("app.step_up.no_method", nil)
-		return openapi.StepUpRequest{}, errorString(message + "\n  Set up a second factor on your profile in the web app, then run this again.")
+		return openapi.StepUpRequest{}, errorString(message)
 	}
-	offersTOTP := methods == "" || strings.Contains(methods, "TOTP")
-	if offersTOTP && (cli.Env(envTotp) != "" || !strings.Contains(methods, "PASSWORD")) {
+	offered := strings.Fields(methods)
+	offers := func(method string) bool { return methods == "" || slices.Contains(offered, method) }
+	if offers("RECOVERY") && methods != "" && cli.Env(envRecovery) != "" {
+		code, err := cli.readCredential(envRecovery, "")
+		if err != nil {
+			return openapi.StepUpRequest{}, err
+		}
+		return openapi.StepUpRequest{RecoveryCode: &code}, nil
+	}
+	if !offers("TOTP") && !offers("PASSWORD") && !offers("RECOVERY") {
+		message, _ := cli.Catalogue.Message("app.step_up.provider_in_browser", nil)
+		return openapi.StepUpRequest{}, errorString(message)
+	}
+	offersTOTP := offers("TOTP")
+	if offersTOTP && (cli.Env(envTotp) != "" || !offers("PASSWORD")) {
 		code, err := cli.readCredential(envTotp, "This needs proving again. The authenticator's current code: ")
 		if err != nil {
 			return openapi.StepUpRequest{}, err

@@ -3426,20 +3426,30 @@ paths:
       operationId: stepUp
       summary: Prove yourself again, for the irreversible
       description: >
-        A fresh re-authentication on the current session (security.md §5, H-03): the password, or
-        the TOTP code where one is enrolled. The proof is recorded on the session with its
-        moment, answered as a token that is valid for a short window and consumed by the one
-        privileged action that demanded it - deleting a tenant, changing the `OWNER` role,
-        minting a token with an admin scope, a destructive restore. A second privileged action
+        A fresh re-authentication on the current session (security.md §5, H-03), with whatever the
+        account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery
+        code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is
+        connected to. The proof is recorded on the session with its moment and its method, answered
+        as a token that is valid for a short window and consumed by the one privileged action that
+        demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin
+        scope, a destructive restore, turning the second factor off. A second privileged action
         needs a second proof.
 
         The operation that found the proof missing answered `403` with `auth.step_up_required`
-        and, in `params.methods`, the methods this account can answer with: a space-separated
-        list drawn from `PASSWORD` and `TOTP` - the password where the account holds one, the code
-        only where a factor is armed. An account that signs in only through a provider and has no
-        factor is named neither, and the list is empty: there is nothing it can prove itself with
-        here until it sets a factor up (UC-ID-05). A client builds its prompt from that list, never
-        from a guess.
+        and, in `params.methods`, the methods this account can answer with, in this order: a
+        space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is
+        armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an
+        identity is connected at a provider switched on for this workspace; `params.provider` names
+        it). An empty list is an account with none of them. A client builds its prompt from that
+        list, never from a guess.
+
+        Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider`
+        answers where to send the browser, and the `state` and `authorization_code` the provider
+        sends it back with are presented here. The proof counts only when the provider's ID token
+        names the identity already connected to this account (`auth.step_up_provider_mismatch`
+        otherwise) and carries an `auth_time` inside the step-up's own window
+        (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves
+        nothing fresh).
         This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up`
         header - or, for the restore, in the request field the contract has carried since 0.4.5.
       requestBody:
@@ -3455,6 +3465,92 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StepUpGrant"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/step-up:provider:
+    post:
+      tags: [auth]
+      operationId: startProviderStepUp
+      summary: Begin a step-up at the provider this account is connected to
+      description: >
+        The first of `PROVIDER`'s two calls (ADR-0075 §2). An authorization request at the provider
+        this account is connected to and that is switched on for its workspace - the first in the
+        workspace's order where there are several, the one `params.provider` named - with
+        `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering
+        from its own session. The flow is bound to the session that asked: its `state` finishes a
+        step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback
+        refuses it.
+
+        The browser comes back to this installation's own callback address, the one every
+        registration already permits. Refused with `auth.step_up_no_provider` for an account with
+        no such provider, and with `auth.step_up_session_required` for a caller without a session.
+      responses:
+        "201":
+          description: Where to send the browser
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderStepUpAuthorization"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/mfa/totp:replace:
+    post:
+      tags: [auth]
+      operationId: startAuthenticatorReplacement
+      summary: Begin replacing the authenticator
+      description: >
+        For a new phone, or an authenticator that is gone (SC-17): a new secret, kept beside the
+        armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and
+        its recovery codes keep working until the new authenticator is confirmed, so there is never
+        a moment without a factor, whatever the workspace's rule requires.
+
+        Behind a step-up with whatever the account holds (ADR-0075): replacing the factor is the
+        same power as removing it. Offered while a factor is armed, also where the workspace
+        requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed
+        within its window lapses. Bound to the session that began it: only that session confirms
+        it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to
+        replace, and setting one up is enrolment's.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      responses:
+        "201":
+          description: The new secret, for the only time it is shown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticatorReplacement"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/mfa/totp/replacement:confirm:
+    post:
+      tags: [auth]
+      operationId: confirmAuthenticatorReplacement
+      summary: Confirm the new authenticator, and swap
+      description: >
+        A code from the new authenticator proves it holds the new secret. Then, in one statement,
+        the new secret becomes the armed one and the old stops working, and ten new recovery codes
+        replace the old ten - answered here, for the only time they are shown. Audited as
+        `auth.mfa_replaced`.
+
+        Only the session that began the replacement confirms it, and only inside its window;
+        otherwise `auth.mfa_replacement_unknown`. A wrong code counts against the second factor's
+        ledger and changes nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthenticatorReplacementConfirmation"
+      responses:
+        "201":
+          description: Swapped; the new recovery codes, for the only time they are shown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodes"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -3492,13 +3588,19 @@ paths:
       operationId: disableTotp
       summary: Disable the second factor
       description: >
-        Removes the TOTP enrolment and burns the remaining recovery codes. It demands the
-        password afresh - the one case where "recently signed in" is not enough, because a stolen
-        session removing the second factor is exactly the attack the factor exists against
-        (security.md §5). Under tenant enforcement an OWNER or ADMIN cannot disable at all; the
-        refusal names the switch.
+        Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up
+        like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is
+        exactly the attack the factor exists against (security.md §5) - and takes it with whatever
+        the account holds: a code, a recovery code, its provider, or its password. Where the
+        workspace's rule requires a factor of this person it cannot be disabled at all; the refusal
+        names the rule.
+
+        The body's `password` is the proof this route took before; it is still accepted for one
+        release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
@@ -4121,6 +4223,11 @@ paths:
       description: >
         Set whole, with the secret's one exception: omitting it keeps the one that is sealed.
         Journalled.
+
+        Whether the installation offers the provider is not changed here: an offer ends through
+        `:withdraw`, announced for a date or confirmed with the count (ADR-0076 §2-3), and is kept
+        with `:cancel-withdrawal`. A changed `enabled` is refused with
+        `identity_provider.withdraw_instead`; the same value, or none, changes nothing.
       requestBody:
         required: true
         content:
@@ -4148,6 +4255,68 @@ paths:
       responses:
         "204":
           description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/identity-providers/{providerId}:withdraw:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    post:
+      tags: [admin]
+      operationId: withdrawInstanceIdentityProvider
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      summary: Announce the withdrawal of an offered provider, or withdraw it now
+      description: >
+        ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is
+        given - and until then the provider keeps working everywhere while every workspace that has
+        it switched on tells its administrators when it ends; it can be cancelled. On the date the
+        offer ends: off everywhere, the connected identities left in place.
+
+        A date that is now or past is **Withdraw now**, the answer to a compromised provider: it
+        additionally asks for `confirm_count`, the number of workspaces that have it switched on as
+        the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it
+        does not match. A date less than a day ahead is no notice either, and asks for the count
+        the same way. A workspace left with no way in afterwards falls back to the password for the
+        accounts that hold one (§4). An offer that has already ended is not withdrawn again -
+        refused with `identity_provider.already_withdrawn`, so a call cannot revive it; it is
+        offered again only through `:cancel-withdrawal`. Journalled.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderWithdrawal"
+      responses:
+        "200":
+          description: The provider with its withdrawal date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/identity-providers/{providerId}:cancel-withdrawal:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    post:
+      tags: [admin]
+      operationId: cancelInstanceIdentityProviderWithdrawal
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      summary: Keep offering a provider whose withdrawal was announced
+      description: >
+        Clears the withdrawal (ADR-0076 §2, P-04). Before the date nothing changes for anybody;
+        after it, the offer is back and the workspaces that had it switched on sign in through it
+        again, because the connected identities were never removed. Journalled.
+      responses:
+        "200":
+          description: The provider, offered without an end
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProvider"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -7712,8 +7881,9 @@ components:
         The proof a privileged operation demanded (H-03, security.md §5): the token
         `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that
         needs one refuses with `auth.step_up_required`, naming in `params.methods` what this
-        account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an
-        account with neither).
+        account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and
+        `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of
+        the provider a `PROVIDER` proof goes to.
       schema: { type: string }
 
     ContainerId:
@@ -9117,7 +9287,26 @@ components:
             Whether this provider is a way into **this** workspace. Always true for its own rows
             while they are enabled; for a row the installation offers, it is this workspace's own
             switch, and it is **false until somebody turns it on** — offering it is the
-            installation's decision, taking it is the workspace's (ADR-0070 §2).
+            installation's decision, taking it is the workspace's (ADR-0070 §2). False from the
+            moment an announced withdrawal takes effect.
+        withdraw_at:
+          type: [string, "null"]
+          format: date-time
+          readOnly: true
+          description: >
+            For a row the installation offers: when the installation withdraws it (ADR-0076 §2).
+            Null while it is offered without an end. Until that moment the provider keeps working;
+            from it, it is a way in nowhere - and the connected identities stay, so cancelling the
+            withdrawal restores sign-in. A workspace that switched it on reads this to say when it
+            ends.
+        offered_workspaces:
+          type: [integer, "null"]
+          minimum: 0
+          readOnly: true
+          description: >
+            For a row the installation offers, answered to the operator only: how many workspaces
+            have it switched on (ADR-0076 §1). A number, never names - kept by each workspace's own
+            switch in the same transaction. Absent from a workspace's listing.
         allowed_email_domains:
           type: array
           items: { type: string }
@@ -9226,8 +9415,10 @@ components:
             differs from the provider's is refused with `identity_provider.switch_in_list`; the same
             value, or none, is accepted and changes nothing, so a client that echoes the field keeps
             working. A workspace's new provider is created switched off. On the installation's
-            (`/admin/identity-providers`) it is still whether the installation offers the provider,
-            and absent there is `true`. Removed with the next major version of the contract.
+            (`/admin/identity-providers`) it says at creation whether the installation offers the
+            provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed
+            value is refused with `identity_provider.withdraw_instead` (ADR-0076 §2). Removed with
+            the next major version of the contract.
         allowed_email_domains:
           type: array
           items: { type: string }
@@ -9249,6 +9440,23 @@ components:
             **Required for a multi-directory issuer.** `login.microsoftonline.com/common/v2.0`
             with no directories named is every organisation in the world, and that is a decision
             rather than a default.
+
+    ProviderWithdrawal:
+      type: object
+      description: When an offered provider is withdrawn, and for *Withdraw now* the count confirmed.
+      properties:
+        withdraw_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When the offer ends. Absent is fourteen days from now; now or past is *Withdraw now*,
+            and less than a day ahead asks for the count as *Withdraw now* does.
+        confirm_count:
+          type: [integer, "null"]
+          minimum: 0
+          description: >
+            Required for *Withdraw now*: the number of workspaces that have the provider switched
+            on, as the operator read it before confirming.
 
     IdentityProviderPreset:
       type: object
@@ -9741,6 +9949,13 @@ components:
           items: { $ref: "#/components/schemas/ProviderSummary" }
         password: { $ref: "#/components/schemas/PasswordRules" }
         legal: { $ref: "#/components/schemas/LegalLinks" }
+        password_fallback:
+          type: boolean
+          description: >
+            True while `PASSWORD` is among the methods only because the workspace's last way in was a
+            provider the installation offered and has withdrawn (ADR-0076 §4): the password opens
+            again for the accounts that hold one, under the workspace's own rules, until an
+            administrator switches on another way. The administrators' screen says so.
 
     MfaChallenge:
       type: object
@@ -9836,6 +10051,34 @@ components:
           description: >
             Ten single-use codes, stored only as hashes. Each works once; the sign-in answer
             counts down what remains.
+
+    AuthenticatorReplacement:
+      type: object
+      description: >
+        The new secret's single showing (SC-17). Nothing is armed yet: the factor in force and its
+        recovery codes keep working until the replacement is confirmed.
+      required: [secret, otpauth_uri, expires_at]
+      properties:
+        secret:
+          type: string
+          description: Base32, for typing by hand where no camera reaches the QR.
+        otpauth_uri:
+          type: string
+          description: What a QR image is rendered from - the rendering is the client's job.
+        expires_at:
+          type: string
+          format: date-time
+          description: Until when the replacement can be confirmed; after that it lapses unarmed.
+
+    AuthenticatorReplacementConfirmation:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 8
+          description: The current code of the new authenticator.
 
     TotpConfirmation:
       type: object
@@ -10167,12 +10410,45 @@ components:
     StepUpRequest:
       type: object
       description: >
-        One of the two, never both: the password, or - where a factor is armed - the
-        authenticator's current code. Either proves the person holding the session is still the
-        person who opened it.
+        Exactly one method (ADR-0075): the password; the authenticator's current code; a recovery
+        code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser
+        back with after `POST /auth/step-up:provider`. Each proves the person holding the session is
+        still the person who opened it.
       properties:
         password: { type: [string, "null"], maxLength: 1024 }
         code: { type: [string, "null"], minLength: 6, maxLength: 8 }
+        recovery_code:
+          type: [string, "null"]
+          maxLength: 64
+          description: One of the account's recovery codes. Consumed, as at sign-in.
+        state:
+          type: [string, "null"]
+          maxLength: 512
+          description: The handle `POST /auth/step-up:provider` minted, as the provider echoed it.
+        authorization_code:
+          type: [string, "null"]
+          maxLength: 4096
+          description: The code the provider issued. Presented together with `state`.
+
+    ProviderStepUpAuthorization:
+      type: object
+      description: Where to send the browser for a `PROVIDER` step-up, and which provider that is.
+      required: [authorization_url, expires_at, provider_id, provider_name]
+      properties:
+        authorization_url:
+          type: string
+          format: uri
+          description: >
+            The provider's authorization endpoint with `prompt=login`, `max_age=0` and this flow's
+            parameters. The verifier and the nonce stay on the server.
+        expires_at:
+          type: string
+          format: date-time
+          description: When the flow stops being answerable.
+        provider_id: { type: string, format: uuid }
+        provider_name:
+          type: string
+          description: The provider's name, as the sign-in button shows it.
 
     StepUpGrant:
       type: object
@@ -10184,17 +10460,20 @@ components:
         expires_at: { type: string, format: date-time }
         method:
           type: string
-          enum: [PASSWORD, TOTP]
+          enum: [PASSWORD, TOTP, RECOVERY, PROVIDER]
           description: What proved it - recorded in the audit trail, never the credential.
 
     MfaDisable:
       type: object
-      required: [password]
       properties:
         password:
           type: string
           maxLength: 1024
-          description: Checked afresh - a live session is deliberately not enough here.
+          deprecated: true
+          x-deprecated-reason: The step-up proves it, in the X-Hubtask-Step-Up header (ADR-0075 §3).
+          description: >
+            **Deprecated** (ADR-0075 §3): the proof this route took before the step-up did. Still
+            checked when sent without a step-up token, for one release; then removed.
 
     Group:
       type: object

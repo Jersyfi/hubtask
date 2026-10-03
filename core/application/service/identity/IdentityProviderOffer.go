@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -79,8 +80,14 @@ func (h OfferIdentityProvider) Execute(
 		// The last way in cannot be switched off. Counted rather than assumed: a workspace whose
 		// only method is a provider and who switches it off is a workspace nobody can reach, and
 		// the refusal belongs here rather than in a screen that might not be the one asking.
-		if !offered && !anotherWayIn(ctx, h.Writer.Providers, h.Workspaces, found.ID) {
+		now := w.Session.Clock.Now()
+		if !offered && !anotherWayIn(ctx, h.Writer.Providers, h.Workspaces, found.ID, now) {
 			return lastWayIn()
+		}
+		// An offer the installation ended is not one to take (ADR-0076 §2): from its date it is a
+		// way in nowhere, and a switch turned on for it would be a button that leads nowhere.
+		if offered && found.Installation() && !found.OfferedAt(now) {
+			return shared.ErrValidation.WithDetail("identity_provider.withdrawn")
 		}
 
 		if found.Installation() {
@@ -130,6 +137,7 @@ func (h OfferIdentityProvider) offerInstallationRow(
 	if err != nil {
 		return domain.IdentityProvider{}, err
 	}
+	was := workspace.Settings.Offers(found.ID)
 	workspace.Settings = workspace.Settings.WithOffer(found.ID, offered)
 	written, err := h.Workspaces.Update(
 		ctx, workspace, workspace.Version, h.Writer.Session.Clock.Now())
@@ -138,6 +146,24 @@ func (h OfferIdentityProvider) offerInstallationRow(
 	}
 	if !written {
 		return domain.IdentityProvider{}, shared.ErrConflict.WithDetail("workspace.version_stale")
+	}
+	// The installation's count of workspaces that use it (ADR-0076 §1), moved by this switch and
+	// by nothing else, in the same transaction - and only when the switch changed something, so a
+	// repeated "on" is not a second workspace. The write above is guarded on the version, which is
+	// what keeps two administrators switching at once from moving it twice.
+	if was != offered {
+		step := 1
+		if !offered {
+			step = -1
+		}
+		if err := h.Writer.Providers.MoveOfferCount(ctx, found.ID, step); err != nil {
+			return domain.IdentityProvider{}, err
+		}
+		if offered {
+			found.OfferedWorkspaces++
+		} else {
+			found.OfferedWorkspaces = max(0, found.OfferedWorkspaces-1)
+		}
 	}
 	found.OfferedHere = offered
 	return found, nil
@@ -151,7 +177,7 @@ func (h OfferIdentityProvider) offerInstallationRow(
 // form and its removal (UC-ID-12 check 6, UC-ID-11 check 8).
 func anotherWayIn(
 	ctx context.Context, providers repository.IdentityProviders, workspaces repository.Workspaces,
-	excluding shared.ID,
+	excluding shared.ID, now time.Time,
 ) bool {
 	var workspace domain.Workspace
 	if workspaces != nil {
@@ -162,7 +188,7 @@ func anotherWayIn(
 		}
 		workspace = found
 	}
-	on, err := providerOnHere(ctx, providers, workspace.Settings, excluding)
+	on, err := providerOnHere(ctx, providers, workspace.Settings, excluding, now)
 	if err != nil {
 		return false
 	}
@@ -178,7 +204,7 @@ func anotherWayIn(
 // providerOnHere answers whether any provider other than the one named is a way into this workspace.
 func providerOnHere(
 	ctx context.Context, providers repository.IdentityProviders, settings domain.WorkspaceSettings,
-	excluding shared.ID,
+	excluding shared.ID, now time.Time,
 ) (bool, error) {
 	if providers == nil {
 		return false, nil
@@ -188,7 +214,7 @@ func providerOnHere(
 		return false, err
 	}
 	for _, candidate := range inForce {
-		if candidate.ID != excluding && offeredHere(candidate, settings) {
+		if candidate.ID != excluding && offeredHere(candidate, settings, now) {
 			return true, nil
 		}
 	}
@@ -214,9 +240,14 @@ func onlyProviderMethods(workspace domain.Workspace) bool {
 	return true
 }
 
-// offeredHere is the one reading of "is this a way in here", shared by the listing and the guard.
-func offeredHere(configured domain.IdentityProvider, settings domain.WorkspaceSettings) bool {
-	if !configured.Enabled {
+// offeredHere is the one reading of "is this a way in here", shared by the listing, the guard, the
+// sign-in card and the sign-in itself. At a moment, because an installation's offer can end on an
+// announced date (ADR-0076 §2) and the date is honoured here, where the offer is read, rather than
+// by a job that would have to walk every workspace.
+func offeredHere(
+	configured domain.IdentityProvider, settings domain.WorkspaceSettings, now time.Time,
+) bool {
+	if !configured.OfferedAt(now) {
 		return false
 	}
 	if configured.Installation() {

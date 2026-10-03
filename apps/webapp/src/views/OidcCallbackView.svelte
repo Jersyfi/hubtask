@@ -20,6 +20,12 @@
   //
   // **Nothing here is offered twice.** A single-use `state` means a reload is not a retry, and the
   // way out of every failure is the same one sentence and a way back to the sign-in card.
+  //
+  // **It is also where a step-up at the provider comes back** (ADR-0075 §2). The provider knows one
+  // callback address, so a person who left the page to confirm an action with their provider
+  // returns here too. The tab remembered that before it left; such a return finishes the step-up
+  // rather than a sign-in, and sends the person back to where they were, where the frame says the
+  // confirmation holds.
 
   import { Banner, Button, Spinner } from '@hubtask/design-system/components';
 
@@ -27,6 +33,8 @@
   import { oidc } from '../lib/data/oidc.svelte.ts';
   import { readArrival } from '../lib/data/oidc.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
+  import { stepUp } from '../lib/data/stepup.svelte.ts';
+  import { session } from '../lib/session.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
 
   interface Props {
@@ -44,6 +52,22 @@
    */
   const arrival = $state(takeArrival());
 
+  /**
+   * Whether this return finishes a step-up, read once - completing it takes the note away. Only for
+   * a tab with a session: one that has none is signing in, whatever an old note says, and the note
+   * goes.
+   */
+  const isStepUp = takeStepUp();
+
+  function takeStepUp(): boolean {
+    const returning = stepUp.isReturning();
+    if (returning && !session.isSignedIn) stepUp.forget();
+    return returning && session.isSignedIn;
+  }
+  /** Where the person was before they left for the provider, once known. */
+  let returnTo = $state('/');
+  const failure = $derived(isStepUp ? stepUp.failure : oidc.failure);
+
   function takeArrival() {
     const read = readArrival(location.search);
     if (location.search !== '') history.replaceState(null, '', location.pathname);
@@ -54,6 +78,17 @@
   $effect(() => signInRules.read());
 
   $effect(() => {
+    if (isStepUp) {
+      if (arrival.kind === 'handoff') {
+        void stepUp.completeAtProvider(arrival.handoff).then((done) => {
+          returnTo = done.returnTo;
+          if (done.ok) onnavigate?.(done.returnTo);
+        });
+      } else {
+        returnTo = stepUp.abandonAtProvider();
+      }
+      return;
+    }
     if (arrival.kind === 'handoff') {
       void oidc.complete(arrival.handoff).then((ok) => ok && onnavigate?.('/'));
     } else {
@@ -67,26 +102,41 @@
 </script>
 
 {#snippet notice()}
-  {#if oidc.failure}
+  {#if failure}
     <!-- The server's own code: a spent or unknown `state`, a provider that could not be reached, a
-         workspace whose provider is switched off. -->
-    <Banner tone="danger">{t(oidc.failure)}</Banner>
+         workspace whose provider is switched off - or, for a step-up, a different account at the
+         provider, or one that did not confirm a fresh sign-in. -->
+    <Banner tone="danger">{t(failure)}</Banner>
   {/if}
 {/snippet}
 
 <!-- The heading says the state and the banner the reason: "Signing you in" above a refusal would be
      two sentences that contradict each other. -->
-<SignInCard title={t(oidc.failure ? 'app.callback.failed_title' : 'app.callback.title')} {notice}>
-  {#if oidc.failure}
-    <div>
-      <Button tone="secondary" onclick={() => onnavigate?.('/')}>{t('app.callback.back')}</Button>
-    </div>
-  {:else}
-    <p class="quiet">
-      <Spinner /> {t('app.callback.working')}
-    </p>
-  {/if}
-</SignInCard>
+{#if isStepUp}
+  <SignInCard title={t(failure ? 'app.callback.step_up_failed_title' : 'app.callback.step_up_title')} {notice}>
+    {#if failure}
+      <div>
+        <Button tone="secondary" onclick={() => onnavigate?.(returnTo)}>{t('app.callback.step_up_back')}</Button>
+      </div>
+    {:else}
+      <p class="quiet">
+        <Spinner /> {t('app.callback.step_up_working')}
+      </p>
+    {/if}
+  </SignInCard>
+{:else}
+  <SignInCard title={t(failure ? 'app.callback.failed_title' : 'app.callback.title')} {notice}>
+    {#if failure}
+      <div>
+        <Button tone="secondary" onclick={() => onnavigate?.('/')}>{t('app.callback.back')}</Button>
+      </div>
+    {:else}
+      <p class="quiet">
+        <Spinner /> {t('app.callback.working')}
+      </p>
+    {/if}
+  </SignInCard>
+{/if}
 
 <style>
   .quiet {

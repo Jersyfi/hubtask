@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -68,6 +69,37 @@ func (s *enrollmentsStore) RecordStep(
 		return false, nil
 	}
 	row.LastStep = step
+	return true, nil
+}
+
+// StartReplacement and SwapReplacement are the two statements of SC-17, with their guards written
+// out: only an armed factor takes a replacement, and only the session that began it swaps it in,
+// inside its window, while the waiting secret is still the one verified.
+func (s *enrollmentsStore) StartReplacement(
+	_ context.Context, accountID shared.ID, sealed cryptoport.Sealed,
+	sessionID shared.ID, expiresAt, _ time.Time,
+) (bool, error) {
+	row, ok := s.rows[accountID]
+	if !ok || row.ConfirmedAt.IsZero() {
+		return false, nil
+	}
+	waiting := sealed
+	row.Replacement, row.ReplacementSession, row.ReplacementExpiresAt = &waiting, sessionID, expiresAt
+	return true, nil
+}
+
+func (s *enrollmentsStore) SwapReplacement(
+	_ context.Context, accountID, sessionID shared.ID, expected cryptoport.Sealed,
+	step int64, now time.Time,
+) (bool, error) {
+	row, ok := s.rows[accountID]
+	if !ok || row.ConfirmedAt.IsZero() || row.Replacement == nil ||
+		row.ReplacementSession != sessionID || !now.Before(row.ReplacementExpiresAt) ||
+		string(row.Replacement.Ciphertext) != string(expected.Ciphertext) {
+		return false, nil
+	}
+	row.Secret, row.LastStep = *row.Replacement, step
+	row.Replacement, row.ReplacementSession, row.ReplacementExpiresAt = nil, "", time.Time{}
 	return true, nil
 }
 
@@ -184,26 +216,38 @@ func (m membershipsFake) Administrators(context.Context, []domain.Scope) ([]shar
 
 // encryptorFake seals by remembering the plaintext under the purpose - which also proves the
 // purpose binding: opening under another purpose fails as the real envelope would.
+// encryptorFake seals by purpose, the binding the tests are about. Each sealing is its own
+// ciphertext, as a real envelope's is, so two secrets under one purpose - an authenticator and its
+// replacement (SC-17) - stay two; sealedBy keeps the latest plaintext per purpose for the tests that
+// read a secret back by its purpose.
 type encryptorFake struct {
 	sealedBy map[string]string
+	byCipher map[string]string
+	sealings int
 }
 
-func newEncryptor() *encryptorFake { return &encryptorFake{sealedBy: map[string]string{}} }
+func newEncryptor() *encryptorFake {
+	return &encryptorFake{sealedBy: map[string]string{}, byCipher: map[string]string{}}
+}
 
 func (e *encryptorFake) Seal(
 	_ context.Context, plaintext secret.Secret, purpose cryptoport.Purpose,
 ) (cryptoport.Sealed, error) {
+	e.sealings++
+	cipher := string(purpose) + "#" + strconv.Itoa(e.sealings)
 	e.sealedBy[string(purpose)] = plaintext.Reveal()
-	return cryptoport.Sealed{KeyID: "k1", Ciphertext: []byte(string(purpose))}, nil
+	e.byCipher[cipher] = plaintext.Reveal()
+	return cryptoport.Sealed{KeyID: "k1", Ciphertext: []byte(cipher)}, nil
 }
 
 func (e *encryptorFake) Open(
 	_ context.Context, sealed cryptoport.Sealed, purpose cryptoport.Purpose,
 ) (secret.Secret, error) {
-	if string(sealed.Ciphertext) != string(purpose) {
+	plaintext, held := e.byCipher[string(sealed.Ciphertext)]
+	if !held || !strings.HasPrefix(string(sealed.Ciphertext), string(purpose)+"#") {
 		return secret.Secret{}, cryptoport.NotAuthentic()
 	}
-	return secret.New(e.sealedBy[string(purpose)]), nil
+	return secret.New(plaintext), nil
 }
 
 func (e *encryptorFake) ActiveKeyID() string { return "k1" }

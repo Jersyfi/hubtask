@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -243,6 +243,74 @@ test('chromium: the ways to sign in are one list, one switch each, and the last 
   await page.waitForFunction(() => true);
   await new Promise((resolve) => setTimeout(resolve, 300));
   assert.deepEqual(sent, [{ path: '/identity-providers/platform:offer', body: { offered: true } }]);
+});
+
+// ADR-0076 §2, UC-ID-12 check 6 (SC-20): a provider the installation withdraws says its day under
+// its switch while there is time to act on it, and from the day it has no switch at all.
+test('chromium: a provider the installation withdraws says when, under its switch', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const soon = new Date(Date.now() + 5 * 86_400_000).toISOString();
+  const { page, close } = await open(browser, (route, path) => {
+    if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: policy() } });
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [
+        { ...provider('platform', 'The platform', 'installation', { offered: true }), withdraw_at: soon },
+        { ...provider('gone', 'The old platform', 'installation', { offered: false }), withdraw_at: '2026-01-01T00:00:00Z' },
+      ] });
+    }
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const list = page.getByRole('list', { name: 'Ways to sign in' });
+  await list.waitFor();
+  const withdrawing = list.getByRole('listitem').filter({ hasText: 'The platform' });
+  await withdrawing.getByText(/The installation withdraws this provider on .*Switch on another way/).waitFor();
+  assert.equal(await withdrawing.locator('input').count(), 1, 'a provider still offered lost its switch');
+
+  // From its day it is a way in nowhere: no switch, a sentence.
+  const gone = list.getByRole('listitem').filter({ hasText: 'The old platform' });
+  assert.equal(await gone.locator('input').count(), 0, 'a withdrawn provider still has a switch');
+  assert.match(await gone.textContent() ?? '', /Switched off by the installation/);
+});
+
+// ADR-0076 §4 (SC-20): a workspace the withdrawal left with no way in is told that the password opened
+// again, from the same answer the sign-in card reads.
+test('chromium: a workspace left without a way in is told the password is open again', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const onlyProvider = policy();
+  onlyProvider.methods = rule(['OIDC'], ['PASSWORD', 'OIDC'], { source: 'WORKSPACE' });
+  const { page, close } = await open(browser, (route, path) => {
+    if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: onlyProvider } });
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [
+        { ...provider('gone', 'The old platform', 'installation', { offered: false }), withdraw_at: '2026-01-01T00:00:00Z' },
+      ] });
+    }
+    if (path === '/meta/capabilities') {
+      return route.fulfill({ json: { ...MANIFEST, features: { ...MANIFEST.features, sign_in_rules: true } } });
+    }
+    if (path === '/auth/sign-in-rules') {
+      return route.fulfill({ json: {
+        workspace_host: 'acme.hubtask.eu', methods: ['PASSWORD'], providers: [], legal: {},
+        password: {
+          min_length: 12, min_lowercase: 0, min_uppercase: 0, min_digits: 0, min_symbols: 0,
+          min_classes: 0, max_repeat: 0, common_passwords: true, context_words: true,
+          breach_check: false, history_count: 0, not_current: false,
+        },
+        password_fallback: true,
+      } });
+    }
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.getByText('The password is open again').waitFor();
+  assert.match(await page.getByText(/until you switch on another way/i).textContent() ?? '', /new invitation/);
 });
 
 // UC-ID-11 check 8: the provider screen configures; it switches nothing - not with a control, and

@@ -6,6 +6,8 @@ package rest
 import (
 	"net/http"
 
+	"github.com/google/uuid"
+
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -154,22 +156,30 @@ func (c *RestController) ConfirmTotp(w http.ResponseWriter, r *http.Request) {
 
 // DisableTotp answers POST /auth/mfa:disable. Written out for ListServiceAccounts' reason: the
 // identity helper's closure gives the linter nothing to trace the request's context through.
-func (c *RestController) DisableTotp(w http.ResponseWriter, r *http.Request) {
+func (c *RestController) DisableTotp(
+	w http.ResponseWriter, r *http.Request, params openapi.DisableTotpParams,
+) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.UseCases == nil {
 		WriteProblem(w, errNotWired, requestID)
 		return
 	}
 
+	// The body is optional since the step-up proves the act (ADR-0075 §3): an empty one is a client
+	// that sends only the header, and the deprecated password is read where one was sent.
 	var body openapi.MfaDisable
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
+	if r.ContentLength != 0 {
+		if err := decodeJSON(r, &body); err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+	}
+	in := usecase.Input{"step_up_token": stepUpHeaderField(params.XHubtaskStepUp)}
+	if body.Password != nil {
+		in["password"] = *body.Password
 	}
 
-	if _, err := c.UseCases.Invoke(r.Context(), disableTotpUseCase, actorOf(r), usecase.Input{
-		"password": body.Password,
-	}); err != nil {
+	if _, err := c.UseCases.Invoke(r.Context(), disableTotpUseCase, actorOf(r), in); err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
@@ -225,8 +235,11 @@ func (c *RestController) StepUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), stepUpUseCase, actorOf(r), usecase.Input{
-		"password": optionalStringField(body.Password),
-		"code":     optionalStringField(body.Code),
+		"password":           optionalStringField(body.Password),
+		"code":               optionalStringField(body.Code),
+		"recovery_code":      optionalStringField(body.RecoveryCode),
+		"state":              optionalStringField(body.State),
+		"authorization_code": optionalStringField(body.AuthorizationCode),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
@@ -237,6 +250,33 @@ func (c *RestController) StepUp(w http.ResponseWriter, r *http.Request) {
 		StepUpToken: out.String("step_up_token"),
 		ExpiresAt:   timeValue(out["expires_at"]),
 		Method:      openapi.StepUpGrantMethod(out.String("method")),
+	})
+}
+
+const startProviderStepUpUseCase = "StartProviderStepUp"
+
+// StartProviderStepUp answers POST /auth/step-up:provider (ADR-0075 §2).
+func (c *RestController) StartProviderStepUp(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), startProviderStepUpUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	providerID, err := uuid.Parse(out.String("provider_id"))
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusCreated, openapi.ProviderStepUpAuthorization{
+		AuthorizationUrl: out.String("authorization_url"),
+		ExpiresAt:        timeValue(out["expires_at"]),
+		ProviderId:       providerID,
+		ProviderName:     out.String("provider_name"),
 	})
 }
 
@@ -266,6 +306,54 @@ func (c *RestController) RegenerateRecoveryCodes(
 		writeJSON(w, r, http.StatusCreated, openapi.RecoveryCodes{
 			RecoveryCodes: recoveryCodeList(out["recovery_codes"]),
 		})
+	})
+}
+
+const (
+	startAuthenticatorReplacementUseCase   = "StartAuthenticatorReplacement"
+	confirmAuthenticatorReplacementUseCase = "ConfirmAuthenticatorReplacement"
+)
+
+// StartAuthenticatorReplacement answers POST /auth/mfa/totp:replace (SC-17).
+func (c *RestController) StartAuthenticatorReplacement(
+	w http.ResponseWriter, r *http.Request, params openapi.StartAuthenticatorReplacementParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), startAuthenticatorReplacementUseCase, actor, usecase.Input{
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+		})
+	}, func(out usecase.Output) {
+		// The new secret's single showing, as the enrolment's: here and in no projection.
+		writeJSON(w, r, http.StatusCreated, openapi.AuthenticatorReplacement{
+			Secret:     out.String("secret"),
+			OtpauthUri: out.String("otpauth_uri"),
+			ExpiresAt:  timeValue(out["expires_at"]),
+		})
+	})
+}
+
+// ConfirmAuthenticatorReplacement answers POST /auth/mfa/totp/replacement:confirm (SC-17).
+func (c *RestController) ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.AuthenticatorReplacementConfirmation
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), confirmAuthenticatorReplacementUseCase, actorOf(r), usecase.Input{
+		"code": body.Code,
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	// The new codes' single showing, as the regenerated ones': here and in no projection.
+	writeJSON(w, r, http.StatusCreated, openapi.RecoveryCodes{
+		RecoveryCodes: recoveryCodeList(out["recovery_codes"]),
 	})
 }
 

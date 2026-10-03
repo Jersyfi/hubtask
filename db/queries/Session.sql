@@ -280,9 +280,42 @@ SET secret_enc = EXCLUDED.secret_enc,
 WHERE account_mfa.confirmed_at IS NULL;
 
 -- name: FindMfaEnrollment :one
-SELECT account_id, secret_enc, secret_key_id, confirmed_at, last_step
+SELECT account_id, secret_enc, secret_key_id, confirmed_at, last_step,
+       replacement_secret_enc, replacement_secret_key_id, replacement_session_id, replacement_expires_at
 FROM account_mfa
 WHERE account_id = sqlc.arg('account_id');
+
+-- name: StartMfaReplacement :execrows
+-- The new secret beside the armed one (SC-17): only an armed enrolment takes a replacement - an
+-- unconfirmed one is replaced by enrolling again - and a replacement begun earlier is overwritten,
+-- the latest start being the one the person is looking at.
+UPDATE account_mfa SET
+  replacement_secret_enc    = sqlc.arg('secret_enc'),
+  replacement_secret_key_id = sqlc.arg('secret_key_id'),
+  replacement_session_id    = sqlc.arg('session_id'),
+  replacement_expires_at    = sqlc.arg('expires_at'),
+  updated_at                = sqlc.arg('now')
+WHERE account_id = sqlc.arg('account_id') AND confirmed_at IS NOT NULL;
+
+-- name: SwapMfaReplacement :execrows
+-- The swap, in one statement: the replacement becomes the armed secret and the old one is gone, with
+-- the confirming step as the new replay floor. Only for the session that began it, inside its window,
+-- and only if the replacement is still the very secret the confirmation verified - a second start in
+-- between would otherwise arm a secret nobody proved.
+UPDATE account_mfa SET
+  secret_enc                = replacement_secret_enc,
+  secret_key_id             = replacement_secret_key_id,
+  last_step                 = sqlc.arg('step'),
+  replacement_secret_enc    = NULL,
+  replacement_secret_key_id = NULL,
+  replacement_session_id    = NULL,
+  replacement_expires_at    = NULL,
+  updated_at                = sqlc.arg('now')
+WHERE account_id = sqlc.arg('account_id')
+  AND confirmed_at IS NOT NULL
+  AND replacement_session_id = sqlc.arg('session_id')
+  AND replacement_expires_at > sqlc.arg('now')
+  AND replacement_secret_enc = sqlc.arg('expected_secret_enc');
 
 -- name: ConfirmMfaEnrollment :execrows
 -- Arms the enrolment and records the confirming step in one statement, so the code that armed
@@ -424,6 +457,20 @@ SELECT account_id, secret_enc, secret_key_id, confirmed_at, last_step
 FROM account_mfa
 WHERE secret_key_id <> sqlc.arg('key_id')
 ORDER BY account_id;
+
+-- name: SealedMfaReplacementsNotUnder :many
+-- A replacement's wrapping is a sealed value like the armed one's, so a rotation moves it too: the
+-- census counts it, and a rotation that skipped it would report done while it named the leaving key.
+SELECT account_id, replacement_secret_enc, replacement_secret_key_id
+FROM account_mfa
+WHERE replacement_secret_key_id IS NOT NULL AND replacement_secret_key_id <> sqlc.arg('key_id')
+ORDER BY account_id;
+
+-- name: RewrapMfaReplacement :execrows
+-- RewrapMfaEnrollment's guard, for the replacement's wrapping.
+UPDATE account_mfa
+SET replacement_secret_enc = sqlc.arg('secret_enc'), replacement_secret_key_id = sqlc.arg('secret_key_id')
+WHERE account_id = sqlc.arg('account_id') AND replacement_secret_key_id = sqlc.arg('expected_key_id');
 
 -- name: RewrapMfaEnrollment :execrows
 -- The wrapping moves and nothing else does: no updated_at the person would read as their
