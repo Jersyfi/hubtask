@@ -210,14 +210,14 @@ func intFrom(value *int32) int {
 
 func (r SessionRepository) ForAccount(
 	ctx context.Context, accountID shared.ID, now time.Time,
-) ([]identity.Session, error) {
+) (repository.AccountSessions, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
-		return nil, err
+		return repository.AccountSessions{}, err
 	}
 	id, err := uuidOf(accountID)
 	if err != nil {
-		return nil, err
+		return repository.AccountSessions{}, err
 	}
 
 	rows, err := queries.SessionsForAccount(ctx, sqlc.SessionsForAccountParams{
@@ -225,22 +225,25 @@ func (r SessionRepository) ForAccount(
 		Now:       pgtype.Timestamptz{Time: now, Valid: true},
 	})
 	if err != nil {
-		return nil, shared.ErrUnavailable.
+		return repository.AccountSessions{}, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("listing the sessions: %w", err))
 	}
 
-	sessions := make([]identity.Session, 0, len(rows))
+	listed := repository.AccountSessions{Sessions: make([]identity.Session, 0, len(rows))}
 	for _, row := range rows {
 		sessionID, err := idFrom(row.ID)
 		if err != nil {
-			return nil, err
+			return repository.AccountSessions{}, err
 		}
 		via, err := optionalID(row.SignedInProviderID)
 		if err != nil {
-			return nil, err
+			return repository.AccountSessions{}, err
 		}
-		sessions = append(sessions, identity.Session{
+		// The same cutoff on every row - it is the workspace's - read off each because a statement
+		// that answers rows has nowhere else to put it.
+		listed.RotationFrom = momentFrom(row.RotationFrom)
+		listed.Sessions = append(listed.Sessions, identity.Session{
 			SignedInVia:     via,
 			SignedInViaName: stringFrom(row.SignedInProviderName),
 			ID:              sessionID, AccountID: accountID,
@@ -258,7 +261,7 @@ func (r SessionRepository) ForAccount(
 			SignedInWith:  stringFrom(row.SignedInWith),
 		})
 	}
-	return sessions, nil
+	return listed, nil
 }
 
 // Elevate raises one live session of the account for a bounded while (ADR-0070 §4).
