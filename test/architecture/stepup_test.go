@@ -28,6 +28,7 @@ var privilegedUseCases = map[string]string{
 	"CreateAccessToken":                 "an admin-scoped token reaches the control plane",
 	"RequestTenantDeletion":             "it is the request that ends a workspace (multi-tenancy.md §5, H-06)",
 	"DisableTotp":                       "a stolen session removing the second factor is the attack the factor exists against (ADR-0075 §3)",
+	"StartAuthenticatorReplacement":     "replacing the second factor is the same power as removing it (SC-17)",
 }
 
 func TestEveryPrivilegedOperationDeclaresItsStepUp(t *testing.T) {

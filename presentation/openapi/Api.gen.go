@@ -4052,6 +4052,24 @@ type AuditTarget struct {
 	Type  *string             `json:"type,omitempty"`
 }
 
+// AuthenticatorReplacement The new secret's single showing (SC-17). Nothing is armed yet: the factor in force and its recovery codes keep working until the replacement is confirmed.
+type AuthenticatorReplacement struct {
+	// ExpiresAt Until when the replacement can be confirmed; after that it lapses unarmed.
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// OtpauthUri What a QR image is rendered from - the rendering is the client's job.
+	OtpauthUri string `json:"otpauth_uri"`
+
+	// Secret Base32, for typing by hand where no camera reaches the QR.
+	Secret string `json:"secret"`
+}
+
+// AuthenticatorReplacementConfirmation defines model for AuthenticatorReplacementConfirmation.
+type AuthenticatorReplacementConfirmation struct {
+	// Code The current code of the new authenticator.
+	Code string `json:"code"`
+}
+
 // AutoAssignCandidate defines model for AutoAssignCandidate.
 type AutoAssignCandidate struct {
 	Id   openapi_types.UUID      `json:"id"`
@@ -8441,6 +8459,12 @@ type RegenerateRecoveryCodesParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// StartAuthenticatorReplacementParams defines parameters for StartAuthenticatorReplacement.
+type StartAuthenticatorReplacementParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // DisableTotpParams defines parameters for DisableTotp.
 type DisableTotpParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -9413,6 +9437,9 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
+// ConfirmAuthenticatorReplacementJSONRequestBody defines body for ConfirmAuthenticatorReplacement for application/json ContentType.
+type ConfirmAuthenticatorReplacementJSONRequestBody = AuthenticatorReplacementConfirmation
+
 // ConfirmTotpJSONRequestBody defines body for ConfirmTotp for application/json ContentType.
 type ConfirmTotpJSONRequestBody = TotpConfirmation
 
@@ -9832,12 +9859,18 @@ type ServerInterface interface {
 	// RegenerateRecoveryCodes Replace the ten recovery codes
 	// (POST /auth/mfa/recovery:regenerate)
 	RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request, params RegenerateRecoveryCodesParams)
+	// ConfirmAuthenticatorReplacement Confirm the new authenticator, and swap
+	// (POST /auth/mfa/totp/replacement:confirm)
+	ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Request)
 	// ConfirmTotp Confirm enrolment with a first valid code
 	// (POST /auth/mfa/totp:confirm)
 	ConfirmTotp(w http.ResponseWriter, r *http.Request)
 	// EnrollTotp Begin TOTP enrolment
 	// (POST /auth/mfa/totp:enroll)
 	EnrollTotp(w http.ResponseWriter, r *http.Request)
+	// StartAuthenticatorReplacement Begin replacing the authenticator
+	// (POST /auth/mfa/totp:replace)
+	StartAuthenticatorReplacement(w http.ResponseWriter, r *http.Request, params StartAuthenticatorReplacementParams)
 	// DisableTotp Disable the second factor
 	// (POST /auth/mfa:disable)
 	DisableTotp(w http.ResponseWriter, r *http.Request, params DisableTotpParams)
@@ -11555,6 +11588,20 @@ func (siw *ServerInterfaceWrapper) RegenerateRecoveryCodes(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
+// ConfirmAuthenticatorReplacement operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmAuthenticatorReplacement(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ConfirmTotp operation middleware
 func (siw *ServerInterfaceWrapper) ConfirmTotp(w http.ResponseWriter, r *http.Request) {
 
@@ -11574,6 +11621,47 @@ func (siw *ServerInterfaceWrapper) EnrollTotp(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.EnrollTotp(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartAuthenticatorReplacement operation middleware
+func (siw *ServerInterfaceWrapper) StartAuthenticatorReplacement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StartAuthenticatorReplacementParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartAuthenticatorReplacement(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20510,6 +20598,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up", wrapper.StepUp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up:provider", wrapper.StartProviderStepUp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:replace", wrapper.StartAuthenticatorReplacement)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp/replacement:confirm", wrapper.ConfirmAuthenticatorReplacement)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/recovery:regenerate", wrapper.RegenerateRecoveryCodes)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa:disable", wrapper.DisableTotp)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/tokens", wrapper.ListAccessTokens)

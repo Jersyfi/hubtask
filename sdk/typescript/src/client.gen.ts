@@ -713,6 +713,16 @@ export class HubtaskClient {
     return this.call("POST", "/auth/step-up:provider", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Begin replacing the authenticator */
+  startAuthenticatorReplacement(options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["startAuthenticatorReplacement"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/mfa/totp:replace", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Confirm the new authenticator, and swap */
+  confirmAuthenticatorReplacement(body: NonNullable<operations["confirmAuthenticatorReplacement"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["confirmAuthenticatorReplacement"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/mfa/totp/replacement:confirm", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Replace the ten recovery codes */
   regenerateRecoveryCodes(options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["regenerateRecoveryCodes"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/auth/mfa/recovery:regenerate", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);

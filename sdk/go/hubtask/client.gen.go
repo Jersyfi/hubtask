@@ -4058,6 +4058,24 @@ type AuditTarget struct {
 	Type  *string             `json:"type,omitempty"`
 }
 
+// AuthenticatorReplacement The new secret's single showing (SC-17). Nothing is armed yet: the factor in force and its recovery codes keep working until the replacement is confirmed.
+type AuthenticatorReplacement struct {
+	// ExpiresAt Until when the replacement can be confirmed; after that it lapses unarmed.
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// OtpauthUri What a QR image is rendered from - the rendering is the client's job.
+	OtpauthUri string `json:"otpauth_uri"`
+
+	// Secret Base32, for typing by hand where no camera reaches the QR.
+	Secret string `json:"secret"`
+}
+
+// AuthenticatorReplacementConfirmation defines model for AuthenticatorReplacementConfirmation.
+type AuthenticatorReplacementConfirmation struct {
+	// Code The current code of the new authenticator.
+	Code string `json:"code"`
+}
+
 // AutoAssignCandidate defines model for AutoAssignCandidate.
 type AutoAssignCandidate struct {
 	Id   openapi_types.UUID      `json:"id"`
@@ -8447,6 +8465,12 @@ type RegenerateRecoveryCodesParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// StartAuthenticatorReplacementParams defines parameters for StartAuthenticatorReplacement.
+type StartAuthenticatorReplacementParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // DisableTotpParams defines parameters for DisableTotp.
 type DisableTotpParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -9419,6 +9443,9 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
+// ConfirmAuthenticatorReplacementJSONRequestBody defines body for ConfirmAuthenticatorReplacement for application/json ContentType.
+type ConfirmAuthenticatorReplacementJSONRequestBody = AuthenticatorReplacementConfirmation
+
 // ConfirmTotpJSONRequestBody defines body for ConfirmTotp for application/json ContentType.
 type ConfirmTotpJSONRequestBody = TotpConfirmation
 
@@ -10363,6 +10390,26 @@ type ClientInterface interface {
 	// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
 	RegenerateRecoveryCodes(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ConfirmAuthenticatorReplacementWithBody Confirm the new authenticator, and swap
+	//
+	// A code from the new authenticator proves it holds the new secret. Then, in one statement, the new secret becomes the armed one and the old stops working, and ten new recovery codes replace the old ten - answered here, for the only time they are shown. Audited as `auth.mfa_replaced`.
+	// Only the session that began the replacement confirms it, and only inside its window; otherwise `auth.mfa_replacement_unknown`. A wrong code counts against the second factor's ledger and changes nothing.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/mfa/totp/replacement:confirm (the `ConfirmAuthenticatorReplacement` operationId).
+	ConfirmAuthenticatorReplacementWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmAuthenticatorReplacement Confirm the new authenticator, and swap
+	//
+	// A code from the new authenticator proves it holds the new secret. Then, in one statement, the new secret becomes the armed one and the old stops working, and ten new recovery codes replace the old ten - answered here, for the only time they are shown. Audited as `auth.mfa_replaced`.
+	// Only the session that began the replacement confirms it, and only inside its window; otherwise `auth.mfa_replacement_unknown`. A wrong code counts against the second factor's ledger and changes nothing.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/mfa/totp/replacement:confirm (the `ConfirmAuthenticatorReplacement` operationId).
+	ConfirmAuthenticatorReplacement(ctx context.Context, body ConfirmAuthenticatorReplacementJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ConfirmTotpWithBody Confirm enrolment with a first valid code
 	//
 	// Arms the enrolment: the caller proves the authenticator holds the secret by presenting one valid code, and from this moment sign-in is two-step. Called with a bearer credential, or with the pending credential of an enforcement sign-in - in which case a successful confirmation also answers the session pair, because the person has by now proved both factors.
@@ -10400,6 +10447,14 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/mfa/totp:enroll (the `EnrollTotp` operationId).
 	EnrollTotp(ctx context.Context, body EnrollTotpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartAuthenticatorReplacement Begin replacing the authenticator
+	//
+	// For a new phone, or an authenticator that is gone (SC-17): a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
+	// Behind a step-up with whatever the account holds (ADR-0075): replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
+	//
+	// Corresponds with POST /auth/mfa/totp:replace (the `StartAuthenticatorReplacement` operationId).
+	StartAuthenticatorReplacement(ctx context.Context, params *StartAuthenticatorReplacementParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DisableTotpWithBody Disable the second factor
 	//
@@ -14416,6 +14471,46 @@ func (c *Client) RegenerateRecoveryCodes(ctx context.Context, params *Regenerate
 	return c.Client.Do(req)
 }
 
+// ConfirmAuthenticatorReplacementWithBody Confirm the new authenticator, and swap
+//
+// A code from the new authenticator proves it holds the new secret. Then, in one statement, the new secret becomes the armed one and the old stops working, and ten new recovery codes replace the old ten - answered here, for the only time they are shown. Audited as `auth.mfa_replaced`.
+// Only the session that began the replacement confirms it, and only inside its window; otherwise `auth.mfa_replacement_unknown`. A wrong code counts against the second factor's ledger and changes nothing.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/mfa/totp/replacement:confirm (the `ConfirmAuthenticatorReplacement` operationId).
+func (c *Client) ConfirmAuthenticatorReplacementWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmAuthenticatorReplacementRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmAuthenticatorReplacement Confirm the new authenticator, and swap
+//
+// A code from the new authenticator proves it holds the new secret. Then, in one statement, the new secret becomes the armed one and the old stops working, and ten new recovery codes replace the old ten - answered here, for the only time they are shown. Audited as `auth.mfa_replaced`.
+// Only the session that began the replacement confirms it, and only inside its window; otherwise `auth.mfa_replacement_unknown`. A wrong code counts against the second factor's ledger and changes nothing.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/mfa/totp/replacement:confirm (the `ConfirmAuthenticatorReplacement` operationId).
+func (c *Client) ConfirmAuthenticatorReplacement(ctx context.Context, body ConfirmAuthenticatorReplacementJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmAuthenticatorReplacementRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ConfirmTotpWithBody Confirm enrolment with a first valid code
 //
 // Arms the enrolment: the caller proves the authenticator holds the secret by presenting one valid code, and from this moment sign-in is two-step. Called with a bearer credential, or with the pending credential of an enforcement sign-in - in which case a successful confirmation also answers the session pair, because the person has by now proved both factors.
@@ -14484,6 +14579,24 @@ func (c *Client) EnrollTotpWithBody(ctx context.Context, contentType string, bod
 // Corresponds with POST /auth/mfa/totp:enroll (the `EnrollTotp` operationId).
 func (c *Client) EnrollTotp(ctx context.Context, body EnrollTotpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewEnrollTotpRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartAuthenticatorReplacement Begin replacing the authenticator
+//
+// For a new phone, or an authenticator that is gone (SC-17): a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
+// Behind a step-up with whatever the account holds (ADR-0075): replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
+//
+// Corresponds with POST /auth/mfa/totp:replace (the `StartAuthenticatorReplacement` operationId).
+func (c *Client) StartAuthenticatorReplacement(ctx context.Context, params *StartAuthenticatorReplacementParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartAuthenticatorReplacementRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -22302,6 +22415,46 @@ func NewRegenerateRecoveryCodesRequest(server string, params *RegenerateRecovery
 	return req, nil
 }
 
+// NewConfirmAuthenticatorReplacementRequest calls the generic ConfirmAuthenticatorReplacement builder with application/json body
+func NewConfirmAuthenticatorReplacementRequest(server string, body ConfirmAuthenticatorReplacementJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfirmAuthenticatorReplacementRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewConfirmAuthenticatorReplacementRequestWithBody constructs an http.Request for the ConfirmAuthenticatorReplacement method, with any body, and a specified content type
+func NewConfirmAuthenticatorReplacementRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/mfa/totp/replacement:confirm")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewConfirmTotpRequest calls the generic ConfirmTotp builder with application/json body
 func NewConfirmTotpRequest(server string, body ConfirmTotpJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -22378,6 +22531,48 @@ func NewEnrollTotpRequestWithBody(server string, contentType string, body io.Rea
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStartAuthenticatorReplacementRequest constructs an http.Request for the StartAuthenticatorReplacement method
+func NewStartAuthenticatorReplacementRequest(server string, params *StartAuthenticatorReplacementParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/mfa/totp:replace")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -34423,6 +34618,26 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
 	RegenerateRecoveryCodesWithResponse(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*RegenerateRecoveryCodesResult, error)
 
+	// ConfirmAuthenticatorReplacementWithBodyWithResponse Confirm the new authenticator, and swap
+	//
+	// A code from the new authenticator proves it holds the new secret. Then, in one statement, the new secret becomes the armed one and the old stops working, and ten new recovery codes replace the old ten - answered here, for the only time they are shown. Audited as `auth.mfa_replaced`.
+	// Only the session that began the replacement confirms it, and only inside its window; otherwise `auth.mfa_replacement_unknown`. A wrong code counts against the second factor's ledger and changes nothing.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/totp/replacement:confirm (the `ConfirmAuthenticatorReplacement` operationId).
+	ConfirmAuthenticatorReplacementWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmAuthenticatorReplacementResult, error)
+
+	// ConfirmAuthenticatorReplacementWithResponse Confirm the new authenticator, and swap
+	//
+	// A code from the new authenticator proves it holds the new secret. Then, in one statement, the new secret becomes the armed one and the old stops working, and ten new recovery codes replace the old ten - answered here, for the only time they are shown. Audited as `auth.mfa_replaced`.
+	// Only the session that began the replacement confirms it, and only inside its window; otherwise `auth.mfa_replacement_unknown`. A wrong code counts against the second factor's ledger and changes nothing.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/totp/replacement:confirm (the `ConfirmAuthenticatorReplacement` operationId).
+	ConfirmAuthenticatorReplacementWithResponse(ctx context.Context, body ConfirmAuthenticatorReplacementJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmAuthenticatorReplacementResult, error)
+
 	// ConfirmTotpWithBodyWithResponse Confirm enrolment with a first valid code
 	//
 	// Arms the enrolment: the caller proves the authenticator holds the secret by presenting one valid code, and from this moment sign-in is two-step. Called with a bearer credential, or with the pending credential of an enforcement sign-in - in which case a successful confirmation also answers the session pair, because the person has by now proved both factors.
@@ -34460,6 +34675,16 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /auth/mfa/totp:enroll (the `EnrollTotp` operationId).
 	EnrollTotpWithResponse(ctx context.Context, body EnrollTotpJSONRequestBody, reqEditors ...RequestEditorFn) (*EnrollTotpResult, error)
+
+	// StartAuthenticatorReplacementWithResponse Begin replacing the authenticator
+	//
+	// For a new phone, or an authenticator that is gone (SC-17): a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
+	// Behind a step-up with whatever the account holds (ADR-0075): replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/totp:replace (the `StartAuthenticatorReplacement` operationId).
+	StartAuthenticatorReplacementWithResponse(ctx context.Context, params *StartAuthenticatorReplacementParams, reqEditors ...RequestEditorFn) (*StartAuthenticatorReplacementResult, error)
 
 	// DisableTotpWithBodyWithResponse Disable the second factor
 	//
@@ -39481,6 +39706,54 @@ func (r RegenerateRecoveryCodesResult) ContentType() string {
 	return ""
 }
 
+type ConfirmAuthenticatorReplacementResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *RecoveryCodes
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r ConfirmAuthenticatorReplacementResult) GetJSON201() *RecoveryCodes {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfirmAuthenticatorReplacementResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfirmAuthenticatorReplacementResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfirmAuthenticatorReplacementResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfirmAuthenticatorReplacementResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfirmAuthenticatorReplacementResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ConfirmTotpResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -39571,6 +39844,54 @@ func (r EnrollTotpResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r EnrollTotpResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartAuthenticatorReplacementResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *AuthenticatorReplacement
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r StartAuthenticatorReplacementResult) GetJSON201() *AuthenticatorReplacement {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartAuthenticatorReplacementResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartAuthenticatorReplacementResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartAuthenticatorReplacementResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartAuthenticatorReplacementResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartAuthenticatorReplacementResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -51908,6 +52229,38 @@ func (c *ClientWithResponses) RegenerateRecoveryCodesWithResponse(ctx context.Co
 	return ParseRegenerateRecoveryCodesResult(rsp)
 }
 
+// ConfirmAuthenticatorReplacementWithBodyWithResponse Confirm the new authenticator, and swap
+//
+// A code from the new authenticator proves it holds the new secret. Then, in one statement, the new secret becomes the armed one and the old stops working, and ten new recovery codes replace the old ten - answered here, for the only time they are shown. Audited as `auth.mfa_replaced`.
+// Only the session that began the replacement confirms it, and only inside its window; otherwise `auth.mfa_replacement_unknown`. A wrong code counts against the second factor's ledger and changes nothing.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/totp/replacement:confirm (the `ConfirmAuthenticatorReplacement` operationId).
+func (c *ClientWithResponses) ConfirmAuthenticatorReplacementWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmAuthenticatorReplacementResult, error) {
+	rsp, err := c.ConfirmAuthenticatorReplacementWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmAuthenticatorReplacementResult(rsp)
+}
+
+// ConfirmAuthenticatorReplacementWithResponse Confirm the new authenticator, and swap
+//
+// A code from the new authenticator proves it holds the new secret. Then, in one statement, the new secret becomes the armed one and the old stops working, and ten new recovery codes replace the old ten - answered here, for the only time they are shown. Audited as `auth.mfa_replaced`.
+// Only the session that began the replacement confirms it, and only inside its window; otherwise `auth.mfa_replacement_unknown`. A wrong code counts against the second factor's ledger and changes nothing.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/totp/replacement:confirm (the `ConfirmAuthenticatorReplacement` operationId).
+func (c *ClientWithResponses) ConfirmAuthenticatorReplacementWithResponse(ctx context.Context, body ConfirmAuthenticatorReplacementJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmAuthenticatorReplacementResult, error) {
+	rsp, err := c.ConfirmAuthenticatorReplacement(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmAuthenticatorReplacementResult(rsp)
+}
+
 // ConfirmTotpWithBodyWithResponse Confirm enrolment with a first valid code
 //
 // Arms the enrolment: the caller proves the authenticator holds the secret by presenting one valid code, and from this moment sign-in is two-step. Called with a bearer credential, or with the pending credential of an enforcement sign-in - in which case a successful confirmation also answers the session pair, because the person has by now proved both factors.
@@ -51968,6 +52321,22 @@ func (c *ClientWithResponses) EnrollTotpWithResponse(ctx context.Context, body E
 		return nil, err
 	}
 	return ParseEnrollTotpResult(rsp)
+}
+
+// StartAuthenticatorReplacementWithResponse Begin replacing the authenticator
+//
+// For a new phone, or an authenticator that is gone (SC-17): a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
+// Behind a step-up with whatever the account holds (ADR-0075): replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/totp:replace (the `StartAuthenticatorReplacement` operationId).
+func (c *ClientWithResponses) StartAuthenticatorReplacementWithResponse(ctx context.Context, params *StartAuthenticatorReplacementParams, reqEditors ...RequestEditorFn) (*StartAuthenticatorReplacementResult, error) {
+	rsp, err := c.StartAuthenticatorReplacement(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartAuthenticatorReplacementResult(rsp)
 }
 
 // DisableTotpWithBodyWithResponse Disable the second factor
@@ -58427,6 +58796,39 @@ func ParseRegenerateRecoveryCodesResult(rsp *http.Response) (*RegenerateRecovery
 	return response, nil
 }
 
+// ParseConfirmAuthenticatorReplacementResult parses an HTTP response from a ConfirmAuthenticatorReplacementWithResponse call
+func ParseConfirmAuthenticatorReplacementResult(rsp *http.Response) (*ConfirmAuthenticatorReplacementResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfirmAuthenticatorReplacementResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest RecoveryCodes
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseConfirmTotpResult parses an HTTP response from a ConfirmTotpWithResponse call
 func ParseConfirmTotpResult(rsp *http.Response) (*ConfirmTotpResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -58476,6 +58878,39 @@ func ParseEnrollTotpResult(rsp *http.Response) (*EnrollTotpResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest TotpEnrollment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartAuthenticatorReplacementResult parses an HTTP response from a StartAuthenticatorReplacementWithResponse call
+func ParseStartAuthenticatorReplacementResult(rsp *http.Response) (*StartAuthenticatorReplacementResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartAuthenticatorReplacementResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest AuthenticatorReplacement
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

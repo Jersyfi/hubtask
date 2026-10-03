@@ -339,8 +339,19 @@ CREATE TABLE account_mfa (
   last_step     bigint,
   created_at    timestamptz NOT NULL,
   updated_at    timestamptz NOT NULL,
+  -- The authenticator's replacement (SC-17, migration 0113): a second, unconfirmed secret beside
+  -- the armed one, the session that began it and the end of its window. All four or none.
+  replacement_secret_enc    bytea,
+  replacement_secret_key_id text,
+  replacement_session_id    uuid,
+  replacement_expires_at    timestamptz,
   CONSTRAINT account_mfa_account_fkey FOREIGN KEY (tenant_id, account_id)
-    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT account_mfa_replacement_whole CHECK (
+    (replacement_secret_enc IS NULL) = (replacement_secret_key_id IS NULL)
+    AND (replacement_secret_enc IS NULL) = (replacement_session_id IS NULL)
+    AND (replacement_secret_enc IS NULL) = (replacement_expires_at IS NULL)
+  )
 );
 
 -- Ten single-use recovery codes per enrolment, stored only as hashes, burned by first use.

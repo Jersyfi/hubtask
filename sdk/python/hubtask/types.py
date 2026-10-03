@@ -605,6 +605,15 @@ class TotpEnrollment(TypedDict, total=False):
     otpauth_uri: Required[str]
     recovery_codes: Required[list[str]]
 
+class AuthenticatorReplacement(TypedDict, total=False):
+    """The new secret's single showing (SC-17). Nothing is armed yet: the factor in force and its recovery codes keep working until the replacement is confirmed."""
+    secret: Required[str]
+    otpauth_uri: Required[str]
+    expires_at: Required[str]
+
+class AuthenticatorReplacementConfirmation(TypedDict, total=False):
+    code: Required[str]
+
 class TotpConfirmation(TypedDict, total=False):
     pending_token: str | None
     code: Required[str]

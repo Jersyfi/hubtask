@@ -379,14 +379,18 @@ type AccountIdentity struct {
 }
 
 type AccountMfa struct {
-	AccountID   pgtype.UUID
-	TenantID    pgtype.UUID
-	SecretEnc   []byte
-	SecretKeyID string
-	ConfirmedAt pgtype.Timestamptz
-	LastStep    *int64
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
+	AccountID              pgtype.UUID
+	TenantID               pgtype.UUID
+	SecretEnc              []byte
+	SecretKeyID            string
+	ConfirmedAt            pgtype.Timestamptz
+	LastStep               *int64
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	ReplacementSecretEnc   []byte
+	ReplacementSecretKeyID *string
+	ReplacementSessionID   pgtype.UUID
+	ReplacementExpiresAt   pgtype.Timestamptz
 }
 
 type AccountPasswordHistory struct {

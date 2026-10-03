@@ -169,6 +169,16 @@ func (pending) DisableTotp(w http.ResponseWriter, r *http.Request, _ openapi.Dis
 
 func (pending) StartProviderStepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) StartAuthenticatorReplacement(
+	w http.ResponseWriter, r *http.Request, _ openapi.StartAuthenticatorReplacementParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) StepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 // The keyring's census and the re-seal (ADR-0045), pending until the sealing service lands.

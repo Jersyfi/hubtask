@@ -93,6 +93,11 @@ func TotpProvisioningURI(issuer, account string, secret []byte) string {
 	return "otpauth://totp/" + label + "?" + query.Encode()
 }
 
+// MfaReplacementLifetime is how long a replacement of the authenticator waits to be confirmed
+// (SC-17): long enough to install an app and scan a code, short enough that a replacement somebody
+// walked away from does not lie around sealed beside the factor in force.
+const MfaReplacementLifetime = 10 * time.Minute
+
 // TotpSecretBase32 is the secret as a person types it where no camera reaches the QR.
 func TotpSecretBase32(secret []byte) string {
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(secret)

@@ -400,17 +400,22 @@ func (q *Queries) FindAuthAttempt(ctx context.Context, subjectHash []byte) (Find
 }
 
 const findMfaEnrollment = `-- name: FindMfaEnrollment :one
-SELECT account_id, secret_enc, secret_key_id, confirmed_at, last_step
+SELECT account_id, secret_enc, secret_key_id, confirmed_at, last_step,
+       replacement_secret_enc, replacement_secret_key_id, replacement_session_id, replacement_expires_at
 FROM account_mfa
 WHERE account_id = $1
 `
 
 type FindMfaEnrollmentRow struct {
-	AccountID   pgtype.UUID
-	SecretEnc   []byte
-	SecretKeyID string
-	ConfirmedAt pgtype.Timestamptz
-	LastStep    *int64
+	AccountID              pgtype.UUID
+	SecretEnc              []byte
+	SecretKeyID            string
+	ConfirmedAt            pgtype.Timestamptz
+	LastStep               *int64
+	ReplacementSecretEnc   []byte
+	ReplacementSecretKeyID *string
+	ReplacementSessionID   pgtype.UUID
+	ReplacementExpiresAt   pgtype.Timestamptz
 }
 
 func (q *Queries) FindMfaEnrollment(ctx context.Context, accountID pgtype.UUID) (FindMfaEnrollmentRow, error) {
@@ -422,6 +427,10 @@ func (q *Queries) FindMfaEnrollment(ctx context.Context, accountID pgtype.UUID) 
 		&i.SecretKeyID,
 		&i.ConfirmedAt,
 		&i.LastStep,
+		&i.ReplacementSecretEnc,
+		&i.ReplacementSecretKeyID,
+		&i.ReplacementSessionID,
+		&i.ReplacementExpiresAt,
 	)
 	return i, err
 }
@@ -1036,6 +1045,33 @@ func (q *Queries) RewrapMfaEnrollment(ctx context.Context, arg RewrapMfaEnrollme
 	return result.RowsAffected(), nil
 }
 
+const rewrapMfaReplacement = `-- name: RewrapMfaReplacement :execrows
+UPDATE account_mfa
+SET replacement_secret_enc = $1, replacement_secret_key_id = $2
+WHERE account_id = $3 AND replacement_secret_key_id = $4
+`
+
+type RewrapMfaReplacementParams struct {
+	SecretEnc     []byte
+	SecretKeyID   *string
+	AccountID     pgtype.UUID
+	ExpectedKeyID *string
+}
+
+// RewrapMfaEnrollment's guard, for the replacement's wrapping.
+func (q *Queries) RewrapMfaReplacement(ctx context.Context, arg RewrapMfaReplacementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rewrapMfaReplacement,
+		arg.SecretEnc,
+		arg.SecretKeyID,
+		arg.AccountID,
+		arg.ExpectedKeyID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const rotateRefreshToken = `-- name: RotateRefreshToken :execrows
 UPDATE session_refresh_token SET rotated_at = $1
 WHERE id = $2 AND rotated_at IS NULL
@@ -1090,6 +1126,41 @@ func (q *Queries) SealedMfaEnrollmentsNotUnder(ctx context.Context, keyID string
 			&i.ConfirmedAt,
 			&i.LastStep,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sealedMfaReplacementsNotUnder = `-- name: SealedMfaReplacementsNotUnder :many
+SELECT account_id, replacement_secret_enc, replacement_secret_key_id
+FROM account_mfa
+WHERE replacement_secret_key_id IS NOT NULL AND replacement_secret_key_id <> $1
+ORDER BY account_id
+`
+
+type SealedMfaReplacementsNotUnderRow struct {
+	AccountID              pgtype.UUID
+	ReplacementSecretEnc   []byte
+	ReplacementSecretKeyID *string
+}
+
+// A replacement's wrapping is a sealed value like the armed one's, so a rotation moves it too: the
+// census counts it, and a rotation that skipped it would report done while it named the leaving key.
+func (q *Queries) SealedMfaReplacementsNotUnder(ctx context.Context, keyID *string) ([]SealedMfaReplacementsNotUnderRow, error) {
+	rows, err := q.db.Query(ctx, sealedMfaReplacementsNotUnder, keyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SealedMfaReplacementsNotUnderRow{}
+	for rows.Next() {
+		var i SealedMfaReplacementsNotUnderRow
+		if err := rows.Scan(&i.AccountID, &i.ReplacementSecretEnc, &i.ReplacementSecretKeyID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1201,6 +1272,86 @@ func (q *Queries) SetRedemptionToken(ctx context.Context, arg SetRedemptionToken
 		arg.ExpiresAt,
 		arg.Now,
 		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const startMfaReplacement = `-- name: StartMfaReplacement :execrows
+UPDATE account_mfa SET
+  replacement_secret_enc    = $1,
+  replacement_secret_key_id = $2,
+  replacement_session_id    = $3,
+  replacement_expires_at    = $4,
+  updated_at                = $5
+WHERE account_id = $6 AND confirmed_at IS NOT NULL
+`
+
+type StartMfaReplacementParams struct {
+	SecretEnc   []byte
+	SecretKeyID *string
+	SessionID   pgtype.UUID
+	ExpiresAt   pgtype.Timestamptz
+	Now         pgtype.Timestamptz
+	AccountID   pgtype.UUID
+}
+
+// The new secret beside the armed one (SC-17): only an armed enrolment takes a replacement - an
+// unconfirmed one is replaced by enrolling again - and a replacement begun earlier is overwritten,
+// the latest start being the one the person is looking at.
+func (q *Queries) StartMfaReplacement(ctx context.Context, arg StartMfaReplacementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, startMfaReplacement,
+		arg.SecretEnc,
+		arg.SecretKeyID,
+		arg.SessionID,
+		arg.ExpiresAt,
+		arg.Now,
+		arg.AccountID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const swapMfaReplacement = `-- name: SwapMfaReplacement :execrows
+UPDATE account_mfa SET
+  secret_enc                = replacement_secret_enc,
+  secret_key_id             = replacement_secret_key_id,
+  last_step                 = $1,
+  replacement_secret_enc    = NULL,
+  replacement_secret_key_id = NULL,
+  replacement_session_id    = NULL,
+  replacement_expires_at    = NULL,
+  updated_at                = $2
+WHERE account_id = $3
+  AND confirmed_at IS NOT NULL
+  AND replacement_session_id = $4
+  AND replacement_expires_at > $2
+  AND replacement_secret_enc = $5
+`
+
+type SwapMfaReplacementParams struct {
+	Step              *int64
+	Now               pgtype.Timestamptz
+	AccountID         pgtype.UUID
+	SessionID         pgtype.UUID
+	ExpectedSecretEnc []byte
+}
+
+// The swap, in one statement: the replacement becomes the armed secret and the old one is gone, with
+// the confirming step as the new replay floor. Only for the session that began it, inside its window,
+// and only if the replacement is still the very secret the confirmation verified - a second start in
+// between would otherwise arm a secret nobody proved.
+func (q *Queries) SwapMfaReplacement(ctx context.Context, arg SwapMfaReplacementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, swapMfaReplacement,
+		arg.Step,
+		arg.Now,
+		arg.AccountID,
+		arg.SessionID,
+		arg.ExpectedSecretEnc,
 	)
 	if err != nil {
 		return 0, err

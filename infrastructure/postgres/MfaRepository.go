@@ -95,7 +95,79 @@ func (r MfaRepository) Find(
 	if row.LastStep != nil {
 		enrollment.LastStep = *row.LastStep
 	}
+	if row.ReplacementSecretEnc != nil && row.ReplacementSecretKeyID != nil {
+		enrollment.Replacement = &cryptoport.Sealed{
+			KeyID: *row.ReplacementSecretKeyID, Ciphertext: row.ReplacementSecretEnc,
+		}
+		session, err := optionalID(row.ReplacementSessionID)
+		if err != nil {
+			return repository.MfaEnrollment{}, err
+		}
+		enrollment.ReplacementSession = session
+		enrollment.ReplacementExpiresAt = timeFrom(row.ReplacementExpiresAt)
+	}
 	return enrollment, nil
+}
+
+// StartReplacement puts a new secret beside an armed one (SC-17).
+func (r MfaRepository) StartReplacement(
+	ctx context.Context, accountID shared.ID, sealed cryptoport.Sealed,
+	sessionID shared.ID, expiresAt, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	session, err := uuidOf(sessionID)
+	if err != nil {
+		return false, err
+	}
+	keyID := sealed.KeyID
+	changed, err := queries.StartMfaReplacement(ctx, sqlc.StartMfaReplacementParams{
+		SecretEnc: sealed.Ciphertext, SecretKeyID: &keyID, SessionID: session,
+		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
+		Now:       pgtype.Timestamptz{Time: now, Valid: true},
+		AccountID: id,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("beginning the replacement: %w", err))
+	}
+	return changed > 0, nil
+}
+
+// SwapReplacement arms the replacement in one statement (SC-17).
+func (r MfaRepository) SwapReplacement(
+	ctx context.Context, accountID, sessionID shared.ID, expected cryptoport.Sealed,
+	step int64, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	session, err := uuidOf(sessionID)
+	if err != nil {
+		return false, err
+	}
+	changed, err := queries.SwapMfaReplacement(ctx, sqlc.SwapMfaReplacementParams{
+		Step: &step, Now: pgtype.Timestamptz{Time: now, Valid: true},
+		AccountID: id, SessionID: session, ExpectedSecretEnc: expected.Ciphertext,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("swapping in the replacement: %w", err))
+	}
+	return changed > 0, nil
 }
 
 func (r MfaRepository) Confirm(
@@ -463,6 +535,64 @@ func (r MfaRepository) Rewrap(
 		return false, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("re-sealing the enrolment: %w", err))
+	}
+	return changed > 0, nil
+}
+
+// ReplacementsSealedNotUnder answers the waiting replacements to re-seal (SC-17).
+func (r MfaRepository) ReplacementsSealedNotUnder(
+	ctx context.Context, keyID string,
+) ([]repository.MfaEnrollment, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SealedMfaReplacementsNotUnder(ctx, &keyID)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the replacements to re-seal: %w", err))
+	}
+	waiting := make([]repository.MfaEnrollment, 0, len(rows))
+	for _, row := range rows {
+		accountID, err := idFrom(row.AccountID)
+		if err != nil {
+			return nil, err
+		}
+		if row.ReplacementSecretKeyID == nil {
+			continue
+		}
+		waiting = append(waiting, repository.MfaEnrollment{
+			AccountID: accountID,
+			Secret: cryptoport.Sealed{
+				KeyID: *row.ReplacementSecretKeyID, Ciphertext: row.ReplacementSecretEnc,
+			},
+		})
+	}
+	return waiting, nil
+}
+
+// RewrapReplacement writes a replacement's moved wrapping, guarded like Rewrap.
+func (r MfaRepository) RewrapReplacement(
+	ctx context.Context, accountID shared.ID, sealed cryptoport.Sealed, expectedKeyID string,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	keyID := sealed.KeyID
+	changed, err := queries.RewrapMfaReplacement(ctx, sqlc.RewrapMfaReplacementParams{
+		SecretEnc: sealed.Ciphertext, SecretKeyID: &keyID,
+		AccountID: id, ExpectedKeyID: &expectedKeyID,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("re-sealing the replacement: %w", err))
 	}
 	return changed > 0, nil
 }

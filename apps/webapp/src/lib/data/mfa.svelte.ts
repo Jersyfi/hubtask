@@ -31,6 +31,16 @@ const CONFIRM = '/auth/mfa/totp:confirm';
 const DISABLE = '/auth/mfa:disable';
 /** New recovery codes for an enrolment that already exists, behind the step-up. */
 const REGENERATE = '/auth/mfa/recovery:regenerate';
+/** The authenticator's replacement (SC-17): begin behind the step-up, confirm with the new app. */
+const REPLACE = '/auth/mfa/totp:replace';
+const CONFIRM_REPLACEMENT = '/auth/mfa/totp/replacement:confirm';
+
+/** The new secret's single showing, as `AuthenticatorReplacement` answers it. */
+export interface Replacement {
+  readonly secret: string;
+  readonly otpauth_uri: string;
+  readonly expires_at: string;
+}
 
 /** The single showing, as `TotpEnrollment` answers it. */
 export interface Enrollment {
@@ -47,6 +57,7 @@ interface Confirmed {
 
 class Mfa {
   #started = $state<Enrollment | undefined>(undefined);
+  #replacement = $state<Replacement | undefined>(undefined);
   #fresh = $state<readonly string[] | undefined>(undefined);
   #failure = $state<string | undefined>(undefined);
   #working = $state(false);
@@ -64,6 +75,11 @@ class Mfa {
    */
   get fresh(): readonly string[] | undefined {
     return this.#fresh;
+  }
+
+  /** The new secret of a replacement, while the screen shows it (SC-17). */
+  get replacement(): Replacement | undefined {
+    return this.#replacement;
   }
 
   /** The last refusal, as the server's own code. */
@@ -176,9 +192,58 @@ class Mfa {
     });
   }
 
+  /**
+   * Begins replacing the authenticator (SC-17), behind the step-up: replacing the factor is the same
+   * power as removing it. Nothing changes yet - the armed factor and its codes keep working until
+   * the new app's code confirms the swap.
+   */
+  async replace(): Promise<boolean> {
+    return this.#attempt(async () => {
+      this.#replacement = await stepUp.around((stepUpToken) =>
+        engine.mutate<Replacement>('POST', REPLACE, {}, { stepUpToken, invalidates: [] }),
+      );
+      return true;
+    });
+  }
+
+  /**
+   * Confirms the replacement with a code from the new app, and answers the ten new recovery codes -
+   * the only time they are shown. `undefined` means nothing was swapped, and `failure` says why.
+   */
+  async confirmReplacement(code: string): Promise<readonly string[] | undefined> {
+    let codes: readonly string[] | undefined;
+    const ok = await this.#attempt(async () => {
+      // Invalidating nothing, the enrolment's reason: the profile re-reads the account once the
+      // codes have been seen.
+      const answer = await engine.mutate<{ readonly recovery_codes: readonly string[] }>(
+        'POST',
+        CONFIRM_REPLACEMENT,
+        { code },
+        { invalidates: [] },
+      );
+      codes = answer.recovery_codes;
+      return true;
+    });
+    if (!ok) {
+      // A replacement the server no longer knows - lapsed, begun again elsewhere - is a dead secret
+      // on the screen. It goes, so *Begin the replacement* is offered again beside the sentence.
+      if (this.#failure === 'auth.mfa_replacement_unknown') this.#replacement = undefined;
+      return undefined;
+    }
+    this.#replacement = undefined;
+    return codes;
+  }
+
+  /** The replacement's window ran out on the screen: it goes, and the sentence says why. */
+  lapse(): void {
+    this.#replacement = undefined;
+    this.#failure = 'auth.mfa_replacement_unknown';
+  }
+
   /** Drops the secret and the codes. Called when the screen leaves, and after a confirmation. */
   forget(): void {
     this.#started = undefined;
+    this.#replacement = undefined;
     this.#fresh = undefined;
     this.#failure = undefined;
   }
