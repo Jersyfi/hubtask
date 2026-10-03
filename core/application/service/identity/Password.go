@@ -332,29 +332,18 @@ func (w PasswordWriter) Write(
 	})
 }
 
-// endOthers ends every session of the account but the one the caller is holding.
+// endOthers ends every session of the account but the one the caller is holding - every one where
+// none is held, as after a reset.
 //
-// Every one of them, and then the kept one re-opened by nothing: `RevokeAll` is the only statement
-// that can promise none was missed, so the caller's is revoked with the rest and this method says so
-// rather than pretending otherwise - except that `keepSessionID`, when given, is revoked last and
-// re-recorded by the caller. Personal access tokens are untouched: they are their own credentials
-// with their own expiry and their own list, and a person who minted one did not mint it in a browser.
+// One statement, the one *Sign out everywhere else* uses (SC-23): a read followed by one revocation
+// per row could miss a session opened between the two, and a password that just changed must leave
+// no other door open. Personal access tokens are untouched: they are their own credentials with their
+// own expiry and their own list, and a person who minted one did not mint it in a browser.
 func (w PasswordWriter) endOthers(
 	ctx context.Context, accountID, keepSessionID shared.ID, now time.Time,
 ) error {
-	live, err := w.Session.Sessions.ForAccount(ctx, accountID, now)
-	if err != nil {
-		return err
-	}
-	for _, session := range live.Sessions {
-		if !keepSessionID.IsZero() && session.ID == keepSessionID {
-			continue
-		}
-		if _, err := w.Session.Sessions.Revoke(ctx, session.ID, accountID, now); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, err := w.Session.Sessions.RevokeOthers(ctx, accountID, keepSessionID, now)
+	return err
 }
 
 // ResolveFor reads the rule in force for one workspace.

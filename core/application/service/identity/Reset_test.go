@@ -79,8 +79,8 @@ func TestAResetSetsThePasswordAndOpensASession(t *testing.T) {
 		t.Fatalf("%d passwords written", len(fixture.accounts.writes))
 	}
 	// Every session, this time: the person asking has none of their own to keep.
-	if len(fixture.sessions.revoked) != 1 || fixture.sessions.revoked[0] != sessionRowID {
-		t.Errorf("sessions ended: %v, want all of them", fixture.sessions.revoked)
+	if len(fixture.sessions.keptByOthers) != 1 || !fixture.sessions.keptByOthers[0].IsZero() {
+		t.Errorf("the sessions ended sparing %v, want none spared", fixture.sessions.keptByOthers)
 	}
 }
 
