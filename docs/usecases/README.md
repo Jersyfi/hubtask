@@ -123,7 +123,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-ID-03](./identity/UC-ID-03-set-up-and-keep-my-second-factor.md) | Set up my second factor and keep my recovery codes | identity | partial |
 | [UC-ID-04](./identity/UC-ID-04-reset-a-forgotten-password.md) | Reset a forgotten password | identity | built |
 | [UC-ID-05](./identity/UC-ID-05-change-my-password.md) | Change my password | identity | partial |
-| [UC-ID-06](./identity/UC-ID-06-see-and-end-my-sessions.md) | See where I am signed in and end a session | identity | partial |
+| [UC-ID-06](./identity/UC-ID-06-see-and-end-my-sessions.md) | See where I am signed in and end a session | identity | built |
 | [UC-ID-07](./identity/UC-ID-07-accept-an-invitation.md) | Accept an invitation and set up my account | identity | partial |
 | [UC-ID-08](./identity/UC-ID-08-sign-in-with-my-organisations-directory.md) | Sign in with my organisation's directory | identity | partial |
 | [UC-ID-09](./identity/UC-ID-09-sign-in-with-google-or-microsoft.md) | Sign in with my Google or Microsoft account | identity | built |
