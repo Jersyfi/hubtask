@@ -41,7 +41,7 @@ may be locked out of the platform, and so out of their data and Hubtask** - ever
 touch is checked against it. [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) amends ADR-0076 for
 it (the count is counted, removal follows an ended offer, nobody is left without a way in). The
 order: SC-22 first (a defence that is not in force), then SC-23, SC-24 with SC-25, SC-26, SC-27,
-SC-28, SC-29.
+SC-28, SC-29. SC-30 is SC-26's contract half and waits a release.
 
 **And one design the owner asked for:** AI offered by the installation, with locks on which sources
 a workspace may use — [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md), accepted on
@@ -546,6 +546,24 @@ for the family finds both. SC-17's `auth.mfa_replaced` stays as built (its task 
 
 **Acceptance:** a test that a new regeneration is written under the new name and that filtering by it
 finds an old entry too.
+
+---
+
+## SC-30 — The stored offer count is dropped **[L]**
+
+*Depends on: SC-26, released - and one release more.* · issue #1134 · [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) §1
+
+**Use cases:** UC-INS-11 (5) - unchanged; this removes what nothing reads any more.
+
+SC-26 counts an offered provider's workspaces where the count is read and leaves the stored count in
+place: expand, not yet contract. A new, forward-only migration drops the column
+`identity_provider.offered_workspaces` and the function `move_provider_offer` with its grant, and
+`db/schema.sql` with it. Not before the first release after the one that contains SC-26: the release
+before SC-26 reads the column and calls the function, and during a rolling update it runs beside the
+new one (ADR-0003). The migration's number is taken from `origin/main` right before it is written.
+
+**Acceptance:** the column and the function are gone from a migrated database and from
+`db/schema.sql`; `make generate` produces no diff; `make verify` and the integration suite are green.
 
 ---
 
