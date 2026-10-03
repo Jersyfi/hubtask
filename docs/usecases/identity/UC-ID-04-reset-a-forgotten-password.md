@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13, P-16]
 state: partial
-tasks: [SI-04, SI-15, SC-03]
+tasks: [SC-24, SI-04, SI-15, SC-03]
 checked_by: [core/application/service/identity/Reset_test.go, apps/webapp/e2e/signin.test.mjs]
 ---
 
@@ -64,3 +64,10 @@ person falls back to recovery codes or a local recovery (see *Where it ends*).
 
 Check 8 was added with the owner's approval on 2026-10-06 ([ADR-0078](../../adr/ADR-0078-the-ways-back-in.md)
 §1); it is SC-33 (#1140). Until it is built the state is `partial`; checks 1–7 hold as before.
+
+In a workspace that switched the password off (SC-24, UC-ID-12) every reset request mails the
+"use your organisation's provider" message - the request still answers the same for every address
+(check 1), and a link mailed before the switch is refused afterwards. An account there that holds a
+password but was never connected to the provider, and has forgotten the password, connects the provider
+by mail - the owner's decision of 2026-10-04 ([ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §1),
+check 8, SC-33.
