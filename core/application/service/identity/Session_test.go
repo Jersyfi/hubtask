@@ -303,6 +303,7 @@ func newSessionFixture(at time.Time) *sessionFixture {
 		audit:   &auditSink{},
 		work:    &unitOfWork{},
 	}
+	f.work.ledger = f.attempts
 	f.writer = SessionWriter{
 		Accounts: f.accounts, Sessions: f.sessions, Refresh: f.refresh,
 		Attempts: f.attempts, Tenants: tenantDirectory{single: tenant},

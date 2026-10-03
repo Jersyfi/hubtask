@@ -243,7 +243,7 @@ func (w SessionWriter) proveAtProvider(
 	}
 
 	subject := stepUpSubject(actor.AccountID)
-	return w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+	err = w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		now := w.Clock.Now()
 		if err := w.checkLocked(ctx, []string{subject}, now); err != nil {
 			return err
@@ -268,16 +268,15 @@ func (w SessionWriter) proveAtProvider(
 		}
 		if err != nil || owner.ID != actor.AccountID {
 			w.failure(ctx, FailureOidc)
-			return errors.Join(w.recordMfaFailure(ctx, subject, now),
-				shared.ErrForbidden.WithDetail("auth.step_up_provider_mismatch"))
+			return countedRefusal(subject, shared.ErrForbidden.WithDetail("auth.step_up_provider_mismatch"))
 		}
 		if !domain.ProviderProofFresh(arrived.AuthTime, now, w.stepUpWindow()) {
 			w.failure(ctx, FailureOidc)
-			return errors.Join(w.recordMfaFailure(ctx, subject, now),
-				shared.ErrForbidden.WithDetail("auth.step_up_provider_not_fresh"))
+			return countedRefusal(subject, shared.ErrForbidden.WithDetail("auth.step_up_provider_not_fresh"))
 		}
 		return nil
 	})
+	return w.settleRefusal(ctx, scope, err)
 }
 
 // recordProviderStepUpStart writes the start into the trail: the provider asked, never a state.

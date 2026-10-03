@@ -263,9 +263,7 @@ func (h ConfirmTotp) Execute(
 		step, ok := domain.VerifyTotp([]byte(plaintext.Reveal()), cmd.Code, now, 0)
 		if !ok {
 			w.failure(ctx, FailureMfa)
-			return errors.Join(
-				w.recordMfaFailure(ctx, subject, now),
-				shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid"))
+			return countedRefusal(subject, shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid"))
 		}
 
 		armed, err := w.Enrollments.Confirm(ctx, caller.account.ID, step, now)
@@ -291,6 +289,7 @@ func (h ConfirmTotp) Execute(
 
 		return w.recordMfaAudit(ctx, MfaEnabledAction, audit.SeverityNotice, caller.account, now)
 	})
+	err = w.settleRefusal(ctx, scope, err)
 	if err != nil {
 		return ConfirmedEnrollment{}, err
 	}
