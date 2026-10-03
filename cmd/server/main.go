@@ -972,10 +972,13 @@ func run() error {
 	}
 
 	oidcWriter := identity.OidcWriter{
-		Domains:     domains,
-		Text:        forms,
-		Session:     sessionWriter,
-		Providers:   postgres.NewIdentityProviderRepository(),
+		Domains:   domains,
+		Text:      forms,
+		Session:   sessionWriter,
+		Providers: postgres.NewIdentityProviderRepository(),
+		// Which of the installation's providers this workspace took: a flow through one it did not
+		// take, or one whose withdrawal has come, is refused at the start and at the return.
+		Workspaces:  postgres.NewWorkspaceSettingsRepository(),
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 		External:    postgres.NewExternalAccountRepository(),
 		Accounts:    accounts,
@@ -1156,8 +1159,16 @@ func run() error {
 		Session:  sessionWriter,
 		Resolver: signInPolicyResolver,
 		Accounts: passwordStore, Histories: passwordStore,
-		Pending:    mfaStore,
-		StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
+		Pending: mfaStore,
+		StepUp:  identity.StepUpVerifier{Writer: sessionWriter},
+		// ADR-0076 §4: a workspace whose last way in was an offer that ended signs in by password
+		// again, and the sign-in records it. Set here, in the literal, so that every copy
+		// teachTheRule hands out below carries it.
+		WaysIn: identity.WaysIn{
+			Providers:  postgres.NewIdentityProviderRepository(),
+			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		},
 		Text:       forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -1261,6 +1272,8 @@ func run() error {
 			// Which of the installation's providers this workspace took: an offered one is not a
 			// button until somebody here switched it on (SI-10).
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			// The moment an offer is read at: a withdrawn provider is not a button (ADR-0076 §2).
+			Clock:      clockadapter.System{},
 			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.SignIn{Writer: sessionWriter}.Descriptor(),
@@ -1301,6 +1314,8 @@ func run() error {
 		adminservice.ListInstanceIdentityProviders{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.ConfigureInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.RemoveInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.WithdrawInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.CancelInstanceIdentityProviderWithdrawal{Writer: instanceProviderWriter}.Descriptor(),
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),

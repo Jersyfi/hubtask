@@ -103,3 +103,75 @@ func exprString(expression ast.Expr) string {
 		return ""
 	}
 }
+
+// The rule teachTheRule hands out is the password writer as main.go builds it, so a field the
+// sign-in's verdict needs has to be in that literal - a test fixture that wires its own never shows
+// it missing. WaysIn is ADR-0076 §4's fallback: without it the card offers the password back and the
+// trail never records who signed in through it.
+func TestThePasswordWriterCarriesTheWaysIn(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "main.go", nil, 0)
+	if err != nil {
+		t.Fatalf("reading main.go: %v", err)
+	}
+	found, carries := false, false
+	ast.Inspect(file, func(node ast.Node) bool {
+		literal, ok := node.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		selector, ok := literal.Type.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "PasswordWriter" {
+			return true
+		}
+		found = true
+		for _, element := range literal.Elts {
+			if pair, ok := element.(*ast.KeyValueExpr); ok {
+				if key, ok := pair.Key.(*ast.Ident); ok && key.Name == "WaysIn" {
+					carries = true
+				}
+			}
+		}
+		return true
+	})
+	if !found {
+		t.Fatal("main.go builds no identity.PasswordWriter")
+	}
+	if !carries {
+		t.Error("main.go builds the password writer without WaysIn: no workspace falls back to the password")
+	}
+}
+
+// The sign-in card reads an offer at a moment (ADR-0076 §2), and a GetSignInRules built without its
+// clock reads every withdrawal as still ahead - the card would keep a withdrawn provider's button.
+func TestTheSignInRulesCarryAClock(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "main.go", nil, 0)
+	if err != nil {
+		t.Fatalf("reading main.go: %v", err)
+	}
+	found, carries := false, false
+	ast.Inspect(file, func(node ast.Node) bool {
+		literal, ok := node.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		selector, ok := literal.Type.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "GetSignInRules" {
+			return true
+		}
+		found = true
+		for _, element := range literal.Elts {
+			if pair, ok := element.(*ast.KeyValueExpr); ok {
+				if key, ok := pair.Key.(*ast.Ident); ok && key.Name == "Clock" {
+					carries = true
+				}
+			}
+		}
+		return true
+	})
+	if !found {
+		t.Fatal("main.go builds no identity.GetSignInRules")
+	}
+	if !carries {
+		t.Error("main.go builds the sign-in rules without a clock: no withdrawal ever takes effect on the card")
+	}
+}

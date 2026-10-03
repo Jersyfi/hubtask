@@ -407,6 +407,8 @@ class IdentityProvider(TypedDict, total=False):
     position: Required[int]
     enabled: Required[bool]
     offered_here: bool
+    withdraw_at: str | None
+    offered_workspaces: int | None
     allowed_email_domains: Required[list[str]]
     allowed_directories: Required[list[str]]
     created_at: Required[str]
@@ -432,6 +434,11 @@ class IdentityProviderConfiguration(TypedDict, total=False):
     enabled: bool
     allowed_email_domains: list[str]
     allowed_directories: list[str]
+
+class ProviderWithdrawal(TypedDict, total=False):
+    """When an offered provider is withdrawn, and for *Withdraw now* the count confirmed."""
+    withdraw_at: str | None
+    confirm_count: int | None
 
 class IdentityProviderPreset(TypedDict, total=False):
     """What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it."""
@@ -576,6 +583,7 @@ class SignInRules(TypedDict, total=False):
     providers: Required[list["ProviderSummary"]]
     password: Required["PasswordRules"]
     legal: Required["LegalLinks"]
+    password_fallback: bool
 
 class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""

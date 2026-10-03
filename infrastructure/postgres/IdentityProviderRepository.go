@@ -59,6 +59,7 @@ func (IdentityProviderRepository) List(ctx context.Context) ([]identity.Identity
 		configured, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 			row.DisplayName, row.Kind, row.Provisioning, row.Position,
 			row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+		configured = withOffer(configured, row.WithdrawAt, row.OfferedWorkspaces)
 		if err != nil {
 			return nil, err
 		}
@@ -102,9 +103,10 @@ func (IdentityProviderRepository) Find(
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading the identity provider: %w", err))
 	}
-	return providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
+	found, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+	return withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), err
 }
 
 func (IdentityProviderRepository) FindWithSecret(
@@ -132,6 +134,7 @@ func (IdentityProviderRepository) FindWithSecret(
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled,
 		pgtype.Timestamptz{}, pgtype.Timestamptz{}, 0)
+	configured.WithdrawAt = timeFrom(row.WithdrawAt)
 	if err != nil {
 		return identity.IdentityProvider{}, crypto.Sealed{}, err
 	}
@@ -177,9 +180,10 @@ func (IdentityProviderRepository) Insert(
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the identity provider: %w", err))
 	}
-	return providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
+	found, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+	return withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), err
 }
 
 func (r IdentityProviderRepository) Update(
@@ -251,7 +255,73 @@ func (IdentityProviderRepository) write(
 	stored, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+	stored = withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces)
 	return stored, err == nil, err
+}
+
+// withOffer adds the two columns of ADR-0076 an installation row carries.
+func withOffer(
+	configured identity.IdentityProvider, withdrawAt pgtype.Timestamptz, offered int32,
+) identity.IdentityProvider {
+	configured.WithdrawAt = timeFrom(withdrawAt)
+	configured.OfferedWorkspaces = int(offered)
+	return configured
+}
+
+// MoveOfferCount moves an installation row's count by one step (ADR-0076 §1).
+func (IdentityProviderRepository) MoveOfferCount(ctx context.Context, providerID shared.ID, step int) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(providerID)
+	if err != nil {
+		return err
+	}
+	if err := queries.MoveProviderOffer(ctx, sqlc.MoveProviderOfferParams{
+		ProviderID: id, Step: int32(step), //nolint:gosec // G115: the function moves only -1 and 1
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("moving the provider's count: %w", err))
+	}
+	return nil
+}
+
+// SetWithdrawal sets or clears when an installation's offer ends (ADR-0076 §2).
+func (IdentityProviderRepository) SetWithdrawal(
+	ctx context.Context, providerID shared.ID, at, now time.Time,
+) (identity.IdentityProvider, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.IdentityProvider{}, false, err
+	}
+	id, err := uuidOf(providerID)
+	if err != nil {
+		return identity.IdentityProvider{}, false, err
+	}
+	withdrawAt := pgtype.Timestamptz{}
+	if !at.IsZero() {
+		withdrawAt = pgtype.Timestamptz{Time: at, Valid: true}
+	}
+	row, err := queries.SetProviderWithdrawal(ctx, sqlc.SetProviderWithdrawalParams{
+		WithdrawAt: withdrawAt, Now: pgtype.Timestamptz{Time: now, Valid: true}, ID: id,
+	})
+	if err != nil {
+		if IsNoRows(err) {
+			return identity.IdentityProvider{}, false, nil
+		}
+		return identity.IdentityProvider{}, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("setting the withdrawal: %w", err))
+	}
+	stored, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
+		row.DisplayName, row.Kind, row.Provisioning, row.Position,
+		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+	if err != nil {
+		return identity.IdentityProvider{}, false, err
+	}
+	return withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces), true, nil
 }
 
 func (IdentityProviderRepository) Delete(ctx context.Context, id shared.ID) (bool, error) {

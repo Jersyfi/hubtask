@@ -11,6 +11,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
 // instanceSettings is the installation's level, in memory.
@@ -48,6 +49,7 @@ func newRulesFixture() (GetSignInRules, *workspaceStore, *instanceSettings) {
 		Tenants:    tenantDirectory{single: tenant},
 		Providers:  rulesProviders(),
 		UnitOfWork: &unitOfWork{},
+		Clock:      clock.Fixed(time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC)),
 		Multi:      true,
 	}
 	return handler, workspace, instance

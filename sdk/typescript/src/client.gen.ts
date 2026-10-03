@@ -855,6 +855,16 @@ export class HubtaskClient {
     return this.call("DELETE", "/admin/identity-providers/{providerId}", { "providerId": providerId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Announce the withdrawal of an offered provider, or withdraw it now */
+  withdrawInstanceIdentityProvider(providerId: string, body: NonNullable<operations["withdrawInstanceIdentityProvider"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["withdrawInstanceIdentityProvider"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/identity-providers/{providerId}:withdraw", { "providerId": providerId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Keep offering a provider whose withdrawal was announced */
+  cancelInstanceIdentityProviderWithdrawal(providerId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["cancelInstanceIdentityProviderWithdrawal"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/identity-providers/{providerId}:cancel-withdrawal", { "providerId": providerId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The keyring, and what still names each key */
   readEncryptionStatus(options: CallOptions = {}): Promise<operations["readEncryptionStatus"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/encryption", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

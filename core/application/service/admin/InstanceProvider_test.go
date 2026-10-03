@@ -87,12 +87,38 @@ func (s *instanceProviderStore) Update(
 	return domain.IdentityProvider{}, false, nil
 }
 
-// Reconfigure is never the installation's: its form still writes the offer. A call here is a
-// defect the test should see.
-func (s *instanceProviderStore) Reconfigure(
-	context.Context, domain.IdentityProvider, *cryptoport.Sealed, time.Time,
+func (s *instanceProviderStore) MoveOfferCount(context.Context, shared.ID, int) error { return nil }
+
+func (s *instanceProviderStore) SetWithdrawal(
+	_ context.Context, id shared.ID, at, now time.Time,
 ) (domain.IdentityProvider, bool, error) {
-	panic("the installation's form reconfigured without its switch")
+	for i, row := range s.rows {
+		if row.ID == id {
+			row.WithdrawAt = at
+			if at.IsZero() {
+				row.Enabled = true
+			}
+			row.UpdatedAt, row.Version = now, row.Version+1
+			s.rows[i] = row
+			return row, true, nil
+		}
+	}
+	return domain.IdentityProvider{}, false, nil
+}
+
+// Reconfigure is Update with the row's own switch kept, as the statement's COALESCE keeps it: since
+// ADR-0076 the installation's form no longer ends an offer either.
+func (s *instanceProviderStore) Reconfigure(
+	ctx context.Context, configured domain.IdentityProvider,
+	sealed *cryptoport.Sealed, now time.Time,
+) (domain.IdentityProvider, bool, error) {
+	for _, row := range s.rows {
+		if row.ID == configured.ID {
+			configured.Enabled = row.Enabled
+			configured.WithdrawAt, configured.OfferedWorkspaces = row.WithdrawAt, row.OfferedWorkspaces
+		}
+	}
+	return s.Update(ctx, configured, sealed, now)
 }
 
 func (s *instanceProviderStore) Delete(_ context.Context, id shared.ID) (bool, error) {

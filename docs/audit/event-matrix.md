@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**258 use cases, 222 distinct action codes, 184 of them recorded on every call.** A use case that
+**260 use cases, 224 distinct action codes, 186 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -276,6 +276,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.provider_configured` | ConfigureInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `instance.provider_read` | ListInstanceIdentityProviders | `identity_provider` | INFO | When refused |
 | `instance.provider_removed` | RemoveInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
+| `instance.provider_withdrawal_cancelled` | CancelInstanceIdentityProviderWithdrawal | `identity_provider` | NOTICE | Every time |
+| `instance.provider_withdrawn` | WithdrawInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `instance.session_elevated` | ElevateSession | `session` | WARNING | Every time |
 | `instance.settings_changed` | WriteInstanceSettings | `instance` | NOTICE | Every time |
 | `instance.settings_read` | ReadInstanceSettings | `instance` | INFO | When refused |

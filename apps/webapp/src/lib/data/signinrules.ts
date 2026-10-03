@@ -71,6 +71,11 @@ export interface SignInRules {
   readonly providers: readonly ProviderSummary[];
   readonly password: PasswordRules;
   readonly legal: LegalLinks;
+  /**
+   * True while `PASSWORD` is among the methods only because the workspace's last way in was a
+   * provider the installation withdrew (ADR-0076 §4) - which the administrators' screen says.
+   */
+  readonly password_fallback?: boolean;
 }
 
 /** Who is setting the password, for the rules that are about them rather than about the string. */

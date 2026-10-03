@@ -59,10 +59,15 @@ const (
 type OidcWriter struct {
 	Session   SessionWriter
 	Providers repository.IdentityProviders
-	Flows     repository.OidcFlows
-	External  repository.ExternalAccounts
-	Accounts  repository.Accounts
-	Relying   provider.Port
+	// Workspaces answers which of the installation's providers this workspace took (SI-10): a flow
+	// through one it did not take, or one whose withdrawal has come, is refused here whatever
+	// identifier the caller sends - the card not drawing a button is not what refuses it. Nil reads
+	// "nothing taken", so an installation's provider opens no flow on a build wired without it.
+	Workspaces repository.Workspaces
+	Flows      repository.OidcFlows
+	External   repository.ExternalAccounts
+	Accounts   repository.Accounts
+	Relying    provider.Port
 	// Domains brings a provisioned address's domain to its ASCII form (M-10).
 	Domains text.DomainEncoder
 	// Text brings a provisioned display name to normal form C (i18n-l10n.md §5, M-07).
@@ -471,7 +476,7 @@ func (w OidcWriter) challengeLink(
 func (w OidcWriter) provider(
 	ctx context.Context, scope persistence.Scope, providerID shared.ID,
 ) (domain.IdentityProvider, secret.Secret, error) {
-	return openProvider(ctx, w.Session, w.Providers, scope, providerID, w.onlyProvider)
+	return openProvider(ctx, w.Session, w.Providers, w.Workspaces, scope, providerID, w.onlyProvider)
 }
 
 // openProvider is provider's body, shared with the step-up at the provider (ADR-0075 §2), which
@@ -479,19 +484,25 @@ func (w OidcWriter) provider(
 // answers the one way in where no identifier came; nil refuses that case as not configured.
 func openProvider(
 	ctx context.Context, session SessionWriter, providers repository.IdentityProviders,
-	scope persistence.Scope, providerID shared.ID, only func(context.Context) (shared.ID, error),
+	workspaces repository.Workspaces, scope persistence.Scope, providerID shared.ID,
+	only func(context.Context, domain.WorkspaceSettings, time.Time) (shared.ID, error),
 ) (domain.IdentityProvider, secret.Secret, error) {
 	var (
 		configured domain.IdentityProvider
 		opened     secret.Secret
 	)
 	err := session.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		settings, err := offersIn(ctx, workspaces)
+		if err != nil {
+			return err
+		}
+		now := session.Clock.Now()
 		chosen := providerID
 		if chosen.IsZero() {
 			if only == nil {
 				return shared.ErrValidation.WithDetail("identity_provider.not_configured")
 			}
-			sole, err := only(ctx)
+			sole, err := only(ctx, settings, now)
 			if err != nil {
 				return err
 			}
@@ -505,7 +516,9 @@ func openProvider(
 			}
 			return err
 		}
-		if !found.Enabled {
+		// The one reading of "a way in here" (offeredHere): switched on, taken by this workspace
+		// where the row is the installation's, and not past an announced withdrawal (ADR-0076 §2).
+		if !offeredHere(found, settings, now) {
 			return shared.ErrValidation.WithDetail("identity_provider.disabled")
 		}
 		// The purpose is the level's, so a row of the installation's opens under the installation's
@@ -524,16 +537,31 @@ func openProvider(
 	return configured, opened, nil
 }
 
+// offersIn reads this workspace's own switches for the installation's providers. Nil reads "nothing
+// taken".
+func offersIn(ctx context.Context, workspaces repository.Workspaces) (domain.WorkspaceSettings, error) {
+	if workspaces == nil {
+		return domain.WorkspaceSettings{}, nil
+	}
+	workspace, err := workspaces.Find(ctx)
+	if err != nil && !errors.Is(err, shared.ErrNotFound) {
+		return domain.WorkspaceSettings{}, err
+	}
+	return workspace.Settings, nil
+}
+
 // onlyProvider answers the single way in, or says which of the refusals applies: none configured,
 // or a choice nobody made.
-func (w OidcWriter) onlyProvider(ctx context.Context) (shared.ID, error) {
+func (w OidcWriter) onlyProvider(
+	ctx context.Context, settings domain.WorkspaceSettings, now time.Time,
+) (shared.ID, error) {
 	inForce, err := w.Providers.List(ctx)
 	if err != nil {
 		return "", err
 	}
 	enabled := make([]domain.IdentityProvider, 0, len(inForce))
 	for _, candidate := range inForce {
-		if candidate.Enabled {
+		if offeredHere(candidate, settings, now) {
 			enabled = append(enabled, candidate)
 		}
 	}

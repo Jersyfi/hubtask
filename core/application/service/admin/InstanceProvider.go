@@ -150,6 +150,13 @@ func (w InstanceProviderWriter) journal(
 	if issuer != "" {
 		details["issuer"] = issuer
 	}
+	return w.record(ctx, actor, action, details)
+}
+
+// record writes one journal entry with the details given.
+func (w InstanceProviderWriter) record(
+	ctx context.Context, actor appshared.ActorContext, action string, details map[string]any,
+) error {
 	return w.Instance.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
 		return w.Instance.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: w.Instance.IDs.NewID(), OccurredAt: w.Instance.Clock.Now(), Action: action,
@@ -184,7 +191,7 @@ func (h ListInstanceIdentityProviders) invoke(
 	}
 	rows := make([]usecase.Output, 0, len(found))
 	for _, configured := range found {
-		rows = append(rows, identityservice.ProviderOutput(configured))
+		rows = append(rows, InstanceProviderOutput(configured))
 	}
 	return usecase.Output{"data": rows}, nil
 }
@@ -220,7 +227,7 @@ func (h ConfigureInstanceIdentityProvider) Descriptor() usecase.Descriptor {
 			{Name: "allowed_directories", Kind: usecase.KindList,
 				Description: "The organisations this provider admits under DOMAINS, in its own identifiers - and required for a multi-directory issuer, which without one is every organisation in the world (ADR-0071)."},
 			{Name: "enabled", Kind: usecase.KindBool,
-				Description: "Off keeps the configuration and refuses the flow, for every workspace at once."},
+				Description: "Deprecated. Whether a new provider is offered, absent being on. Afterwards an offer ends through the withdrawal, and a changed value is refused with identity_provider.withdraw_instead (ADR-0076)."},
 			identityservice.ProviderStepUpField,
 		},
 		StepUp: "changing a way in every workspace is offered",
@@ -246,7 +253,7 @@ func (h ConfigureInstanceIdentityProvider) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return identityservice.ProviderOutput(stored), nil
+	return InstanceProviderOutput(stored), nil
 }
 
 func (h RemoveInstanceIdentityProvider) Descriptor() usecase.Descriptor {
