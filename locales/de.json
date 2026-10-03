@@ -1042,6 +1042,7 @@
   "app.instance.provider_remove_title": "Diesen Anbieter entfernen",
   "app.instance.provider_remove_cost": "Entfernen löscht den Anbieter und jede Verbindung zwischen einer Person und ihm; ihn wieder anzubieten stellt sie nicht wieder her. Die Konten behalten ihre Arbeit und die laufende Sitzung; ein Arbeitsbereich ohne anderen Weg fällt für die Konten mit Passwort auf das Passwort zurück.",
   "app.instance.provider_remove_first": "Zieh ihn zuerst zurück: Arbeitsbereiche nutzen ihn noch.",
+  "app.instance.provider_remove_after": "Sein Zurückziehen ist angekündigt: Entfernen lässt er sich ab {date}.",
   "app.instance.provider_invited_only": "Jedem Arbeitsbereich angeboten, lässt ein Anbieter ohne Verzeichnis nur Personen herein, die der jeweilige Arbeitsbereich eingeladen hat. Alle anderen werden abgewiesen.",
   "app.instance.column_provider": "Anbieter",
   "app.instance.column_issuer": "Issuer",

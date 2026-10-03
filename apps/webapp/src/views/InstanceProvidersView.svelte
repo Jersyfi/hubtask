@@ -23,7 +23,9 @@
   // a number, never which - and names a day, two weeks ahead unless the operator chooses another;
   // until then it keeps working and the workspaces say when it ends. *Withdraw now* is for a
   // compromised provider and asks for the number to be typed back. *Keep offering it* undoes either,
-  // after the date too. *Remove* is still here, for a row that should not exist at all.
+  // after the date too. *Remove* comes after the withdrawal (ADR-0077 §2): it deletes every
+  // connection between a person and the provider, which offering it again does not restore, so
+  // while the offer stands and a workspace uses it the button says why it waits.
 
   import { untrack } from 'svelte';
 
@@ -35,6 +37,7 @@
   import {
     defaultWithdrawalDate,
     earliestWithdrawalDate,
+    removalWait,
     withdrawalMoment,
     withdrawalPhase,
   } from '../lib/instance/withdrawal.ts';
@@ -154,6 +157,18 @@
   const usedBy = (provider: IdentityProvider | undefined): number => provider?.offered_workspaces ?? 0;
 
   const when = (at: string | null | undefined): string => (at ? formatDateTime(at, messages.locale) : '');
+
+  /** Why *Remove* waits, as a sentence, or nothing where it may act. */
+  function removalReason(provider: IdentityProvider): string | undefined {
+    switch (removalWait(provider)) {
+      case 'withdraw_first':
+        return t('app.instance.provider_remove_first');
+      case 'after_withdrawal':
+        return t('app.instance.provider_remove_after', { date: when(provider.withdraw_at) });
+      default:
+        return undefined;
+    }
+  }
 
   function open(next: 'add' | 'change' | 'remove' | 'withdraw', provider?: IdentityProvider): void {
     acting = { kind: next, provider };
@@ -307,12 +322,11 @@
                       </Button>
                     {/if}
                     <!-- Removal comes after the withdrawal (ADR-0077 §2): while the offer stands and a
-                         workspace uses it, the button says so instead of acting. -->
+                         workspace uses it, the button says why instead of acting - withdraw it first,
+                         or, announced already, the day it may go. -->
                     <Button
                       tone="danger"
-                      disabledReason={withdrawalPhase(provider) !== 'withdrawn' && usedBy(provider) > 0
-                        ? t('app.instance.provider_remove_first')
-                        : undefined}
+                      disabledReason={removalReason(provider)}
                       onclick={() => open('remove', provider)}
                     >
                       {t('app.instance.provider_remove')}

@@ -56,8 +56,12 @@ installation puts it on everywhere and removes the switch.
   `InstanceProviderWithdrawal_test.go`, `instanceproviders.test.mjs` against a stubbed API). *Remove*
   comes after the withdrawal since SC-27 ([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §2):
   while the offer stands and a workspace uses it, removal is refused (`identity_provider.withdraw_first`)
-  and the screen says to withdraw first, because removal deletes the connections and offering the
-  provider again does not restore them (`TestAnOfferedProviderIsRemovedOnlyAfterItsOfferEnded`).
+  and the screen's *Remove* is disabled, saying to withdraw first - or, with a withdrawal already
+  announced, the day it can be removed from (`identity_provider.remove_after_withdrawal`) - because
+  removal deletes the connections and offering the provider again does not restore them; the
+  statement that deletes asks again, so a change in between is refused too
+  (`TestAnOfferedProviderIsRemovedOnlyAfterItsOfferEnded`, `TestARemovalLooksAgainWhereItDeletes`,
+  `instanceproviders.test.mjs`).
   Since SC-26 the number of workspaces is counted from their own switches where the installation
   reads it ([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §1), so it stays true when a
   workspace is deleted for good, restored or imported, still counts one waiting out its deletion

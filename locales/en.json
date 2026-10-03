@@ -1696,6 +1696,7 @@
   "app.instance.provider_remove_title": "Remove this provider",
   "app.instance.provider_remove_cost": "Removing deletes the provider and every connection between a person and it; offering it again does not restore them. The accounts keep their work and the session they are in right now; a workspace left with no other way falls back to the password for the accounts that hold one.",
   "app.instance.provider_remove_first": "Withdraw it first: workspaces still use it.",
+  "app.instance.provider_remove_after": "Its withdrawal is announced: it can be removed from {date}.",
   "app.instance.provider_invited_only": "Offered to every workspace, a provider without a directory lets in only the people each workspace invited. Anyone else it knows is turned away.",
   "app.instance.column_provider": "Provider",
   "app.instance.column_issuer": "Issuer",

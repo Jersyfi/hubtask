@@ -57,3 +57,31 @@ export function withdrawalPhase(
   if (Number.isNaN(at)) return 'offered';
   return now < at ? 'withdrawing' : 'withdrawn';
 }
+
+/**
+ * Why *Remove* waits, or nothing where it may act (ADR-0077 §2): removing deletes every connection
+ * between a person and the provider, and offering it again does not restore them - so a provider
+ * still offered and used goes only after its withdrawal. While none is announced the answer is to
+ * withdraw it first; while one is, it is the day the offer ends. The server asks the same and
+ * refuses with `identity_provider.withdraw_first` or `identity_provider.remove_after_withdrawal`.
+ */
+export type RemovalWait = 'withdraw_first' | 'after_withdrawal';
+
+export function removalWait(
+  provider: {
+    readonly enabled: boolean;
+    readonly withdraw_at?: string | null;
+    readonly offered_workspaces?: number | null;
+  },
+  now: number = Date.now(),
+): RemovalWait | undefined {
+  if ((provider.offered_workspaces ?? 0) === 0) return undefined;
+  switch (withdrawalPhase(provider, now)) {
+    case 'offered':
+      return 'withdraw_first';
+    case 'withdrawing':
+      return 'after_withdrawal';
+    default:
+      return undefined;
+  }
+}
