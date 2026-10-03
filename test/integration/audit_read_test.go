@@ -340,6 +340,17 @@ func TestARenamedActionIsFoundUnderEitherName(t *testing.T) {
 			t.Errorf("searching %q found %v, want both names", prefix, got)
 		}
 	}
+
+	// Nothing was rewritten: the chain over both names, each as it was stored, still holds.
+	verified, err := verifierFor(t).Execute(ctx, auditActor(tenant), repository.Period{
+		From: created.Add(-time.Hour), To: created.Add(2000 * time.Second),
+	})
+	if err != nil {
+		t.Fatalf("verifying: %v", err)
+	}
+	if !verified.Valid {
+		t.Errorf("the chain over an old and a new name does not verify: %+v", verified)
+	}
 }
 
 // The walk pages under the covers, and the paging is what makes it usable over four hundred days:

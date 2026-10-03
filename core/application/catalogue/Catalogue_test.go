@@ -13,6 +13,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	port "github.com/Jersyfi/hubtask/core/port/audit"
 )
 
 // The catalogue is a list, so what is worth testing about it is what a list can get wrong: that it
@@ -327,6 +328,24 @@ func TestAutomationActionSummariesAreTheDescriptorsOwn(t *testing.T) {
 		}
 		if strings.TrimSpace(summary) == "" {
 			t.Errorf("%s declares an empty summary; the catalogue would show its name alone", descriptor.Name)
+		}
+	}
+}
+
+// A rename is checked against what the catalogue declares (SC-29): every current name in the table
+// of renamed actions is an action a use case writes, and no use case writes a former one - a former
+// name written again would be two actions under one name, which the table exists to prevent.
+func TestRenamedActionsAgreeWithTheCatalogue(t *testing.T) {
+	declared := map[port.Action]bool{}
+	for _, descriptor := range catalogue.Descriptors() {
+		declared[descriptor.Audit.Action] = true
+	}
+	for current, former := range port.Renamed() {
+		if !declared[current] {
+			t.Errorf("%s is renamed from %s, and no use case writes it", current, former)
+		}
+		if declared[former] {
+			t.Errorf("%s was renamed to %s, and a use case still writes the old name", former, current)
 		}
 	}
 }

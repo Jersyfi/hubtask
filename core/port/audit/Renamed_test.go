@@ -17,7 +17,9 @@ func TestARenamedActionIsFoundUnderEitherName(t *testing.T) {
 	}{
 		{"auth.", []string{"mfa.recovery_regenerated"}},
 		{"auth.mfa", []string{"mfa.recovery_regenerated"}},
+		{"auth.mfa_r", []string{"mfa.recovery_regenerated"}},
 		{"auth.mfa_recovery_regenerated", []string{"mfa.recovery_regenerated"}},
+		{"auth.mfa_recovery_regenerated.and_more", nil},
 		{"mfa.", []string{"auth.mfa_recovery_regenerated"}},
 		{"mfa.recovery_regenerated", []string{"auth.mfa_recovery_regenerated"}},
 		{"auth.session", nil},
