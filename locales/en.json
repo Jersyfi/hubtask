@@ -2269,6 +2269,7 @@
   "app.redeem.provider_title": "Accept your invitation",
   "app.redeem.provider_intro": "This workspace signs in through its provider, not with a password. Sign in there with the address the invitation went to, and you are in.",
   "app.redeem.to_sign_in": "Continue to sign in",
+  "app.redeem.or_provider": "Or accept it by signing in through the workspace's provider, with the address the invitation went to.",
   "app.redeem.password_label": "New password",
   "app.redeem.password_hint": "At least twelve characters.",
   "app.redeem.repeat_label": "Repeat it",

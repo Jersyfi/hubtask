@@ -103,9 +103,19 @@
         </Button>
       </Stack>
     </form>
+    {#if signInRules.providers.length > 0}
+      <!-- UC-ID-07 check 5: where the workspace offers a provider, the invitation is accepted
+           through it as well as with a password - the card with the buttons does it. -->
+      <div class="instead">
+        <p class="quiet">{t('app.redeem.or_provider')}</p>
+        <Button tone="subtle" isFull onclick={() => onnavigate?.('/')}>{t('app.redeem.to_sign_in')}</Button>
+      </div>
+    {/if}
   </SignInCard>
 {/if}
 
 <style>
   form { margin: 0; }
+  .instead { display: grid; gap: var(--sp-100); margin-block-start: var(--sp-200); }
+  .quiet { margin: 0; color: var(--text-secondary); }
 </style>

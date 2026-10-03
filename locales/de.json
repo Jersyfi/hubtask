@@ -1201,6 +1201,7 @@
   "app.redeem.provider_title": "Einladung annehmen",
   "app.redeem.provider_intro": "In diesem Arbeitsbereich meldest du dich über seinen Anbieter an, nicht mit einem Passwort. Melde dich dort mit der Adresse an, an die die Einladung ging, und du bist drin.",
   "app.redeem.to_sign_in": "Weiter zur Anmeldung",
+  "app.redeem.or_provider": "Oder nimm sie an, indem du dich über den Anbieter des Arbeitsbereichs anmeldest, mit der Adresse, an die die Einladung ging.",
   "app.redeem.password_label": "Neues Passwort",
   "app.redeem.password_hint": "Mindestens zwölf Zeichen.",
   "app.redeem.repeat_label": "Noch einmal",

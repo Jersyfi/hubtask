@@ -734,3 +734,23 @@ test('an invitation in a workspace without the password leads to the provider, n
     await close();
   }
 });
+
+// UC-ID-07 check 5: where the workspace offers a provider, the invitation is accepted through it as
+// well as with a password.
+test('an invitation where a provider is offered can be accepted through it instead of a password', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.route('**/api/v1/**', stubFor({ answer: refused }));
+    const page = await context.newPage();
+    await page.goto(`${origin}/redeem#token=invitation-token`);
+    await page.getByRole('heading', { name: 'Set your password' }).waitFor();
+    await page.getByText(/Or accept it by signing in through/).waitFor();
+    await page.getByRole('button', { name: 'Continue to sign in' }).click();
+    await page.getByRole('button', { name: /Contoso Entra ID/ }).waitFor();
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
