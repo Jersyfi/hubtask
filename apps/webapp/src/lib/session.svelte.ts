@@ -41,6 +41,7 @@ import { platform } from './platform/index.ts';
 import { renderProblem, type RenderedProblem } from './problem.ts';
 import { recents } from './recents.svelte.ts';
 import { search } from './data/search.svelte.ts';
+import { recoveryNote } from './data/recoverynote.svelte.ts';
 import { stepUp } from './data/stepup.svelte.ts';
 
 const SESSIONS = '/auth/sessions';
@@ -131,6 +132,8 @@ class Session {
   #signingIn = false;
   /** Set when a session ended under somebody rather than when a sign-in was refused. */
   #ended = $state(false);
+  /** Set when the second step's time ran out, so step one can say why it is back (UC-ID-02 check 2). */
+  #waitedTooLong = $state(false);
 
   get status(): SessionStatus {
     return this.#status;
@@ -182,6 +185,22 @@ class Session {
    */
   get endedNotice(): boolean {
     return this.#ended;
+  }
+
+  /** Whether step one is back because the second step's time ran out. Cleared by the next attempt. */
+  get waitedTooLong(): boolean {
+    return this.#waitedTooLong;
+  }
+
+  /**
+   * The second step's time ran out (UC-ID-02 check 2): back to step one, where the address the
+   * reader typed is still in its field, with a sentence saying why. The window itself is not
+   * extended - it is a security bound - and the credential is dropped, because the server refuses it
+   * from this instant anyway.
+   */
+  timedOut(): void {
+    this.startOver();
+    this.#waitedTooLong = true;
   }
 
   /**
@@ -335,6 +354,7 @@ class Session {
   ): Promise<boolean> {
     this.#problem = undefined;
     this.#ended = false;
+    this.#waitedTooLong = false;
     if (!options.keepPending) {
       this.#owed = undefined;
       this.#pending = undefined;
@@ -460,6 +480,7 @@ class Session {
     search.forget();
     // A trip to the provider and the grant it earned belong to the session that is ending too.
     stepUp.forget();
+    recoveryNote.close();
     this.#status = 'signed-out';
     // And the manifest, which the reset above unsubscribed with everything else: the sign-in
     // screen is drawn from its supported locales, and reading it again is also what re-attaches

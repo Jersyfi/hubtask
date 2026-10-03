@@ -24,6 +24,7 @@
 import { TransportError } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { recoveryNote } from './recoverynote.svelte.ts';
 import { stepUp } from './stepup.svelte.ts';
 
 const ENROLL = '/auth/mfa/totp:enroll';
@@ -231,6 +232,8 @@ class Mfa {
       return undefined;
     }
     this.#replacement = undefined;
+    // The note a recovery code left is answered: the authenticator is set up again.
+    recoveryNote.close();
     return codes;
   }
 

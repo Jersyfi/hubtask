@@ -16,3 +16,24 @@ export function remaining(expiresAt: string, now: number): string | undefined {
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
 }
+
+/**
+ * Where the wait stands (UC-ID-02 check 2): running, in its last minute, or over.
+ *
+ * The last minute is when the line under the countdown says the step is about to end - early
+ * enough to type a code, late enough not to hurry somebody who has four minutes. Over is zero
+ * and after: the server refuses the credential from that instant, so the card does not offer a
+ * step it cannot finish.
+ */
+export type Phase = 'running' | 'closing' | 'over';
+
+/** The last minute, in seconds. */
+export const CLOSING_SECONDS = 60;
+
+export function phaseOf(expiresAt: string, now: number): Phase | undefined {
+  const at = Date.parse(expiresAt);
+  if (Number.isNaN(at)) return undefined;
+  const left = Math.floor((at - now) / 1000);
+  if (left <= 0) return 'over';
+  return left <= CLOSING_SECONDS ? 'closing' : 'running';
+}
