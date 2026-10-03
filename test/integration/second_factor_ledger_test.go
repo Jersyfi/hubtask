@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"encoding/base32"
+	"sync"
 	"testing"
 	"time"
 
@@ -246,4 +247,42 @@ func TestAWrongProofAdvancesTheLedgerAtEveryDoorItCanBeWalkedTo(t *testing.T) {
 	if got := ledger(mfaSubject); got != before+1 {
 		t.Errorf("after a wrong replacement code the ledger stands at %d, want %d", got, before+1)
 	}
+}
+
+// Parallel wrong guesses are each counted: the failure is added by one statement that answers the
+// new count and holds the row until the transaction ends, so a guesser who sends twenty at once
+// meets the curve at twenty rather than at whatever each read before the others wrote.
+func TestParallelFailuresAreAllCounted(t *testing.T) {
+	ctx := context.Background()
+	sessionFixtures(ctx, t)
+	_, _, signIn, uow := sessionStores(ctx, t)
+	subject := "stepup:parallel-" + ledgerAccount.String()
+	inTenant(t, uow, tenantA, func(ctx context.Context) error { return signIn.Clear(ctx, subject) })
+
+	const guesses = 20
+	var wait sync.WaitGroup
+	for range guesses {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			if err := uow.Within(ctx, persistence.Scope{TenantID: tenantA}, func(ctx context.Context) error {
+				_, err := signIn.Fail(ctx, subject, time.Now())
+				return err
+			}); err != nil {
+				t.Errorf("counting a failure: %v", err)
+			}
+		}()
+	}
+	wait.Wait()
+
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		standing, err := signIn.Find(ctx, subject)
+		if err != nil {
+			return err
+		}
+		if standing.Failures != guesses {
+			t.Errorf("%d parallel failures left the ledger at %d", guesses, standing.Failures)
+		}
+		return nil
+	})
 }

@@ -185,6 +185,11 @@ type AuthAttempts interface {
 	// Find answers a subject's standing. A subject never seen is the zero value, not an error.
 	Find(ctx context.Context, subject string) (AuthAttempt, error)
 
+	// Fail adds one failure to a subject's count and answers the count after it, in one statement
+	// that holds the subject's row until the transaction ends - so failures arriving at once are
+	// each counted, rather than each reading the same count and writing the same next one.
+	Fail(ctx context.Context, subject string, at time.Time) (int, error)
+
 	// Record writes a subject's standing after a failure.
 	Record(ctx context.Context, subject string, attempt AuthAttempt) error
 

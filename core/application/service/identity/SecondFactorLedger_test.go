@@ -116,3 +116,20 @@ func TestAWrongCodeAtTheStepUpCounts(t *testing.T) {
 		t.Errorf("the ledger stands at %d, want 1", got)
 	}
 }
+
+// The deprecated password proof of turning the factor off (ADR-0075 §3, kept for one release) is a
+// password guess like any other: it meets the lock and is counted, on the step-up's subject.
+func TestAWrongPasswordTurningTheFactorOffCounts(t *testing.T) {
+	fixture := mfaFixture(now)
+	fixture.withAccount("bert@example.org", "correct horse battery")
+	enrolled(t, fixture)
+
+	err := DisableTotp{Writer: fixture.writer}.Execute(t.Context(), signedInActor(),
+		DisableTotpCommand{Password: secret.New("a wrong password!!")})
+	if err == nil {
+		t.Fatal("a wrong password turned the factor off")
+	}
+	if got := ledger(fixture, stepUpSubject(account)); got != 1 {
+		t.Errorf("the ledger stands at %d, want 1", got)
+	}
+}
