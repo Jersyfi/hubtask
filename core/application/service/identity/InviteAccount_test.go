@@ -35,6 +35,21 @@ type accountStore struct {
 	inserted   []domain.Account
 	preference []domain.Account
 	insertErr  error
+	// lapsed names invitations whose time ran out, which AcceptInvitation refuses as the
+	// statement's `redemption_expires_at` comparison does.
+	lapsed map[shared.ID]bool
+}
+
+// AcceptInvitation activates an invited account whose invitation has not run out.
+func (s *accountStore) AcceptInvitation(_ context.Context, id shared.ID, _ time.Time) (bool, error) {
+	account, found := s.byID[id]
+	if !found || account.Status != domain.AccountInvited || s.lapsed[id] {
+		return false, nil
+	}
+	account.Status = domain.AccountActive
+	s.byID[id] = account
+	s.byEmail[account.Email] = account
+	return true, nil
 }
 
 func newAccounts(existing ...domain.Account) *accountStore {

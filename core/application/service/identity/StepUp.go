@@ -162,6 +162,13 @@ func (h StepUp) prove(
 ) (domain.StepUpMethod, error) {
 	w := h.Writer
 	subject := stepUpSubject(actor.AccountID)
+	// A password the workspace switched off proves nothing here either (SC-24): the account proves
+	// itself at its provider or with its factor. Asked before the proof's own transaction.
+	if !cmd.Password.IsEmpty() {
+		if err := w.passwordShut(ctx, actor.TenantID); err != nil {
+			return "", err
+		}
+	}
 
 	var method domain.StepUpMethod
 	err := w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -311,13 +318,16 @@ func (v StepUpVerifier) Methods(
 ) ([]stepupport.Method, error) {
 	w := v.Writer
 	methods := []stepupport.Method{}
+	// Not offered where the workspace switched the password off (SC-24): a field for it would ask
+	// for a proof the step-up refuses.
+	passwordOpen := w.passwordShut(ctx, tenantID) == nil
 	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID, ActorID: accountID},
 		func(ctx context.Context) error {
 			hash, err := w.Accounts.PasswordHashOf(ctx, accountID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
 				return err
 			}
-			if !hash.IsEmpty() {
+			if !hash.IsEmpty() && passwordOpen {
 				methods = append(methods, stepupport.MethodPassword)
 			}
 			enrollment, err := w.Enrollments.Find(ctx, accountID)

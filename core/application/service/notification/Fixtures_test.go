@@ -215,6 +215,11 @@ func (s *accountStore) Restricted(
 func (s *accountStore) FindByEmail(context.Context, string) (identity.Account, error) {
 	return identity.Account{}, shared.ErrNotFound
 }
+
+// AcceptInvitation is not this fixture's concern: nothing here accepts an invitation.
+func (s *accountStore) AcceptInvitation(context.Context, shared.ID, time.Time) (bool, error) {
+	return false, nil
+}
 func (s *accountStore) Insert(context.Context, identity.Account) error { return nil }
 
 // Nothing here lists accounts by kind; the method exists so the port is implemented.

@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13]
 state: built
-tasks: [SI-04, SI-15, SC-03]
+tasks: [SC-24, SI-04, SI-15, SC-03]
 checked_by: [core/application/service/identity/Reset_test.go, apps/webapp/e2e/signin.test.mjs]
 ---
 
@@ -56,3 +56,13 @@ person falls back to recovery codes or a local recovery (see *Where it ends*).
 * No security questions, no hints, no SMS.
 * A household without a mail server is not served by this use case; that is a separate use case
   for local recovery.
+
+## Today
+
+In a workspace that switched the password off (SC-24, UC-ID-12) every reset request mails the
+"use your organisation's provider" message, whether or not the account holds a password - the request
+still answers the same for every address (check 1), and a link mailed before the switch is refused
+afterwards. **Open, and the owner's to decide:** an account in such a workspace that holds a password
+but was never connected to the provider, and has forgotten the password, has no way in - the
+provider's first arrival asks for that password before connecting (E2), and the reset no longer sets
+one. Proposed answers are in PR #1130.
