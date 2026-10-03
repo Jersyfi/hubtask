@@ -88,6 +88,10 @@ func TestWithdrawNowRepeatsTheCount(t *testing.T) {
 			detailOf(err) != "identity_provider.withdraw_count_mismatch" {
 			t.Errorf("withdrawing now with %v answered %v", count, err)
 		}
+		// The field's sentence chooses its plural by the number, so the number travels with it.
+		if fields := shared.AsError(err).Fields; len(fields) != 1 || fields[0].Params["count"] != "12" {
+			t.Errorf("the field error carries %+v, want the count", fields)
+		}
 	}
 	if !store.rows[0].WithdrawAt.IsZero() {
 		t.Fatal("an unconfirmed withdraw-now was written")
