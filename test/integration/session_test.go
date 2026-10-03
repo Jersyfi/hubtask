@@ -209,12 +209,62 @@ func TestSessionsAreListedPerTenant(t *testing.T) {
 
 	inTenant(t, uow, tenantA, func(ctx context.Context) error {
 		own, err := sessions.ForAccount(ctx, sessionAccountA, time.Now())
-		if err != nil || len(own) != 1 {
+		if err != nil || len(own.Sessions) != 1 {
 			t.Fatalf("own listing = %v, %v; want the one session", own, err)
 		}
 		foreign, err := sessions.ForAccount(ctx, sessionAccountB, time.Now())
-		if err != nil || len(foreign) != 0 {
-			t.Errorf("another tenant's account listed %d sessions from here", len(foreign))
+		if err != nil || len(foreign.Sessions) != 0 {
+			t.Errorf("another tenant's account listed %d sessions from here", len(foreign.Sessions))
+		}
+		return nil
+	})
+}
+
+// UC-ID-06 check 5 (SC-19): the list is judged against the workspace's rotation cutoff, so the
+// cutoff has to arrive with the rows - read off the tenant row FindForAuth reads it from, which is
+// what makes the list and the next request agree.
+func TestTheSessionListCarriesTheWorkspacesRotationCutoff(t *testing.T) {
+	ctx := context.Background()
+	sessionFixtures(ctx, t)
+	admin := adminPool(ctx, t)
+	sessions, _, _, uow := sessionStores(ctx, t)
+
+	// A cutoff long before any session here, so it ends none of the shared tenant's sessions while
+	// it is in place; the previous rule comes back afterwards, whatever it was.
+	var previous *string
+	if err := admin.QueryRow(ctx, `SELECT settings #>> '{sign_in_policy}' FROM tenant WHERE id = $1`,
+		tenantA.String()).Scan(&previous); err != nil {
+		t.Fatalf("reading the rule: %v", err)
+	}
+	t.Cleanup(func() {
+		restore := `UPDATE tenant SET settings = settings - 'sign_in_policy' WHERE id = $1`
+		args := []any{tenantA.String()}
+		if previous != nil {
+			restore = `UPDATE tenant SET settings = jsonb_set(settings, '{sign_in_policy}', $2::jsonb) WHERE id = $1`
+			args = append(args, *previous)
+		}
+		_, _ = admin.Exec(context.Background(), restore, args...)
+	})
+	cutoff := time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC)
+	if _, err := admin.Exec(ctx, `
+		UPDATE tenant SET settings = jsonb_set(settings, '{sign_in_policy}',
+			coalesce(settings -> 'sign_in_policy', '{}'::jsonb) || jsonb_build_object('rotation_from', $2::text))
+		WHERE id = $1`, tenantA.String(), cutoff.Format(time.RFC3339)); err != nil {
+		t.Fatalf("writing the cutoff: %v", err)
+	}
+
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		listed, err := sessions.ForAccount(ctx, sessionAccountA, time.Now())
+		if err != nil || len(listed.Sessions) != 1 {
+			t.Fatalf("listing = %v, %v; want the one session", listed, err)
+		}
+		if !listed.RotationFrom.Equal(cutoff) {
+			t.Errorf("the listing read the cutoff %v, want %v", listed.RotationFrom, cutoff)
+		}
+		credential, err := sessions.FindForAuth(ctx, sessionA)
+		if err != nil || !credential.RotationFrom.Equal(listed.RotationFrom) {
+			t.Errorf("authentication reads %v (%v), the list %v - they must agree",
+				credential.RotationFrom, err, listed.RotationFrom)
 		}
 		return nil
 	})
@@ -757,10 +807,10 @@ func TestAProviderSessionNamesItsProviderInItsOwnTenantOnly(t *testing.T) {
 			}
 		}
 		listed, err := sessions.ForAccount(ctx, viaAccount, now)
-		if err != nil || len(listed) != 2 {
+		if err != nil || len(listed.Sessions) != 2 {
 			t.Fatalf("listing = %v, %v; want the two sessions", listed, err)
 		}
-		for _, row := range listed {
+		for _, row := range listed.Sessions {
 			switch row.ID {
 			case own:
 				if row.SignedInVia != providerA || row.SignedInViaName != "Contoso Entra ID" {

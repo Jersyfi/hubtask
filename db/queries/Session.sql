@@ -71,15 +71,18 @@ LEFT JOIN oauth_grant g ON g.id = s.grant_id
 WHERE s.id = sqlc.arg('id') AND a.deleted_at IS NULL;
 
 -- name: SessionsForAccount :many
--- One's own live sessions, newest first. The dead ones are deliberately absent: a listing is for
--- deciding what to end, and what is already ended or run out is nothing anybody can act on.
+-- One's own unrevoked, unexpired sessions, newest first. The ended and the run-out are absent here;
+-- the workspace's bounds are judged by the application with the method authentication uses (SC-19),
+-- which is why the rotation cutoff rides along, off the row FindSessionForAuth reads it from.
 --
 -- The provider's name is joined under the reader's own row policy (migration 0111): one this tenant
 -- can see - its own or the installation's - is named, and a removed one or another tenant's is not.
 SELECT s.id, s.account_id, s.created_at, s.last_seen_at, s.user_agent, s.ip_class, s.expires_at,
        s.revoked_at, s.hard_expires_at, s.idle_minutes, s.signed_in_with, s.signed_in_provider_id,
-       p.display_name AS signed_in_provider_name
+       p.display_name AS signed_in_provider_name,
+       (n.settings #>> '{sign_in_policy,rotation_from}') AS rotation_from
 FROM session s
+JOIN tenant n ON n.id = s.tenant_id
 LEFT JOIN identity_provider p ON p.id = s.signed_in_provider_id
 WHERE s.account_id = sqlc.arg('account_id')
   AND s.revoked_at IS NULL

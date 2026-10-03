@@ -227,6 +227,17 @@ func (s Session) VerifyAgainstRotation(rotationFrom time.Time) error {
 	return shared.ErrUnauthenticated.WithDetail("auth.session_rotated")
 }
 
+// VerifyOpen is every comparison the next request makes, in its order: the session's own bounds,
+// then the workspace's cutoff. It is the one definition of "open" - authentication refuses by it and
+// the session list filters by it (UC-ID-06 check 5), so a session cannot be offered as open in one
+// place and be refused as over in the other.
+func (s Session) VerifyOpen(now, rotationFrom time.Time) error {
+	if err := s.Verify(now); err != nil {
+		return err
+	}
+	return s.VerifyAgainstRotation(rotationFrom)
+}
+
 // Revoked stamps the session. Idempotent in the caller's sense: the first withdrawal is the one
 // that mattered.
 func (s Session) Revoked(at time.Time) Session {

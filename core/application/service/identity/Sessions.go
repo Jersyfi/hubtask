@@ -30,12 +30,16 @@ const (
 	SessionReadAction     audit.Action = "auth.session_read"
 )
 
-// ListSessions answers the caller's own live sessions - and never anybody else's, whatever the
+// ListSessions answers the caller's own open sessions - and never anybody else's, whatever the
 // role: a session is the person's, and an administrator who suspects one acts by disabling the
 // account (H-01).
 type ListSessions struct{ Writer SessionWriter }
 
 // Execute reads them, newest first, and marks the one answering this very call.
+//
+// Open is what the next request accepts: a session past the workspace's maximum age, its idle time
+// or a required new password is refused there, and so it is not listed here (UC-ID-06 check 5). The
+// row stays until the sweep takes it - no job walks sessions, because nothing may enumerate tenants.
 func (h ListSessions) Execute(
 	ctx context.Context, actor appshared.ActorContext,
 ) ([]domain.Session, shared.ID, error) {
@@ -49,9 +53,17 @@ func (h ListSessions) Execute(
 	w := h.Writer
 	var sessions []domain.Session
 	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		found, err := w.Sessions.ForAccount(ctx, actor.AccountID, w.Clock.Now())
-		sessions = found
-		return err
+		now := w.Clock.Now()
+		found, err := w.Sessions.ForAccount(ctx, actor.AccountID, now)
+		if err != nil {
+			return err
+		}
+		for _, session := range found.Sessions {
+			if session.VerifyOpen(now, found.RotationFrom) == nil {
+				sessions = append(sessions, session)
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, "", err
@@ -158,7 +170,7 @@ func (w SessionWriter) recordRevocation(
 func (h ListSessions) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ListSessionsName,
-		Summary: "The caller's own live sessions, newest first: where each was opened - the " +
+		Summary: "The caller's own open sessions, newest first - those the next request accepts: where each was opened - the " +
 			"user agent and the coarsened network recorded at sign-in - when it was created, " +
 			"when it last acted, and which one is answering this very call. Never anybody " +
 			"else's, whatever the role.",

@@ -346,7 +346,7 @@ func (w PasswordWriter) endOthers(
 	if err != nil {
 		return err
 	}
-	for _, session := range live {
+	for _, session := range live.Sessions {
 		if !keepSessionID.IsZero() && session.ID == keepSessionID {
 			continue
 		}

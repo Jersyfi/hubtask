@@ -368,3 +368,50 @@ func TestProviderProofFresh(t *testing.T) {
 		}
 	}
 }
+
+// VerifyOpen is the one definition of "open" (SC-19): the session's own bounds first, in Verify's
+// order, then the workspace's cutoff - and a session that passes all of them is open.
+func TestVerifyOpenAsksEveryComparisonTheNextRequestMakes(t *testing.T) {
+	at := time.Date(2026, 9, 27, 12, 0, 0, 0, time.UTC)
+	open := Session{CreatedAt: at.Add(-time.Hour), LastSeenAt: at.Add(-time.Minute),
+		ExpiresAt: at.Add(time.Hour)}
+
+	cases := []struct {
+		name         string
+		session      Session
+		rotationFrom time.Time
+		code         string
+	}{
+		{name: "open", session: open},
+		{name: "revoked", session: func() Session { s := open; s.RevokedAt = at; return s }(),
+			code: "auth.session_revoked"},
+		{name: "run out", session: func() Session { s := open; s.ExpiresAt = at; return s }(),
+			code: "auth.session_expired"},
+		{name: "too old", session: func() Session { s := open; s.HardExpiresAt = at; return s }(),
+			code: "auth.session_too_old"},
+		{name: "idle", session: func() Session {
+			s := open
+			s.IdleMinutes = 1
+			return s
+		}(), code: "auth.session_idle"},
+		{name: "rotated", session: open, rotationFrom: at, code: "auth.session_rotated"},
+		// Revocation outranks the rotation, as it outranks everything: the security event is the
+		// one whoever reads the log should see.
+		{name: "revoked and rotated", session: func() Session { s := open; s.RevokedAt = at; return s }(),
+			rotationFrom: at, code: "auth.session_revoked"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.session.VerifyOpen(at, tc.rotationFrom)
+			if tc.code == "" {
+				if err != nil {
+					t.Errorf("an open session answered %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.code) {
+				t.Errorf("answered %v, want %s", err, tc.code)
+			}
+		})
+	}
+}

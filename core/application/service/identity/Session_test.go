@@ -45,9 +45,11 @@ type sessionsStore struct {
 	inserted []domain.Session
 	sessions map[shared.ID]repository.SessionCredential
 	listed   []domain.Session
-	extended map[shared.ID]time.Time
-	touched  []shared.ID
-	revoked  []shared.ID
+	// rotationFrom is the workspace's cutoff the listing reads beside the rows (SC-19).
+	rotationFrom time.Time
+	extended     map[shared.ID]time.Time
+	touched      []shared.ID
+	revoked      []shared.ID
 	// revokeChanged is what Revoke and RevokeAll report; a real repository reports false for a
 	// row that is not the caller's or already stamped.
 	revokeChanged bool
@@ -86,8 +88,8 @@ func (s *sessionsStore) FindForAuth(_ context.Context, id shared.ID) (repository
 	return credential, nil
 }
 
-func (s *sessionsStore) ForAccount(context.Context, shared.ID, time.Time) ([]domain.Session, error) {
-	return s.listed, nil
+func (s *sessionsStore) ForAccount(context.Context, shared.ID, time.Time) (repository.AccountSessions, error) {
+	return repository.AccountSessions{Sessions: s.listed, RotationFrom: s.rotationFrom}, nil
 }
 
 // Elevate raises the caller's own session (ADR-0070 §4). The store records the window rather than
@@ -702,8 +704,8 @@ func sessionActor(scopes ...string) appshared.ActorContext {
 func TestListSessionsMarksTheCurrentOne(t *testing.T) {
 	fixture := newSessionFixture(now)
 	fixture.sessions.listed = []domain.Session{
-		{ID: sessionRowID, AccountID: account, CreatedAt: now},
-		{ID: refreshRowID, AccountID: account, CreatedAt: now.Add(-time.Hour)},
+		{ID: sessionRowID, AccountID: account, CreatedAt: now, ExpiresAt: now.Add(time.Hour)},
+		{ID: refreshRowID, AccountID: account, CreatedAt: now.Add(-time.Hour), ExpiresAt: now.Add(time.Hour)},
 	}
 
 	sessions, currentID, err := ListSessions{Writer: fixture.writer}.

@@ -192,14 +192,11 @@ func (a AuthenticateToken) executeSession(
 		}
 
 		now := a.Clock.Now()
-		if err := credential.Session.Verify(now); err != nil {
-			return err
-		}
-		// The third comparison of ADR-0068 §3, beside the session's own two: a session opened
-		// before the workspace asked everybody for a new password is over. Here rather than in
-		// Session.Verify because the cutoff is the workspace's rather than the session's, and a
-		// method that took it as a parameter is the honest shape for that.
-		if err := credential.Session.VerifyAgainstRotation(credential.RotationFrom); err != nil {
+		// The session's own bounds and the third comparison of ADR-0068 §3: a session opened
+		// before the workspace asked everybody for a new password is over. The cutoff is the
+		// workspace's rather than the session's, so it travels as a parameter - and the session
+		// list asks the same method, so what this refuses is never listed as open (SC-19).
+		if err := credential.Session.VerifyOpen(now, credential.RotationFrom); err != nil {
 			return err
 		}
 		if err := credential.Account.Verify(); err != nil {

@@ -50,6 +50,12 @@ type IdentityProviders interface {
 	// False is "no such row here", which includes a workspace reaching for the installation's.
 	Update(ctx context.Context, provider identity.IdentityProvider, sealed *crypto.Sealed, now time.Time) (identity.IdentityProvider, bool, error)
 
+	// Reconfigure is Update without the switch: every field but `enabled`, which stays exactly as
+	// the row holds it, in the same statement (ADR-0076 §5). A workspace's own form configures and
+	// never switches, so its write does not touch the column the list of ways to sign in writes -
+	// and a save cannot undo a switch made while the form was open.
+	Reconfigure(ctx context.Context, provider identity.IdentityProvider, sealed *crypto.Sealed, now time.Time) (identity.IdentityProvider, bool, error)
+
 	// Delete removes one and its sealed secret. False is "there was none", which is not an error -
 	// a caller asking for it to be gone got what they asked for.
 	Delete(ctx context.Context, id shared.ID) (bool, error)

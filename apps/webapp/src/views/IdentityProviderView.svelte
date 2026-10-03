@@ -49,7 +49,6 @@
   let provisioning = $state('DOMAINS');
   let domains = $state('');
   let directories = $state('');
-  let enabled = $state(true);
   /** The order the buttons are drawn in. Kept rather than shown: a workspace with two providers
       orders them by adding them, and a control for it would be a control for a list of two. */
   let position = $state(0);
@@ -118,9 +117,6 @@
     provisioning = 'DOMAINS';
     domains = '';
     directories = '';
-    // Off until it is switched on in the list of ways to sign in, the one place a way in is turned
-    // on or off (UC-ID-11 check 8). Configuring is not offering.
-    enabled = false;
     position = identityProvider.own.length;
     failure = undefined;
     saved = false;
@@ -137,7 +133,6 @@
     provisioning = provider.provisioning;
     domains = (provider.allowed_email_domains ?? []).join('\n');
     directories = (provider.allowed_directories ?? []).join('\n');
-    enabled = provider.enabled;
     position = provider.position;
     failure = undefined;
     saved = false;
@@ -160,7 +155,9 @@
       kind: kind as IdentityProvider['kind'],
       provisioning: provisioning as IdentityProvider['provisioning'],
       position,
-      enabled,
+      // No `enabled`: the field is deprecated, and the list of ways to sign in is the one place a
+      // way in is turned on or off (UC-ID-11 check 8, ADR-0076 §5). A new provider is created off -
+      // configuring is not offering - and a replaced one keeps its switch.
       allowed_email_domains: readDomains(domains),
       allowed_directories: readDomains(directories),
     };
