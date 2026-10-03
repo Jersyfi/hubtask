@@ -567,13 +567,17 @@ class Client:
         """Prove yourself again, for the irreversible"""
         return self._call("POST", "/auth/step-up", {}, None, {}, body, "json", "application/json", "json")
 
+    def start_provider_step_up(self) -> "ProviderStepUpAuthorization":
+        """Begin a step-up at the provider this account is connected to"""
+        return self._call("POST", "/auth/step-up:provider", {}, None, {}, None, "none", None, "json")
+
     def regenerate_recovery_codes(self, *, step_up: str | None = None) -> "RecoveryCodes":
         """Replace the ten recovery codes"""
         return self._call("POST", "/auth/mfa/recovery:regenerate", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
 
-    def disable_totp(self, body: "MfaDisable") -> None:
+    def disable_totp(self, body: "MfaDisable", *, step_up: str | None = None) -> None:
         """Disable the second factor"""
-        return self._call("POST", "/auth/mfa:disable", {}, None, {}, body, "json", "application/json", "void")
+        return self._call("POST", "/auth/mfa:disable", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "void")
 
     def list_access_tokens(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
         """The caller's own personal access tokens"""

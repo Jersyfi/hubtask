@@ -14,6 +14,7 @@ package identityprovider
 
 import (
 	"context"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -52,6 +53,10 @@ type Authorization struct {
 	// LoginHint is an address to save somebody typing it twice, and nothing more: it never
 	// decides which account is signed in.
 	LoginHint string
+	// Fresh asks the provider to authenticate the person again rather than answer from its own
+	// session - `prompt=login` and `max_age=0` - for a step-up at the provider (ADR-0075 §2). A
+	// provider may ignore both, which is why the answer's AuthTime is what the core judges.
+	Fresh bool
 }
 
 // Exchange is what the callback carries into the token endpoint.
@@ -91,6 +96,10 @@ type Identity struct {
 	// `EmailVerified` alone says mail arrives there, which is not the same claim and not enough to
 	// hand over an account that already exists.
 	AddressAuthoritative bool
+	// AuthTime is when the person last authenticated at the provider, the token's `auth_time`.
+	// Zero where the token carried none - which a step-up reads as nothing fresh proven
+	// (ADR-0075 §2), never as "now".
+	AuthTime time.Time
 }
 
 // Port is the relying party.

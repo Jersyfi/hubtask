@@ -1108,6 +1108,7 @@ type OidcFlow struct {
 	ExpiresAt    pgtype.Timestamptz
 	ConsumedAt   pgtype.Timestamptz
 	ProviderID   pgtype.UUID
+	SessionID    pgtype.UUID
 }
 
 type Operator struct {

@@ -119,27 +119,110 @@ func TestConfirmingWhileSignedInArmsAndChangesNothingElse(t *testing.T) {
 	}
 }
 
-// The password afresh: a live session is deliberately not enough to remove the factor.
-func TestDisablingAsksForThePasswordAndSendsNothingElse(t *testing.T) {
-	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
+// A live session is deliberately not enough to remove the factor: the removal takes the step-up like
+// every privileged act (ADR-0075 §3), proven here with the authenticator's code, and the deprecated
+// password no longer travels in the body.
+func TestDisablingProvesThroughTheStepUp(t *testing.T) {
+	var steps []string
+	var stub *installation
+	stub = serve(t, func(w http.ResponseWriter, r *http.Request) {
+		steps = append(steps, r.URL.Path+" "+r.Header.Get(stepUpHeader)+" "+stub.body)
+		switch {
+		case r.URL.Path == APIPath+stepUpPath:
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"step_up_token":"` + stepUpToken + `",
+			  "expires_at":"2026-08-27T09:05:00Z","method":"TOTP"}`))
+		case r.Header.Get(stepUpHeader) != stepUpToken:
+			problemJSON(w, http.StatusForbidden, map[string]any{
+				"status": 403, "code": "forbidden", "detail_code": "auth.step_up_required",
+				"params": map[string]any{"methods": "TOTP RECOVERY"},
+			})
+		default:
+			w.WriteHeader(http.StatusNoContent)
+		}
 	})
 	profile := filepath.Join(t.TempDir(), "profile.json")
 	saveSession(t, profile, stub.server.URL, time.Now().Add(10*time.Minute))
 
-	code, _, errOut := invokeAgainst(t, stub, map[string]string{envProfile: profile}, "hunter2\n",
+	code, _, errOut := invokeAgainst(t, stub, map[string]string{envProfile: profile}, "123456\n",
 		"mfa", "disable")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if stub.request.URL.Path != APIPath+mfaDisablePath {
-		t.Errorf("the removal called %s", stub.request.URL.Path)
+	if len(steps) != 3 || !strings.HasPrefix(steps[1], APIPath+stepUpPath) ||
+		!strings.Contains(steps[1], `"code":"123456"`) ||
+		!strings.HasPrefix(steps[2], APIPath+mfaDisablePath+" "+stepUpToken) {
+		t.Fatalf("the removal was not proved and retried: %q", steps)
 	}
-	if !strings.Contains(stub.body, `"password":"hunter2"`) {
-		t.Errorf("the password did not travel: %s", stub.body)
+	if strings.Contains(steps[2], "password") {
+		t.Errorf("the deprecated password still travels: %s", steps[2])
 	}
 	if !strings.Contains(errOut, "recovery codes") {
 		t.Errorf("nothing says the codes went too: %q", errOut)
+	}
+}
+
+// Somebody without the authenticator answers with a recovery code, handed in the environment.
+func TestAStepUpTakesARecoveryCodeFromTheEnvironment(t *testing.T) {
+	var proof string
+	var stub *installation
+	stub = serve(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == APIPath+stepUpPath:
+			proof = stub.body
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"step_up_token":"` + stepUpToken + `",
+			  "expires_at":"2026-08-27T09:05:00Z","method":"RECOVERY"}`))
+		case r.Header.Get(stepUpHeader) != stepUpToken:
+			problemJSON(w, http.StatusForbidden, map[string]any{
+				"status": 403, "code": "forbidden", "detail_code": "auth.step_up_required",
+				"params": map[string]any{"methods": "TOTP RECOVERY"},
+			})
+		default:
+			w.WriteHeader(http.StatusNoContent)
+		}
+	})
+	profile := filepath.Join(t.TempDir(), "profile.json")
+	saveSession(t, profile, stub.server.URL, time.Now().Add(10*time.Minute))
+
+	code, _, errOut := invokeAgainst(t, stub,
+		map[string]string{envProfile: profile, envRecovery: "abcd-efgh"}, "", "mfa", "disable")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(proof, `"recovery_code":"abcd-efgh"`) {
+		t.Errorf("the recovery code did not travel: %s", proof)
+	}
+}
+
+// A provider-only account confirms with a fresh sign-in at its provider, which takes a browser: the
+// command says so instead of asking for anything it could not use.
+func TestAProviderOnlyStepUpPointsToTheWebApp(t *testing.T) {
+	called := 0
+	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		called++
+		if r.URL.Path == APIPath+stepUpPath {
+			t.Error("a step-up was attempted that the terminal cannot make")
+		}
+		problemJSON(w, http.StatusForbidden, map[string]any{
+			"status": 403, "code": "forbidden", "detail_code": "auth.step_up_required",
+			"params": map[string]any{"methods": "PROVIDER", "provider": "Contoso Entra ID"},
+		})
+	})
+	profile := filepath.Join(t.TempDir(), "profile.json")
+	saveSession(t, profile, stub.server.URL, time.Now().Add(10*time.Minute))
+
+	code, _, errOut := invokeAgainst(t, stub, map[string]string{envProfile: profile}, "", "mfa", "disable")
+	if code != exitError {
+		t.Fatalf("exit %d, want %d", code, exitError)
+	}
+	if !strings.Contains(errOut, "browser") {
+		t.Errorf("the refusal does not say a browser is needed: %q", errOut)
+	}
+	if called != 1 {
+		t.Errorf("%d calls, want the one refused", called)
 	}
 }
 

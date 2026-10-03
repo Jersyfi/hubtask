@@ -163,7 +163,11 @@ func (pending) EnrollTotp(w http.ResponseWriter, r *http.Request) { notAvailable
 
 func (pending) ConfirmTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-func (pending) DisableTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) DisableTotp(w http.ResponseWriter, r *http.Request, _ openapi.DisableTotpParams) {
+	notAvailable(w, r)
+}
+
+func (pending) StartProviderStepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) StepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

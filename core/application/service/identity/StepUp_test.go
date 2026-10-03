@@ -230,8 +230,8 @@ func TestTheDemandNamesTheAccountsOwnMethods(t *testing.T) {
 
 	enrolled(t, fixture)
 	err = stepup.Demand(t.Context(), verifier, actor.TenantID, actor.AccountID, "")
-	if methods := demandedMethods(t, err); methods != "PASSWORD TOTP" {
-		t.Errorf("with a factor armed: %q, want PASSWORD TOTP", methods)
+	if methods := demandedMethods(t, err); methods != "PASSWORD TOTP RECOVERY" {
+		t.Errorf("with a factor armed: %q, want PASSWORD TOTP RECOVERY", methods)
 	}
 
 	// Unavailable: nothing can look the account up, so both are named rather than neither.

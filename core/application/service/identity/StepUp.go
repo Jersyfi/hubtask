@@ -27,10 +27,33 @@ const StepUpAction audit.Action = "auth.step_up"
 // stepUpSubject is the attempt ledger's key for step-up guesses, mfaSubject's reasoning.
 func stepUpSubject(accountID shared.ID) string { return "stepup:" + accountID.String() }
 
-// StepUpCommand carries the fresh proof: the password, or the code where a factor is armed.
+// StepUpCommand carries the fresh proof - exactly one of the methods the account holds
+// (ADR-0075 §1): the password, the authenticator's code, a recovery code, or the provider's return
+// after StartProviderStepUp - its state and its authorization code, together.
 type StepUpCommand struct {
-	Password secret.Secret
-	Code     string
+	Password          secret.Secret
+	Code              string
+	RecoveryCode      secret.Secret
+	State             secret.Secret
+	AuthorizationCode string
+}
+
+// methodsGiven counts the proofs a command carries. One is a step-up; none is nothing to check, and
+// two would be asking the server to choose which credential to believe. The provider's return is one
+// proof in two halves, and half of it is none.
+func (cmd StepUpCommand) methodsGiven() int {
+	given := 0
+	for _, present := range []bool{
+		!cmd.Password.IsEmpty(), cmd.Code != "", !cmd.RecoveryCode.IsEmpty(), cmd.presentedProviderProof(),
+	} {
+		if present {
+			given++
+		}
+	}
+	if cmd.presentedProviderProof() && (cmd.State.IsEmpty() || cmd.AuthorizationCode == "") {
+		return 0
+	}
+	return given
 }
 
 // StepUpGrant is what a successful proof answers: the token the one privileged action will
@@ -53,7 +76,7 @@ func (h StepUp) Execute(
 	if !actor.IsAuthenticated() || actor.AccountID.IsZero() {
 		return StepUpGrant{}, shared.ErrUnauthenticated.WithDetail("access.credential_required")
 	}
-	if (cmd.Password.IsEmpty() && cmd.Code == "") || (!cmd.Password.IsEmpty() && cmd.Code != "") {
+	if cmd.methodsGiven() != 1 {
 		return StepUpGrant{}, shared.ErrValidation.
 			WithDetail("auth.step_up_method_required").
 			WithFields(shared.FieldError{Path: "/password", Code: "auth.step_up_method_required"})
@@ -61,29 +84,17 @@ func (h StepUp) Execute(
 
 	// The session first: TokenID names one exactly when the actor signed in, and a proof that
 	// could land nowhere is refused before any credential is examined.
-	var session domain.Session
-	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		credential, err := w.Sessions.FindForAuth(ctx, actor.TokenID)
-		if err != nil {
-			if errors.Is(err, shared.ErrNotFound) {
-				return shared.ErrForbidden.WithDetail("auth.step_up_session_required")
-			}
-			return err
-		}
-		if credential.Session.AccountID != actor.AccountID {
-			return shared.ErrForbidden.WithDetail("auth.step_up_session_required")
-		}
-		session = credential.Session
-		return nil
-	})
+	session, err := w.stepUpSession(ctx, actor)
 	if err != nil {
 		return StepUpGrant{}, err
 	}
-	if err := session.Verify(w.Clock.Now()); err != nil {
-		return StepUpGrant{}, err
-	}
 
-	method, err := h.prove(ctx, actor, cmd)
+	method := domain.StepUpProvider
+	if cmd.presentedProviderProof() {
+		err = w.proveAtProvider(ctx, actor, session, cmd)
+	} else {
+		method, err = h.prove(ctx, actor, cmd)
+	}
 	if err != nil {
 		return StepUpGrant{}, err
 	}
@@ -167,6 +178,14 @@ func (h StepUp) prove(
 			return nil
 		}
 
+		if !cmd.RecoveryCode.IsEmpty() {
+			if err := w.burnRecoveryCode(ctx, actor, cmd.RecoveryCode, now); err != nil {
+				return errors.Join(w.recordMfaFailure(ctx, subject, now), err)
+			}
+			method = domain.StepUpRecovery
+			return nil
+		}
+
 		stored, err := w.Accounts.PasswordHashOf(ctx, actor.AccountID)
 		if err != nil && !errors.Is(err, shared.ErrNotFound) {
 			return err
@@ -194,15 +213,47 @@ func (h StepUp) prove(
 	return method, nil
 }
 
+// burnRecoveryCode spends one recovery code as the proof (ADR-0075 §1), exactly as the sign-in's
+// second step spends one: burned in the statement that matches it, and the trail told how many are
+// left - a run of these is what an account takeover looks like from the trail.
+func (w SessionWriter) burnRecoveryCode(
+	ctx context.Context, actor appshared.ActorContext, presented secret.Secret, now time.Time,
+) error {
+	if w.Recovery == nil {
+		return shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid")
+	}
+	burned, err := w.Recovery.Burn(ctx, actor.AccountID, presented.Reveal(), now)
+	if err != nil {
+		return err
+	}
+	if !burned {
+		w.failure(ctx, FailureMfa)
+		return shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid")
+	}
+	left, err := w.Recovery.Remaining(ctx, actor.AccountID)
+	if err != nil {
+		return err
+	}
+	return w.recordRecoveryUse(ctx, domain.Account{
+		ID: actor.AccountID, TenantID: actor.TenantID, DisplayName: actor.AccountName,
+	}, left, now)
+}
+
 // methodAuditLabel answers the method as a fresh literal. A switch rather than a conversion,
 // deliberately: the trail records *which kind* of proof was given, and a value that is
 // provably a label from a closed set - not anything derived from a credential's flow - is what
 // a scanner reading the taint should see too (CodeQL flags the constant's very name otherwise).
 func methodAuditLabel(method domain.StepUpMethod) string {
-	if method == domain.StepUpTotp {
+	switch method {
+	case domain.StepUpTotp:
 		return "TOTP"
+	case domain.StepUpRecovery:
+		return "RECOVERY"
+	case domain.StepUpProvider:
+		return "PROVIDER"
+	default:
+		return "PASSWORD"
 	}
-	return "PASSWORD"
 }
 
 // stepUpWindow is the configured validity, with a floor that keeps a zero-value writer usable in
@@ -270,14 +321,31 @@ func (v StepUpVerifier) Methods(
 				methods = append(methods, stepupport.MethodPassword)
 			}
 			enrollment, err := w.Enrollments.Find(ctx, accountID)
-			if err != nil {
-				if errors.Is(err, shared.ErrNotFound) {
-					return nil
-				}
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
 				return err
 			}
-			if !enrollment.ConfirmedAt.IsZero() {
+			if err == nil && !enrollment.ConfirmedAt.IsZero() {
 				methods = append(methods, stepupport.MethodTotp)
+				// A recovery code where one is left: offering a method nobody can answer is the
+				// prompt issue 544 was about.
+				if w.Recovery != nil {
+					left, err := w.Recovery.Remaining(ctx, accountID)
+					if err != nil {
+						return err
+					}
+					if left > 0 {
+						methods = append(methods, stepupport.MethodRecovery)
+					}
+				}
+			}
+			// The provider last: a fresh sign-in there, where the account is connected to one that
+			// is switched on for its workspace (ADR-0075 §2).
+			_, connected, err := w.stepUpProvider(ctx, accountID)
+			if err != nil {
+				return err
+			}
+			if connected {
+				methods = append(methods, stepupport.MethodProvider)
 			}
 			return nil
 		})
@@ -291,8 +359,10 @@ func (v StepUpVerifier) Methods(
 func (h StepUp) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: StepUpName,
-		Summary: "Proves the caller afresh for one privileged action (security.md §5): the " +
-			"password, or the TOTP code where a factor is armed. The proof lands on the current " +
+		Summary: "Proves the caller afresh for one privileged action (security.md §5), with " +
+			"exactly one method the account holds (ADR-0075): the password, the TOTP code where a " +
+			"factor is armed, a recovery code, which the step-up consumes, or the state and code a " +
+			"provider sent the browser back with after StartProviderStepUp. The proof lands on the current " +
 			"session, is valid for a short window, and is consumed by the one action it is " +
 			"presented to - a second privileged action needs a second proof.",
 		SideEffects: "Records the proof on the session, writes an audit entry naming the method, " +
@@ -305,6 +375,18 @@ func (h StepUp) Descriptor() usecase.Descriptor {
 			{
 				Name: "code", Kind: usecase.KindString,
 				Description: "The authenticator's current code, where a factor is armed.",
+			},
+			{
+				Name: "recovery_code", Kind: usecase.KindString,
+				Description: "One of the account's recovery codes, consumed by the step-up.",
+			},
+			{
+				Name: "state", Kind: usecase.KindString,
+				Description: "PROVIDER: the handle StartProviderStepUp minted, as the provider echoed it.",
+			},
+			{
+				Name: "authorization_code", Kind: usecase.KindString,
+				Description: "PROVIDER: the code the provider issued, presented together with the state.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -322,8 +404,11 @@ func (h StepUp) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	grant, err := h.Execute(ctx, actor, StepUpCommand{
-		Password: secret.New(in.String("password")),
-		Code:     in.String("code"),
+		Password:          secret.New(in.String("password")),
+		Code:              in.String("code"),
+		RecoveryCode:      secret.New(in.String("recovery_code")),
+		State:             secret.New(in.String("state")),
+		AuthorizationCode: in.String("authorization_code"),
 	})
 	if err != nil {
 		return nil, err

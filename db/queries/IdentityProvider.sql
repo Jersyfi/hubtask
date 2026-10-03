@@ -89,21 +89,35 @@ RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, po
 DELETE FROM identity_provider WHERE id = sqlc.arg('id');
 
 -- name: InsertOidcFlow :exec
+-- A NULL session is a sign-in flow; a session is the step-up at the provider it belongs to
+-- (ADR-0075 §2).
 INSERT INTO oidc_flow
-  (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at)
+  (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.narg('provider_id'), sqlc.arg('state_hash'),
-  sqlc.arg('code_verifier'), sqlc.arg('nonce'), sqlc.arg('created_at'), sqlc.arg('expires_at')
+  sqlc.arg('code_verifier'), sqlc.arg('nonce'), sqlc.arg('created_at'), sqlc.arg('expires_at'),
+  sqlc.narg('session_id')
 );
 
 -- name: ConsumeOidcFlow :one
 -- Judged and burned in one statement, ConsumeOauthCode's discipline: unexpired and unconsumed,
--- or nothing at all - so a state presented twice matches no row whoever races whom.
+-- or nothing at all - so a state presented twice matches no row whoever races whom. A sign-in's:
+-- a flow bound to a session is a step-up and finishes no sign-in.
 UPDATE oidc_flow SET consumed_at = sqlc.arg('now')
 WHERE state_hash = sqlc.arg('state_hash')
+  AND session_id IS NULL
   AND consumed_at IS NULL
   AND expires_at > sqlc.arg('now')
 RETURNING id, provider_id, code_verifier, nonce;
+
+-- name: ConsumeStepUpOidcFlow :one
+-- The step-up's: only a flow bound to this very session, judged and burned in the same statement.
+UPDATE oidc_flow SET consumed_at = sqlc.arg('now')
+WHERE state_hash = sqlc.arg('state_hash')
+  AND session_id = sqlc.arg('session_id')
+  AND consumed_at IS NULL
+  AND expires_at > sqlc.arg('now')
+RETURNING id, provider_id, code_verifier, nonce, session_id;
 
 -- name: DeleteExpiredOidcFlows :execrows
 -- Hygiene in the session sweep's pass, the expired authorization codes' reasoning: a flow lives
@@ -126,6 +140,11 @@ JOIN account a ON a.tenant_id = link.tenant_id AND a.id = link.account_id
 WHERE link.provider_id = sqlc.arg('provider_id')
   AND link.subject = sqlc.arg('subject')
   AND a.deleted_at IS NULL;
+
+-- name: AccountIdentityProviders :many
+-- The providers an account is connected to (ADR-0075 §2): a step-up at the provider is offered only
+-- at one of these, and only where it is switched on for the workspace - which the caller decides.
+SELECT provider_id FROM account_identity WHERE account_id = sqlc.arg('account_id');
 
 -- name: AccountHasIdentity :one
 -- Whether the account already signs in through some provider (ADR-0071's addendum): such an

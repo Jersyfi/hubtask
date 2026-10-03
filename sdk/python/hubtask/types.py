@@ -741,17 +741,27 @@ class OauthGrant(TypedDict, total=False):
     last_used_at: str | None
 
 class StepUpRequest(TypedDict, total=False):
-    """One of the two, never both: the password, or - where a factor is armed - the authenticator's current code. Either proves the person holding the session is still the person who opened it."""
+    """Exactly one method (ADR-0075): the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it."""
     password: str | None
     code: str | None
+    recovery_code: str | None
+    state: str | None
+    authorization_code: str | None
+
+class ProviderStepUpAuthorization(TypedDict, total=False):
+    """Where to send the browser for a `PROVIDER` step-up, and which provider that is."""
+    authorization_url: Required[str]
+    expires_at: Required[str]
+    provider_id: Required[str]
+    provider_name: Required[str]
 
 class StepUpGrant(TypedDict, total=False):
     step_up_token: Required[str]
     expires_at: Required[str]
-    method: Required[Literal["PASSWORD", "TOTP"]]
+    method: Required[Literal["PASSWORD", "TOTP", "RECOVERY", "PROVIDER"]]
 
 class MfaDisable(TypedDict, total=False):
-    password: Required[str]
+    password: str
 
 class Group(TypedDict, total=False):
     id: Required[str]
