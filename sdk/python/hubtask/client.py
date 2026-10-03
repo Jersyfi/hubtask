@@ -507,6 +507,10 @@ class Client:
         """Sign out everywhere"""
         return self._call("DELETE", "/auth/sessions", {}, None, {}, None, "none", None, "void")
 
+    def revoke_other_sessions(self) -> None:
+        """Sign out everywhere else"""
+        return self._call("POST", "/auth/sessions:revoke-others", {}, None, {}, None, "none", None, "void")
+
     def refresh_session(self, body: "SessionRefresh") -> "SessionTokens":
         """Exchange a refresh token for the next pair"""
         return self._call("POST", "/auth/sessions:refresh", {}, None, {}, body, "json", "application/json", "json")

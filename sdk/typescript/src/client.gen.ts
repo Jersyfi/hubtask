@@ -622,6 +622,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/auth/sessions", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Sign out everywhere else */
+  revokeOtherSessions(options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/auth/sessions:revoke-others", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** Exchange a refresh token for the next pair
    * Public: sent without a bearer where the client holds none. */
   refreshSession(body: NonNullable<operations["refreshSession"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["refreshSession"]['responses'][200]['content']["application/json"]> {

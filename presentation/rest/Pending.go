@@ -115,6 +115,9 @@ func (pending) RevokeSession(w http.ResponseWriter, r *http.Request, _ openapi.S
 
 func (pending) RevokeAllSessions(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// Sign out everywhere else lands with SC-23's use case.
+func (pending) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) RedeemInvitation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 // The sign-in surface of ADR-0068, pending until each use case lands.

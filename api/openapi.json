@@ -4078,6 +4078,24 @@
         }
       }
     },
+    "/auth/sessions:revoke-others": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "revokeOtherSessions",
+        "summary": "Sign out everywhere else",
+        "description": "Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.\n",
+        "responses": {
+          "204": {
+            "description": "Every other session ended"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/sessions:refresh": {
       "post": {
         "tags": [
