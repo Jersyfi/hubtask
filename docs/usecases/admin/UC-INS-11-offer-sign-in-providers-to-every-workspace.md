@@ -7,7 +7,7 @@ deployments: [D5, D6]
 serves: [P-02, P-05, P-06, P-07]
 state: partial
 tasks: [SI-10, SI-17, SC-01, SC-20]
-checked_by: [core/application/service/admin/InstanceProvider_test.go]
+checked_by: [core/application/service/admin/InstanceProvider_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, core/application/service/identity/IdentityProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs]
 ---
 
 # Offer sign-in providers to every workspace
@@ -47,5 +47,11 @@ installation puts it on everywhere and removes the switch.
 
 * **Check 6 fails:** the re-seal runs per workspace only; the installation's provider secrets stay
   under the key they were sealed with (ADR-0070, "one gap").
-* **Check 5 is not verified:** nobody has checked yet whether withdrawing keeps the connected
-  identities. SC-20 makes the withdrawal announced and adds the test.
+* **Check 5 holds** since SC-20
+  ([ADR-0076](../../adr/ADR-0076-withdrawing-an-offered-provider.md)): a withdrawal is announced for a
+  day - two weeks ahead unless another is chosen - with the number of workspaces that use it, or made
+  now with that number typed back; from its day the provider is a way in nowhere, the connected
+  identities stay, and *Keep offering it* restores sign-in for the same people through the same links
+  (`TestAWithdrawalKeepsTheConnectedIdentitiesAndOfferingAgainRestoresSignIn`,
+  `InstanceProviderWithdrawal_test.go`, `instanceproviders.test.mjs` against a stubbed API). *Remove*
+  is still immediate; a workspace it leaves without a way in falls back to the password (ADR-0076 §4).

@@ -31,6 +31,12 @@
   // the one verb for both kinds - and the provider screen switches nothing any more. The last way in
   // that is on cannot be switched off, here and at the server.
   //
+  // **A withdrawal is said where the switch is** (ADR-0076 §2, §4). A provider the installation
+  // withdraws carries its date under its switch until then; from the date it has no switch, like
+  // one switched off above. And a workspace that the withdrawal left with no way in is told that the
+  // password opened again for the accounts that hold one - the server's word, from the same answer
+  // the sign-in card reads - until another way is switched on here.
+  //
   // **Asking everybody for a new password is a button, not a field.** It sets a moment, and every
   // password older than it meets the change step at the next sign-in. It is red, it is behind a
   // confirmation, and its sentence says what it does to sessions.
@@ -41,7 +47,10 @@
   import { TransportError } from '@hubtask/sync-engine';
 
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
+  import { withdrawalPhase } from '../lib/instance/withdrawal.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
+  import { signInRules } from '../lib/data/signinrules.svelte.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { signInPolicy, type LockOrigin, type Setting } from '../lib/data/signinpolicy.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -213,6 +222,14 @@
 
   // The ways in, and how many of them are on. The last one on cannot be switched off.
   const providers = $derived(identityProvider.all);
+
+  // Whether the password is open only as the fallback, as the sign-in card is told it. Started once
+  // the manifest says the route is served, which may be after this screen first draws.
+  $effect(() => {
+    if (!signInRules.isServed) return;
+    return untrack(() => signInRules.read());
+  });
+  const fallback = $derived(signInRules.rules?.password_fallback === true);
   const passwordOn = $derived(policy?.methods.value.includes('PASSWORD') ?? false);
   const waysOn = $derived((passwordOn ? 1 : 0) + providers.filter((one) => one.offered_here === true).length);
   let switching = $state<string | undefined>(undefined);
@@ -421,6 +438,11 @@
             <Stack gap="200">
               <h2 id="ways">{t('app.signin_settings.ways')}</h2>
               <p class="quiet small">{t('app.signin_settings.ways_hint')}</p>
+              {#if fallback}
+                <Banner tone="warning" title={t('app.signin_settings.fallback_title')}>
+                  {t('app.signin_settings.fallback')}
+                </Banner>
+              {/if}
               <ul class="ways" aria-labelledby="ways">
                 <li class="way" data-rule>
                   <Switch
@@ -436,9 +458,9 @@
                 {#each providers as one (one.id)}
                   <li class="way" data-rule>
                     <ProviderMark kind={one.kind} name={one.display_name} />
-                    {#if one.scope === 'installation' && !one.enabled}
-                      <!-- Switched off where it is offered: not a choice this workspace has, so no
-                           switch - a sentence saying so. -->
+                    {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawn'}
+                      <!-- Switched off where it is offered, or withdrawn from its date: not a choice
+                           this workspace has, so no switch - a sentence saying so. -->
                       <span class="name">{one.display_name}</span>
                       <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
                     {:else}
@@ -449,6 +471,14 @@
                         onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
                         disabledReason={switching === one.id ? t('app.signin_settings.switching') : lastWay(one.offered_here === true)}
                       />
+                      {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawing'}
+                        <!-- Said under the switch it is about, while there is still time to act. -->
+                        <p class="withdrawing">
+                          {t(one.offered_here ? 'app.signin_settings.way_withdrawing' : 'app.signin_settings.way_withdrawing_off', {
+                            date: formatDateTime(one.withdraw_at ?? '', messages.locale),
+                          })}
+                        </p>
+                      {/if}
                       <!-- A refusal for this switch lands at this row (check 8), not above the list. -->
                       {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
                     {/if}
@@ -552,6 +582,12 @@
   .refusal {
     margin: var(--sp-050) 0 0;
     color: var(--text-danger);
+    font-size: var(--fs-075);
+  }
+
+  .withdrawing {
+    margin: var(--sp-050) 0 0;
+    color: var(--text-warning);
     font-size: var(--fs-075);
   }
 

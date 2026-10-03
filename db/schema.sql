@@ -517,7 +517,12 @@ CREATE TABLE identity_provider (
   enabled               boolean NOT NULL DEFAULT true,
   created_at            timestamptz NOT NULL,
   updated_at            timestamptz,
-  version               integer NOT NULL DEFAULT 1
+  version               integer NOT NULL DEFAULT 1,
+  -- An installation row's count of workspaces that switched it on, moved only through
+  -- move_provider_offer, and when its offer ends (ADR-0076, migration 0114). A workspace's own row
+  -- keeps zero and NULL.
+  offered_workspaces    integer NOT NULL DEFAULT 0,
+  withdraw_at           timestamptz
 );
 -- One registration per issuer per level. NULLS NOT DISTINCT is what makes that true of the
 -- installation's rows: without it every NULL tenant is its own.
@@ -2660,6 +2665,18 @@ $$;
 
 REVOKE ALL ON FUNCTION resolve_tenant(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION resolve_tenant(text) TO hubtask_app;
+
+-- ============ An offered provider's count (ADR-0076 §1) ====================
+-- A workspace's switch moves the installation row's count by one step, and nothing else.
+CREATE OR REPLACE FUNCTION move_provider_offer(provider uuid, step integer) RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  UPDATE identity_provider
+  SET offered_workspaces = greatest(0, offered_workspaces + step)
+  WHERE id = provider AND tenant_id IS NULL AND step IN (-1, 1)
+$$;
+
+REVOKE ALL ON FUNCTION move_provider_offer(uuid, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION move_provider_offer(uuid, integer) TO hubtask_app;
 
 -- ============ The control plane's two narrow acts (H-06) ====================
 -- The one legitimate tenant enumerator (0.6.0 decision 6): provisioning and lifecycle are the
