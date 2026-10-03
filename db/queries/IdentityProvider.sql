@@ -13,7 +13,11 @@
 -- above the default it inherited - and the sealed secret is in none of it.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, offered_workspaces
+  withdraw_at,
+  -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
+  -- installation's own scope: a workspace reads zero, never another workspace's choices.
+  (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
+        THEN count_provider_offers(id) ELSE 0 END)::integer AS offered_workspaces
 FROM identity_provider
 ORDER BY (tenant_id IS NULL), position, created_at, id;
 
@@ -22,7 +26,11 @@ ORDER BY (tenant_id IS NULL), position, created_at, id;
 -- it by name below, so a read cannot spill it by accident.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, offered_workspaces
+  withdraw_at,
+  -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
+  -- installation's own scope: a workspace reads zero, never another workspace's choices.
+  (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
+        THEN count_provider_offers(id) ELSE 0 END)::integer AS offered_workspaces
 FROM identity_provider
 WHERE id = sqlc.arg('id');
 
@@ -58,7 +66,11 @@ VALUES (
 )
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, offered_workspaces;
+  withdraw_at,
+  -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
+  -- installation's own scope: a workspace reads zero, never another workspace's choices.
+  (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
+        THEN count_provider_offers(id) ELSE 0 END)::integer AS offered_workspaces;
 
 -- name: UpdateIdentityProvider :one
 -- Set whole, not patched: a provider half-changed is a provider nobody can reason about. The
@@ -88,12 +100,11 @@ UPDATE identity_provider SET
 WHERE id = sqlc.arg('id')
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, offered_workspaces;
-
--- name: MoveProviderOffer :exec
--- A workspace's switch moves the installation row's count by one step (ADR-0076 §1), inside the
--- workspace's own transaction - through the function, because the row is not the workspace's to write.
-SELECT move_provider_offer(sqlc.arg('provider_id'), sqlc.arg('step'));
+  withdraw_at,
+  -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
+  -- installation's own scope: a workspace reads zero, never another workspace's choices.
+  (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
+        THEN count_provider_offers(id) ELSE 0 END)::integer AS offered_workspaces;
 
 -- name: SetProviderWithdrawal :one
 -- When the installation's offer ends; NULL keeps offering it, and keeping it switches the row back on
@@ -107,7 +118,11 @@ UPDATE identity_provider SET
 WHERE id = sqlc.arg('id') AND tenant_id IS NULL
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at, offered_workspaces;
+  withdraw_at,
+  -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
+  -- installation's own scope: a workspace reads zero, never another workspace's choices.
+  (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
+        THEN count_provider_offers(id) ELSE 0 END)::integer AS offered_workspaces;
 
 -- name: DeleteIdentityProvider :execrows
 DELETE FROM identity_provider WHERE id = sqlc.arg('id');
