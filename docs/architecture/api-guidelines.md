@@ -208,6 +208,14 @@ required.
 | Error codes | Stable; removing one is a breaking change |
 | Deprecation | The `Deprecation` and `Sunset` headers (RFC 8594) plus an entry in `/meta/capabilities` and the changelog |
 
+**How a request field is deprecated** (SC-28): in `openapi.yaml`, `deprecated: true` with
+`x-deprecated-since` (the day), `x-removed-in` (the major version it goes with), `x-deprecated-reason`
+(what replaces it) and, once a day is set, `x-sunset`. `make generate` reads them into the REST
+adapter's table (`tools/deprecations`); from it the manifest lists `deprecations`, and a request that
+sends such a field is answered with `Deprecation` (RFC 9745) and, where a day is set, `Sunset`. A
+request that does not send it hears nothing. A field marked without its day or version fails the
+generator and the contract test.
+
 Breaking changes are: removing or renaming a field, changing a type, adding a required field,
 removing an enum value from *requests*, changing semantics, changing a default, removing an error
 code. See [versioning-release.md](./versioning-release.md).

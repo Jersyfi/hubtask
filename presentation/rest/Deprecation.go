@@ -4,6 +4,11 @@
 package rest
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"net/http"
+	"strconv"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -32,6 +37,50 @@ type deprecatedField struct {
 	RemovedIn string
 	Sunset    string
 	Reason    string
+}
+
+// deprecationBodyLimit bounds what is read to look for a deprecated field. The bodies that carry
+// one are small configuration documents; a larger body is passed on unread rather than buffered.
+const deprecationBodyLimit = 64 << 10
+
+// deprecatedByTemplate indexes the table by the router's template, "POST /api/v1/auth/mfa:disable".
+var deprecatedByTemplate = func() map[string][]deprecatedField {
+	index := map[string][]deprecatedField{}
+	for _, field := range deprecatedFields {
+		template := field.Method + " " + APIBasePath + field.Path
+		index[template] = append(index[template], field)
+	}
+	return index
+}()
+
+// announceDeprecation sets the headers when the request's body sends a deprecated field of the
+// operation it was routed to. The body is read and put back, so the handler reads it as it was.
+func announceDeprecation(w http.ResponseWriter, r *http.Request, template string) {
+	fields := deprecatedByTemplate[template]
+	if len(fields) == 0 || r.Body == nil || r.ContentLength > deprecationBodyLimit {
+		return
+	}
+	raw, err := io.ReadAll(io.LimitReader(r.Body, deprecationBodyLimit+1))
+	r.Body = io.NopCloser(io.MultiReader(bytes.NewReader(raw), r.Body))
+	if err != nil || len(raw) > deprecationBodyLimit {
+		return
+	}
+	var sent map[string]json.RawMessage
+	if json.Unmarshal(raw, &sent) != nil {
+		return // the handler answers a malformed body; this only listens
+	}
+	for _, field := range fields {
+		if _, present := sent[field.Field]; !present {
+			continue
+		}
+		if since, err := time.Parse(time.DateOnly, field.Since); err == nil {
+			w.Header().Set("Deprecation", "@"+strconv.FormatInt(since.Unix(), 10))
+		}
+		if sunset, err := time.Parse(time.DateOnly, field.Sunset); err == nil {
+			w.Header().Set("Sunset", sunset.UTC().Format(http.TimeFormat))
+		}
+		return
+	}
 }
 
 // deprecationManifest is the table as the manifest answers it. Always a list, empty where nothing is
