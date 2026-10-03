@@ -4248,10 +4248,15 @@ paths:
       operationId: removeInstanceIdentityProvider
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
-      summary: Withdraw a provider from every workspace at once
+      summary: Remove a provider whose offer has ended
       description: >
-        Every workspace loses that way in the moment this returns. The accounts it signed in keep
-        their rows and their live sessions; what they lose is the way back. Journalled.
+        Removes the installation's provider and its sealed secret - once its offer has ended
+        (`:withdraw`, its day reached) or where no workspace uses it. While the offer stands and a
+        workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count`
+        the number of workspaces: an offer ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw
+        now* is the answer to a compromised provider. The connections between people and the
+        provider are deleted and are not restored by offering it again; the accounts keep their rows
+        and their live sessions. Journalled.
       responses:
         "204":
           description: Removed
