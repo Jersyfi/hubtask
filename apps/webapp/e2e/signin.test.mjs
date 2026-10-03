@@ -704,3 +704,33 @@ test('the footer shows only the links that were set, with neutral labels', async
     await close();
   }
 });
+
+// SC-24: a workspace that switched the password off does not ask an invited person for one - the
+// server would refuse it. The screen says the invitation is accepted through the provider and
+// leads to the card that has the buttons.
+test('an invitation in a workspace without the password leads to the provider, not to a password', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const base = stubFor({ answer: refused });
+    await context.route('**/api/v1/**', async (route) => {
+      if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sign-in-rules')) {
+        return route.fulfill({ json: { ...RULES, methods: ['OIDC'] } });
+      }
+      return base(route);
+    });
+    const page = await context.newPage();
+    await page.goto(`${origin}/redeem#token=invitation-token`);
+    await page.getByRole('heading', { name: 'Accept your invitation' }).waitFor();
+    assert.equal(await page.getByLabel(/New password/).count(), 0, 'a password field is offered where none is accepted');
+
+    await page.getByRole('button', { name: 'Continue to sign in' }).click();
+    await page.getByRole('button', { name: /Contoso Entra ID/ }).waitFor();
+    assert.equal(new URL(page.url()).pathname, '/');
+    assert.equal(await page.getByLabel(/^Password/).count(), 0, 'the sign-in card asks for a password');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
