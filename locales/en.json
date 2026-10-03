@@ -148,6 +148,7 @@
   "identity_provider.withdrawn": "The installation has withdrawn this provider. Turn on another way to sign in.",
   "identity_provider.withdraw_instead": "Whether the installation offers a provider is not changed on its form. Withdraw it instead - announced for a date, or now with the count confirmed.",
   "identity_provider.withdraw_first": "{count, plural, one {# workspace still uses} other {# workspaces still use}} this provider. Withdraw it first; it can be removed once its day has come.",
+  "identity_provider.remove_after_withdrawal": "Its withdrawal is already announced. It can be removed from {date}, when the offer has ended.",
   "identity_provider.withdraw_count_mismatch": "{count, plural, one {# workspace uses} other {# workspaces use}} this provider now. Read the number again and confirm it to withdraw it now.",
   "identity_provider.withdraw_at_malformed": "{value} is not a date and time.",
   "identity_provider.already_withdrawn": "This provider is already withdrawn. Keep offering it first if it should be offered again.",

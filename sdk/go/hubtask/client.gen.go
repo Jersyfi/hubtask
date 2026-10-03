@@ -10085,7 +10085,7 @@ type ClientInterface interface {
 
 	// RemoveInstanceIdentityProvider Remove a provider whose offer has ended
 	//
-	// Removes the installation's provider and its sealed secret - once its offer has ended (`:withdraw`, its day reached) or where no workspace uses it. While the offer stands and a workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count` the number of workspaces: an offer ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw now* is the answer to a compromised provider. The connections between people and the provider are deleted and are not restored by offering it again; the accounts keep their rows and their live sessions. Journalled.
+	// Removes the installation's provider and its sealed secret - once its offer has ended (`:withdraw`, its day reached) or where no workspace uses it. While the offer stands and a workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count` the number of workspaces - or, where a withdrawal is already announced, with `identity_provider.remove_after_withdrawal`, its `date` the moment the offer ends. An offer ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw now* is the answer to a compromised provider. The connections between people and the provider are deleted and are not restored by offering it again; the accounts keep their rows and their live sessions. Journalled.
 	//
 	// Corresponds with DELETE /admin/identity-providers/{providerId} (the `RemoveInstanceIdentityProvider` operationId).
 	RemoveInstanceIdentityProvider(ctx context.Context, providerId ProviderId, params *RemoveInstanceIdentityProviderParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -13832,7 +13832,7 @@ func (c *Client) CreateInstanceIdentityProvider(ctx context.Context, params *Cre
 
 // RemoveInstanceIdentityProvider Remove a provider whose offer has ended
 //
-// Removes the installation's provider and its sealed secret - once its offer has ended (`:withdraw`, its day reached) or where no workspace uses it. While the offer stands and a workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count` the number of workspaces: an offer ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw now* is the answer to a compromised provider. The connections between people and the provider are deleted and are not restored by offering it again; the accounts keep their rows and their live sessions. Journalled.
+// Removes the installation's provider and its sealed secret - once its offer has ended (`:withdraw`, its day reached) or where no workspace uses it. While the offer stands and a workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count` the number of workspaces - or, where a withdrawal is already announced, with `identity_provider.remove_after_withdrawal`, its `date` the moment the offer ends. An offer ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw now* is the answer to a compromised provider. The connections between people and the provider are deleted and are not restored by offering it again; the accounts keep their rows and their live sessions. Journalled.
 //
 // Corresponds with DELETE /admin/identity-providers/{providerId} (the `RemoveInstanceIdentityProvider` operationId).
 func (c *Client) RemoveInstanceIdentityProvider(ctx context.Context, providerId ProviderId, params *RemoveInstanceIdentityProviderParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -34537,7 +34537,7 @@ type ClientWithResponsesInterface interface {
 
 	// RemoveInstanceIdentityProviderWithResponse Remove a provider whose offer has ended
 	//
-	// Removes the installation's provider and its sealed secret - once its offer has ended (`:withdraw`, its day reached) or where no workspace uses it. While the offer stands and a workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count` the number of workspaces: an offer ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw now* is the answer to a compromised provider. The connections between people and the provider are deleted and are not restored by offering it again; the accounts keep their rows and their live sessions. Journalled.
+	// Removes the installation's provider and its sealed secret - once its offer has ended (`:withdraw`, its day reached) or where no workspace uses it. While the offer stands and a workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count` the number of workspaces - or, where a withdrawal is already announced, with `identity_provider.remove_after_withdrawal`, its `date` the moment the offer ends. An offer ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw now* is the answer to a compromised provider. The connections between people and the provider are deleted and are not restored by offering it again; the accounts keep their rows and their live sessions. Journalled.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -52103,7 +52103,7 @@ func (c *ClientWithResponses) CreateInstanceIdentityProviderWithResponse(ctx con
 
 // RemoveInstanceIdentityProviderWithResponse Remove a provider whose offer has ended
 //
-// Removes the installation's provider and its sealed secret - once its offer has ended (`:withdraw`, its day reached) or where no workspace uses it. While the offer stands and a workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count` the number of workspaces: an offer ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw now* is the answer to a compromised provider. The connections between people and the provider are deleted and are not restored by offering it again; the accounts keep their rows and their live sessions. Journalled.
+// Removes the installation's provider and its sealed secret - once its offer has ended (`:withdraw`, its day reached) or where no workspace uses it. While the offer stands and a workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count` the number of workspaces - or, where a withdrawal is already announced, with `identity_provider.remove_after_withdrawal`, its `date` the moment the offer ends. An offer ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw now* is the answer to a compromised provider. The connections between people and the provider are deleted and are not restored by offering it again; the accounts keep their rows and their live sessions. Journalled.
 //
 // Returns a wrapper object for the known response body format(s).
 //
