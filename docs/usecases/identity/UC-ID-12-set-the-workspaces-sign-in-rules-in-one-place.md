@@ -75,8 +75,10 @@ can be cancelled, and the workspaces that use it say on this screen when it ends
 day, withdrawn now, or removed - is never left without one: the sign-in card offers the password again
 for the accounts that hold one, under this workspace's rules, the screen says so, and each sign-in
 through it is in the trail as `auth.password_fallback`, until another way is switched on here
-(`PasswordFallback_test.go`). An account without a password gains nothing from the sign-in - the limit
-ADR-0076 §4 sets. The walks of these screens run against a stubbed API.
+(`PasswordFallback_test.go`). Since SC-25 an account without a password is let back in too, by mail:
+*Forgot your password?* sends it a link to set one while the fallback stands
+([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §3, `FallbackReset_test.go`). The walks of these
+screens run against a stubbed API.
 
 Since SC-31 ([#1138](https://github.com/Jersyfi/hubtask/issues/1138), the owner's decision of
 2026-10-04, E2) the fallback answers **every** cause, not only an ended offer: wherever the rule this
