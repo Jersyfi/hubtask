@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -36,7 +37,9 @@ type deprecatedField struct {
 	Since     string
 	RemovedIn string
 	Sunset    string
-	Reason    string
+	// ReplacedBy names what takes its place - an operationId or a header - and never says it in
+	// words: the manifest is read by programs (ADR-0011).
+	ReplacedBy []string
 }
 
 // deprecationBodyLimit bounds what is read to look for a deprecated field. The bodies that carry
@@ -70,7 +73,8 @@ func announceDeprecation(w http.ResponseWriter, r *http.Request, template string
 		return // the handler answers a malformed body; this only listens
 	}
 	for _, field := range fields {
-		if _, present := sent[field.Field]; !present {
+		// Case-insensitive, as the handler's decoder matches it: `Password` is the field too.
+		if !sentField(sent, field.Field) {
 			continue
 		}
 		if since, err := time.Parse(time.DateOnly, field.Since); err == nil {
@@ -83,6 +87,15 @@ func announceDeprecation(w http.ResponseWriter, r *http.Request, template string
 	}
 }
 
+func sentField(sent map[string]json.RawMessage, name string) bool {
+	for key := range sent {
+		if strings.EqualFold(key, name) {
+			return true
+		}
+	}
+	return false
+}
+
 // deprecationManifest is the table as the manifest answers it. Always a list, empty where nothing is
 // deprecated, so a client reads "nothing is going" rather than "this server does not say".
 func deprecationManifest() *[]openapi.DeprecatedField {
@@ -90,7 +103,7 @@ func deprecationManifest() *[]openapi.DeprecatedField {
 	for _, field := range deprecatedFields {
 		entry := openapi.DeprecatedField{
 			OperationId: field.OperationID, Method: field.Method, Path: field.Path, Field: field.Field,
-			RemovedIn: field.RemovedIn, Reason: field.Reason,
+			RemovedIn: field.RemovedIn, ReplacedBy: field.ReplacedBy,
 		}
 		if since, err := time.Parse(time.DateOnly, field.Since); err == nil {
 			entry.Since = openapi_types.Date{Time: since}

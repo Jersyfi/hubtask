@@ -8,6 +8,7 @@ package contract
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -15,32 +16,81 @@ import (
 	"testing"
 	"time"
 
+	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 )
 
-// SC-28: a deprecated field says so. Every member the contract marks deprecated carries the day it
-// was and the major version it goes with - what the manifest lists and the header is set from.
-func TestEveryDeprecatedFieldSaysWhenAndUntilWhen(t *testing.T) {
+// SC-28: a deprecated field says so. Every member the contract marks deprecated is listed in the
+// manifest a client reads - judged from the specification itself, independently of the generator -
+// with the day it was, the major version it goes with and what replaces it.
+func TestEveryDeprecatedFieldIsInTheManifest(t *testing.T) {
 	spec := contractSpec(t)
-	found := 0
-	for name, schema := range spec.Components.Schemas {
-		for field, property := range schema.Properties {
-			if property == nil || !property.Deprecated {
+	want := map[string]bool{}
+	for path, item := range spec.Paths {
+		for _, method := range httpMethods {
+			node, ok := item[method]
+			if !ok {
 				continue
 			}
-			found++
-			if _, err := time.Parse(time.DateOnly, property.Since); err != nil {
-				t.Errorf("%s.%s is deprecated without a day in x-deprecated-since (%q)", name, field, property.Since)
+			var op operation
+			if err := node.Decode(&op); err != nil {
+				t.Fatalf("%s %s: %v", method, path, err)
 			}
-			if !strings.HasPrefix(property.RemovedIn, "v") {
-				t.Errorf("%s.%s is deprecated without the major version in x-removed-in (%q)", name, field, property.RemovedIn)
+			if op.RequestBody == nil {
+				continue
+			}
+			body, ok := op.RequestBody.Content["application/json"]
+			if !ok || body.Schema == nil || body.Schema.Ref == "" {
+				continue
+			}
+			named := spec.Components.Schemas[strings.TrimPrefix(body.Schema.Ref, "#/components/schemas/")]
+			for field, property := range named.Properties {
+				if property != nil && property.Deprecated {
+					want[op.OperationID+"."+field] = true
+				}
 			}
 		}
 	}
-	if found == 0 {
-		t.Fatal("no deprecated field found - the reading of the specification is broken")
+	if len(want) == 0 {
+		t.Fatal("no deprecated request field found - the reading of the specification is broken")
+	}
+
+	status, raw := fetchCapabilities(t, usecase.Capabilities{APIVersion: usecase.APIVersion})
+	if status != http.StatusOK {
+		t.Fatalf("the manifest answered %d", status)
+	}
+	var answer struct {
+		Deprecations []struct {
+			OperationID string   `json:"operation_id"`
+			Field       string   `json:"field"`
+			Since       string   `json:"since"`
+			RemovedIn   string   `json:"removed_in"`
+			ReplacedBy  []string `json:"replaced_by"`
+		} `json:"deprecations"`
+	}
+	if err := json.Unmarshal(raw, &answer); err != nil {
+		t.Fatalf("decoding the manifest: %v", err)
+	}
+	listed := map[string]bool{}
+	for _, entry := range answer.Deprecations {
+		key := entry.OperationID + "." + entry.Field
+		listed[key] = true
+		if _, err := time.Parse(time.DateOnly, entry.Since); err != nil {
+			t.Errorf("%s is listed without a day (%q)", key, entry.Since)
+		}
+		if !strings.HasPrefix(entry.RemovedIn, "v") || len(entry.ReplacedBy) == 0 {
+			t.Errorf("%s is listed without its version or what replaces it: %+v", key, entry)
+		}
+		if !want[key] {
+			t.Errorf("the manifest lists %s, which the contract does not deprecate", key)
+		}
+	}
+	for key := range want {
+		if !listed[key] {
+			t.Errorf("the contract deprecates %s and the manifest does not say so", key)
+		}
 	}
 }
 
@@ -65,6 +115,10 @@ func TestARequestThatSendsADeprecatedFieldHearsSo(t *testing.T) {
 	}
 
 	with := send(`{"password":"the old proof"}`)
+	// Read and put back: the use case still receives the field the announcement looked at.
+	if !controller.UseCases.(*recordingCatalogue).input.Present("password") {
+		t.Error("the announcement swallowed the body: the use case received no password")
+	}
 	since := time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC).Unix()
 	if got := with.Get("Deprecation"); got != "@"+itoa(since) {
 		t.Errorf("sending the deprecated field answered Deprecation %q, want @%d", got, since)

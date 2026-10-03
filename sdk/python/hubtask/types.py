@@ -2252,7 +2252,7 @@ class Capabilities(TypedDict, total=False):
     deprecations: list["DeprecatedField"]
 
 class DeprecatedField(TypedDict, total=False):
-    """One deprecated request field, and when it goes."""
+    """One deprecated request field, and when it goes. Identifiers only (ADR-0011): what replaces it is named, and the field's description in the specification says the rest."""
     operation_id: Required[str]
     method: Required[str]
     path: Required[str]
@@ -2260,7 +2260,7 @@ class DeprecatedField(TypedDict, total=False):
     since: Required[str]
     removed_in: Required[str]
     sunset: str | None
-    reason: Required[str]
+    replaced_by: Required[list[str]]
 
 class RoleDescription(TypedDict, total=False):
     """One row of the role matrix: the permissions the role carries, and what it may do to a single entry."""

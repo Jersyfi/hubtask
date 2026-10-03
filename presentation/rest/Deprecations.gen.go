@@ -4,10 +4,10 @@ package rest
 
 // deprecatedFields is every deprecated request field the contract declares, in a stable order.
 var deprecatedFields = []deprecatedField{
-	{OperationID: "createInstanceIdentityProvider", Method: "POST", Path: "/admin/identity-providers", Field: "enabled", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", Reason: "Switched in the list of ways to sign in (`:offer`), ADR-0076 §5."},
-	{OperationID: "configureInstanceIdentityProvider", Method: "PUT", Path: "/admin/identity-providers/{providerId}", Field: "enabled", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", Reason: "Switched in the list of ways to sign in (`:offer`), ADR-0076 §5."},
-	{OperationID: "disableTotp", Method: "POST", Path: "/auth/mfa:disable", Field: "password", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", Reason: "The step-up proves it, in the X-Hubtask-Step-Up header (ADR-0075 §3)."},
-	{OperationID: "configureFirstIdentityProvider", Method: "PUT", Path: "/identity-provider", Field: "enabled", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", Reason: "Switched in the list of ways to sign in (`:offer`), ADR-0076 §5."},
-	{OperationID: "createIdentityProvider", Method: "POST", Path: "/identity-providers", Field: "enabled", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", Reason: "Switched in the list of ways to sign in (`:offer`), ADR-0076 §5."},
-	{OperationID: "configureIdentityProvider", Method: "PUT", Path: "/identity-providers/{providerId}", Field: "enabled", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", Reason: "Switched in the list of ways to sign in (`:offer`), ADR-0076 §5."},
+	{OperationID: "createInstanceIdentityProvider", Method: "POST", Path: "/admin/identity-providers", Field: "enabled", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", ReplacedBy: []string{"offerIdentityProvider", "withdrawInstanceIdentityProvider"}},
+	{OperationID: "configureInstanceIdentityProvider", Method: "PUT", Path: "/admin/identity-providers/{providerId}", Field: "enabled", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", ReplacedBy: []string{"offerIdentityProvider", "withdrawInstanceIdentityProvider"}},
+	{OperationID: "disableTotp", Method: "POST", Path: "/auth/mfa:disable", Field: "password", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", ReplacedBy: []string{"X-Hubtask-Step-Up"}},
+	{OperationID: "configureFirstIdentityProvider", Method: "PUT", Path: "/identity-provider", Field: "enabled", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", ReplacedBy: []string{"offerIdentityProvider", "withdrawInstanceIdentityProvider"}},
+	{OperationID: "createIdentityProvider", Method: "POST", Path: "/identity-providers", Field: "enabled", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", ReplacedBy: []string{"offerIdentityProvider", "withdrawInstanceIdentityProvider"}},
+	{OperationID: "configureIdentityProvider", Method: "PUT", Path: "/identity-providers/{providerId}", Field: "enabled", Since: "2026-10-03", RemovedIn: "v2", Sunset: "", ReplacedBy: []string{"offerIdentityProvider", "withdrawInstanceIdentityProvider"}},
 }

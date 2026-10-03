@@ -12763,7 +12763,10 @@
             "deprecated": true,
             "x-deprecated-since": "2026-10-03",
             "x-removed-in": "v2",
-            "x-deprecated-reason": "Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.",
+            "x-replaced-by": [
+              "offerIdentityProvider",
+              "withdrawInstanceIdentityProvider"
+            ],
             "description": "**Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it says at creation whether the installation offers the provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed value is refused with `identity_provider.withdraw_instead` (ADR-0076 §2). Removed with the next major version of the contract.\n"
           },
           "allowed_email_domains": {
@@ -14349,7 +14352,9 @@
             "deprecated": true,
             "x-deprecated-since": "2026-10-03",
             "x-removed-in": "v2",
-            "x-deprecated-reason": "The step-up proves it, in the X-Hubtask-Step-Up header (ADR-0075 §3).",
+            "x-replaced-by": [
+              "X-Hubtask-Step-Up"
+            ],
             "description": "**Deprecated** (ADR-0075 §3): the proof this route took before the step-up did. Still checked when sent without a step-up token, for one release; then removed.\n"
           }
         }
@@ -22055,7 +22060,7 @@
       },
       "DeprecatedField": {
         "type": "object",
-        "description": "One deprecated request field, and when it goes.",
+        "description": "One deprecated request field, and when it goes. Identifiers only (ADR-0011): what replaces it is named, and the field's description in the specification says the rest.\n",
         "required": [
           "operation_id",
           "method",
@@ -22063,7 +22068,7 @@
           "field",
           "since",
           "removed_in",
-          "reason"
+          "replaced_by"
         ],
         "properties": {
           "operation_id": {
@@ -22097,9 +22102,12 @@
             "format": "date",
             "description": "The day it stops being accepted, once one is set. Null until then."
           },
-          "reason": {
-            "type": "string",
-            "description": "What replaces it."
+          "replaced_by": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What takes its place: the `operationId` of an operation, or the name of a header.\n"
           }
         }
       },
