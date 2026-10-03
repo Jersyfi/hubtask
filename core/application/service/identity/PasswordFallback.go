@@ -26,8 +26,8 @@ import (
 // accounts that hold one, under the workspace's own password and second-factor rules. It is read,
 // like the offer itself, wherever the ways in are resolved, so nothing has to run on the day. It
 // ends the moment an administrator switches on another way, which is what the screen asks them to
-// do. An account without a password gains nothing: there is nothing to sign in with, and an
-// administrator re-invites it.
+// do. An account without a password is let back in through its mailbox: the reset mails it a link to
+// set one (ADR-0077 §3, MintResetToken).
 
 // PasswordFallbackAction is a password sign-in that the fallback let through, in the workspace's
 // own trail (ADR-0076 §4, "the workspace's trail records it").
@@ -97,21 +97,28 @@ func (w SessionWriter) recordFallback(
 	ctx context.Context, scope persistence.Scope, account domain.Account,
 ) error {
 	return w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		return w.Audit.Append(ctx, audit.Entry{
-			TenantID:   scope.TenantID,
-			OccurredAt: w.Clock.Now(),
-			Action:     PasswordFallbackAction,
-			Outcome:    audit.OutcomeSuccess,
-			Severity:   audit.SeverityWarning,
-			ActorKind:  appshared.ActorUser,
-			ActorID:    account.ID,
-			ActorLabel: account.DisplayName,
-			TargetType: workspaceTarget,
-			TargetID:   scope.TenantID,
-			Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-			Changes: audit.Changes(audit.Change{
-				Field: "method", Classification: audit.Open, To: domain.MethodDirect,
-			}),
-		})
+		return w.appendFallback(ctx, scope, account)
+	})
+}
+
+// appendFallback is recordFallback inside a transaction the caller already holds.
+func (w SessionWriter) appendFallback(
+	ctx context.Context, scope persistence.Scope, account domain.Account,
+) error {
+	return w.Audit.Append(ctx, audit.Entry{
+		TenantID:   scope.TenantID,
+		OccurredAt: w.Clock.Now(),
+		Action:     PasswordFallbackAction,
+		Outcome:    audit.OutcomeSuccess,
+		Severity:   audit.SeverityWarning,
+		ActorKind:  appshared.ActorUser,
+		ActorID:    account.ID,
+		ActorLabel: account.DisplayName,
+		TargetType: workspaceTarget,
+		TargetID:   scope.TenantID,
+		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+		Changes: audit.Changes(audit.Change{
+			Field: "method", Classification: audit.Open, To: domain.MethodDirect,
+		}),
 	})
 }

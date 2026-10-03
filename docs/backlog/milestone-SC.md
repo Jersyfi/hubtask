@@ -35,6 +35,14 @@ them are decisions of their own, [ADR-0075](../adr/ADR-0075-step-up-with-what-th
 a count, a notice and a way back in). The order: SC-19 and SC-21 first, then SC-16, SC-17, SC-18,
 SC-20.
 
+**Eight tasks added on 2026-10-03** (SC-22 to SC-29), from the use case checks of SC-16 to SC-21
+and the owner's answers to what they left open. One rule stands above them, the owner's own: **no user
+may be locked out of the platform, and so out of their data and Hubtask** - every door these tasks
+touch is checked against it. [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) amends ADR-0076 for
+it (the count is counted, removal follows an ended offer, nobody is left without a way in). The
+order: SC-22 first (a defence that is not in force), then SC-23, SC-24 with SC-25, SC-26, SC-27,
+SC-28, SC-29.
+
 **And one design the owner asked for:** AI offered by the installation, with locks on which sources
 a workspace may use — [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md), accepted on
 2026-09-30.
@@ -317,7 +325,7 @@ where the workspace's rule requires one. A step-up with any method the account h
 with its QR code, confirmation with a code from the new app, then one atomic swap that answers ten
 new recovery codes in the one-time panel; the old factor and the old codes stay valid until the
 confirmation, so there is never a moment without a factor. The server keeps the replacement as a
-second, unconfirmed enrolment beside the active one, with its own audit action `mfa.replaced`.
+second, unconfirmed enrolment beside the active one, with its own audit action `auth.mfa_replaced` (the task first said `mfa.replaced`; corrected 2026-10-03, SC-29).
 Somebody with neither the app, nor a code, nor a password, nor a provider is not let through:
 `NG-weaker-recovery` stands, and an administrator removes and re-invites.
 
@@ -390,10 +398,154 @@ password does not; a walk of announce, cancel and *Withdraw now*.
 
 `PUT /identity-providers/{id}` refuses a change of `enabled` with `identity_provider.switch_in_list`
 and accepts the same value; a new provider is created switched off; the field is `deprecated` in the
-contract and goes with its next major version. hubctl and MCP follow the contract.
+contract and goes with its next major version. hubctl and MCP follow the contract. Its squash commit
+carries a `BREAKING CHANGE:` footer (decided 2026-10-03, SC-28).
 
 **Acceptance:** a test that a changed `enabled` is refused and an echoed one accepted; the contract
 test.
+
+---
+
+## SC-22 — A wrong second factor counts **[L]**
+
+*Depends on: SC-16.* · issue #1117
+
+**Use cases:** UC-ID-02 (5), UC-ID-05
+
+A wrong code at a second-factor door is meant to advance the attempt ledger (T-02), so that repeated
+guesses meet the lockout curve. Every second-factor door records the failure inside the transaction
+that then returns the refusal, so the record is rolled back with it: the sign-in's second step (code
+and recovery code), the enrolment's confirmation, the step-up (code, password, recovery code, a
+refused provider proof), the LINK step's password, and the authenticator replacement's confirmation.
+Each records it the way the password door does - in its own transaction after the refusing one
+returns.
+
+**Acceptance:** an integration test per door that a wrong proof advances the ledger against the real
+database (the fake unit of work never rolls back, which is how no test saw it).
+
+---
+
+## SC-23 — Sign out everywhere else **[L]**
+
+*Depends on: SC-19.* · issue #1113
+
+**Use cases:** UC-ID-06 (4)
+
+A server verb that ends every session of the account but the caller's, and the session list's bulk
+action becomes *Sign out everywhere else*, saying it leaves this device signed in. `DELETE
+/auth/sessions` (every session, this one included) stays in the contract as the API's and hubctl's
+emergency door; the screen does not need it, since *Sign out* ends this one. The sentence after it is
+true again ("Every other session ended").
+
+**Acceptance:** a test that exactly the caller's session survives, through the registry; a walk of
+the button.
+
+---
+
+## SC-24 — The password switch is honoured by the server **[L]**
+
+*Depends on: SC-20.* · issue #1119 · [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) §4
+
+**Use cases:** UC-ID-12 (6), UC-ID-04 (1)
+
+Where a workspace's resolved methods do not include `PASSWORD`, every password door refuses: the
+sign-in, the reset's request and its completion, and every other door that ends in a session through
+a password. The refusal is the same for every address (no enumeration, UC-ID-04 check 1), and the
+reset sends no mail that offers a closed door. Stored passwords are kept: switching the password back
+on restores them. The one exception is ADR-0076 §4's fallback (`WaysIn.PasswordFallback`), which
+becomes the real exception to a real refusal. Where a workspace's provider is unreachable, the way back
+today is the installation's level of the rule (ADR-0068): locking the methods with the password among
+them, which opens it in every workspace; a lever for one workspace does not exist (ADR-0077 §4).
+
+**Acceptance:** a test per door that a switched-off password is refused and the fallback lets it
+through; UC-ID-12 moves to `built` if every check then holds.
+
+---
+
+## SC-25 — An account without a password gets back in by mail **[L]**
+
+*Depends on: SC-24.* · issue #1122 · [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) §3
+
+**Use cases:** UC-ID-04 (1–7), UC-ID-12 (6)
+
+While a workspace's fallback stands (its last way in was an offer that ended), *Forgot your password?*
+mails an account that holds no password a link to **set** one, under the workspace's rules - instead of
+the mail that says "use your organisation's provider", which has no provider left to point to. The
+request still answers byte for byte the same for every address. Outside the fallback nothing changes.
+
+**Acceptance:** a test that a provider-only account in a fallback workspace sets a password and signs
+in, and that the same account outside the fallback gets the provider mail; the reset's checks hold.
+
+---
+
+## SC-26 — An offered provider's count is counted, not kept **[L]**
+
+*Depends on: SC-20.* · issue #1121 · [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) §1
+
+**Use cases:** UC-INS-11 (5)
+
+The number of workspaces that have an offered provider switched on is computed when it is read, by a
+read-only database function that answers only the number (P-01). `offered_workspaces` and
+`move_provider_offer` are dropped by a later migration (expand/contract: stop writing and reading
+first, then drop); the switch stops moving anything. *Withdraw now* compares against the counted
+number inside its transaction.
+
+**Acceptance:** an integration test that a deleted, a restored and an imported workspace leave the
+number true, and that a workspace reads none. The function depends on its owner bypassing row level
+security, exactly as `resolve_tenant` does; an installation without that could sign nobody in either,
+so it adds no failure of its own. The column and `move_provider_offer` are dropped by a migration one
+release later (expand/contract).
+
+---
+
+## SC-27 — An offered provider is removed only after its offer ended **[L]**
+
+*Depends on: SC-20, SC-26.* · issue #1123 · [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) §2
+
+**Use cases:** UC-INS-11 (5)
+
+`DELETE /admin/identity-providers/{id}` refuses while the offer stands and a workspace uses it
+(`identity_provider.withdraw_first`); after the withdrawal's day, or with no workspace using it, it
+removes. The dialog says the cost: the connections between people and the provider are deleted and
+offering it again does not restore them. A workspace's own provider is unchanged (SC-06's last-way-in
+guard already holds there).
+
+**Acceptance:** a test that a used, standing offer is refused and an ended one removed; the walk.
+
+---
+
+## SC-28 — A deprecated field says so **[L]**
+
+*Depends on: SC-16, SC-21.* · issue #1124
+
+**Use cases:** none - the contract's own promise (`api-guidelines.md`, `versioning-release.md` §5)
+
+A field marked `deprecated` in `openapi.yaml` carries the version it goes away with. From that one
+mark: an entry in `/meta/capabilities` listing the deprecated fields and their sunset, and the
+`Deprecation` and `Sunset` headers (RFC 8594) on the answer to a request that used one. Today that is
+`enabled` on a provider's configuration (SC-21) and `password` when the second factor is turned off
+(SC-16). The squash commit of SC-21 carries a `BREAKING CHANGE:` footer, as `versioning-release.md`
+asks before 1.0.
+
+**Acceptance:** a contract test that every `deprecated` field is in the manifest with a sunset, and a
+test that the headers arrive when the field is sent and not otherwise.
+
+---
+
+## SC-29 — The second factor's trail is one family **[L]**
+
+*Depends on: SC-17.* · issue #1125
+
+**Use cases:** UC-AUD-01
+
+The second factor's audit actions are named `auth.mfa_*`: `mfa.recovery_regenerated` becomes
+`auth.mfa_recovery_regenerated` for new entries. Stored entries keep their name - the hash chain
+covers the stored shape - and the trail's filters read the old name as the same action, so a search
+for the family finds both. SC-17's `auth.mfa_replaced` stays as built (its task text said
+`mfa.replaced`).
+
+**Acceptance:** a test that a new regeneration is written under the new name and that filtering by it
+finds an old entry too.
 
 ---
 

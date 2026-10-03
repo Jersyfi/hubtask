@@ -6,8 +6,8 @@ actors: [PE-person, PE-member, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13]
 state: built
-tasks: [SC-24, SI-04, SI-15, SC-03]
-checked_by: [core/application/service/identity/Reset_test.go, apps/webapp/e2e/signin.test.mjs]
+tasks: [SC-25, SC-24, SI-04, SI-15, SC-03]
+checked_by: [core/application/service/identity/Reset_test.go, core/application/service/identity/FallbackReset_test.go, apps/webapp/e2e/signin.test.mjs]
 ---
 
 # Reset a forgotten password
@@ -62,7 +62,21 @@ person falls back to recovery codes or a local recovery (see *Where it ends*).
 In a workspace that switched the password off (SC-24, UC-ID-12) every reset request mails the
 "use your organisation's provider" message, whether or not the account holds a password - the request
 still answers the same for every address (check 1), and a link mailed before the switch is refused
-afterwards. **Open, and the owner's to decide:** an account in such a workspace that holds a password
+afterwards.
+
+Since SC-25 the places where the provider mail had nothing to point to are closed
+([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §3, §4): an account without a password that no
+provider lets in any more - its workspace's last way in was an offer that ended, or the password is on
+and the provider it is connected to has ended, is gone or is switched off - is mailed a link to
+**set** a password, and with it signs in under the workspace's rules (check 4), with its second
+factor still asked for (check 5) and every other session ended (check 6). The request answers the
+same for every address (check 1); the link is refused once a provider lets the account in again; a
+session the fallback opened is recorded as `auth.password_fallback` (`FallbackReset_test.go`,
+`SendPasswordReset_test.go`). Check 7 names the trail's actions as `account.password_reset_requested`
+and `account.password_reset`; the code writes `auth.password_reset_requested` and
+`account.password_changed` - the same events under the names the audit catalogue gave them.
+
+**Open, and the owner's to decide:** an account in such a workspace that holds a password
 but was never connected to the provider, and has forgotten the password, has no way in - the
 provider's first arrival asks for that password before connecting (E2), and the reset no longer sets
 one. Proposed answers are in PR #1130.
