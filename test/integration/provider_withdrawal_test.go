@@ -167,4 +167,31 @@ func TestAnOfferedProvidersCountIsCountedAndItsWithdrawalIsTheInstallations(t *t
 	}); err != nil {
 		t.Fatalf("installation scope: %v", err)
 	}
+
+	// ADR-0077 §2 (SC-27): the statement that deletes asks itself whether the offer still stands and
+	// a workspace uses it, whatever the caller looked at before. Offered and used, it stays.
+	switchOn(countA, true)
+	remove := func() bool {
+		t.Helper()
+		var removed bool
+		if err := uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+			var err error
+			removed, err = providers.Delete(ctx, withdrawnRow, time.Now().UTC())
+			return err
+		}); err != nil {
+			t.Fatalf("removing: %v", err)
+		}
+		return removed
+	}
+	if remove() {
+		t.Fatal("an offered provider a workspace uses was removed")
+	}
+	// Its day reached, it goes - the workspace's switch is still on, and no longer read.
+	if _, err := admin.Exec(ctx, `UPDATE identity_provider SET withdraw_at = now() - interval '1 minute' WHERE id = $1`,
+		withdrawnRow.String()); err != nil {
+		t.Fatalf("reaching the day: %v", err)
+	}
+	if !remove() {
+		t.Error("a provider whose offer has ended was not removed")
+	}
 }

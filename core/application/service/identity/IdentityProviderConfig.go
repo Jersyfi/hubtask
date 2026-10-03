@@ -461,11 +461,17 @@ func (w IdentityProviderWriter) RemoveAt(
 		return shared.ErrValidation.WithDetail("identity_provider.not_found")
 	}
 	return w.Session.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		removed, err := w.Providers.Delete(ctx, id)
+		removed, err := w.Providers.Delete(ctx, id, w.Session.Clock.Now())
 		if err != nil {
 			return err
 		}
 		if !removed {
+			if tenantID.IsZero() {
+				// The installation's row may still be there, offered and used when the statement
+				// ran (ADR-0077 §2): the operator's use case asked before the proof was spent, and
+				// this is the answer that holds, because the statement asked again.
+				return w.removalRefused(ctx, id)
+			}
 			// Nothing to remove is not a failure: the caller asked for it to be gone and it is.
 			// A workspace reaching for the installation's row lands here too, because the write
 			// policy matched nothing.
@@ -474,6 +480,24 @@ func (w IdentityProviderWriter) RemoveAt(
 		return w.record(ctx, actor, tenantID, IdentityProviderRemovedAction,
 			domain.IdentityProvider{ID: id, TenantID: tenantID})
 	})
+}
+
+// removalRefused tells apart the two reasons an installation's row was not deleted: gone already,
+// which is no failure, or still offered and used, which is the refusal `RemovableAt` names. A row
+// that is there and removable by now changed again between the two statements; that is a conflict
+// to try again, not a removal.
+func (w IdentityProviderWriter) removalRefused(ctx context.Context, id shared.ID) error {
+	found, err := w.Providers.Find(ctx, id)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	if refused := found.RemovableAt(w.Session.Clock.Now()); refused != nil {
+		return refused
+	}
+	return shared.ErrConflict
 }
 
 // record writes the trail entry. The issuer and the client id travel with it - they are
