@@ -490,7 +490,10 @@ first, then drop); the switch stops moving anything. *Withdraw now* compares aga
 number inside its transaction.
 
 **Acceptance:** an integration test that a deleted, a restored and an imported workspace leave the
-number true, run as a role without `BYPASSRLS`.
+number true, and that a workspace reads none. The function depends on its owner bypassing row level
+security, exactly as `resolve_tenant` does; an installation without that could sign nobody in either,
+so it adds no failure of its own. The column and `move_provider_offer` are dropped by a migration one
+release later (expand/contract).
 
 ---
 
