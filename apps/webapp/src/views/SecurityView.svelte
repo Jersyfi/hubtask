@@ -39,6 +39,7 @@
   import { password as passwordApi } from '../lib/data/password.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { recoveryNote } from '../lib/data/recoverynote.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
 
   const account = $derived(actor.account);
@@ -200,7 +201,9 @@
             <!-- Offered whenever a factor is on, also where the workspace requires one: the old
                  factor works until the new app confirms the swap, so there is never a moment
                  without a factor (SC-17). -->
-            <details>
+            <!-- Open by itself while a recovery code's note stands: that note's link leads here, and
+                 a closed section under it would be one more press to the thing it asked for. -->
+            <details open={recoveryNote.note !== undefined}>
               <summary>{t('app.mfa.replace_summary')}</summary>
               <AuthenticatorReplacement onreplaced={() => void replaced()} />
             </details>
