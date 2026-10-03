@@ -116,6 +116,7 @@ export type {
   IdentityProviderKind,
   IdentityProviderPreset,
   IdentityProviderProvisioning,
+  ProviderWithdrawal,
   ImportKind,
   ImportRequest,
   ImportRun,

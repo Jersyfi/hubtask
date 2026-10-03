@@ -35,6 +35,8 @@ type schema struct {
 	Items                *schema            `yaml:"items"`
 	Enum                 []any              `yaml:"enum"`
 	AdditionalProperties any                `yaml:"additionalProperties"`
+	// Deprecated marks a member that is still accepted and goes with the next major version.
+	Deprecated bool `yaml:"deprecated"`
 	// AllOf is read but not composed: the validator does not need it, and InputEnums refuses a
 	// request body that uses it rather than reporting an empty set.
 	AllOf []*schema `yaml:"allOf"`

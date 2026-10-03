@@ -50,6 +50,22 @@ type IdentityProviders interface {
 	// False is "no such row here", which includes a workspace reaching for the installation's.
 	Update(ctx context.Context, provider identity.IdentityProvider, sealed *crypto.Sealed, now time.Time) (identity.IdentityProvider, bool, error)
 
+	// Reconfigure is Update without the switch: every field but `enabled`, which stays exactly as
+	// the row holds it, in the same statement (ADR-0076 §5). A workspace's own form configures and
+	// never switches, so its write does not touch the column the list of ways to sign in writes -
+	// and a save cannot undo a switch made while the form was open.
+	Reconfigure(ctx context.Context, provider identity.IdentityProvider, sealed *crypto.Sealed, now time.Time) (identity.IdentityProvider, bool, error)
+
+	// MoveOfferCount moves an installation row's count of workspaces that switched it on by one
+	// step, inside the caller's transaction (ADR-0076 §1). The workspace's own switch is the only
+	// caller; a workspace's row, or a step other than one, moves nothing.
+	MoveOfferCount(ctx context.Context, providerID shared.ID, step int) error
+
+	// SetWithdrawal sets when an installation's offer ends - a zero moment keeps offering it, and
+	// switches back on an offer an older binary ended through the form - and answers the row. False
+	// means no installation row of that identifier is writable here.
+	SetWithdrawal(ctx context.Context, providerID shared.ID, at, now time.Time) (identity.IdentityProvider, bool, error)
+
 	// Delete removes one and its sealed secret. False is "there was none", which is not an error -
 	// a caller asking for it to be gone got what they asked for.
 	Delete(ctx context.Context, id shared.ID) (bool, error)
@@ -63,8 +79,13 @@ type OidcFlows interface {
 	Insert(ctx context.Context, flow identity.OidcFlow, presented identity.Token) error
 
 	// Consume judges and burns in one statement: unexpired, unconsumed, or nothing at all - so
-	// a state presented twice is refused whoever races whom.
+	// a state presented twice is refused whoever races whom. A sign-in's: a flow bound to a
+	// session is a step-up and is not found here.
 	Consume(ctx context.Context, presented identity.Token, now time.Time) (identity.OidcFlow, bool, error)
+
+	// ConsumeForStepUp is Consume for a step-up at the provider (ADR-0075 §2): only a flow bound to
+	// this very session is found, so another session's state, and a sign-in's, finish nothing.
+	ConsumeForStepUp(ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time) (identity.OidcFlow, bool, error)
 }
 
 // ExternalAccounts is the link between a provider's subject and an account here (SI-10).
@@ -82,6 +103,10 @@ type ExternalAccounts interface {
 	// index is what refuses a subject already spoken for, and it refuses rather than this method,
 	// because two sign-ins racing must not both win.
 	LinkSubject(ctx context.Context, providerID, accountID shared.ID, subject string, now time.Time) (bool, error)
+
+	// ProvidersOf answers the providers the account is connected to, for a step-up at the provider
+	// (ADR-0075 §2). Whether one is switched on here is the caller's question.
+	ProvidersOf(ctx context.Context, accountID shared.ID) ([]shared.ID, error)
 
 	// HasIdentity answers whether the account already signs in through any provider. Such an
 	// identity is a credential, and an account that holds one is not connected to a second provider

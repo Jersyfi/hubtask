@@ -29,6 +29,9 @@ type providerStore struct {
 	// scope is the workspace the fake is standing in for. A row of another tenant is invisible to
 	// it, and a row of no tenant is readable and not writable - which is what the policy does.
 	scope shared.ID
+	// afterFind runs once a Find has answered: a test's way to change the row between a use case's
+	// read and its write, which is what another administrator's request does.
+	afterFind func()
 }
 
 func newProviderStore(scope shared.ID) *providerStore {
@@ -73,6 +76,9 @@ func (s *providerStore) Count(context.Context) (int, error) {
 func (s *providerStore) Find(_ context.Context, id shared.ID) (domain.IdentityProvider, error) {
 	for _, row := range s.visible() {
 		if row.ID == id {
+			if s.afterFind != nil {
+				s.afterFind()
+			}
 			return row, nil
 		}
 	}
@@ -114,6 +120,50 @@ func (s *providerStore) Update(
 		s.sealed[stored.ID] = *sealed
 	}
 	return stored, true, nil
+}
+
+// Reconfigure is Update with the row's own switch kept, as the statement's COALESCE keeps it.
+func (s *providerStore) Reconfigure(
+	ctx context.Context, configured domain.IdentityProvider,
+	sealed *cryptoport.Sealed, now time.Time,
+) (domain.IdentityProvider, bool, error) {
+	if at := s.writable(configured.ID); at >= 0 {
+		configured.Enabled = s.rows[at].Enabled
+	}
+	return s.Update(ctx, configured, sealed, now)
+}
+
+// MoveOfferCount is the function's guard written out: an installation row, one step, never below
+// zero (ADR-0076 §1).
+func (s *providerStore) MoveOfferCount(_ context.Context, id shared.ID, step int) error {
+	for i, row := range s.rows {
+		if row.ID == id && row.Installation() && (step == 1 || step == -1) {
+			s.rows[i].OfferedWorkspaces = max(0, row.OfferedWorkspaces+step)
+		}
+	}
+	return nil
+}
+
+// SetWithdrawal writes only the installation's rows, and only from the installation's own scope -
+// which a fake standing in for a workspace is not.
+func (s *providerStore) SetWithdrawal(
+	_ context.Context, id shared.ID, at, now time.Time,
+) (domain.IdentityProvider, bool, error) {
+	if !s.scope.IsZero() {
+		return domain.IdentityProvider{}, false, nil
+	}
+	for i, row := range s.rows {
+		if row.ID == id && row.Installation() {
+			row.WithdrawAt = at
+			if at.IsZero() {
+				row.Enabled = true
+			}
+			row.UpdatedAt, row.Version = now, row.Version+1
+			s.rows[i] = row
+			return row, true, nil
+		}
+	}
+	return domain.IdentityProvider{}, false, nil
 }
 
 func (s *providerStore) Delete(_ context.Context, id shared.ID) (bool, error) {
@@ -185,7 +235,6 @@ func configureCommand() ConfigureIdentityProviderCommand {
 		ClientID:            "hubtask",
 		ClientSecret:        secret.New("s3cr3t"),
 		AllowedEmailDomains: []string{"Example.org"},
-		Enabled:             true,
 	}
 }
 
@@ -388,7 +437,6 @@ func TestTheProviderUseCasesGoThroughTheRegistry(t *testing.T) {
 		"provisioning":          "DOMAINS",
 		"position":              1,
 		"allowed_email_domains": []any{"example.org"},
-		"enabled":               true,
 	})
 	if err != nil {
 		t.Fatalf("adding through the registry: %v", err)

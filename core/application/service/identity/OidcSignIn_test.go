@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,7 +36,20 @@ func (s *flowStore) Consume(
 	_ context.Context, presented domain.Token, _ time.Time,
 ) (domain.OidcFlow, bool, error) {
 	flow, found := s.byState[presented.Secret()]
-	if !found || s.spent[presented.Secret()] {
+	// A sign-in's: a flow bound to a session is a step-up and finishes no sign-in.
+	if !found || s.spent[presented.Secret()] || !flow.SessionID.IsZero() {
+		return domain.OidcFlow{}, false, nil
+	}
+	s.spent[presented.Secret()] = true
+	return flow, true, nil
+}
+
+// ConsumeForStepUp finds only a flow bound to this very session, as the statement does.
+func (s *flowStore) ConsumeForStepUp(
+	_ context.Context, presented domain.Token, sessionID shared.ID, _ time.Time,
+) (domain.OidcFlow, bool, error) {
+	flow, found := s.byState[presented.Secret()]
+	if !found || s.spent[presented.Secret()] || flow.SessionID.IsZero() || flow.SessionID != sessionID {
 		return domain.OidcFlow{}, false, nil
 	}
 	s.spent[presented.Secret()] = true
@@ -88,6 +102,17 @@ func (s *externalStore) LinkSubject(
 	return true, nil
 }
 
+// ProvidersOf answers the providers the account is connected to.
+func (s *externalStore) ProvidersOf(_ context.Context, accountID shared.ID) ([]shared.ID, error) {
+	found := []shared.ID{}
+	for key, account := range s.bySubject {
+		if account.ID == accountID {
+			found = append(found, shared.ID(strings.SplitN(key, "\x00", 2)[0]))
+		}
+	}
+	return found, nil
+}
+
 // HasIdentity answers whether any provider already signs the account in.
 func (s *externalStore) HasIdentity(_ context.Context, accountID shared.ID) (bool, error) {
 	for _, account := range s.bySubject {
@@ -103,13 +128,16 @@ type arrivingDouble struct {
 	identity provider.Identity
 	err      error
 	url      string
+	// asked is the last authorization request built, for the tests that read what was asked for.
+	asked provider.Authorization
 }
 
 func (a *arrivingDouble) Check(context.Context, string) error { return nil }
 
 func (a *arrivingDouble) AuthorizationURL(
-	context.Context, provider.Config, provider.Authorization,
+	_ context.Context, _ provider.Config, auth provider.Authorization,
 ) (string, error) {
+	a.asked = auth
 	if a.url == "" {
 		return "https://login.example.org/authorize?state=x", nil
 	}

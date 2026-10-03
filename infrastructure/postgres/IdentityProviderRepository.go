@@ -59,6 +59,7 @@ func (IdentityProviderRepository) List(ctx context.Context) ([]identity.Identity
 		configured, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 			row.DisplayName, row.Kind, row.Provisioning, row.Position,
 			row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+		configured = withOffer(configured, row.WithdrawAt, row.OfferedWorkspaces)
 		if err != nil {
 			return nil, err
 		}
@@ -102,9 +103,10 @@ func (IdentityProviderRepository) Find(
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading the identity provider: %w", err))
 	}
-	return providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
+	found, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+	return withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), err
 }
 
 func (IdentityProviderRepository) FindWithSecret(
@@ -132,6 +134,7 @@ func (IdentityProviderRepository) FindWithSecret(
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled,
 		pgtype.Timestamptz{}, pgtype.Timestamptz{}, 0)
+	configured.WithdrawAt = timeFrom(row.WithdrawAt)
 	if err != nil {
 		return identity.IdentityProvider{}, crypto.Sealed{}, err
 	}
@@ -177,14 +180,33 @@ func (IdentityProviderRepository) Insert(
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the identity provider: %w", err))
 	}
-	return providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
+	found, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+	return withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), err
 }
 
-func (IdentityProviderRepository) Update(
+func (r IdentityProviderRepository) Update(
 	ctx context.Context, configured identity.IdentityProvider,
 	sealed *crypto.Sealed, now time.Time,
+) (identity.IdentityProvider, bool, error) {
+	enabled := configured.Enabled
+	return r.write(ctx, configured, sealed, &enabled, now)
+}
+
+// Reconfigure writes everything but the switch, which the statement's COALESCE keeps as the row
+// holds it (ADR-0076 §5).
+func (r IdentityProviderRepository) Reconfigure(
+	ctx context.Context, configured identity.IdentityProvider,
+	sealed *crypto.Sealed, now time.Time,
+) (identity.IdentityProvider, bool, error) {
+	return r.write(ctx, configured, sealed, nil, now)
+}
+
+// write is the one statement behind both: nil `enabled` is "leave the switch alone".
+func (IdentityProviderRepository) write(
+	ctx context.Context, configured identity.IdentityProvider,
+	sealed *crypto.Sealed, enabled *bool, now time.Time,
 ) (identity.IdentityProvider, bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -205,7 +227,7 @@ func (IdentityProviderRepository) Update(
 		Position:            int32(configured.Position), //nolint:gosec // G115: 0..99 by construction
 		AllowedEmailDomains: configured.AllowedEmailDomains,
 		AllowedDirectories:  configured.AllowedDirectories,
-		Enabled:             configured.Enabled,
+		Enabled:             enabled,
 		Now:                 pgtype.Timestamptz{Time: now, Valid: true},
 	}
 	// Nil is "keep what is sealed", which the statement's COALESCE reads from these two being
@@ -233,7 +255,73 @@ func (IdentityProviderRepository) Update(
 	stored, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+	stored = withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces)
 	return stored, err == nil, err
+}
+
+// withOffer adds the two columns of ADR-0076 an installation row carries.
+func withOffer(
+	configured identity.IdentityProvider, withdrawAt pgtype.Timestamptz, offered int32,
+) identity.IdentityProvider {
+	configured.WithdrawAt = timeFrom(withdrawAt)
+	configured.OfferedWorkspaces = int(offered)
+	return configured
+}
+
+// MoveOfferCount moves an installation row's count by one step (ADR-0076 §1).
+func (IdentityProviderRepository) MoveOfferCount(ctx context.Context, providerID shared.ID, step int) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(providerID)
+	if err != nil {
+		return err
+	}
+	if err := queries.MoveProviderOffer(ctx, sqlc.MoveProviderOfferParams{
+		ProviderID: id, Step: int32(step), //nolint:gosec // G115: the function moves only -1 and 1
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("moving the provider's count: %w", err))
+	}
+	return nil
+}
+
+// SetWithdrawal sets or clears when an installation's offer ends (ADR-0076 §2).
+func (IdentityProviderRepository) SetWithdrawal(
+	ctx context.Context, providerID shared.ID, at, now time.Time,
+) (identity.IdentityProvider, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.IdentityProvider{}, false, err
+	}
+	id, err := uuidOf(providerID)
+	if err != nil {
+		return identity.IdentityProvider{}, false, err
+	}
+	withdrawAt := pgtype.Timestamptz{}
+	if !at.IsZero() {
+		withdrawAt = pgtype.Timestamptz{Time: at, Valid: true}
+	}
+	row, err := queries.SetProviderWithdrawal(ctx, sqlc.SetProviderWithdrawalParams{
+		WithdrawAt: withdrawAt, Now: pgtype.Timestamptz{Time: now, Valid: true}, ID: id,
+	})
+	if err != nil {
+		if IsNoRows(err) {
+			return identity.IdentityProvider{}, false, nil
+		}
+		return identity.IdentityProvider{}, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("setting the withdrawal: %w", err))
+	}
+	stored, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
+		row.DisplayName, row.Kind, row.Provisioning, row.Position,
+		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+	if err != nil {
+		return identity.IdentityProvider{}, false, err
+	}
+	return withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces), true, nil
 }
 
 func (IdentityProviderRepository) Delete(ctx context.Context, id shared.ID) (bool, error) {
@@ -307,7 +395,12 @@ func (r OidcFlowRepository) Insert(
 	if err != nil {
 		return err
 	}
+	session, err := optionalUUID(flow.SessionID)
+	if err != nil {
+		return err
+	}
 	if err := queries.InsertOidcFlow(ctx, sqlc.InsertOidcFlowParams{
+		SessionID:    session,
 		ID:           id,
 		ProviderID:   provider,
 		StateHash:    r.stateHasher.Hash(presented.Secret()),
@@ -351,15 +444,52 @@ func (r OidcFlowRepository) Consume(
 	// A flow the previous binary opened carries no provider, which the caller reads as "the one
 	// this workspace had". Zero rather than an error: the row is valid, it is just older than the
 	// column.
-	var providerID shared.ID
-	if row.ProviderID.Valid {
-		providerID, err = idFrom(row.ProviderID)
-		if err != nil {
-			return identity.OidcFlow{}, false, err
-		}
+	providerID, err := optionalID(row.ProviderID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
 	}
 	return identity.OidcFlow{
 		ID: id, TenantID: presented.TenantID(), ProviderID: providerID,
+		Nonce: row.Nonce, Verifier: row.CodeVerifier,
+	}, true, nil
+}
+
+// ConsumeForStepUp burns a step-up's flow, and only one bound to this session (ADR-0075 §2).
+func (r OidcFlowRepository) ConsumeForStepUp(
+	ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time,
+) (identity.OidcFlow, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	session, err := uuidOf(sessionID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	row, err := queries.ConsumeStepUpOidcFlow(ctx, sqlc.ConsumeStepUpOidcFlowParams{
+		Now:       pgtype.Timestamptz{Time: now, Valid: true},
+		StateHash: r.stateHasher.Hash(presented.Secret()),
+		SessionID: session,
+	})
+	if err != nil {
+		if IsNoRows(err) {
+			// Unknown, expired, spent, another session's or a sign-in's - one answer.
+			return identity.OidcFlow{}, false, nil
+		}
+		return identity.OidcFlow{}, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("consuming the step-up flow: %w", err))
+	}
+	id, err := idFrom(row.ID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	providerID, err := optionalID(row.ProviderID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	return identity.OidcFlow{
+		ID: id, TenantID: presented.TenantID(), ProviderID: providerID, SessionID: sessionID,
 		Nonce: row.Nonce, Verifier: row.CodeVerifier,
 	}, true, nil
 }
@@ -434,6 +564,33 @@ func (ExternalAccountRepository) LinkSubject(
 			WithCause(fmt.Errorf("linking an account to its provider subject: %w", err))
 	}
 	return linked > 0, nil
+}
+
+// ProvidersOf answers the providers the account is connected to (ADR-0075 §2).
+func (ExternalAccountRepository) ProvidersOf(ctx context.Context, accountID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.AccountIdentityProviders(ctx, account)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading an account's providers: %w", err))
+	}
+	providers := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		providers = append(providers, id)
+	}
+	return providers, nil
 }
 
 // HasIdentity answers whether the account already signs in through some provider - a credential of

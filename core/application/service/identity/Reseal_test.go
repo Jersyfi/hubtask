@@ -38,8 +38,24 @@ func (r *rotatingRing) ActiveKeyID() string { return "k2" }
 func (r *rotatingRing) KeyIDs() []string    { return []string{"k2", "k1"} }
 
 type mfaSealings struct {
-	rows      []repository.MfaEnrollment
-	rewrapped []string
+	rows         []repository.MfaEnrollment
+	replacements []repository.MfaEnrollment
+	rewrapped    []string
+}
+
+func (m *mfaSealings) ReplacementsSealedNotUnder(_ context.Context, keyID string) ([]repository.MfaEnrollment, error) {
+	var out []repository.MfaEnrollment
+	for _, row := range m.replacements {
+		if row.Secret.KeyID != keyID {
+			out = append(out, row)
+		}
+	}
+	return out, nil
+}
+
+func (m *mfaSealings) RewrapReplacement(_ context.Context, accountID shared.ID, sealed cryptoport.Sealed, expected string) (bool, error) {
+	m.rewrapped = append(m.rewrapped, "replacement "+accountID.String()+":"+expected+"->"+sealed.KeyID)
+	return true, nil
 }
 
 func (m *mfaSealings) SealedNotUnder(_ context.Context, keyID string) ([]repository.MfaEnrollment, error) {
@@ -80,6 +96,30 @@ func TestTheSecondFactorsMoveUnderTheirOwnPurposeAndAForeignKeyIsSkipped(t *test
 	}
 	// The purpose is the row's own, the one verification binds to - never a value handed in.
 	if len(ring.purposes) != 2 || ring.purposes[0] != mfaSecretPurpose(first) {
+		t.Errorf("purposes %v", ring.purposes)
+	}
+}
+
+// A replacement waiting to be confirmed (SC-17) is a sealed value too, under the same purpose as the
+// factor it will become: the census counts it, so the re-seal moves it.
+func TestAWaitingReplacementMovesUnderTheFactorsPurpose(t *testing.T) {
+	waiting := shared.MustParseID("018f2a1b-0000-7000-8000-0000000000c4")
+	store := &mfaSealings{replacements: []repository.MfaEnrollment{
+		{AccountID: waiting, Secret: cryptoport.Sealed{KeyID: "k1", Ciphertext: []byte("r")}},
+	}}
+	ring := &rotatingRing{}
+
+	outcome, err := MfaResealer{Enrollments: store, Encryptor: ring}.Reseal(t.Context(), shared.ID(""))
+	if err != nil {
+		t.Fatalf("re-sealing: %v", err)
+	}
+	if outcome.Rewrapped != 1 {
+		t.Errorf("outcome %+v", outcome)
+	}
+	if len(store.rewrapped) != 1 || store.rewrapped[0] != "replacement "+waiting.String()+":k1->k2" {
+		t.Errorf("rewrapped %v", store.rewrapped)
+	}
+	if len(ring.purposes) != 1 || ring.purposes[0] != mfaSecretPurpose(waiting) {
 		t.Errorf("purposes %v", ring.purposes)
 	}
 }

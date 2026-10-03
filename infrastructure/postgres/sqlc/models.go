@@ -379,14 +379,18 @@ type AccountIdentity struct {
 }
 
 type AccountMfa struct {
-	AccountID   pgtype.UUID
-	TenantID    pgtype.UUID
-	SecretEnc   []byte
-	SecretKeyID string
-	ConfirmedAt pgtype.Timestamptz
-	LastStep    *int64
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
+	AccountID              pgtype.UUID
+	TenantID               pgtype.UUID
+	SecretEnc              []byte
+	SecretKeyID            string
+	ConfirmedAt            pgtype.Timestamptz
+	LastStep               *int64
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	ReplacementSecretEnc   []byte
+	ReplacementSecretKeyID *string
+	ReplacementSessionID   pgtype.UUID
+	ReplacementExpiresAt   pgtype.Timestamptz
 }
 
 type AccountPasswordHistory struct {
@@ -877,6 +881,8 @@ type IdentityProvider struct {
 	Position            int32
 	// The provider's own identifiers for the organisations this row admits: Microsoft tid, Google hd. Empty under DOMAINS with a preset that has a directory claim admits nobody (ADR-0071 §2).
 	AllowedDirectories []string
+	OfferedWorkspaces  int32
+	WithdrawAt         pgtype.Timestamptz
 }
 
 type ImportRun struct {
@@ -1108,6 +1114,7 @@ type OidcFlow struct {
 	ExpiresAt    pgtype.Timestamptz
 	ConsumedAt   pgtype.Timestamptz
 	ProviderID   pgtype.UUID
+	SessionID    pgtype.UUID
 }
 
 type Operator struct {

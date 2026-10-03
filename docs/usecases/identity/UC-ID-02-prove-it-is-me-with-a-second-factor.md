@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13]
-state: partial
+state: built
 tasks: [H-02, SI-13, SI-14, SI-15, SC-03, SC-09, SC-17, SC-18]
-checked_by: [apps/webapp/e2e/signin.test.mjs, locales/Terms_test.go]
+checked_by: [apps/webapp/e2e/signin.test.mjs, apps/webapp/src/lib/signin/expiry.test.ts, apps/webapp/src/lib/data/recoverynote.test.ts, locales/Terms_test.go]
 ---
 
 # Prove it is me with a second factor when I sign in
@@ -46,16 +46,3 @@ page says how many codes remain and leads to setting the authenticator up again.
 * No "trust this device for 30 days": the workspace's session rules decide how long a session lives.
 * No SMS or mail codes ([NG-sms](../../vision/non-goals.md), [NG-magic-link](../../vision/non-goals.md)).
 * No second factor after a provider sign-in: the provider is trusted as a whole, or not configured.
-
-## Today
-
-Checks 4 and 7 hold since SC-03 (`signin.test.mjs`: the recovery code pasted with its dashes into a
-text field, and the heading asserted exactly). Found while checking the rest, tracked in
-issue #1100 and cut as SC-18 (the note links to SC-17's *Replace authenticator*):
-
-* **Check 2 fails at its end:** the remaining time is shown and counts down, but when it reaches
-  zero the card stays on the step at `0:00` — nothing says the time ran out and nothing returns to
-  step one; the next submit is refused by the server.
-* **Check 6 fails:** after a recovery code the count is announced to a screen reader once
-  (`AppFrame.svelte`), not shown as a banner, and there is no link to set the authenticator up
-  again.

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-06, P-07, P-10, P-12]
 state: partial
 tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21]
-checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs]
+checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs]
 ---
 
 # Set how people in our workspace sign in, in one place
@@ -61,14 +61,26 @@ the installation is the same person and set nothing.
 
 Checks 1, 2, 3, 4, 5, 7, 8 and 9 hold since SC-06 (`AdminFlag_test.go`, `FactorRule_test.go`,
 `LastWayIn_test.go`, `cmd/server/Wiring_test.go`, `signinsettings.test.mjs`). Check 6 holds for every
-door a workspace has, and not yet for two others; the owner decided both on 2026-10-01,
-and they are cut as tasks:
+door a workspace has. Since SC-21 the provider's own form is no longer one of them: a changed
+`enabled` on `PUT /identity-providers/{id}` is refused and the list is the one switch
+(`IdentityProviderSwitch_test.go`).
 
-* **The installation's own doors.** An operator who switches off or removes a provider the
-  installation offers can still leave a workspace that uses it as its only way in with none. Guarding
-  it would mean reading every workspace's choice, which an installation-level action is not allowed
-  to do. Tracked as SC-20: a count instead of names, a notice period, and a password fallback.
-* **`enabled` on a provider's configuration.** The screen no longer switches a provider on its form,
-  but `PUT /identity-providers/{id}` still accepts `enabled`, a second door to the same switch (P-06).
-  It meets the last-way-in guard. Tracked as SC-21: a change is refused, and the field is removed
-  at the next major version.
+Since SC-20 it holds at the installation's doors too, the way
+[ADR-0076](../../adr/ADR-0076-withdrawing-an-offered-provider.md) decided it. The installation's form
+no longer switches an offer off (`identity_provider.withdraw_instead`); an offer ends through a
+withdrawal that shows the number of workspaces using it, is announced two weeks ahead by default and
+can be cancelled, and the workspaces that use it say on this screen when it ends
+(`InstanceProviderWithdrawal_test.go`, `IdentityProviderWithdrawal_test.go`,
+`signinsettings.test.mjs`). A workspace whose last way in was an offer that ended - withdrawn on its
+day, withdrawn now, or removed - is never left without one: the sign-in card offers the password again
+for the accounts that hold one, under this workspace's rules, the screen says so, and each sign-in
+through it is in the trail as `auth.password_fallback`, until another way is switched on here
+(`PasswordFallback_test.go`). An account without a password gains nothing from it and needs a new
+invitation - the limit ADR-0076 §4 sets. The walks of these screens run against a stubbed API.
+
+**Check 6 still fails for the password's own switch**
+([#1119](https://github.com/Jersyfi/hubtask/issues/1119)): a workspace that switches the password off
+hides it on the card, but the server never refuses a password sign-in - `SignIn` does not read the
+resolved methods. The switch is therefore a way in that "is off" only on the screen, and the fallback
+above re-opens a door the server never closed. Until #1119 makes the sign-in ask the same resolution
+the card asks - the fallback included - this use case stays partial.

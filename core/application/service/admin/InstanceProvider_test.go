@@ -87,6 +87,40 @@ func (s *instanceProviderStore) Update(
 	return domain.IdentityProvider{}, false, nil
 }
 
+func (s *instanceProviderStore) MoveOfferCount(context.Context, shared.ID, int) error { return nil }
+
+func (s *instanceProviderStore) SetWithdrawal(
+	_ context.Context, id shared.ID, at, now time.Time,
+) (domain.IdentityProvider, bool, error) {
+	for i, row := range s.rows {
+		if row.ID == id {
+			row.WithdrawAt = at
+			if at.IsZero() {
+				row.Enabled = true
+			}
+			row.UpdatedAt, row.Version = now, row.Version+1
+			s.rows[i] = row
+			return row, true, nil
+		}
+	}
+	return domain.IdentityProvider{}, false, nil
+}
+
+// Reconfigure is Update with the row's own switch kept, as the statement's COALESCE keeps it: since
+// ADR-0076 the installation's form no longer ends an offer either.
+func (s *instanceProviderStore) Reconfigure(
+	ctx context.Context, configured domain.IdentityProvider,
+	sealed *cryptoport.Sealed, now time.Time,
+) (domain.IdentityProvider, bool, error) {
+	for _, row := range s.rows {
+		if row.ID == configured.ID {
+			configured.Enabled = row.Enabled
+			configured.WithdrawAt, configured.OfferedWorkspaces = row.WithdrawAt, row.OfferedWorkspaces
+		}
+	}
+	return s.Update(ctx, configured, sealed, now)
+}
+
 func (s *instanceProviderStore) Delete(_ context.Context, id shared.ID) (bool, error) {
 	for i, row := range s.rows {
 		if row.ID == id {
@@ -178,13 +212,18 @@ func TestTheInstallationsProviderBelongsToNoWorkspace(t *testing.T) {
 	stored, err := ConfigureInstanceIdentityProvider{Writer: writer}.Execute(
 		t.Context(), operator(), identityservice.ConfigureIdentityProviderCommand{
 			Issuer: "https://accounts.google.com", ClientID: "hubtask", Kind: "GOOGLE",
-			ClientSecret: secret.New("s3cr3t"), Enabled: true,
+			ClientSecret: secret.New("s3cr3t"),
 		})
 	if err != nil {
 		t.Fatalf("configuring the installation's provider: %v", err)
 	}
 	if !stored.Installation() {
 		t.Errorf("the row belongs to %q, want no workspace", stored.TenantID)
+	}
+	// The installation has no list of ways to sign in: its form is still the offer, and absent is
+	// on. Only a workspace's own doors stopped switching (ADR-0076 §5, SC-21).
+	if !stored.Enabled {
+		t.Error("the installation's provider was added off")
 	}
 	if len(relying.checked) != 1 {
 		t.Errorf("discovery ran %d times", len(relying.checked))
@@ -218,7 +257,7 @@ func TestTheInstanceProviderOperationsDemandTheRegisterAsWellAsTheScope(t *testi
 
 	cmd := identityservice.ConfigureIdentityProviderCommand{
 		Issuer: "https://accounts.google.com", ClientID: "hubtask", Kind: "GOOGLE",
-		ClientSecret: secret.New("s3cr3t"), Enabled: true,
+		ClientSecret: secret.New("s3cr3t"),
 	}
 	if _, err := (ConfigureInstanceIdentityProvider{Writer: writer}).
 		Execute(t.Context(), operator(), cmd); !errors.Is(err, shared.ErrForbidden) {

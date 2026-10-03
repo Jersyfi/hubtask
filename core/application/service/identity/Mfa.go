@@ -314,8 +314,13 @@ func (h ConfirmTotp) Execute(
 	return ConfirmedEnrollment{Pair: &pair}, nil
 }
 
-// DisableTotpCommand carries the fresh password.
+// DisableTotpCommand carries the proof: the step-up, like every privileged action (ADR-0075 §3).
 type DisableTotpCommand struct {
+	// StepUpToken is the proof, with whatever the account holds - a code, a recovery code, its
+	// provider or its password.
+	StepUpToken string
+	// Password is the proof this route took before the step-up did. Deprecated: still checked when
+	// it comes without a step-up token, for one release, and then removed.
 	Password secret.Secret
 }
 
@@ -323,42 +328,16 @@ type DisableTotpCommand struct {
 // because a stolen session removing the second factor is the attack.
 type DisableTotp struct{ Writer SessionWriter }
 
-// Execute disables, behind the fresh password and outside the tenant switch's reach.
+// Execute disables, behind a fresh proof and outside the tenant switch's reach.
+//
+// The rule is asked before the proof is: a workspace that requires the factor refuses without
+// spending the proof, so the person keeps it and is told the rule rather than that a proof failed.
 func (h DisableTotp) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd DisableTotpCommand,
 ) error {
 	w := h.Writer
 	if !actor.IsAuthenticated() || actor.AccountID.IsZero() {
 		return shared.ErrUnauthenticated.WithDetail("access.credential_required")
-	}
-
-	// The hash is read in one transaction and verified outside it, sign-in's reasoning: Argon2id
-	// is deliberately slow, and a connection held through it would let a burst drain the pool.
-	var stored secret.Secret
-	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		hash, err := w.Accounts.PasswordHashOf(ctx, actor.AccountID)
-		stored = hash
-		return err
-	})
-	if err != nil {
-		return err
-	}
-
-	verified := false
-	if !stored.IsEmpty() {
-		ok, err := w.Passwords.Verify(stored.Reveal(), cmd.Password)
-		if err != nil {
-			return err
-		}
-		verified = ok
-	} else {
-		// An account that signs in some other way holds no password to prove afresh; the decoy
-		// keeps the refusal's cost honest all the same (T-02).
-		w.Passwords.VerifyDecoy(cmd.Password)
-	}
-	if !verified {
-		w.failure(ctx, FailureWrongCredential)
-		return domain.ErrSignInFailed()
 	}
 
 	// The rule in force, read the way signing in reads it (UC-ID-12 check 3): the old boolean asked
@@ -368,14 +347,24 @@ func (h DisableTotp) Execute(
 	if err != nil {
 		return err
 	}
+	if err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		return w.refuseWhereDemanded(ctx, actor, verdict)
+	}); err != nil {
+		return err
+	}
 
-	return w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		demanded, err := w.factorDemandedOf(ctx, ownAccount(actor), verdict)
-		if err != nil {
+	if cmd.StepUpToken == "" && !cmd.Password.IsEmpty() {
+		if err := w.proveByPassword(ctx, actor, cmd.Password); err != nil {
 			return err
 		}
-		if demanded {
-			return shared.ErrForbidden.WithDetail("auth.mfa_required_by_tenant")
+	} else if err := w.requireStepUp(ctx, actor, cmd.StepUpToken); err != nil {
+		return err
+	}
+
+	return w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// Asked again inside the write: the rule may have changed while the proof was given.
+		if err := w.refuseWhereDemanded(ctx, actor, verdict); err != nil {
+			return err
 		}
 
 		now := w.Clock.Now()
@@ -390,6 +379,57 @@ func (h DisableTotp) Execute(
 			ID: actor.AccountID, TenantID: actor.TenantID, DisplayName: actor.AccountName,
 		}, now)
 	})
+}
+
+// refuseWhereDemanded is the rule's refusal: a factor the workspace demands of this person is not
+// theirs to remove.
+func (w SessionWriter) refuseWhereDemanded(
+	ctx context.Context, actor appshared.ActorContext, verdict SignInVerdict,
+) error {
+	demanded, err := w.factorDemandedOf(ctx, ownAccount(actor), verdict)
+	if err != nil {
+		return err
+	}
+	if demanded {
+		return shared.ErrForbidden.WithDetail("auth.mfa_required_by_tenant")
+	}
+	return nil
+}
+
+// proveByPassword is the deprecated proof (ADR-0075 §3), kept for one release for a client that
+// still sends the password in the body.
+func (w SessionWriter) proveByPassword(
+	ctx context.Context, actor appshared.ActorContext, password secret.Secret,
+) error {
+	// The hash is read in one transaction and verified outside it, sign-in's reasoning: Argon2id
+	// is deliberately slow, and a connection held through it would let a burst drain the pool.
+	var stored secret.Secret
+	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		hash, err := w.Accounts.PasswordHashOf(ctx, actor.AccountID)
+		stored = hash
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	verified := false
+	if !stored.IsEmpty() {
+		ok, err := w.Passwords.Verify(stored.Reveal(), password)
+		if err != nil {
+			return err
+		}
+		verified = ok
+	} else {
+		// An account that signs in some other way holds no password to prove afresh; the decoy
+		// keeps the refusal's cost honest all the same (T-02).
+		w.Passwords.VerifyDecoy(password)
+	}
+	if !verified {
+		w.failure(ctx, FailureWrongCredential)
+		return domain.ErrSignInFailed()
+	}
+	return nil
 }
 
 // recordMfaAudit writes the factor's lifecycle evidence: the act and its moment, never a secret,
@@ -515,17 +555,26 @@ func (h DisableTotp) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: DisableTotpName,
 		Summary: "Removes the second factor and burns the remaining recovery codes. It demands " +
-			"the password afresh - a live session is deliberately not enough, because a stolen " +
-			"session removing the factor is the attack the factor exists against. Under tenant " +
-			"enforcement an OWNER or ADMIN cannot disable at all.",
+			"a step-up like every privileged action (ADR-0075) - a live session is deliberately not " +
+			"enough, because a stolen session removing the factor is the attack the factor exists " +
+			"against. Where the workspace's rule requires the factor of this person it cannot be " +
+			"disabled at all.",
 		SideEffects: "Removes the enrolment and its codes, and writes an audit entry.",
 		Destructive: true,
 		Input: []usecase.Field{
 			{
-				Name: "password", Kind: usecase.KindString, Required: true,
-				Description: "Checked afresh against the stored hash.",
+				// Not required: an absent proof has to reach the use case, which answers the 403
+				// carrying `auth.step_up_required` and the account's methods.
+				Name: "step_up_token", Kind: usecase.KindString,
+				Description: "The step-up's proof: the X-Hubtask-Step-Up header.",
+			},
+			{
+				Name: "password", Kind: usecase.KindString,
+				Description: "Deprecated (ADR-0075 §3): the proof this operation took before the " +
+					"step-up. Still checked when sent without a step-up token, for one release.",
 			},
 		},
+		StepUp: "removing the second factor",
 		Audit: usecase.AuditDeclaration{
 			Action: MfaDisabledAction, TargetType: accountTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -541,7 +590,8 @@ func (h DisableTotp) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	if err := h.Execute(ctx, actor, DisableTotpCommand{
-		Password: secret.New(in.String("password")),
+		StepUpToken: in.String("step_up_token"),
+		Password:    secret.New(in.String("password")),
 	}); err != nil {
 		return nil, err
 	}

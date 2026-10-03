@@ -62,11 +62,13 @@ function stubFor({ answer, onCheck }) {
   };
 }
 
-async function open(origin, stub) {
+async function open(origin, stub, { clock } = {}) {
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', stub);
   const page = await context.newPage();
+  // A clock the test moves, for the walks about time: installed before the page has one of its own.
+  if (clock !== undefined) await page.clock.install({ time: clock });
   await page.goto(origin);
   await page.waitForSelector('text=to contoso.hubtask.eu');
   return { browser, page };
@@ -186,6 +188,38 @@ test('a second factor becomes the second step, with the code field and the ident
   }
 });
 
+// UC-ID-02 check 2 (SC-18): the code step says when its last minute begins - under the countdown and
+// through a live region - and at 0:00 the card returns to step one with the address kept, both code
+// fields emptied, and a sentence saying the sign-in waited too long. The window is not extended.
+test('the code step says its last minute, and at zero returns to step one with the address kept', async () => {
+  const { origin, close } = await serve(DIST);
+  const { browser, page } = await open(origin, stubFor({
+    answer: () => ({ status: 202, json: { pending_token: 'p-short', methods: ['TOTP', 'RECOVERY'], expires_at: new Date(Date.parse('2026-10-01T12:00:00Z') + 90_000).toISOString() } }),
+  }), { clock: Date.parse('2026-10-01T12:00:00Z') });
+  try {
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.waitForSelector('text=Signing in as');
+    await page.getByLabel('Code from your authenticator').fill('482');
+
+    assert.equal(await page.getByRole('status').filter({ hasText: 'Less than a minute left' }).count(), 0,
+      'the last minute is announced before it begins');
+    await page.clock.runFor(31_000);
+    await page.getByText('Less than a minute left.').waitFor();
+    assert.equal(await page.getByRole('status').filter({ hasText: 'Less than a minute left' }).count(), 1,
+      'the last minute is not in a live region');
+
+    await page.clock.runFor(60_000);
+    await page.getByText('The sign-in waited too long').waitFor();
+    assert.equal(await page.locator('input[type="email"]').inputValue(), 'walker@example.invalid', 'the address was lost');
+    assert.equal(await page.getByLabel('Code from your authenticator').count(), 0, 'the code step is still offered');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // UC-ID-02 check 4: the recovery code as it was shown - four groups of four letters and digits,
 // pasted in one go with its dashes - reaches the server whole, from a field with a text keyboard.
 // Before SC-03 the field was numeric and eight long, so every recovery code was cut off and refused.
@@ -222,6 +256,51 @@ test('a recovery code is taken as it was shown, dashes and all, with a text keyb
     await field.waitFor({ state: 'detached' });
     assert.equal(sent.verify?.recovery_code, 'K7QM-2XRT-P4ZL-3VWA', 'the code reached the server whole');
     assert.equal(sent.verify?.code, undefined, 'the recovery code was not sent as an authenticator code');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// UC-ID-02 check 6 (SC-18): after a sign-in with a recovery code the first page carries a note -
+// how many are left, and the way to set the authenticator up again - which survives a reload, leads
+// to the replacement, and goes when it is closed.
+test('a recovery code leaves a note that survives a reload and leads to the replacement', async () => {
+  const { origin, close } = await serve(DIST);
+  const { browser, page } = await open(origin, async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/sessions:verify')) {
+      return route.fulfill({ status: 201, json: { ...TOKENS, recovery_codes_remaining: 7 } });
+    }
+    if (path.endsWith('/api/v1/accounts/me')) {
+      return route.fulfill({ json: { id: '01936f2a-7c1e-7000-8000-0000000000aa', display_name: 'Walker', email: 'walker@example.invalid', locale: 'en', time_zone: 'UTC', has_password: true, has_second_factor: true, recovery_codes_remaining: 7, second_factor_required: false, onboarding_completed_at: '2026-01-01T00:00:00Z' } });
+    }
+    return stubFor({ answer: owed })(route);
+  });
+  try {
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('button', { name: 'I do not have my authenticator' }).click();
+    await page.getByLabel('Recovery code').fill('K7QM-2XRT-P4ZL-3VWA');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+    const note = page.getByText('You signed in with a recovery code. 7 of 10 left.');
+    await note.waitFor({ timeout: 15_000 });
+    await page.reload();
+    await note.waitFor({ timeout: 15_000 });
+
+    await page.getByRole('link', { name: 'Replace your authenticator' }).click();
+    await page.waitForURL('**/profile/security');
+    assert.equal(await page.locator('details[open] summary', { hasText: 'Replace your authenticator' }).count(), 1,
+      'the replacement is not open where the note leads');
+
+    await page.getByRole('button', { name: 'Close' }).first().click();
+    await note.waitFor({ state: 'detached' });
+    await page.reload();
+    await page.getByText('Password and sign-in').first().waitFor({ timeout: 15_000 });
+    assert.equal(await note.count(), 0, 'a closed note came back');
   } finally {
     await browser.close();
     await close();

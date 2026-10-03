@@ -163,7 +163,21 @@ func (pending) EnrollTotp(w http.ResponseWriter, r *http.Request) { notAvailable
 
 func (pending) ConfirmTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-func (pending) DisableTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) DisableTotp(w http.ResponseWriter, r *http.Request, _ openapi.DisableTotpParams) {
+	notAvailable(w, r)
+}
+
+func (pending) StartProviderStepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) StartAuthenticatorReplacement(
+	w http.ResponseWriter, r *http.Request, _ openapi.StartAuthenticatorReplacementParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
 
 func (pending) StepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
@@ -1166,5 +1180,20 @@ func (pending) ImportEntries(w http.ResponseWriter, r *http.Request, _ openapi.I
 }
 
 func (pending) GetImport(w http.ResponseWriter, r *http.Request, _ openapi.ImportId) {
+	notAvailable(w, r)
+}
+
+// The withdrawal of an offered provider (ADR-0076): served by RestController since SC-20.
+func (pending) WithdrawInstanceIdentityProvider(
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+	_ openapi.WithdrawInstanceIdentityProviderParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) CancelInstanceIdentityProviderWithdrawal(
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+	_ openapi.CancelInstanceIdentityProviderWithdrawalParams,
+) {
 	notAvailable(w, r)
 }

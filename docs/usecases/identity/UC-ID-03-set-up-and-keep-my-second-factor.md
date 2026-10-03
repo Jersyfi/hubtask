@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-11, P-13]
-state: partial
+state: built
 tasks: [H-02, SI-09, SI-15, SC-03, SC-06, SC-09, SC-16, SC-17]
-checked_by: [core/application/service/identity/Mfa_test.go, core/application/service/identity/FactorRule_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/settings.test.mjs]
+checked_by: [core/application/service/identity/Mfa_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/DisableTotpStepUp_test.go, core/application/service/identity/StepUpRecovery_test.go, core/application/service/identity/ReplaceAuthenticator_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/settings.test.mjs]
 ---
 
 # Set up my second factor and keep my recovery codes
@@ -47,15 +47,3 @@ same setup during sign-in, told why.
 * One authenticator per account. Several authenticators, hardware keys and passkeys are the passkey
   milestone's.
 * No download button for the codes; the clipboard is enough for a password manager.
-
-## Today
-
-Checks 1, 2 and 7 hold since SC-03: the same walk on the profile and during a forced sign-in
-(`apps/webapp/e2e/secondfactor.mjs`, used by `settings.test.mjs` and `signin.test.mjs`). Check 5
-holds since SC-06: the profile reads the workspace's rule and offers no way to turn off a factor it
-requires (`FactorRule_test.go`, `settings.test.mjs`).
-
-* **Check 6 fails for an account without a password:** turning the factor off asks for the
-  password, so a person who signs in only through a provider cannot prove themselves for it. Since
-  SC-09 the profile says so instead of offering a field they cannot fill; SC-16 makes the step-up
-  accept whatever the account holds.

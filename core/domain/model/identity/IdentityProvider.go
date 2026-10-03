@@ -98,6 +98,33 @@ type IdentityProvider struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Version     int
+	// WithdrawAt is when the installation's offer ends (ADR-0076 §2); zero while it is offered
+	// without an end. Until then the provider works; from then it is a way in nowhere.
+	WithdrawAt time.Time
+	// OfferedWorkspaces is how many workspaces have the installation's row switched on - a number,
+	// never names (ADR-0076 §1). Answered to the operator only.
+	OfferedWorkspaces int
+}
+
+// WithdrawalNotice is how far ahead a withdrawal is announced where the operator names no date
+// (ADR-0076 §2): two weeks for every workspace that uses the provider to switch on another way.
+const WithdrawalNotice = 14 * 24 * time.Hour
+
+// MinimumWithdrawalNotice is the least that counts as notice at all. A withdrawal sooner than this
+// is Withdraw now in all but name, and asks for the count as Withdraw now does - otherwise the
+// confirmation could be skipped by naming a moment a second away.
+const MinimumWithdrawalNotice = 24 * time.Hour
+
+// OfferedAt reports whether the row is a way in at all at this moment: switched on, and not past an
+// announced withdrawal. The date is honoured where the offer is read, so no job has to end it.
+func (p IdentityProvider) OfferedAt(now time.Time) bool {
+	return p.Enabled && (p.WithdrawAt.IsZero() || now.Before(p.WithdrawAt))
+}
+
+// Withdrawing reports whether an announced withdrawal is still ahead: the time in which the
+// workspaces that use it are told when it ends.
+func (p IdentityProvider) Withdrawing(now time.Time) bool {
+	return !p.WithdrawAt.IsZero() && now.Before(p.WithdrawAt)
 }
 
 // Installation reports whether this row belongs to no workspace.
@@ -575,6 +602,9 @@ type OidcFlow struct {
 	Verifier   string
 	CreatedAt  time.Time
 	ExpiresAt  time.Time
+	// SessionID binds the flow to the session that asked for a step-up at the provider (ADR-0075
+	// §2). Zero is a sign-in flow, which finishes a sign-in and no step-up.
+	SessionID shared.ID
 }
 
 // NewOidcFlowInput is what starting a sign-in needs.
@@ -585,6 +615,8 @@ type NewOidcFlowInput struct {
 	Nonce      string
 	Verifier   string
 	Now        time.Time
+	// SessionID makes the flow a step-up of that session. Zero for a sign-in.
+	SessionID shared.ID
 }
 
 // NewOidcFlow opens one.
@@ -599,7 +631,7 @@ func NewOidcFlow(in NewOidcFlowInput) (OidcFlow, error) {
 	}
 	return OidcFlow{
 		ID: in.ID, TenantID: in.TenantID, ProviderID: in.ProviderID,
-		Nonce: in.Nonce, Verifier: in.Verifier,
+		Nonce: in.Nonce, Verifier: in.Verifier, SessionID: in.SessionID,
 		CreatedAt: in.Now.UTC(), ExpiresAt: in.Now.Add(OidcFlowLifetime).UTC(),
 	}, nil
 }

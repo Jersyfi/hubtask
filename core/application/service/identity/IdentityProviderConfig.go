@@ -157,9 +157,10 @@ func (w IdentityProviderWriter) withOffers(
 		}
 		settings = workspace.Settings
 	}
+	now := w.Session.Clock.Now()
 	answered := make([]domain.IdentityProvider, 0, len(rows))
 	for _, row := range rows {
-		row.OfferedHere = offeredHere(row, settings)
+		row.OfferedHere = offeredHere(row, settings, now)
 		answered = append(answered, row)
 	}
 	return answered, nil
@@ -187,9 +188,19 @@ type ConfigureIdentityProviderCommand struct {
 	// AllowedDirectories are the organisations this row admits, in the provider's own identifiers
 	// (ADR-0071 §2): Microsoft tenant ids, Google Workspace domains.
 	AllowedDirectories []string
-	Enabled            bool
+	// Enabled is the deprecated switch on the form (ADR-0076 §5). Nil is "not given". At a
+	// workspace's own doors it may only repeat what the row holds - see switchInList. At the
+	// installation it says at creation whether the provider is offered, absent being on; afterwards
+	// an offer ends through the withdrawal (§2) and a changed value is refused.
+	Enabled *bool
 	// StepUpToken is the fresh proof the change carries (the X-Hubtask-Step-Up header).
 	StepUpToken string
+
+	// switchInList marks a workspace's own door: the form configures and never switches, because
+	// the list of ways to sign in is the one place a way in is turned on or off (UC-ID-11 check 8).
+	// Unexported so that only this package's use cases set it, and the installation's half - which
+	// has no list - cannot.
+	switchInList bool
 }
 
 // Execute validates, asks the provider to prove it exists, seals the secret and stores the lot.
@@ -210,14 +221,42 @@ func (h ConfigureIdentityProvider) Execute(
 	}); err != nil {
 		return domain.IdentityProvider{}, err
 	}
-	// A form saved with its provider off takes a way in away, so it meets the switch's guard: the
-	// last way in cannot be switched off from here either (UC-ID-11 check 8).
-	if !cmd.ID.IsZero() && !cmd.Enabled {
-		if err := w.keepsAWayIn(ctx, actor, cmd.ID); err != nil {
-			return domain.IdentityProvider{}, err
-		}
-	}
+	// The form switches nothing (ADR-0076 §5), so saving it can take no way in away: the last-way-in
+	// guard belongs to the list's switch and to the removal, and this door never reaches it.
+	cmd.switchInList = true
 	return w.ConfigureAt(ctx, actor.PersistenceScope(), actor, cmd, actor.TenantID)
+}
+
+// switchInList is the refusal of a form that would switch a provider: the sentence points to the
+// list of ways to sign in, the one place for it (ADR-0076 §5). Refused rather than ignored, because
+// a client told "saved" would believe it switched a provider that did not change (P-11).
+func switchInList() error {
+	return shared.ErrValidation.
+		WithDetail("identity_provider.switch_in_list").
+		WithFields(shared.FieldError{Path: "/enabled", Code: "identity_provider.switch_in_list"})
+}
+
+// enabledAt answers the switch a write leaves on the row: the row's own, which nothing on the form
+// changes - a value that differs is refused, with the sentence that names where it is changed. A new
+// provider starts off at a workspace's door, because configuring is not offering, and on at the
+// installation's, absent being on: there, adding a provider is offering it.
+func (cmd ConfigureIdentityProviderCommand) enabledAt(stored *domain.IdentityProvider) (bool, error) {
+	if stored == nil && !cmd.switchInList {
+		return cmd.Enabled == nil || *cmd.Enabled, nil
+	}
+	held := false
+	if stored != nil {
+		held = stored.Enabled
+	}
+	if cmd.Enabled != nil && *cmd.Enabled != held {
+		if cmd.switchInList {
+			return false, switchInList()
+		}
+		// The installation's form ended an offer by itself before ADR-0076: unannounced, and
+		// with no count in front of whoever pressed it. That is the withdrawal's now.
+		return false, withdrawInstead()
+	}
+	return held, nil
 }
 
 // keepsAWayIn refuses a change that would take away the workspace's last way in: the provider named
@@ -243,7 +282,8 @@ func (w IdentityProviderWriter) keepsAWayIn(
 			}
 			settings = workspace.Settings
 		}
-		if offeredHere(found, settings) && !anotherWayIn(ctx, w.Providers, w.Workspaces, id) {
+		now := w.Session.Clock.Now()
+		if offeredHere(found, settings, now) && !anotherWayIn(ctx, w.Providers, w.Workspaces, id, now) {
 			return lastWayIn()
 		}
 		return nil
@@ -270,6 +310,16 @@ func (w IdentityProviderWriter) ConfigureAt(
 		return domain.IdentityProvider{}, shared.ErrValidation.
 			WithDetail("identity_provider.client_secret_required")
 	}
+	// A new row's switch is known before anything is asked of the issuer; a replaced row's is read
+	// inside the write below, beside the statement that keeps it.
+	enabled := false
+	if creating {
+		decided, err := cmd.enabledAt(nil)
+		if err != nil {
+			return domain.IdentityProvider{}, err
+		}
+		enabled = decided
+	}
 
 	id := cmd.ID
 	if creating {
@@ -281,7 +331,7 @@ func (w IdentityProviderWriter) ConfigureAt(
 		DisplayName: cmd.DisplayName, Kind: cmd.Kind, Provisioning: cmd.Provisioning,
 		Position: cmd.Position, AllowedEmailDomains: cmd.AllowedEmailDomains,
 		AllowedDirectories: cmd.AllowedDirectories,
-		Enabled:            cmd.Enabled, Now: w.Session.Clock.Now(),
+		Enabled:            enabled, Now: w.Session.Clock.Now(),
 	})
 	if err != nil {
 		return domain.IdentityProvider{}, err
@@ -322,7 +372,13 @@ func (w IdentityProviderWriter) ConfigureAt(
 			return w.record(ctx, actor, tenantID, IdentityProviderConfiguredAction, stored)
 		}
 
-		written, found, err := w.Providers.Update(ctx, configured, sealed, w.Session.Clock.Now())
+		if err := w.holdSwitch(ctx, cmd, &configured); err != nil {
+			return err
+		}
+		// The form's write leaves the switch to the statement, at both levels: a switch made in the
+		// list - or a withdrawal cancelled - between the read above and this write is kept rather
+		// than written back.
+		written, found, err := w.Providers.Reconfigure(ctx, configured, sealed, w.Session.Clock.Now())
 		if err != nil {
 			return err
 		}
@@ -339,6 +395,29 @@ func (w IdentityProviderWriter) ConfigureAt(
 		return domain.IdentityProvider{}, err
 	}
 	return stored, nil
+}
+
+// holdSwitch settles a replaced row's switch inside the write's transaction: it reads the row and
+// refuses a form whose `enabled` differs from it; the write that follows is Reconfigure, which does
+// not touch the switch at all. A workspace's door switches in its list, the installation's through
+// the withdrawal (ADR-0076 §2, §5).
+func (w IdentityProviderWriter) holdSwitch(
+	ctx context.Context, cmd ConfigureIdentityProviderCommand, configured *domain.IdentityProvider,
+) error {
+	stored, err := w.Providers.Find(ctx, configured.ID)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return shared.ErrNotFound.WithDetail("identity_provider.not_found")
+		}
+		return err
+	}
+	if cmd.switchInList && stored.Installation() {
+		// Readable here and not this workspace's to change: the answer the write policy would give.
+		return shared.ErrNotFound.WithDetail("identity_provider.not_found")
+	}
+	decided, err := cmd.enabledAt(&stored)
+	configured.Enabled = decided
+	return err
 }
 
 // RemoveIdentityProvider takes one away.
@@ -457,6 +536,12 @@ func ProviderOutput(configured domain.IdentityProvider) usecase.Output {
 		"offered_here":          configured.OfferedHere,
 		"created_at":            configured.CreatedAt,
 		"version":               configured.Version,
+		// When the installation's offer ends, for every workspace that reads it (ADR-0076 §2).
+		// The count beside it is the operator's alone and is not in this projection.
+		"withdraw_at": nil,
+	}
+	if !configured.WithdrawAt.IsZero() {
+		out["withdraw_at"] = configured.WithdrawAt.UTC()
 	}
 	if !configured.UpdatedAt.IsZero() {
 		out["updated_at"] = configured.UpdatedAt
@@ -613,8 +698,7 @@ func (h ConfigureIdentityProvider) Descriptor() usecase.Descriptor {
 				Description: "Domains this provider admits under DOMAINS, for a preset with no directory claim. Empty admits nobody."},
 			{Name: "allowed_directories", Kind: usecase.KindList,
 				Description: "The organisations this provider admits under DOMAINS, in its own identifiers: Microsoft tenant ids, Google Workspace domains. Read instead of the domains where the preset has one."},
-			{Name: "enabled", Kind: usecase.KindBool,
-				Description: "Off keeps the configuration and refuses the flow."},
+			EnabledFieldOfAWorkspace,
 			ProviderStepUpField,
 		},
 		StepUp: providerStepUp,
@@ -654,9 +738,10 @@ func ConfigureCommandOf(in usecase.Input) (ConfigureIdentityProviderCommand, err
 	if err != nil {
 		return ConfigureIdentityProviderCommand{}, err
 	}
-	enabled := true
+	var enabled *bool
 	if in.Present("enabled") {
-		enabled = in.Bool("enabled")
+		given := in.Bool("enabled")
+		enabled = &given
 	}
 	cmd := ConfigureIdentityProviderCommand{
 		Issuer:              in.String("issuer"),
@@ -677,6 +762,16 @@ func ConfigureCommandOf(in usecase.Input) (ConfigureIdentityProviderCommand, err
 	}
 	cmd.ID = id
 	return cmd, nil
+}
+
+// EnabledFieldOfAWorkspace is the deprecated switch as a workspace's own doors declare it - the
+// collection and the singular route, one text for both (ADR-0076 §5).
+var EnabledFieldOfAWorkspace = usecase.Field{
+	Name: "enabled", Kind: usecase.KindBool,
+	Description: "Deprecated: a provider is switched on or off in the list of ways to sign in " +
+		"(OfferIdentityProvider), not here. A value that differs from the provider's is refused " +
+		"with identity_provider.switch_in_list; the same value, or none, changes nothing. A new " +
+		"provider is created off.",
 }
 
 func (h RemoveIdentityProvider) Descriptor() usecase.Descriptor {

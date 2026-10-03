@@ -12,7 +12,8 @@
 -- read policy admits together (migration 0103). The workspace's come first - its own choices sit
 -- above the default it inherited - and the sealed secret is in none of it.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
+  withdraw_at, offered_workspaces
 FROM identity_provider
 ORDER BY (tenant_id IS NULL), position, created_at, id;
 
@@ -20,7 +21,8 @@ ORDER BY (tenant_id IS NULL), position, created_at, id;
 -- What a reader is allowed to see: never the sealed secret. The one caller that needs it asks for
 -- it by name below, so a read cannot spill it by accident.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
+  withdraw_at, offered_workspaces
 FROM identity_provider
 WHERE id = sqlc.arg('id');
 
@@ -28,7 +30,8 @@ WHERE id = sqlc.arg('id');
 -- The token exchange's own read, separate from the one above so that opening the envelope is a
 -- deliberate call and not a field that happens to be in a struct somebody logged.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  client_secret_enc, client_secret_key_id, allowed_email_domains, allowed_directories, enabled
+  client_secret_enc, client_secret_key_id, allowed_email_domains, allowed_directories, enabled,
+  withdraw_at
 FROM identity_provider
 WHERE id = sqlc.arg('id');
 
@@ -54,7 +57,8 @@ VALUES (
   sqlc.arg('enabled'), sqlc.arg('now')
 )
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version;
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
+  withdraw_at, offered_workspaces;
 
 -- name: UpdateIdentityProvider :one
 -- Set whole, not patched: a provider half-changed is a provider nobody can reason about. The
@@ -63,6 +67,10 @@ RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, po
 -- statement rather than a read-then-write two sign-ins could interleave.
 --
 -- The version rises on every write, so a concurrent second configuration is visible as a conflict.
+--
+-- A NULL `enabled` leaves the switch as the row holds it (ADR-0076 §5): a workspace's own form
+-- configures and never switches, and saying so in the statement is what keeps a save from writing
+-- back a switch the list of ways to sign in changed a moment earlier.
 UPDATE identity_provider SET
   issuer                = sqlc.arg('issuer'),
   client_id             = sqlc.arg('client_id'),
@@ -74,32 +82,66 @@ UPDATE identity_provider SET
   position              = sqlc.arg('position'),
   allowed_email_domains = sqlc.arg('allowed_email_domains'),
   allowed_directories   = sqlc.arg('allowed_directories'),
-  enabled               = sqlc.arg('enabled'),
+  enabled               = coalesce(sqlc.narg('enabled'), enabled),
   updated_at            = sqlc.arg('now'),
   version               = version + 1
 WHERE id = sqlc.arg('id')
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version;
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
+  withdraw_at, offered_workspaces;
+
+-- name: MoveProviderOffer :exec
+-- A workspace's switch moves the installation row's count by one step (ADR-0076 §1), inside the
+-- workspace's own transaction - through the function, because the row is not the workspace's to write.
+SELECT move_provider_offer(sqlc.arg('provider_id'), sqlc.arg('step'));
+
+-- name: SetProviderWithdrawal :one
+-- When the installation's offer ends; NULL keeps offering it, and keeping it switches the row back on
+-- for an offer a previous binary ended through the form. The installation's scope only: the write
+-- policy matches no row in a workspace's.
+UPDATE identity_provider SET
+  withdraw_at = sqlc.narg('withdraw_at'),
+  enabled     = enabled OR sqlc.narg('withdraw_at')::timestamptz IS NULL,
+  updated_at  = sqlc.arg('now'),
+  version     = version + 1
+WHERE id = sqlc.arg('id') AND tenant_id IS NULL
+RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
+  withdraw_at, offered_workspaces;
 
 -- name: DeleteIdentityProvider :execrows
 DELETE FROM identity_provider WHERE id = sqlc.arg('id');
 
 -- name: InsertOidcFlow :exec
+-- A NULL session is a sign-in flow; a session is the step-up at the provider it belongs to
+-- (ADR-0075 §2).
 INSERT INTO oidc_flow
-  (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at)
+  (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.narg('provider_id'), sqlc.arg('state_hash'),
-  sqlc.arg('code_verifier'), sqlc.arg('nonce'), sqlc.arg('created_at'), sqlc.arg('expires_at')
+  sqlc.arg('code_verifier'), sqlc.arg('nonce'), sqlc.arg('created_at'), sqlc.arg('expires_at'),
+  sqlc.narg('session_id')
 );
 
 -- name: ConsumeOidcFlow :one
 -- Judged and burned in one statement, ConsumeOauthCode's discipline: unexpired and unconsumed,
--- or nothing at all - so a state presented twice matches no row whoever races whom.
+-- or nothing at all - so a state presented twice matches no row whoever races whom. A sign-in's:
+-- a flow bound to a session is a step-up and finishes no sign-in.
 UPDATE oidc_flow SET consumed_at = sqlc.arg('now')
 WHERE state_hash = sqlc.arg('state_hash')
+  AND session_id IS NULL
   AND consumed_at IS NULL
   AND expires_at > sqlc.arg('now')
 RETURNING id, provider_id, code_verifier, nonce;
+
+-- name: ConsumeStepUpOidcFlow :one
+-- The step-up's: only a flow bound to this very session, judged and burned in the same statement.
+UPDATE oidc_flow SET consumed_at = sqlc.arg('now')
+WHERE state_hash = sqlc.arg('state_hash')
+  AND session_id = sqlc.arg('session_id')
+  AND consumed_at IS NULL
+  AND expires_at > sqlc.arg('now')
+RETURNING id, provider_id, code_verifier, nonce, session_id;
 
 -- name: DeleteExpiredOidcFlows :execrows
 -- Hygiene in the session sweep's pass, the expired authorization codes' reasoning: a flow lives
@@ -122,6 +164,11 @@ JOIN account a ON a.tenant_id = link.tenant_id AND a.id = link.account_id
 WHERE link.provider_id = sqlc.arg('provider_id')
   AND link.subject = sqlc.arg('subject')
   AND a.deleted_at IS NULL;
+
+-- name: AccountIdentityProviders :many
+-- The providers an account is connected to (ADR-0075 §2): a step-up at the provider is offered only
+-- at one of these, and only where it is switched on for the workspace - which the caller decides.
+SELECT provider_id FROM account_identity WHERE account_id = sqlc.arg('account_id');
 
 -- name: AccountHasIdentity :one
 -- Whether the account already signs in through some provider (ADR-0071's addendum): such an

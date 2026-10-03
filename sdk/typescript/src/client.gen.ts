@@ -708,14 +708,29 @@ export class HubtaskClient {
     return this.call("POST", "/auth/step-up", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Begin a step-up at the provider this account is connected to */
+  startProviderStepUp(options: CallOptions = {}): Promise<operations["startProviderStepUp"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/step-up:provider", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Begin replacing the authenticator */
+  startAuthenticatorReplacement(options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["startAuthenticatorReplacement"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/mfa/totp:replace", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Confirm the new authenticator, and swap */
+  confirmAuthenticatorReplacement(body: NonNullable<operations["confirmAuthenticatorReplacement"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["confirmAuthenticatorReplacement"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/mfa/totp/replacement:confirm", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Replace the ten recovery codes */
   regenerateRecoveryCodes(options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["regenerateRecoveryCodes"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/auth/mfa/recovery:regenerate", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Disable the second factor */
-  disableTotp(body: NonNullable<operations["disableTotp"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
-    return this.call("POST", "/auth/mfa:disable", {  }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  disableTotp(body: NonNullable<operations["disableTotp"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
+    return this.call("POST", "/auth/mfa:disable", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "void", options.signal);
   }
 
   /** The caller's own personal access tokens */
@@ -838,6 +853,16 @@ export class HubtaskClient {
   /** Withdraw a provider from every workspace at once */
   removeInstanceIdentityProvider(providerId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
     return this.call("DELETE", "/admin/identity-providers/{providerId}", { "providerId": providerId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Announce the withdrawal of an offered provider, or withdraw it now */
+  withdrawInstanceIdentityProvider(providerId: string, body: NonNullable<operations["withdrawInstanceIdentityProvider"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["withdrawInstanceIdentityProvider"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/identity-providers/{providerId}:withdraw", { "providerId": providerId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Keep offering a provider whose withdrawal was announced */
+  cancelInstanceIdentityProviderWithdrawal(providerId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["cancelInstanceIdentityProviderWithdrawal"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/identity-providers/{providerId}:cancel-withdrawal", { "providerId": providerId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** The keyring, and what still names each key */

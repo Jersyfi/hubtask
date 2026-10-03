@@ -567,13 +567,25 @@ class Client:
         """Prove yourself again, for the irreversible"""
         return self._call("POST", "/auth/step-up", {}, None, {}, body, "json", "application/json", "json")
 
+    def start_provider_step_up(self) -> "ProviderStepUpAuthorization":
+        """Begin a step-up at the provider this account is connected to"""
+        return self._call("POST", "/auth/step-up:provider", {}, None, {}, None, "none", None, "json")
+
+    def start_authenticator_replacement(self, *, step_up: str | None = None) -> "AuthenticatorReplacement":
+        """Begin replacing the authenticator"""
+        return self._call("POST", "/auth/mfa/totp:replace", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
+    def confirm_authenticator_replacement(self, body: "AuthenticatorReplacementConfirmation") -> "RecoveryCodes":
+        """Confirm the new authenticator, and swap"""
+        return self._call("POST", "/auth/mfa/totp/replacement:confirm", {}, None, {}, body, "json", "application/json", "json")
+
     def regenerate_recovery_codes(self, *, step_up: str | None = None) -> "RecoveryCodes":
         """Replace the ten recovery codes"""
         return self._call("POST", "/auth/mfa/recovery:regenerate", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
 
-    def disable_totp(self, body: "MfaDisable") -> None:
+    def disable_totp(self, body: "MfaDisable", *, step_up: str | None = None) -> None:
         """Disable the second factor"""
-        return self._call("POST", "/auth/mfa:disable", {}, None, {}, body, "json", "application/json", "void")
+        return self._call("POST", "/auth/mfa:disable", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "void")
 
     def list_access_tokens(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
         """The caller's own personal access tokens"""
@@ -670,6 +682,14 @@ class Client:
     def remove_instance_identity_provider(self, provider_id: str, *, step_up: str | None = None) -> None:
         """Withdraw a provider from every workspace at once"""
         return self._call("DELETE", "/admin/identity-providers/{providerId}", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
+
+    def withdraw_instance_identity_provider(self, provider_id: str, body: "ProviderWithdrawal", *, step_up: str | None = None) -> "IdentityProvider":
+        """Announce the withdrawal of an offered provider, or withdraw it now"""
+        return self._call("POST", "/admin/identity-providers/{providerId}:withdraw", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def cancel_instance_identity_provider_withdrawal(self, provider_id: str, *, step_up: str | None = None) -> "IdentityProvider":
+        """Keep offering a provider whose withdrawal was announced"""
+        return self._call("POST", "/admin/identity-providers/{providerId}:cancel-withdrawal", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
 
     def read_encryption_status(self) -> "EncryptionStatus":
         """The keyring, and what still names each key"""

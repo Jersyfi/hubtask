@@ -417,7 +417,32 @@ func run() error {
 		Devices: postgres.NewDeviceRepository(), Sessions: sessions, Cursors: streamCursors,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 	}
+	// The relying party (H-04). One object for the installation: the configuration travels per
+	// call, so two workspaces pointed at the same provider share its discovery and neither can
+	// see the other's. Through the guarded client as a standard one, because go-oidc takes one -
+	// an issuer is a URL a tenant administrator typed, so it is an egress channel like any other.
+	// Built before the session writer, which takes it for the step-up at the provider.
+	relyingParty := oidcadapter.New(
+		outboundClient.HTTPClient(oidcadapter.TargetClass), clockadapter.System{})
+
+	// Where the provider sends the browser back: this installation's own address, computed
+	// here so that nothing inwards of the composition root has to know a frontend exists
+	// (ADR-0028). The path is the web UI's callback route, which reads the code and the state
+	// out of the query and hands them to the API.
+	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
+
 	sessionWriter := identity.SessionWriter{
+		// The step-up at the provider (ADR-0075 §2). In the literal rather than assigned later:
+		// every verifier below is a copy of this writer, and a copy taken before an assignment
+		// would neither name PROVIDER nor prove it (Wiring_test.go).
+		StepUpProviders: identity.ProviderStepUps{
+			Providers:   postgres.NewIdentityProviderRepository(),
+			Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
+			External:    postgres.NewExternalAccountRepository(),
+			Workspaces:  postgres.NewWorkspaceSettingsRepository(),
+			Relying:     relyingParty,
+			RedirectURL: oidcRedirectURL,
+		},
 		Domains:  domains,
 		Accounts: signInStore,
 		Sessions: sessions,
@@ -938,18 +963,6 @@ func run() error {
 		Text: forms,
 	}
 
-	// The relying party (H-04). One object for the installation: the configuration travels per
-	// call, so two workspaces pointed at the same provider share its discovery and neither can
-	// see the other's. Through the guarded client as a standard one, because go-oidc takes one -
-	// an issuer is a URL a tenant administrator typed, so it is an egress channel like any other.
-	relyingParty := oidcadapter.New(
-		outboundClient.HTTPClient(oidcadapter.TargetClass), clockadapter.System{})
-
-	// Where the provider sends the browser back: this installation's own address, computed
-	// here so that nothing inwards of the composition root has to know a frontend exists
-	// (ADR-0028). The path is the web UI's callback route, which reads the code and the state
-	// out of the query and hands them to the API.
-	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
 	// The installation's own host, which the canonical host of every new workspace is derived from
 	// (SI-12). Parsed rather than trimmed: the parser knows what a scheme and a port are, and gate
 	// PG-6 reads a trimmed prefix in this tree as an address written into the source.
@@ -959,10 +972,13 @@ func run() error {
 	}
 
 	oidcWriter := identity.OidcWriter{
-		Domains:     domains,
-		Text:        forms,
-		Session:     sessionWriter,
-		Providers:   postgres.NewIdentityProviderRepository(),
+		Domains:   domains,
+		Text:      forms,
+		Session:   sessionWriter,
+		Providers: postgres.NewIdentityProviderRepository(),
+		// Which of the installation's providers this workspace took: a flow through one it did not
+		// take, or one whose withdrawal has come, is refused at the start and at the return.
+		Workspaces:  postgres.NewWorkspaceSettingsRepository(),
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 		External:    postgres.NewExternalAccountRepository(),
 		Accounts:    accounts,
@@ -1143,8 +1159,16 @@ func run() error {
 		Session:  sessionWriter,
 		Resolver: signInPolicyResolver,
 		Accounts: passwordStore, Histories: passwordStore,
-		Pending:    mfaStore,
-		StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
+		Pending: mfaStore,
+		StepUp:  identity.StepUpVerifier{Writer: sessionWriter},
+		// ADR-0076 §4: a workspace whose last way in was an offer that ended signs in by password
+		// again, and the sign-in records it. Set here, in the literal, so that every copy
+		// teachTheRule hands out below carries it.
+		WaysIn: identity.WaysIn{
+			Providers:  postgres.NewIdentityProviderRepository(),
+			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		},
 		Text:       forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -1248,6 +1272,8 @@ func run() error {
 			// Which of the installation's providers this workspace took: an offered one is not a
 			// button until somebody here switched it on (SI-10).
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			// The moment an offer is read at: a withdrawn provider is not a button (ADR-0076 §2).
+			Clock:      clockadapter.System{},
 			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.SignIn{Writer: sessionWriter}.Descriptor(),
@@ -1262,7 +1288,10 @@ func run() error {
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),
 		identity.ConfirmTotp{Writer: sessionWriter}.Descriptor(),
 		identity.DisableTotp{Writer: sessionWriter}.Descriptor(),
+		identity.StartAuthenticatorReplacement{Writer: sessionWriter}.Descriptor(),
+		identity.ConfirmAuthenticatorReplacement{Writer: sessionWriter}.Descriptor(),
 		identity.StepUp{Writer: sessionWriter}.Descriptor(),
+		identity.StartProviderStepUp{Writer: sessionWriter}.Descriptor(),
 		identity.RegisterOauthClient{Writer: oauthWriter}.Descriptor(),
 		identity.ListOauthClients{Writer: oauthWriter}.Descriptor(),
 		identity.ReadOauthClient{Writer: oauthWriter}.Descriptor(),
@@ -1285,6 +1314,8 @@ func run() error {
 		adminservice.ListInstanceIdentityProviders{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.ConfigureInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.RemoveInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.WithdrawInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.CancelInstanceIdentityProviderWithdrawal{Writer: instanceProviderWriter}.Descriptor(),
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),

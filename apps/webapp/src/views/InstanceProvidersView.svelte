@@ -18,6 +18,12 @@
   // **The secret is written and never read.** Sealed on the way in (E-02), absent from every
   // answer. Leaving it empty on a change keeps the one that is sealed, which is why the field says
   // so rather than looking like a field somebody forgot to fill.
+  //
+  // **An offer ends announced** (ADR-0076). *Withdraw* shows how many workspaces use the provider -
+  // a number, never which - and names a day, two weeks ahead unless the operator chooses another;
+  // until then it keeps working and the workspaces say when it ends. *Withdraw now* is for a
+  // compromised provider and asks for the number to be typed back. *Keep offering it* undoes either,
+  // after the date too. *Remove* is still here, for a row that should not exist at all.
 
   import { untrack } from 'svelte';
 
@@ -26,7 +32,15 @@
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
+  import {
+    defaultWithdrawalDate,
+    earliestWithdrawalDate,
+    withdrawalMoment,
+    withdrawalPhase,
+  } from '../lib/instance/withdrawal.ts';
+  import { actor } from '../lib/data/account.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -39,7 +53,9 @@
   const { onnavigate }: Props = $props();
 
   /** Which dialog is open, and over which row. `undefined` is none. */
-  let acting = $state<{ kind: 'add' | 'change' | 'remove'; provider?: IdentityProvider } | undefined>(undefined);
+  let acting = $state<
+    { kind: 'add' | 'change' | 'remove' | 'withdraw'; provider?: IdentityProvider } | undefined
+  >(undefined);
   let working = $state<string | undefined>(undefined);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
@@ -53,6 +69,11 @@
   let directories = $state('');
   let position = $state('0');
   let isEnabled = $state(true);
+  /** The withdrawal's day, and the count typed back for *Withdraw now*. */
+  let withdrawOn = $state('');
+  // Typed as the field's string, and read through `typed()`: a number field inside the component
+  // hands back a number at run time once something is typed, which `.trim()` would throw on.
+  let confirmCount = $state('');
 
   $effect(() => {
     const stop = untrack(() => instance.openProviders());
@@ -121,9 +142,26 @@
     if (!modes.includes(provisioning as (typeof modes)[number])) provisioning = strictest;
   });
 
-  function open(next: 'add' | 'change' | 'remove', provider?: IdentityProvider): void {
+  const HOUR = 60 * 60 * 1000;
+
+  /** The count as typed: nothing where nothing was, which the server refuses as not confirmed. */
+  function typed(value: string | number): number | null {
+    const text = String(value).trim();
+    return text === '' || Number.isNaN(Number(text)) ? null : Number(text);
+  }
+
+  /** How many workspaces use it, as the operator's projection answers it. */
+  const usedBy = (provider: IdentityProvider | undefined): number => provider?.offered_workspaces ?? 0;
+
+  const when = (at: string | null | undefined): string => (at ? formatDateTime(at, messages.locale) : '');
+
+  function open(next: 'add' | 'change' | 'remove' | 'withdraw', provider?: IdentityProvider): void {
     acting = { kind: next, provider };
     failure = undefined;
+    if (next === 'withdraw') {
+      withdrawOn = defaultWithdrawalDate(actor.zone);
+      confirmCount = '';
+    }
     if (next === 'add') {
       kind = 'GENERIC';
       issuer = '';
@@ -237,15 +275,37 @@
                   {/if}
                 </td>
                 <td>
-                  <Badge tone={provider.enabled ? 'success' : 'neutral'}>
-                    {provider.enabled ? t('app.instance.provider_offered') : t('app.instance.provider_withdrawn')}
-                  </Badge>
+                  {#if withdrawalPhase(provider) === 'offered'}
+                    <Badge tone="success">{t('app.instance.provider_offered')}</Badge>
+                  {:else if withdrawalPhase(provider) === 'withdrawing'}
+                    <Badge tone="warning">{t('app.instance.provider_withdrawing', { date: when(provider.withdraw_at) })}</Badge>
+                  {:else}
+                    <Badge tone="neutral">{t('app.instance.provider_withdrawn')}</Badge>
+                  {/if}
+                  <span class="slug">{t('app.instance.provider_in_use', { count: String(usedBy(provider)) })}</span>
                 </td>
                 <td>
                   <div class="row">
                     <Button tone="subtle" onclick={() => open('change', provider)}>
                       {t('app.instance.provider_change')}
                     </Button>
+                    {#if withdrawalPhase(provider) === 'offered'}
+                      <Button tone="subtle" onclick={() => open('withdraw', provider)}>
+                        {t('app.instance.provider_withdraw')}
+                      </Button>
+                    {:else}
+                      <Button
+                        tone="subtle"
+                        isBusy={working === `keep:${provider.id}`}
+                        busyLabel={t('app.instance.working')}
+                        onclick={() =>
+                          void run(`keep:${provider.id}`, async () => {
+                            await instance.cancelWithdrawal(provider.id);
+                          })}
+                      >
+                        {t('app.instance.provider_keep_offering')}
+                      </Button>
+                    {/if}
                     <Button tone="danger" onclick={() => open('remove', provider)}>
                       {t('app.instance.provider_remove')}
                     </Button>
@@ -356,6 +416,84 @@
 </Dialog>
 
 <Dialog
+  title={t('app.instance.provider_withdraw_title')}
+  isOpen={acting?.kind === 'withdraw'}
+  dismissLabel={t('app.instance.cancel')}
+  onClose={() => (acting = undefined)}
+>
+  {#snippet actions()}
+    <Button tone="subtle" onclick={() => (acting = undefined)}>{t('app.instance.keep')}</Button>
+    <Button
+      tone="primary"
+      isBusy={working === 'withdraw'}
+      busyLabel={t('app.instance.working')}
+      onclick={() =>
+        void run('withdraw', async () => {
+          const at = withdrawalMoment(withdrawOn, actor.zone);
+          await instance.withdrawProvider(acting?.provider?.id ?? '', at ? { withdraw_at: at } : {});
+        })}
+    >
+      {t('app.instance.provider_withdraw_announce')}
+    </Button>
+  {/snippet}
+  <Stack gap="200">
+    <!-- A refusal inside the dialog, where it is read: the page behind a modal is not. One that
+         names the count lands at the count's field instead. -->
+    {#if failure && !failure.fields.has('/confirm_count')}
+      <Banner tone="danger" title={failure.message}>
+        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
+      </Banner>
+    {/if}
+    <!-- The number first: it is what the withdrawal costs, and the reason to choose the day well. -->
+    <Banner tone="info" title={t('app.instance.provider_in_use', { count: String(usedBy(acting?.provider)) })}>
+      {t('app.instance.provider_withdraw_intro')}
+    </Banner>
+    <Input
+      label={t('app.instance.provider_withdraw_date_label')}
+      hint={t('app.instance.provider_withdraw_date_hint')}
+      bind:value={withdrawOn}
+      type="date"
+      min={earliestWithdrawalDate(actor.zone)}
+      isRequired
+    />
+
+    <Stack gap="100">
+      <h3 class="section">{t('app.instance.provider_withdraw_now_title')}</h3>
+      <p class="prose">{t('app.instance.provider_withdraw_now_intro')}</p>
+      <Input
+        label={t('app.instance.provider_withdraw_now_count_label')}
+        error={failure?.fields.get('/confirm_count')}
+        bind:value={confirmCount}
+        type="number"
+        inputmode="numeric"
+        autocomplete="off"
+      />
+      <div>
+        <!-- Not disabled while the number is wrong: the server compares it inside its own
+             transaction, and its refusal says the number as it stands now. -->
+        <Button
+          tone="danger"
+          isBusy={working === 'withdraw-now'}
+          busyLabel={t('app.instance.working')}
+          onclick={() =>
+            void run('withdraw-now', async () => {
+              await instance.withdrawProvider(acting?.provider?.id ?? '', {
+                // An hour back rather than this browser's now: a clock running ahead of the
+                // server's would otherwise turn "now" into an announcement for a minute away, which
+                // asks for no count. The server records the moment it actually ended.
+                withdraw_at: new Date(Date.now() - HOUR).toISOString(),
+                confirm_count: typed(confirmCount),
+              });
+            })}
+        >
+          {t('app.instance.provider_withdraw_now')}
+        </Button>
+      </div>
+    </Stack>
+  </Stack>
+</Dialog>
+
+<Dialog
   title={t('app.instance.provider_remove_title')}
   isOpen={acting?.kind === 'remove'}
   dismissLabel={t('app.instance.cancel')}
@@ -383,4 +521,5 @@
   .name { display: block; font-weight: var(--fw-medium); }
   .slug { display: block; color: var(--text-secondary); font-size: var(--fs-100); }
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
+  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 </style>

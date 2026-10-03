@@ -66,11 +66,13 @@ func signInRulesResponse(out usecase.Output) openapi.SignInRules {
 	}
 
 	legal, _ := out["legal"].(usecase.Output)
+	fallback := boolValue(out["password_fallback"])
 	return openapi.SignInRules{
-		WorkspaceHost: out.String("workspace_host"),
-		Methods:       methods,
-		Providers:     providers,
-		Password:      passwordRulesResponse(out["password"]),
+		PasswordFallback: &fallback,
+		WorkspaceHost:    out.String("workspace_host"),
+		Methods:          methods,
+		Providers:        providers,
+		Password:         passwordRulesResponse(out["password"]),
 		Legal: openapi.LegalLinks{
 			ImprintUrl:       optionalTextField(legal["imprint_url"]),
 			PrivacyUrl:       optionalTextField(legal["privacy_url"]),

@@ -407,6 +407,8 @@ class IdentityProvider(TypedDict, total=False):
     position: Required[int]
     enabled: Required[bool]
     offered_here: bool
+    withdraw_at: str | None
+    offered_workspaces: int | None
     allowed_email_domains: Required[list[str]]
     allowed_directories: Required[list[str]]
     created_at: Required[str]
@@ -432,6 +434,11 @@ class IdentityProviderConfiguration(TypedDict, total=False):
     enabled: bool
     allowed_email_domains: list[str]
     allowed_directories: list[str]
+
+class ProviderWithdrawal(TypedDict, total=False):
+    """When an offered provider is withdrawn, and for *Withdraw now* the count confirmed."""
+    withdraw_at: str | None
+    confirm_count: int | None
 
 class IdentityProviderPreset(TypedDict, total=False):
     """What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it."""
@@ -576,6 +583,7 @@ class SignInRules(TypedDict, total=False):
     providers: Required[list["ProviderSummary"]]
     password: Required["PasswordRules"]
     legal: Required["LegalLinks"]
+    password_fallback: bool
 
 class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""
@@ -604,6 +612,15 @@ class TotpEnrollment(TypedDict, total=False):
     secret: Required[str]
     otpauth_uri: Required[str]
     recovery_codes: Required[list[str]]
+
+class AuthenticatorReplacement(TypedDict, total=False):
+    """The new secret's single showing (SC-17). Nothing is armed yet: the factor in force and its recovery codes keep working until the replacement is confirmed."""
+    secret: Required[str]
+    otpauth_uri: Required[str]
+    expires_at: Required[str]
+
+class AuthenticatorReplacementConfirmation(TypedDict, total=False):
+    code: Required[str]
 
 class TotpConfirmation(TypedDict, total=False):
     pending_token: str | None
@@ -741,17 +758,27 @@ class OauthGrant(TypedDict, total=False):
     last_used_at: str | None
 
 class StepUpRequest(TypedDict, total=False):
-    """One of the two, never both: the password, or - where a factor is armed - the authenticator's current code. Either proves the person holding the session is still the person who opened it."""
+    """Exactly one method (ADR-0075): the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it."""
     password: str | None
     code: str | None
+    recovery_code: str | None
+    state: str | None
+    authorization_code: str | None
+
+class ProviderStepUpAuthorization(TypedDict, total=False):
+    """Where to send the browser for a `PROVIDER` step-up, and which provider that is."""
+    authorization_url: Required[str]
+    expires_at: Required[str]
+    provider_id: Required[str]
+    provider_name: Required[str]
 
 class StepUpGrant(TypedDict, total=False):
     step_up_token: Required[str]
     expires_at: Required[str]
-    method: Required[Literal["PASSWORD", "TOTP"]]
+    method: Required[Literal["PASSWORD", "TOTP", "RECOVERY", "PROVIDER"]]
 
 class MfaDisable(TypedDict, total=False):
-    password: Required[str]
+    password: str
 
 class Group(TypedDict, total=False):
     id: Required[str]

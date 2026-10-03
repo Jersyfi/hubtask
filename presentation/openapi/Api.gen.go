@@ -3039,6 +3039,8 @@ func (e SortTermNulls) Valid() bool {
 // Defines values for StepUpGrantMethod.
 const (
 	StepUpGrantMethodPASSWORD StepUpGrantMethod = "PASSWORD"
+	StepUpGrantMethodPROVIDER StepUpGrantMethod = "PROVIDER"
+	StepUpGrantMethodRECOVERY StepUpGrantMethod = "RECOVERY"
 	StepUpGrantMethodTOTP     StepUpGrantMethod = "TOTP"
 )
 
@@ -3046,6 +3048,10 @@ const (
 func (e StepUpGrantMethod) Valid() bool {
 	switch e {
 	case StepUpGrantMethodPASSWORD:
+		return true
+	case StepUpGrantMethodPROVIDER:
+		return true
+	case StepUpGrantMethodRECOVERY:
 		return true
 	case StepUpGrantMethodTOTP:
 		return true
@@ -4044,6 +4050,24 @@ type AuditTarget struct {
 	Id    *openapi_types.UUID `json:"id,omitempty"`
 	Label *string             `json:"label,omitempty"`
 	Type  *string             `json:"type,omitempty"`
+}
+
+// AuthenticatorReplacement The new secret's single showing (SC-17). Nothing is armed yet: the factor in force and its recovery codes keep working until the replacement is confirmed.
+type AuthenticatorReplacement struct {
+	// ExpiresAt Until when the replacement can be confirmed; after that it lapses unarmed.
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// OtpauthUri What a QR image is rendered from - the rendering is the client's job.
+	OtpauthUri string `json:"otpauth_uri"`
+
+	// Secret Base32, for typing by hand where no camera reaches the QR.
+	Secret string `json:"secret"`
+}
+
+// AuthenticatorReplacementConfirmation defines model for AuthenticatorReplacementConfirmation.
+type AuthenticatorReplacementConfirmation struct {
+	// Code The current code of the new authenticator.
+	Code string `json:"code"`
 }
 
 // AutoAssignCandidate defines model for AutoAssignCandidate.
@@ -5257,8 +5281,11 @@ type IdentityProvider struct {
 	// Kind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
 
-	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's (ADR-0070 §2).
+	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's (ADR-0070 §2). False from the moment an announced withdrawal takes effect.
 	OfferedHere *bool `json:"offered_here,omitempty"`
+
+	// OfferedWorkspaces For a row the installation offers, answered to the operator only: how many workspaces have it switched on (ADR-0076 §1). A number, never names - kept by each workspace's own switch in the same transaction. Absent from a workspace's listing.
+	OfferedWorkspaces *int `json:"offered_workspaces,omitempty"`
 
 	// Position The order the buttons are drawn in.
 	Position int `json:"position"`
@@ -5274,6 +5301,9 @@ type IdentityProvider struct {
 
 	// Version The optimistic lock, as everywhere else.
 	Version int `json:"version"`
+
+	// WithdrawAt For a row the installation offers: when the installation withdraws it (ADR-0076 §2). Null while it is offered without an end. Until that moment the provider keeps working; from it, it is a way in nowhere - and the connected identities stay, so cancelling the withdrawal restores sign-in. A workspace that switched it on reads this to say when it ends.
+	WithdrawAt *time.Time `json:"withdraw_at,omitempty"`
 }
 
 // IdentityProviderScope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
@@ -5294,8 +5324,11 @@ type IdentityProviderConfiguration struct {
 
 	// DisplayName The name on the button. Absent is the issuer's host.
 	DisplayName *string `json:"display_name,omitempty"`
-	Enabled     *bool   `json:"enabled,omitempty"`
-	Issuer      string  `json:"issuer"`
+
+	// Enabled **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it says at creation whether the installation offers the provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed value is refused with `identity_provider.withdraw_instead` (ADR-0076 §2). Removed with the next major version of the contract.
+	// Deprecated: Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.
+	Enabled *bool  `json:"enabled,omitempty"`
+	Issuer  string `json:"issuer"`
 
 	// Kind Absent is read from the issuer.
 	Kind     *IdentityProviderKind `json:"kind,omitempty"`
@@ -5983,8 +6016,9 @@ type MfaChallengeMethods string
 
 // MfaDisable defines model for MfaDisable.
 type MfaDisable struct {
-	// Password Checked afresh - a live session is deliberately not enough here.
-	Password string `json:"password"`
+	// Password **Deprecated** (ADR-0075 §3): the proof this route took before the step-up did. Still checked when sent without a step-up token, for one release; then removed.
+	// Deprecated: The step-up proves it, in the X-Hubtask-Step-Up header (ADR-0075 §3).
+	Password *string `json:"password,omitempty"`
 }
 
 // MoveResult defines model for MoveResult.
@@ -6356,6 +6390,19 @@ type ProviderOffer struct {
 	Offered bool `json:"offered"`
 }
 
+// ProviderStepUpAuthorization Where to send the browser for a `PROVIDER` step-up, and which provider that is.
+type ProviderStepUpAuthorization struct {
+	// AuthorizationUrl The provider's authorization endpoint with `prompt=login`, `max_age=0` and this flow's parameters. The verifier and the nonce stay on the server.
+	AuthorizationUrl string `json:"authorization_url"`
+
+	// ExpiresAt When the flow stops being answerable.
+	ExpiresAt  time.Time          `json:"expires_at"`
+	ProviderId openapi_types.UUID `json:"provider_id"`
+
+	// ProviderName The provider's name, as the sign-in button shows it.
+	ProviderName string `json:"provider_name"`
+}
+
 // ProviderSummary One way into this workspace, as a sign-in card needs it.
 type ProviderSummary struct {
 	DisplayName string `json:"display_name"`
@@ -6372,6 +6419,15 @@ type ProviderSummary struct {
 
 // ProviderSummaryScope Whether every workspace is offered it, or this one configured it.
 type ProviderSummaryScope string
+
+// ProviderWithdrawal When an offered provider is withdrawn, and for *Withdraw now* the count confirmed.
+type ProviderWithdrawal struct {
+	// ConfirmCount Required for *Withdraw now*: the number of workspaces that have the provider switched on, as the operator read it before confirming.
+	ConfirmCount *int `json:"confirm_count,omitempty"`
+
+	// WithdrawAt When the offer ends. Absent is fourteen days from now; now or past is *Withdraw now*, and less than a day ahead asks for the count as *Withdraw now* does.
+	WithdrawAt *time.Time `json:"withdraw_at,omitempty"`
+}
 
 // ProvisionedTenant defines model for ProvisionedTenant.
 type ProvisionedTenant struct {
@@ -7333,8 +7389,11 @@ type SignInRules struct {
 
 	// Password What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 	// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
-	Password  PasswordRules     `json:"password"`
-	Providers []ProviderSummary `json:"providers"`
+	Password PasswordRules `json:"password"`
+
+	// PasswordFallback True while `PASSWORD` is among the methods only because the workspace's last way in was a provider the installation offered and has withdrawn (ADR-0076 §4): the password opens again for the accounts that hold one, under the workspace's own rules, until an administrator switches on another way. The administrators' screen says so.
+	PasswordFallback *bool             `json:"password_fallback,omitempty"`
+	Providers        []ProviderSummary `json:"providers"`
 
 	// WorkspaceHost The host this answer was resolved for, which is what the card shows.
 	WorkspaceHost string `json:"workspace_host"`
@@ -7367,10 +7426,18 @@ type StepUpGrant struct {
 // StepUpGrantMethod What proved it - recorded in the audit trail, never the credential.
 type StepUpGrantMethod string
 
-// StepUpRequest One of the two, never both: the password, or - where a factor is armed - the authenticator's current code. Either proves the person holding the session is still the person who opened it.
+// StepUpRequest Exactly one method (ADR-0075): the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.
 type StepUpRequest struct {
-	Code     *string `json:"code,omitempty"`
-	Password *string `json:"password,omitempty"`
+	// AuthorizationCode The code the provider issued. Presented together with `state`.
+	AuthorizationCode *string `json:"authorization_code,omitempty"`
+	Code              *string `json:"code,omitempty"`
+	Password          *string `json:"password,omitempty"`
+
+	// RecoveryCode One of the account's recovery codes. Consumed, as at sign-in.
+	RecoveryCode *string `json:"recovery_code,omitempty"`
+
+	// State The handle `POST /auth/step-up:provider` minted, as the provider echoed it.
+	State *string `json:"state,omitempty"`
 }
 
 // Suggestion One thing AI proposed about one entry, with its provenance. It has changed nothing: what a suggestion is, is a record.
@@ -8340,19 +8407,31 @@ type InviteAccountParams struct {
 
 // CreateInstanceIdentityProviderParams defines parameters for CreateInstanceIdentityProvider.
 type CreateInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RemoveInstanceIdentityProviderParams defines parameters for RemoveInstanceIdentityProvider.
 type RemoveInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ConfigureInstanceIdentityProviderParams defines parameters for ConfigureInstanceIdentityProvider.
 type ConfigureInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// CancelInstanceIdentityProviderWithdrawalParams defines parameters for CancelInstanceIdentityProviderWithdrawal.
+type CancelInstanceIdentityProviderWithdrawalParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// WithdrawInstanceIdentityProviderParams defines parameters for WithdrawInstanceIdentityProvider.
+type WithdrawInstanceIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8370,7 +8449,7 @@ type ProvisionTenantParams struct {
 
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
 type RequestTenantDeletionParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8406,19 +8485,31 @@ type VerifyAuditChainJSONBody struct {
 
 // RegenerateRecoveryCodesParams defines parameters for RegenerateRecoveryCodes.
 type RegenerateRecoveryCodesParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// StartAuthenticatorReplacementParams defines parameters for StartAuthenticatorReplacement.
+type StartAuthenticatorReplacementParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// DisableTotpParams defines parameters for DisableTotp.
+type DisableTotpParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ChangePasswordParams defines parameters for ChangePassword.
 type ChangePasswordParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // CheckPasswordParams defines parameters for CheckPassword.
 type CheckPasswordParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8430,7 +8521,7 @@ type CreateServiceAccountParams struct {
 
 // ElevateSessionParams defines parameters for ElevateSession.
 type ElevateSessionParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8445,7 +8536,7 @@ type CreateAccessTokenParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8699,31 +8790,31 @@ type UpdateGroupParams struct {
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
 type ConfigureFirstIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // CreateIdentityProviderParams defines parameters for CreateIdentityProvider.
 type CreateIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RemoveIdentityProviderParams defines parameters for RemoveIdentityProvider.
 type RemoveIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ConfigureIdentityProviderParams defines parameters for ConfigureIdentityProvider.
 type ConfigureIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // OfferIdentityProviderParams defines parameters for OfferIdentityProvider.
 type OfferIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -9162,13 +9253,13 @@ type GrantMembershipParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RevokeMembershipParams defines parameters for RevokeMembership.
 type RevokeMembershipParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -9270,7 +9361,7 @@ type UpdateWorkspaceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`; empty for an account with neither).
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -9343,6 +9434,9 @@ type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfigurati
 // ConfigureInstanceIdentityProviderJSONRequestBody defines body for ConfigureInstanceIdentityProvider for application/json ContentType.
 type ConfigureInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
+// WithdrawInstanceIdentityProviderJSONRequestBody defines body for WithdrawInstanceIdentityProvider for application/json ContentType.
+type WithdrawInstanceIdentityProviderJSONRequestBody = ProviderWithdrawal
+
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
@@ -9375,6 +9469,9 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
+
+// ConfirmAuthenticatorReplacementJSONRequestBody defines body for ConfirmAuthenticatorReplacement for application/json ContentType.
+type ConfirmAuthenticatorReplacementJSONRequestBody = AuthenticatorReplacementConfirmation
 
 // ConfirmTotpJSONRequestBody defines body for ConfirmTotp for application/json ContentType.
 type ConfirmTotpJSONRequestBody = TotpConfirmation
@@ -9726,6 +9823,12 @@ type ServerInterface interface {
 	// ConfigureInstanceIdentityProvider Replace one of the installation's providers
 	// (PUT /admin/identity-providers/{providerId})
 	ConfigureInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId, params ConfigureInstanceIdentityProviderParams)
+	// CancelInstanceIdentityProviderWithdrawal Keep offering a provider whose withdrawal was announced
+	// (POST /admin/identity-providers/{providerId}:cancel-withdrawal)
+	CancelInstanceIdentityProviderWithdrawal(w http.ResponseWriter, r *http.Request, providerId ProviderId, params CancelInstanceIdentityProviderWithdrawalParams)
+	// WithdrawInstanceIdentityProvider Announce the withdrawal of an offered provider, or withdraw it now
+	// (POST /admin/identity-providers/{providerId}:withdraw)
+	WithdrawInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId, params WithdrawInstanceIdentityProviderParams)
 	// ListInstanceJournal The installation's own record
 	// (GET /admin/journal)
 	ListInstanceJournal(w http.ResponseWriter, r *http.Request, params ListInstanceJournalParams)
@@ -9795,15 +9898,21 @@ type ServerInterface interface {
 	// RegenerateRecoveryCodes Replace the ten recovery codes
 	// (POST /auth/mfa/recovery:regenerate)
 	RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request, params RegenerateRecoveryCodesParams)
+	// ConfirmAuthenticatorReplacement Confirm the new authenticator, and swap
+	// (POST /auth/mfa/totp/replacement:confirm)
+	ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Request)
 	// ConfirmTotp Confirm enrolment with a first valid code
 	// (POST /auth/mfa/totp:confirm)
 	ConfirmTotp(w http.ResponseWriter, r *http.Request)
 	// EnrollTotp Begin TOTP enrolment
 	// (POST /auth/mfa/totp:enroll)
 	EnrollTotp(w http.ResponseWriter, r *http.Request)
+	// StartAuthenticatorReplacement Begin replacing the authenticator
+	// (POST /auth/mfa/totp:replace)
+	StartAuthenticatorReplacement(w http.ResponseWriter, r *http.Request, params StartAuthenticatorReplacementParams)
 	// DisableTotp Disable the second factor
 	// (POST /auth/mfa:disable)
-	DisableTotp(w http.ResponseWriter, r *http.Request)
+	DisableTotp(w http.ResponseWriter, r *http.Request, params DisableTotpParams)
 	// CompleteOidcSignIn Finish the sign-in with the code the provider issued
 	// (POST /auth/oidc:callback)
 	CompleteOidcSignIn(w http.ResponseWriter, r *http.Request)
@@ -9861,6 +9970,9 @@ type ServerInterface interface {
 	// StepUp Prove yourself again, for the irreversible
 	// (POST /auth/step-up)
 	StepUp(w http.ResponseWriter, r *http.Request)
+	// StartProviderStepUp Begin a step-up at the provider this account is connected to
+	// (POST /auth/step-up:provider)
+	StartProviderStepUp(w http.ResponseWriter, r *http.Request)
 	// ListAccessTokens The caller's own personal access tokens
 	// (GET /auth/tokens)
 	ListAccessTokens(w http.ResponseWriter, r *http.Request, params ListAccessTokensParams)
@@ -10888,6 +11000,106 @@ func (siw *ServerInterfaceWrapper) ConfigureInstanceIdentityProvider(w http.Resp
 	handler.ServeHTTP(w, r)
 }
 
+// CancelInstanceIdentityProviderWithdrawal operation middleware
+func (siw *ServerInterfaceWrapper) CancelInstanceIdentityProviderWithdrawal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CancelInstanceIdentityProviderWithdrawalParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelInstanceIdentityProviderWithdrawal(w, r, providerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// WithdrawInstanceIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) WithdrawInstanceIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params WithdrawInstanceIdentityProviderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WithdrawInstanceIdentityProvider(w, r, providerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListInstanceJournal operation middleware
 func (siw *ServerInterfaceWrapper) ListInstanceJournal(w http.ResponseWriter, r *http.Request) {
 
@@ -11515,6 +11727,20 @@ func (siw *ServerInterfaceWrapper) RegenerateRecoveryCodes(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
+// ConfirmAuthenticatorReplacement operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmAuthenticatorReplacement(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ConfirmTotp operation middleware
 func (siw *ServerInterfaceWrapper) ConfirmTotp(w http.ResponseWriter, r *http.Request) {
 
@@ -11543,11 +11769,79 @@ func (siw *ServerInterfaceWrapper) EnrollTotp(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// StartAuthenticatorReplacement operation middleware
+func (siw *ServerInterfaceWrapper) StartAuthenticatorReplacement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StartAuthenticatorReplacementParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartAuthenticatorReplacement(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DisableTotp operation middleware
 func (siw *ServerInterfaceWrapper) DisableTotp(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DisableTotpParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DisableTotp(w, r)
+		siw.Handler.DisableTotp(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11934,6 +12228,20 @@ func (siw *ServerInterfaceWrapper) StepUp(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StepUp(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartProviderStepUp operation middleware
+func (siw *ServerInterfaceWrapper) StartProviderStepUp(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartProviderStepUp(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20428,6 +20736,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up", wrapper.StepUp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up:provider", wrapper.StartProviderStepUp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:replace", wrapper.StartAuthenticatorReplacement)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp/replacement:confirm", wrapper.ConfirmAuthenticatorReplacement)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/recovery:regenerate", wrapper.RegenerateRecoveryCodes)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa:disable", wrapper.DisableTotp)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/tokens", wrapper.ListAccessTokens)
@@ -20454,6 +20765,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/identity-providers", wrapper.CreateInstanceIdentityProvider)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/identity-providers/{providerId}", wrapper.RemoveInstanceIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/identity-providers/{providerId}", wrapper.ConfigureInstanceIdentityProvider)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/identity-providers/{providerId}:withdraw", wrapper.WithdrawInstanceIdentityProvider)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/identity-providers/{providerId}:cancel-withdrawal", wrapper.CancelInstanceIdentityProviderWithdrawal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/encryption", wrapper.ReadEncryptionStatus)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/encryption:reseal", wrapper.ResealSecrets)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}/quotas", wrapper.UpdateTenantQuotas)

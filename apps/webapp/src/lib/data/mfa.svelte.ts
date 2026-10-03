@@ -24,6 +24,7 @@
 import { TransportError } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { recoveryNote } from './recoverynote.svelte.ts';
 import { stepUp } from './stepup.svelte.ts';
 
 const ENROLL = '/auth/mfa/totp:enroll';
@@ -31,6 +32,16 @@ const CONFIRM = '/auth/mfa/totp:confirm';
 const DISABLE = '/auth/mfa:disable';
 /** New recovery codes for an enrolment that already exists, behind the step-up. */
 const REGENERATE = '/auth/mfa/recovery:regenerate';
+/** The authenticator's replacement (SC-17): begin behind the step-up, confirm with the new app. */
+const REPLACE = '/auth/mfa/totp:replace';
+const CONFIRM_REPLACEMENT = '/auth/mfa/totp/replacement:confirm';
+
+/** The new secret's single showing, as `AuthenticatorReplacement` answers it. */
+export interface Replacement {
+  readonly secret: string;
+  readonly otpauth_uri: string;
+  readonly expires_at: string;
+}
 
 /** The single showing, as `TotpEnrollment` answers it. */
 export interface Enrollment {
@@ -47,6 +58,7 @@ interface Confirmed {
 
 class Mfa {
   #started = $state<Enrollment | undefined>(undefined);
+  #replacement = $state<Replacement | undefined>(undefined);
   #fresh = $state<readonly string[] | undefined>(undefined);
   #failure = $state<string | undefined>(undefined);
   #working = $state(false);
@@ -64,6 +76,11 @@ class Mfa {
    */
   get fresh(): readonly string[] | undefined {
     return this.#fresh;
+  }
+
+  /** The new secret of a replacement, while the screen shows it (SC-17). */
+  get replacement(): Replacement | undefined {
+    return this.#replacement;
   }
 
   /** The last refusal, as the server's own code. */
@@ -132,16 +149,17 @@ class Mfa {
   }
 
   /**
-   * Takes it off, with the password afresh.
+   * Takes it off, behind the step-up like every privileged action (ADR-0075 §3).
    *
-   * The one case where "recently signed in" is not enough, because a stolen session removing the
-   * second factor is exactly the attack the factor exists against (`security.md` §5). Under tenant
-   * enforcement an `OWNER` or `ADMIN` cannot disable at all, and the refusal names the switch —
-   * which is the sentence the screen renders rather than one this client invents.
+   * "Recently signed in" is not enough, because a stolen session removing the second factor is
+   * exactly the attack the factor exists against (`security.md` §5) - and the proof is whatever the
+   * account holds, so an account that signs in only through a provider proves it with the code, a
+   * recovery code or its provider. Where the workspace's rule requires the factor the refusal names
+   * the rule, which is the sentence the screen renders rather than one this client invents.
    */
-  async disable(password: string): Promise<boolean> {
+  async disable(): Promise<boolean> {
     return this.#attempt(async () => {
-      await engine.mutate('POST', DISABLE, { password });
+      await stepUp.around((stepUpToken) => engine.mutate('POST', DISABLE, {}, { stepUpToken }));
       return true;
     });
   }
@@ -175,9 +193,60 @@ class Mfa {
     });
   }
 
+  /**
+   * Begins replacing the authenticator (SC-17), behind the step-up: replacing the factor is the same
+   * power as removing it. Nothing changes yet - the armed factor and its codes keep working until
+   * the new app's code confirms the swap.
+   */
+  async replace(): Promise<boolean> {
+    return this.#attempt(async () => {
+      this.#replacement = await stepUp.around((stepUpToken) =>
+        engine.mutate<Replacement>('POST', REPLACE, {}, { stepUpToken, invalidates: [] }),
+      );
+      return true;
+    });
+  }
+
+  /**
+   * Confirms the replacement with a code from the new app, and answers the ten new recovery codes -
+   * the only time they are shown. `undefined` means nothing was swapped, and `failure` says why.
+   */
+  async confirmReplacement(code: string): Promise<readonly string[] | undefined> {
+    let codes: readonly string[] | undefined;
+    const ok = await this.#attempt(async () => {
+      // Invalidating nothing, the enrolment's reason: the profile re-reads the account once the
+      // codes have been seen.
+      const answer = await engine.mutate<{ readonly recovery_codes: readonly string[] }>(
+        'POST',
+        CONFIRM_REPLACEMENT,
+        { code },
+        { invalidates: [] },
+      );
+      codes = answer.recovery_codes;
+      return true;
+    });
+    if (!ok) {
+      // A replacement the server no longer knows - lapsed, begun again elsewhere - is a dead secret
+      // on the screen. It goes, so *Begin the replacement* is offered again beside the sentence.
+      if (this.#failure === 'auth.mfa_replacement_unknown') this.#replacement = undefined;
+      return undefined;
+    }
+    this.#replacement = undefined;
+    // The note a recovery code left is answered: the authenticator is set up again.
+    recoveryNote.close();
+    return codes;
+  }
+
+  /** The replacement's window ran out on the screen: it goes, and the sentence says why. */
+  lapse(): void {
+    this.#replacement = undefined;
+    this.#failure = 'auth.mfa_replacement_unknown';
+  }
+
   /** Drops the secret and the codes. Called when the screen leaves, and after a confirmation. */
   forget(): void {
     this.#started = undefined;
+    this.#replacement = undefined;
     this.#fresh = undefined;
     this.#failure = undefined;
   }
