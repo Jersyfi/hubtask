@@ -68,9 +68,11 @@ the rule:
 
 * A workspace that switches the password off on purpose (#1119) is honoured: the server refuses
   passwords there. Its people sign in through their provider, which is that workspace's own choice.
-  If that provider is unreachable, the installation's operator can switch the password back on for
-  the workspace (the installation's level of the sign-in rule, [ADR-0068](./ADR-0068-sign-in-policy-and-the-password-lifetime.md)) -
-  the way back exists, and it is a person's decision rather than an automatic one.
+  If that provider is unreachable, the way back today is the installation's level of the sign-in rule
+  ([ADR-0068](./ADR-0068-sign-in-policy-and-the-password-lifetime.md)): the operator locks the methods
+  with the password among them, which opens it in **every** workspace until the lock is lifted - a
+  person's decision rather than an automatic one, but a blunt one. A lever for one workspace does not
+  exist yet; whether to build one is the owner's to decide.
 * An account without a mail address ([UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md),
   milestone PH) cannot receive the link of §3. Its way back is the one milestone PH builds for it.
 

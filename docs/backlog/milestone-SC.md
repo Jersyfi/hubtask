@@ -453,8 +453,9 @@ sign-in, the reset's request and its completion, and every other door that ends 
 a password. The refusal is the same for every address (no enumeration, UC-ID-04 check 1), and the
 reset sends no mail that offers a closed door. Stored passwords are kept: switching the password back
 on restores them. The one exception is ADR-0076 §4's fallback (`WaysIn.PasswordFallback`), which
-becomes the real exception to a real refusal. The installation's level of the rule (ADR-0068) can
-switch the password back on for a workspace whose provider is unreachable.
+becomes the real exception to a real refusal. Where a workspace's provider is unreachable, the way back
+today is the installation's level of the rule (ADR-0068): locking the methods with the password among
+them, which opens it in every workspace; a lever for one workspace does not exist (ADR-0077 §4).
 
 **Acceptance:** a test per door that a switched-off password is refused and the fallback lets it
 through; UC-ID-12 moves to `built` if every check then holds.
