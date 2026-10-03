@@ -93,6 +93,31 @@ func TestAProviderAccountGetsNoLink(t *testing.T) {
 	}
 }
 
+// A provider-only account whose workspace lost its last provider gets a link to set a first password
+// (ADR-0077 §3) - the mail that says so, not the reset's.
+func TestAProviderOnlyAccountUnderTheFallbackGetsALinkToSetOne(t *testing.T) {
+	mailer := &mailbox{}
+
+	err := SendPasswordReset{
+		Resets: &resetMinter{link: ResetLink{
+			Token: secret.New("hbt_mfa_0123_abc"), First: true, Address: "mara@contoso.example",
+		}},
+		Mail: mailer, Renderer: catalogue{}, FallbackLocale: "en", BaseURL: "https://acme.example",
+	}.Execute(t.Context(), tenant, anna)
+	if err != nil {
+		t.Fatalf("sending: %v", err)
+	}
+	if len(mailer.sent) != 1 {
+		t.Fatalf("%d messages sent", len(mailer.sent))
+	}
+	if !strings.Contains(mailer.sent[0].Subject, subjectPasswordSet) {
+		t.Errorf("the subject was rendered from %q", mailer.sent[0].Subject)
+	}
+	if !strings.Contains(mailer.sent[0].Body, "https://acme.example/reset#token=hbt_mfa_0123_abc") {
+		t.Errorf("the mail carries no link to set the password: %q", mailer.sent[0].Body)
+	}
+}
+
 // An account that is gone between the request and the job is finished business rather than a
 // failure: there is nothing a retry would find.
 func TestAnAccountThatIsGoneSendsNothing(t *testing.T) {

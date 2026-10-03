@@ -578,6 +578,8 @@
   "email.password_reset.body": "Somebody asked to reset the password for this address. Choose a new one here: {link}\n\nThe link works once and for thirty minutes. If it was not you, you can ignore this message - nothing has changed.",
   "email.password_reset_provider.subject": "About your Hubtask sign-in",
   "email.password_reset_provider.body": "Somebody asked to reset the password for this address. This account signs in through your organisation's provider, so there is no password here to reset - sign in the way you usually do. If it was not you, you can ignore this message.",
+  "email.password_set.subject": "Set a password for Hubtask",
+  "email.password_set.body": "Somebody asked to reset the password for this address. This account signed in through a provider your workspace no longer has, so for now you sign in with a password instead. Choose one here: {link}\n\nThe link works once and for thirty minutes. If it was not you, you can ignore this message - nothing has changed.",
   "email.invitation.subject.withheld": "You have been invited to Hubtask",
   "email.invitation.body": "{actor} invited you. Follow the link to set up your account.\n\n{link}",
   "email.invitation.body.withheld": "{actor} invited you. Follow the link to set up your account.\n\n{link}",
