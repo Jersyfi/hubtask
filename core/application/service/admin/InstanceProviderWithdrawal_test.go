@@ -287,3 +287,31 @@ func TestAnOfferedProviderIsRemovedOnlyAfterItsOfferEnded(t *testing.T) {
 		})
 	}
 }
+
+// The use case looks before it spends the proof, and the statement that deletes looks again: an
+// offer kept between the two - *Keep offering it* in another tab - is still refused, and the row
+// stays (ADR-0077 §2). One removed in between is no failure: it is gone, as asked.
+func TestARemovalLooksAgainWhereItDeletes(t *testing.T) {
+	t.Run("kept offering in between", func(t *testing.T) {
+		writer, store, _, _ := newInstanceProviderWriter(newRegister(operatorID))
+		offeredRow(store)
+		store.rows[0].WithdrawAt = fixed.Add(-time.Hour)
+		store.meanwhile = func(s *instanceProviderStore) { s.rows[0].WithdrawAt = time.Time{} }
+
+		err := RemoveInstanceIdentityProvider{Writer: writer}.Execute(t.Context(), operator(), withdrawnRow, "")
+		if detailOf(err) != "identity_provider.withdraw_first" || len(store.rows) != 1 {
+			t.Errorf("removing answered %v and left %d rows, want a refusal and the row", err, len(store.rows))
+		}
+	})
+	t.Run("removed in between", func(t *testing.T) {
+		writer, store, _, _ := newInstanceProviderWriter(newRegister(operatorID))
+		offeredRow(store)
+		store.rows[0].WithdrawAt = fixed.Add(-time.Hour)
+		store.meanwhile = func(s *instanceProviderStore) { s.rows = nil }
+
+		if err := (RemoveInstanceIdentityProvider{Writer: writer}).Execute(
+			t.Context(), operator(), withdrawnRow, ""); err != nil {
+			t.Errorf("a row gone in between answered %v", err)
+		}
+	})
+}

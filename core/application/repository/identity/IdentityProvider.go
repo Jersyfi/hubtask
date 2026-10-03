@@ -62,8 +62,11 @@ type IdentityProviders interface {
 	SetWithdrawal(ctx context.Context, providerID shared.ID, at, now time.Time) (identity.IdentityProvider, bool, error)
 
 	// Delete removes one and its sealed secret. False is "there was none", which is not an error -
-	// a caller asking for it to be gone got what they asked for.
-	Delete(ctx context.Context, id shared.ID) (bool, error)
+	// a caller asking for it to be gone got what they asked for - or an installation's row that at
+	// `now` is still offered and used by a workspace, which is not removed (ADR-0077 §2). The
+	// store asks that itself, in the statement that deletes, so nothing that changed since the
+	// caller looked slips past; the caller tells the two falses apart by looking again.
+	Delete(ctx context.Context, id shared.ID, now time.Time) (bool, error)
 }
 
 // OidcFlows keeps the handful of minutes between sending somebody to their provider and their
