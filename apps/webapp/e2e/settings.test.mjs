@@ -356,3 +356,47 @@ test('chromium: 1280 px — every session says how it was opened', async (t) => 
   assert.match(await row('Chrome on macOS'), /Recovery code/);
   assert.doesNotMatch(await row('Edge on Windows'), /OIDC|PASSWORD|undefined|null/);
 });
+
+// UC-ID-06 check 4 (SC-23): *Sign out everywhere else* ends every other session and leaves this one -
+// the reader stays on the screen, signed in, and the list shows only this device.
+test('chromium: signing out everywhere else keeps this session and shows it alone', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  let listed = SESSIONS;
+  const sent = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/auth/sessions:revoke-others' && request.method() === 'POST') {
+      sent.push(path);
+      listed = SESSIONS.filter((one) => one.current);
+      return route.fulfill({ status: 204 });
+    }
+    if (path === '/auth/sessions' && request.method() === 'DELETE') {
+      sent.push('DELETE /auth/sessions');
+      return route.fulfill({ status: 204 });
+    }
+    if (path === '/auth/sessions') return route.fulfill({ json: listed });
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/sessions`);
+  await page.getByText('Safari on iPhone').waitFor();
+
+  assert.match(await page.getByText(/You stay signed in here/).textContent() ?? '', /every other session/);
+  await page.getByRole('button', { name: 'Sign out everywhere else' }).click();
+  await page.getByText('Safari on iPhone').waitFor({ state: 'detached' });
+
+  assert.deepEqual(sent, ['/auth/sessions:revoke-others'], 'the screen ended this session too');
+  const rows = await page.getByRole('table', { name: 'Where you are signed in' }).locator('tbody tr').count();
+  assert.equal(rows, 1, 'more than this session is still listed');
+  assert.equal(new URL(page.url()).pathname, '/profile/sessions', 'the reader was signed out');
+  // Nothing else to end: the control is gone with the sessions it ended.
+  assert.equal(await page.getByRole('button', { name: 'Sign out everywhere else' }).count(), 0);
+});
