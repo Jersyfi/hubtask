@@ -71,12 +71,13 @@ func TestTheOnlyProviderCannotBeSwitchedOffOnItsFormOrRemoved(t *testing.T) {
 	f.workspaces.row.Settings.SignIn.Methods = &onlyProvider
 	f.writer.Workspaces = f.workspaces
 
-	// Its own form, saved with the provider off.
+	// Its own form, saved with the provider off. Since SC-21 the form switches nothing at all
+	// (ADR-0076 §5), so the refusal is that one rather than the last way in - and stronger for it.
 	command := configureCommand()
 	command.ID = id
-	command.Enabled = false
+	command.Enabled = boolOf(false)
 	_, err := ConfigureIdentityProvider{Writer: f.writer}.Execute(t.Context(), providerActor(), command)
-	refusedAsLastWayIn(t, err, "switching the only provider off on its form")
+	refusedAsSwitchInList(t, err, "switching the only provider off on its form")
 
 	// Removing it.
 	err = RemoveIdentityProvider{Writer: f.writer}.Execute(t.Context(), providerActor(), id, "")
@@ -86,7 +87,7 @@ func TestTheOnlyProviderCannotBeSwitchedOffOnItsFormOrRemoved(t *testing.T) {
 	}
 
 	// The form saved with the provider still on is an ordinary save.
-	command.Enabled = true
+	command.Enabled = boolOf(true)
 	if _, err := (ConfigureIdentityProvider{Writer: f.writer}).Execute(t.Context(), providerActor(), command); err != nil {
 		t.Errorf("saving the only provider's form, still on, was refused: %v", err)
 	}

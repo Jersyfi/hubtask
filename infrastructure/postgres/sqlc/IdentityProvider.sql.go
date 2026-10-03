@@ -558,7 +558,7 @@ UPDATE identity_provider SET
   position              = $8,
   allowed_email_domains = $9,
   allowed_directories   = $10,
-  enabled               = $11,
+  enabled               = coalesce($11, enabled),
   updated_at            = $12,
   version               = version + 1
 WHERE id = $13
@@ -577,7 +577,7 @@ type UpdateIdentityProviderParams struct {
 	Position            int32
 	AllowedEmailDomains []string
 	AllowedDirectories  []string
-	Enabled             bool
+	Enabled             *bool
 	Now                 pgtype.Timestamptz
 	ID                  pgtype.UUID
 }
@@ -605,6 +605,10 @@ type UpdateIdentityProviderRow struct {
 // statement rather than a read-then-write two sign-ins could interleave.
 //
 // The version rises on every write, so a concurrent second configuration is visible as a conflict.
+//
+// A NULL `enabled` leaves the switch as the row holds it (ADR-0076 §5): a workspace's own form
+// configures and never switches, and saying so in the statement is what keeps a save from writing
+// back a switch the list of ways to sign in changed a moment earlier.
 func (q *Queries) UpdateIdentityProvider(ctx context.Context, arg UpdateIdentityProviderParams) (UpdateIdentityProviderRow, error) {
 	row := q.db.QueryRow(ctx, updateIdentityProvider,
 		arg.Issuer,

@@ -245,11 +245,18 @@ test('chromium: the ways to sign in are one list, one switch each, and the last 
   assert.deepEqual(sent, [{ path: '/identity-providers/platform:offer', body: { offered: true } }]);
 });
 
-// UC-ID-11 check 8: the provider screen configures; it switches nothing.
+// UC-ID-11 check 8: the provider screen configures; it switches nothing - not with a control, and
+// not with the deprecated field in the body it saves (ADR-0076 §5).
 test('chromium: the provider screen has no switch of its own', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
+  const saved = [];
   const { page, close } = await open(browser, (route, path) => {
+    const request = route.request();
+    if (path === '/identity-providers/own' && request.method() === 'PUT') {
+      saved.push(request.postDataJSON());
+      return route.fulfill({ json: provider('own', 'Contoso Entra ID', 'workspace') });
+    }
     if (path === '/identity-providers') {
       return route.fulfill({ json: [
         provider('own', 'Contoso Entra ID', 'workspace'),
@@ -265,6 +272,11 @@ test('chromium: the provider screen has no switch of its own', async (t) => {
   await page.getByRole('button', { name: 'Change' }).first().click();
   assert.equal(await page.locator('main input[type="checkbox"], main [role="switch"]').count(), 0,
     'a provider is still switched on its own screen');
+
+  await page.getByRole('button', { name: 'Save the provider' }).click();
+  await page.getByText('Saved. The provider answered its metadata.').waitFor();
+  assert.equal(saved.length, 1, 'the form was not saved');
+  assert.equal('enabled' in saved[0], false, `the form still sends the switch: ${JSON.stringify(saved[0])}`);
 });
 
 // UC-ID-12 check 9: the screen reads in German, with no rule falling back to English.

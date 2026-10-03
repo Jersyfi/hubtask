@@ -5300,8 +5300,11 @@ type IdentityProviderConfiguration struct {
 
 	// DisplayName The name on the button. Absent is the issuer's host.
 	DisplayName *string `json:"display_name,omitempty"`
-	Enabled     *bool   `json:"enabled,omitempty"`
-	Issuer      string  `json:"issuer"`
+
+	// Enabled **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it is still whether the installation offers the provider, and absent there is `true`. Removed with the next major version of the contract.
+	// Deprecated: Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.
+	Enabled *bool  `json:"enabled,omitempty"`
+	Issuer  string `json:"issuer"`
 
 	// Kind Absent is read from the issuer.
 	Kind     *IdentityProviderKind `json:"kind,omitempty"`
@@ -11361,7 +11364,7 @@ type ClientInterface interface {
 	// ConfigureFirstIdentityProviderWithBody Set the workspace's first identity provider
 	//
 	// Sets the first provider whole, or creates it where the workspace has none. The same rules the collection applies - discovery before anything is stored, the mark held to its issuer, a public provider held to `INVITED_ONLY`. Auditable.
-	// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection.
+	// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection. And as there, `enabled` is not switched here: a created provider is off, and a changed value is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -11371,7 +11374,7 @@ type ClientInterface interface {
 	// ConfigureFirstIdentityProvider Set the workspace's first identity provider
 	//
 	// Sets the first provider whole, or creates it where the workspace has none. The same rules the collection applies - discovery before anything is stored, the mark held to its issuer, a public provider held to `INVITED_ONLY`. Auditable.
-	// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection.
+	// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection. And as there, `enabled` is not switched here: a created provider is off, and a changed value is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -11400,6 +11403,7 @@ type ClientInterface interface {
 	// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
 	// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 	// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+	// **A new provider is created switched off** - configuring is not offering. It becomes a way in when the list of ways to sign in switches it on (`:offer`); `enabled: true` here is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -11411,6 +11415,7 @@ type ClientInterface interface {
 	// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
 	// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 	// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+	// **A new provider is created switched off** - configuring is not offering. It becomes a way in when the list of ways to sign in switches it on (`:offer`); `enabled: true` here is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -11428,6 +11433,7 @@ type ClientInterface interface {
 	//
 	// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
 	// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+	// Whether the provider is a way in is not set here: a changed `enabled` is refused with `identity_provider.switch_in_list`, and the list of ways to sign in switches it (`:offer`, ADR-0076 §5).
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -11438,6 +11444,7 @@ type ClientInterface interface {
 	//
 	// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
 	// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+	// Whether the provider is a way in is not set here: a changed `enabled` is refused with `identity_provider.switch_in_list`, and the list of ways to sign in switches it (`:offer`, ADR-0076 §5).
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -16655,7 +16662,7 @@ func (c *Client) ReadIdentityProvider(ctx context.Context, reqEditors ...Request
 // ConfigureFirstIdentityProviderWithBody Set the workspace's first identity provider
 //
 // Sets the first provider whole, or creates it where the workspace has none. The same rules the collection applies - discovery before anything is stored, the mark held to its issuer, a public provider held to `INVITED_ONLY`. Auditable.
-// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection.
+// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection. And as there, `enabled` is not switched here: a created provider is off, and a changed value is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 //
 // Takes any type of body and a specified content type.
 //
@@ -16675,7 +16682,7 @@ func (c *Client) ConfigureFirstIdentityProviderWithBody(ctx context.Context, par
 // ConfigureFirstIdentityProvider Set the workspace's first identity provider
 //
 // Sets the first provider whole, or creates it where the workspace has none. The same rules the collection applies - discovery before anything is stored, the mark held to its issuer, a public provider held to `INVITED_ONLY`. Auditable.
-// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection.
+// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection. And as there, `enabled` is not switched here: a created provider is off, and a changed value is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 //
 // Takes a body of the `application/json` content type.
 //
@@ -16734,6 +16741,7 @@ func (c *Client) ListIdentityProviders(ctx context.Context, reqEditors ...Reques
 // Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
 // Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 // The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+// **A new provider is created switched off** - configuring is not offering. It becomes a way in when the list of ways to sign in switches it on (`:offer`); `enabled: true` here is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 //
 // Takes any type of body and a specified content type.
 //
@@ -16755,6 +16763,7 @@ func (c *Client) CreateIdentityProviderWithBody(ctx context.Context, params *Cre
 // Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
 // Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 // The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+// **A new provider is created switched off** - configuring is not offering. It becomes a way in when the list of ways to sign in switches it on (`:offer`); `enabled: true` here is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 //
 // Takes a body of the `application/json` content type.
 //
@@ -16792,6 +16801,7 @@ func (c *Client) RemoveIdentityProvider(ctx context.Context, providerId Provider
 //
 // Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
 // A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+// Whether the provider is a way in is not set here: a changed `enabled` is refused with `identity_provider.switch_in_list`, and the list of ways to sign in switches it (`:offer`, ADR-0076 §5).
 //
 // Takes any type of body and a specified content type.
 //
@@ -16812,6 +16822,7 @@ func (c *Client) ConfigureIdentityProviderWithBody(ctx context.Context, provider
 //
 // Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
 // A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+// Whether the provider is a way in is not set here: a changed `enabled` is refused with `identity_provider.switch_in_list`, and the list of ways to sign in switches it (`:offer`, ADR-0076 §5).
 //
 // Takes a body of the `application/json` content type.
 //
@@ -35502,7 +35513,7 @@ type ClientWithResponsesInterface interface {
 	// ConfigureFirstIdentityProviderWithBodyWithResponse Set the workspace's first identity provider
 	//
 	// Sets the first provider whole, or creates it where the workspace has none. The same rules the collection applies - discovery before anything is stored, the mark held to its issuer, a public provider held to `INVITED_ONLY`. Auditable.
-	// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection.
+	// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection. And as there, `enabled` is not switched here: a created provider is off, and a changed value is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35512,7 +35523,7 @@ type ClientWithResponsesInterface interface {
 	// ConfigureFirstIdentityProviderWithResponse Set the workspace's first identity provider
 	//
 	// Sets the first provider whole, or creates it where the workspace has none. The same rules the collection applies - discovery before anything is stored, the mark held to its issuer, a public provider held to `INVITED_ONLY`. Auditable.
-	// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection.
+	// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection. And as there, `enabled` is not switched here: a created provider is off, and a changed value is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35545,6 +35556,7 @@ type ClientWithResponsesInterface interface {
 	// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
 	// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 	// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+	// **A new provider is created switched off** - configuring is not offering. It becomes a way in when the list of ways to sign in switches it on (`:offer`); `enabled: true` here is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35556,6 +35568,7 @@ type ClientWithResponsesInterface interface {
 	// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
 	// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 	// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+	// **A new provider is created switched off** - configuring is not offering. It becomes a way in when the list of ways to sign in switches it on (`:offer`); `enabled: true` here is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35575,6 +35588,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
 	// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+	// Whether the provider is a way in is not set here: a changed `enabled` is refused with `identity_provider.switch_in_list`, and the list of ways to sign in switches it (`:offer`, ADR-0076 §5).
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35585,6 +35599,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
 	// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+	// Whether the provider is a way in is not set here: a changed `enabled` is refused with `identity_provider.switch_in_list`, and the list of ways to sign in switches it (`:offer`, ADR-0076 §5).
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -53721,7 +53736,7 @@ func (c *ClientWithResponses) ReadIdentityProviderWithResponse(ctx context.Conte
 // ConfigureFirstIdentityProviderWithBodyWithResponse Set the workspace's first identity provider
 //
 // Sets the first provider whole, or creates it where the workspace has none. The same rules the collection applies - discovery before anything is stored, the mark held to its issuer, a public provider held to `INVITED_ONLY`. Auditable.
-// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection.
+// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection. And as there, `enabled` is not switched here: a created provider is off, and a changed value is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53737,7 +53752,7 @@ func (c *ClientWithResponses) ConfigureFirstIdentityProviderWithBodyWithResponse
 // ConfigureFirstIdentityProviderWithResponse Set the workspace's first identity provider
 //
 // Sets the first provider whole, or creates it where the workspace has none. The same rules the collection applies - discovery before anything is stored, the mark held to its issuer, a public provider held to `INVITED_ONLY`. Auditable.
-// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection.
+// The client secret is required when there is nothing to keep, and optional afterwards, as on the collection. And as there, `enabled` is not switched here: a created provider is off, and a changed value is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53788,6 +53803,7 @@ func (c *ClientWithResponses) ListIdentityProvidersWithResponse(ctx context.Cont
 // Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
 // Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 // The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+// **A new provider is created switched off** - configuring is not offering. It becomes a way in when the list of ways to sign in switches it on (`:offer`); `enabled: true` here is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53805,6 +53821,7 @@ func (c *ClientWithResponses) CreateIdentityProviderWithBodyWithResponse(ctx con
 // Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
 // Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 // The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+// **A new provider is created switched off** - configuring is not offering. It becomes a way in when the list of ways to sign in switches it on (`:offer`); `enabled: true` here is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53836,6 +53853,7 @@ func (c *ClientWithResponses) RemoveIdentityProviderWithResponse(ctx context.Con
 //
 // Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
 // A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+// Whether the provider is a way in is not set here: a changed `enabled` is refused with `identity_provider.switch_in_list`, and the list of ways to sign in switches it (`:offer`, ADR-0076 §5).
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53852,6 +53870,7 @@ func (c *ClientWithResponses) ConfigureIdentityProviderWithBodyWithResponse(ctx 
 //
 // Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
 // A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+// Whether the provider is a way in is not set here: a changed `enabled` is refused with `identity_provider.switch_in_list`, and the list of ways to sign in switches it (`:offer`, ADR-0076 §5).
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

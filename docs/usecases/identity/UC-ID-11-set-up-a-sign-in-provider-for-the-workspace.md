@@ -7,7 +7,7 @@ deployments: [D3, D4, D6]
 serves: [P-02, P-05, P-06, P-08, P-12]
 state: partial
 tasks: [SI-10, SI-11, SI-16, SC-01, SC-06, SC-21]
-checked_by: [core/application/service/identity/IdentityProviderConfig_test.go, core/application/service/identity/LastWayIn_test.go, apps/webapp/e2e/signinsettings.test.mjs]
+checked_by: [core/application/service/identity/IdentityProviderConfig_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, test/contract/identity_provider_test.go, apps/webapp/e2e/signinsettings.test.mjs]
 ---
 
 # Set up a sign-in provider for our workspace
@@ -61,9 +61,14 @@ or a role, or a group.
 
 ## Today
 
+Check 8 holds since SC-21: the provider's form - its screen, `POST` and `PUT /identity-providers`,
+and the singular route - switches nothing; a changed `enabled` is refused with a sentence pointing to
+the list, a new provider is created off, and the field is deprecated until the next major version
+(`IdentityProviderSwitch_test.go`, `test/contract/identity_provider_test.go`, the provider screen's
+walk in `signinsettings.test.mjs`). Its second half - the last way in cannot be turned off - holds at
+every door a workspace has; the installation's own withdrawal of a provider it offers is the one door
+left, tracked in UC-ID-12's *Today* as SC-20.
+
 * **Check 1 fails:** the screen offers the modes as developer-style labels.
 * **Check 5 fails:** there is no *New people get* setting (SC-02).
-* **Check 8 holds on the screen, not at the API:** the list of ways to sign in is the one place a
-  provider is switched, but `PUT /identity-providers/{id}` still accepts `enabled` (see UC-ID-12's
-  *Today*). Tracked as SC-21: a change is refused, and the field goes at the next major version.
 * **Check 6 fails:** the address is inside a sentence, without a copy button.
