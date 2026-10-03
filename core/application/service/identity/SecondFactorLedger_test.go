@@ -102,3 +102,17 @@ func TestAWrongCodeConfirmingAReplacementCounts(t *testing.T) {
 		t.Errorf("the ledger stands at %d, want %d", got, before+1)
 	}
 }
+
+func TestAWrongCodeAtTheStepUpCounts(t *testing.T) {
+	fixture := stepUpFixture(now)
+	material := enrolled(t, fixture)
+
+	_, err := StepUp{Writer: fixture.writer}.Execute(t.Context(), signedInActor(),
+		StepUpCommand{Code: domain.TotpCode(material, domain.TotpStep(now)+1000)})
+	if err == nil {
+		t.Fatal("a wrong code proved a step-up")
+	}
+	if got := ledger(fixture, stepUpSubject(account)); got != 1 {
+		t.Errorf("the ledger stands at %d, want 1", got)
+	}
+}
