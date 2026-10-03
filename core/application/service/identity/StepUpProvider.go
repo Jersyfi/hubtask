@@ -62,6 +62,16 @@ func (w SessionWriter) stepUpProvider(
 	if !p.available() {
 		return domain.IdentityProvider{}, false, nil
 	}
+	return p.connectedHere(ctx, accountID, w.Clock.Now())
+}
+
+// connectedHere answers the first provider, in the workspace's own order, that the account is
+// connected to and that is a way in here now. The step-up asks it to know where a proof goes; the
+// reset asks it to know whether a provider still lets the account in (ADR-0077 §4). Inside a
+// transaction bound to the account's workspace.
+func (p ProviderStepUps) connectedHere(
+	ctx context.Context, accountID shared.ID, now time.Time,
+) (domain.IdentityProvider, bool, error) {
 	connected, err := p.External.ProvidersOf(ctx, accountID)
 	if err != nil || len(connected) == 0 {
 		return domain.IdentityProvider{}, false, err
@@ -79,7 +89,7 @@ func (w SessionWriter) stepUpProvider(
 		settings = workspace.Settings
 	}
 	for _, candidate := range listed {
-		if slices.Contains(connected, candidate.ID) && offeredHere(candidate, settings, w.Clock.Now()) {
+		if slices.Contains(connected, candidate.ID) && offeredHere(candidate, settings, now) {
 			return candidate, true, nil
 		}
 	}
