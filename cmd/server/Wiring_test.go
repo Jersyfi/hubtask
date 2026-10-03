@@ -32,6 +32,11 @@ func TestTheRuleReachesEveryWriterThatOpensASession(t *testing.T) {
 		if rule == nil {
 			t.Errorf("%s opens sessions without the rule", name)
 		}
+		// And the rule answers whether the password is a way in at all (SC-24): a door that cannot
+		// ask lets the password through, so the rule it is handed has to be able to answer.
+		if _, ok := rule.(identity.PasswordDoor); !ok {
+			t.Errorf("%s holds a rule that cannot say whether the password is open", name)
+		}
 	}
 }
 

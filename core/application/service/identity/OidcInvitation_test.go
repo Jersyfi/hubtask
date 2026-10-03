@@ -67,3 +67,22 @@ func TestALapsedInvitationIsNotAcceptedThroughTheProvider(t *testing.T) {
 		t.Error("a lapsed invitation was accepted or connected")
 	}
 }
+
+// An invited account the provider connected before this fix - connected, then refused as not active
+// - is accepted on its next arrival through the same subject, rather than refused forever.
+func TestAnInvitedAccountConnectedBeforeIsAcceptedOnItsNextArrival(t *testing.T) {
+	at := time.Date(2026, 10, 3, 10, 0, 0, 0, time.UTC)
+	invited := invitedAda()
+	f := newOidcFixture(t, at, invited)
+	f.external.bySubject[linkKey(oidcProviderRow, "provider-subject-1")] = invited
+
+	result, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(), CompleteOidcSignInCommand{
+		Code: "the-code", State: start(t, f),
+	})
+	if err != nil {
+		t.Fatalf("the connected invited arrival answered %v", err)
+	}
+	if pairOf(result).Session.AccountID != invited.ID || f.accounts.byID[invited.ID].Status != domain.AccountActive {
+		t.Errorf("the account is %s, want it signed in and ACTIVE", f.accounts.byID[invited.ID].Status)
+	}
+}
