@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"maps"
 	"testing"
 	"time"
 
@@ -29,11 +30,23 @@ var (
 // matters here: authentication must run in the tenant the token names and in no other.
 type unitOfWork struct {
 	scopes []persistence.Scope
+	// ledger is rolled back when the work fails, as the real transaction rolls back everything it
+	// wrote (infrastructure/postgres UnitOfWork). A fake that kept a write the refusal undid is how
+	// the second factor's uncounted guesses passed every test here (#1117).
+	ledger *attemptsStore
 }
 
 func (u *unitOfWork) Within(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
 	u.scopes = append(u.scopes, scope)
-	return fn(ctx)
+	var saved map[string]repository.AuthAttempt
+	if u.ledger != nil {
+		saved = maps.Clone(u.ledger.standing)
+	}
+	err := fn(ctx)
+	if err != nil && u.ledger != nil {
+		u.ledger.standing = saved
+	}
+	return err
 }
 
 func (u *unitOfWork) WithinReadOnly(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {

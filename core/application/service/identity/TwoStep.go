@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -312,7 +311,7 @@ func (h CompleteSignIn) Execute(
 
 		if cmd.Code != "" {
 			if err := w.verifyTotpCode(ctx, lookup.Account.ID, cmd.Code, now); err != nil {
-				return errors.Join(w.recordMfaFailure(ctx, subject, now), err)
+				return countedRefusal(subject, err)
 			}
 		} else {
 			burned, err := w.Recovery.Burn(ctx, lookup.Account.ID, cmd.RecoveryCode.Reveal(), now)
@@ -321,9 +320,7 @@ func (h CompleteSignIn) Execute(
 			}
 			if !burned {
 				w.failure(ctx, FailureMfa)
-				return errors.Join(
-					w.recordMfaFailure(ctx, subject, now),
-					shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid"))
+				return countedRefusal(subject, shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid"))
 			}
 			left, err := w.Recovery.Remaining(ctx, lookup.Account.ID)
 			if err != nil {
@@ -364,6 +361,7 @@ func (h CompleteSignIn) Execute(
 		account, hint = lookup.Account, lookup.Credential
 		return nil
 	})
+	err = w.settleRefusal(ctx, scope, err)
 	if err != nil {
 		return SessionPair{}, -1, err
 	}
@@ -425,17 +423,36 @@ func (w SessionWriter) verifyTotpCode(
 	return nil
 }
 
-func (w SessionWriter) recordMfaFailure(ctx context.Context, subject string, now time.Time) error {
-	attempt, err := w.Attempts.Find(ctx, subject)
-	if err != nil {
+// countedRefusal is a refusal of a wrong proof, marked so that the ledger counts it (T-02).
+//
+// Only marked: the transaction it is returned from rolls back - the refusal is an error - and
+// everything written inside it rolls back too, so a failure recorded there never lands. That is how
+// guesses at every second-factor door went uncounted (#1117). settleRefusal records it once the
+// refusing transaction is over, in a transaction of its own, the way the password door always has.
+func countedRefusal(subject string, refusal error) error {
+	return mfaRefusal{subject: subject, refusal: refusal}
+}
+
+// mfaRefusal carries the ledger subject beside the refusal until the transaction is over.
+type mfaRefusal struct {
+	subject string
+	refusal error
+}
+
+func (r mfaRefusal) Error() string { return r.refusal.Error() }
+func (r mfaRefusal) Unwrap() error { return r.refusal }
+
+// settleRefusal answers a transaction's error: a counted refusal is recorded on its subject in its
+// own transaction and answered as the refusal it carries; anything else is answered as it is.
+func (w SessionWriter) settleRefusal(ctx context.Context, scope persistence.Scope, err error) error {
+	var counted mfaRefusal
+	if !errors.As(err, &counted) {
 		return err
 	}
-	failures := attempt.Failures + 1
-	return w.Attempts.Record(ctx, subject, repository.AuthAttempt{
-		Failures:      failures,
-		LastFailureAt: now.UTC(),
-		LockedUntil:   domain.LockedUntil(failures, now),
-	})
+	if recordErr := w.recordFailure(ctx, scope, []string{counted.subject}); recordErr != nil {
+		return errors.Join(recordErr, counted.refusal)
+	}
+	return counted.refusal
 }
 
 // recordRecoveryUse is the audit entry a burned escape hatch owes: what remains is in the entry,

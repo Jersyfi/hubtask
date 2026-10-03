@@ -172,7 +172,7 @@ func (h StepUp) prove(
 
 		if cmd.Code != "" {
 			if err := w.verifyTotpCode(ctx, actor.AccountID, cmd.Code, now); err != nil {
-				return errors.Join(w.recordMfaFailure(ctx, subject, now), err)
+				return countedRefusal(subject, err)
 			}
 			method = domain.StepUpTotp
 			return nil
@@ -180,7 +180,7 @@ func (h StepUp) prove(
 
 		if !cmd.RecoveryCode.IsEmpty() {
 			if err := w.burnRecoveryCode(ctx, actor, cmd.RecoveryCode, now); err != nil {
-				return errors.Join(w.recordMfaFailure(ctx, subject, now), err)
+				return countedRefusal(subject, err)
 			}
 			method = domain.StepUpRecovery
 			return nil
@@ -202,11 +202,12 @@ func (h StepUp) prove(
 		}
 		if !verified {
 			w.failure(ctx, FailureWrongCredential)
-			return errors.Join(w.recordMfaFailure(ctx, subject, now), domain.ErrSignInFailed())
+			return countedRefusal(subject, domain.ErrSignInFailed())
 		}
 		method = domain.StepUpPassword
 		return nil
 	})
+	err = w.settleRefusal(ctx, actor.PersistenceScope(), err)
 	if err != nil {
 		return "", err
 	}

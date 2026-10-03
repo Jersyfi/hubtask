@@ -166,6 +166,17 @@ SELECT failures, last_failure_at, locked_until
 FROM auth_attempt
 WHERE subject_hash = sqlc.arg('subject_hash');
 
+-- name: CountAuthFailure :one
+-- One more failure, added where the row is rather than computed from a read: the row is held until
+-- the transaction ends, so twenty guesses sent at once are twenty failures, not one written twenty
+-- times. The lock moment is the caller's to compute from the count this answers (UpsertAuthAttempt).
+INSERT INTO auth_attempt (tenant_id, subject_hash, failures, last_failure_at)
+VALUES (current_tenant_id(), sqlc.arg('subject_hash'), 1, sqlc.arg('at'))
+ON CONFLICT (tenant_id, subject_hash) DO UPDATE
+SET failures        = auth_attempt.failures + 1,
+    last_failure_at = EXCLUDED.last_failure_at
+RETURNING failures;
+
 -- name: UpsertAuthAttempt :exec
 -- The counter and the moment are computed by the caller from what it read: the delay curve is the
 -- domain's, and a statement that computed it would be policy in SQL.
