@@ -8,6 +8,7 @@ import {
   NOTICE_DAYS,
   defaultWithdrawalDate,
   earliestWithdrawalDate,
+  removalWait,
   withdrawalMoment,
   withdrawalPhase,
 } from './withdrawal.ts';
@@ -40,4 +41,15 @@ test('a row is offered, being withdrawn, or withdrawn', () => {
   assert.equal(withdrawalPhase({ enabled: true, withdraw_at: '2026-10-02T12:00:00Z' }, noon), 'withdrawn');
   // An offer an older binary ended through the form is withdrawn too, and cancelling restores it.
   assert.equal(withdrawalPhase({ enabled: false, withdraw_at: null }, noon), 'withdrawn');
+});
+
+test('a provider still offered and used waits for its withdrawal before it can be removed', () => {
+  const ahead = '2026-10-16T00:00:00Z';
+  assert.equal(removalWait({ enabled: true, offered_workspaces: 3 }, noon), 'withdraw_first');
+  // Announced already: withdrawing again is not the answer, the day is.
+  assert.equal(removalWait({ enabled: true, withdraw_at: ahead, offered_workspaces: 3 }, noon), 'after_withdrawal');
+  assert.equal(removalWait({ enabled: true, withdraw_at: '2026-10-02T12:00:00Z', offered_workspaces: 3 }, noon), undefined);
+  assert.equal(removalWait({ enabled: false, offered_workspaces: 3 }, noon), undefined);
+  assert.equal(removalWait({ enabled: true, offered_workspaces: 0 }, noon), undefined);
+  assert.equal(removalWait({ enabled: true, withdraw_at: ahead }, noon), undefined);
 });

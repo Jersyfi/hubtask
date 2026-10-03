@@ -88,6 +88,8 @@ test('chromium: a withdrawal shows the count, is announced for a day, and can be
   // A number, never which workspaces.
   assert.match(await row.textContent() ?? '', /Workspaces using it: 12/);
   // Removal comes after the withdrawal (ADR-0077 §2): offered and used, it says so instead of acting.
+  const remove = row.getByRole('button', { name: 'Remove', exact: true });
+  assert.ok(await remove.isDisabled(), 'Remove acts on a provider still offered and used');
   assert.match(await row.textContent() ?? '', /Withdraw it first/);
 
   await row.getByRole('button', { name: 'Withdraw', exact: true }).click();
@@ -110,6 +112,10 @@ test('chromium: a withdrawal shows the count, is announced for a day, and can be
 
   // Until the day: said on the row, and undone with one press.
   await row.getByText(/^Withdrawn on /).waitFor();
+  // Announced, Remove still waits - for the day, not for a withdrawal that has already been made.
+  assert.ok(await remove.isDisabled(), 'Remove acts while the offer still runs');
+  assert.match(await row.textContent() ?? '', /Its withdrawal is announced: it can be removed from /);
+  assert.doesNotMatch(await row.textContent() ?? '', /Withdraw it first/);
   await row.getByRole('button', { name: 'Keep offering it' }).click();
   await row.getByText('Offered', { exact: true }).waitFor();
   assert.equal(sent[1].path, '/admin/identity-providers/platform:cancel-withdrawal');
@@ -143,6 +149,15 @@ test('chromium: withdraw now needs the number typed back, and a wrong one is ref
   assert.equal(sent[1].body.confirm_count, 12);
   await row.getByText('Withdrawn', { exact: true }).waitFor();
   assert.ok(await row.getByRole('button', { name: 'Keep offering it' }).isVisible());
-  // Withdrawn, it may be removed.
-  assert.doesNotMatch(await row.textContent() ?? '', /Withdraw it first/);
+  // Withdrawn, it may be removed - and the dialog says what that costs, which a withdrawal did not.
+  assert.doesNotMatch(await row.textContent() ?? '', /Withdraw it first|can be removed from/);
+  const remove = row.getByRole('button', { name: 'Remove', exact: true });
+  assert.ok(await remove.isEnabled(), 'Remove waits for a provider whose offer has ended');
+  await remove.click();
+  const removal = page.getByRole('dialog', { name: 'Remove this provider' });
+  await removal.waitFor();
+  assert.match(
+    await removal.textContent() ?? '',
+    /deletes the provider and every connection between a person and it; offering it again does not restore them/,
+  );
 });
