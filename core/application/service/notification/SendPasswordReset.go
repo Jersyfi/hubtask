@@ -91,14 +91,17 @@ func (s SendPasswordReset) Execute(ctx context.Context, tenantID, accountID shar
 		return err
 	}
 
-	subjectCode, bodyCode := subjectPasswordReset, bodyPasswordReset
 	params := map[string]string{}
-	if link.First {
+	var subjectCode, bodyCode string
+	switch {
+	case link.First:
 		subjectCode, bodyCode = subjectPasswordSet, bodyPasswordSet
-	}
-	if !link.HasPassword && !link.First {
+	case link.HasPassword:
+		subjectCode, bodyCode = subjectPasswordReset, bodyPasswordReset
+	default:
 		subjectCode, bodyCode = subjectPasswordResetProvider, bodyPasswordResetProvider
-	} else {
+	}
+	if link.First || link.HasPassword {
 		// In the fragment rather than the query, the invitation's reasoning: a proxy or a server
 		// log between the mail client and the interface never sees what follows the hash.
 		base := strings.TrimSuffix(s.BaseURL, "/")
