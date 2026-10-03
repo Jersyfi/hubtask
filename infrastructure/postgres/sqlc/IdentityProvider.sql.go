@@ -164,11 +164,26 @@ func (q *Queries) DeleteExpiredOidcFlows(ctx context.Context, arg DeleteExpiredO
 }
 
 const deleteIdentityProvider = `-- name: DeleteIdentityProvider :execrows
-DELETE FROM identity_provider WHERE id = $1
+DELETE FROM identity_provider
+WHERE id = $1
+  AND (tenant_id IS NOT NULL
+       OR NOT enabled
+       OR (withdraw_at IS NOT NULL AND withdraw_at <= $2)
+       OR count_provider_offers(id) = 0)
 `
 
-func (q *Queries) DeleteIdentityProvider(ctx context.Context, id pgtype.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteIdentityProvider, id)
+type DeleteIdentityProviderParams struct {
+	ID  pgtype.UUID
+	Now pgtype.Timestamptz
+}
+
+// An installation's row that is still offered and that a workspace uses is not removed (ADR-0077
+// §2). The use case asked before spending the step-up proof; the statement asks again, because a
+// withdrawal cancelled or a workspace switching it on in between would otherwise slip past. The
+// same facts as the domain's `RemovableAt` - not offered (switched off, or its day reached) or used
+// by none - and a workspace's own row is not this rule's.
+func (q *Queries) DeleteIdentityProvider(ctx context.Context, arg DeleteIdentityProviderParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteIdentityProvider, arg.ID, arg.Now)
 	if err != nil {
 		return 0, err
 	}

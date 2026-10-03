@@ -125,7 +125,17 @@ RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, po
         THEN count_provider_offers(id) ELSE 0 END)::integer AS offered_workspaces;
 
 -- name: DeleteIdentityProvider :execrows
-DELETE FROM identity_provider WHERE id = sqlc.arg('id');
+-- An installation's row that is still offered and that a workspace uses is not removed (ADR-0077
+-- §2). The use case asked before spending the step-up proof; the statement asks again, because a
+-- withdrawal cancelled or a workspace switching it on in between would otherwise slip past. The
+-- same facts as the domain's `RemovableAt` - not offered (switched off, or its day reached) or used
+-- by none - and a workspace's own row is not this rule's.
+DELETE FROM identity_provider
+WHERE id = sqlc.arg('id')
+  AND (tenant_id IS NOT NULL
+       OR NOT enabled
+       OR (withdraw_at IS NOT NULL AND withdraw_at <= sqlc.arg('now'))
+       OR count_provider_offers(id) = 0);
 
 -- name: InsertOidcFlow :exec
 -- A NULL session is a sign-in flow; a session is the step-up at the provider it belongs to

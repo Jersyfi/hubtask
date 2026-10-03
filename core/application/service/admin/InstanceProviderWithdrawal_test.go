@@ -88,6 +88,10 @@ func TestWithdrawNowRepeatsTheCount(t *testing.T) {
 			detailOf(err) != "identity_provider.withdraw_count_mismatch" {
 			t.Errorf("withdrawing now with %v answered %v", count, err)
 		}
+		// The field's sentence chooses its plural by the number, so the number travels with it.
+		if fields := shared.AsError(err).Fields; len(fields) != 1 || fields[0].Params["count"] != "12" {
+			t.Errorf("the field error carries %+v, want the count", fields)
+		}
 	}
 	if !store.rows[0].WithdrawAt.IsZero() {
 		t.Fatal("an unconfirmed withdraw-now was written")
@@ -252,4 +256,66 @@ func TestADateLessThanADayAheadAsksForTheCount(t *testing.T) {
 		WithdrawCommand{ID: withdrawnRow, At: fixed.Add(domain.MinimumWithdrawalNotice)}); err != nil {
 		t.Errorf("a day's notice asked for the count: %v", err)
 	}
+}
+
+// ADR-0077 §2 (SC-27): an offered provider is removed only once its offer has ended, or when no
+// workspace uses it. Removal deletes the connections between people and the provider, which
+// offering it again would not restore - so it comes after a withdrawal that announced itself.
+func TestAnOfferedProviderIsRemovedOnlyAfterItsOfferEnded(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		withdrawAt time.Time
+		used       int
+		refused    string
+	}{
+		{"offered and used", time.Time{}, 12, "identity_provider.withdraw_first"},
+		{"being withdrawn, still used", fixed.Add(time.Hour), 12, "identity_provider.remove_after_withdrawal"},
+		{"withdrawn, its day reached", fixed.Add(-time.Hour), 12, ""},
+		{"offered, used by nobody", time.Time{}, 0, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			writer, store, _, _ := newInstanceProviderWriter(newRegister(operatorID))
+			offeredRow(store)
+			store.rows[0].WithdrawAt, store.rows[0].OfferedWorkspaces = tc.withdrawAt, tc.used
+
+			err := RemoveInstanceIdentityProvider{Writer: writer}.Execute(t.Context(), operator(), withdrawnRow, "")
+			if tc.refused == "" {
+				if err != nil || len(store.rows) != 0 {
+					t.Errorf("removing answered %v and left %d rows", err, len(store.rows))
+				}
+				return
+			}
+			if detailOf(err) != tc.refused || len(store.rows) != 1 {
+				t.Errorf("removing answered %v and left %d rows, want %s and the row", err, len(store.rows), tc.refused)
+			}
+		})
+	}
+}
+
+// The use case looks before it spends the proof, and the statement that deletes looks again: an
+// offer kept between the two - *Keep offering it* in another tab - is still refused, and the row
+// stays (ADR-0077 §2). One removed in between is no failure: it is gone, as asked.
+func TestARemovalLooksAgainWhereItDeletes(t *testing.T) {
+	t.Run("kept offering in between", func(t *testing.T) {
+		writer, store, _, _ := newInstanceProviderWriter(newRegister(operatorID))
+		offeredRow(store)
+		store.rows[0].WithdrawAt = fixed.Add(-time.Hour)
+		store.meanwhile = func(s *instanceProviderStore) { s.rows[0].WithdrawAt = time.Time{} }
+
+		err := RemoveInstanceIdentityProvider{Writer: writer}.Execute(t.Context(), operator(), withdrawnRow, "")
+		if detailOf(err) != "identity_provider.withdraw_first" || len(store.rows) != 1 {
+			t.Errorf("removing answered %v and left %d rows, want a refusal and the row", err, len(store.rows))
+		}
+	})
+	t.Run("removed in between", func(t *testing.T) {
+		writer, store, _, _ := newInstanceProviderWriter(newRegister(operatorID))
+		offeredRow(store)
+		store.rows[0].WithdrawAt = fixed.Add(-time.Hour)
+		store.meanwhile = func(s *instanceProviderStore) { s.rows = nil }
+
+		if err := (RemoveInstanceIdentityProvider{Writer: writer}).Execute(
+			t.Context(), operator(), withdrawnRow, ""); err != nil {
+			t.Errorf("a row gone in between answered %v", err)
+		}
+	})
 }
