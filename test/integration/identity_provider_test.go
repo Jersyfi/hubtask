@@ -106,6 +106,9 @@ func TestOneWorkspacesProviderIsInvisibleNextDoor(t *testing.T) {
 		if _, found, err := providers.Update(ctx, stolen, nil, now); err != nil || found {
 			t.Errorf("B rewrote A's provider: (%v, %v)", found, err)
 		}
+		if _, found, err := providers.Reconfigure(ctx, stolen, nil, now); err != nil || found {
+			t.Errorf("B reconfigured A's provider: (%v, %v)", found, err)
+		}
 		removed, err := providers.Delete(ctx, idpRowA)
 		if err != nil {
 			t.Fatalf("B's delete: %v", err)
@@ -175,6 +178,22 @@ func TestOneWorkspacesProviderIsInvisibleNextDoor(t *testing.T) {
 		}
 		if string(envelope.Ciphertext) != "A's sealed client secret" {
 			t.Error("an update without a secret lost the one that was sealed")
+		}
+		return nil
+	})
+
+	// Reconfigure is the form's write (ADR-0076 §5): every field but the switch, which the statement
+	// keeps as the row holds it whatever the configuration carries.
+	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
+		formed := second
+		formed.DisplayName = "Named on the form"
+		formed.Enabled = false
+		stored, found, err := providers.Reconfigure(ctx, formed, nil, now.Add(2*time.Minute))
+		if err != nil || !found {
+			t.Fatalf("reconfiguring without the switch: (%v, %v)", found, err)
+		}
+		if !stored.Enabled || stored.DisplayName != "Named on the form" || stored.Version != 3 {
+			t.Errorf("the form's write answered %+v, want the switch kept on and the name written", stored)
 		}
 		return nil
 	})

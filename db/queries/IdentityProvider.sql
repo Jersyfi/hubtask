@@ -63,6 +63,10 @@ RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, po
 -- statement rather than a read-then-write two sign-ins could interleave.
 --
 -- The version rises on every write, so a concurrent second configuration is visible as a conflict.
+--
+-- A NULL `enabled` leaves the switch as the row holds it (ADR-0076 §5): a workspace's own form
+-- configures and never switches, and saying so in the statement is what keeps a save from writing
+-- back a switch the list of ways to sign in changed a moment earlier.
 UPDATE identity_provider SET
   issuer                = sqlc.arg('issuer'),
   client_id             = sqlc.arg('client_id'),
@@ -74,7 +78,7 @@ UPDATE identity_provider SET
   position              = sqlc.arg('position'),
   allowed_email_domains = sqlc.arg('allowed_email_domains'),
   allowed_directories   = sqlc.arg('allowed_directories'),
-  enabled               = sqlc.arg('enabled'),
+  enabled               = coalesce(sqlc.narg('enabled'), enabled),
   updated_at            = sqlc.arg('now'),
   version               = version + 1
 WHERE id = sqlc.arg('id')

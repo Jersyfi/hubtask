@@ -124,6 +124,8 @@ func (h ConfigureFirstIdentityProvider) Execute(
 	}
 
 	cmd.ID = first
+	// The same form behind another door, and it switches nothing either (ADR-0076 §5).
+	cmd.switchInList = true
 	return w.ConfigureAt(ctx, actor.PersistenceScope(), actor, cmd, actor.TenantID)
 }
 
@@ -181,8 +183,7 @@ func (h ConfigureFirstIdentityProvider) Descriptor() usecase.Descriptor {
 				Description: "The order the buttons are drawn in."},
 			{Name: "allowed_email_domains", Kind: usecase.KindList,
 				Description: "The domains a verified address must be inside under DOMAINS."},
-			{Name: "enabled", Kind: usecase.KindBool,
-				Description: "Off keeps the configuration and refuses the flow."},
+			EnabledFieldOfAWorkspace,
 			ProviderStepUpField,
 		},
 		StepUp: providerStepUp,
