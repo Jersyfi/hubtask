@@ -4622,7 +4622,10 @@ type Capabilities struct {
 
 	// CompletionPolicies The values a collection's `completion_policy` may take, in the domain's order. A policies form is built from this list rather than from a copy of the enum: the schema says which values exist, this says which this installation serves.
 	CompletionPolicies *[]CompletionPolicy `json:"completion_policies,omitempty"`
-	EventTypes         *[]string           `json:"event_types,omitempty"`
+
+	// Deprecations Every request field this contract has marked `deprecated`, with the operations that take it, since when, and the major version it goes away with (`versioning-release.md` §5, SC-28). Read from the contract itself, so the list and the specification cannot disagree. A request that sends one of them is answered with the `Deprecation` header (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.
+	Deprecations *[]DeprecatedField `json:"deprecations,omitempty"`
+	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
 	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search` and `natural_ordering`.
@@ -5052,6 +5055,29 @@ type DependencyHealth struct {
 // DependencyHealthCircuitState defines model for DependencyHealth.CircuitState.
 type DependencyHealthCircuitState string
 
+// DeprecatedField One deprecated request field, and when it goes. Identifiers only (ADR-0011): what replaces it is named, and the field's description in the specification says the rest.
+type DeprecatedField struct {
+	// Field The field in the request body.
+	Field       string `json:"field"`
+	Method      string `json:"method"`
+	OperationId string `json:"operation_id"`
+
+	// Path The operation's path as the specification writes it.
+	Path string `json:"path"`
+
+	// RemovedIn The major version of the contract it goes away with.
+	RemovedIn string `json:"removed_in"`
+
+	// ReplacedBy What takes its place: the `operationId` of an operation, or the name of a header.
+	ReplacedBy []string `json:"replaced_by"`
+
+	// Since When it was marked deprecated.
+	Since openapi_types.Date `json:"since"`
+
+	// Sunset The day it stops being accepted, once one is set. Null until then.
+	Sunset *openapi_types.Date `json:"sunset,omitempty"`
+}
+
 // DroppedReference defines model for DroppedReference.
 type DroppedReference struct {
 	// Code A stable message code saying why.
@@ -5332,7 +5358,7 @@ type IdentityProviderConfiguration struct {
 	DisplayName *string `json:"display_name,omitempty"`
 
 	// Enabled **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it says at creation whether the installation offers the provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed value is refused with `identity_provider.withdraw_instead` (ADR-0076 §2). Removed with the next major version of the contract.
-	// Deprecated: Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Enabled *bool  `json:"enabled,omitempty"`
 	Issuer  string `json:"issuer"`
 
@@ -6023,7 +6049,7 @@ type MfaChallengeMethods string
 // MfaDisable defines model for MfaDisable.
 type MfaDisable struct {
 	// Password **Deprecated** (ADR-0075 §3): the proof this route took before the step-up did. Still checked when sent without a step-up token, for one release; then removed.
-	// Deprecated: The step-up proves it, in the X-Hubtask-Step-Up header (ADR-0075 §3).
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Password *string `json:"password,omitempty"`
 }
 

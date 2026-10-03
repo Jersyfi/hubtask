@@ -317,6 +317,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		Features:               &features,
 		Legal:                  legal,
 		Instance:               &instance,
+		Deprecations:           deprecationManifest(),
 	}
 }
 
