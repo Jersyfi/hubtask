@@ -201,6 +201,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.ListSessions{}.Descriptor(),
 		identity.RevokeSession{}.Descriptor(),
 		identity.RevokeAllSessions{}.Descriptor(),
+		identity.RevokeOtherSessions{}.Descriptor(),
 		syncservice.ListSyncDevices{}.Descriptor(),
 		syncservice.ForgetSyncDevice{}.Descriptor(),
 		identity.RedeemInvitation{}.Descriptor(),

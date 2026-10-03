@@ -58,6 +58,8 @@ type sessionsStore struct {
 	// statement reports false for a session that is not the caller's or not live.
 	elevated       []elevation
 	elevateChanged bool
+	// keptByOthers is the session each "everywhere else" was asked to spare.
+	keptByOthers []shared.ID
 }
 
 type elevation struct {
@@ -123,6 +125,12 @@ func (s *sessionsStore) Revoke(_ context.Context, id, _ shared.ID, _ time.Time) 
 }
 
 func (s *sessionsStore) RevokeAll(context.Context, shared.ID, time.Time) (int, error) {
+	return s.revokedAll, nil
+}
+
+// RevokeOthers records which session was kept - the one thing the use case decides.
+func (s *sessionsStore) RevokeOthers(_ context.Context, _ shared.ID, keep shared.ID, _ time.Time) (int, error) {
+	s.keptByOthers = append(s.keptByOthers, keep)
 	return s.revokedAll, nil
 }
 

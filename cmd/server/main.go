@@ -1255,6 +1255,7 @@ func run() error {
 		identity.ListSessions{Writer: sessionWriter}.Descriptor(),
 		identity.RevokeSession{Writer: sessionWriter}.Descriptor(),
 		identity.RevokeAllSessions{Writer: sessionWriter}.Descriptor(),
+		identity.RevokeOtherSessions{Writer: sessionWriter}.Descriptor(),
 		syncservice.ListSyncDevices{Writer: deviceWriter}.Descriptor(),
 		syncservice.ForgetSyncDevice{Writer: deviceWriter}.Descriptor(),
 		identity.RedeemInvitation{Writer: sessionWriter, Passwords: &passwordWriter}.Descriptor(),

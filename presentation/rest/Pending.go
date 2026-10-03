@@ -115,7 +115,7 @@ func (pending) RevokeSession(w http.ResponseWriter, r *http.Request, _ openapi.S
 
 func (pending) RevokeAllSessions(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-// Sign out everywhere else lands with SC-23's use case.
+// Sign out everywhere else: served by RestController since SC-23.
 func (pending) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) RedeemInvitation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
