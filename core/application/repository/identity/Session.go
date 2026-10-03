@@ -36,6 +36,15 @@ type SessionCredential struct {
 	RotationFrom time.Time
 }
 
+// AccountSessions is what the session list reads: the account's sessions the store still holds, and
+// the workspace's rotation cutoff beside them. The cutoff travels with the rows because judging them
+// needs it - a session opened before it is over (ADR-0068 §3) - and the list judges with the same
+// method authentication does (SC-19).
+type AccountSessions struct {
+	Sessions     []identity.Session
+	RotationFrom time.Time
+}
+
 // RefreshCredential is what the exchange reads: the presented link of the chain, its session,
 // the account, and the tenant's defaults.
 type RefreshCredential struct {
@@ -98,9 +107,10 @@ type Sessions interface {
 	// shared.ErrNotFound. It reports what is stored and judges none of it (ADR-0001).
 	FindForAuth(ctx context.Context, sessionID shared.ID) (SessionCredential, error)
 
-	// ForAccount answers the account's live sessions, newest first. The dead ones are absent: a
-	// listing is for deciding what to end.
-	ForAccount(ctx context.Context, accountID shared.ID, now time.Time) ([]identity.Session, error)
+	// ForAccount answers the account's unrevoked, unexpired sessions, newest first, and the
+	// workspace's rotation cutoff. It filters by the two columns a statement can compare and judges
+	// nothing else (ADR-0001): the workspace's bounds are the application's to apply.
+	ForAccount(ctx context.Context, accountID shared.ID, now time.Time) (AccountSessions, error)
 
 	// TouchLastSeen records that the session acted. Called at most once per interval.
 	TouchLastSeen(ctx context.Context, sessionID shared.ID, at time.Time) error

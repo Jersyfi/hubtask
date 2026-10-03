@@ -4041,7 +4041,7 @@
         ],
         "operationId": "listSessions",
         "summary": "The caller's active sessions",
-        "description": "One's own sessions, newest first: where each was opened (the user agent and the IP class recorded at sign-in - a hint for recognising one's own devices, never a precise address), when it was created, when it last acted, and which one is answering this very call. Never anybody else's, whatever the role: a session is the person's, and an administrator who suspects one acts by disabling the account, not by reading its sessions.\n",
+        "description": "One's own sessions, newest first: where each was opened (the user agent and the IP class recorded at sign-in - a hint for recognising one's own devices, never a precise address), when it was created, when it last acted, and which one is answering this very call. Never anybody else's, whatever the role: a session is the person's, and an administrator who suspects one acts by disabling the account, not by reading its sessions. Only open sessions are listed - those the next request accepts: one ended, run out, past the workspace's maximum age or idle time, or opened before it required a new password from everyone is absent.\n",
         "responses": {
           "200": {
             "description": "The sessions",
