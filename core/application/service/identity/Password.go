@@ -83,6 +83,9 @@ type PasswordWriter struct {
 	// StepUp is the bearer door's proof (H-03).
 	StepUp stepupport.Verifier
 
+	// WaysIn answers ADR-0076 §4's fallback for the sign-in's verdict. Its zero value answers none.
+	WaysIn WaysIn
+
 	// Blocklist and Breach are the two optional corpora. Both nil on a plain installation.
 	Blocklist PasswordBlocklist
 	Breach    BreachCorpus
@@ -729,6 +732,9 @@ type SignInVerdict struct {
 	Sessions domain.SessionPolicy
 	// RotationFrom is the moment every older session is refused from.
 	RotationFrom time.Time
+	// PasswordFallback says the password was accepted only because the workspace's last way in was
+	// an offer that ended (ADR-0076 §4) - which the sign-in records in the workspace's trail.
+	PasswordFallback bool
 }
 
 // JudgeSignIn answers the verdict for an account whose password was just accepted.
@@ -761,6 +767,14 @@ func (w PasswordWriter) JudgeSignIn(
 		// password the rule had accepted.
 		return verdict, nil
 	}
+
+	// A password was given: whether it opened the door only as the fallback. Asked here, where the
+	// methods are resolved, so the sign-in reads the same rule the card was drawn from.
+	fallback, err := w.WaysIn.PasswordFallback(ctx, tenantID, policy.Methods)
+	if err != nil {
+		return SignInVerdict{}, err
+	}
+	verdict.PasswordFallback = fallback
 
 	// The account's row only where there is a password to judge: a provider-only account has no
 	// moment to compare, and the callers above want nothing from it.

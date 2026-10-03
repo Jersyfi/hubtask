@@ -228,7 +228,8 @@ func (q *Queries) FindAccountByProviderSubject(ctx context.Context, arg FindAcco
 
 const findIdentityProviderByID = `-- name: FindIdentityProviderByID :one
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
+  withdraw_at, offered_workspaces
 FROM identity_provider
 WHERE id = $1
 `
@@ -248,6 +249,8 @@ type FindIdentityProviderByIDRow struct {
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
+	WithdrawAt          pgtype.Timestamptz
+	OfferedWorkspaces   int32
 }
 
 // What a reader is allowed to see: never the sealed secret. The one caller that needs it asks for
@@ -270,13 +273,16 @@ func (q *Queries) FindIdentityProviderByID(ctx context.Context, id pgtype.UUID) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.WithdrawAt,
+		&i.OfferedWorkspaces,
 	)
 	return i, err
 }
 
 const findIdentityProviderSecret = `-- name: FindIdentityProviderSecret :one
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  client_secret_enc, client_secret_key_id, allowed_email_domains, allowed_directories, enabled
+  client_secret_enc, client_secret_key_id, allowed_email_domains, allowed_directories, enabled,
+  withdraw_at
 FROM identity_provider
 WHERE id = $1
 `
@@ -295,6 +301,7 @@ type FindIdentityProviderSecretRow struct {
 	AllowedEmailDomains []string
 	AllowedDirectories  []string
 	Enabled             bool
+	WithdrawAt          pgtype.Timestamptz
 }
 
 // The token exchange's own read, separate from the one above so that opening the envelope is a
@@ -316,6 +323,7 @@ func (q *Queries) FindIdentityProviderSecret(ctx context.Context, id pgtype.UUID
 		&i.AllowedEmailDomains,
 		&i.AllowedDirectories,
 		&i.Enabled,
+		&i.WithdrawAt,
 	)
 	return i, err
 }
@@ -333,7 +341,8 @@ VALUES (
   $12, $13
 )
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
+  withdraw_at, offered_workspaces
 `
 
 type InsertIdentityProviderParams struct {
@@ -367,6 +376,8 @@ type InsertIdentityProviderRow struct {
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
+	WithdrawAt          pgtype.Timestamptz
+	OfferedWorkspaces   int32
 }
 
 // `current_tenant_id()` rather than an argument, and it is what makes one statement serve both
@@ -405,6 +416,8 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.WithdrawAt,
+		&i.OfferedWorkspaces,
 	)
 	return i, err
 }
@@ -520,7 +533,8 @@ func (q *Queries) ListIdentityProviderSecrets(ctx context.Context) ([]ListIdenti
 const listIdentityProviders = `-- name: ListIdentityProviders :many
 
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
+  withdraw_at, offered_workspaces
 FROM identity_provider
 ORDER BY (tenant_id IS NULL), position, created_at, id
 `
@@ -540,6 +554,8 @@ type ListIdentityProvidersRow struct {
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
+	WithdrawAt          pgtype.Timestamptz
+	OfferedWorkspaces   int32
 }
 
 // The relying-party surface (H-04, SI-10): the providers a workspace signs in through, and the
@@ -577,6 +593,8 @@ func (q *Queries) ListIdentityProviders(ctx context.Context) ([]ListIdentityProv
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.WithdrawAt,
+			&i.OfferedWorkspaces,
 		); err != nil {
 			return nil, err
 		}
@@ -586,6 +604,22 @@ func (q *Queries) ListIdentityProviders(ctx context.Context) ([]ListIdentityProv
 		return nil, err
 	}
 	return items, nil
+}
+
+const moveProviderOffer = `-- name: MoveProviderOffer :exec
+SELECT move_provider_offer($1, $2)
+`
+
+type MoveProviderOfferParams struct {
+	ProviderID pgtype.UUID
+	Step       int32
+}
+
+// A workspace's switch moves the installation row's count by one step (ADR-0076 §1), inside the
+// workspace's own transaction - through the function, because the row is not the workspace's to write.
+func (q *Queries) MoveProviderOffer(ctx context.Context, arg MoveProviderOfferParams) error {
+	_, err := q.db.Exec(ctx, moveProviderOffer, arg.ProviderID, arg.Step)
+	return err
 }
 
 const rewrapIdentityProviderSecret = `-- name: RewrapIdentityProviderSecret :execrows
@@ -616,6 +650,70 @@ func (q *Queries) RewrapIdentityProviderSecret(ctx context.Context, arg RewrapId
 	return result.RowsAffected(), nil
 }
 
+const setProviderWithdrawal = `-- name: SetProviderWithdrawal :one
+UPDATE identity_provider SET
+  withdraw_at = $1,
+  enabled     = enabled OR $1::timestamptz IS NULL,
+  updated_at  = $2,
+  version     = version + 1
+WHERE id = $3 AND tenant_id IS NULL
+RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
+  withdraw_at, offered_workspaces
+`
+
+type SetProviderWithdrawalParams struct {
+	WithdrawAt pgtype.Timestamptz
+	Now        pgtype.Timestamptz
+	ID         pgtype.UUID
+}
+
+type SetProviderWithdrawalRow struct {
+	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
+	Issuer              string
+	ClientID            string
+	DisplayName         string
+	Kind                string
+	Provisioning        string
+	Position            int32
+	AllowedEmailDomains []string
+	AllowedDirectories  []string
+	Enabled             bool
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	Version             int32
+	WithdrawAt          pgtype.Timestamptz
+	OfferedWorkspaces   int32
+}
+
+// When the installation's offer ends; NULL keeps offering it, and keeping it switches the row back on
+// for an offer a previous binary ended through the form. The installation's scope only: the write
+// policy matches no row in a workspace's.
+func (q *Queries) SetProviderWithdrawal(ctx context.Context, arg SetProviderWithdrawalParams) (SetProviderWithdrawalRow, error) {
+	row := q.db.QueryRow(ctx, setProviderWithdrawal, arg.WithdrawAt, arg.Now, arg.ID)
+	var i SetProviderWithdrawalRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Issuer,
+		&i.ClientID,
+		&i.DisplayName,
+		&i.Kind,
+		&i.Provisioning,
+		&i.Position,
+		&i.AllowedEmailDomains,
+		&i.AllowedDirectories,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+		&i.WithdrawAt,
+		&i.OfferedWorkspaces,
+	)
+	return i, err
+}
+
 const updateIdentityProvider = `-- name: UpdateIdentityProvider :one
 UPDATE identity_provider SET
   issuer                = $1,
@@ -633,7 +731,8 @@ UPDATE identity_provider SET
   version               = version + 1
 WHERE id = $13
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
+  withdraw_at, offered_workspaces
 `
 
 type UpdateIdentityProviderParams struct {
@@ -667,6 +766,8 @@ type UpdateIdentityProviderRow struct {
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
+	WithdrawAt          pgtype.Timestamptz
+	OfferedWorkspaces   int32
 }
 
 // Set whole, not patched: a provider half-changed is a provider nobody can reason about. The
@@ -711,6 +812,8 @@ func (q *Queries) UpdateIdentityProvider(ctx context.Context, arg UpdateIdentity
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.WithdrawAt,
+		&i.OfferedWorkspaces,
 	)
 	return i, err
 }

@@ -293,6 +293,14 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 	if err != nil {
 		return SignInResult{}, err
 	}
+	// The password was right and opened the door only as ADR-0076 §4's fallback: the workspace's
+	// trail says so, whichever step follows - its administrators are to see that the way in they
+	// relied on is gone.
+	if verdict.PasswordFallback {
+		if err := w.recordFallback(ctx, scope, found.Account); err != nil {
+			return SignInResult{}, err
+		}
+	}
 	if challenge != nil {
 		return SignInResult{Challenge: challenge}, nil
 	}

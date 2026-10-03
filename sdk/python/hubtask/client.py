@@ -683,6 +683,14 @@ class Client:
         """Withdraw a provider from every workspace at once"""
         return self._call("DELETE", "/admin/identity-providers/{providerId}", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
+    def withdraw_instance_identity_provider(self, provider_id: str, body: "ProviderWithdrawal", *, step_up: str | None = None) -> "IdentityProvider":
+        """Announce the withdrawal of an offered provider, or withdraw it now"""
+        return self._call("POST", "/admin/identity-providers/{providerId}:withdraw", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def cancel_instance_identity_provider_withdrawal(self, provider_id: str, *, step_up: str | None = None) -> "IdentityProvider":
+        """Keep offering a provider whose withdrawal was announced"""
+        return self._call("POST", "/admin/identity-providers/{providerId}:cancel-withdrawal", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
     def read_encryption_status(self) -> "EncryptionStatus":
         """The keyring, and what still names each key"""
         return self._call("GET", "/admin/encryption", {}, None, {}, None, "none", None, "json")

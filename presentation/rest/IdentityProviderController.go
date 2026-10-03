@@ -4,10 +4,13 @@
 package rest
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -25,6 +28,9 @@ const (
 	listInstanceIdentityProvidersUseCase     = "ListInstanceIdentityProviders"
 	configureInstanceIdentityProviderUseCase = "ConfigureInstanceIdentityProvider"
 	removeInstanceIdentityProviderUseCase    = "RemoveInstanceIdentityProvider"
+
+	withdrawInstanceIdentityProviderUseCase         = "WithdrawInstanceIdentityProvider"
+	cancelInstanceIdentityProviderWithdrawalUseCase = "CancelInstanceIdentityProviderWithdrawal"
 )
 
 // ReadIdentityProvider answers GET /identity-provider — the singular surface, kept.
@@ -235,6 +241,73 @@ func (c *RestController) removeProvider(
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// WithdrawInstanceIdentityProvider answers POST /admin/identity-providers/{providerId}:withdraw.
+//
+// The body is optional: none is the default notice. Read whole and decoded only when something
+// arrived, so an empty request is the fourteen days rather than a malformed one.
+func (c *RestController) WithdrawInstanceIdentityProvider(
+	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
+	params openapi.WithdrawInstanceIdentityProviderParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		WriteProblem(w, shared.ErrMalformedRequest.WithDetail("request.body_unreadable").WithCause(err), requestID)
+		return
+	}
+	var body openapi.ProviderWithdrawal
+	if len(bytes.TrimSpace(raw)) > 0 {
+		if err := decodeFrom(bytes.NewReader(raw), &body); err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+	}
+
+	in := usecase.Input{
+		"id":            providerID.String(),
+		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+	}
+	if body.WithdrawAt != nil {
+		in["withdraw_at"] = body.WithdrawAt.UTC().Format(time.RFC3339)
+	}
+	if body.ConfirmCount != nil {
+		in["confirm_count"] = *body.ConfirmCount
+	}
+	out, err := c.UseCases.Invoke(r.Context(), withdrawInstanceIdentityProviderUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, identityProviderResponse(out))
+}
+
+// CancelInstanceIdentityProviderWithdrawal answers
+// POST /admin/identity-providers/{providerId}:cancel-withdrawal.
+func (c *RestController) CancelInstanceIdentityProviderWithdrawal(
+	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
+	params openapi.CancelInstanceIdentityProviderWithdrawalParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), cancelInstanceIdentityProviderWithdrawalUseCase,
+		actorOf(r), usecase.Input{
+			"id":            providerID.String(),
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+		})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, identityProviderResponse(out))
+}
+
 // ListIdentityProviderPresets answers GET /identity-provider-presets.
 func (c *RestController) ListIdentityProviderPresets(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
@@ -285,10 +358,11 @@ func identityProviderResponse(out usecase.Output) openapi.IdentityProvider {
 	if position, held := out["position"].(int); held {
 		answer.Position = position
 	}
-	if domains, held := out["allowed_email_domains"].([]string); held {
+	// A nil list stays the empty one: the contract's arrays are never null.
+	if domains, held := out["allowed_email_domains"].([]string); held && domains != nil {
 		answer.AllowedEmailDomains = domains
 	}
-	if directories, held := out["allowed_directories"].([]string); held {
+	if directories, held := out["allowed_directories"].([]string); held && directories != nil {
 		answer.AllowedDirectories = directories
 	}
 	if enabled, held := out["enabled"].(bool); held {
@@ -305,6 +379,13 @@ func identityProviderResponse(out usecase.Output) openapi.IdentityProvider {
 	}
 	if version, held := out["version"].(int); held {
 		answer.Version = version
+	}
+	if withdrawAt, held := out["withdraw_at"].(time.Time); held && !withdrawAt.IsZero() {
+		answer.WithdrawAt = &withdrawAt
+	}
+	// The operator's projection carries it and a workspace's does not; absent stays absent.
+	if offered, held := out["offered_workspaces"].(int); held {
+		answer.OfferedWorkspaces = &offered
 	}
 	return answer
 }

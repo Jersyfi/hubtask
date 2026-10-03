@@ -79,7 +79,7 @@ func (w SessionWriter) stepUpProvider(
 		settings = workspace.Settings
 	}
 	for _, candidate := range listed {
-		if slices.Contains(connected, candidate.ID) && offeredHere(candidate, settings) {
+		if slices.Contains(connected, candidate.ID) && offeredHere(candidate, settings, w.Clock.Now()) {
 			return candidate, true, nil
 		}
 	}
@@ -92,8 +92,15 @@ func (w SessionWriter) stepUpConfig(
 	ctx context.Context, scope persistence.Scope, providerID shared.ID,
 ) (domain.IdentityProvider, provider.Config, error) {
 	p := w.StepUpProviders
-	configured, opened, err := openProvider(ctx, w, p.Providers, scope, providerID, nil)
+	configured, opened, err := openProvider(ctx, w, p.Providers, p.Workspaces, scope, providerID, nil)
 	if err != nil {
+		// No longer a way in here - switched off, not taken, or past an announced withdrawal
+		// (ADR-0076 §2): the step-up's own refusal, the one its start gives, rather than the
+		// sign-in's sentence.
+		if shared.AsError(err).DetailCode == "identity_provider.disabled" {
+			return domain.IdentityProvider{}, provider.Config{},
+				shared.ErrValidation.WithDetail("auth.step_up_no_provider")
+		}
 		return domain.IdentityProvider{}, provider.Config{}, err
 	}
 	return configured, provider.Config{

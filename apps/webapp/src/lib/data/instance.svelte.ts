@@ -22,6 +22,7 @@ import type {
   AdminTenant,
   IdentityProvider,
   IdentityProviderConfiguration,
+  ProviderWithdrawal,
   IdentityProviderPreset,
   EncryptionStatus,
   InstanceJournalEntry,
@@ -398,7 +399,36 @@ class Instance {
     );
   }
 
-  /** Withdraws one from every workspace at once. */
+  /**
+   * Announces the end of an offer, or ends it now (ADR-0076 §2-3).
+   *
+   * A body with no date is the server's fourteen days. A date that has come is *Withdraw now*, and
+   * the body must carry the count as the operator just read it - the server compares it inside the
+   * same transaction, so a workspace that switched the provider on since makes it wrong, not unseen.
+   */
+  async withdrawProvider(id: string, body: ProviderWithdrawal): Promise<IdentityProvider> {
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<IdentityProvider>('POST', `${PROVIDERS}/${id}:withdraw`, body, {
+        stepUpToken,
+        invalidates: EVERYTHING,
+      }),
+    );
+  }
+
+  /** Keeps offering it - before the date, or after it, which restores the workspaces' sign-in. */
+  async cancelWithdrawal(id: string): Promise<IdentityProvider> {
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<IdentityProvider>('POST', `${PROVIDERS}/${id}:cancel-withdrawal`, {}, {
+        stepUpToken,
+        invalidates: EVERYTHING,
+      }),
+    );
+  }
+
+  /**
+   * Removes one from every workspace at once: the row, not only the offer. A workspace left with no
+   * way in falls back to the password for the accounts that hold one (ADR-0076 §4).
+   */
   async removeProvider(id: string): Promise<void> {
     await stepUp.around((stepUpToken) =>
       engine.mutate('DELETE', `${PROVIDERS}/${id}`, undefined, {

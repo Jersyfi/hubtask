@@ -290,6 +290,8 @@ export type AiJurisdiction = components['schemas']['AiJurisdiction'];
 export type AccessToken = components['schemas']['AccessToken'];
 export type IdentityProviderConfiguration =
   components['schemas']['IdentityProviderConfiguration'];
+/** When an offered provider is withdrawn, and for *Withdraw now* the count confirmed (ADR-0076). */
+export type ProviderWithdrawal = components['schemas']['ProviderWithdrawal'];
 /** The preset a provider was configured from, which decides the mark its button draws (ADR-0069). */
 export type IdentityProviderKind = components['schemas']['IdentityProviderKind'];
 /**
