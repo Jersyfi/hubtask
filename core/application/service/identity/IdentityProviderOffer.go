@@ -137,7 +137,6 @@ func (h OfferIdentityProvider) offerInstallationRow(
 	if err != nil {
 		return domain.IdentityProvider{}, err
 	}
-	was := workspace.Settings.Offers(found.ID)
 	workspace.Settings = workspace.Settings.WithOffer(found.ID, offered)
 	written, err := h.Workspaces.Update(
 		ctx, workspace, workspace.Version, h.Writer.Session.Clock.Now())
@@ -147,24 +146,8 @@ func (h OfferIdentityProvider) offerInstallationRow(
 	if !written {
 		return domain.IdentityProvider{}, shared.ErrConflict.WithDetail("workspace.version_stale")
 	}
-	// The installation's count of workspaces that use it (ADR-0076 §1), moved by this switch and
-	// by nothing else, in the same transaction - and only when the switch changed something, so a
-	// repeated "on" is not a second workspace. The write above is guarded on the version, which is
-	// what keeps two administrators switching at once from moving it twice.
-	if was != offered {
-		step := 1
-		if !offered {
-			step = -1
-		}
-		if err := h.Writer.Providers.MoveOfferCount(ctx, found.ID, step); err != nil {
-			return domain.IdentityProvider{}, err
-		}
-		if offered {
-			found.OfferedWorkspaces++
-		} else {
-			found.OfferedWorkspaces = max(0, found.OfferedWorkspaces-1)
-		}
-	}
+	// No count is moved: the installation counts the workspaces' switches where it reads the number
+	// (ADR-0077 §1), so this switch - and every other write to them - agrees with it by construction.
 	found.OfferedHere = offered
 	return found, nil
 }
