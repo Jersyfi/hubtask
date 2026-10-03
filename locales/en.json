@@ -97,6 +97,7 @@
   "access.not_permitted": "Your role in this workspace does not allow that ({permission}).",
   "access.account_not_active": "This account cannot be used at the moment. Its status is {status}.",
   "auth.sign_in_failed": "Sign-in failed. Check the email address and the password.",
+  "auth.password_not_offered": "This workspace does not sign in with a password. Sign in through its provider instead.",
   "auth.sign_in_locked": "Too many failed attempts. Wait a moment, then try again.",
   "auth.refresh_failed": "That refresh token cannot be exchanged. Sign in again.",
   "auth.refresh_token_expired": "That refresh token has expired. Sign in again.",

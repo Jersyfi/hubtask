@@ -64,6 +64,7 @@
   "mail.too_many_attachments": "Diese Nachricht enthält mehr Dateien, als ein Eintrag aufnehmen kann.",
   "mail.attachment_too_large": "Eine Datei in dieser Nachricht ist zu groß für den Jumble.",
   "auth.sign_in_failed": "Die Anmeldung ist fehlgeschlagen. Prüfe E-Mail-Adresse und Passwort.",
+  "auth.password_not_offered": "In diesem Arbeitsbereich meldest du dich nicht mit einem Passwort an. Melde dich stattdessen über seinen Anbieter an.",
   "auth.sign_in_locked": "Zu viele fehlgeschlagene Versuche. Warte einen Moment und versuche es dann noch einmal.",
   "auth.refresh_failed": "Dieses Refresh-Token kann nicht eingetauscht werden. Melde dich erneut an.",
   "auth.refresh_token_expired": "Dieses Refresh-Token ist abgelaufen. Melde dich erneut an.",
