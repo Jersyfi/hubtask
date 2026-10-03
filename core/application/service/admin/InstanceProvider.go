@@ -122,10 +122,11 @@ func (h ConfigureInstanceIdentityProvider) Execute(
 // RemoveInstanceIdentityProvider takes one away.
 type RemoveInstanceIdentityProvider struct{ Writer InstanceProviderWriter }
 
-// Execute removes it.
-//
-// Every workspace loses that way in at once, which is why it is journalled and why the accounts it
-// signed in keep their rows: what they lose is the way back, exactly as when a workspace removes its
+// Execute removes it - only once its offer has ended, or where no workspace uses it (ADR-0077 §2).
+// Removal deletes every connection between a person and the provider, which offering it again
+// would not restore, so it comes after a withdrawal that announced itself; *Withdraw now* is the
+// answer to a compromised provider. It is journalled, and the accounts it signed in keep their rows
+// and their live sessions: what they lose is the way back, exactly as when a workspace removes its
 // own.
 func (h RemoveInstanceIdentityProvider) Execute(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID, stepUpToken string,
