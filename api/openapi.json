@@ -5517,7 +5517,7 @@
           }
         ],
         "summary": "Remove a provider whose offer has ended",
-        "description": "Removes the installation's provider and its sealed secret - once its offer has ended (`:withdraw`, its day reached) or where no workspace uses it. While the offer stands and a workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count` the number of workspaces: an offer ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw now* is the answer to a compromised provider. The connections between people and the provider are deleted and are not restored by offering it again; the accounts keep their rows and their live sessions. Journalled.\n",
+        "description": "Removes the installation's provider and its sealed secret - once its offer has ended (`:withdraw`, its day reached) or where no workspace uses it. While the offer stands and a workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count` the number of workspaces - or, where a withdrawal is already announced, with `identity_provider.remove_after_withdrawal`, its `date` the moment the offer ends. An offer ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw now* is the answer to a compromised provider. The connections between people and the provider are deleted and are not restored by offering it again; the accounts keep their rows and their live sessions. Journalled.\n",
         "responses": {
           "204": {
             "description": "Removed"

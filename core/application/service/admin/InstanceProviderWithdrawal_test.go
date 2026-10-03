@@ -266,12 +266,12 @@ func TestAnOfferedProviderIsRemovedOnlyAfterItsOfferEnded(t *testing.T) {
 		name       string
 		withdrawAt time.Time
 		used       int
-		removed    bool
+		refused    string
 	}{
-		{"offered and used", time.Time{}, 12, false},
-		{"being withdrawn, still used", fixed.Add(time.Hour), 12, false},
-		{"withdrawn, its day reached", fixed.Add(-time.Hour), 12, true},
-		{"offered, used by nobody", time.Time{}, 0, true},
+		{"offered and used", time.Time{}, 12, "identity_provider.withdraw_first"},
+		{"being withdrawn, still used", fixed.Add(time.Hour), 12, "identity_provider.remove_after_withdrawal"},
+		{"withdrawn, its day reached", fixed.Add(-time.Hour), 12, ""},
+		{"offered, used by nobody", time.Time{}, 0, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			writer, store, _, _ := newInstanceProviderWriter(newRegister(operatorID))
@@ -279,14 +279,14 @@ func TestAnOfferedProviderIsRemovedOnlyAfterItsOfferEnded(t *testing.T) {
 			store.rows[0].WithdrawAt, store.rows[0].OfferedWorkspaces = tc.withdrawAt, tc.used
 
 			err := RemoveInstanceIdentityProvider{Writer: writer}.Execute(t.Context(), operator(), withdrawnRow, "")
-			if tc.removed {
+			if tc.refused == "" {
 				if err != nil || len(store.rows) != 0 {
 					t.Errorf("removing answered %v and left %d rows", err, len(store.rows))
 				}
 				return
 			}
-			if detailOf(err) != "identity_provider.withdraw_first" || len(store.rows) != 1 {
-				t.Errorf("removing answered %v and left %d rows, want a refusal and the row", err, len(store.rows))
+			if detailOf(err) != tc.refused || len(store.rows) != 1 {
+				t.Errorf("removing answered %v and left %d rows, want %s and the row", err, len(store.rows), tc.refused)
 			}
 		})
 	}

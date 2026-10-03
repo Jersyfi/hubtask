@@ -135,11 +135,19 @@ func (p IdentityProvider) Withdrawing(now time.Time) bool {
 // or where no workspace uses it, after a withdrawal that announced itself. A workspace's own row is
 // the workspace's to remove, and its own rule (the last way in) is asked elsewhere.
 //
+// While a withdrawal is already announced the operator has done what the refusal would ask, so it
+// says when instead: the day the offer ends, from which the row may go.
+//
 // The statement that deletes the row asks the same three facts again, so that nothing that changed
 // between a caller's look and the delete slips past it; the two are kept in step by hand.
 func (p IdentityProvider) RemovableAt(now time.Time) error {
 	if !p.Installation() || !p.OfferedAt(now) || p.OfferedWorkspaces == 0 {
 		return nil
+	}
+	if p.Withdrawing(now) {
+		return shared.ErrValidation.
+			WithDetail("identity_provider.remove_after_withdrawal").
+			WithParams(map[string]string{"date": p.WithdrawAt.UTC().Format(time.RFC3339)})
 	}
 	return shared.ErrValidation.
 		WithDetail("identity_provider.withdraw_first").
