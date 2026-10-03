@@ -329,6 +329,19 @@ func (w OidcWriter) settleAccount(
 					return shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in")
 				}
 
+				// An invitation nobody redeemed is accepted here, through the provider, in the
+				// same transaction as the connection (SC-24): the account becomes ACTIVE as
+				// redeeming would make it, and an invited person in a workspace without the password
+				// has a way in. One that ran out stays refused - the provider's word does not renew
+				// the operator's offer.
+				if existing.Status == domain.AccountInvited {
+					accepted, err := w.acceptInvitation(ctx, existing, configured)
+					if err != nil {
+						return err
+					}
+					existing = accepted
+				}
+
 				linked, err := w.External.LinkSubject(
 					ctx, configured.ID, existing.ID, arriving.Subject, w.Session.Clock.Now())
 				if err != nil {
@@ -378,6 +391,41 @@ func (w OidcWriter) settleAccount(
 		return domain.Account{}, false, err
 	}
 	return account, owed, nil
+}
+
+// acceptInvitation activates an invited account through the provider and records it as the
+// redemption is recorded: the same action, the status it moved, and the provider it came through.
+func (w OidcWriter) acceptInvitation(
+	ctx context.Context, invited domain.Account, configured domain.IdentityProvider,
+) (domain.Account, error) {
+	now := w.Session.Clock.Now()
+	accepted, err := w.Accounts.AcceptInvitation(ctx, invited.ID, now)
+	if err != nil {
+		return domain.Account{}, err
+	}
+	if !accepted {
+		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.invitation_lapsed")
+	}
+	invited.Status = domain.AccountActive
+	return invited, w.Session.Audit.Append(ctx, audit.Entry{
+		TenantID:   invited.TenantID,
+		OccurredAt: now,
+		Action:     InvitationRedeemedAction,
+		Outcome:    audit.OutcomeSuccess,
+		Severity:   audit.SeverityNotice,
+		ActorKind:  appshared.ActorUser,
+		ActorID:    invited.ID,
+		ActorLabel: invited.DisplayName,
+		TargetType: accountTarget,
+		TargetID:   invited.ID,
+		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+		Changes: audit.Changes(
+			audit.Change{
+				Field: "status", Classification: audit.Open,
+				From: string(domain.AccountInvited), To: string(domain.AccountActive),
+			},
+			audit.Change{Field: "provider_id", Classification: audit.Open, To: configured.ID.String()}),
+	})
 }
 
 // linkProof is what an existing account demands before a provider may be connected to it.

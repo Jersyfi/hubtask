@@ -119,6 +119,18 @@ SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
 FROM account
 WHERE lower(email) = lower(sqlc.arg('email')) AND deleted_at IS NULL;
 
+-- name: AcceptInvitation :execrows
+-- The provider's half of redeeming an invitation (SC-24): the invited account becomes ACTIVE and
+-- the invitation is spent, in one statement - unless it ran out, which the provider's word does not
+-- renew. No password is set: the person signs in through the provider.
+UPDATE account SET
+  status                = 'ACTIVE',
+  redemption_token_hash = NULL,
+  redemption_expires_at = NULL,
+  updated_at            = sqlc.arg('now')
+WHERE id = sqlc.arg('id') AND status = 'INVITED' AND deleted_at IS NULL
+  AND (redemption_expires_at IS NULL OR redemption_expires_at > sqlc.arg('now'));
+
 -- name: InsertAccount :exec
 INSERT INTO account (id, tenant_id, kind, email, display_name, status, locale, time_zone, week_start)
 VALUES (

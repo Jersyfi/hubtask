@@ -129,6 +129,11 @@ type Accounts interface {
 	// compared the way it is stored, lower case.
 	FindByEmail(ctx context.Context, email string) (identity.Account, error)
 
+	// AcceptInvitation makes an invited account ACTIVE and spends its invitation, when the
+	// invitation has not run out - the provider's half of redeeming it (SC-24). False is "not
+	// invited, gone, or lapsed": nothing changed.
+	AcceptInvitation(ctx context.Context, accountID shared.ID, now time.Time) (bool, error)
+
 	// Insert writes a new account. It fails with a conflict when the address is taken, because
 	// the uniqueness is the database's to enforce and racing callers must not both win.
 	Insert(ctx context.Context, account identity.Account) error
