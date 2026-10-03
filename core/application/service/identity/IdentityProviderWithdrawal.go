@@ -134,13 +134,16 @@ func (w IdentityProviderWriter) installationRow(
 }
 
 // withdrawCountMismatch is the refusal of a *Withdraw now* whose confirmation does not repeat the
-// count. The number travels: it is the operator's to know, and the sentence asks them to read it.
+// count. The number travels: it is the operator's to know, and the sentence asks them to read it -
+// in the field's own sentence as well, which is the one a form shows beside the field and which
+// has no other source for the number its plural is chosen by.
 func withdrawCountMismatch(count int) error {
+	params := map[string]string{"count": strconv.Itoa(count)}
 	return shared.ErrValidation.
 		WithDetail("identity_provider.withdraw_count_mismatch").
-		WithParams(map[string]string{"count": strconv.Itoa(count)}).
+		WithParams(params).
 		WithFields(shared.FieldError{
-			Path: "/confirm_count", Code: "identity_provider.withdraw_count_mismatch",
+			Path: "/confirm_count", Code: "identity_provider.withdraw_count_mismatch", Params: params,
 		})
 }
 

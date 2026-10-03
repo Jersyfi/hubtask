@@ -52,7 +52,9 @@ async function open(browser) {
           json: {
             code: 'errors.validation', detail_code: 'identity_provider.withdraw_count_mismatch', status: 422,
             request_id: 'req_w', params: { count: '12' },
-            field_errors: [{ path: '/confirm_count', code: 'identity_provider.withdraw_count_mismatch' }],
+            field_errors: [{
+              path: '/confirm_count', code: 'identity_provider.withdraw_count_mismatch', params: { count: '12' },
+            }],
           },
         });
       }
@@ -129,7 +131,9 @@ test('chromium: withdraw now needs the number typed back, and a wrong one is ref
   await dialog.getByLabel('Workspaces using it', { exact: true }).fill('11');
   await dialog.getByRole('button', { name: 'Withdraw now' }).click();
   // The server's sentence, with the number as it stands; the dialog stays for a second try.
-  await page.getByText('12 workspaces use this provider now').waitFor();
+  // Beside the field, where the dialog shows it: the count chosen by its plural, never a placeholder.
+  await dialog.getByText('12 workspaces use this provider now').waitFor();
+  assert.doesNotMatch(await dialog.textContent() ?? '', /\{count/);
   assert.ok(await dialog.isVisible(), 'a refused withdrawal closed the dialog');
   assert.ok(Date.parse(sent[0].body.withdraw_at) <= Date.now(), 'withdraw now named a day ahead');
 
