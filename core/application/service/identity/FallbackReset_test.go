@@ -4,7 +4,12 @@
 package identity
 
 import (
+	"context"
 	"testing"
+	"time"
+
+	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -55,53 +60,156 @@ func TestAProviderOnlyAccountSetsAPasswordUnderTheFallbackAndIsSignedIn(t *testi
 	}
 }
 
-// Outside the fallback the same account gets the mail that points to its provider - whether the
-// workspace keeps the password on or switched it off.
-func TestAProviderOnlyAccountOutsideTheFallbackGetsTheProviderMail(t *testing.T) {
-	for _, c := range []struct {
-		name    string
-		methods []string
-	}{
-		{"the password on", []string{domain.MethodDirect, domain.MethodOidc}},
-		{"the password off and a provider in force", []string{domain.MethodOidc}},
-	} {
-		f := fallbackFixture(t)
-		withoutPassword(f)
-		methods := c.methods
-		f.passwords.workspace.row.Settings.SignIn.Methods = &methods
-		if c.name != "the password on" {
-			// A way in that still works: the workspace's own provider, so nothing has ended.
-			f.passwords.writer.WaysIn = WaysIn{}
-		}
+// connectedTo is the one question the reset asks the external accounts: which providers an
+// account is connected to. Everything else the interface carries is the sign-in's.
+type connectedTo struct {
+	repository.ExternalAccounts
+	providers []shared.ID
+}
 
+func (c connectedTo) ProvidersOf(context.Context, shared.ID) ([]shared.ID, error) {
+	return c.providers, nil
+}
+
+// ownProvider is a workspace's own provider, switched on.
+var ownProvider = domain.IdentityProvider{
+	ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000e6"), TenantID: tenant, Kind: domain.KindGeneric,
+	DisplayName: "Our directory", Issuer: "https://login.example.org", Enabled: true,
+}
+
+// passwordOnWith keeps the password on beside the ended offer, with the providers given in force,
+// and connects the account to the providers named.
+func passwordOnWith(f *stepFixture, rows []domain.IdentityProvider, connected ...shared.ID) {
+	f.passwords.workspace.row.Settings.SignIn.Methods = &[]string{domain.MethodDirect, domain.MethodOidc}
+	store := rulesProviders(rows...)
+	f.passwords.writer.WaysIn.Providers = store
+	f.passwords.writer.Session.StepUpProviders = ProviderStepUps{
+		Providers: store, External: connectedTo{providers: connected}, Workspaces: f.passwords.workspace,
+	}
+}
+
+// A provider that still lets the account in is where the mail points, as before - whether the
+// workspace keeps the password on or has switched it off.
+func TestAProviderOnlyAccountWhoseProviderWorksGetsTheProviderMail(t *testing.T) {
+	ended := offeredUntil(now.Add(-time.Hour))
+
+	on := fallbackFixture(t)
+	withoutPassword(on)
+	passwordOnWith(on, []domain.IdentityProvider{ended, ownProvider}, ownProvider.ID)
+
+	// Password off, the workspace's own provider in force: no fallback, and the password is closed.
+	off := fallbackFixture(t)
+	withoutPassword(off)
+	off.passwords.writer.WaysIn.Providers = rulesProviders(ended, ownProvider)
+
+	for name, f := range map[string]*stepFixture{"the password on": on, "the password off": off} {
 		link, err := MintResetToken{Writer: f.passwords.writer}.MintResetToken(t.Context(), tenant, account)
 		if err != nil {
-			t.Fatalf("%s: minting: %v", c.name, err)
+			t.Fatalf("%s: minting: %v", name, err)
 		}
 		if link.First || link.HasPassword || !link.Token.IsEmpty() {
-			t.Errorf("%s: a provider-only account was mailed %+v, want the provider mail", c.name, link)
+			t.Errorf("%s: a provider-only account whose provider works was mailed %+v", name, link)
 		}
 	}
 }
 
-// A link minted under the fallback sets a first password only while the fallback stands: once an
-// administrator switched another way on, it is refused like any spent link, and nothing is written.
-func TestAFirstPasswordLinkIsRefusedOnceTheFallbackEnded(t *testing.T) {
+// ADR-0077 §4: the password is on, but the one provider this account is connected to has ended.
+// No fallback is needed for the workspace - its password works - and still the account is let in.
+func TestAProviderOnlyAccountWhoseProviderEndedSetsAPasswordWhereThePasswordIsOn(t *testing.T) {
+	f := fallbackFixture(t)
+	withoutPassword(f)
+	passwordOnWith(f, []domain.IdentityProvider{offeredUntil(now.Add(-time.Hour)), ownProvider}, fallbackRow)
+
+	link, err := MintResetToken{Writer: f.passwords.writer}.MintResetToken(t.Context(), tenant, account)
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+	if !link.First || link.Token.IsEmpty() {
+		t.Fatalf("an account whose provider ended was mailed %+v, want a link to set a password", link)
+	}
+	result, err := ResetPassword{Writer: f.passwords.writer}.Execute(t.Context(), ResetPasswordCommand{
+		Token: link.Token, Password: secret.New("seven blue lanterns over the harbour"),
+	})
+	if err != nil || result.Pair == nil {
+		t.Fatalf("setting the first password answered %+v (%v)", result, err)
+	}
+	for _, entry := range append(f.passwords.audit.entries, f.session.audit.entries...) {
+		if entry.Action == PasswordFallbackAction {
+			t.Error("a workspace whose password is on recorded a fallback")
+		}
+	}
+}
+
+// UC-ID-04 checks 5 and 6 on this path: an account with an armed factor gets the code step, not a
+// session, and every session it had ends.
+func TestAFirstPasswordUnderTheFallbackStillAsksForTheFactorAndEndsTheSessions(t *testing.T) {
+	f := fallbackFixture(t)
+	withoutPassword(f)
+	armed := newEnrollments()
+	armed.rows[account] = &repository.MfaEnrollment{AccountID: account, ConfirmedAt: now.Add(-time.Hour)}
+	f.passwords.writer.Session.Enrollments = armed
+	live := []domain.Session{{ID: sessionRowID, TenantID: tenant, AccountID: account}}
+	f.passwords.sessions.listed, f.session.sessions.listed = live, live
+
+	link, err := MintResetToken{Writer: f.passwords.writer}.MintResetToken(t.Context(), tenant, account)
+	if err != nil || !link.First {
+		t.Fatalf("minting: %+v (%v)", link, err)
+	}
+	result, err := ResetPassword{Writer: f.passwords.writer}.Execute(t.Context(), ResetPasswordCommand{
+		Token: link.Token, Password: secret.New("seven blue lanterns over the harbour"),
+	})
+	if err != nil {
+		t.Fatalf("setting the first password: %v", err)
+	}
+	if result.Pair != nil || result.Challenge == nil {
+		t.Fatalf("an armed account was answered %+v, want the code step", result)
+	}
+	if revoked := append(f.passwords.sessions.revoked, f.session.sessions.revoked...); len(revoked) != 1 || revoked[0] != sessionRowID {
+		t.Errorf("sessions ended: %v, want the live one", revoked)
+	}
+}
+
+// A first-password link sets one only while no provider lets the account in: once the withdrawal is
+// cancelled and its provider is a way in again, the link is refused like a spent one, and nothing
+// is written. Switching the password back on does not end it - that gives this account no way in.
+func TestAFirstPasswordLinkIsRefusedOnceItsProviderIsBack(t *testing.T) {
 	f := fallbackFixture(t)
 	withoutPassword(f)
 	link, err := MintResetToken{Writer: f.passwords.writer}.MintResetToken(t.Context(), tenant, account)
 	if err != nil || link.Token.IsEmpty() {
 		t.Fatalf("minting: %+v (%v)", link, err)
 	}
-	f.passwords.workspace.row.Settings.SignIn.Methods = &[]string{domain.MethodDirect, domain.MethodOidc}
+	// The withdrawal cancelled: the offer runs again, and the account is connected to it.
+	passwordOnWith(f, []domain.IdentityProvider{offeredUntil(time.Time{})}, fallbackRow)
 
 	_, err = ResetPassword{Writer: f.passwords.writer}.Execute(t.Context(), ResetPasswordCommand{
 		Token: link.Token, Password: secret.New("seven blue lanterns over the harbour"),
 	})
 	if detailOf(err) != "auth.reset_failed" {
-		t.Fatalf("a first-password link after the fallback answered %v, want auth.reset_failed", err)
+		t.Fatalf("a first-password link with the provider back answered %v, want auth.reset_failed", err)
 	}
 	if len(f.passwords.accounts.writes) != 0 {
 		t.Error("the refused link wrote a password")
+	}
+}
+
+// Every session the fallback opens is in the workspace's trail - an invitation redeemed with a
+// password under it too, as the sign-in's and the reset's are.
+func TestAnInvitationRedeemedUnderTheFallbackIsRecorded(t *testing.T) {
+	f := fallbackFixture(t)
+	token := redemptionToken(t)
+	f.session.accounts.redemption[token.Secret()] = waitingRedemption()
+	passwords := f.passwords.writer
+
+	if _, err := (RedeemInvitation{Writer: f.session.writer, Passwords: &passwords}).Execute(t.Context(),
+		RedeemInvitationCommand{Token: secret.New(token.Secret()), Password: secret.New("seven blue lanterns over the harbour")}); err != nil {
+		t.Fatalf("redeeming under the fallback: %v", err)
+	}
+	var recorded bool
+	for _, entry := range f.session.audit.entries {
+		recorded = recorded || entry.Action == PasswordFallbackAction
+	}
+	if !recorded {
+		t.Errorf("the redemption left no fallback entry: %v", f.session.audit.entries)
 	}
 }

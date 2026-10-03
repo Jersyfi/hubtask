@@ -97,21 +97,28 @@ func (w SessionWriter) recordFallback(
 	ctx context.Context, scope persistence.Scope, account domain.Account,
 ) error {
 	return w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		return w.Audit.Append(ctx, audit.Entry{
-			TenantID:   scope.TenantID,
-			OccurredAt: w.Clock.Now(),
-			Action:     PasswordFallbackAction,
-			Outcome:    audit.OutcomeSuccess,
-			Severity:   audit.SeverityWarning,
-			ActorKind:  appshared.ActorUser,
-			ActorID:    account.ID,
-			ActorLabel: account.DisplayName,
-			TargetType: workspaceTarget,
-			TargetID:   scope.TenantID,
-			Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-			Changes: audit.Changes(audit.Change{
-				Field: "method", Classification: audit.Open, To: domain.MethodDirect,
-			}),
-		})
+		return w.appendFallback(ctx, scope, account)
+	})
+}
+
+// appendFallback is recordFallback inside a transaction the caller already holds.
+func (w SessionWriter) appendFallback(
+	ctx context.Context, scope persistence.Scope, account domain.Account,
+) error {
+	return w.Audit.Append(ctx, audit.Entry{
+		TenantID:   scope.TenantID,
+		OccurredAt: w.Clock.Now(),
+		Action:     PasswordFallbackAction,
+		Outcome:    audit.OutcomeSuccess,
+		Severity:   audit.SeverityWarning,
+		ActorKind:  appshared.ActorUser,
+		ActorID:    account.ID,
+		ActorLabel: account.DisplayName,
+		TargetType: workspaceTarget,
+		TargetID:   scope.TenantID,
+		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+		Changes: audit.Changes(audit.Change{
+			Field: "method", Classification: audit.Open, To: domain.MethodDirect,
+		}),
 	})
 }

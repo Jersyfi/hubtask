@@ -128,10 +128,13 @@ func (h RedeemInvitation) Execute(
 	}
 	// A workspace that switched the password off sets none, however the invitation arrived (SC-24):
 	// the person signs in through the workspace's provider. Asked before the token is looked up.
+	var fallback bool
 	if h.Passwords != nil {
-		if err := refuseShut(h.Passwords.PasswordOpen(ctx, token.TenantID())); err != nil {
+		open, opensAsFallback, err := h.Passwords.PasswordOpen(ctx, token.TenantID())
+		if err := refuseShut(open, opensAsFallback, err); err != nil {
 			return SessionPair{}, err
 		}
+		fallback = opensAsFallback
 	}
 	// The policy binds where a password is set - and the part of it that needs no account is
 	// checked before the token is looked up, so this half of the refusal says nothing about
@@ -201,7 +204,7 @@ func (h RedeemInvitation) Execute(
 		account = found.Account
 		account.Status = domain.AccountActive
 
-		return w.Audit.Append(ctx, audit.Entry{
+		if err := w.Audit.Append(ctx, audit.Entry{
 			TenantID:   token.TenantID(),
 			OccurredAt: now,
 			Action:     InvitationRedeemedAction,
@@ -217,7 +220,15 @@ func (h RedeemInvitation) Execute(
 				Field: "status", Classification: audit.Open,
 				From: string(domain.AccountInvited), To: string(domain.AccountActive),
 			}),
-		})
+		}); err != nil {
+			return err
+		}
+		// A first session the fallback opened is recorded as one, as the sign-in's and the
+		// reset's are (ADR-0076 §4) - in the redemption's own transaction.
+		if fallback {
+			return w.appendFallback(ctx, scope, account)
+		}
+		return nil
 	})
 	if err != nil {
 		return SessionPair{}, err

@@ -257,9 +257,10 @@ type ResetLink struct {
 	// HasPassword is false for an account that signs in through a provider. The mail then says so
 	// rather than carrying a link to a password screen that would set a second way in.
 	HasPassword bool
-	// First is the one exception (ADR-0077 §3): a provider-only account in a workspace whose last
-	// way in was an offer that ended. There is no provider left to point to, so the mail carries a
-	// link to set a first password - the way back in for somebody who never held one.
+	// First is the exception (ADR-0077 §3 and §4): an account without a password that no provider
+	// lets in here any more - its workspace's last way in was an offer that ended, or the provider
+	// it is connected to is gone or switched off while the password is on. There is no provider to
+	// point to, so the mail carries a link to set a first password.
 	First   bool
 	Address string
 	Locale  string
@@ -294,9 +295,16 @@ func (m MintResetToken) MintResetToken(
 	if !open {
 		link.HasPassword = false
 	}
-	// Nobody is left without a way in (ADR-0077 §3): under the fallback the provider the mail would
-	// point to is gone, and the mailbox is the proof a reset accepts from every other account.
-	link.First = fallback && !link.HasPassword
+	// Nobody is left without a way in (ADR-0077 §3, §4): where no provider lets this account in any
+	// more, the mail would point to nothing, and the mailbox is the proof a reset accepts from every
+	// other account.
+	if open && !link.HasPassword {
+		first, err := w.firstPasswordOpens(ctx, tenantID, accountID, fallback)
+		if err != nil {
+			return ResetLink{}, err
+		}
+		link.First = first
+	}
 	if !link.HasPassword && !link.First {
 		return link, nil
 	}
@@ -328,6 +336,30 @@ func (m MintResetToken) MintResetToken(
 
 	link.Token = secret.New(presented.Secret())
 	return link, nil
+}
+
+// firstPasswordOpens answers whether an account without a password may set one through the reset:
+// under the fallback, or where none of the providers it is connected to is a way in here now. A
+// writer that cannot ask - built without the provider stores, as tests of other doors are - answers
+// only the fallback, the shape before ADR-0077 §4.
+func (w PasswordWriter) firstPasswordOpens(
+	ctx context.Context, tenantID, accountID shared.ID, fallback bool,
+) (bool, error) {
+	if fallback {
+		return true, nil
+	}
+	p := w.Session.StepUpProviders
+	if p.Providers == nil || p.External == nil {
+		return false, nil
+	}
+	var reaches bool
+	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
+		func(ctx context.Context) error {
+			_, found, err := p.connectedHere(ctx, accountID, w.Clock.Now())
+			reaches = found
+			return err
+		})
+	return !reaches, err
 }
 
 // ResetPasswordCommand carries the spent link and the new password.
@@ -397,10 +429,16 @@ func (h ResetPassword) Execute(
 	if err != nil {
 		return SignInResult{}, err
 	}
-	// A first password is set only while the fallback that mailed the link stands (ADR-0077 §3).
-	// Once another way is in force again, the account has one, and the link is a spent one.
-	if held.PasswordHash.IsEmpty() && !fallback {
-		return SignInResult{}, resetRefused()
+	// A first password is set only while no provider lets the account in - the condition the link
+	// was mailed under (ADR-0077 §3, §4). Once one does again, the link is a spent one.
+	if held.PasswordHash.IsEmpty() {
+		first, err := w.firstPasswordOpens(ctx, tenantID, held.Account.ID, fallback)
+		if err != nil {
+			return SignInResult{}, err
+		}
+		if !first {
+			return SignInResult{}, resetRefused()
+		}
 	}
 	rules, err := w.ResolveFor(ctx, tenantID)
 	if err != nil {
@@ -437,13 +475,13 @@ func (h ResetPassword) Execute(
 		return SignInResult{}, err
 	}
 
-	// The address from the account's own row: the pending credential's read carries none.
 	// A session the fallback opens is recorded as one, whichever step follows - the sign-in's rule.
 	if fallback {
 		if err := w.Session.recordFallback(ctx, scope, lookup.Account); err != nil {
 			return SignInResult{}, err
 		}
 	}
+	// The address from the account's own row: the pending credential's read carries none.
 	return h.answer(ctx, scope, tenantID, lookup.Account, held.Account.Email, cmd)
 }
 
