@@ -11,6 +11,32 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const acceptInvitation = `-- name: AcceptInvitation :execrows
+UPDATE account SET
+  status                = 'ACTIVE',
+  redemption_token_hash = NULL,
+  redemption_expires_at = NULL,
+  updated_at            = $1
+WHERE id = $2 AND status = 'INVITED' AND deleted_at IS NULL
+  AND (redemption_expires_at IS NULL OR redemption_expires_at > $1)
+`
+
+type AcceptInvitationParams struct {
+	Now pgtype.Timestamptz
+	ID  pgtype.UUID
+}
+
+// The provider's half of redeeming an invitation (SC-24): the invited account becomes ACTIVE and
+// the invitation is spent, in one statement - unless it ran out, which the provider's word does not
+// renew. No password is set: the person signs in through the provider.
+func (q *Queries) AcceptInvitation(ctx context.Context, arg AcceptInvitationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, acceptInvitation, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const accessTokensForAccount = `-- name: AccessTokensForAccount :many
 SELECT id, tenant_id, account_id, name, scopes, expires_at, last_used_at, revoked_at, created_at
 FROM access_token
