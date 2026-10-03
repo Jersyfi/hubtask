@@ -5,9 +5,9 @@ context: identity
 actors: [PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-06, P-07, P-10, P-12]
-state: partial
-tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21]
-checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs]
+state: built
+tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21, SC-24]
+checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordSwitch_test.go]
 ---
 
 # Set how people in our workspace sign in, in one place
@@ -78,9 +78,9 @@ through it is in the trail as `auth.password_fallback`, until another way is swi
 (`PasswordFallback_test.go`). An account without a password gains nothing from it and needs a new
 invitation - the limit ADR-0076 §4 sets. The walks of these screens run against a stubbed API.
 
-**Check 6 still fails for the password's own switch**
-([#1119](https://github.com/Jersyfi/hubtask/issues/1119)): a workspace that switches the password off
-hides it on the card, but the server never refuses a password sign-in - `SignIn` does not read the
-resolved methods. The switch is therefore a way in that "is off" only on the screen, and the fallback
-above re-opens a door the server never closed. Until #1119 makes the sign-in ask the same resolution
-the card asks - the fallback included - this use case stays partial.
+Since SC-24 the password's own switch holds at the server too
+([#1119](https://github.com/Jersyfi/hubtask/issues/1119)): where a workspace switched it off, every
+password door refuses it with `auth.password_not_offered` - the sign-in for every address alike, an
+invitation redeemed with a password, a reset link - and the reset mail points to the provider; stored
+passwords are kept and work again when it is switched back on, and ADR-0076 §4's fallback is the one
+exception (`PasswordSwitch_test.go`). All nine checks hold.
