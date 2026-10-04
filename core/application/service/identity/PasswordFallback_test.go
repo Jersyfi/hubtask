@@ -12,6 +12,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -230,14 +231,21 @@ func (f *wayInFixture) fallsBack(t *testing.T) bool {
 	return fallback
 }
 
-// recordedFallback answers whether the workspace's trail holds a fallback entry for the account.
+// recordedFallback answers whether the workspace's trail holds a fallback entry for the account, and
+// says why the password was open.
 func (f *wayInFixture) recordedFallback() bool {
 	for _, entry := range f.session.audit.entries {
 		if entry.Action == PasswordFallbackAction && entry.TenantID == tenant && entry.ActorID == account {
-			return true
+			return fallbackCause(entry) == FallbackCauseNoWayIn
 		}
 	}
 	return false
+}
+
+// fallbackCause reads the `cause` a fallback entry carries.
+func fallbackCause(entry audit.Entry) any {
+	cause, _ := entry.Changes["cause"].(map[string]any)
+	return cause["to"]
 }
 
 // fallbackFixture is a sign-in into a workspace whose only way in was withdrawn an hour ago.
@@ -258,11 +266,13 @@ func TestAPasswordSignInThroughTheFallbackIsRecordedInTheWorkspacesTrail(t *test
 	var recorded bool
 	for _, entry := range f.session.audit.entries {
 		if entry.Action == PasswordFallbackAction {
-			recorded = entry.TenantID == tenant && entry.ActorID == account
+			recorded = entry.TenantID == tenant && entry.ActorID == account &&
+				fallbackCause(entry) == FallbackCauseNoWayIn
 		}
 	}
 	if !recorded {
-		t.Errorf("the trail holds no fallback entry for the account: %v", f.session.audit.entries)
+		t.Errorf("the trail holds no fallback entry for the account, with its cause: %v",
+			f.session.audit.entries)
 	}
 }
 

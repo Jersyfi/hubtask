@@ -155,12 +155,14 @@ func TestAnInstallationDefaultWithoutThePasswordOpensItAsTheFallback(t *testing.
 	var recorded int
 	if err := admin.QueryRow(ctx, `
 		SELECT count(*) FROM audit_log
-		WHERE tenant_id = $1 AND action = 'auth.password_fallback' AND actor_id = $2`,
-		fallbackTenant.String(), fallbackAccount.String()).Scan(&recorded); err != nil {
+		WHERE tenant_id = $1 AND action = 'auth.password_fallback' AND actor_id = $2
+		  AND changes -> 'cause' ->> 'to' = $3`,
+		fallbackTenant.String(), fallbackAccount.String(),
+		identityservice.FallbackCauseNoWayIn).Scan(&recorded); err != nil {
 		t.Fatalf("reading the trail: %v", err)
 	}
 	if recorded == 0 {
-		t.Error("the sign-in through the fallback is not in the workspace's trail")
+		t.Error("the sign-in through the fallback is not in the workspace's trail with its cause")
 	}
 
 	// A way in switched on ends it: the workspace's own provider, and the installation's rule is the

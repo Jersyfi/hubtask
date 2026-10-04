@@ -38,6 +38,13 @@ import (
 // own trail (ADR-0076 §4, "the workspace's trail records it").
 const PasswordFallbackAction audit.Action = "auth.password_fallback"
 
+// FallbackCauseNoWayIn is the `cause` the fallback's trail entry carries: the workspace's methods left
+// no way in that works. One cause today, because the predicate no longer asks which (E2, #1138); the
+// field is there so that an administrator reading the trail is not left to guess, and so that a
+// second way the password can open - an operator's own lever, which SC-34 builds - is told apart
+// from this one rather than recorded as the same thing.
+const FallbackCauseNoWayIn = "NO_WAY_IN"
+
 // fallbackOpens answers whether the password opens only as the fallback: the workspace's methods
 // leave it out, and no provider is a way in here now. Nothing asks why (E2, #1138) - a cause the
 // predicate had to recognise is a cause it could miss, and every miss is a lockout.
@@ -90,7 +97,7 @@ func (w WaysIn) PasswordFallback(ctx context.Context, tenantID shared.ID, method
 }
 
 // recordFallback writes the trail entry for a password the fallback let through: who, in which
-// workspace, and nothing of the credential.
+// workspace, why the password was open, and nothing of the credential.
 func (w SessionWriter) recordFallback(
 	ctx context.Context, scope persistence.Scope, account domain.Account,
 ) error {
@@ -107,9 +114,10 @@ func (w SessionWriter) recordFallback(
 			TargetType: workspaceTarget,
 			TargetID:   scope.TenantID,
 			Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-			Changes: audit.Changes(audit.Change{
-				Field: "method", Classification: audit.Open, To: domain.MethodDirect,
-			}),
+			Changes: audit.Changes(
+				audit.Change{Field: "method", Classification: audit.Open, To: domain.MethodDirect},
+				audit.Change{Field: "cause", Classification: audit.Open, To: FallbackCauseNoWayIn},
+			),
 		})
 	})
 }
