@@ -845,7 +845,7 @@ jobs:
   # ---------------------------------------------------------------------------
 
   ci-required:
-    name: CI required
+    name: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft) && 'CI not run (draft)' || 'CI required' }}
     if: always()
     needs:
       - changes
