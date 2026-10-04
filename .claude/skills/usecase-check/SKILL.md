@@ -66,8 +66,12 @@ than its own proof (P-02), a task only SQL can do (P-08, P-09).
 **Beyond the goal:** …
 **Principles:** …
 **States:** use cases whose `state:` / `checked_by:` / *Today* no longer match the verdicts above.
-**Verdict:** ready / not ready — the one or two things that decide it.
+**Outcome:** ready / not ready — the one or two things that decide it.
 ```
+
+Every check found **not met** or **not proven** is also an escape: enter it in § 10 of the task's
+readiness record (`docs/backlog/ready/<TASK>.md`) with its class and the row of § 1–7 that should
+have caught it, and route it as `docs/backlog/README.md` § 4 says.
 
 Report in the language the owner used. Never edit a use case's *Goal*, *How to check* or *Where it
 ends* to make a verdict come out right. When run unattended, findings become an issue (label
