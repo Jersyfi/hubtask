@@ -224,8 +224,10 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 		return SignInResult{}, err
 	}
 	// Before any account is looked up: where the workspace switched the password off, the answer is
-	// the same for every address (SC-24).
-	if err := w.passwordShut(ctx, tenantID); err != nil {
+	// the same for every address (SC-24). Whether it is open only as the fallback is read here, once,
+	// and recorded below once the password has proved right.
+	fallback, err := w.passwordDoor(ctx, tenantID)
+	if err != nil {
 		return SignInResult{}, err
 	}
 
@@ -299,9 +301,9 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 		return SignInResult{}, err
 	}
 	// The password was right and opened the door only as ADR-0076 §4's fallback: the workspace's
-	// trail says so, whichever step follows - its administrators are to see that the way in they
-	// relied on is gone.
-	if verdict.PasswordFallback {
+	// trail says so, whichever step follows - its administrators are to see that no way in they
+	// switched on works.
+	if fallback {
 		if err := w.recordFallback(ctx, scope, found.Account); err != nil {
 			return SignInResult{}, err
 		}

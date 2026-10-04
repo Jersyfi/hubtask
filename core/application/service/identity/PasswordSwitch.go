@@ -51,15 +51,27 @@ func (w PasswordWriter) PasswordOpen(ctx context.Context, tenantID shared.ID) (b
 	return fallback, fallback, nil
 }
 
-// passwordShut refuses where the workspace has switched the password off. A writer whose rule cannot
-// answer - built without one, as the tests of other doors are - lets the password through, which is
-// the shape before SC-24.
-func (w SessionWriter) passwordShut(ctx context.Context, tenantID shared.ID) error {
+// passwordDoor asks the rule once whether the password is open here: the refusal where it is not,
+// and whether it is open only as the fallback. A door that lets the password through and records the
+// fallback records it from this answer - a second read could disagree with the one that opened the
+// door, and costs the same rows twice (E2, #1138). A writer whose rule cannot answer - built without
+// one, as the tests of other doors are - lets the password through, which is the shape before SC-24.
+func (w SessionWriter) passwordDoor(ctx context.Context, tenantID shared.ID) (fallback bool, err error) {
 	door, ok := w.Rule.(PasswordDoor)
 	if !ok {
-		return nil
+		return false, nil
 	}
-	return refuseShut(door.PasswordOpen(ctx, tenantID))
+	open, fallback, err := door.PasswordOpen(ctx, tenantID)
+	if err := refuseShut(open, fallback, err); err != nil {
+		return false, err
+	}
+	return fallback, nil
+}
+
+// passwordShut is passwordDoor for a door that records nothing of the fallback.
+func (w SessionWriter) passwordShut(ctx context.Context, tenantID shared.ID) error {
+	_, err := w.passwordDoor(ctx, tenantID)
+	return err
 }
 
 // refuseShut turns PasswordOpen's answer into the refusal, or into nothing.

@@ -276,6 +276,19 @@ func TestAPasswordSignInThroughTheFallbackIsRecordedInTheWorkspacesTrail(t *test
 	}
 }
 
+// One sign-in asks once whether the password is open as the fallback, and records what that one read
+// answered: the door's read and the trail's cannot disagree, because there is no second (E2, #1138).
+func TestASignInReadsTheFallbackOnce(t *testing.T) {
+	f := fallbackFixture(t)
+
+	if result := f.signsIn(t, "correct horse battery"); result.Pair == nil {
+		t.Fatal("an account with a password did not sign in through the fallback")
+	}
+	if reads := f.passwords.providers.lists; reads != 1 {
+		t.Errorf("one sign-in read the ways in %d times, want once", reads)
+	}
+}
+
 // Not every password sign-in is a fallback: where the workspace keeps the password on, nothing is
 // recorded beyond the sign-in itself.
 func TestAPasswordSignInWhereThePasswordIsOnIsNoFallback(t *testing.T) {

@@ -721,9 +721,6 @@ type SignInVerdict struct {
 	Sessions domain.SessionPolicy
 	// RotationFrom is the moment every older session is refused from.
 	RotationFrom time.Time
-	// PasswordFallback says the password was accepted only because the workspace's last way in was
-	// an offer that ended (ADR-0076 §4) - which the sign-in records in the workspace's trail.
-	PasswordFallback bool
 }
 
 // JudgeSignIn answers the verdict for an account whose password was just accepted.
@@ -756,14 +753,6 @@ func (w PasswordWriter) JudgeSignIn(
 		// password the rule had accepted.
 		return verdict, nil
 	}
-
-	// A password was given: whether it opened the door only as the fallback. Asked here, where the
-	// methods are resolved, so the sign-in reads the same rule the card was drawn from.
-	fallback, err := w.WaysIn.PasswordFallback(ctx, tenantID, policy.Methods)
-	if err != nil {
-		return SignInVerdict{}, err
-	}
-	verdict.PasswordFallback = fallback
 
 	// The account's row only where there is a password to judge: a provider-only account has no
 	// moment to compare, and the callers above want nothing from it.
