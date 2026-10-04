@@ -6,8 +6,8 @@ actors: [PE-operator, PE-admin]
 deployments: [D5, D6]
 serves: [P-02, P-05, P-06, P-07]
 state: partial
-tasks: [SI-10, SI-17, SC-01, SC-20]
-checked_by: [core/application/service/admin/InstanceProvider_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, core/application/service/identity/IdentityProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs]
+tasks: [SI-10, SI-17, SC-01, SC-20, SC-26]
+checked_by: [core/application/service/admin/InstanceProvider_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, core/application/service/identity/IdentityProviderWithdrawal_test.go, test/integration/provider_withdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs]
 ---
 
 # Offer sign-in providers to every workspace
@@ -55,3 +55,9 @@ installation puts it on everywhere and removes the switch.
   (`TestAWithdrawalKeepsTheConnectedIdentitiesAndOfferingAgainRestoresSignIn`,
   `InstanceProviderWithdrawal_test.go`, `instanceproviders.test.mjs` against a stubbed API). *Remove*
   is still immediate; a workspace it leaves without a way in falls back to the password (ADR-0076 §4).
+  Since SC-26 the number of workspaces is counted from their own switches where the installation
+  reads it ([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §1), so it stays true when a
+  workspace is deleted for good, restored or imported, still counts one waiting out its deletion
+  grace, and a workspace reads none - not even by calling the count itself
+  (`TestAnOfferedProvidersCountIsCountedAndItsWithdrawalIsTheInstallations`,
+  `provider_withdrawal_test.go`).

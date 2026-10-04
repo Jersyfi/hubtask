@@ -2678,6 +2678,20 @@ $$;
 REVOKE ALL ON FUNCTION move_provider_offer(uuid, integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION move_provider_offer(uuid, integer) TO hubtask_app;
 
+-- Counted where it is read, since 0115 (ADR-0077 §1): how many live workspaces name the provider among
+-- their own switches - a number, never which, and only outside a workspace. The column and the
+-- function above stay for one release (SC-30, issue #1134).
+CREATE OR REPLACE FUNCTION count_provider_offers(provider uuid) RETURNS integer
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT count(*)::integer FROM tenant
+  WHERE current_tenant_id() IS NULL
+    AND deleted_at IS NULL
+    AND coalesce(settings -> 'offered_providers', '[]'::jsonb) ? provider::text
+$$;
+
+REVOKE ALL ON FUNCTION count_provider_offers(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION count_provider_offers(uuid) TO hubtask_app;
+
 -- ============ The control plane's two narrow acts (H-06) ====================
 -- The one legitimate tenant enumerator (0.6.0 decision 6): provisioning and lifecycle are the
 -- control plane's job, and the control plane must see its rows. SECURITY DEFINER for

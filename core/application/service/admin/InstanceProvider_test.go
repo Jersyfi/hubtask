@@ -87,8 +87,6 @@ func (s *instanceProviderStore) Update(
 	return domain.IdentityProvider{}, false, nil
 }
 
-func (s *instanceProviderStore) MoveOfferCount(context.Context, shared.ID, int) error { return nil }
-
 func (s *instanceProviderStore) SetWithdrawal(
 	_ context.Context, id shared.ID, at, now time.Time,
 ) (domain.IdentityProvider, bool, error) {
