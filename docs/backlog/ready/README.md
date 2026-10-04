@@ -42,7 +42,8 @@ against preparation.
 
 2. **Every decision has its decider — the cheapest one that may take it.** In § 8 each line is, in
    this order of preference:
-   1. **decided by a document** — cite the file, the section and the sentence;
+   1. **decided by a document** — cite the file, the section and the sentence. The task text, the
+      milestone header and an accepted ADR are documents: what they settle is not asked again;
    2. **decided by precedent** — the same shape already exists in the code; cite `file:line`;
    3. **decided by the owner earlier** — found in [`../standing-decisions.md`](../standing-decisions.md)
       or in another record's § 8; cite it. *A question already answered is never asked again;*

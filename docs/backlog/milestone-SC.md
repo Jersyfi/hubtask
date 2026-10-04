@@ -574,8 +574,38 @@ new one (ADR-0003). The migration's number is taken from `origin/main` right bef
 **Use cases:** UC-ID-01, UC-ID-02, UC-ID-03, UC-ID-04, UC-ID-05, UC-ID-06, UC-ID-08, UC-ID-10, UC-ID-11, UC-ID-12, UC-INS-01, UC-INS-04, UC-INS-05, UC-INS-09, UC-INS-11, UC-AI-05
 
 `/usecase-check` over the milestone, then a walk per deployment — `D1` fresh compose to first task;
-`D2` a household without mail; `D4` a company on Entra; `D5` a consumer on an offered model — with
+`D2` a household without mail; `D4` a company on its own directory, walked against a stub or a self-hosted provider (no real provider tenant is available - `standing-decisions.md`, 2026-10-03); `D5` a consumer on an offered model — with
 the evidence under `docs/evidence/`. Every use case named in this milestone moves to `built` or
 `verified` with `checked_by`, or keeps its *Today* with the reason.
 
 **Acceptance:** the milestone's use cases have no *Today* entry that names an SC task.
+
+---
+
+## Open decisions
+
+What waits on the owner (`ready/README.md` rule 2), one line each. Added 2026-10-04, when the
+readiness process began; the items below were raised before it, in pull requests.
+
+* SC-24 (#1130): a password-off workspace leaves a person who holds a password, was never connected
+  to the provider and has forgotten the password without a way in — and the same for an account
+  without a password connected only to an installation offer that has ended. Proposal in #1130 and
+  in the owner message of 2026-10-04.
+* SC-24 (#1130): what may activate an invited account through a provider that admits anyone.
+* SC-24 (#1130): a lever for one workspace for the operator, when its provider is down.
+* SC-25 (#1135): the first-password link wherever no connected provider lets the account in, not only
+  under the fallback — wider than ADR-0077 §3's wording, by its §4.
+
+## Inbox
+
+New scope found while building, for the owner's triage — not built here.
+
+* `audit.md` (line 22) says the trail also records failed logins; no audit action for a failed
+  sign-in exists (found by the SC-24 readiness check, 2026-10-04).
+
+## Escapes
+
+Filled by the milestone's escape review: class → count → what was added to `/ready-check` or
+`known-traps.md`. SC's tasks were cut before readiness records existed; the analysis of 2026-10-04
+(`ready/README.md` § "Why this exists") stands in for this milestone's count.
+

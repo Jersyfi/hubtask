@@ -52,7 +52,12 @@ its document — it is the most expensive mistake there is, because everything b
 backup-restore). Each carried by this task, another named task, *Where it ends*, or a later milestone
 that exists. A promise of "later" without a task is cut as a task now.
 
-**§ 3 Doors and states.** Build the matrix; do not describe it in prose. Rows: every door × every
+**§ 3 Doors and states.** Build the matrix; do not describe it in prose. First **list the
+dimensions and their values** (every door, every state, every kind, the deployments that differ,
+every failure) — then write the rows, collapsed to the combinations where the outcome differs. A
+literal cross product is thousands of cells; a collapse without the list is where a kind or a state
+silently goes missing. **Every value of the list appears in at least one row**, or the record says
+why it cannot matter. Rows: every door × every
 state × every kind of actor, and the deployments D1–D7 where they differ (no mail server, one
 workspace, many). Include the lifecycle the entity can go through (delete, restore, import, pending
 deletion, suspension) and the failure of every dependency it touches. Each cell: what happens, and
@@ -87,6 +92,11 @@ use case check or documented promise not assigned, a door, state, kind, deployme
 the matrix, a standing rule not answered, a race, an acceptance that cannot be proven, a decision
 taken silently that rule 2 says belongs to the owner. Cite file:line or the document sentence for
 each. Do not propose code."* Answer every finding in § 9 — by changing the record, not by arguing.
+
+**A second round, when the first changed a lot.** If answering the review added rows to § 3, moved a
+premise in § 1 from true to false, or put a new item on the owner's list in § 8, run a fresh reviewer
+once more over the changed sections. Two rounds at most: what a second round still finds is answered
+in § 9, and anything on the owner's list among it is an open decision — it is not a third round.
 
 ## 4. Verdict
 

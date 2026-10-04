@@ -47,7 +47,7 @@ fixes its first instance.
 | **Rank keys need byte order** (`COLLATE "C"`); a glibc collation interleaves them, and CI's musl image hides it. | `order_key` queries | state the collation in the query |
 | **`id <> $moving_id` with an empty id** empties the level or answers 500. | rank-neighbour queries | never pass an empty id |
 | **The audit hash covers the stored shape**, not the shape the caller built. Never rewrite a stored row. | audit entries, renames | read back, then hash; renames are aliases on read |
-| **A destructive restore ends credentials** — accounts are re-written without passwords or sessions. | restore, import | say what a person must do after; nobody is locked out without a way back |
+| **Restore and import treat credentials differently.** A backup keeps password hashes (it is encrypted at the operator's target); an **export** strips them, with every token hash (`backup/Export.go` `redactedFields`) — so accounts brought in from an export have no password. A destructive restore also ends the sessions and tokens of the accounts it rewrites. | restore, import, anything that assumes an account still holds a password | say what a person must do after; nobody is locked out without a way back |
 | **The integration package shares one database**: hub level is tenant-wide, `write()` opens a pool per call. | integration tests | own tenants and ring keys; one pool in loops; run the whole package |
 
 ## Clients
