@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11]
-state: partial
-tasks: [SI-08, SI-15, SC-09, SC-19]
-checked_by: [test/integration/session_test.go, presentation/rest/SessionProjection_test.go, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/SessionListBounds_test.go]
+state: built
+tasks: [SI-08, SI-15, SC-09, SC-19, SC-23]
+checked_by: [test/integration/session_test.go, presentation/rest/SessionProjection_test.go, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/SessionListBounds_test.go, core/application/service/identity/SessionsElsewhere_test.go, test/integration/session_elsewhere_test.go]
 ---
 
 # See where I am signed in and end a session
@@ -41,10 +41,11 @@ marked. *End* ends one; *Sign out everywhere else* ends all others.
 
 ## Today
 
-Checks 1, 2, 3 and 5 hold: since SC-09 each session says how it was opened, the provider by its name
+All five checks hold. Since SC-09 each session says how it was opened, the provider by its name
 (`TestAProviderSessionNamesItsProviderInItsOwnTenantOnly`); since SC-19 the list holds only what the
-next request accepts (`TestTheListShowsOnlyWhatTheNextRequestAccepts`). Found while checking the rest,
-tracked in issue #1113:
-
-* **Check 4 fails:** *Sign out everywhere* ends every session, the current one included, and the
-  screen then announces that every *other* session ended. There is no way to end all but this one.
+next request accepts (`TestTheListShowsOnlyWhatTheNextRequestAccepts`); since SC-23 *Sign out
+everywhere else* ends every other session and leaves exactly this one
+(`TestSigningOutEverywhereElseLeavesExactlyThisSession` against the database,
+`SessionsElsewhere_test.go`, and the walk in `settings.test.mjs` against a stubbed API). Ending every
+session including this one stays in the API (`DELETE /auth/sessions`) for hubctl and automations; the
+screen does not offer it, because *Sign out* ends this one.

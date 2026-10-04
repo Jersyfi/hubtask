@@ -238,6 +238,8 @@ generate:
 	@# (P-01): the website's reference and the SDK generators read it, and it is committed so
 	@# that a Node lane without Go can build against it (project-structure.md §6).
 	$(GO) run ./tools/openapijson api/openapi.yaml api/openapi.json
+	@# The deprecated request fields, announced by the REST adapter (SC-28).
+	$(GO) run ./tools/deprecations api/openapi.yaml presentation/rest/Deprecations.gen.go
 	@$(MAKE) --no-print-directory sdk-go
 	@$(MAKE) --no-print-directory sdk
 

@@ -2948,6 +2948,23 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/sessions:revoke-others:
+    post:
+      tags: [auth]
+      operationId: revokeOtherSessions
+      summary: Sign out everywhere else
+      description: >
+        Ends every session of the caller's account except the one making this call (UC-ID-06
+        check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every
+        other refresh family dies, and every other access token still in flight refuses on its next
+        request. Called with a personal access token there is no session of the caller's to keep,
+        so every session ends. Journalled in the workspace's trail with the number ended.
+      responses:
+        "204":
+          description: Every other session ended
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/sessions:refresh:
     post:
       tags: [auth]
@@ -9390,7 +9407,9 @@ components:
         enabled:
           type: boolean
           deprecated: true
-          x-deprecated-reason: Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.
+          x-deprecated-since: "2026-10-03"
+          x-removed-in: v2
+          x-replaced-by: [offerIdentityProvider, withdrawInstanceIdentityProvider]
           description: >
             **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of
             ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a
@@ -10453,7 +10472,9 @@ components:
           type: string
           maxLength: 1024
           deprecated: true
-          x-deprecated-reason: The step-up proves it, in the X-Hubtask-Step-Up header (ADR-0075 §3).
+          x-deprecated-since: "2026-10-03"
+          x-removed-in: v2
+          x-replaced-by: [X-Hubtask-Step-Up]
           description: >
             **Deprecated** (ADR-0075 §3): the proof this route took before the step-up did. Still
             checked when sent without a step-up token, for one release; then removed.
@@ -14655,6 +14676,37 @@ components:
             does not draw a control somebody may not use and then refuse it: what the installation
             permits is read, never compiled in, and a capability that is refused outright is absent
             rather than disabled (`apps/webapp/CLAUDE.md`).
+        deprecations:
+          type: array
+          items: { $ref: "#/components/schemas/DeprecatedField" }
+          description: >
+            Every request field this contract has marked `deprecated`, with the operations that
+            take it, since when, and the major version it goes away with (`versioning-release.md`
+            §5, SC-28). Read from the contract itself, so the list and the specification cannot
+            disagree. A request that sends one of them is answered with the `Deprecation` header
+            (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.
+    DeprecatedField:
+      type: object
+      description: >
+        One deprecated request field, and when it goes. Identifiers only (ADR-0011): what replaces
+        it is named, and the field's description in the specification says the rest.
+      required: [operation_id, method, path, field, since, removed_in, replaced_by]
+      properties:
+        operation_id: { type: string }
+        method: { type: string }
+        path: { type: string, description: The operation's path as the specification writes it. }
+        field: { type: string, description: The field in the request body. }
+        since: { type: string, format: date, description: When it was marked deprecated. }
+        removed_in: { type: string, description: The major version of the contract it goes away with. }
+        sunset:
+          type: [string, "null"]
+          format: date
+          description: The day it stops being accepted, once one is set. Null until then.
+        replaced_by:
+          type: array
+          items: { type: string }
+          description: >
+            What takes its place: the `operationId` of an operation, or the name of a header.
     RoleDescription:
       type: object
       description: >
