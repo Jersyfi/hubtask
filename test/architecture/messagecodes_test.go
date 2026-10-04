@@ -54,6 +54,10 @@ func TestEveryContractCodeIsInTheCatalogue(t *testing.T) {
 // error model, the health report's degradation reasons, or the load shedder's capacity refusals.
 // Narrow on purpose: only the prefixes that exist today, so that an example in a test comment
 // does not turn into a false alarm.
+// actionConversion is the port's own `Action("…")`, and only it: a word boundary, so that a
+// function whose name merely ends in "Action" does not carry its literals past the gate.
+var actionConversion = regexp.MustCompile(`\bAction\("`)
+
 var messageCode = regexp.MustCompile(`"((?:route|request|access|accounts|auth|oauth|admin|seed|groups|memberships|idempotency|config|errors|dependency|capacity|containers|items|buckets|labels|comments|fields|media|ordering|events|sync|storage|audit|usecase|shared|automation|lifecycle|activity|query|views|notifications|email|mail|jobs|crypto|calendar|backup|imports|ai)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
 
 // TestEveryUsedMessageCodeIsInTheCatalogue reads the source rather than a registry: a code is
@@ -86,9 +90,10 @@ func TestEveryUsedMessageCodeIsInTheCatalogue(t *testing.T) {
 				// accident rather than by design.
 				// `port.Action` is the same declaration seen from inside the application's own
 				// audit package, which imports the port under an alias because the two share a
-				// name (core/application/service/audit, E-09).
+				// name (core/application/service/audit, E-09). And `Action("…")` is the conversion
+				// the port itself writes, in its table of renamed actions (SC-29).
 				if strings.Contains(line, "audit.Action") || strings.Contains(line, "port.Action") ||
-					strings.Contains(line, "Kind = \"") {
+					actionConversion.MatchString(line) || strings.Contains(line, "Kind = \"") {
 					continue
 				}
 				for _, match := range messageCode.FindAllStringSubmatch(line, -1) {
