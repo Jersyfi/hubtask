@@ -21,20 +21,26 @@ import (
 
 // The fail-safe of ADR-0076 §4: no workspace is left without a way in.
 //
-// When the only way into a workspace was a provider the installation offered, and that offer has
-// ended - withdrawn on its date, withdrawn now, or removed - the password opens again: for the
-// accounts that hold one, under the workspace's own password and second-factor rules. It is read,
-// like the offer itself, wherever the ways in are resolved, so nothing has to run on the day. It
-// ends the moment an administrator switches on another way, which is what the screen asks them to
-// do. An account without a password gains nothing: there is nothing to sign in with, and an
-// administrator re-invites it.
+// When the ways in a workspace's rule resolves to leave none that works - the password is not among
+// them and no provider is switched on here - the password opens again: for the accounts that hold
+// one, under the workspace's own password and second-factor rules. **Whatever the cause** (the
+// owner's decision of 2026-10-04, E2, #1138): an offer that ended, which is where ADR-0076 §4 began,
+// but just as much an installation default or lock without the password, a rescue lock lifted after
+// the provider went, a restore or an import that brought the settings without the providers, or two
+// administrators switching off the last two ways at once. The guards at the doors (the last way in,
+// SC-06) refuse what they can see; this is the net under all of them, so nothing else has to be
+// perfect - no row lock for the race, no job on the day an offer ends. It is read wherever the ways
+// in are resolved, and it ends the moment an administrator switches on a way in, which is what the
+// screen asks them to do. An account without a password gains nothing from the sign-in: there is
+// nothing to sign in with (ADR-0077 §3 is its way back).
 
 // PasswordFallbackAction is a password sign-in that the fallback let through, in the workspace's
 // own trail (ADR-0076 §4, "the workspace's trail records it").
 const PasswordFallbackAction audit.Action = "auth.password_fallback"
 
-// fallbackOpens answers whether the password opens only as the fallback: the workspace has switched
-// it off, no provider is a way in now, and one it had switched on is an offer that has ended.
+// fallbackOpens answers whether the password opens only as the fallback: the workspace's methods
+// leave it out, and no provider is a way in here now. Nothing asks why (E2, #1138) - a cause the
+// predicate had to recognise is a cause it could miss, and every miss is a lockout.
 func fallbackOpens(
 	methods []string, inForce []domain.IdentityProvider, settings domain.WorkspaceSettings,
 	now time.Time,
@@ -47,15 +53,7 @@ func fallbackOpens(
 			return false
 		}
 	}
-	for _, taken := range settings.OfferedProviders {
-		at := slices.IndexFunc(inForce, func(row domain.IdentityProvider) bool { return row.ID == taken })
-		// Gone is ended too: an installation's provider removed outright leaves the workspace's
-		// switch behind, and the workspace in exactly the place a withdrawal would.
-		if at < 0 || !inForce[at].OfferedAt(now) {
-			return true
-		}
-	}
-	return false
+	return true
 }
 
 // WaysIn reads what the fallback needs for a door that knows only the workspace: its ways in and

@@ -117,6 +117,10 @@ type passwordFixture struct {
 	workspace *workspaceStore
 	instance  *instanceSettings
 	audit     *auditSink
+	// providers is the workspace's ways in besides the password, which the fallback reads (ADR-0076
+	// §4). Empty, so a test that switches the password off switches on a provider as well, or it is
+	// testing a workspace with no way in - which signs in by password (E2, #1138).
+	providers *providerStore
 }
 
 const heldPassword = "the one in force"
@@ -147,7 +151,8 @@ func newPasswordFixture(at time.Time) *passwordFixture {
 			Policy: domain.PolicyLayer{Locks: map[domain.PolicySwitch]bool{}},
 			Legal:  domain.LegalLayer{Locks: map[domain.LegalLink]bool{}},
 		}},
-		audit: &auditSink{},
+		audit:     &auditSink{},
+		providers: newProviderStore(tenant),
 	}
 	f.writer = PasswordWriter{
 		Session: SessionWriter{
@@ -165,6 +170,10 @@ func newPasswordFixture(at time.Time) *passwordFixture {
 		Text:       text.Composing{},
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(at),
 		IDs: &idSequence{queue: []shared.ID{historyRowID}},
+		WaysIn: WaysIn{
+			Providers: f.providers, Workspaces: f.workspace, UnitOfWork: &unitOfWork{},
+			Clock: clock.Fixed(at),
+		},
 	}
 	return f
 }

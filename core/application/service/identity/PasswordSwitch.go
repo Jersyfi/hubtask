@@ -20,10 +20,10 @@ import (
 // closed, for a person its directory had already let go (P-02).
 //
 // **Nothing is taken from an account.** The stored password stays; switching the password back on
-// makes it work again. **The one exception** is ADR-0076 §4's fallback: a workspace whose last way in
-// was an offer that ended signs in by password again. **The refusal is the same for every address**,
-// asked before any account is looked up, so it says nothing about who has one - only what the public
-// sign-in rules already say about the workspace.
+// makes it work again. **The one exception** is ADR-0076 §4's fallback: a workspace left with no way in
+// that works - whatever the cause (E2, #1138) - signs in by password again. **The refusal is the same
+// for every address**, asked before any account is looked up, so it says nothing about who has one -
+// only what the public sign-in rules already say about the workspace.
 
 // PasswordDoor answers whether the password is open in a workspace. The password writer is one; the
 // session writer asks it through its rule, which is that writer (teachTheRule).
