@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**260 use cases, 224 distinct action codes, 186 of them recorded on every call.** A use case that
+**261 use cases, 224 distinct action codes, 187 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -90,6 +90,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `auth.session_refreshed` | RefreshSession | `session` | INFO | Every time |
 | `auth.session_revoked` | RevokeSession | `session` | NOTICE | Every time |
 | `auth.sessions_revoked` | RevokeAllSessions | `session` | NOTICE | Every time |
+| `auth.sessions_revoked` | RevokeOtherSessions | `session` | NOTICE | Every time |
 | `auth.signed_in` | CompleteSignIn | `session` | NOTICE | Every time |
 | `auth.signed_in` | SignIn | `session` | NOTICE | Every time |
 | `auth.step_up` | StepUp | `session` | NOTICE | Every time |

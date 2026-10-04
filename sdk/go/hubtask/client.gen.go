@@ -10816,6 +10816,13 @@ type ClientInterface interface {
 	// Corresponds with POST /auth/sessions:refresh (the `RefreshSession` operationId).
 	RefreshSession(ctx context.Context, body RefreshSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RevokeOtherSessions Sign out everywhere else
+	//
+	// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+	//
+	// Corresponds with POST /auth/sessions:revoke-others (the `RevokeOtherSessions` operationId).
+	RevokeOtherSessions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SetPasswordAndSignInWithBody Set a new password and finish the sign-in
 	//
 	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
@@ -15286,6 +15293,23 @@ func (c *Client) RefreshSessionWithBody(ctx context.Context, contentType string,
 // Corresponds with POST /auth/sessions:refresh (the `RefreshSession` operationId).
 func (c *Client) RefreshSession(ctx context.Context, body RefreshSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRefreshSessionRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RevokeOtherSessions Sign out everywhere else
+//
+// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+//
+// Corresponds with POST /auth/sessions:revoke-others (the `RevokeOtherSessions` operationId).
+func (c *Client) RevokeOtherSessions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokeOtherSessionsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -23488,6 +23512,33 @@ func NewRefreshSessionRequestWithBody(server string, contentType string, body io
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRevokeOtherSessionsRequest constructs an http.Request for the RevokeOtherSessions method
+func NewRevokeOtherSessionsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:revoke-others")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -35257,6 +35308,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/sessions:refresh (the `RefreshSession` operationId).
 	RefreshSessionWithResponse(ctx context.Context, body RefreshSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*RefreshSessionResult, error)
 
+	// RevokeOtherSessionsWithResponse Sign out everywhere else
+	//
+	// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:revoke-others (the `RevokeOtherSessions` operationId).
+	RevokeOtherSessionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RevokeOtherSessionsResult, error)
+
 	// SetPasswordAndSignInWithBodyWithResponse Set a new password and finish the sign-in
 	//
 	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
@@ -41038,6 +41098,47 @@ func (r RefreshSessionResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RefreshSessionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RevokeOtherSessionsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RevokeOtherSessionsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RevokeOtherSessionsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeOtherSessionsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeOtherSessionsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RevokeOtherSessionsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -53217,6 +53318,21 @@ func (c *ClientWithResponses) RefreshSessionWithResponse(ctx context.Context, bo
 	return ParseRefreshSessionResult(rsp)
 }
 
+// RevokeOtherSessionsWithResponse Sign out everywhere else
+//
+// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:revoke-others (the `RevokeOtherSessions` operationId).
+func (c *ClientWithResponses) RevokeOtherSessionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RevokeOtherSessionsResult, error) {
+	rsp, err := c.RevokeOtherSessions(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeOtherSessionsResult(rsp)
+}
+
 // SetPasswordAndSignInWithBodyWithResponse Set a new password and finish the sign-in
 //
 // The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
@@ -59951,6 +60067,35 @@ func ParseRefreshSessionResult(rsp *http.Response) (*RefreshSessionResult, error
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRevokeOtherSessionsResult parses an HTTP response from a RevokeOtherSessionsWithResponse call
+func ParseRevokeOtherSessionsResult(rsp *http.Response) (*RevokeOtherSessionsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeOtherSessionsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

@@ -116,6 +116,13 @@ WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id') AND revoked_at
 UPDATE session SET revoked_at = sqlc.arg('revoked_at')
 WHERE account_id = sqlc.arg('account_id') AND revoked_at IS NULL;
 
+-- name: RevokeOtherSessionsForAccount :execrows
+-- Every device but the one asking (UC-ID-06 check 4). A NULL `keep` spares nothing: the comparison
+-- is written so that it can never become `id <> ''`, which would compare against nothing at all.
+UPDATE session SET revoked_at = sqlc.arg('revoked_at')
+WHERE account_id = sqlc.arg('account_id') AND revoked_at IS NULL
+  AND (sqlc.narg('keep')::uuid IS NULL OR id <> sqlc.narg('keep')::uuid);
+
 -- ============================ Refresh tokens ============================
 
 -- name: InsertRefreshToken :exec

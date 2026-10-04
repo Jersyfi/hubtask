@@ -9984,6 +9984,9 @@ type ServerInterface interface {
 	// RefreshSession Exchange a refresh token for the next pair
 	// (POST /auth/sessions:refresh)
 	RefreshSession(w http.ResponseWriter, r *http.Request)
+	// RevokeOtherSessions Sign out everywhere else
+	// (POST /auth/sessions:revoke-others)
+	RevokeOtherSessions(w http.ResponseWriter, r *http.Request)
 	// SetPasswordAndSignIn Set a new password and finish the sign-in
 	// (POST /auth/sessions:set-password)
 	SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request)
@@ -12198,6 +12201,20 @@ func (siw *ServerInterfaceWrapper) RefreshSession(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RefreshSession(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeOtherSessions operation middleware
+func (siw *ServerInterfaceWrapper) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeOtherSessions(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20747,6 +20764,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions", wrapper.RevokeAllSessions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sessions", wrapper.ListSessions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions", wrapper.SignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:revoke-others", wrapper.RevokeOtherSessions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:refresh", wrapper.RefreshSession)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions/{sessionId}", wrapper.RevokeSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:redeem", wrapper.RedeemInvitation)

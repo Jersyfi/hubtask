@@ -241,8 +241,9 @@ func TestAChangeEndsTheOtherSessionsAndKeepsThisOne(t *testing.T) {
 	if len(fixture.histories.trimmed) != 1 || fixture.histories.trimmed[0] != 3 {
 		t.Errorf("the history was trimmed to %v, want the policy's three", fixture.histories.trimmed)
 	}
-	if len(fixture.sessions.revoked) != 1 || fixture.sessions.revoked[0] != otherSessionID {
-		t.Errorf("sessions ended: %v, want only the other one", fixture.sessions.revoked)
+	// Every other session ends in one statement, and the one the caller holds is the one spared.
+	if len(fixture.sessions.keptByOthers) != 1 || fixture.sessions.keptByOthers[0] != sessionRowID {
+		t.Errorf("the others ended sparing %v, want the caller's session", fixture.sessions.keptByOthers)
 	}
 	if len(fixture.audit.entries) != 1 ||
 		fixture.audit.entries[0].Action != PasswordChangedAction {
@@ -380,7 +381,7 @@ func TestTheCheckSpendsNoCredential(t *testing.T) {
 		t.Fatalf("the check was refused: %v", err)
 	}
 
-	if len(fixture.accounts.writes) != 0 || len(fixture.sessions.revoked) != 0 {
+	if len(fixture.accounts.writes) != 0 || len(fixture.sessions.keptByOthers) != 0 {
 		t.Error("the check wrote something")
 	}
 }

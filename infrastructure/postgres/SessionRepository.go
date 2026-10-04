@@ -362,6 +362,38 @@ func (r SessionRepository) Revoke(
 	return changed > 0, nil
 }
 
+// RevokeOthers ends every live session of the account but the one named. A zero `keep` spares
+// nothing: it becomes NULL, never an empty identifier a comparison would silently match nothing with.
+func (r SessionRepository) RevokeOthers(
+	ctx context.Context, accountID, keep shared.ID, at time.Time,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return 0, err
+	}
+	spared := pgtype.UUID{}
+	if !keep.IsZero() {
+		if spared, err = uuidOf(keep); err != nil {
+			return 0, err
+		}
+	}
+	changed, err := queries.RevokeOtherSessionsForAccount(ctx, sqlc.RevokeOtherSessionsForAccountParams{
+		RevokedAt: pgtype.Timestamptz{Time: at, Valid: true},
+		AccountID: account,
+		Keep:      spared,
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("revoking the other sessions: %w", err))
+	}
+	return int(changed), nil
+}
+
 func (r SessionRepository) RevokeAll(
 	ctx context.Context, accountID shared.ID, at time.Time,
 ) (int, error) {

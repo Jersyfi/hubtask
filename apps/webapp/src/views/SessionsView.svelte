@@ -114,19 +114,19 @@
     }
   }
 
-  /** Ends every session, this one last by consequence rather than by order. */
-  async function endEverywhere(): Promise<void> {
+  /** Ends every other session; this one stays, and the list shows that it did. */
+  async function endElsewhere(): Promise<void> {
     failure = undefined;
     try {
-      await sessions.endAll();
+      await sessions.endOthers();
       announcer.say(t('app.sessions.ended_all_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages);
     }
-    // Whatever the server managed, this tab is holding a credential it has been told to stop
-    // trusting. Discarding it is not conditional on the call having succeeded.
-    await session.signOut();
   }
+
+  /** Whether there is anything else to end: one session is this one, and nothing is elsewhere. */
+  const elsewhere = $derived(shown.some((row) => !row.current));
 </script>
 
 {#if !account}
@@ -188,14 +188,15 @@
         </Table>
 
 
-        <div class="everywhere">
-          <!-- Said before it is pressed, because it ends this session too: a control whose
-               consequence is "you are about to be signed out" has to say so where the finger is. -->
-          <p class="quiet">{t('app.sign_out.everywhere_warning')}</p>
-          <div>
-            <Button tone="danger" onclick={() => void endEverywhere()}>{t('app.sign_out.everywhere')}</Button>
+        {#if elsewhere}
+          <div class="everywhere">
+            <!-- Said before it is pressed: which sessions end, and that this one does not. -->
+            <p class="quiet">{t('app.sign_out.everywhere_else_note')}</p>
+            <div>
+              <Button tone="danger" onclick={() => void endElsewhere()}>{t('app.sign_out.everywhere_else')}</Button>
+            </div>
           </div>
-        </div>
+        {/if}
       {/if}
     </Stack>
   </Stack>
