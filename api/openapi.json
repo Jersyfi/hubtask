@@ -12761,7 +12761,12 @@
           "enabled": {
             "type": "boolean",
             "deprecated": true,
-            "x-deprecated-reason": "Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.",
+            "x-deprecated-since": "2026-10-03",
+            "x-removed-in": "v2",
+            "x-replaced-by": [
+              "offerIdentityProvider",
+              "withdrawInstanceIdentityProvider"
+            ],
             "description": "**Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it says at creation whether the installation offers the provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed value is refused with `identity_provider.withdraw_instead` (ADR-0076 §2). Removed with the next major version of the contract.\n"
           },
           "allowed_email_domains": {
@@ -14345,7 +14350,11 @@
             "type": "string",
             "maxLength": 1024,
             "deprecated": true,
-            "x-deprecated-reason": "The step-up proves it, in the X-Hubtask-Step-Up header (ADR-0075 §3).",
+            "x-deprecated-since": "2026-10-03",
+            "x-removed-in": "v2",
+            "x-replaced-by": [
+              "X-Hubtask-Step-Up"
+            ],
             "description": "**Deprecated** (ADR-0075 §3): the proof this route took before the step-up did. Still checked when sent without a step-up token, for one release; then removed.\n"
           }
         }
@@ -22039,6 +22048,66 @@
           "instance": {
             "$ref": "#/components/schemas/InstanceReach",
             "description": "What this caller may do at the level above the workspaces (SI-17, ADR-0070 §5). Caller- scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers `reachable: false`, and the answer changes with the actor.\n**This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled (`apps/webapp/CLAUDE.md`).\n"
+          },
+          "deprecations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeprecatedField"
+            },
+            "description": "Every request field this contract has marked `deprecated`, with the operations that take it, since when, and the major version it goes away with (`versioning-release.md` §5, SC-28). Read from the contract itself, so the list and the specification cannot disagree. A request that sends one of them is answered with the `Deprecation` header (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.\n"
+          }
+        }
+      },
+      "DeprecatedField": {
+        "type": "object",
+        "description": "One deprecated request field, and when it goes. Identifiers only (ADR-0011): what replaces it is named, and the field's description in the specification says the rest.\n",
+        "required": [
+          "operation_id",
+          "method",
+          "path",
+          "field",
+          "since",
+          "removed_in",
+          "replaced_by"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "The operation's path as the specification writes it."
+          },
+          "field": {
+            "type": "string",
+            "description": "The field in the request body."
+          },
+          "since": {
+            "type": "string",
+            "format": "date",
+            "description": "When it was marked deprecated."
+          },
+          "removed_in": {
+            "type": "string",
+            "description": "The major version of the contract it goes away with."
+          },
+          "sunset": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The day it stops being accepted, once one is set. Null until then."
+          },
+          "replaced_by": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What takes its place: the `operationId` of an operation, or the name of a header.\n"
           }
         }
       },
