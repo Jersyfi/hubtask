@@ -712,6 +712,24 @@ func (r SignInRepository) Find(ctx context.Context, subject string) (repository.
 	}, nil
 }
 
+// Fail adds one failure atomically and answers the count after it.
+func (r SignInRepository) Fail(ctx context.Context, subject string, at time.Time) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	failures, err := queries.CountAuthFailure(ctx, sqlc.CountAuthFailureParams{
+		SubjectHash: r.attemptHasher.Hash(subject),
+		At:          pgtype.Timestamptz{Time: at.UTC(), Valid: true},
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting a failure: %w", err))
+	}
+	return int(failures), nil
+}
+
 func (r SignInRepository) Record(
 	ctx context.Context, subject string, attempt repository.AuthAttempt,
 ) error {

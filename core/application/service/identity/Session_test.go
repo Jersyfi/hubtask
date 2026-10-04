@@ -230,6 +230,15 @@ func (s *attemptsStore) Find(_ context.Context, subject string) (repository.Auth
 	return s.standing[subject], nil
 }
 
+// Fail adds one failure and answers the count, as the statement does.
+func (s *attemptsStore) Fail(_ context.Context, subject string, at time.Time) (int, error) {
+	attempt := s.standing[subject]
+	attempt.Failures++
+	attempt.LastFailureAt = at
+	s.standing[subject] = attempt
+	return attempt.Failures, nil
+}
+
 func (s *attemptsStore) Record(_ context.Context, subject string, attempt repository.AuthAttempt) error {
 	s.standing[subject] = attempt
 	return nil
@@ -311,6 +320,7 @@ func newSessionFixture(at time.Time) *sessionFixture {
 		audit:   &auditSink{},
 		work:    &unitOfWork{},
 	}
+	f.work.ledger = f.attempts
 	f.writer = SessionWriter{
 		Accounts: f.accounts, Sessions: f.sessions, Refresh: f.refresh,
 		Attempts: f.attempts, Tenants: tenantDirectory{single: tenant},

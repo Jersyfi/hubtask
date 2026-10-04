@@ -622,19 +622,28 @@ func (w SessionWriter) checkLocked(ctx context.Context, subjects []string, now t
 	return nil
 }
 
+// recordFailureTimeout bounds the ledger's own transaction once it no longer follows the request.
+const recordFailureTimeout = 5 * time.Second
+
 // recordFailure advances every subject on the curve, in its own transaction: the refusal must
 // land even though the sign-in did not.
+//
+// Not cancelled with the request (SC-22): a client that disconnects the moment it reads the refusal
+// would otherwise take the count with it - the cheapest way to guess without being counted. Bounded
+// by its own deadline instead (rule 7). The count is added by the statement rather than computed
+// from a read, so failures arriving at once are each counted (AuthAttempts.Fail).
 func (w SessionWriter) recordFailure(
 	ctx context.Context, scope persistence.Scope, subjects []string,
 ) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), recordFailureTimeout)
+	defer cancel()
 	return w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		now := w.Clock.Now()
 		for _, subject := range subjects {
-			attempt, err := w.Attempts.Find(ctx, subject)
+			failures, err := w.Attempts.Fail(ctx, subject, now)
 			if err != nil {
 				return err
 			}
-			failures := attempt.Failures + 1
 			if err := w.Attempts.Record(ctx, subject, repository.AuthAttempt{
 				Failures:      failures,
 				LastFailureAt: now.UTC(),

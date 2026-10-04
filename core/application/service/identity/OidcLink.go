@@ -129,7 +129,7 @@ func (h CompleteLink) Execute(ctx context.Context, cmd CompleteLinkCommand) (Sig
 		now := s.Clock.Now()
 		if !verified {
 			s.failure(ctx, FailureWrongCredential)
-			return errors.Join(s.recordMfaFailure(ctx, subject, now), domain.ErrSignInFailed())
+			return countedRefusal(subject, domain.ErrSignInFailed())
 		}
 		consumed, err := s.Pending.Consume(ctx, credential.ID, now)
 		if err != nil {
@@ -163,6 +163,7 @@ func (h CompleteLink) Execute(ctx context.Context, cmd CompleteLinkCommand) (Sig
 		}
 		return w.Connect(ctx, account, *credential.Link)
 	})
+	err = s.settleRefusal(ctx, scope, err)
 	if err != nil {
 		return SignInResult{}, err
 	}
