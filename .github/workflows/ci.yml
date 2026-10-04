@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
 
@@ -32,6 +33,7 @@ jobs:
   # the whole pipeline runs. There is no filtering on the branch that gets released.
   changes:
     name: What changed
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     outputs:
       go: ${{ github.event_name != 'pull_request' || steps.filter.outputs.go == 'true' }}
@@ -175,6 +177,7 @@ jobs:
 
   secrets:
     name: Secret scanning
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -192,7 +195,7 @@ jobs:
     runs-on: ubuntu-latest
     # The action compares a pull request against its base, so it has nothing to say on a push.
     # Skipped, never failed - `ci-required` counts a skip as a pass.
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
@@ -205,6 +208,7 @@ jobs:
 
   licences:
     name: Licences
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -564,6 +568,7 @@ jobs:
 
   docs:
     name: Documentation
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     # Behind no filter at all, like `secrets` and `licences`. It took 24 seconds and it was the
     # only thing standing behind three claims that a filter could skip: checkdocs reconciles the
     # Go version across go.mod, the workflows and the Dockerfile, reconciles the support matrix
@@ -593,7 +598,7 @@ jobs:
     # reviews it against this template. The description is read from the API rather than from the
     # event, so re-running this job - which `pr-description-rerun.yml` does when the description
     # is edited - judges the description as it stands now, not as it was when the run began.
-    if: github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot'
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && github.event.pull_request.user.type != 'Bot'
     runs-on: ubuntu-latest
     permissions:
       contents: read
