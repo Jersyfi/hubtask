@@ -26,7 +26,8 @@ import (
 // ADR-0076 §4 as the owner decided it on 2026-10-04 (E2, #1138), against the real database and the
 // real resolver: the password opens whenever the workspace's resolved methods leave no way in that
 // works - here an installation default without the password, which no workspace screen wrote and no
-// workspace guard could refuse. The service tests show the same over fakes; what only this test shows
+// workspace guard could refuse, in a workspace whose invited owner has to get in before anybody can
+// switch a way in on. The service tests show the same over fakes; what only this test shows
 // is that the rule the resolver reads from `instance_setting` is the rule the fallback answers.
 //
 // The installation's level is one row set for every workspace in this database, so the test restores
@@ -35,6 +36,7 @@ var (
 	fallbackTenant   = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000031a1")
 	fallbackAccount  = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000031b1")
 	fallbackProvider = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000031c1")
+	fallbackInvited  = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000031b2")
 )
 
 const fallbackPassphrase = "seven blue lanterns over the harbour"
@@ -64,6 +66,14 @@ func TestAnInstallationDefaultWithoutThePasswordOpensItAsTheFallback(t *testing.
 		ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
 		fallbackAccount.String(), fallbackTenant.String(), hash); err != nil {
 		t.Fatalf("seeding the account: %v", err)
+	}
+	// And the person a provisioned workspace is born with: invited, holding no password yet.
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO account (id, tenant_id, kind, email, display_name, status)
+		VALUES ($1, $2, 'USER', 'invited-owner@example.org', 'Invited Owner', 'INVITED')
+		ON CONFLICT (id) DO UPDATE SET status = 'INVITED', password_hash = NULL`,
+		fallbackInvited.String(), fallbackTenant.String()); err != nil {
+		t.Fatalf("seeding the invited account: %v", err)
 	}
 	t.Cleanup(func() {
 		_, _ = admin.Exec(context.Background(), `DELETE FROM identity_provider WHERE id = $1`,
@@ -152,17 +162,39 @@ func TestAnInstallationDefaultWithoutThePasswordOpensItAsTheFallback(t *testing.
 	if err := signsIn(); err != nil {
 		t.Fatalf("signing in through the fallback: %v", err)
 	}
-	var recorded int
-	if err := admin.QueryRow(ctx, `
-		SELECT count(*) FROM audit_log
-		WHERE tenant_id = $1 AND action = 'auth.password_fallback' AND actor_id = $2
-		  AND changes -> 'cause' ->> 'to' = $3`,
-		fallbackTenant.String(), fallbackAccount.String(),
-		identityservice.FallbackCauseNoWayIn).Scan(&recorded); err != nil {
-		t.Fatalf("reading the trail: %v", err)
+	recorded := func(actor shared.ID) int {
+		t.Helper()
+		var counted int
+		if err := admin.QueryRow(ctx, `
+			SELECT count(*) FROM audit_log
+			WHERE tenant_id = $1 AND action = 'auth.password_fallback' AND actor_id = $2
+			  AND changes -> 'cause' ->> 'to' = $3`,
+			fallbackTenant.String(), actor.String(),
+			identityservice.FallbackCauseNoWayIn).Scan(&counted); err != nil {
+			t.Fatalf("reading the trail: %v", err)
+		}
+		return counted
 	}
-	if recorded == 0 {
+	if recorded(fallbackAccount) == 0 {
 		t.Error("the sign-in through the fallback is not in the workspace's trail with its cause")
+	}
+
+	// The invited owner accepts with a password - nobody else is in to switch a way in on - and the
+	// entry lands in the redemption's own transaction, which only a real one can show.
+	minted, err := identityservice.MintRedemptionToken{
+		Accounts: signIn, UnitOfWork: uow, Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
+	}.MintRedemptionToken(ctx, fallbackTenant, fallbackInvited)
+	if err != nil || minted.IsEmpty() {
+		t.Fatalf("minting the invitation: (%v, empty %v)", err, minted.IsEmpty())
+	}
+	if _, err := (identityservice.RedeemInvitation{Writer: session, Passwords: &passwords}).Execute(ctx,
+		identityservice.RedeemInvitationCommand{
+			Token: minted, Password: secret.New(fallbackPassphrase), TenantHeader: fallbackTenant.String(),
+		}); err != nil {
+		t.Fatalf("redeeming through the fallback: %v", err)
+	}
+	if recorded(fallbackInvited) == 0 {
+		t.Error("the redemption through the fallback is not in the workspace's trail with its cause")
 	}
 
 	// A way in switched on ends it: the workspace's own provider, and the installation's rule is the

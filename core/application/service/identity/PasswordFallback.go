@@ -96,28 +96,37 @@ func (w WaysIn) PasswordFallback(ctx context.Context, tenantID shared.ID, method
 	return opens, err
 }
 
-// recordFallback writes the trail entry for a password the fallback let through: who, in which
-// workspace, why the password was open, and nothing of the credential.
+// recordFallback writes the trail entry for a password the fallback let through, in a transaction of
+// its own: the sign-in's reads have closed theirs by the time the password has proved right.
 func (w SessionWriter) recordFallback(
 	ctx context.Context, scope persistence.Scope, account domain.Account,
 ) error {
 	return w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		return w.Audit.Append(ctx, audit.Entry{
-			TenantID:   scope.TenantID,
-			OccurredAt: w.Clock.Now(),
-			Action:     PasswordFallbackAction,
-			Outcome:    audit.OutcomeSuccess,
-			Severity:   audit.SeverityWarning,
-			ActorKind:  appshared.ActorUser,
-			ActorID:    account.ID,
-			ActorLabel: account.DisplayName,
-			TargetType: workspaceTarget,
-			TargetID:   scope.TenantID,
-			Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-			Changes: audit.Changes(
-				audit.Change{Field: "method", Classification: audit.Open, To: domain.MethodDirect},
-				audit.Change{Field: "cause", Classification: audit.Open, To: FallbackCauseNoWayIn},
-			),
-		})
+		return w.Audit.Append(ctx, fallbackEntry(ctx, scope.TenantID, account, w.Clock.Now()))
 	})
+}
+
+// fallbackEntry is the trail entry for a password the fallback let through: who, in which workspace,
+// why the password was open, and nothing of the credential. A door that writes in a transaction of
+// its own appends it there, beside what it records itself.
+func fallbackEntry(
+	ctx context.Context, tenantID shared.ID, account domain.Account, at time.Time,
+) audit.Entry {
+	return audit.Entry{
+		TenantID:   tenantID,
+		OccurredAt: at,
+		Action:     PasswordFallbackAction,
+		Outcome:    audit.OutcomeSuccess,
+		Severity:   audit.SeverityWarning,
+		ActorKind:  appshared.ActorUser,
+		ActorID:    account.ID,
+		ActorLabel: account.DisplayName,
+		TargetType: workspaceTarget,
+		TargetID:   tenantID,
+		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+		Changes: audit.Changes(
+			audit.Change{Field: "method", Classification: audit.Open, To: domain.MethodDirect},
+			audit.Change{Field: "cause", Classification: audit.Open, To: FallbackCauseNoWayIn},
+		),
+	}
 }

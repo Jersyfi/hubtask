@@ -127,11 +127,18 @@ func (h RedeemInvitation) Execute(
 		return SessionPair{}, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
 	// A workspace that switched the password off sets none, however the invitation arrived (SC-24):
-	// the person signs in through the workspace's provider. Asked before the token is looked up.
+	// the person signs in through the workspace's provider. Asked before the token is looked up -
+	// and once: where the password is open only as the fallback, this answer is what the trail
+	// records, so that a person invited into a workspace with no way in that works (a provisioned
+	// workspace born under an installation default without the password, say) can accept the
+	// invitation, and its administrators can see that they did (E2, #1138).
+	var fallback bool
 	if h.Passwords != nil {
-		if err := refuseShut(h.Passwords.PasswordOpen(ctx, token.TenantID())); err != nil {
+		open, viaFallback, err := h.Passwords.PasswordOpen(ctx, token.TenantID())
+		if err := refuseShut(open, viaFallback, err); err != nil {
 			return SessionPair{}, err
 		}
+		fallback = viaFallback
 	}
 	// The policy binds where a password is set - and the part of it that needs no account is
 	// checked before the token is looked up, so this half of the refusal says nothing about
@@ -201,7 +208,7 @@ func (h RedeemInvitation) Execute(
 		account = found.Account
 		account.Status = domain.AccountActive
 
-		return w.Audit.Append(ctx, audit.Entry{
+		if err := w.Audit.Append(ctx, audit.Entry{
 			TenantID:   token.TenantID(),
 			OccurredAt: now,
 			Action:     InvitationRedeemedAction,
@@ -217,7 +224,14 @@ func (h RedeemInvitation) Execute(
 				Field: "status", Classification: audit.Open,
 				From: string(domain.AccountInvited), To: string(domain.AccountActive),
 			}),
-		})
+		}); err != nil {
+			return err
+		}
+		if !fallback {
+			return nil
+		}
+		// In the redemption's own transaction: the password is set and the entry lands, or neither.
+		return w.Audit.Append(ctx, fallbackEntry(ctx, token.TenantID(), account, now))
 	})
 	if err != nil {
 		return SessionPair{}, err

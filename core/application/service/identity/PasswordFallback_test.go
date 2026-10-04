@@ -178,6 +178,48 @@ func TestARescueLockLiftedAfterTheProviderWentLeavesThePasswordOpen(t *testing.T
 	}
 }
 
+// A workspace provisioned under an installation default without the password, whose owner is still
+// invited: nobody has switched a provider on yet, because nobody is in to switch it. The owner accepts
+// the invitation with a password under the fallback, and the trail says so - in the redemption's own
+// transaction, beside the redemption (E2, #1138).
+func TestAnInvitedOwnerOfAWorkspaceWithNoWayInAcceptsWithAPassword(t *testing.T) {
+	f := newWayInFixture()
+	f.passwords.instance.level.Policy.Patch.Methods = providersAlone()
+
+	f.redeems(t)
+	if f.session.accounts.redeemedHash == "" {
+		t.Error("the redemption stored no password")
+	}
+	if !f.recordedFallback() {
+		t.Errorf("the redemption through the fallback is not in the trail: %v", f.session.audit.entries)
+	}
+}
+
+func TestAnInvitationRedeemedWhereThePasswordIsOnIsNoFallback(t *testing.T) {
+	f := newWayInFixture()
+
+	f.redeems(t)
+	for _, entry := range f.session.audit.entries {
+		if entry.Action == PasswordFallbackAction {
+			t.Errorf("a workspace with the password on recorded a fallback: %+v", entry)
+		}
+	}
+}
+
+// redeems accepts the fixture's waiting invitation with a password, through the password writer's door.
+func (f *wayInFixture) redeems(t *testing.T) {
+	t.Helper()
+	token := redemptionToken(t)
+	f.session.accounts.redemption[token.Secret()] = waitingRedemption()
+	passwords := f.passwords.writer
+	if _, err := (RedeemInvitation{Writer: f.session.writer, Passwords: &passwords}).Execute(t.Context(),
+		RedeemInvitationCommand{
+			Token: secret.New(token.Secret()), Password: secret.New("seven blue lanterns over the harbour"),
+		}); err != nil {
+		t.Fatalf("redeeming: %v", err)
+	}
+}
+
 // switchedOnRow is a provider an administrator switches on to end the fallback.
 const switchedOnRow = shared.ID("01936f2a-7c1e-7000-8000-0000000000e6")
 
