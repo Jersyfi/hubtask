@@ -6,8 +6,8 @@ actors: [PE-operator, PE-admin]
 deployments: [D5, D6]
 serves: [P-02, P-05, P-06, P-07]
 state: partial
-tasks: [SI-10, SI-17, SC-01, SC-20, SC-26, SC-27]
-checked_by: [core/application/service/admin/InstanceProvider_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, core/application/service/identity/IdentityProviderWithdrawal_test.go, test/integration/provider_withdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs]
+tasks: [SI-10, SI-17, SC-01, SC-20, SC-26, SC-27, SC-31]
+checked_by: [core/application/service/admin/InstanceProvider_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, core/application/service/identity/IdentityProviderWithdrawal_test.go, test/integration/provider_withdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordFallback_test.go, test/integration/password_fallback_test.go]
 ---
 
 # Offer sign-in providers to every workspace
@@ -68,3 +68,11 @@ installation puts it on everywhere and removes the switch.
   grace, and a workspace reads none - not even by calling the count itself
   (`TestAnOfferedProvidersCountIsCountedAndItsWithdrawalIsTheInstallations`,
   `provider_withdrawal_test.go`).
+  Since SC-31 ([#1138](https://github.com/Jersyfi/hubtask/issues/1138), E2) no installation decision
+  leaves a workspace without a way in: where a withdrawal, an installation default or an installation
+  lock leaves a workspace's methods without the password and no provider is switched on there, the
+  password opens as ADR-0076 §4's fallback, until the workspace switches a way in on
+  (`TestThePasswordOpensWheneverNoWayInWorks`; against PostgreSQL under an installation default,
+  `TestAnInstallationDefaultWithoutThePasswordOpensItAsTheFallback`). A lock on the ways to sign in
+  decides the methods only; it does not switch the installation's provider on in a workspace, which
+  check 4 describes, and SC-31 does not change that.

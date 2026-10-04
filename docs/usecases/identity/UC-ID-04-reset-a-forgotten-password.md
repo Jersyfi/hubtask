@@ -6,8 +6,8 @@ actors: [PE-person, PE-member, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13, P-16]
 state: partial
-tasks: [SC-24, SI-04, SI-15, SC-03]
-checked_by: [core/application/service/identity/Reset_test.go, apps/webapp/e2e/signin.test.mjs]
+tasks: [SC-24, SI-04, SI-15, SC-03, SC-31]
+checked_by: [core/application/service/identity/Reset_test.go, apps/webapp/e2e/signin.test.mjs, core/application/service/identity/PasswordSwitch_test.go]
 ---
 
 # Reset a forgotten password
@@ -71,3 +71,8 @@ In a workspace that switched the password off (SC-24, UC-ID-12) every reset requ
 password but was never connected to the provider, and has forgotten the password, connects the provider
 by mail - the owner's decision of 2026-10-04 ([ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §1),
 check 8, SC-33.
+
+A workspace that switched the password off but has no provider switched on either - whatever the
+cause - is not such a workspace: since SC-31 ([#1138](https://github.com/Jersyfi/hubtask/issues/1138),
+E2) the password is open there as ADR-0076 §4's fallback, and the reset mails its link to an account
+that holds a password, as it does where the password is on (`TestTheFallbackOpensTheResetAndTheInvitationToo`).
