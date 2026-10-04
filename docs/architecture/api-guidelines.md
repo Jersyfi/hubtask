@@ -206,7 +206,17 @@ required.
 | Events | `….v1` in the type name; extensible additively; deprecation declared in the capability manifest |
 | MCP tools | The tool name = the stable use case name; parameters additive |
 | Error codes | Stable; removing one is a breaking change |
-| Deprecation | The `Deprecation` and `Sunset` headers (RFC 8594) plus an entry in `/meta/capabilities` and the changelog |
+| Deprecation | The `Deprecation` (RFC 9745) and `Sunset` (RFC 8594) headers plus an entry in `/meta/capabilities` and the changelog |
+
+**How a request field is deprecated** (SC-28): in `openapi.yaml`, `deprecated: true` with
+`x-deprecated-since` (the day), `x-removed-in` (the major version it goes with), `x-replaced-by` (the
+`operationId` or header that takes its place - identifiers, not prose, ADR-0011; the field's
+description says the rest) and, once a day is set, `x-sunset`. `make generate` reads them into the REST
+adapter's table (`tools/deprecations`); from it the manifest lists `deprecations`, and a request that
+sends such a field is answered with `Deprecation` (RFC 9745) and, where a day is set, `Sunset`. A
+request that does not send it hears nothing. A mark without its day, version or replacement fails the
+generator, and so does a mark nothing can announce - a deprecated parameter, operation, nested or
+response-only member: only a top-level property of a schema a JSON request body references is.
 
 Breaking changes are: removing or renaming a field, changing a type, adding a required field,
 removing an enum value from *requests*, changing semantics, changing a default, removing an error

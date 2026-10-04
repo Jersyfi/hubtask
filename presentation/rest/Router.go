@@ -69,11 +69,14 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Asked first, served second - and served through the ServeMux rather than through the
 	// handler it just returned. Handler() resolves without binding, so a handler invoked
 	// directly would find every r.PathValue empty.
-	if _, pattern := m.mux.Handler(routed); pattern == "" {
+	_, pattern := m.mux.Handler(routed)
+	if pattern == "" {
 		// Unmatched: net/http has an answer, but not one in this API's format.
 		m.serveUnrouted(w, routed)
 		return
 	}
+	// A request that sends a field the contract has deprecated hears so (SC-28).
+	announceDeprecation(w, routed, m.templates[pattern])
 	m.mux.ServeHTTP(w, routed)
 }
 
