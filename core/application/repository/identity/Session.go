@@ -126,6 +126,10 @@ type Sessions interface {
 	// RevokeAll ends every live session of the account and reports how many.
 	RevokeAll(ctx context.Context, accountID shared.ID, at time.Time) (int, error)
 
+	// RevokeOthers ends every live session of the account except the one named, and reports how
+	// many. A zero session spares nothing - a caller with no session of its own (UC-ID-06 check 4).
+	RevokeOthers(ctx context.Context, accountID, keep shared.ID, at time.Time) (int, error)
+
 	// Elevate raises one live session of the account to the control plane's scope until the given
 	// moment (ADR-0070 §4). False means the session is not the account's, or not live - which is
 	// the same indistinguishable answer Revoke gives, for the same reason.
@@ -184,6 +188,11 @@ type SignInAccounts interface {
 type AuthAttempts interface {
 	// Find answers a subject's standing. A subject never seen is the zero value, not an error.
 	Find(ctx context.Context, subject string) (AuthAttempt, error)
+
+	// Fail adds one failure to a subject's count and answers the count after it, in one statement
+	// that holds the subject's row until the transaction ends - so failures arriving at once are
+	// each counted, rather than each reading the same count and writing the same next one.
+	Fail(ctx context.Context, subject string, at time.Time) (int, error)
 
 	// Record writes a subject's standing after a failure.
 	Record(ctx context.Context, subject string, attempt AuthAttempt) error

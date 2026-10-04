@@ -139,8 +139,8 @@ type ConfirmAuthenticatorReplacement struct{ Writer SessionWriter }
 // Execute confirms and swaps, and answers the ten new recovery codes for the only time.
 //
 // The code is checked before anything is written, and a wrong one is recorded in a transaction of
-// its own - the refusal must land on the ledger even though the confirmation did not (issue 1117
-// for the doors that do not yet do this).
+// its own - the refusal must land on the ledger even though the confirmation did not, as at every
+// second-factor door (settleRefusal, SC-22).
 func (h ConfirmAuthenticatorReplacement) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd ConfirmAuthenticatorReplacementCommand,
 ) ([]secret.Secret, error) {

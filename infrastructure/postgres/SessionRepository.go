@@ -362,6 +362,38 @@ func (r SessionRepository) Revoke(
 	return changed > 0, nil
 }
 
+// RevokeOthers ends every live session of the account but the one named. A zero `keep` spares
+// nothing: it becomes NULL, never an empty identifier a comparison would silently match nothing with.
+func (r SessionRepository) RevokeOthers(
+	ctx context.Context, accountID, keep shared.ID, at time.Time,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return 0, err
+	}
+	spared := pgtype.UUID{}
+	if !keep.IsZero() {
+		if spared, err = uuidOf(keep); err != nil {
+			return 0, err
+		}
+	}
+	changed, err := queries.RevokeOtherSessionsForAccount(ctx, sqlc.RevokeOtherSessionsForAccountParams{
+		RevokedAt: pgtype.Timestamptz{Time: at, Valid: true},
+		AccountID: account,
+		Keep:      spared,
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("revoking the other sessions: %w", err))
+	}
+	return int(changed), nil
+}
+
 func (r SessionRepository) RevokeAll(
 	ctx context.Context, accountID shared.ID, at time.Time,
 ) (int, error) {
@@ -678,6 +710,24 @@ func (r SignInRepository) Find(ctx context.Context, subject string) (repository.
 		LastFailureAt: timeFrom(row.LastFailureAt),
 		LockedUntil:   timeFrom(row.LockedUntil),
 	}, nil
+}
+
+// Fail adds one failure atomically and answers the count after it.
+func (r SignInRepository) Fail(ctx context.Context, subject string, at time.Time) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	failures, err := queries.CountAuthFailure(ctx, sqlc.CountAuthFailureParams{
+		SubjectHash: r.attemptHasher.Hash(subject),
+		At:          pgtype.Timestamptz{Time: at.UTC(), Valid: true},
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting a failure: %w", err))
+	}
+	return int(failures), nil
 }
 
 func (r SignInRepository) Record(

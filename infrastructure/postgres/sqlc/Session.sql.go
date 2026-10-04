@@ -119,6 +119,30 @@ func (q *Queries) ConsumeStepUp(ctx context.Context, arg ConsumeStepUpParams) (i
 	return result.RowsAffected(), nil
 }
 
+const countAuthFailure = `-- name: CountAuthFailure :one
+INSERT INTO auth_attempt (tenant_id, subject_hash, failures, last_failure_at)
+VALUES (current_tenant_id(), $1, 1, $2)
+ON CONFLICT (tenant_id, subject_hash) DO UPDATE
+SET failures        = auth_attempt.failures + 1,
+    last_failure_at = EXCLUDED.last_failure_at
+RETURNING failures
+`
+
+type CountAuthFailureParams struct {
+	SubjectHash []byte
+	At          pgtype.Timestamptz
+}
+
+// One more failure, added where the row is rather than computed from a read: the row is held until
+// the transaction ends, so twenty guesses sent at once are twenty failures, not one written twenty
+// times. The lock moment is the caller's to compute from the count this answers (UpsertAuthAttempt).
+func (q *Queries) CountAuthFailure(ctx context.Context, arg CountAuthFailureParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countAuthFailure, arg.SubjectHash, arg.At)
+	var failures int32
+	err := row.Scan(&failures)
+	return failures, err
+}
+
 const countExpiredSessions = `-- name: CountExpiredSessions :one
 SELECT count(*) FROM (
   SELECT 1 FROM session AS expired
@@ -988,6 +1012,28 @@ type RevokeAllSessionsForAccountParams struct {
 // Every device at once, the answer to "I left myself signed in somewhere".
 func (q *Queries) RevokeAllSessionsForAccount(ctx context.Context, arg RevokeAllSessionsForAccountParams) (int64, error) {
 	result, err := q.db.Exec(ctx, revokeAllSessionsForAccount, arg.RevokedAt, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const revokeOtherSessionsForAccount = `-- name: RevokeOtherSessionsForAccount :execrows
+UPDATE session SET revoked_at = $1
+WHERE account_id = $2 AND revoked_at IS NULL
+  AND ($3::uuid IS NULL OR id <> $3::uuid)
+`
+
+type RevokeOtherSessionsForAccountParams struct {
+	RevokedAt pgtype.Timestamptz
+	AccountID pgtype.UUID
+	Keep      pgtype.UUID
+}
+
+// Every device but the one asking (UC-ID-06 check 4). A NULL `keep` spares nothing: the comparison
+// is written so that it can never become `id <> ”`, which would compare against nothing at all.
+func (q *Queries) RevokeOtherSessionsForAccount(ctx context.Context, arg RevokeOtherSessionsForAccountParams) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeOtherSessionsForAccount, arg.RevokedAt, arg.AccountID, arg.Keep)
 	if err != nil {
 		return 0, err
 	}

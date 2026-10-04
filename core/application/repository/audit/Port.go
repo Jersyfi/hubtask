@@ -51,6 +51,10 @@ type Filter struct {
 	// codes are a dotted hierarchy, and matching them as patterns would make a caller's `%` a
 	// wildcard nobody asked for.
 	ActionPrefix string
+	// ActionAlso are whole action codes matched besides the prefix: the other names of a renamed
+	// action (port.Aliases), so that a search by either name finds both. The application fills it;
+	// a caller never names it.
+	ActionAlso []string
 	// ActorID is who did it. It is also how a member's own events are narrowed to them - the
 	// application sets it rather than trusting the request, which is the whole of §5's second row.
 	ActorID shared.ID

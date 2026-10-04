@@ -5,6 +5,7 @@ package identity
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -20,6 +21,8 @@ const (
 	ListSessionsName      = "ListSessions"
 	RevokeSessionName     = "RevokeSession"
 	RevokeAllSessionsName = "RevokeAllSessions"
+	// RevokeOtherSessionsName is *Sign out everywhere else* (UC-ID-06 check 4).
+	RevokeOtherSessionsName = "RevokeOtherSessions"
 )
 
 // The audit codes of session management. Ending a way into the workspace is the class of event a
@@ -141,6 +144,77 @@ func (h RevokeAllSessions) Execute(ctx context.Context, actor appshared.ActorCon
 		}
 		return w.recordRevocation(ctx, actor, SessionsRevokedAction, actor.AccountID, ended, now)
 	})
+}
+
+// RevokeOtherSessions signs the caller out everywhere else (UC-ID-06 check 4): every session of the
+// account ends but the one making the call - the answer to a lost phone, asked from the laptop still
+// in hand. RevokeAllSessions stays beside it for the case where this device may be the one.
+type RevokeOtherSessions struct{ Writer SessionWriter }
+
+// Execute ends the others. The session to spare is the caller's own, and only when TokenID names
+// one of this account's sessions: a personal access token has no session, so nothing is spared.
+func (h RevokeOtherSessions) Execute(ctx context.Context, actor appshared.ActorContext) error {
+	if err := actor.RequireScope(accountRead); err != nil {
+		return err
+	}
+	if actor.AccountID.IsZero() {
+		return shared.ErrForbidden.WithDetail("access.token_owner_required")
+	}
+
+	w := h.Writer
+	return w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		now := w.Clock.Now()
+		var keep shared.ID
+		if !actor.TokenID.IsZero() {
+			credential, err := w.Sessions.FindForAuth(ctx, actor.TokenID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			if err == nil && credential.Session.AccountID == actor.AccountID {
+				keep = credential.Session.ID
+			}
+		}
+		ended, err := w.Sessions.RevokeOthers(ctx, actor.AccountID, keep, now)
+		if err != nil {
+			return err
+		}
+		if ended == 0 {
+			// Nothing else was live. No entry, as for every revocation that changed nothing.
+			return nil
+		}
+		return w.recordRevocation(ctx, actor, SessionsRevokedAction, actor.AccountID, ended, now)
+	})
+}
+
+// Descriptor is the catalogue entry.
+func (h RevokeOtherSessions) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: RevokeOtherSessionsName,
+		Summary: "Ends every session of the caller's account except the one making the call: every " +
+			"other refresh family dies, and every other access token still in flight refuses on " +
+			"its next request. The answer to a lost device, asked from the one still in hand. A " +
+			"caller with a personal access token has no session to keep, and every session ends.",
+		SideEffects: "Stamps every other live session and writes one audit entry saying how many.",
+		TokenScope:  accountRead,
+		Destructive: true,
+		Audit: usecase.AuditDeclaration{
+			Action: SessionsRevokedAction, TargetType: sessionTarget,
+			Severity: audit.SeverityNotice, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "A sign-in is not an entry, and the item history is keyed on an entry.",
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h RevokeOtherSessions) invoke(
+	ctx context.Context, actor appshared.ActorContext, _ usecase.Input,
+) (usecase.Output, error) {
+	if err := h.Execute(ctx, actor); err != nil {
+		return nil, err
+	}
+	return usecase.Output{}, nil
 }
 
 // recordRevocation writes the evidence for one ending or all of them.

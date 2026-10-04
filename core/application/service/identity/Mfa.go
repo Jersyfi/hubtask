@@ -263,9 +263,7 @@ func (h ConfirmTotp) Execute(
 		step, ok := domain.VerifyTotp([]byte(plaintext.Reveal()), cmd.Code, now, 0)
 		if !ok {
 			w.failure(ctx, FailureMfa)
-			return errors.Join(
-				w.recordMfaFailure(ctx, subject, now),
-				shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid"))
+			return countedRefusal(subject, shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid"))
 		}
 
 		armed, err := w.Enrollments.Confirm(ctx, caller.account.ID, step, now)
@@ -291,6 +289,7 @@ func (h ConfirmTotp) Execute(
 
 		return w.recordMfaAudit(ctx, MfaEnabledAction, audit.SeverityNotice, caller.account, now)
 	})
+	err = w.settleRefusal(ctx, scope, err)
 	if err != nil {
 		return ConfirmedEnrollment{}, err
 	}
@@ -403,8 +402,14 @@ func (w SessionWriter) proveByPassword(
 ) error {
 	// The hash is read in one transaction and verified outside it, sign-in's reasoning: Argon2id
 	// is deliberately slow, and a connection held through it would let a burst drain the pool.
+	// A password guess like any other (SC-22): it meets the lock first, and a wrong one is counted
+	// on the step-up's subject - this proof is the step-up's predecessor.
+	subject := stepUpSubject(actor.AccountID)
 	var stored secret.Secret
 	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := w.checkLocked(ctx, []string{subject}, w.Clock.Now()); err != nil {
+			return err
+		}
 		hash, err := w.Accounts.PasswordHashOf(ctx, actor.AccountID)
 		stored = hash
 		return err
@@ -427,7 +432,8 @@ func (w SessionWriter) proveByPassword(
 	}
 	if !verified {
 		w.failure(ctx, FailureWrongCredential)
-		return domain.ErrSignInFailed()
+		return errors.Join(
+			w.recordFailure(ctx, actor.PersistenceScope(), []string{subject}), domain.ErrSignInFailed())
 	}
 	return nil
 }

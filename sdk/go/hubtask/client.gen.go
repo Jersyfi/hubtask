@@ -4622,7 +4622,10 @@ type Capabilities struct {
 
 	// CompletionPolicies The values a collection's `completion_policy` may take, in the domain's order. A policies form is built from this list rather than from a copy of the enum: the schema says which values exist, this says which this installation serves.
 	CompletionPolicies *[]CompletionPolicy `json:"completion_policies,omitempty"`
-	EventTypes         *[]string           `json:"event_types,omitempty"`
+
+	// Deprecations Every request field this contract has marked `deprecated`, with the operations that take it, since when, and the major version it goes away with (`versioning-release.md` §5, SC-28). Read from the contract itself, so the list and the specification cannot disagree. A request that sends one of them is answered with the `Deprecation` header (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.
+	Deprecations *[]DeprecatedField `json:"deprecations,omitempty"`
+	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
 	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search` and `natural_ordering`.
@@ -5052,6 +5055,29 @@ type DependencyHealth struct {
 // DependencyHealthCircuitState defines model for DependencyHealth.CircuitState.
 type DependencyHealthCircuitState string
 
+// DeprecatedField One deprecated request field, and when it goes. Identifiers only (ADR-0011): what replaces it is named, and the field's description in the specification says the rest.
+type DeprecatedField struct {
+	// Field The field in the request body.
+	Field       string `json:"field"`
+	Method      string `json:"method"`
+	OperationId string `json:"operation_id"`
+
+	// Path The operation's path as the specification writes it.
+	Path string `json:"path"`
+
+	// RemovedIn The major version of the contract it goes away with.
+	RemovedIn string `json:"removed_in"`
+
+	// ReplacedBy What takes its place: the `operationId` of an operation, or the name of a header.
+	ReplacedBy []string `json:"replaced_by"`
+
+	// Since When it was marked deprecated.
+	Since openapi_types.Date `json:"since"`
+
+	// Sunset The day it stops being accepted, once one is set. Null until then.
+	Sunset *openapi_types.Date `json:"sunset,omitempty"`
+}
+
 // DroppedReference defines model for DroppedReference.
 type DroppedReference struct {
 	// Code A stable message code saying why.
@@ -5332,7 +5358,7 @@ type IdentityProviderConfiguration struct {
 	DisplayName *string `json:"display_name,omitempty"`
 
 	// Enabled **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it says at creation whether the installation offers the provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed value is refused with `identity_provider.withdraw_instead` (ADR-0076 §2). Removed with the next major version of the contract.
-	// Deprecated: Switched in the list of ways to sign in (`:offer`), ADR-0076 §5.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Enabled *bool  `json:"enabled,omitempty"`
 	Issuer  string `json:"issuer"`
 
@@ -6023,7 +6049,7 @@ type MfaChallengeMethods string
 // MfaDisable defines model for MfaDisable.
 type MfaDisable struct {
 	// Password **Deprecated** (ADR-0075 §3): the proof this route took before the step-up did. Still checked when sent without a step-up token, for one release; then removed.
-	// Deprecated: The step-up proves it, in the X-Hubtask-Step-Up header (ADR-0075 §3).
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Password *string `json:"password,omitempty"`
 }
 
@@ -10790,6 +10816,13 @@ type ClientInterface interface {
 	// Corresponds with POST /auth/sessions:refresh (the `RefreshSession` operationId).
 	RefreshSession(ctx context.Context, body RefreshSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RevokeOtherSessions Sign out everywhere else
+	//
+	// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+	//
+	// Corresponds with POST /auth/sessions:revoke-others (the `RevokeOtherSessions` operationId).
+	RevokeOtherSessions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SetPasswordAndSignInWithBody Set a new password and finish the sign-in
 	//
 	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
@@ -15260,6 +15293,23 @@ func (c *Client) RefreshSessionWithBody(ctx context.Context, contentType string,
 // Corresponds with POST /auth/sessions:refresh (the `RefreshSession` operationId).
 func (c *Client) RefreshSession(ctx context.Context, body RefreshSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRefreshSessionRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RevokeOtherSessions Sign out everywhere else
+//
+// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+//
+// Corresponds with POST /auth/sessions:revoke-others (the `RevokeOtherSessions` operationId).
+func (c *Client) RevokeOtherSessions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokeOtherSessionsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -23462,6 +23512,33 @@ func NewRefreshSessionRequestWithBody(server string, contentType string, body io
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRevokeOtherSessionsRequest constructs an http.Request for the RevokeOtherSessions method
+func NewRevokeOtherSessionsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:revoke-others")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -35231,6 +35308,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/sessions:refresh (the `RefreshSession` operationId).
 	RefreshSessionWithResponse(ctx context.Context, body RefreshSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*RefreshSessionResult, error)
 
+	// RevokeOtherSessionsWithResponse Sign out everywhere else
+	//
+	// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:revoke-others (the `RevokeOtherSessions` operationId).
+	RevokeOtherSessionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RevokeOtherSessionsResult, error)
+
 	// SetPasswordAndSignInWithBodyWithResponse Set a new password and finish the sign-in
 	//
 	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
@@ -41012,6 +41098,47 @@ func (r RefreshSessionResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RefreshSessionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RevokeOtherSessionsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RevokeOtherSessionsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RevokeOtherSessionsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeOtherSessionsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeOtherSessionsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RevokeOtherSessionsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -53191,6 +53318,21 @@ func (c *ClientWithResponses) RefreshSessionWithResponse(ctx context.Context, bo
 	return ParseRefreshSessionResult(rsp)
 }
 
+// RevokeOtherSessionsWithResponse Sign out everywhere else
+//
+// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:revoke-others (the `RevokeOtherSessions` operationId).
+func (c *ClientWithResponses) RevokeOtherSessionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RevokeOtherSessionsResult, error) {
+	rsp, err := c.RevokeOtherSessions(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeOtherSessionsResult(rsp)
+}
+
 // SetPasswordAndSignInWithBodyWithResponse Set a new password and finish the sign-in
 //
 // The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
@@ -59925,6 +60067,35 @@ func ParseRefreshSessionResult(rsp *http.Response) (*RefreshSessionResult, error
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRevokeOtherSessionsResult parses an HTTP response from a RevokeOtherSessionsWithResponse call
+func ParseRevokeOtherSessionsResult(rsp *http.Response) (*RevokeOtherSessionsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeOtherSessionsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

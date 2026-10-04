@@ -58,6 +58,8 @@ type sessionsStore struct {
 	// statement reports false for a session that is not the caller's or not live.
 	elevated       []elevation
 	elevateChanged bool
+	// keptByOthers is the session each "everywhere else" was asked to spare.
+	keptByOthers []shared.ID
 }
 
 type elevation struct {
@@ -123,6 +125,12 @@ func (s *sessionsStore) Revoke(_ context.Context, id, _ shared.ID, _ time.Time) 
 }
 
 func (s *sessionsStore) RevokeAll(context.Context, shared.ID, time.Time) (int, error) {
+	return s.revokedAll, nil
+}
+
+// RevokeOthers records which session was kept - the one thing the use case decides.
+func (s *sessionsStore) RevokeOthers(_ context.Context, _ shared.ID, keep shared.ID, _ time.Time) (int, error) {
+	s.keptByOthers = append(s.keptByOthers, keep)
 	return s.revokedAll, nil
 }
 
@@ -222,6 +230,15 @@ func (s *attemptsStore) Find(_ context.Context, subject string) (repository.Auth
 	return s.standing[subject], nil
 }
 
+// Fail adds one failure and answers the count, as the statement does.
+func (s *attemptsStore) Fail(_ context.Context, subject string, at time.Time) (int, error) {
+	attempt := s.standing[subject]
+	attempt.Failures++
+	attempt.LastFailureAt = at
+	s.standing[subject] = attempt
+	return attempt.Failures, nil
+}
+
 func (s *attemptsStore) Record(_ context.Context, subject string, attempt repository.AuthAttempt) error {
 	s.standing[subject] = attempt
 	return nil
@@ -303,6 +320,7 @@ func newSessionFixture(at time.Time) *sessionFixture {
 		audit:   &auditSink{},
 		work:    &unitOfWork{},
 	}
+	f.work.ledger = f.attempts
 	f.writer = SessionWriter{
 		Accounts: f.accounts, Sessions: f.sessions, Refresh: f.refresh,
 		Attempts: f.attempts, Tenants: tenantDirectory{single: tenant},

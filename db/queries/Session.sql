@@ -116,6 +116,13 @@ WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id') AND revoked_at
 UPDATE session SET revoked_at = sqlc.arg('revoked_at')
 WHERE account_id = sqlc.arg('account_id') AND revoked_at IS NULL;
 
+-- name: RevokeOtherSessionsForAccount :execrows
+-- Every device but the one asking (UC-ID-06 check 4). A NULL `keep` spares nothing: the comparison
+-- is written so that it can never become `id <> ''`, which would compare against nothing at all.
+UPDATE session SET revoked_at = sqlc.arg('revoked_at')
+WHERE account_id = sqlc.arg('account_id') AND revoked_at IS NULL
+  AND (sqlc.narg('keep')::uuid IS NULL OR id <> sqlc.narg('keep')::uuid);
+
 -- ============================ Refresh tokens ============================
 
 -- name: InsertRefreshToken :exec
@@ -165,6 +172,17 @@ WHERE id = sqlc.arg('id') AND rotated_at IS NULL;
 SELECT failures, last_failure_at, locked_until
 FROM auth_attempt
 WHERE subject_hash = sqlc.arg('subject_hash');
+
+-- name: CountAuthFailure :one
+-- One more failure, added where the row is rather than computed from a read: the row is held until
+-- the transaction ends, so twenty guesses sent at once are twenty failures, not one written twenty
+-- times. The lock moment is the caller's to compute from the count this answers (UpsertAuthAttempt).
+INSERT INTO auth_attempt (tenant_id, subject_hash, failures, last_failure_at)
+VALUES (current_tenant_id(), sqlc.arg('subject_hash'), 1, sqlc.arg('at'))
+ON CONFLICT (tenant_id, subject_hash) DO UPDATE
+SET failures        = auth_attempt.failures + 1,
+    last_failure_at = EXCLUDED.last_failure_at
+RETURNING failures;
 
 -- name: UpsertAuthAttempt :exec
 -- The counter and the moment are computed by the caller from what it read: the delay curve is the

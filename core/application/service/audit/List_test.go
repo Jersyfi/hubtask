@@ -6,6 +6,7 @@ package audit
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -265,6 +266,9 @@ func TestEveryDeclaredFieldBecomesAFilter(t *testing.T) {
 		t.Errorf("the period arrived as %s..%s", asked.From, asked.To)
 	case asked.ActionPrefix != "auth.":
 		t.Errorf("the action prefix arrived as %q", asked.ActionPrefix)
+	case !slices.Equal(asked.ActionAlso, []string{"mfa.recovery_regenerated"}):
+		// A renamed action is found under its old name too (SC-29).
+		t.Errorf("the renamed actions arrived as %v", asked.ActionAlso)
 	case asked.ActorID != colleagueID, asked.TargetID != targetID:
 		t.Errorf("the actor or target arrived as %s / %s", asked.ActorID, asked.TargetID)
 	case asked.TargetType != "container":
