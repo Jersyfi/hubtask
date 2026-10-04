@@ -20,6 +20,17 @@ Closes #
 
 - UC-…: check n — met / not met — confirmed by …
 
+## Readiness
+
+<!-- The task's readiness record, written before any code by /ready-check
+     (docs/backlog/ready/README.md). The gate reads it: it must exist, say `**Verdict:** ready`,
+     and have no open decision. Name every escape - a finding this pull request met that the record
+     should have caught - by its class; the record's § 10 holds the detail.
+     "n/a — <reason>" only when Use cases says n/a too (tooling, CI, a document). -->
+
+Record: `docs/backlog/ready/<TASK>.md`
+Escapes: none
+
 ## Affected areas
 
 <!-- Tick what this touches, and apply the matching `area:` labels. This is a personal

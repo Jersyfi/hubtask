@@ -9,7 +9,10 @@
 // descriptions from scratch with `gh pr create --body`: GitHub shows the template only to somebody
 // who opens the form. This reads the description the way a reviewer would and names what is missing.
 //
-// Usage: checkpr -body <file>   (or the description on stdin)
+// Usage: checkpr -body <file> [-base <ref> [-head <ref>] [-opened <RFC 3339>]]
+// (or the description on stdin). With -base it also reads the branch's history for the readiness
+// rules: the tasks its commits carry, the paths it changes, and whether the record was ready before
+// the first code commit (readiness.go).
 package main
 
 import (
@@ -18,10 +21,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func main() {
 	bodyFile := flag.String("body", "", "the pull request description; stdin when empty")
+	base := flag.String("base", "", "the pull request's base commit; empty reads no history")
+	head := flag.String("head", "HEAD", "the pull request's head commit")
+	openedAt := flag.String("opened", "", "when the pull request was opened, RFC 3339")
 	flag.Parse()
 
 	root, err := repositoryRoot()
@@ -48,7 +55,22 @@ func main() {
 		fail(err)
 	}
 
-	problems := check(string(raw), required, useCases)
+	var facts branchFacts
+	if *base != "" {
+		var opened time.Time
+		if *openedAt != "" {
+			if opened, err = time.Parse(time.RFC3339, *openedAt); err != nil {
+				fail(fmt.Errorf("reading -opened: %w", err))
+			}
+		}
+		if facts, err = readHistory(root, *base, *head, opened); err != nil {
+			fail(err)
+		}
+	}
+
+	problems := check(string(raw), required, useCases, func(path string) ([]byte, error) {
+		return os.ReadFile(filepath.Join(root, filepath.FromSlash(path))) //nolint:gosec // G304: a path the description names, matched to docs/backlog/ready/<TASK>.md
+	}, facts)
 	if len(problems) == 0 {
 		fmt.Println("pull request description: every section of the template is there and filled")
 		return

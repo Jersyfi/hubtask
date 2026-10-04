@@ -31,6 +31,11 @@ import (
 //   - Every Definition of Done item is ticked or says n/a: the template's rule is to mark, not to
 //     delete.
 //   - Impact's four lines no longer carry the template's placeholders.
+//   - Readiness names the task's readiness record, and the record is ready: it exists, says
+//     `**Verdict:** ready`, has its ten sections and no open decision. A description that names a
+//     use case may not answer n/a here. Two thirds of the questions that stalled milestone SC were
+//     answerable before the first line of code; the record is where they are answered, and this is
+//     what keeps a pull request from being merged past one (docs/backlog/ready/README.md, 2026-10-04).
 
 var (
 	heading      = regexp.MustCompile(`(?m)^## (.+?)\s*$`)
@@ -42,6 +47,7 @@ var (
 	notApplied   = regexp.MustCompile(`(?i)\bn/a\b`)
 	adrNamed     = regexp.MustCompile(`ADR-\d{4}|none by (number|ADR)`)
 	placeholders = []string{
+		"docs/backlog/ready/<TASK>.md",
 		"UC-…: check n — met / not met — confirmed by …",
 		"yes / no — if yes: the migration path",
 		`the threats touched (T-xx), or "none"`,
@@ -101,7 +107,7 @@ func sectionsOf(body string) []section {
 }
 
 // check answers every problem the description has, in the template's order.
-func check(body string, required []string, useCases map[string]bool) []string {
+func check(body string, required []string, useCases map[string]bool, records recordReader, facts branchFacts) []string {
 	body = strings.ReplaceAll(body, "\r\n", "\n")
 	body = comment.ReplaceAllString(body, "")
 	sections := sectionsOf(body)
@@ -152,6 +158,10 @@ func check(body string, required []string, useCases map[string]bool) []string {
 				problems = append(problems, fmt.Sprintf("Use cases names %s, which does not exist in docs/usecases", id))
 			}
 		}
+	}
+
+	if s, ok := found["Readiness"]; ok {
+		problems = append(problems, readiness(s.text, found["Use cases"].text, records, facts)...)
 	}
 
 	if s, ok := found["Affected areas"]; ok && ticked(s.text) == 0 {
