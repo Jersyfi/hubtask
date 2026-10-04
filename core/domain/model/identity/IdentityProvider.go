@@ -129,6 +129,31 @@ func (p IdentityProvider) Withdrawing(now time.Time) bool {
 	return !p.WithdrawAt.IsZero() && now.Before(p.WithdrawAt)
 }
 
+// RemovableAt answers nil where the row may be removed at this moment, and the refusal where it may
+// not (ADR-0077 §2). Removing a provider deletes the connections between people and it, which
+// offering it again does not restore - so the installation's row goes only once its offer has ended
+// or where no workspace uses it, after a withdrawal that announced itself. A workspace's own row is
+// the workspace's to remove, and its own rule (the last way in) is asked elsewhere.
+//
+// While a withdrawal is already announced the operator has done what the refusal would ask, so it
+// says when instead: the day the offer ends, from which the row may go.
+//
+// The statement that deletes the row asks the same three facts again, so that nothing that changed
+// between a caller's look and the delete slips past it; the two are kept in step by hand.
+func (p IdentityProvider) RemovableAt(now time.Time) error {
+	if !p.Installation() || !p.OfferedAt(now) || p.OfferedWorkspaces == 0 {
+		return nil
+	}
+	if p.Withdrawing(now) {
+		return shared.ErrValidation.
+			WithDetail("identity_provider.remove_after_withdrawal").
+			WithParams(map[string]string{"date": p.WithdrawAt.UTC().Format(time.RFC3339)})
+	}
+	return shared.ErrValidation.
+		WithDetail("identity_provider.withdraw_first").
+		WithParams(map[string]string{"count": strconv.Itoa(p.OfferedWorkspaces)})
+}
+
 // Installation reports whether this row belongs to no workspace.
 func (p IdentityProvider) Installation() bool { return p.TenantID.IsZero() }
 

@@ -109,7 +109,7 @@ func TestOneWorkspacesProviderIsInvisibleNextDoor(t *testing.T) {
 		if _, found, err := providers.Reconfigure(ctx, stolen, nil, now); err != nil || found {
 			t.Errorf("B reconfigured A's provider: (%v, %v)", found, err)
 		}
-		removed, err := providers.Delete(ctx, idpRowA)
+		removed, err := providers.Delete(ctx, idpRowA, now)
 		if err != nil {
 			t.Fatalf("B's delete: %v", err)
 		}
@@ -261,7 +261,7 @@ func TestTheInstallationsProviderIsReadByEveryWorkspaceAndWrittenByNone(t *testi
 			if _, written, err := providers.Update(ctx, stolen, nil, now); err != nil || written {
 				t.Errorf("%s switched the installation's provider off: (%v, %v)", tenant, written, err)
 			}
-			if removed, err := providers.Delete(ctx, idpRowShare); err != nil || removed {
+			if removed, err := providers.Delete(ctx, idpRowShare, now); err != nil || removed {
 				t.Errorf("%s deleted the installation's provider: (%v, %v)", tenant, removed, err)
 			}
 

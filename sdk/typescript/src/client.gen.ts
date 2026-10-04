@@ -855,7 +855,7 @@ export class HubtaskClient {
     return this.call("PUT", "/admin/identity-providers/{providerId}", { "providerId": providerId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Withdraw a provider from every workspace at once */
+  /** Remove a provider whose offer has ended */
   removeInstanceIdentityProvider(providerId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
     return this.call("DELETE", "/admin/identity-providers/{providerId}", { "providerId": providerId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
   }

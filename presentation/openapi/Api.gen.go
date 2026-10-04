@@ -9843,7 +9843,7 @@ type ServerInterface interface {
 	// CreateInstanceIdentityProvider Offer every workspace a way in
 	// (POST /admin/identity-providers)
 	CreateInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, params CreateInstanceIdentityProviderParams)
-	// RemoveInstanceIdentityProvider Withdraw a provider from every workspace at once
+	// RemoveInstanceIdentityProvider Remove a provider whose offer has ended
 	// (DELETE /admin/identity-providers/{providerId})
 	RemoveInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId, params RemoveInstanceIdentityProviderParams)
 	// ConfigureInstanceIdentityProvider Replace one of the installation's providers

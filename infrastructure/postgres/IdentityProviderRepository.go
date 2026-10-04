@@ -304,7 +304,7 @@ func (IdentityProviderRepository) SetWithdrawal(
 	return withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces), true, nil
 }
 
-func (IdentityProviderRepository) Delete(ctx context.Context, id shared.ID) (bool, error) {
+func (IdentityProviderRepository) Delete(ctx context.Context, id shared.ID, now time.Time) (bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return false, err
@@ -313,7 +313,9 @@ func (IdentityProviderRepository) Delete(ctx context.Context, id shared.ID) (boo
 	if err != nil {
 		return false, err
 	}
-	removed, err := queries.DeleteIdentityProvider(ctx, key)
+	removed, err := queries.DeleteIdentityProvider(ctx, sqlc.DeleteIdentityProviderParams{
+		ID: key, Now: pgtype.Timestamptz{Time: now, Valid: true},
+	})
 	if err != nil {
 		return false, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").

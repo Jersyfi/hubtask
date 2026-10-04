@@ -155,10 +155,11 @@ func (s *providerStore) SetWithdrawal(
 	return domain.IdentityProvider{}, false, nil
 }
 
-func (s *providerStore) Delete(_ context.Context, id shared.ID) (bool, error) {
+// Delete asks what the statement asks: an installation's row still offered and used stays.
+func (s *providerStore) Delete(_ context.Context, id shared.ID, now time.Time) (bool, error) {
 	s.deletes++
 	at := s.writable(id)
-	if at < 0 {
+	if at < 0 || s.rows[at].RemovableAt(now) != nil {
 		return false, nil
 	}
 	s.rows = append(s.rows[:at], s.rows[at+1:]...)

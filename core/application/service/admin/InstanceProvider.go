@@ -5,6 +5,7 @@ package admin
 
 import (
 	"context"
+	"errors"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -121,10 +122,11 @@ func (h ConfigureInstanceIdentityProvider) Execute(
 // RemoveInstanceIdentityProvider takes one away.
 type RemoveInstanceIdentityProvider struct{ Writer InstanceProviderWriter }
 
-// Execute removes it.
-//
-// Every workspace loses that way in at once, which is why it is journalled and why the accounts it
-// signed in keep their rows: what they lose is the way back, exactly as when a workspace removes its
+// Execute removes it - only once its offer has ended, or where no workspace uses it (ADR-0077 §2).
+// Removal deletes every connection between a person and the provider, which offering it again
+// would not restore, so it comes after a withdrawal that announced itself; *Withdraw now* is the
+// answer to a compromised provider. It is journalled, and the accounts it signed in keep their rows
+// and their live sessions: what they lose is the way back, exactly as when a workspace removes its
 // own.
 func (h RemoveInstanceIdentityProvider) Execute(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID, stepUpToken string,
@@ -133,11 +135,32 @@ func (h RemoveInstanceIdentityProvider) Execute(
 	if err := w.Instance.authorize(ctx, actor); err != nil {
 		return err
 	}
+	// Only once the offer has ended, or where nobody uses it (ADR-0077 §2): removal deletes the
+	// connections between people and the provider, which offering it again would not restore, so it
+	// comes after a withdrawal that announced itself. Asked before the proof is spent.
+	if err := w.offerEnded(ctx, id); err != nil {
+		return err
+	}
 	if err := w.Configure.RemoveAt(
 		ctx, persistence.SystemScope(), actor, id, shared.ID(""), stepUpToken); err != nil {
 		return err
 	}
 	return w.journal(ctx, actor, journalProviderRemoved, id, "")
+}
+
+// offerEnded refuses a removal while the installation's offer stands and a workspace uses it. An
+// unknown row is no refusal: removing it is somebody making sure, and the removal answers that.
+func (w InstanceProviderWriter) offerEnded(ctx context.Context, id shared.ID) error {
+	return w.Instance.UnitOfWork.WithinReadOnly(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		found, err := w.Providers.Find(ctx, id)
+		if err != nil {
+			if errors.Is(err, shared.ErrNotFound) {
+				return nil
+			}
+			return err
+		}
+		return found.RemovableAt(w.Instance.Clock.Now())
+	})
 }
 
 // journal writes the installation's own evidence. The issuer travels - it is configuration, not a
@@ -260,7 +283,9 @@ func (h RemoveInstanceIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: RemoveInstanceIdentityProviderName,
 		Summary: "Removes a provider the installation offered every workspace, and its sealed " +
-			"secret. Every workspace loses that way in at once; the accounts it signed in keep " +
+			"secret - once its offer has ended, or where no workspace uses it; otherwise it is " +
+			"refused, and the provider is withdrawn first. The connections between people and the " +
+			"provider are deleted and are not restored by offering it again; the accounts keep " +
 			"their rows and their live sessions.",
 		SideEffects: "Deletes the configuration and writes one journal entry.",
 		TokenScope:  adminTenantsScope,

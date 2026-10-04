@@ -31,6 +31,9 @@ import (
 type instanceProviderStore struct {
 	rows   []domain.IdentityProvider
 	sealed map[shared.ID]cryptoport.Sealed
+	// meanwhile, where set, runs as the delete begins: what another request changed between the
+	// use case's look and the statement.
+	meanwhile func(*instanceProviderStore)
 }
 
 func newInstanceProviderStore() *instanceProviderStore {
@@ -119,9 +122,16 @@ func (s *instanceProviderStore) Reconfigure(
 	return s.Update(ctx, configured, sealed, now)
 }
 
-func (s *instanceProviderStore) Delete(_ context.Context, id shared.ID) (bool, error) {
+// Delete asks what the statement asks: an installation's row still offered and used stays.
+func (s *instanceProviderStore) Delete(_ context.Context, id shared.ID, now time.Time) (bool, error) {
+	if s.meanwhile != nil {
+		s.meanwhile(s)
+	}
 	for i, row := range s.rows {
 		if row.ID == id {
+			if row.RemovableAt(now) != nil {
+				return false, nil
+			}
 			s.rows = append(s.rows[:i], s.rows[i+1:]...)
 			delete(s.sealed, id)
 			return true, nil

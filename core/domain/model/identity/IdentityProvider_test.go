@@ -315,3 +315,50 @@ func TestTheStateNamesItsWorkspaceAndNothingElseParsesAsOne(t *testing.T) {
 		t.Error("an authorization code parsed as a sign-in state")
 	}
 }
+
+// ADR-0077 §2: the installation's row is removed only once its offer has ended or where nobody uses
+// it; a workspace's own row is not this rule's to refuse.
+func TestAnOfferedProviderIsRemovableOnlyOnceItsOfferEnded(t *testing.T) {
+	now := time.Date(2026, 10, 3, 9, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name       string
+		tenant     shared.ID
+		enabled    bool
+		withdrawAt time.Time
+		used       int
+		refused    string
+	}{
+		{"offered and used", "", true, time.Time{}, 3, "identity_provider.withdraw_first"},
+		{"withdrawal ahead, still used", "", true, now.Add(time.Hour), 3, "identity_provider.remove_after_withdrawal"},
+		{"withdrawn, its day reached", "", true, now, 3, ""},
+		{"withdrawn now, switched off", "", false, time.Time{}, 3, ""},
+		{"offered, used by nobody", "", true, time.Time{}, 0, ""},
+		{"a workspace's own row", sessionTenant, true, time.Time{}, 3, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			row := IdentityProvider{
+				TenantID: tc.tenant, Enabled: tc.enabled, WithdrawAt: tc.withdrawAt, OfferedWorkspaces: tc.used,
+			}
+			err := row.RemovableAt(now)
+			if tc.refused == "" {
+				if err != nil {
+					t.Errorf("refused: %v", err)
+				}
+				return
+			}
+			got := shared.AsError(err)
+			if err == nil || got.DetailCode != tc.refused {
+				t.Fatalf("answered %v, want %s", err, tc.refused)
+			}
+			// The first asks for a withdrawal and names what it is about; the second, asked while
+			// one is announced, names the day it may go instead.
+			key, want := "count", "3"
+			if tc.refused == "identity_provider.remove_after_withdrawal" {
+				key, want = "date", "2026-10-03T10:00:00Z"
+			}
+			if got.Params[key] != want {
+				t.Errorf("the refusal carries %v, want %s %s", got.Params, key, want)
+			}
+		})
+	}
+}
