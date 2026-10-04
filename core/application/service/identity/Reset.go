@@ -321,6 +321,11 @@ func (m MintResetToken) MintResetToken(
 	err = w.UnitOfWork.Within(ctx, persistence.Scope{TenantID: tenantID},
 		func(ctx context.Context) error {
 			now := w.Clock.Now()
+			// A second request replaces the first link rather than adding one (UC-ID-04 check 2):
+			// whichever mail the person opens, only the newest works.
+			if _, err := w.Pending.Supersede(ctx, accountID, domain.PendingReset, now); err != nil {
+				return err
+			}
 			return w.Pending.Insert(ctx, domain.PendingCredential{
 				ID:        w.IDs.NewID(),
 				TenantID:  tenantID,

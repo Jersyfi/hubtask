@@ -407,6 +407,13 @@ WHERE p.token_hash = sqlc.arg('token_hash') AND a.deleted_at IS NULL;
 UPDATE auth_pending SET consumed_at = sqlc.arg('now')
 WHERE id = sqlc.arg('id') AND consumed_at IS NULL;
 
+-- name: SupersedePending :execrows
+-- A new credential of a purpose replaces the account's earlier unspent ones (UC-ID-04 check 2: a
+-- second reset request replaces the first link instead of adding one). Spent rather than deleted,
+-- so a link that arrives late is refused as any spent one is.
+UPDATE auth_pending SET consumed_at = sqlc.arg('now')
+WHERE account_id = sqlc.arg('account_id') AND purpose = sqlc.arg('purpose') AND consumed_at IS NULL;
+
 -- name: DeleteExpiredPending :execrows
 -- Hygiene in the session sweep's pass: a pending row lives minutes, and one that outlived them
 -- is bookkeeping about a sign-in nobody finished.

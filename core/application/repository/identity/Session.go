@@ -303,6 +303,10 @@ type PendingCredentials interface {
 
 	// Consume marks the credential used, atomically: false means somebody was here first.
 	Consume(ctx context.Context, credentialID shared.ID, at time.Time) (bool, error)
+
+	// Supersede spends every unspent credential of the account with this purpose, answering how
+	// many: a new reset link replaces the earlier ones (UC-ID-04 check 2).
+	Supersede(ctx context.Context, accountID shared.ID, purpose identity.PendingPurpose, at time.Time) (int, error)
 }
 
 // TenantPolicy answers the tenant's security switches (H-02). A narrow reader rather than the

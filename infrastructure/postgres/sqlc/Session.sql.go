@@ -1362,6 +1362,28 @@ func (q *Queries) StartMfaReplacement(ctx context.Context, arg StartMfaReplaceme
 	return result.RowsAffected(), nil
 }
 
+const supersedePending = `-- name: SupersedePending :execrows
+UPDATE auth_pending SET consumed_at = $1
+WHERE account_id = $2 AND purpose = $3 AND consumed_at IS NULL
+`
+
+type SupersedePendingParams struct {
+	Now       pgtype.Timestamptz
+	AccountID pgtype.UUID
+	Purpose   string
+}
+
+// A new credential of a purpose replaces the account's earlier unspent ones (UC-ID-04 check 2: a
+// second reset request replaces the first link instead of adding one). Spent rather than deleted,
+// so a link that arrives late is refused as any spent one is.
+func (q *Queries) SupersedePending(ctx context.Context, arg SupersedePendingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, supersedePending, arg.Now, arg.AccountID, arg.Purpose)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const swapMfaReplacement = `-- name: SwapMfaReplacement :execrows
 UPDATE account_mfa SET
   secret_enc                = replacement_secret_enc,

@@ -192,6 +192,21 @@ func (s *pendingStore) Consume(_ context.Context, credentialID shared.ID, at tim
 	return false, nil
 }
 
+func (s *pendingStore) Supersede(
+	_ context.Context, accountID shared.ID, purpose domain.PendingPurpose, at time.Time,
+) (int, error) {
+	spent := 0
+	for key, lookup := range s.rows {
+		credential := lookup.Credential
+		if credential.AccountID == accountID && credential.Purpose == purpose && credential.ConsumedAt.IsZero() {
+			lookup.Credential.ConsumedAt = at
+			s.rows[key] = lookup
+			spent++
+		}
+	}
+	return spent, nil
+}
+
 type policyFake struct{ required bool }
 
 func (p policyFake) RequireAdminTotp(context.Context) (bool, error) { return p.required, nil }
