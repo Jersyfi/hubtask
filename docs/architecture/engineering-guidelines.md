@@ -30,6 +30,13 @@ injected.
 
 ## 2. Definition of Ready (the story may be implemented)
 
+The Definition of Ready is not a list a session ticks in its head: it is the task's **readiness
+record**, `docs/backlog/ready/<TASK>.md`, written by `/ready-check`, attacked by an independent
+reviewer, and held by the gate `Pull request description` — no record with the verdict `ready`, no
+merge ([`docs/backlog/ready/README.md`](../backlog/ready/README.md)). Items 1–17 below are what the
+record's sections answer; 18–23 are what was missing until 2026-10-04 and what most follow-up
+questions were made of.
+
 1. The bounded context and aggregate are named.
 2. The use cases the work serves are named in the task's `**Use cases:**` line, from [`docs/usecases/`](../usecases/README.md), with the checks it makes true; the operations it adds or changes are named from the catalogue in [domain-model.md](./domain-model.md) §5.
 3. The API impact is settled: new/changed operations, field names, error codes; if it breaks something → an ADR.
@@ -47,6 +54,12 @@ injected.
 15. **Sync impact** settled: does the change produce change log entries, and how is the field merged on offline conflicts (LWW, OR-set, fractional index, server-side)? ([offline-sync.md](./offline-sync.md) §4)
 16. **Client availability** named: which area of the client capability matrix the feature belongs to (end-user, profile configuration, administration); a restriction beyond [ADR-0032](../adr/ADR-0032-client-capability-matrix.md)'s matrix needs its justification recorded there via supersede.
 17. **No other product's name in the implementation** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md) decision 6): not in code, comments, identifiers, commit titles or bodies, pull request or issue text, the catalogue, the UI, the website, the workbench or a specification. An ADR may carry one sentence of context naming where a pattern is proven; a dependency is named where its licence requires; an import format carries the format's name.
+18. **Premise checked**: every statement the task, its ADRs and the named use cases' *Today* make about the current system is verified against the code, with evidence; a false one is corrected in its document.
+19. **Coverage**: every check of every named use case — not only the cited ones — and every documented promise the change touches is carried by this task, a named other task, *Where it ends*, or a later milestone; a promised "later" has its task.
+20. **Doors × states × kinds × deployments**: the matrix is written, including the entity's lifecycle (delete, restore, import, pending deletion, suspension) and every dependency's failure; every cell has its behaviour and its proof.
+21. **Standing rules applied**: the rules that do not bend, the principles' *Broken when* lines and the owner's standing decisions — among them that nobody is locked out of the platform and their data — each answered for this change.
+22. **Concurrency**: every read-then-write, check-then-act and write on a refusal path is named with how it stays correct.
+23. **Every decision has its decider**: decided by a document (cited), by the owner (dated, written down), or an implementation choice that is reversible and invisible. No owner decision is open.
 
 ## 3. Definition of Done
 

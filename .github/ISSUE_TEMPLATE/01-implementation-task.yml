@@ -6,9 +6,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        A task is ready to implement when it meets the Definition of Ready
-        (`docs/architecture/engineering-guidelines.md` §2). The more precisely it is
-        located, the fewer follow-up questions.
+        A task is ready to implement when its readiness record
+        (`docs/backlog/ready/<TASK>.md`, written by `/ready-check`) says `ready` - the
+        Definition of Ready of `docs/architecture/engineering-guidelines.md` §2, written down
+        and attacked before any code. The more precisely it is located, the fewer
+        follow-up questions.
 
   - type: input
     id: milestone
