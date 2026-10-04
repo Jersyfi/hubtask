@@ -347,7 +347,7 @@
   "app.signin_settings.way_withdrawing": "Die Installation zieht diesen Anbieter am {date} zurück. Schalte vorher einen anderen Anmeldeweg ein.",
   "app.signin_settings.way_withdrawing_off": "Die Installation zieht diesen Anbieter am {date} zurück.",
   "app.signin_settings.fallback_title": "Das Passwort ist wieder offen",
-  "app.signin_settings.fallback": "Die Installation hat den Anbieter zurückgezogen, über den sich dieser Arbeitsbereich angemeldet hat. Bis du einen anderen Weg einschaltest, melden sich alle mit ihrem Passwort an, sofern sie eines haben, nach den Regeln dieses Arbeitsbereichs; wer keines hat, braucht eine neue Einladung.",
+  "app.signin_settings.fallback_no_way_in": "In diesem Arbeitsbereich funktioniert kein anderer Weg der Anmeldung. Bis du einen einschaltest, melden sich alle mit ihrem Passwort an, sofern sie eines haben, nach den Regeln dieses Arbeitsbereichs.",
   "app.signin_settings.last_way": "Der einzige Weg hinein, der noch übrig ist. Schalte zuerst einen anderen ein.",
   "app.signin_settings.not_offered_above": "Die Installation bietet diesen Weg nicht an.",
   "app.signin_settings.switching": "Wird geschaltet",
