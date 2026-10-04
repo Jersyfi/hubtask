@@ -83,3 +83,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0074](./ADR-0074-managed-accounts.md) | Managed accounts: a sign-in name, a start password, and who may renew it | accepted | Identity, security |
 | [0075](./ADR-0075-step-up-with-what-the-account-holds.md) | A step-up proves the account with whatever it holds | accepted | Identity, security |
 | [0076](./ADR-0076-withdrawing-an-offered-provider.md) | Withdrawing an offered sign-in provider: a count, a notice, and a way back in | accepted | Identity, multi-tenancy |
+| [0077](./ADR-0077-nobody-is-locked-out.md) | Nobody is locked out: amendments to the withdrawal of an offered provider | accepted | Identity, multi-tenancy |
