@@ -212,3 +212,29 @@ func TestAnInvitationRedeemedUnderTheFallbackIsRecorded(t *testing.T) {
 		t.Errorf("the redemption left no fallback entry: %v", f.session.audit.entries)
 	}
 }
+
+// The first-password link answers every cause of "no way in" (SC-31, E2), not only an offer that
+// ended: here the workspace's methods leave the password out and it has no provider at all - a
+// restore that brought its settings without the providers, say. A provider-only account is still
+// let back in by mail.
+func TestAFirstPasswordLinkAnswersEveryCauseOfNoWayIn(t *testing.T) {
+	f := newStepFixture(now)
+	methods := []string{domain.MethodOidc}
+	f.passwords.workspace.row.Settings.SignIn.Methods = &methods
+	f.passwords.providers.rows = nil
+	withoutPassword(f)
+
+	link, err := MintResetToken{Writer: f.passwords.writer}.MintResetToken(t.Context(), tenant, account)
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+	if !link.First || link.Token.IsEmpty() {
+		t.Fatalf("a workspace with no way in mailed %+v, want a link to set a first password", link)
+	}
+	result, err := ResetPassword{Writer: f.passwords.writer}.Execute(t.Context(), ResetPasswordCommand{
+		Token: link.Token, Password: secret.New("seven blue lanterns over the harbour"),
+	})
+	if err != nil || result.Pair == nil {
+		t.Fatalf("setting the first password answered %+v (%v)", result, err)
+	}
+}
