@@ -82,6 +82,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `auth.mfa_disabled` | DisableTotp | `account` | NOTICE | Every time |
 | `auth.mfa_enabled` | ConfirmTotp | `account` | NOTICE | Every time |
 | `auth.mfa_enrollment_started` | EnrollTotp | `account` | INFO | Every time |
+| `auth.mfa_recovery_regenerated` | RegenerateRecoveryCodes | `account` | NOTICE | Every time |
 | `auth.mfa_replaced` | ConfirmAuthenticatorReplacement | `account` | NOTICE | Every time |
 | `auth.mfa_replacement_started` | StartAuthenticatorReplacement | `account` | INFO | Every time |
 | `auth.password_reset_requested` | ForgetPassword | `account` | NOTICE | Every time |
@@ -292,12 +293,6 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `jumble.entry_submitted` | SubmitJumbleEntry | `jumble_entry` | INFO | Every time |
 | `jumble.intake_rotated` | RotateJumbleIntake | `jumble_entry` | WARNING | Every time |
 | `jumble.suggestion_asked` | SuggestFromJumbleEntry | `jumble_entry` | NOTICE | Every time |
-
-## Mfa
-
-| Action | Use case | Target | Severity | Recorded |
-|---|---|---|---|---|
-| `mfa.recovery_regenerated` | RegenerateRecoveryCodes | `account` | NOTICE | Every time |
 
 ## Oauth
 

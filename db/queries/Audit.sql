@@ -60,7 +60,8 @@ INSERT INTO audit_log (
 --
 -- `starts_with` rather than LIKE for the action, because a caller's `%` would otherwise be a
 -- wildcard: `action` is a dotted code and a prefix filter on `auth.` is the whole point, so the
--- prefix is compared as text rather than as a pattern.
+-- prefix is compared as text rather than as a pattern. `action_also` is the other names of a renamed
+-- action (SC-29), matched whole: the stored entry keeps the name it was written with.
 --
 -- The boundary is the pair (occurred_at, id): entries written in the same transaction share a
 -- timestamp, so a cursor on the time alone would either skip one or return one forever. The pair
@@ -78,7 +79,8 @@ FROM audit_log
 WHERE tenant_id = current_tenant_id()
   AND (sqlc.narg('from_time')::timestamptz IS NULL OR occurred_at >= sqlc.narg('from_time')::timestamptz)
   AND (sqlc.narg('to_time')::timestamptz IS NULL OR occurred_at < sqlc.narg('to_time')::timestamptz)
-  AND (sqlc.narg('action_prefix')::text IS NULL OR starts_with(action, sqlc.narg('action_prefix')::text))
+  AND (sqlc.narg('action_prefix')::text IS NULL OR starts_with(action, sqlc.narg('action_prefix')::text)
+       OR action = ANY(sqlc.arg('action_also')::text[]))
   AND (sqlc.narg('actor_id')::uuid IS NULL OR actor_id = sqlc.narg('actor_id')::uuid)
   AND (sqlc.narg('target_type')::text IS NULL OR target_type = sqlc.narg('target_type')::text)
   AND (sqlc.narg('target_id')::uuid IS NULL OR target_id = sqlc.narg('target_id')::uuid)
