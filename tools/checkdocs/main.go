@@ -3,8 +3,8 @@
 
 // Command checkdocs is the documentation gate (make gate-docs).
 //
-// The documents in this repository are load-bearing: the ADRs are what the code cites instead of
-// repeating an argument, and AGENTS.md sends a reader through them in a fixed order. A link that
+// The documents in this repository are load-bearing: code cites them instead of repeating an
+// argument, and AGENTS.md sends a reader to them. A link that
 // stops resolving therefore does not only annoy - it quietly removes the reason a piece of code
 // looks the way it does.
 //
@@ -21,8 +21,9 @@
 //   - Every statement of the Go version agrees with go.mod. It is repeated in thirty places
 //     across eight files, and a base image bumped on its own would have the release built by a
 //     compiler no gate ever ran.
-//   - Every document AGENTS.md's reading order names exists, because that list is what a new
-//     session is told to read.
+//   - Every rule in AGENTS.md says what checks it, and a gate it names exists (agents.go).
+//   - Every ADR says where its rule lives now, because an ADR is the record of why and the
+//     current rule is in a subject document (agents.go).
 //   - The support matrix and the workflows agree in both directions, so that support can neither
 //     be claimed without a job nor removed by deleting one (see matrix.go).
 //   - The use cases cite personas, deployments and principles that exist, carry the sections that
@@ -61,6 +62,8 @@ func main() {
 	problems = append(problems, checkSupportMatrix(root)...)
 	problems = append(problems, checkCoverageReport(root)...)
 	problems = append(problems, checkUseCases(root)...)
+	problems = append(problems, checkRuleTags(root)...)
+	problems = append(problems, checkADRRuleLines(root)...)
 
 	if len(problems) > 0 {
 		sort.Strings(problems)
@@ -296,7 +299,7 @@ func markdownFiles(root string) ([]string, error) {
 // skipDir keeps the walk out of everything that is not written by hand.
 func skipDir(name string) bool {
 	switch name {
-	case ".git", ".tools", "bin", "dist", "node_modules", "vendor":
+	case ".git", ".tools", ".claude", "bin", "dist", "node_modules", "vendor":
 		return true
 	}
 	return false
