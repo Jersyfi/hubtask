@@ -330,3 +330,32 @@ func TestClosingThePasswordIsOneWrite(t *testing.T) {
 		t.Errorf("the close is not confirmed: %q", errOut)
 	}
 }
+
+// The default day is the server's and applies only where no --hours was given: a --hours 0 travels as
+// typed, so the server refuses it instead of this client quietly making it a day.
+func TestTheHoursAreSentOnlyWhereGivenAndAZeroAsTyped(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"no --hours", nil, ""},
+		{"--hours 0", []string{"--hours", "0"}, `"hours":0`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			stub := serveJSON(t, http.StatusOK, `{"id":"`+acmeID+`","slug":"acme","display_name":"Acme",
+			  "status":"ACTIVE","created_at":"2026-09-01T09:00:00Z","purge_after":null}`)
+			args := append([]string{"admin", "tenant", "open-password", acmeID,
+				"--requester", "TICKET-4711", "--reason", "down"}, c.args...)
+			if code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", args...); code != exitOK {
+				t.Fatalf("exit %d: %s", code, errOut)
+			}
+			if c.want == "" && strings.Contains(stub.body, `"hours"`) {
+				t.Errorf("hours were sent although none were given: %s", stub.body)
+			}
+			if c.want != "" && !strings.Contains(stub.body, c.want) {
+				t.Errorf("the request lacks %s: %s", c.want, stub.body)
+			}
+		})
+	}
+}

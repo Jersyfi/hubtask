@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"strconv"
 	"time"
 
@@ -263,9 +264,13 @@ func adminTenantOpenPassword(ctx context.Context, cli *CLI, args []string) error
 		return usagef("opening the password needs --requester and --reason: the workspace's administrators read both")
 	}
 	request := openapi.PasswordOpeningRequest{Requester: *requester, Reason: *reason}
-	if *hours != 0 {
-		request.Hours = hours
-	}
+	// The default day is the server's, and only where no --hours was given: a --hours 0 is sent as
+	// typed, so the server refuses it rather than this client turning it into a day.
+	flags.Visit(func(given *flag.Flag) {
+		if given.Name == "hours" {
+			request.Hours = hours
+		}
+	})
 
 	client, err := cli.client()
 	if err != nil {
