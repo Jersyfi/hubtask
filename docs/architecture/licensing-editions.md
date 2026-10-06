@@ -27,9 +27,9 @@ packages (`packages/n8n-nodes-hubtask`, `packages/zapier-app`) carry a `LICENSE`
 because each may be extracted into a repository or a registry of its own
 ([ADR-0057](../adr/ADR-0057-sdk-licence-and-extraction.md)). The licence is the same.
 
-**The licence gate** (`make gate-licenses`) refuses GPL and AGPL dependencies, and the dependency
-review in CI does the same for the JavaScript half: a copyleft dependency would change the terms
-on which an Apache-2.0 binary may be passed on.
+**The licence gate** (`make gate-licenses`) refuses GPL, LGPL and AGPL dependencies, and the
+dependency review in CI does the same for the JavaScript half: a copyleft dependency would change
+the terms on which an Apache-2.0 binary may be passed on.
 
 ## 2. Contributions
 
