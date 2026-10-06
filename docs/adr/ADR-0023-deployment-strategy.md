@@ -1,7 +1,9 @@
 # ADR-0023: Push-based deployment with manual approval, GitOps-ready
 
-* **Status:** accepted
-* **Date:** 2026-08-16
+**Status:** accepted · **Date:** 2026-08-16
+
+**Rule lives in:** [deployment.md](../architecture/deployment.md) §3, §4, §7
+
 * **Concerns:** operations, delivery
 * **Related:** [ADR-0014](./ADR-0014-single-image-multi-role.md), [ADR-0022](./ADR-0022-github-platform.md), [deployment.md](../architecture/deployment.md)
 

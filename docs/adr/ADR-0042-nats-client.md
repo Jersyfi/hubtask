@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-02
 
+**Rule lives in:** [deployment.md](../architecture/deployment.md) §6.1, [observability-reliability.md](../architecture/observability-reliability.md) §7
+
 ## Context
 
 [ADR-0007](ADR-0007-events-outbox-cloudevents.md) has listed NATS JetStream as an optional consumer of the
