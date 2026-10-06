@@ -344,10 +344,19 @@ run:
 
 # ---------------------------------------------------------------------- Gates
 
-## verify: Run every PR gate locally (mirrors ci.yml)
+## verify: The fast gates, without containers - the first half of make verify-pr
 .PHONY: verify
 verify: gate-quick gate-unit gate-architecture gate-security gate-privacy gate-chart gate-licenses gate-docs gate-observability gate-sdk
 	@echo "All locally runnable gates are green."
+
+## verify-pr: The pull request check, locally - make verify, then every gate CI runs for this branch (ADR-0078)
+# A draft is checked in the session that writes it, and CI runs when the pull request is ready. This
+# selects the gates by the same filters ci.yml does (tools/cilocal), runs the container gates one
+# session at a time, checks the description (BODY=<file>, or read with gh), and on success leaves
+# the stamp the Claude Code hook asks for before `gh pr ready`.
+.PHONY: verify-pr
+verify-pr:
+	$(GO) run ./tools/verifypr $(if $(BODY),-body $(BODY),)
 
 ## gate-quick: Format, lint, generation without a diff
 # gofmt is taken from the toolchain go.mod selects, not from PATH: `go` follows the `toolchain`
