@@ -208,6 +208,15 @@ func (pending) RequestTenantDeletion(w http.ResponseWriter, r *http.Request, _ o
 	notAvailable(w, r)
 }
 
+// An operator's opening of the password for one workspace (SC-34), pending until the use cases land.
+func (pending) OpenTenantPassword(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId, _ openapi.OpenTenantPasswordParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CloseTenantPassword(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
+	notAvailable(w, r)
+}
+
 // The tenant export of H-07, pending until the use case lands.
 func (pending) ExportTenant(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
 	notAvailable(w, r)

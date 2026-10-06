@@ -3829,6 +3829,9 @@ type AdminTenant struct {
 	DisplayName     string             `json:"display_name"`
 	Id              openapi_types.UUID `json:"id"`
 
+	// PasswordOpening The operator's opening of the password while it is in force (ADR-0078 §3), null otherwise - an opening past its end is answered as none, whatever the row still holds.
+	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
+
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
 	PurgeAfter *time.Time        `json:"purge_after,omitempty"`
 	Slug       string            `json:"slug"`
@@ -6281,6 +6284,29 @@ type PasswordForgot struct {
 	Email openapi_types.Email `json:"email"`
 }
 
+// PasswordOpening An operator's opening of the password for one workspace (ADR-0078 §3): when it ends, who asked and why.
+type PasswordOpening struct {
+	Reason string `json:"reason"`
+
+	// Requester Who asked for it, as the operator entered it - a ticket reference, ideally.
+	Requester string `json:"requester"`
+
+	// Until When the opening ends on its own.
+	Until time.Time `json:"until"`
+}
+
+// PasswordOpeningRequest defines model for PasswordOpeningRequest.
+type PasswordOpeningRequest struct {
+	// Hours How long the opening stands, counted from now. A day unless said otherwise.
+	Hours *int `json:"hours,omitempty"`
+
+	// Reason Why the password is opened - what is wrong with the provider.
+	Reason string `json:"reason"`
+
+	// Requester Who asked for the opening. Free text the workspace's administrators read; a ticket reference rather than a person's name where the operator can (data-catalog.md).
+	Requester string `json:"requester"`
+}
+
 // PasswordPolicySettings The thirteen switches about the password itself, each at its three levels.
 type PasswordPolicySettings struct {
 	BreachCheck     SignInPolicyFlag `json:"breach_check"`
@@ -6480,6 +6506,9 @@ type ProvisionedTenant struct {
 
 	// OwnerRedemptionToken The owner's way in, shown for the only time: whoever the workspace is for redeems it, sets a password, and is signed in (H-01). Hand it to them; it cannot be read again.
 	OwnerRedemptionToken string `json:"owner_redemption_token"`
+
+	// PasswordOpening The operator's opening of the password while it is in force (ADR-0078 §3), null otherwise - an opening past its end is answered as none, whatever the row still holds.
+	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
 	PurgeAfter *time.Time              `json:"purge_after,omitempty"`
@@ -8264,6 +8293,9 @@ type Workspace struct {
 	Hosts *[]WorkspaceHost   `json:"hosts,omitempty"`
 	Id    openapi_types.UUID `json:"id"`
 
+	// PasswordOpening The installation operator's opening of the password for this workspace, while it is in force (ADR-0078 §3): the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.
+	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
+
 	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree (UC-ID-12); it was a stored value of its own until SC-06 and came apart from the rule in both directions. Kept for the clients that read it.
 	RequireAdminTotp bool `json:"require_admin_totp"`
 
@@ -8487,6 +8519,12 @@ type ProvisionTenantParams struct {
 
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
 type RequestTenantDeletionParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// OpenTenantPasswordParams defines parameters for OpenTenantPassword.
+type OpenTenantPasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
@@ -9493,6 +9531,9 @@ type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
 // ExportTenantJSONRequestBody defines body for ExportTenant for application/json ContentType.
 type ExportTenantJSONRequestBody = TenantExportRequest
 
+// OpenTenantPasswordJSONRequestBody defines body for OpenTenantPassword for application/json ContentType.
+type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
+
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
@@ -9897,12 +9938,18 @@ type ServerInterface interface {
 	// UpdateTenantQuotas Set a workspace's quotas
 	// (PATCH /admin/tenants/{tenantId}/quotas)
 	UpdateTenantQuotas(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// CloseTenantPassword Close an operator's opening of the password early
+	// (POST /admin/tenants/{tenantId}:close-password)
+	CloseTenantPassword(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
 	// RequestTenantDeletion Request a workspace's deletion
 	// (POST /admin/tenants/{tenantId}:delete)
 	RequestTenantDeletion(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params RequestTenantDeletionParams)
 	// ExportTenant Export a workspace whole
 	// (POST /admin/tenants/{tenantId}:export)
 	ExportTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// OpenTenantPassword Open the password for one workspace
+	// (POST /admin/tenants/{tenantId}:open-password)
+	OpenTenantPassword(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params OpenTenantPasswordParams)
 	// ResumeTenant Reactivate a workspace
 	// (POST /admin/tenants/{tenantId}:resume)
 	ResumeTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
@@ -11367,6 +11414,32 @@ func (siw *ServerInterfaceWrapper) UpdateTenantQuotas(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// CloseTenantPassword operation middleware
+func (siw *ServerInterfaceWrapper) CloseTenantPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CloseTenantPassword(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RequestTenantDeletion operation middleware
 func (siw *ServerInterfaceWrapper) RequestTenantDeletion(w http.ResponseWriter, r *http.Request) {
 
@@ -11434,6 +11507,56 @@ func (siw *ServerInterfaceWrapper) ExportTenant(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExportTenant(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OpenTenantPassword operation middleware
+func (siw *ServerInterfaceWrapper) OpenTenantPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OpenTenantPasswordParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OpenTenantPassword(w, r, tenantId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20826,6 +20949,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:suspend", wrapper.SuspendTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:resume", wrapper.ResumeTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:delete", wrapper.RequestTenantDeletion)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:open-password", wrapper.OpenTenantPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:close-password", wrapper.CloseTenantPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/settings", wrapper.ReadInstanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/settings", wrapper.WriteInstanceSettings)

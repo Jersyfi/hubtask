@@ -639,6 +639,14 @@ class Client:
         """Request a workspace's deletion"""
         return self._call("POST", "/admin/tenants/{tenantId}:delete", {"tenantId": tenant_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
+    def open_tenant_password(self, tenant_id: str, body: "PasswordOpeningRequest", *, step_up: str | None = None) -> "AdminTenant":
+        """Open the password for one workspace"""
+        return self._call("POST", "/admin/tenants/{tenantId}:open-password", {"tenantId": tenant_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def close_tenant_password(self, tenant_id: str) -> "AdminTenant":
+        """Close an operator's opening of the password early"""
+        return self._call("POST", "/admin/tenants/{tenantId}:close-password", {"tenantId": tenant_id}, None, {}, None, "none", None, "json")
+
     def export_tenant(self, tenant_id: str, body: "TenantExportRequest") -> "JobRef":
         """Export a workspace whole"""
         return self._call("POST", "/admin/tenants/{tenantId}:export", {"tenantId": tenant_id}, None, {}, body, "json", "application/json", "json")

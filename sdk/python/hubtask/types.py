@@ -286,6 +286,7 @@ class Workspace(TypedDict, total=False):
     version: Required[int]
     sign_in_policy: "SignInPolicy"
     hosts: list["WorkspaceHost"]
+    password_opening: "PasswordOpening"
 
 class WorkspaceHost(TypedDict, total=False):
     """One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish."""
@@ -645,6 +646,18 @@ class AdminTenant(TypedDict, total=False):
     default_time_zone: str
     created_at: Required[str]
     purge_after: str | None
+    password_opening: "PasswordOpening" | Any
+
+class PasswordOpening(TypedDict, total=False):
+    """An operator's opening of the password for one workspace (ADR-0078 §3): when it ends, who asked and why."""
+    until: Required[str]
+    requester: Required[str]
+    reason: Required[str]
+
+class PasswordOpeningRequest(TypedDict, total=False):
+    hours: int
+    requester: Required[str]
+    reason: Required[str]
 
 class EncryptionStatus(TypedDict, total=False):
     active_key_id: Required[str]
@@ -677,6 +690,7 @@ class ProvisionedTenant(TypedDict, total=False):
     default_time_zone: str
     created_at: Required[str]
     purge_after: str | None
+    password_opening: "PasswordOpening" | Any
     owner_account_id: Required[str]
     owner_redemption_token: Required[str]
     default_hub_id: Required[str]

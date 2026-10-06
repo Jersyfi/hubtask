@@ -4030,6 +4030,68 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/tenants/{tenantId}:open-password:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+      - $ref: "#/components/parameters/StepUpToken"
+    post:
+      tags: [admin]
+      operationId: openTenantPassword
+      summary: Open the password for one workspace
+      description: >
+        For a provider that is switched on but broken - unreachable, or admitting nobody - the
+        operator opens the password for this one workspace, for a limited time: 24 hours unless
+        `hours` says otherwise, at most 168 (ADR-0078 §3). Every account there that holds a password
+        signs in with it, under the workspace's own rules and second factor, whatever the
+        workspace's own switch and any installation lock say; an account without one is mailed a
+        link to set one when it asks (`POST /auth/password:forgot`). It ends on its own at
+        `password_opening.until`, and `:close-password` ends it early.
+
+        Demands `admin:tenants`, the operator register and a fresh step-up in the
+        `X-Hubtask-Step-Up` header. The requester and the reason are recorded with the end in the
+        workspace's trail (`tenant.password_opened`) and in the installation's journal, and the
+        workspace's administrators are told. A second opening replaces the first. It reads and
+        changes nothing of the workspace's content. A workspace pending deletion is refused
+        (`admin.tenant_leaving`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordOpeningRequest"
+      responses:
+        "200":
+          description: Opened; the workspace, with the opening in force
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTenant"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/tenants/{tenantId}:close-password:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    post:
+      tags: [admin]
+      operationId: closeTenantPassword
+      summary: Close an operator's opening of the password early
+      description: >
+        Ends the opening `:open-password` made before its time (ADR-0078 §3). The workspace's own
+        rules decide again from the next request on. Recorded in the workspace's trail
+        (`tenant.password_closed`) and the installation's journal, and the workspace's
+        administrators are told. No step-up: closing narrows the way in rather than widening it.
+        Closing where nothing is open changes nothing and records nothing.
+      responses:
+        "200":
+          description: Closed, or there was nothing to close; the workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTenant"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants/{tenantId}:export:
     parameters:
       - $ref: "#/components/parameters/AdminTenantId"
@@ -9134,6 +9196,14 @@ components:
 
             Absent where there are none, which is every workspace provisioned before the table
             existed. An empty array would read as "this workspace is reachable nowhere".
+        password_opening:
+          $ref: "#/components/schemas/PasswordOpening"
+          readOnly: true
+          description: >
+            The installation operator's opening of the password for this workspace, while it is in
+            force (ADR-0078 §3): the password is open for every account that holds one, whatever
+            `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control
+            plane alone; a body naming it on the `PATCH` is refused as an unknown field.
 
     WorkspaceHost:
       type: object
@@ -10270,6 +10340,52 @@ components:
           type: [string, "null"]
           format: date-time
           description: Set while a deletion request stands - when the grace runs out.
+        password_opening:
+          description: >
+            The operator's opening of the password while it is in force (ADR-0078 §3), null
+            otherwise - an opening past its end is answered as none, whatever the row still holds.
+          oneOf:
+            - $ref: "#/components/schemas/PasswordOpening"
+            - type: "null"
+
+    PasswordOpening:
+      type: object
+      description: >
+        An operator's opening of the password for one workspace (ADR-0078 §3): when it ends, who
+        asked and why.
+      required: [until, requester, reason]
+      properties:
+        until:
+          type: string
+          format: date-time
+          description: When the opening ends on its own.
+        requester:
+          type: string
+          description: Who asked for it, as the operator entered it - a ticket reference, ideally.
+        reason: { type: string }
+
+    PasswordOpeningRequest:
+      type: object
+      required: [requester, reason]
+      properties:
+        hours:
+          type: integer
+          minimum: 1
+          maximum: 168
+          default: 24
+          description: How long the opening stands, counted from now. A day unless said otherwise.
+        requester:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: >
+            Who asked for the opening. Free text the workspace's administrators read; a ticket
+            reference rather than a person's name where the operator can (data-catalog.md).
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Why the password is opened - what is wrong with the provider.
 
     EncryptionStatus:
       type: object
