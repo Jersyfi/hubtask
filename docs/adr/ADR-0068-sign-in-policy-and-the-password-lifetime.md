@@ -1,6 +1,7 @@
 # ADR-0068 — The sign-in rule: three levels, a lock, and the password over its lifetime
 
 **Status:** accepted · **Date:** 2026-09-26
+**Rule lives in:** [identity.md](../architecture/identity.md) §4.2, §5, §6, §7, §14.2, §18
 
 ## Context
 
