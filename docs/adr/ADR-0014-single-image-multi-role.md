@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [deployment.md](../architecture/deployment.md) §2, §6.1, [support-matrix.md](../architecture/support-matrix.md) §1, §2
+
 ## Context
 Operation in Docker, Podman, **and** Kubernetes is required, ideally from the same build, along with
 horizontal scalability. Private individuals want one container; providers want independently
