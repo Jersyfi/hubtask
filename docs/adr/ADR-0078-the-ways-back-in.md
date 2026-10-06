@@ -1,6 +1,7 @@
 # ADR-0078 — The ways back in: a second proof for a provider, a fallback for every cause, and an operator's lever
 
 **Status:** accepted · **Date:** 2026-10-06 · **Accepted:** 2026-10-06
+**Rule lives in:** [identity.md](../architecture/identity.md) §10.3, §11, §12, §17
 
 Amends [ADR-0071](./ADR-0071-provider-admission.md) (its addendum, E2, and §1's reading of
 an authoritative address), [ADR-0076](./ADR-0076-withdrawing-an-offered-provider.md) §4 and
