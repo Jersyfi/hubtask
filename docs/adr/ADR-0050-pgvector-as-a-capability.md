@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-09 · **Accepted:** 2026-09-17
 
+**Rule lives in:** [ai-first.md](../architecture/ai-first.md) §2 (semantic search)
+
 ## Context
 
 `db/migrations/0001_init.sql` line 43 has carried one commented-out line since the first day of the

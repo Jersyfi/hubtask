@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-09 · **Accepted:** 2026-09-17
 
+**Rule lives in:** [ai-first.md](../architecture/ai-first.md) §1.1
+
 ## Context
 
 `ai-first.md` §1.1 has promised MCP resources since the file was written — "containers, items, and

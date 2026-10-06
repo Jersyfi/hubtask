@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [ai-first.md](../architecture/ai-first.md) §1, §2
+
 ## Context
 The core is to be built "AI first" and with an eye to the future. At the same time the application
 must not depend on any AI provider: self-hosters do not want a cloud dependency, companies have data
