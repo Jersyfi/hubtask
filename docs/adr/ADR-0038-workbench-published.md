@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-02
 
+**Rule lives in:** [ci-cd.md](../architecture/ci-cd.md) §10
+
 ## Context
 
 [ADR-0037](./ADR-0037-component-workbench.md) built the component workbench and said, in its own

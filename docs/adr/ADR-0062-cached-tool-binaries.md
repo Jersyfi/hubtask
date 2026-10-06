@@ -2,6 +2,8 @@
 
 **Status:** accepted (2026-09-22) · **Date:** 2026-09-22
 
+**Rule lives in:** [ci-cd.md](../architecture/ci-cd.md) §3.3
+
 ## Context
 
 `make tools` installs nine pinned tools into `.tools`. Eight of them are compiled from source

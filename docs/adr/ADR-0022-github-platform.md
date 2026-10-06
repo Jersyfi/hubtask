@@ -1,7 +1,9 @@
 # ADR-0022: GitHub as the development platform, GitHub Actions as CI/CD
 
-* **Status:** accepted
-* **Date:** 2026-08-16
+**Status:** accepted · **Date:** 2026-08-16
+
+**Rule lives in:** [ci-cd.md](../architecture/ci-cd.md) §1, §4, §5, §6, [deployment.md](../architecture/deployment.md) §1
+
 * **Concerns:** operations, process, supply chain
 * **Supersedes:** constraint C-06 in its previous form (GitLab CI per the in-house template)
 * **Related:** [ADR-0015](./ADR-0015-security-baseline.md), [ADR-0013](./ADR-0013-licensing.md), [versioning-release.md](../architecture/versioning-release.md)

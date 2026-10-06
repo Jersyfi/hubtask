@@ -2,6 +2,8 @@
 
 **Status:** accepted (2026-09-24) · **Date:** 2026-09-24
 
+**Rule lives in:** [ci-cd.md](../architecture/ci-cd.md) §3
+
 ## Context
 
 Four tests need a real S3 server, because four claims cannot be made against a fake:

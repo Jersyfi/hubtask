@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-10-04 · **Accepted:** 2026-10-06
 
+**Rule lives in:** [ci-cd.md](../architecture/ci-cd.md) §3.4, §3.1, §3.2
+
 Approved as ADR-0078; renumbered before merging, because #1147 brought its own ADR-0078 (the ways
 back in) to `main` first.
 
