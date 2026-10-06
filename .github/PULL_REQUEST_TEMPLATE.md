@@ -52,7 +52,7 @@ Closes #
 <!-- Mark anything that does not apply with "n/a"; do not delete it. -->
 
 - [ ] Tests at every relevant level green, coverage thresholds held
-- [ ] `make verify` green locally, no diff after `make generate`
+- [ ] `make verify-pr` green for the pushed `HEAD`, no diff after `make generate`
 - [ ] `api/openapi.yaml` changed before the code was written (for API changes)
 - [ ] Use case in the registry → REST, MCP, and automation (parity test green)
 - [ ] Event schema added under `api/events/`

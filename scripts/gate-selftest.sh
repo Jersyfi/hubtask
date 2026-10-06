@@ -892,6 +892,38 @@ else
 fi
 rm -f "$PROBE_WORKFLOW"
 
+header "Drafts run nothing (make gate-architecture)"
+
+# ADR-0079 rests on two lines of ci.yml, and both fail quietly: a root job without the draft
+# condition runs on every push to a draft again, and `ci-required` under its plain name puts a green
+# `CI required` on a draft's commit that no gate earned (#1137). Each probe takes one of them away;
+# the workflow is put back whatever happens.
+expect_architecture_failure_after() {
+	local name="$1" file="$2" programme="$3"
+	CHECKS=$((CHECKS + 1))
+
+	cp "$file" "$file.selftest-backup"
+	sed -i.tmp "$programme" "$file" && rm -f "$file.tmp"
+	if cmp -s "$file" "$file.selftest-backup"; then
+		printf '  FAILED  %-44s the probe changed nothing - its sed programme is stale\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	elif make --no-print-directory gate-architecture >/dev/null 2>&1; then
+		printf '  FAILED  %-44s make gate-architecture stayed green\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	else
+		printf '  ok      %-44s caught by make gate-architecture\n' "$name"
+	fi
+	mv "$file.selftest-backup" "$file"
+}
+
+expect_architecture_failure_after "a root job that runs on a draft" \
+	.github/workflows/ci.yml "/^    name: What changed$/{n;/draft/d;}"
+expect_architecture_failure_after "CI required on a draft's commit" \
+	.github/workflows/ci.yml "s/^    name: .*'CI not run (draft)'.*$/    name: CI required/"
+# And the hook that keeps a session from skipping the local check: a guard that never refuses.
+expect_architecture_failure_after "a pull request hook that refuses nothing" \
+	scripts/hooks/pr-transition-guard.sh 's/^	exit 2$/	exit 0/'
+
 header "Action pins (make gate-architecture)"
 
 # The nightly script asks GitHub whether each pin resolves; this rule is the other half, and it is
