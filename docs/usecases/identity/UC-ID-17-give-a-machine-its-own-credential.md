@@ -44,5 +44,4 @@ token. Every token is listed with its last use and can be revoked.
 
 ## Today
 
-* **Check 3 fails in `hubctl`:** `hubctl token create` never sends a step-up, so creating a token
-  with an administrative scope from the terminal always fails.
+* Check 3: not met in `hubctl` — `hubctl token create` never sends a step-up, so creating a token with an administrative scope from the terminal always fails, tracked in #1061.

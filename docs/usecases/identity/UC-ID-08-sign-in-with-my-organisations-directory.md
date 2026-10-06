@@ -52,8 +52,4 @@ organisation is turned away with a sentence that says this workspace does not ad
 
 ## Today
 
-Checks 4 and 5 hold since SC-03 (`ProviderSessionBounds_test.go`; the callback walked in
-`signin.test.mjs`).
-
-* **Check 2 fails:** an account created on arrival has no membership and sees an empty workspace;
-  there is no *New people get* setting. Tracked as SC-02.
+* Check 2: not met — an account created on arrival has no membership and sees an empty workspace without explanation; there is no *New people get* setting, tracked in #1058.

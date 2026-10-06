@@ -39,7 +39,8 @@ found.
 
 ## Today
 
-* **Checks 1–5 hold through the API, not through the web app.** The invitation always grants its
-  role on the whole workspace (`PeopleView.svelte`), and the members dialog only offers people who
-  already hold a membership along the path — so a child or a guest cannot be limited to one hub or
-  one entry from the screens. Issue #1079.
+* Check 1: not met in the web app — an administrator cannot give a membership on one hub there: the invitation grants the whole workspace, and the members dialog offers only people who already hold a membership along the path, tracked in #1079.
+* Check 2: not met in the web app — nobody can be limited to part of the workspace from the screens (check 1), so nothing is outside a person's reach, tracked in #1079.
+* Check 3: not met in the web app — a Contributor cannot be given one hub from the screens (check 1), tracked in #1079.
+* Check 4: not met in the web app — a Viewer or a Guest cannot be given one hub or one task from the screens (check 1), tracked in #1079.
+* Check 5: not met in the web app — nobody can be limited from the screens (check 1), tracked in #1079.
