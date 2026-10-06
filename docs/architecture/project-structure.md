@@ -129,7 +129,8 @@ hubtask/
 │   ├── golden-archives/            # one reference archive per major version, for BK-4
 │   └── dbtest/, s3test/, e2e/, evidence/   # shared harnesses and generated evidence
 ├── docs/                           # vision/, usecases/, architecture/, design/, adr/, audit/,
-│                                   # privacy/, evidence/, backlog/, roadmap.md
+│                                   # privacy/, evidence/, backlog/, archive/, roadmap.md;
+│                                   # docs/README.md says what each holds
 ├── tools/                          # checkdocs (gate-docs), checkpr (gate-pr), openapijson, sdkgen,
 │                                   # deprecations, eventmatrix (make generate), locales,
 │                                   # verifypr and cilocal (make verify-pr), licenses.md.tpl
