@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/yaml.v3"
+	"github.com/Jersyfi/hubtask/tools/cilocal"
 )
 
 // The pipeline decides what to run from `dorny/paths-filter`, and a path no filter names runs
@@ -71,7 +71,7 @@ func TestEveryFilterNamesSomethingThatExists(t *testing.T) {
 		for _, pattern := range patterns {
 			matches := false
 			for _, file := range tracked {
-				if matchesPattern(pattern, file) {
+				if cilocal.Matches(pattern, file) {
 					matches = true
 					break
 				}
@@ -85,75 +85,20 @@ func TestEveryFilterNamesSomethingThatExists(t *testing.T) {
 	}
 }
 
-// loadPathFilters reads the `filters:` block the `changes` job hands to dorny/paths-filter.
-//
-// The block is a YAML document inside a YAML string, so it is extracted by indentation and parsed
-// on its own. It carries an anchor and aliases (`*workspace-manifests`), which is exactly why it
-// is parsed rather than pattern-matched: a reader of this file has to see what a package's filter
-// really contains, aliases resolved.
+// loadPathFilters reads the filters through the same code `make verify-pr` selects its gates with
+// (tools/cilocal, ADR-0078), so that a filter this test approves is the filter both sides use.
 func loadPathFilters(t *testing.T) map[string][]string {
 	t.Helper()
 
-	raw, err := os.ReadFile("../../.github/workflows/ci.yml")
+	raw, err := os.ReadFile("../../" + cilocal.WorkflowPath)
 	if err != nil {
 		t.Fatalf("ci.yml is not readable: %v", err)
 	}
-
-	lines := strings.Split(string(raw), "\n")
-	start := -1
-	for i, line := range lines {
-		if strings.TrimSpace(line) == "filters: |" {
-			start = i + 1
-			break
-		}
-	}
-	if start == -1 {
-		t.Fatal("ci.yml has no `filters: |` block - the changes job is what every other job reads")
-	}
-
-	const indent = "            " // the block scalar's own indentation inside the workflow
-	var block []string
-	for _, line := range lines[start:] {
-		if strings.TrimSpace(line) == "" {
-			block = append(block, "")
-			continue
-		}
-		if !strings.HasPrefix(line, indent) {
-			break
-		}
-		block = append(block, strings.TrimPrefix(line, indent))
-	}
-
-	// An alias inserts the anchored *sequence* as one item, so a package's list is a list with a
-	// list inside it. dorny/paths-filter flattens that itself - the anchor is the documented way
-	// to share a group of paths - so this flattens it the same way rather than refusing the file.
-	var parsed map[string][]any
-	if err := yaml.Unmarshal([]byte(strings.Join(block, "\n")), &parsed); err != nil {
-		t.Fatalf("the filters block does not parse as YAML: %v", err)
-	}
-
-	filters := make(map[string][]string, len(parsed))
-	for name, items := range parsed {
-		filters[name] = flattenPatterns(t, name, items)
+	filters, err := cilocal.LoadFilters(raw)
+	if err != nil {
+		t.Fatal(err)
 	}
 	return filters
-}
-
-func flattenPatterns(t *testing.T, filter string, items []any) []string {
-	t.Helper()
-
-	var patterns []string
-	for _, item := range items {
-		switch value := item.(type) {
-		case string:
-			patterns = append(patterns, value)
-		case []any:
-			patterns = append(patterns, flattenPatterns(t, filter, value)...)
-		default:
-			t.Fatalf("the filter %q holds a %T, which is neither a path nor a group of them", filter, item)
-		}
-	}
-	return patterns
 }
 
 func trackedFiles(t *testing.T) []string {
@@ -183,29 +128,12 @@ func trackedFiles(t *testing.T) []string {
 func claimed(filters map[string][]string, file string) bool {
 	for _, patterns := range filters {
 		for _, pattern := range patterns {
-			if matchesPattern(pattern, file) {
+			if cilocal.Matches(pattern, file) {
 				return true
 			}
 		}
 	}
 	return false
-}
-
-// matchesPattern covers the three shapes the filter list uses: a tree (`core/**`), an extension
-// anywhere (`**/*.md`), and an exact path (`go.mod`). Deliberately not a general glob engine -
-// a fourth shape should be read here by whoever writes it rather than resolved by a dependency.
-func matchesPattern(pattern, file string) bool {
-	switch {
-	case strings.HasPrefix(pattern, "**/*."):
-		return strings.HasSuffix(file, strings.TrimPrefix(pattern, "**/*"))
-	case strings.HasSuffix(pattern, "/**"):
-		return strings.HasPrefix(file, strings.TrimSuffix(pattern, "**"))
-	case strings.Contains(pattern, "*"):
-		ok, err := path.Match(pattern, file)
-		return err == nil && ok
-	default:
-		return pattern == file
-	}
 }
 
 // groupByDirectory turns a list of unclaimed files into the shortest set of statements about
