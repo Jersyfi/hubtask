@@ -86,6 +86,14 @@ func (tenants) RequestDeletion(context.Context, time.Time, time.Time) (bool, err
 	return false, nil
 }
 
+func (tenants) OpenPassword(context.Context, identity.PasswordOpening, time.Time) (bool, error) {
+	return false, nil
+}
+
+func (tenants) ClosePassword(context.Context, time.Time, time.Time) (bool, error) {
+	return false, nil
+}
+
 // census answers a different count per tenant, keyed by the scope the unit of work opened.
 type census struct {
 	work   *unitOfWork

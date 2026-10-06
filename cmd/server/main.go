@@ -1843,6 +1843,7 @@ func run() error {
 		}.Descriptor(),
 		adminservice.ListTenants{
 			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{},
 		}.Descriptor(),
 		adminservice.SuspendTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),

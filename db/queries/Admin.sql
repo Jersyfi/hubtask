@@ -13,8 +13,10 @@ SELECT id::uuid, slug::text, display_name::text, status::text,
        default_locale::text, default_time_zone::text,
        created_at::timestamptz, purge_after::timestamptz AS purge_after,
        password_opened_until::timestamptz AS password_opened_until,
-       password_opened_requester::text AS password_opened_requester,
-       password_opened_reason::text AS password_opened_reason
+       -- Empty rather than NULL where no opening stands: the generator cannot see that the
+       -- function's text columns may be NULL, and a NULL scanned into a string is an error.
+       coalesce(password_opened_requester, '')::text AS password_opened_requester,
+       coalesce(password_opened_reason, '')::text AS password_opened_reason
 FROM admin_tenants();
 
 -- name: InsertTenant :exec

@@ -30,7 +30,10 @@ type TenantRecord struct {
 	CreatedAt       time.Time
 	// PurgeAfter is set while a deletion request stands: when the grace runs out. Zero otherwise.
 	PurgeAfter time.Time
-	Version    int
+	// PasswordOpening is an operator's opening of the password, as the row holds it (ADR-0078 §3).
+	// Whether it still stands is the reader's to judge against its clock.
+	PasswordOpening identity.PasswordOpening
+	Version         int
 }
 
 // Tenants is the lifecycle of the tenant row.
@@ -58,6 +61,15 @@ type Tenants interface {
 	// deadline - the one edge with two origins (§5). False means the workspace was already
 	// leaving, or gone.
 	RequestDeletion(ctx context.Context, purgeAfter, now time.Time) (bool, error)
+
+	// OpenPassword writes an operator's opening of the password on the transaction's own tenant,
+	// replacing one that stands (ADR-0078 §3). False means the workspace is leaving, or gone.
+	OpenPassword(ctx context.Context, opening identity.PasswordOpening, now time.Time) (bool, error)
+
+	// ClosePassword ends the opening on the transaction's own tenant: whatever stands where `due` is
+	// zero, and only one whose end has come by `due` otherwise - so a close at the old end leaves a
+	// later opening alone. False means there was none to end.
+	ClosePassword(ctx context.Context, due, now time.Time) (bool, error)
 }
 
 // Automations is the one switch the deletion request throws (§5, "automations disabled"): every

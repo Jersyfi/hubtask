@@ -39,6 +39,9 @@ const (
 type ListTenants struct {
 	Tenants    adminrepo.Tenants
 	UnitOfWork persistence.UnitOfWork
+	// Clock judges whether an operator's opening still stands. Nil answers none: without a moment
+	// an ended opening would read as one in force.
+	Clock clock.Clock
 }
 
 // Execute lists the workspaces, oldest first.
@@ -59,6 +62,11 @@ func (h ListTenants) Execute(
 	if err != nil {
 		return nil, err
 	}
+	for i := range records {
+		if h.Clock == nil || !records[i].PasswordOpening.InForce(h.Clock.Now()) {
+			records[i].PasswordOpening = domain.PasswordOpening{}
+		}
+	}
 	return records, nil
 }
 
@@ -67,8 +75,9 @@ func (h ListTenants) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ListTenantsName,
 		Summary: "Lists the installation's workspaces, oldest first: identifier, slug, display " +
-			"name, lifecycle status, defaults, and the purge deadline while a deletion request " +
-			"stands. The one legitimate tenant enumerator, for the control plane alone.",
+			"name, lifecycle status, defaults, the purge deadline while a deletion request " +
+			"stands, and an operator's opening of the password while it is in force. The one " +
+			"legitimate tenant enumerator, for the control plane alone.",
 		TokenScope: adminTenantsScope,
 		ReadOnly:   true,
 		Audit: usecase.AuditDeclaration{

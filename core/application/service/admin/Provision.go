@@ -517,6 +517,13 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 	if !record.PurgeAfter.IsZero() {
 		out["purge_after"] = record.PurgeAfter
 	}
+	// The operator's opening, where the caller judged it in force (ADR-0078 §3): a record whose
+	// opening has ended is handed in with it cleared, so this answers only what stands.
+	if opening := record.PasswordOpening; !opening.Until.IsZero() {
+		out["password_opening"] = usecase.Output{
+			"until": opening.Until, "requester": opening.Requester, "reason": opening.Reason,
+		}
+	}
 	return out
 }
 
