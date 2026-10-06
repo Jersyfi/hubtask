@@ -56,11 +56,6 @@ See [backup-restore.md](../../architecture/backup-restore.md) §8.2.
 
 ## Today
 
-* **Check 2 fails in the web app.** The selection offers only hubs that exist in the workspace
-  today (`apps/webapp/src/views/RestoreView.svelte`, the selection fieldset); a collection or a
-  task cannot be chosen, and neither can a hub that is gone — the case this use case exists for.
-* **Check 3 is not proven.** The server takes the selection and computes the closure
-  (`core/application/service/backup/Apply.go`), but no test restores a selection and inspects what
-  landed.
-* **Check 8 fails for `hubctl`.** `hubctl restore run` has no selection flags
-  (`cmd/hubctl/Restore.go`).
+* Check 2: not met in the web app — the selection offers only hubs that exist in the workspace today; a collection, a task or a hub that is gone cannot be chosen.
+* Check 3: not proven — the server computes the closure of a selection, but nothing restores a selection and inspects what landed.
+* Check 8: not met for `hubctl` — `hubctl restore run` has no selection flags.

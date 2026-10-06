@@ -52,14 +52,6 @@ See [backup-restore.md](../../architecture/backup-restore.md) §4 and
 
 ## Today
 
-* **Check 4 fails.** An archive's key is derived from the installation's master key **and the
-  target's identifier** (`core/application/service/backup/Perform.go`, `archiveKeyPurpose`). A target
-  re-created on a new installation has a new identifier, so its key differs and the old archives do
-  not decrypt; besides, the archive's workspace identifier no longer matches the new workspace's
-  (see *Take the workspace to another installation*). The passphrase the documentation describes
-  (§4, Argon2id) is refused with `backup.encryption_passphrase_not_available`.
-* **Check 5 fails.** `backup.archive_key_required` tells the reader to supply a key, and no door
-  accepts one.
-* **Check 6 is not met.** Re-sealing and the key census cover five kinds of stored secret, not
-  backup archives ([security.md](../../architecture/security.md)), so a key retired at a count of
-  zero silently strands the archives written under it.
+* Check 4: not met — an archive's key is derived from the master key and the target's identifier, so a target re-created on a new installation cannot decrypt the old archives; the documented passphrase is refused with `backup.encryption_passphrase_not_available`, tracked in #1075.
+* Check 5: not met — `backup.archive_key_required` tells the reader to supply a key, and no door accepts one.
+* Check 6: not met — the re-seal and the key census do not cover backup archives, so a key retired at a count of zero silently strands the archives written under it, tracked in #1075.

@@ -53,9 +53,4 @@ self-hoster (`D1`) does the same as the operator of their own installation.
 
 ## Today
 
-* **Check 5 fails.** A restore compares the archive's workspace identifier with the workspace that
-  asks, in every mode including *new workspace* (`core/application/service/backup/Apply.go`, the
-  BK-10 scope check). A workspace on another installation has another identifier, so the import is
-  refused with `backup.restore_archive_scope_mismatch` — contradicting
-  [tenant-export.md](../../architecture/tenant-export.md) §10, which names this as the migration
-  path. The *new workspace* mode is also hidden in the web app (`apps/webapp/src/lib/data/restore.ts`).
+* Check 5: not met — a restore compares the archive's workspace identifier with the asking workspace in every mode, *new workspace* included, so an archive from another installation is refused with `backup.restore_archive_scope_mismatch`; the web app also hides the *new workspace* mode, tracked in #1074.

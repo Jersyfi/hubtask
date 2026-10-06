@@ -53,8 +53,5 @@ See [backup-restore.md](../../architecture/backup-restore.md) §8.5–8.6 and
 
 ## Today
 
-* **Check 6 fails.** `docs/evidence/` holds no restore-drill record; the drill tool
-  (`cmd/restore-drill`) exists, and the first real drill on the production namespace is blocked
-  (`docs/backlog/blocked-production-namespace.md`).
-* **Check 5 holds on the platform only.** The 35 days are enforced by the database cluster's policy
-  and the bucket's object lock; on Compose they are the operator's own rotation of the dump.
+* Check 5: not met on Compose — the 35 days are enforced by the platform's database cluster policy and object lock only; on Compose they are the operator's own rotation of the dump.
+* Check 6: not met — `docs/evidence/` holds no restore-drill record; the first real drill is blocked on the production namespace.
