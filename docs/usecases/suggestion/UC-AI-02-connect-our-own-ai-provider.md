@@ -41,4 +41,4 @@ stored.
 
 ## Today
 
-* Check 5 depends on UC-AI-06, which is not built; today every workspace may configure its own.
+* Check 5: not met — nothing lets the installation or a plan allow only the provided model (UC-AI-06), so every workspace's screen offers its own provider, tracked in #1067.

@@ -50,5 +50,10 @@ its own (UC-AI-02).
 
 ## Today
 
-* **Not built.** An AI provider exists only per workspace. Decided on 2026-09-30 by the owner as
-  part of the concept review; the design is [ADR-0072](../../adr/ADR-0072-ai-at-the-installation-level.md).
+* Check 1: not met — an AI provider exists only per workspace; the installation offers no model, tracked in #1067.
+* Check 2: not met — there is no offered model to switch on, tracked in #1067.
+* Check 3: not met — there is no offered model whose configuration could be withheld, tracked in #1067.
+* Check 4: not met — no AI feature runs with an offered model, tracked in #1067.
+* Check 5: not met — no offered model's use is counted, tracked in #1067.
+* Check 6: not met — the installation cannot offer several models, tracked in #1067.
+* Check 7: not met — there is no offered model to switch to, tracked in #1067.

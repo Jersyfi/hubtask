@@ -57,5 +57,9 @@ it. A B2B provider offers the same model, chooses "either" and requires "in the 
 
 ## Today
 
-* **Not built.** Design in [ADR-0072](../../adr/ADR-0072-ai-at-the-installation-level.md);
-  checks 2 and 6 with plans come with the plans milestone, the installation level with SC-11/SC-12.
+* Check 1: not met — the operator cannot offer installation models from any door, tracked in #1067.
+* Check 2: not met — there is no *Workspaces may use* rule at any level, tracked in #1067.
+* Check 3: not met — a workspace's AI screen offers its own provider regardless of any rule, tracked in #1067.
+* Check 4: not met — there is no minimum processing location to refuse an own model against, tracked in #1067.
+* Check 5: not met — there is no rule whose narrowing could stop a source, tracked in #1067.
+* Check 6: not met — there is no offered model the budget could apply to, and no own optional budget, tracked in #1068.

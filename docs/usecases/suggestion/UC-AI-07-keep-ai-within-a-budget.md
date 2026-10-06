@@ -39,5 +39,4 @@ use and the cap on its limits screen.
 
 ## Today
 
-* **Check 2 fails in part:** use is counted per workspace and day, without distinguishing an offered
-  model from an own one — there is no offered model yet (UC-AI-05).
+* Check 2: not met in part — use is counted per workspace and day, without telling an offered model from an own one, tracked in #1068.
