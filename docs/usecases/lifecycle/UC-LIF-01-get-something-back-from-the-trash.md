@@ -52,5 +52,4 @@ an agent through its MCP tools.
 
 ## Today
 
-* **Check 6 fails for `hubctl`.** There is no command to delete a hub or a collection (`hubctl`
-  has `item rm` but no container removal); `hubctl trash restore --kind CONTAINER` exists.
+* Check 6: not met for `hubctl` — it has no command to delete a hub or a collection.

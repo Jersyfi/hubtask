@@ -55,7 +55,6 @@ See [data-retention.md](../../architecture/data-retention.md) §5–6.
 
 ## Today
 
-* **Checks 3 and 7 fail in the web app.** The server answers every entry's `retention` state, with
-  what blocks it, but the web app never shows it.
-* **Check 4 fails in the web app.** The data layer has the call (`apps/webapp/src/lib/data/policies.svelte.ts`,
-  `retain`), but no screen offers it.
+* Check 3: not met in the web app — the server answers every entry's retention state, but the web app never shows it.
+* Check 4: not met in the web app — no screen offers keeping an announced task.
+* Check 7: not met in the web app — what holds an entry is in the server's answer, but the web app never shows it.

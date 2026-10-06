@@ -56,13 +56,6 @@ restore of an older backup does not bring it back.
 
 ## Today
 
-* **Check 6 fails.** The trash counts down from the trash period (30 days), but the automatic pass
-  also waits for the offline window (`HUBTASK_TOMBSTONE_WINDOW`, 90 days by default) before
-  removing anything (`core/application/service/lifecycle/RunRetention.go`, `ObserveTombstoneWindow:
-  true`). The screen says *It goes for good today* about an entry that stays another sixty days.
-* **Check 8 fails for `hubctl`.** It has no command to delete one entry for good or to empty the
-  trash.
-* **Check 9 is not confirmed.** A retention rule for the trash kind is accepted, but the trash pass
-  reads the old per-kind period (`RunRetention.go`, `Policies.Find(KindTrash)`), which nothing
-  writes; whether a rule changes when the trash is emptied, and whether the trash screen follows,
-  is unverified.
+* Check 6: not met — the trash counts down from the trash period, but the automatic pass also waits for the offline window (90 days by default), so the screen says an entry goes today that stays another sixty days, tracked in #1078.
+* Check 8: not met for `hubctl` — it has no command to delete one entry for good or to empty the trash.
+* Check 9: not met — a retention rule for the trash kind is accepted, but the trash pass reads the per-kind period that only the defaults and an import write, so the trash keeps counting with the default.
