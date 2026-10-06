@@ -2,6 +2,8 @@
 
 **Status:** accepted (2026-09-21) · **Date:** 2026-09-20
 
+**Rule lives in:** [automation.md](../architecture/automation.md) §2.3, §1.5
+
 ## Context
 
 A rule is data that is executed later, with a service account's rights, without anybody
