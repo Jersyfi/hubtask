@@ -32,4 +32,4 @@ make gate-docs           # front matter, sections, the index, and every UC-… c
 
 Before building, read every use case the task names completely — *Where it ends* is what stops
 you building more than was asked. Before a pull request leaves draft, work through the checklist
-in `README.md` § Checking work.
+in [README.md](README.md#checking-work-against-its-use-cases).
