@@ -222,8 +222,9 @@ session to it for one hour by passing a step-up (`instance.session_elevated`, wr
 and to `instance_event`). Automation uses a personal access token minted for the purpose.
 
 **Who an operator is.** A register (`operator`), checked when `admin:tenants` is minted and again
-when it is exercised. In single mode it is empty, and empty means the owner. A service account may
-be an operator, so a purchase platform can provision without a person's credential.
+when it is exercised. An empty register counts only for an active `OWNER` on an installation with
+exactly one workspace ([identity.md](./identity.md) §19). A service account may be an operator, so
+a purchase platform can provision without a person's credential.
 
 **What an instance setting is.** A row in `instance_setting` with a value **and a lock**. Open means
 a workspace may tighten it; closed means it applies and the workspace's control is shown switched

@@ -18,6 +18,7 @@ why and when a decision was taken.
 | API-first guidelines, errors, pagination, query DSL | [api-guidelines.md](./api-guidelines.md) |
 | Multi-tenancy & isolation | [multi-tenancy.md](./multi-tenancy.md) |
 | **Security concept, threat model, security gates** | [security.md](./security.md) |
+| **Accounts, sign-in, sessions, second factor, providers, step-up** | [identity.md](./identity.md) |
 | **Audit and traceability** | [audit.md](./audit.md) |
 | **Data protection (GDPR) and data subject rights** | [data-protection.md](./data-protection.md) |
 | **Backup, targets, restore** | [backup-restore.md](./backup-restore.md) |
@@ -587,7 +588,8 @@ security as the enforced boundary, `SET LOCAL app.tenant_id` per transaction, an
 without `BYPASSRLS`; modes `SINGLE` and `MULTI`.
 
 ### 8.4 Security
-[security.md](./security.md) — the threat model, hardening, secrets and the SG gates
+[security.md](./security.md) — the threat model, hardening, secrets and the SG gates;
+[identity.md](./identity.md) — accounts, sign-in, sessions and the step-up
 ([ADR-0015](../adr/ADR-0015-security-baseline.md)). One rule lives here because the media code
 cites it: **the server never carries a client's file bytes on object storage.** An upload and a
 download go directly between the client and the store through presigned URLs; the server issues
@@ -699,7 +701,7 @@ restricts it with a reason ([ADR-0032](../adr/ADR-0032-client-capability-matrix.
 * Client capability is a presentation concern only. The API serves every operation to every
   authenticated client uniformly; the matrix governs what UI is built, never what the API permits.
 * A new restriction is a new row here with its reason, and an ADR. The web client's areas and
-  routes are in [design-system.md](../design/design-system.md).
+  routes are in [design-system.md](../design/design-system.md) §11.5.
 
 ---
 

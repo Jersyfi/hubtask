@@ -114,7 +114,8 @@ validated against the query catalogue when it is written. The server does not in
 `layout`, so a new view in a client needs no backend change.
 
 `POST /search` takes the same filter grammar, limits and cost estimate; it has no `group_by`,
-`expand` or `count`.
+`expand` or `count`. Its `words` are optional when a filter is given; without words the order is
+`due_at ASC NULLS LAST, id ASC`; neither words nor a filter is refused (`search.words_required`).
 
 ### 3.1 How a query becomes SQL
 

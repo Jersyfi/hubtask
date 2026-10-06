@@ -2,7 +2,7 @@
 
 **Status:** accepted · **Date:** 2026-08-25
 
-**Rule lives in:** [versioning-release.md](../architecture/versioning-release.md) §1, §5, §7; the maturity mark (formerly the banner): [design-system.md](../design/design-system.md), the shell section
+**Rule lives in:** [versioning-release.md](../architecture/versioning-release.md) §1, §5, §7; the maturity mark (formerly the banner): [design-system.md](../design/design-system.md) §11.6
 
 ## Context
 
