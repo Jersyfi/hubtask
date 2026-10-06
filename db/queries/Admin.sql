@@ -39,8 +39,9 @@ WHERE id = current_tenant_id() AND deleted_at IS NULL;
 
 -- name: OpenTenantPassword :execrows
 -- An operator opens the password for this one workspace (ADR-0078 §3, SC-34). A second opening
--- replaces the first - the operator's latest word on how long, who asked and why. A workspace that
--- is leaving opens nothing: its people are already shut out, and the hard delete is coming.
+-- replaces the first - the operator's latest word on how long, who asked and why. Only an active
+-- workspace opens: a suspended one refuses its people before any password is asked for, and a
+-- leaving one is shut out for good.
 -- The version is left alone: the opening is not the workspace's configuration, and an
 -- administrator's form open on it must not meet a conflict for something it never showed.
 UPDATE tenant
@@ -49,7 +50,7 @@ SET password_opened_until = sqlc.arg('until'),
     password_opened_reason = sqlc.arg('reason'),
     updated_at = sqlc.arg('now')
 WHERE id = current_tenant_id() AND deleted_at IS NULL
-  AND status IN ('ACTIVE', 'SUSPENDED');
+  AND status = 'ACTIVE';
 
 -- name: CloseTenantPassword :execrows
 -- Ends the opening: early by the operator (no `due`), or once its time has passed (`due` is the

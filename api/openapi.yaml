@@ -4051,8 +4051,9 @@ paths:
         `X-Hubtask-Step-Up` header. The requester and the reason are recorded with the end in the
         workspace's trail (`tenant.password_opened`) and in the installation's journal, and the
         workspace's administrators are told. A second opening replaces the first. It reads and
-        changes nothing of the workspace's content. A workspace pending deletion is refused
-        (`admin.tenant_leaving`).
+        changes nothing of the workspace's content. Only an active workspace is opened: a suspended
+        one refuses its people before any password is asked for (`admin.password_opening_suspended`),
+        and one pending deletion is leaving (`admin.tenant_leaving`).
       requestBody:
         required: true
         content:

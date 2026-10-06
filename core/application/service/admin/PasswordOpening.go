@@ -138,8 +138,13 @@ func (h OpenTenantPassword) Execute(
 		if err != nil {
 			return err
 		}
-		if record.Status == domain.TenantPendingDeletion {
+		switch record.Status {
+		case domain.TenantPendingDeletion:
 			return shared.ErrConflict.WithDetail("admin.tenant_leaving")
+		case domain.TenantSuspended:
+			// Its people are refused before any password is asked for, so an opening would let
+			// nobody in - while its administrators were mailed that everybody can sign in.
+			return shared.ErrConflict.WithDetail("admin.password_opening_suspended")
 		}
 
 		now := w.Clock.Now()
@@ -148,8 +153,8 @@ func (h OpenTenantPassword) Execute(
 			return err
 		}
 		if !moved {
-			// The workspace started leaving between the read and the write.
-			return shared.ErrConflict.WithDetail("admin.tenant_leaving")
+			// The workspace was suspended or started leaving between the read and the write.
+			return shared.ErrConflict.WithDetail("admin.password_opening_suspended")
 		}
 
 		if err := w.Audit.Append(ctx, audit.Entry{

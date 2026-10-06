@@ -63,7 +63,8 @@ type Tenants interface {
 	RequestDeletion(ctx context.Context, purgeAfter, now time.Time) (bool, error)
 
 	// OpenPassword writes an operator's opening of the password on the transaction's own tenant,
-	// replacing one that stands (ADR-0078 §3). False means the workspace is leaving, or gone.
+	// replacing one that stands (ADR-0078 §3). False means the workspace is not active - suspended,
+	// leaving, or gone.
 	OpenPassword(ctx context.Context, opening identity.PasswordOpening, now time.Time) (bool, error)
 
 	// ClosePassword ends the opening on the transaction's own tenant: whatever stands where `due` is

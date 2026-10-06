@@ -505,7 +505,7 @@ SET password_opened_until = $1,
     password_opened_reason = $3,
     updated_at = $4
 WHERE id = current_tenant_id() AND deleted_at IS NULL
-  AND status IN ('ACTIVE', 'SUSPENDED')
+  AND status = 'ACTIVE'
 `
 
 type OpenTenantPasswordParams struct {
@@ -516,8 +516,9 @@ type OpenTenantPasswordParams struct {
 }
 
 // An operator opens the password for this one workspace (ADR-0078 §3, SC-34). A second opening
-// replaces the first - the operator's latest word on how long, who asked and why. A workspace that
-// is leaving opens nothing: its people are already shut out, and the hard delete is coming.
+// replaces the first - the operator's latest word on how long, who asked and why. Only an active
+// workspace opens: a suspended one refuses its people before any password is asked for, and a
+// leaving one is shut out for good.
 // The version is left alone: the opening is not the workspace's configuration, and an
 // administrator's form open on it must not meet a conflict for something it never showed.
 func (q *Queries) OpenTenantPassword(ctx context.Context, arg OpenTenantPasswordParams) (int64, error) {

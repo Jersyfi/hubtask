@@ -93,11 +93,11 @@ func (s *tenantsStore) RequestDeletion(
 }
 
 // OpenPassword writes the opening onto the one row, as the statement does where the workspace is
-// not leaving.
+// active.
 func (s *tenantsStore) OpenPassword(
 	_ context.Context, opening domain.PasswordOpening, _ time.Time,
 ) (bool, error) {
-	if s.record.Status == domain.TenantPendingDeletion {
+	if s.record.Status != domain.TenantActive {
 		return false, nil
 	}
 	s.openings = append(s.openings, opening)

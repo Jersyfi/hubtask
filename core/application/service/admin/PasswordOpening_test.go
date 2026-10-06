@@ -443,3 +443,20 @@ func TestClosingAnOpeningPastItsEndRecordsItAsExpired(t *testing.T) {
 		t.Errorf("the administrators were told %v", f.notices.told)
 	}
 }
+
+// A suspended workspace refuses its people before any password is asked for: an opening there would
+// let nobody in, while its administrators were mailed that everybody can sign in. Refused, with the
+// way forward in the message, and nothing recorded, mailed or seeded.
+func TestASuspendedWorkspaceIsNotOpened(t *testing.T) {
+	f := newOpeningFixture(newRegister(operatorID))
+	f.tenants.record.Status = domain.TenantSuspended
+
+	_, err := f.open(t, operator(), 24, openingProof)
+	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "admin.password_opening_suspended" {
+		t.Fatalf("a suspended workspace answered %v", err)
+	}
+	if len(f.tenants.openings) != 0 || len(f.audit.entries) != 0 || len(f.journal.entries) != 0 ||
+		len(f.jobs.requests) != 0 || len(f.notices.told) != 0 {
+		t.Error("a refused opening wrote, recorded, seeded or told something")
+	}
+}

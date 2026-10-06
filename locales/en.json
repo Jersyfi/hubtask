@@ -245,6 +245,7 @@
   "admin.password_opening_requester_too_long": "Who asked fits in {maximum} characters.",
   "admin.password_opening_reason_required": "Say why the password is opened.",
   "admin.password_opening_reason_too_long": "The reason fits in {maximum} characters.",
+  "admin.password_opening_suspended": "That workspace is suspended, so its people are refused before any password is asked for. Resume it first, then open the password.",
   "admin.multi_mode_required": "This installation runs in single mode. The control plane provisions workspaces only in multi mode.",
   "access.tenant_suspended": "This workspace is suspended. Its data remains; ask the operator.",
   "access.tenant_pending_deletion": "This workspace is being deleted. Access is closed while the grace period runs.",

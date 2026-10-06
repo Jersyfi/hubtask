@@ -288,7 +288,9 @@
                       >
                         {t('app.instance.password_close')}
                       </Button>
-                    {:else if workspace.status !== 'PENDING_DELETION'}
+                    {:else if workspace.status === 'ACTIVE'}
+                      <!-- Only an active workspace: a suspended one refuses its people before any
+                           password is asked for, and the server refuses to open it. -->
                       <Button tone="subtle" onclick={() => open('open-password', workspace)}>
                         {t('app.instance.password_open_action')}
                       </Button>

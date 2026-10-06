@@ -343,22 +343,24 @@ func TestTheOpeningsStatementsStayInTheirWorkspace(t *testing.T) {
 		t.Errorf("the closed opening reads back as %+v", got)
 	}
 
-	// A workspace that is leaving opens nothing.
-	if _, err := admin.Exec(ctx, `UPDATE tenant SET status = 'PENDING_DELETION' WHERE id = $1`,
-		openingBystander.String()); err != nil {
-		t.Fatalf("marking the bystander as leaving: %v", err)
-	}
+	// Only an active workspace opens: a suspended one, and one that is leaving, open nothing.
 	t.Cleanup(func() {
 		_, _ = admin.Exec(context.Background(), `UPDATE tenant SET status = 'ACTIVE' WHERE id = $1`,
 			openingBystander.String())
 	})
-	inTenant(t, uow, openingBystander, func(ctx context.Context) error {
-		moved, err := tenants.OpenPassword(ctx, opening, time.Now())
-		if moved {
-			t.Error("a workspace pending deletion was opened")
+	for _, status := range []string{"SUSPENDED", "PENDING_DELETION"} {
+		if _, err := admin.Exec(ctx, `UPDATE tenant SET status = $2 WHERE id = $1`,
+			openingBystander.String(), status); err != nil {
+			t.Fatalf("marking the bystander %s: %v", status, err)
 		}
-		return err
-	})
+		inTenant(t, uow, openingBystander, func(ctx context.Context) error {
+			moved, err := tenants.OpenPassword(ctx, opening, time.Now())
+			if moved {
+				t.Errorf("a %s workspace was opened", status)
+			}
+			return err
+		})
+	}
 }
 
 // The end, once its time has passed, against PostgreSQL: the job the opening seeded runs in the
