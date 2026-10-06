@@ -131,7 +131,9 @@ installation's operator opens the password for this one workspace for a limited 
 that is switched on but broken, which nothing on this screen can see - and it overrides this screen's
 switch and any installation lock until its end, read where the ways in are. The trail entry of a
 sign-in through it carries `cause: OPERATOR`; an account without a password is mailed a link to set
-one under it; and this screen says while it stands - until when, who asked and why - instead of the
+one under it, and nobody is mailed SC-33's link to connect a provider while it stands - nor does one
+mailed before start a flow - because the password is open (`TestUnderAnOpeningNoConnectLinkIsMailed`,
+`TestUnderAnOpeningAConnectLinkStartsNoFlow`); and this screen says while it stands - until when, who asked and why - instead of the
 sentence about no way in (`OperatorOpening_test.go`, the real resolver in
 `test/integration/password_opening_test.go`, `signinsettings.test.mjs`). The guard of check 6 is
 unchanged: the opening switches nothing on this screen. And the step-up's refusal no longer offers the
