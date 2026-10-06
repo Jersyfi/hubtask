@@ -1,151 +1,61 @@
 # apps/webapp — the to-do application
 
-The product UI, in the browser. Not the website: `apps/website` is hubtask.eu, an information site
-with no task management in it. The names matter because `apps/web` would not say which.
-
-This bundle is embedded into the Go binary and served at `/` by `presentation/webui`
-([ADR-0028](../../docs/adr/ADR-0028-embedded-web-ui.md)), so the API and the interface always come
-from the same commit and cannot be a version apart.
+The product UI in the browser, embedded into the binary and wrapped by the shells. Not the website
+(`apps/website`). How it is built is in [`README.md`](./README.md); what each screen draws is
+[`design-system.md`](../../docs/design/design-system.md) §11.
 
 ## What must not happen here
 
-* **The framework is decided, and it is not SvelteKit here.** This app is Svelte 5 (runes,
-  TypeScript) as a plain Vite SPA
-  ([ADR-0030](../../docs/adr/ADR-0030-svelte-frontend-framework.md)) — SvelteKit's inline
-  bootstrap script cannot pass the CSP below. The two standing constraints are unchanged: the
-  content security policy permits neither `'unsafe-inline'` nor `'unsafe-eval'` (the built
-  bundle must contain no inline script or style — `pnpm build` runs `build/check-csp.js` and
-  fails on one), and every value comes from the design system.
-  This one codebase is also what the Tauri shells wrap
-  ([ADR-0031](../../docs/adr/ADR-0031-tauri-app-shell.md)); platform-specific code lives only
-  behind the `src/lib/platform/` seam
-  ([ADR-0033](../../docs/adr/ADR-0033-shared-client-architecture.md)).
-* **No colour, spacing, radius or duration written here.** They come from
-  `@hubtask/design-system`; a value that does not exist is added to `tokens.json` or is not
-  needed. `pnpm lint` fails on one ([ADR-0029](../../docs/adr/ADR-0029-design-system-tokens.md)).
-  In CSS that means `var(--…)`. Where a value is needed **in script**, it comes through
-  `tokens.ts` as a custom-property reference, never as a literal:
-
-  ```ts
-  import { tokens } from '@hubtask/design-system';
-  element.style.color = tokens.text.primary; // 'var(--text-primary)' — resolves per theme
-  ```
-
-  `values.light`/`values.dark` (the resolved literals) are for surfaces a custom property
-  cannot reach — a canvas, an exported image — and nothing else: a component that writes the
-  light-mode colour is wrong in dark mode, and no type can catch it.
-* **The theme is an attribute, set in one place, and it belongs to the device.**
-  `src/lib/theme.ts` puts `data-theme` on the document and follows the system preference; the
-  generated stylesheet has no `:root` fallback on purpose, so a document without the attribute
-  looks broken at once. Components never read or set the theme themselves. **There is no account
-  preference for it** ([ADR-0043](../../docs/adr/ADR-0043-theme-per-device.md)): language, time
-  zone and week start are properties of the person and resolve through the account, the theme is
-  the one that is legitimately different per screen. The switch for it is on the profile (F5-12)
-  and keeps its choice in this browser's `localStorage` — deliberately not in the replica, which
-  is the account's copy and is deleted at sign-out; reduced motion is the same shape beside it —
-  `src/lib/motion.ts` owns `data-motion`, `src/lib/device.svelte.ts` holds both choices, and the
-  media query is honoured whatever is chosen, because there is no "full" over a device that asked
-  for less. The celebrations switch beside them is **not** the device's (F6-12, F6-13): it is the
-  account's `celebrations` preference, and so is when the tour ended (`onboarding_completed_at`),
-  because a person who switched the moments off or took the tour did so everywhere.
-* **The copy, the queue and the moments are the frame's.** `lib/data/engine.ts` attaches the
-  replica per API origin and account through the platform seam (F6-03), `lib/data/replica.ts`
-  supplies `storeFor` and `mutationFor` (F6-04, F6-05) — the engine is product-agnostic and only
-  the application knows which path is which record and which write is which mutation kind — and
-  `SyncLine` in the header shows the copy and the server on every route (F6-06). `lib/celebration.ts`
-  decides a completion's tier from the copy and `lib/tour.ts` names the tour's steps (F6-13,
-  F6-14); both read the hierarchy the replica holds and add nothing to the backend.
-* **No sentence in a component.** The server delivers a code and parameters, never display text
-  (ADR-0011, [`i18n-l10n.md`](../../docs/architecture/i18n-l10n.md) §1), and the client is the half
-  that turns the pair into words: `src/lib/i18n/` holds the ICU renderer, the locale resolution of
-  §2 and the source-language fallback of §3. A component calls `t('code', params)` and writes no
-  English of its own — including the application's own strings, which are codes under `app.*` in
-  the same `locales/en.json` the binary embeds. **A second catalogue under `apps/` is not an
-  option**; `src/lib/i18n/catalogue.ts` is the one place that reads the file, and the workspace lint
-  carries that single exception (`project-structure.md` §2.1). Anything the renderer cannot render
-  is refused by name and `catalogue.test.ts` parses every message, so a construct nobody
-  implemented turns the build red rather than printing braces at a reader.
-* **No hand-written API type.** They come from `@hubtask/api-client`, generated from
-  `api/openapi.yaml`. If the type you need is not there, change the specification (ADR-0004).
-* **No request to a foreign origin.** `connect-src 'self'`, and the fonts ship with the bundle. A
-  self-hosted Hubtask contacts nobody on load (ADR-0018).
-* **No dependency on `apps/website`.** The two clients share packages, never each other.
-* **Routing is the in-house module `src/lib/router.ts`** — real paths over the History API,
-  never `#/` (ADR-0028's `index.html` fallback exists so deep links survive a reload). Routes
-  join its table in `App.svelte`; a router library would be a new dependency and therefore a
-  proposal, not a commit (CLAUDE.md, the W-06 pull request records the reasoning).
-
-* **The frame decides once, and views consume it.** `src/lib/frame/` holds the shell every view
-  sits inside; beside it, four modules hold what the application knows about itself and may not
-  answer twice:
-  `lib/data/capabilities.svelte.ts` reads `/meta/capabilities` **at boot and again on every change
-  of actor** — nothing may hard-code what the manifest answers, and nothing may assume one read
-  per page: the route takes no credential but the request carries one, so a stale bearer is
-  answered `401`, and the answer is scoped by the caller, so an anonymous read is not the one that
-  applies after a sign-in (issue 1020); `lib/data/account.svelte.ts` reads `GET /accounts/me` when
-  there is a bearer, and its `locale` outranks the browser's (`i18n-l10n.md` §2);
-  `lib/data/health.svelte.ts` reads `/meta/health` **only where the actor may read it** — no
-  bearer means no request, a `401` or `403` is silence rather than a message, and there is no
-  second unauthenticated health surface; and `lib/maturity.ts` carries the stage of
-  [ADR-0035](../../docs/adr/ADR-0035-one-product-version.md) §2, which is what the banner reads and
-  what convergence changes by changing one line. The language is applied in exactly one place, the
-  application root (`App.svelte`) - above the frame, because the signed-out card is not inside it and
-  speaks the browser's language too - for the reason the theme is: an attribute two modules set is
-  an attribute nobody owns.
-* **The session is a bearer pair, and the browser holds it for as long as the tab.**
-  `POST /auth/sessions` answers an access token of fifteen minutes beside a refresh token of thirty
-  days (H-01), and every route in the contract takes the first as its bearer — including the one
-  the OIDC callback answers. There is **no cookie session** in this contract, so the pair goes
-  where F1's token went: `lib/platform/tokenStore.ts` keeps both in `sessionStorage`, which
-  survives a reload and dies with the tab. The refresh token's thirty days are deliberately not
-  used; what it buys this client is rotation, not longevity.
-  **The exchange lives in one place.** `lib/data/engine.ts` holds the transport and performs
-  `POST /auth/sessions:refresh` when the seam reports a refused request; the seam retries that
-  request once and gives up on a second refusal. Never write a refresh into a store: presenting a
-  retired refresh token is theft as far as the server is concerned and costs the whole family
-  (`security.md` §5), so two exchanges at once would sign somebody out for being fast.
-  **Do not check a credential's shape**: `security.md`'s pattern describes one of the three the
-  security scheme accepts, and a client enforcing it would refuse the other two. **A credential is
-  a secret**: never in a URL, never in a log, never written into a message, never in the DOM beyond
-  the field that accepts it — and the invitation token, which arrives in a fragment, is replaced in
-  the history entry before the first request leaves. Sign-out ends the session at the server and
-  then calls `engine.reset()` as well as `releaseBearer()` — `offline-sync.md` §9.6 applies from
-  the first day there is anything to discard. A `401` the exchange could not answer ends the
-  session through the engine's one hook, remembering the path first.
-* **A failure becomes a sentence in `lib/problem.ts`, never in a component.** A `TransportError`
-  carries the whole problem document (ADR-0025); that module chooses between `code` and the more
-  specific `detail_code`, puts each `field_errors[]` entry under its own `path`, and hands back the
-  `request_id` where the sentence does not already carry it. A component that read `error.code`
-  itself would be a second place where an English sentence could appear.
-
-* **What the installation permits is read, never compiled in.** `lib/data/capability.ts` answers
-  "may a `TASK` carry a bucket", "may an `ACTIVITY` hold a child", "may this role change this
-  entry" — from `/meta/capabilities` and from nothing else. Three rules travel with it. A type or a
-  role the manifest does not declare is **refused, never permitted**: guessing in the permissive
-  direction is what the manifest exists to prevent, and the contract says so in its own words about
-  `roles`. Nothing is knowable **before** the manifest is read, so the verdict has a third value and
-  a control is not shown as available in the meantime. And a prediction uses **the server's own
-  message code** — `items.capability_not_supported`, `items.parent_type_invalid` — so one fact has
-  one sentence whether the client saw the refusal coming or the server sent it.
-
-  `CapabilityGate` is what renders a refusal, and the reason it exists rather than a `hidden` is
-  `domain-model.md` §2: `ErrCapabilityNotSupported` "must never become silent ignoring". Hiding a
-  control tells the reader nothing, and it is the tempting answer because a hidden control looks
-  tidy.
-
-## Two things the API decides for you
-
-* **Cursor pagination, never page numbers** — the API has none, so no component may imply them.
-* **`/meta/capabilities` is what the client configures itself from**, including which fields may be
-  filtered. A hard-coded list will be wrong on somebody's installation.
+* **No SvelteKit, and nothing the content security policy refuses.** Svelte 5 as a plain Vite
+  single-page application. The policy permits neither `'unsafe-inline'` nor `'unsafe-eval'`, so the
+  built bundle holds no inline script or style; `pnpm build` runs `build/check-csp.js` and fails
+  on one.
+* **No platform-specific code outside `src/lib/platform/`**, and no runtime sniffing: a shell's
+  build selects its implementation.
+* **No colour, spacing, radius or duration written here** (rule 15). In CSS it is `var(--…)`; in
+  script it is `tokens` from `@hubtask/design-system`, which yields a custom-property reference.
+  `values.light`/`values.dark` are for what a custom property cannot reach — a canvas, an exported
+  image — because a literal colour is wrong in the other theme.
+* **No second owner of a document attribute.** The theme (`lib/theme.ts`), reduced motion
+  (`lib/motion.ts`) and the language (`App.svelte`) are each applied in exactly one place. A
+  component never reads or sets them; a second module that set one would be a second answer to
+  "which theme" or "which locale".
+* **No device choice in the account, and no account choice in the device.** The theme, reduced
+  motion and how a screen is laid out (a sheet's size) belong to this browser and live in
+  `localStorage` — never in the replica, which is the account's copy and is deleted at sign-out.
+  Language, time zone, week start, celebrations and the tour's completion are the account's.
+* **No sentence in a component.** A component calls `t('code', params)`; the application's own
+  strings are `app.*` codes in `locales/en.json`. No second catalogue: `src/lib/i18n/catalogue.ts`
+  is the one reader of that file. A failure becomes words in `lib/problem.ts` only — a component
+  that read `error.code` itself would be a second place a sentence could appear.
+* **No `fetch`, no IndexedDB, no `EventSource`.** Every request goes through
+  `@hubtask/sync-engine` (see its `AGENTS.md`); this app supplies paths, not transport.
+* **No hand-written API type** — they come from `@hubtask/api-client`; change the contract (rule
+  11).
+* **Nothing hard-coded that `/meta/capabilities` answers.** It is read at boot and on every change
+  of actor, never once per page. A type or role the manifest does not declare is refused, never
+  permitted, and before the manifest arrives nothing is shown as available.
+* **No control drawn for a capability that is refused outright.** It is absent, not disabled. A
+  refusal the reader might otherwise have had — a permission, a setting, a degraded feature — is
+  drawn through `CapabilityGate` with its reason, never hidden silently.
+* **No page numbers.** The API answers a page and an opaque cursor; a longer list arrives through
+  `LoadMore`. No client-side pager either, not even over a list that arrived whole — a long list is
+  sorted or narrowed.
+* **No credential out of its place** ([`identity.md`](../../docs/architecture/identity.md) §14.4).
+  Never in a URL, a log, a message or the DOM beyond its field; one that arrives in the address is
+  removed from history before the first request leaves. No shape check of a token — the security
+  scheme accepts three kinds and a pattern would refuse two. The refresh exchange happens in
+  `lib/data/engine.ts` only, never in a store: two exchanges at once sign somebody out.
+* **No request to a foreign origin** (`connect-src 'self'`); fonts ship in the bundle.
+* **No router library** — `src/lib/router.ts`, real paths, never `#/`. Any new dependency is a
+  proposal, not a commit.
+* **No import from `apps/website`**, and **no `.go` file** (rule 14).
 
 ## How to check a change
 
 ```bash
-pnpm --filter @hubtask/webapp build
-pnpm --filter @hubtask/webapp lint       # no literal values
+pnpm --filter @hubtask/webapp build       # includes the CSP check
+pnpm --filter @hubtask/webapp lint        # no literal values, no physical direction
 pnpm --filter @hubtask/webapp typecheck
 pnpm --filter @hubtask/webapp test
 ```
-
-Nothing here is importable from Go, and no `.go` file belongs in this directory.
