@@ -205,8 +205,15 @@ func TestAnOperatorsOpeningIsReadByTheRealResolver(t *testing.T) {
 		t.Error("the opening is not in the workspace's trail")
 	}
 	if counted(`SELECT count(*) FROM instance_event WHERE tenant_id = $1 AND action = 'tenant.password_opened'
-		AND details ->> 'reason' = 'the directory answers 500'`, openingTenant.String()) == 0 {
+		AND details ->> 'requester_present' = 'true' AND details ->> 'reason_present' = 'true'`,
+		openingTenant.String()) == 0 {
 		t.Error("the opening is not in the installation's journal")
+	}
+	// The journal is permanent and outlives the workspace: it holds neither text.
+	if counted(`SELECT count(*) FROM instance_event WHERE tenant_id = $1
+		AND (details::text LIKE '%TICKET-4711%' OR details::text LIKE '%directory answers%')`,
+		openingTenant.String()) != 0 {
+		t.Error("the installation's journal holds who asked or why")
 	}
 
 	// The workspace beside it: no opening - it has no way in of its own, so its password is open as the

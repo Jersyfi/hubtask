@@ -117,7 +117,8 @@ func TestAnOperatorOpensThePasswordForOneWorkspace(t *testing.T) {
 		}
 	}
 
-	// The installation's journal: the same act, the same facts.
+	// The installation's journal: the same act and its end, and that who asked and why were given -
+	// never the texts, which go with the workspace's trail.
 	if len(f.journal.entries) != 1 {
 		t.Fatalf("%d journal entries, want one", len(f.journal.entries))
 	}
@@ -125,8 +126,13 @@ func TestAnOperatorOpensThePasswordForOneWorkspace(t *testing.T) {
 	if recorded.Action != journalPasswordOpened || recorded.TenantID != lifecycleTenant ||
 		recorded.TenantSlug != "acme" || recorded.ActorLabel != "Root Operator" ||
 		recorded.Details["until"] != until.Format(time.RFC3339) ||
-		recorded.Details["requester"] != "TICKET-4711" || recorded.Details["reason"] != "the directory answers 500" {
+		recorded.Details["requester_present"] != true || recorded.Details["reason_present"] != true {
 		t.Errorf("journal entry %+v", recorded)
+	}
+	for _, value := range recorded.Details {
+		if value == "TICKET-4711" || value == "the directory answers 500" {
+			t.Errorf("the permanent journal holds the text %q", value)
+		}
 	}
 }
 

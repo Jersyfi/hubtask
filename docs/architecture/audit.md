@@ -289,8 +289,8 @@ control-plane act (`tenant.provisioned`, `tenant.suspended`, `tenant.resumed`,
 `tenant.password_opened` and `tenant.password_closed`, ADR-0078 §3). A row carries identifiers,
 the slug, the acting operator's label, moments and counts — for a hard delete, how many rows, media
 objects and bytes, outbox events, queued jobs and trail entries went; for an opening of the
-password, its end and the requester and reason the operator entered, which ADR-0078 §3 asks to be
-recorded in both places — and never content. Three properties distinguish it from the trail:
+password, its end and that a requester and a reason were given — never their texts, which may name a
+person and are kept in the workspace's own trail, which goes with the workspace — and never content. Three properties distinguish it from the trail:
 
 * **It belongs to no tenant.** The table has no row-level-security policy — deliberately, the job
   table's precedent: a policy comparing against `current_tenant_id()` would make the rows

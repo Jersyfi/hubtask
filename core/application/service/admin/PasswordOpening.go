@@ -35,8 +35,10 @@ import (
 //
 // **Recorded twice, in one transaction**: in the workspace's trail, where its administrators read
 // who opened their door, for whom and why, and in the installation's journal, where the operator's own
-// record of control-plane acts is - `LifecycleShift`'s precedent. Neither carries anything of the
-// workspace's content, and the opening reads none (P-01).
+// record of control-plane acts is - `LifecycleShift`'s precedent. The journal keeps the end and that a
+// requester and a reason were given, never their texts: it is permanent and outlives the workspace,
+// and the texts may name a person. Neither carries anything of the workspace's content, and the
+// opening reads none (P-01).
 
 const (
 	OpenTenantPasswordName  = "OpenTenantPassword"
@@ -163,10 +165,13 @@ func (h OpenTenantPassword) Execute(
 		if err := w.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: w.IDs.NewID(), OccurredAt: now, Action: journalPasswordOpened,
 			TenantID: cmd.TenantID, TenantSlug: record.Slug, ActorLabel: actor.AccountName,
+			// The end, and that who asked and why were given - never the texts. The journal is
+			// permanent and outlives the workspace's hard delete; the requester may name a person and
+			// the reason may too, so both live in the workspace's own trail and go with it.
 			Details: map[string]any{
-				"until":     opening.Until.Format(time.RFC3339),
-				"requester": opening.Requester,
-				"reason":    opening.Reason,
+				"until":             opening.Until.Format(time.RFC3339),
+				"requester_present": opening.Requester != "",
+				"reason_present":    opening.Reason != "",
 			},
 		}); err != nil {
 			return err
