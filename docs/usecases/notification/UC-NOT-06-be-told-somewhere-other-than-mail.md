@@ -44,6 +44,7 @@ appears as a notification on the phone at its moment; nothing arrives by mail fo
 
 ## Today
 
-* **No check holds.** Email is the only channel in the domain
-  (`core/domain/model/notification/Notification.go:108`) and in a reminder's channels; the
-  preferences screen renders one channel because only one exists. No backlog task builds another.
+* Check 1: not met — mail is the only channel in the domain, so the preferences offer no other.
+* Check 2: not met — there is no channel other than mail to deliver on.
+* Check 3: not met — the preferences show the channels the manifest publishes, and it always publishes mail, also on an installation without a mail server.
+* Check 4: not met — there is no channel other than mail on which the rules could hold.
