@@ -40,6 +40,11 @@ const (
 	// there is no provider left to point to, so the link sets a first password.
 	subjectPasswordSet = "email.password_set.subject"
 	bodyPasswordSet    = "email.password_set.body"
+	// The variant for a workspace that switched the password off, to an account no provider
+	// switched on there lets in (ADR-0078 §1): the link connects the workspace's provider, and sets
+	// no password.
+	subjectPasswordConnect = "email.password_connect.subject"
+	bodyPasswordConnect    = "email.password_connect.body"
 )
 
 // ResetMinter is the identity service's seam. It answers the plaintext token, the address, and
@@ -54,7 +59,9 @@ type ResetLink struct {
 	Token       secret.Secret
 	HasPassword bool
 	// First is a link to set a first password, under ADR-0077 §3's fallback.
-	First   bool
+	First bool
+	// Connect is a link to connect the workspace's provider, where the password is off (ADR-0078 §1).
+	Connect bool
 	Address string
 	Locale  string
 }
@@ -93,19 +100,21 @@ func (s SendPasswordReset) Execute(ctx context.Context, tenantID, accountID shar
 
 	params := map[string]string{}
 	var subjectCode, bodyCode string
+	// In the fragment rather than the query, the invitation's reasoning: a proxy or a server log
+	// between the mail client and the interface never sees what follows the hash.
+	base := strings.TrimSuffix(s.BaseURL, "/")
 	switch {
+	case link.Connect:
+		subjectCode, bodyCode = subjectPasswordConnect, bodyPasswordConnect
+		params["link"] = base + "/reset#connect=" + url.PathEscape(link.Token.Reveal())
 	case link.First:
 		subjectCode, bodyCode = subjectPasswordSet, bodyPasswordSet
+		params["link"] = base + "/reset#token=" + url.PathEscape(link.Token.Reveal())
 	case link.HasPassword:
 		subjectCode, bodyCode = subjectPasswordReset, bodyPasswordReset
+		params["link"] = base + "/reset#token=" + url.PathEscape(link.Token.Reveal())
 	default:
 		subjectCode, bodyCode = subjectPasswordResetProvider, bodyPasswordResetProvider
-	}
-	if link.First || link.HasPassword {
-		// In the fragment rather than the query, the invitation's reasoning: a proxy or a server
-		// log between the mail client and the interface never sees what follows the hash.
-		base := strings.TrimSuffix(s.BaseURL, "/")
-		params["link"] = base + "/reset#token=" + url.PathEscape(link.Token.Reveal())
 	}
 
 	return s.Mail.Send(ctx, mail.Message{

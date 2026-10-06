@@ -20,6 +20,8 @@
   "email.invitation.subject.withheld": "Du wurdest zu Hubtask eingeladen",
   "email.invitation.body": "{actor} hat dich eingeladen. Folge dem Link, um dein Konto einzurichten.\n\n{link}",
   "email.invitation.body.withheld": "{actor} hat dich eingeladen. Folge dem Link, um dein Konto einzurichten.\n\n{link}",
+  "email.password_connect.subject": "Verbinde deine Anmeldung bei Hubtask",
+  "email.password_connect.body": "Jemand hat angefordert, das Passwort für diese Adresse zurückzusetzen. Dein Workspace meldet sich nicht mehr mit einem Passwort an, und dieses Konto ist noch nicht mit seinem Anbieter verbunden. Verbinde es hier: {link}\n\nDer Link funktioniert einmal und dreißig Minuten lang. Melde dich beim Anbieter mit dieser Adresse an; hat das Konto einen zweiten Faktor, wird er wie gewohnt abgefragt. Warst du das nicht, kannst du diese Nachricht ignorieren – es hat sich nichts geändert.",
   "email.integration.subject": "Hubtask ruft „{title}“ nicht mehr auf",
   "email.integration.subject.withheld": "Hubtask ruft eine deiner Integrationen nicht mehr auf",
   "email.integration.body": "Dieser Workspace ruft „{title}“ nach wiederholten Fehlern nicht mehr auf. Es wird nichts mehr dorthin zugestellt, bis jemand die Integration wieder einschaltet.\n\n{link}",

@@ -3250,6 +3250,7 @@ func (a resetMinterAdapter) MintResetToken(
 		Token:       link.Token,
 		HasPassword: link.HasPassword,
 		First:       link.First,
+		Connect:     link.Connect,
 		Address:     link.Address,
 		Locale:      link.Locale,
 	}, nil

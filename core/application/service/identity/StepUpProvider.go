@@ -96,6 +96,32 @@ func (p ProviderStepUps) connectedHere(
 	return domain.IdentityProvider{}, false, nil
 }
 
+// connectStands answers whether a link to connect a provider is the account's way in (ADR-0078 §1):
+// no provider it is connected to is a way in here, and at least one provider is switched on here to
+// connect. Inside a transaction bound to the account's workspace.
+func (p ProviderStepUps) connectStands(
+	ctx context.Context, accountID shared.ID, now time.Time,
+) (bool, error) {
+	_, reaches, err := p.connectedHere(ctx, accountID, now)
+	if err != nil || reaches {
+		return false, err
+	}
+	listed, err := p.Providers.List(ctx)
+	if err != nil {
+		return false, err
+	}
+	settings, err := offersIn(ctx, p.Workspaces)
+	if err != nil {
+		return false, err
+	}
+	for _, candidate := range listed {
+		if offeredHere(candidate, settings, now) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // stepUpConfig is the provider's configuration as the relying party needs it, the client secret
 // opened the way a sign-in opens it.
 func (w SessionWriter) stepUpConfig(

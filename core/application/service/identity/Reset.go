@@ -261,7 +261,13 @@ type ResetLink struct {
 	// lets in here any more - its workspace's last way in was an offer that ended, or the provider
 	// it is connected to is gone or switched off while the password is on. There is no provider to
 	// point to, so the mail carries a link to set a first password.
-	First   bool
+	First bool
+	// Connect is the other exception (ADR-0078 §1): in a workspace that switched the password off,
+	// an active account that no provider switched on there lets in - one that holds a password but
+	// was never connected, one whose only identity is at an offer that ended, one that holds no
+	// credential at all. The mail carries a link to connect the workspace's provider: the link and a
+	// fresh sign-in there are the account's proof at the provider's first arrival.
+	Connect bool
 	Address string
 	Locale  string
 }
@@ -294,6 +300,13 @@ func (m MintResetToken) MintResetToken(
 	}
 	if !open {
 		link.HasPassword = false
+		// The provider mail points to a provider that lets the account in; where none does, the
+		// mailbox is the way back - to connect one, since the password is not a way in here.
+		connect, err := w.connectOpens(ctx, tenantID, held.Account)
+		if err != nil {
+			return ResetLink{}, err
+		}
+		link.Connect = connect
 	}
 	// Nobody is left without a way in (ADR-0077 §3, §4): where no provider lets this account in any
 	// more, the mail would point to nothing, and the mailbox is the proof a reset accepts from every
@@ -305,8 +318,13 @@ func (m MintResetToken) MintResetToken(
 		}
 		link.First = first
 	}
-	if !link.HasPassword && !link.First {
+	if !link.HasPassword && !link.First && !link.Connect {
 		return link, nil
+	}
+	purpose := domain.PendingReset
+	if link.Connect {
+		// The reset link's window and discipline: the mailbox is the same proof, read the same way.
+		purpose = domain.PendingConnect
 	}
 
 	material, err := w.Session.Entropy.Bytes(domain.TokenSecretBytes)
@@ -322,15 +340,18 @@ func (m MintResetToken) MintResetToken(
 		func(ctx context.Context) error {
 			now := w.Clock.Now()
 			// A second request replaces the first link rather than adding one (UC-ID-04 check 2):
-			// whichever mail the person opens, only the newest works.
-			if _, err := w.Pending.Supersede(ctx, accountID, domain.PendingReset, now); err != nil {
-				return err
+			// whichever mail the person opens, only the newest works - a link to set a password and
+			// one to connect a provider alike, since the workspace's switch decides which is mailed.
+			for _, earlier := range []domain.PendingPurpose{domain.PendingReset, domain.PendingConnect} {
+				if _, err := w.Pending.Supersede(ctx, accountID, earlier, now); err != nil {
+					return err
+				}
 			}
 			return w.Pending.Insert(ctx, domain.PendingCredential{
 				ID:        w.IDs.NewID(),
 				TenantID:  tenantID,
 				AccountID: accountID,
-				Purpose:   domain.PendingReset,
+				Purpose:   purpose,
 				CreatedAt: now.UTC(),
 				ExpiresAt: now.Add(domain.ResetLifetime).UTC(),
 			}, presented)
@@ -365,6 +386,31 @@ func (w PasswordWriter) firstPasswordOpens(
 			return err
 		})
 	return !reaches, err
+}
+
+// connectOpens answers whether an account in a workspace without the password is mailed a link to
+// connect a provider (ADR-0078 §1): an active person whom no provider switched on here lets in, while
+// one is switched on to connect. An account connected to a provider that works here keeps the mail
+// that points to it. A writer that cannot ask - built without the provider stores, as tests of other
+// doors are - answers no, the shape before SC-33.
+func (w PasswordWriter) connectOpens(
+	ctx context.Context, tenantID shared.ID, account domain.Account,
+) (bool, error) {
+	if account.Status != domain.AccountActive || account.Kind == domain.AccountServiceAccount {
+		return false, nil
+	}
+	p := w.Session.StepUpProviders
+	if p.Providers == nil || p.External == nil {
+		return false, nil
+	}
+	var opens bool
+	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
+		func(ctx context.Context) error {
+			stands, err := p.connectStands(ctx, account.ID, w.Clock.Now())
+			opens = stands
+			return err
+		})
+	return opens, err
 }
 
 // ResetPasswordCommand carries the spent link and the new password.

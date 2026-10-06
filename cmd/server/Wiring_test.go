@@ -7,9 +7,11 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"reflect"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/notification"
 )
 
 // The writers are values, so a copy taken before the sign-in path learns the rule never learns it.
@@ -178,5 +180,41 @@ func TestTheSignInRulesCarryAClock(t *testing.T) {
 	}
 	if !carries {
 		t.Error("main.go builds the sign-in rules without a clock: no withdrawal ever takes effect on the card")
+	}
+}
+
+// The reset mail's adapter copies the identity service's answer field by field into the shape the
+// notification service reads. A field the copy forgets is a link the mail never carries - SC-33's
+// connect link would arrive as the provider mail, and only in production, because every service test
+// wires the notification side on its own.
+func TestTheResetLinkAdapterCopiesEveryField(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "main.go", nil, 0)
+	if err != nil {
+		t.Fatalf("reading main.go: %v", err)
+	}
+	copied := map[string]bool{}
+	ast.Inspect(file, func(node ast.Node) bool {
+		literal, ok := node.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		if selector, ok := literal.Type.(*ast.SelectorExpr); !ok || exprString(selector) != "notification.ResetLink" {
+			return true
+		}
+		for _, element := range literal.Elts {
+			if pair, ok := element.(*ast.KeyValueExpr); ok {
+				copied[exprString(pair.Key)] = true
+			}
+		}
+		return true
+	})
+	if len(copied) == 0 {
+		t.Fatal("main.go builds no notification.ResetLink")
+	}
+	fields := reflect.TypeOf(notification.ResetLink{})
+	for i := range fields.NumField() {
+		if name := fields.Field(i).Name; !copied[name] {
+			t.Errorf("the reset adapter does not copy %s into the mail's link", name)
+		}
 	}
 }
