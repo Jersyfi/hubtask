@@ -1,6 +1,7 @@
 # ADR-0076 — Withdrawing an offered sign-in provider: a count, a notice, and a way back in
 
 **Status:** accepted (amended by [ADR-0077](./ADR-0077-nobody-is-locked-out.md): §1, §2, §4; by [ADR-0078](./ADR-0078-the-ways-back-in.md): §4) · **Date:** 2026-10-01 · **Accepted:** 2026-10-01
+**Rule lives in:** [identity.md](../architecture/identity.md) §10.6, §17.3
 
 ## Context
 
