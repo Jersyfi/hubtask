@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [project-structure.md](../architecture/project-structure.md) §4; [arc42.md](../architecture/arc42.md) §4, §5.2
+
 ## Context
 The application must be operable by private individuals on a small server and at the same time
 scale horizontally for service providers. Around 14 bounded contexts have been identified.

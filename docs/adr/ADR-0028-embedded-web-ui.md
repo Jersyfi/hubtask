@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-22
 
+**Rule lives in:** [project-structure.md](../architecture/project-structure.md) §6, §7; the interface's content security policy, as ADR-0047 changed it, in [security.md](../architecture/security.md) §9
+
 ## Context
 
 [ADR-0027](./ADR-0027-monorepo-structure.md) puts the to-do application in `apps/webapp`. That

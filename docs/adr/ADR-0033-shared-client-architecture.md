@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-23
 
+**Rule lives in:** [project-structure.md](../architecture/project-structure.md) §2.1; local persistence per platform in [offline-sync.md](../architecture/offline-sync.md) §1
+
 ## Context
 
 [ADR-0030](./ADR-0030-svelte-frontend-framework.md) settles the framework,

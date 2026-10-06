@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [domain-model.md](../architecture/domain-model.md) §1, §2
+
 ## Context
 The requirements name four levels (collection → task → work package → activity) with different
 feature sets: a task has every feature, an activity only status, due date, reminder, and assignment.

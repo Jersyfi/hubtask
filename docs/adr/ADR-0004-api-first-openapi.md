@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [api-guidelines.md](../architecture/api-guidelines.md) §1, §8; [engineering-guidelines.md](../architecture/engineering-guidelines.md) §3.2; [project-structure.md](../architecture/project-structure.md) §6
+
 ## Context
 Frontend design and feature set are deliberately left open. At the same time, n8n/Zapier, AI agents,
 calendar clients, and later several of our own frontends should all use the same features. The API

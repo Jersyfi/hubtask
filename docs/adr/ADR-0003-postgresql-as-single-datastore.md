@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [arc42.md](../architecture/arc42.md) §8.2; the search column as ADR-0034 changed it in [domain-model.md](../architecture/domain-model.md) §6. The forward-only migration rule is not this ADR's: it lives in [versioning-release.md](../architecture/versioning-release.md) §4
+
 ## Context
 What is needed: relational storage, tree queries, flexible fields, full-text search, a job queue,
 an event outbox, pub/sub, tenant isolation, and optionally vector search. Private individuals should

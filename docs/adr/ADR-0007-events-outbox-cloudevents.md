@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [domain-model.md](../architecture/domain-model.md) §4
+
 ## Context
 Domain changes must reliably reach automation rules, webhook subscribers, the search index, live
 updates, and notifications. Events must not be lost when an external recipient fails, and there must

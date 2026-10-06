@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [project-structure.md](../architecture/project-structure.md) §1, §2; [arc42.md](../architecture/arc42.md) §5.1
+
 ## Context
 A binding in-house template exists (*Go hexagonal template*) with the structure `core/domain`,
 `core/application`, `core/port`, `presentation/rest`, and the convention that interfaces live in

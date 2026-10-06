@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-16 · **Accepted:** 2026-09-17
 
+**Rule lives in:** [project-structure.md](../architecture/project-structure.md) §2.2; [automation.md](../architecture/automation.md) §3.3
+
 ## Context
 
 [`automation.md`](../architecture/automation.md) §3.3 has promised since phase 0 "an official
