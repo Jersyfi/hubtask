@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "The Hubtask to-do application in the browser. Embedded into the server binary (ADR-0028).",
-  "license": "BUSL-1.1",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build && node build/check-csp.js",

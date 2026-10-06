@@ -10,7 +10,7 @@ import (
 
 // The TypeScript client: one class over `fetch`, one method per operation, typed against the
 // `operations` types the package's own build generates into dist/schema.d.ts with
-// openapi-typescript, from the same document (ADR-0059 §6: the SDK is Apache-2.0 and imports
+// openapi-typescript, from the same document (ADR-0057: the SDK may be extracted, so it imports
 // nothing first-party). No runtime dependency - a library that pulls a tree into somebody's
 // project is a library they audit before they adopt (milestone-0.9.0.md, decision 3).
 

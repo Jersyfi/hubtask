@@ -9,8 +9,8 @@
  * and a second description of it is a second thing to keep in step (ADR-0004).
  *
  * There is no runtime value here. The TypeScript client for third parties lives in
- * sdk/typescript, Apache-2.0, typed against its own generation of the same document (ADR-0059
- * §6); the first-party apps' fetch layer is the sync engine's Transport port (ADR-0033). Keeping
+ * sdk/typescript, typed against its own generation of the same document (ADR-0057); the
+ * first-party apps' fetch layer is the sync engine's Transport port (ADR-0033). Keeping
  * this package to generated types is what keeps it first-party and what keeps the SDK a thing
  * that can be taken.
  */

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The TypeScript client for the Hubtask API, generated from api/openapi.yaml (P-03, ADR-0059). Apache-2.0; the npm name is not decided.",
+  "description": "The TypeScript client for the Hubtask API, generated from api/openapi.yaml (P-03, ADR-0057). Apache-2.0; the npm name is not decided.",
   "license": "Apache-2.0",
   "exports": {
     ".": "./src/client.gen.ts",

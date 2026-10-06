@@ -10,8 +10,8 @@
 //                                                system, and the api-client for its document)
 //   packages/* → other packages/*, acyclically   never an app
 //   sdk/*      → nothing in the workspace         and nothing in the workspace → sdk/*: the SDK
-//                                                is Apache-2.0 and what a third party takes
-//                                                (ADR-0059 §6), so it carries no first-party
+//                                                is what a third party takes and may be
+//                                                extracted (ADR-0057), so it carries no first-party
 //                                                package and no first-party app reaches past
 //                                                the sync engine's seam into it
 //

@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
 # The Python SDK's package manifest (P-03). Not published by the milestone: the licence is
-# Apache-2.0 (ADR-0059 §6, deciding ADR-0057), the name stays what ADR-0057 leaves open, and the
+# Apache-2.0 (ADR-0080), the name stays what ADR-0057 leaves open, and the
 # version follows the product's (ADR-0035) when it is published.
 [build-system]
 requires = ["setuptools>=68"]

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "The client's data seam: the ports of ADR-0033, and the one Transport that speaks to a server. No framework, no merging.",
-  "license": "BUSL-1.1",
+  "license": "Apache-2.0",
   "exports": {
     ".": "./src/index.ts"
   },

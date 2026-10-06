@@ -321,7 +321,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   fs.writeFileSync(path.join(dist, 'package.json'), JSON.stringify(publishedManifest(), null, 2) + '\n');
   fs.copyFileSync(path.join(packageRoot, 'index.js'), path.join(dist, 'index.js'));
   fs.copyFileSync(path.join(packageRoot, 'README.md'), path.join(dist, 'README.md'));
-  // The package is Apache-2.0 (ADR-0059 §6), and what is published carries its licence file.
+  // The package is Apache-2.0 (ADR-0080), and what is published carries its licence file.
   fs.copyFileSync(path.join(packageRoot, 'LICENSE'), path.join(dist, 'LICENSE'));
   // The three loaders are hand-written and copied: n8n resolves the paths the manifest names.
   fs.copyFileSync(path.join(packageRoot, 'nodes', 'Hubtask', 'Hubtask.node.js'), path.join(dist, 'nodes', 'Hubtask', 'Hubtask.node.js'));

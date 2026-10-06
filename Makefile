@@ -436,7 +436,7 @@ coverage-check:
 # looked at sdk/python was tools/sdkgen's own test, and that compares strings - it cannot see a
 # file that does not parse. A parameter named `from` or `class`, an f-string quoting collision, a
 # branch of the generator no fixture exercises: each of them ships a package that fails on import,
-# to an audience that is other people (ADR-0057, ADR-0059) (#943).
+# to an audience that is other people (ADR-0057) (#943).
 #
 # The bytecode goes to a scratch directory rather than into __pycache__ beside the source, because
 # a gate that leaves files in the work tree is a gate that makes the next one fail.
@@ -520,19 +520,19 @@ gate-data:
 gate-resilience:
 	$(call go_test,resilience,./test/resilience/...,)
 
-## gate-licenses: Refuse a dependency whose licence would make relicensing impossible
+## gate-licenses: Refuse a copyleft dependency, and keep the third-party list current
 .PHONY: gate-licenses
 gate-licenses:
 	$(call require_tool,go-licenses)
-	@# forbidden is AGPL and friends, restricted is the GPL/LGPL family. Either one would make the
-	@# conversion to Apache-2.0 and the commercial licence impossible (ADR-0013), which is why this
-	@# is a gate and not a review note. The warnings about packages containing non-Go code are the
-	@# tool saying it cannot follow a .s file - not a finding.
+	@# forbidden is AGPL and friends, restricted is the GPL/LGPL family. Either one would change the
+	@# terms on which the Apache-2.0 binary may be passed on (ADR-0080), which is why this is a gate
+	@# and not a review note. The warnings about packages containing non-Go code are the tool saying
+	@# it cannot follow a .s file - not a finding.
 	@output="$$($(TOOLS_DIR)/go-licenses check ./... --disallowed_types=forbidden,restricted 2>&1)"; \
 		status=$$?; \
 		echo "$$output" | grep -vE "contains non-Go code|^/|^W[0-9]" || true; \
 		if [ $$status -ne 0 ]; then \
-			echo "a dependency carries a licence that would make relicensing impossible (ADR-0013)"; \
+			echo "a dependency carries a copyleft licence the Apache-2.0 binary cannot carry (ADR-0080)"; \
 			exit 1; \
 		fi; \
 		echo "licences: no forbidden or restricted dependency"

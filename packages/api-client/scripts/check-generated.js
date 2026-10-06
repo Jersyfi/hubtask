@@ -5,7 +5,7 @@
 //
 // This package exists to hold generated types and nothing else: a hand-written interface here is
 // the first step towards a second description of the contract, and a runtime value is the start
-// of a client - which lives in sdk/typescript, under its own licence (ADR-0059 §6).
+// of a client - which lives in sdk/typescript, with a LICENSE file of its own (ADR-0057).
 
 import fs from 'node:fs';
 import path from 'node:path';
