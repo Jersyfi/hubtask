@@ -40,7 +40,7 @@ var (
 	useCaseID    = regexp.MustCompile(`\bUC-[A-Z]{2,3}-\d{2,3}\b`)
 	checkbox     = regexp.MustCompile(`(?m)^- \[( |x|X)\] (.*)$`)
 	notApplied   = regexp.MustCompile(`(?i)\bn/a\b`)
-	adrNamed     = regexp.MustCompile(`ADR-\d{4}|none by (number|ADR)`)
+	adrNamed     = regexp.MustCompile(`ADR-\d{4}|[a-z0-9-]+\.md §\s?\d+|none by (number|ADR)`)
 	placeholders = []string{
 		"UC-…: check n — met / not met — confirmed by …",
 		"yes / no — if yes: the migration path",
@@ -166,9 +166,9 @@ func check(body string, required []string, useCases map[string]bool) []string {
 				continue
 			}
 			chosen++
-			if strings.Contains(answer[2], "Which one") || strings.Contains(answer[2], "already merged") {
+			if strings.Contains(answer[2], "Which one") || strings.Contains(answer[2], "Where it lives") || strings.Contains(answer[2], "already merged") {
 				if strings.Contains(answer[2], "ADR-….") || !adrNamed.MatchString(answer[2]) {
-					problems = append(problems, "the ADR answer that is ticked does not name the ADR (or say \"none by number\" and why)")
+					problems = append(problems, "the ADR answer that is ticked does not name where the rule lives (a subject-document section, an ADR, or \"none by number\" and why)")
 				}
 			}
 		}

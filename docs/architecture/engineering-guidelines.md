@@ -141,6 +141,11 @@ No colour, spacing, radius or duration value is written outside
 `core/` learned nothing about a frontend, and no `.go` file is committed under `apps/` or
 `packages/` ([project-structure.md](./project-structure.md) §2.1).
 
+### 3.19 Reviewed against what no gate checks
+The author reviews the change against every rule in [AGENTS.md](../../AGENTS.md) that is not
+checked by a gate (`[partial]`, `[unchecked]`, `[owner]`) and names what the review found under
+this item. A finding that is fixed is a commit; one that is not becomes a `finding` issue.
+
 ---
 
 ## 4. Performance guidelines
