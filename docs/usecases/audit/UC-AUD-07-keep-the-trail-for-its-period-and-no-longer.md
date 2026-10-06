@@ -50,9 +50,6 @@ with it, and the installation's own journal keeps the evidence that it happened.
 
 ## Today
 
-* **Checks 3, 4 and 5 fail.** The audit kind carries its 400-day default but no action: "nothing in
-  this build removes an audit entry" (`core/domain/model/lifecycle/Catalogue.go`, `KindAudit`), and
-  configuring it is refused. The partition duty only creates and repairs partitions
-  (`infrastructure/postgres/AuditTrailRepository.go`); none is ever dropped. The trail therefore
-  grows without end, which contradicts [audit.md](../../architecture/audit.md) §3 and the default
-  in [data-protection.md](../../architecture/data-protection.md) §5.
+* Check 3: not met — nothing removes an audit entry: the audit kind carries its 400-day default but no action, and no partition is ever dropped, so the trail grows without end.
+* Check 4: not met — there is no removal to record.
+* Check 5: not met — configuring the audit period is refused.

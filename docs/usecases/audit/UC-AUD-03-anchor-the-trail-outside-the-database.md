@@ -61,6 +61,4 @@ check and fails here.
 
 ## Today
 
-* **Check 7 fails for `hubctl`.** `hubctl audit verify` has no flag for the anchor comparison
-  (`cmd/hubctl/Audit.go`, the `verify` command); the comparison is reachable from the web app, the
-  API and MCP only.
+* Check 7: not met for `hubctl` — `hubctl audit verify` has no flag for the anchor comparison.
