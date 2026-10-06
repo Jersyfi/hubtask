@@ -1,6 +1,6 @@
 # Voice and Tone — the writing rules
 
-Foundations v0.1 · The counterpart to [`design-system.md`](./design-system.md) for words
+The counterpart to [`design-system.md`](./design-system.md) for words
 
 ---
 
@@ -10,8 +10,8 @@ The rules a component author — or an assistant writing a pull request — appl
 anybody. Not an essay on style: every section below is stated so that a reviewer can point at a
 number and say a label breaks it.
 
-It covers the three places wave 1 puts words: **buttons**, **errors** and **empty states**. It
-does not cover documentation, the website, or commit messages.
+It covers the places a component puts words: **buttons**, **errors**, **empty states** and
+**proposals** (§7). It does not cover documentation, the website, or commit messages.
 
 **Every string here is a catalogue entry, not a sentence in a component.**
 [ADR-0011](../adr/ADR-0011-i18n-message-codes.md) and
@@ -44,7 +44,9 @@ the stop looks like part of the identifier the moment somebody copies it into a 
 This is the one exception to 1.2 and the reason it is written down rather than discovered.
 
 **1.4 Second person, singular, present tense.** "You do not have permission for this action."
-Never "the user", never a passive that hides who does what.
+Never "the user", never a passive that hides who does what. A translation keeps the same register
+through its whole file ([`i18n-l10n.md`](../architecture/i18n-l10n.md) §3); in German that is the
+informal *du*.
 
 **1.5 "We" appears only where Hubtask owns a failure.** `Something went wrong on our side` is the
 sentence "we" exists for. Everywhere else the product is not a person and does not need a voice:
@@ -125,6 +127,14 @@ order to decide whether to act now.
 **3.6 A recoverable failure says when to try again**, and says it in the message rather than only
 in a header: "Please try again in {retry_after_seconds} seconds."
 
+**3.7 An internal failure shows its reference where the reader can copy it.** The `request_id` is
+what a support request is answered by, and the reader is the only person who has it, so it is
+shown beside the message where it can be copied, ending without a full stop (1.3).
+
+**3.8 A refusal is said once, where it is about.** A field's refusal is said at the field, not
+repeated in a banner above the form; how a refused field is drawn and announced is
+[`design-system.md`](./design-system.md) §10, 3.3.1.
+
 ---
 
 ## 4. Empty states
@@ -176,7 +186,7 @@ English is a string that wraps badly in every other language and reads as a mist
 ## 6. Ten codes, checked
 
 The rules above are worth what they catch, so here they are applied to ten entries of
-`locales/en.json` as it stands on 2026-09-02. Fixing what disagrees is optional; hiding it is not.
+`locales/en.json` as the catalogue holds them. Fixing what disagrees is optional; hiding it is not.
 
 | Code | Rules | Verdict |
 |---|---|---|
@@ -191,7 +201,7 @@ The rules above are worth what they catch, so here they are applied to ten entri
 | `errors.validation_failed` | 3.1, 3.4 | **Disagrees.** "The request contains invalid values." names neither the fix nor which value, in the vocabulary of the API. The field-level codes underneath it do both, so the finding is about this fallback reaching a person at all. |
 | `errors.conflict` | 3.1, 3.4 | **Disagrees.** "This action conflicts with the current state." — "the current state" is the system describing itself. Compare `errors.version_conflict`, which says the same class of thing as "Someone else changed this entry in the meantime." and is immediately actionable. |
 
-Two more worth naming, since the audit found them:
+Two more that break a rule:
 
 * `webhooks.target_rate_limited` — "The target asked us to slow down." Breaks 1.5: no failure of
   ours is being owned, so there is no "us" to speak of.
@@ -208,7 +218,7 @@ is a better starting position than most.
 A suggestion the server made — a title, a tree of work, the labels an entry belongs under, a
 summary, a translation, a template drafted from a description — is rendered through one
 component, `AISuggestion`, and its words follow four rules that the rest of this page does not
-need. Written for `F5-01`; `ai-first.md` §3 is where the guardrails behind them live.
+need. The guardrails behind them are [`ai-first.md`](../architecture/ai-first.md) §2.
 
 **7.1 Offered, never asserted.** The heading names the kind and says that it is a proposal:
 `Suggested title`, `Suggested breakdown`, `Suggested labels`, `Summary suggested` — and never
@@ -239,7 +249,7 @@ is still being made says `Suggesting…` in the present participle of 2.4 and no
 * **`locales/en.json`** — every entry, at the moment it is added.
 * **`packages/design-system/src/`** — components carry no sentences at all; a component that needs
   one takes it as a prop from a code the caller resolved.
-* **`apps/webapp`** — the renderer of those codes (`F1-07`), and the client copy that has no
-  backend code behind it: button labels, empty states, and the frame's own words.
+* **`apps/webapp`** — the renderer of those codes, and the client copy that has no backend code
+  behind it: button labels, empty states, and the frame's own words.
 * **Not the API's own field names, not the CLI's usage text, and not this repository's
   documentation** — each has its own conventions, and this page does not overrule them.
