@@ -45,15 +45,15 @@ Configuring a provider and consenting to use it are also two acts. `processing_a
 every configuration that does not say otherwise, so a provider can be set up, checked and left
 switched off.
 
-**Since [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) the operator may also offer
-models.** A model the installation offers is a row with no workspace; a workspace sees its name, its
+**The operator may also offer models** ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)). A model the installation offers is a row with no workspace; a workspace sees its name, its
 processor and its jurisdiction, never its address or key, and switching it on is the workspace's
 consent act — the same `processing_allowed`, which no installation or plan value writes. Two
 instance values bound what a workspace may use, each with a default and a lock: `ai.sources`
 (`NONE`, `OFFERED`, `OWN`, `EITHER`), and `ai.min_jurisdiction` for a workspace's own model. A lock
 can hold a workspace out of a source, never in one.
 
-**And a third person has a say: the one whose content it is.** Inside a workspace with AI on, each
+**And a third person will have a say: the one whose content it is** (decided, not yet built).
+Inside a workspace with AI on, each
 person may keep what they authored out of every prompt — unless the workspace has made AI part of
 everybody's work and named the legal basis for it, in which case people see that basis instead of
 the switch ([data-protection.md §4.1](../architecture/data-protection.md#41-three-decisions-of-2026-09-30)).
@@ -143,13 +143,13 @@ What the project supplies instead is the mechanism and the questions:
 | Kind, endpoint, models, jurisdiction, `processing_allowed` | `ai_provider` | `NON_PERSONAL` | yes |
 | API key | `ai_provider.api_key_enc` | `SECRET` | **no** |
 
-The key is sealed under the envelope [E-02](../backlog/milestone-0.4.5.md) built, bound to the
-workspace it belongs to, and re-sealed by the rotation like every other sealed value
+The key is sealed under the envelope encryption of
+[security.md](../architecture/security.md) §8, bound to the workspace it belongs to, and re-sealed by the rotation like every other sealed value
 ([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md)). No route answers it and no read
 carries it.
 
 Configuring, changing and removing a provider are audited with the provider, the jurisdiction and
 the models — the three ADR-0018 decision 7 names, with the fourth, the purpose, being the action
 itself. Reading the configuration needs the permission that manages structure or the auditor's
-read-only configuration permission (A-4): where a workspace's content may be sent is exactly what an
+read-only configuration permission ([audit.md](../architecture/audit.md) §5): where a workspace's content may be sent is exactly what an
 auditor reads.
