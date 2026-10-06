@@ -59,13 +59,5 @@ column at a time.
 
 ## Today
 
-* **Check 2 fails in the web app.** The server reorders columns and the client store has
-  `buckets.reorder`, but the board never calls it
-  (`apps/webapp/src/lib/entries/Board.svelte:266-269`); columns stay in creation order unless
-  reordered through the API.
-* **Check 7 fails.** *Add column*, *Edit column* and *Delete column* are drawn for everybody who
-  sees the board (`apps/webapp/src/lib/entries/Board.svelte:281-284, 599, 759`); only the server's
-  refusal stops a member.
-* **Check 6 holds, with a gap.** The web app moves the card and then completes it in a second
-  request (`apps/webapp/src/lib/entries/Board.svelte:330-336`); if the second fails, the card sits
-  in "Done" open.
+* Check 2: not met in the web app — the board never reorders columns; they stay in creation order unless reordered through the API.
+* Check 7: not met — *Add column*, *Edit column* and *Delete column* are drawn for everybody who sees the board; only the server's refusal stops a member.

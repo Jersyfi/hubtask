@@ -51,9 +51,5 @@ the page holds a single sentence and *Create hub*.
 
 ## Today
 
-* **Check 6 fails.** The empty state and its *Create hub* are shown to everybody whose list of hubs
-  is empty — also to a member who may not create hubs, and to a person who simply holds no hub
-  (`apps/webapp/src/views/HomeView.svelte:84-92`, `apps/webapp/src/lib/data/containers.svelte.ts:78`).
-* **Check 3 fails for a person scoped below the workspace.** The jumble is read at the workspace,
-  so a person whose memberships are on a hub only is refused; the panel is drawn anyway and, with
-  the read failed, says nothing is waiting (`apps/webapp/src/views/HomeView.svelte:155-173`).
+* Check 3: not met for a person scoped below the workspace — the jumble is read at the workspace, so the read is refused, and the panel is drawn anyway and says nothing is waiting.
+* Check 6: not met — the empty state and its *Create hub* are shown to everybody whose list of hubs is empty, also to a member who may not create hubs and to a person who holds no hub.

@@ -54,7 +54,4 @@ title on the entry and on the card.
 
 ## Today
 
-* **Check 7 fails.** The labels dialog is reachable from the collection's page menu for everybody
-  and draws its create, rename and delete controls without asking the role
-  (`apps/webapp/src/lib/entries/LabelsDialog.svelte`, `apps/webapp/src/views/ContainerView.svelte:546`);
-  the server refuses a member (`core/application/service/work/CreateLabel.go:95`).
+* Check 7: not met — the labels dialog is reachable from the collection's page menu for everybody and draws its create, rename and delete controls without asking the role, tracked in #1080.

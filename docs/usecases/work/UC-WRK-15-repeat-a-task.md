@@ -61,5 +61,4 @@ Stopping the series keeps the entries already made.
 
 ## Today
 
-* **Check 8 fails.** When not being edited, the panel shows the stored rule text, for example
-  `FREQ=WEEKLY;BYDAY=TU` (`apps/webapp/src/lib/entries/RecurrencePanel.svelte:192`).
+* Check 8: not met — when not being edited, the panel shows the stored rule text, for example `FREQ=WEEKLY;BYDAY=TU`.

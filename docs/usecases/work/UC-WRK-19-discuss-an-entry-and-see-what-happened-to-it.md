@@ -56,7 +56,5 @@ to 5 May", "Notes changed".
 
 ## Today
 
-* **Check 3 fails.** Edit and remove are drawn on every comment and disabled with "not yours" for
-  somebody who may do neither (`apps/webapp/src/lib/people/CommentPanel.svelte:88-89`).
-* **Check 4 fails in the web app.** The comment field is drawn for every reader, including a
-  viewer, whose comment the server then refuses; no role is consulted on the entry page.
+* Check 3: not met — edit and remove are drawn on every comment and disabled with "not yours" for somebody who may do neither.
+* Check 4: not met in the web app — the comment field is drawn for every reader, including a viewer, whose comment the server then refuses, tracked in #1080.

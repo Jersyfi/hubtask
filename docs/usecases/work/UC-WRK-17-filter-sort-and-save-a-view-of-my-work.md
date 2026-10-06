@@ -61,10 +61,5 @@ before saving a new one. At the end of the month the lead exports the view as CS
 
 ## Today
 
-* **Check 6 fails.** Applying a view sets the query and the layout, but the filter panel keeps its
-  own empty state (`apps/webapp/src/lib/entries/QueryPanel.svelte:58-64`,
-  `apps/webapp/src/views/ContainerView.svelte:899-905`): the person cannot see the view's
-  conditions, and touching the filter replaces them.
-* **Check 7 fails.** Saving with the hub scope sends the collection's id
-  (`apps/webapp/src/lib/entries/ViewsPanel.svelte:125`), which the server refuses with
-  `views.scope_container_mismatched` (`core/application/service/work/SavedView.go:208-219`).
+* Check 6: not met — applying a view sets the query and the layout, but the filter panel keeps its own empty state: the view's conditions are not shown, and touching the filter replaces them.
+* Check 7: not met — saving with the hub scope sends the collection's id, which the server refuses with `views.scope_container_mismatched`, tracked in #1082.
