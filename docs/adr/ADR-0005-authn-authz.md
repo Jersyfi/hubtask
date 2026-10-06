@@ -1,6 +1,7 @@
 # ADR-0005 — OIDC, local accounts, tokens, and RBAC
 
 **Status:** accepted · **Date:** 2026-08-14
+**Rule lives in:** [identity.md](../architecture/identity.md) §2, §14, §15, [security.md](../architecture/security.md) §5, [domain-model.md](../architecture/domain-model.md) §3.2
 
 ## Context
 Private individuals need a login without an external identity provider. Companies demand SSO
