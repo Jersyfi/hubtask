@@ -24,7 +24,7 @@ document says what the product gives them to work with, and the rest is theirs.
 |---|---|---|
 | Passwords are stored as Argon2id hashes; tokens as SHA-256 with a server-side pepper that is not in the database | [security.md](../architecture/security.md) §8 | product |
 | Integration credentials, webhook secrets and backup target credentials are encrypted with AES-256-GCM under envelope encryption: one data key per value, the master key from the environment keyring, the key ID persisted so a rotation needs no data migration | [security.md](../architecture/security.md) §8, [ADR-0015](../adr/ADR-0015-security-baseline.md) | product |
-| Backup archives are encrypted with AES-256-GCM under a key derived from a passphrase (Argon2id, RFC 9106's second recommended cost). The passphrase is stored nowhere | [backup-restore.md](../architecture/backup-restore.md) §4 | product |
+| Backup archives are encrypted with AES-256-GCM before they leave the process, under a key derived from the installation's master key with HKDF-SHA256 and bound to the target; the key is not in the archive | [backup-restore.md](../architecture/backup-restore.md) §4 | product |
 | The audit trail answers a pseudonym rather than a name once a person is erased: the trail cannot be edited in place, so the substitution happens at the boundary | [audit.md](../architecture/audit.md) §6 | product |
 | An access export and a data subject export carry pseudonymised references rather than other people's names | [data-protection.md](../architecture/data-protection.md) §4 | product |
 | Transport is TLS 1.2 or better, HSTS where TLS is terminated | [security.md](../architecture/security.md) §8, §9 | operator (the terminating proxy is theirs) |
@@ -35,7 +35,7 @@ document says what the product gives them to work with, and the rest is theirs.
 
 | Measure | Where it is decided | Kind |
 |---|---|---|
-| Every workspace is a tenant, and every query runs inside a transaction that sets `app.tenant_id`; PostgreSQL row-level security enforces the boundary in the database rather than in the application | [multi-tenancy.md](../architecture/multi-tenancy.md) §3, [ADR-0010](../adr/ADR-0010-multi-tenancy.md) | product, gated (SG-3, SG-4) |
+| Every workspace is a tenant, and every query runs inside a transaction that sets `app.tenant_id`; PostgreSQL row-level security enforces the boundary in the database rather than in the application | [multi-tenancy.md](../architecture/multi-tenancy.md) §2.1, [ADR-0010](../adr/ADR-0010-multi-tenancy.md) | product, gated (SG-3, SG-4) |
 | Every repository method has a cross-tenant negative test; a new one without it fails the build | `make gate-security` (SG-3) | product, gated |
 | Authorisation is decided in the application layer, never in an adapter, against a capability matrix per role and scope | [ADR-0005](../adr/ADR-0005-authn-authz.md) | product, gated |
 | Multi-factor authentication can be required per workspace; personal access tokens are scoped and expire | [security.md](../architecture/security.md) §5 | product / operator (the requirement is theirs) |
@@ -52,17 +52,17 @@ document says what the product gives them to work with, and the rest is theirs.
 | The trail cannot be edited or deleted in place: the grants revoke `UPDATE` and `DELETE`, and a trigger refuses what is left | [audit.md](../architecture/audit.md) §3 | product, gated (AT-1) |
 | Every action marked auditable produces exactly one entry, checked against the registry rather than against a reviewer's memory | `make gate-architecture` (SG-13) | product, gated |
 | Outbound webhooks are signed with HMAC-SHA-256 and a timestamp, one secret per subscription | [security.md](../architecture/security.md) §8 | product |
-| Migrations are forward-only and safe for a rolling update; an existing migration is never changed | [ADR-0003](../adr/ADR-0003-postgresql-as-single-datastore.md) | product, gated |
+| Migrations are forward-only and safe for a rolling update; an existing migration is never changed | [versioning-release.md](../architecture/versioning-release.md) §4 | product, gated |
 
 ## 4. Availability and resilience (Art. 32(1)(b), (c))
 
 | Measure | Where it is decided | Kind |
 |---|---|---|
 | Backups run as a scheduled job with generational retention, and `:verify` reads an archive back rather than trusting that it was written | [backup-restore.md](../architecture/backup-restore.md) §2, §5 | product |
-| A restore is a listing at the target and six modes, and it writes a deletion journal so that what was erased does not come back | [backup-restore.md](../architecture/backup-restore.md) §6, §7 | product |
+| A restore is a listing at the target and six modes, and it reapplies the deletion journal so that what was erased does not come back | [backup-restore.md](../architecture/backup-restore.md) §7, §8 | product |
 | An alert fires when no backup has succeeded in 24 hours, and when the last restore drill is older than 90 days | `deploy/observability/alerts/prometheus-rules.yaml` (A-12, A-20) | product / operator (the drill is theirs) |
 | Timeouts, retries with backoff, circuit breakers and bulkheads on every external dependency; no call without a deadline | [observability-reliability.md](../architecture/observability-reliability.md) §8, [ADR-0016](../adr/ADR-0016-observability-reliability.md) | product, gated (RT-1…RT-12) |
-| RPO and RTO are stated rather than implied, and the restore drill is what stands behind them | [backup-restore.md](../architecture/backup-restore.md) §10 | operator |
+| RPO and RTO are stated rather than implied, and the restore drill is what stands behind them | [observability-reliability.md](../architecture/observability-reliability.md) §2, [backup-restore.md](../architecture/backup-restore.md) §8.5 | operator |
 
 ## 5. Regular review (Art. 32(1)(d))
 
@@ -112,10 +112,5 @@ notify within them.
 * **A DPA template and a sub-processor list** for provider operation
   ([security.md](../architecture/security.md) §12). Neither is written; both are needed before
   anybody operates this for somebody else.
-* ~~**PG-8** — third-country AI without an explicit confirmation — has nothing to refuse yet.~~
-  Closed in J-02: the surface arrived, the tripwire is a check, and a provider a workspace declares
-  `THIRD_COUNTRY` is refused unless the installation's operator has confirmed the transfer in the
-  environment. The approved providers, and the questions an operator answers before configuring
-  one, are in [ai-providers.md](./ai-providers.md).
 * **`privacy_incident`** exists as a table and has no use case. Recording a breach in the product,
   rather than in the operator's own process, is not decided yet.
