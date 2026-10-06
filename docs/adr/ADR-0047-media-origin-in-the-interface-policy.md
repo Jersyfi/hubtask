@@ -1,6 +1,7 @@
 # ADR-0047 — The interface's policy names the installation's media origin
 
 **Status:** accepted · **Date:** 2026-09-08 · **Accepted:** 2026-09-17
+**Rule lives in:** [security.md](../architecture/security.md) §9
 
 ## Context
 
