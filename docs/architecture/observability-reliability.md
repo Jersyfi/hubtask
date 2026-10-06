@@ -1,8 +1,9 @@
 # Observability and Reliability
 
 The goal: the system runs stably, degrades in a controlled way instead of crashing, loses no data,
-and **always knows for itself what it is missing**. Complements [arc42.md](./arc42.md) §8.10/§8.11
-and [ADR-0016](../adr/ADR-0016-observability-reliability.md).
+and **always knows for itself what it is missing**. The decision is
+[ADR-0016](../adr/ADR-0016-observability-reliability.md); jobs and scheduling are
+[ADR-0008](../adr/ADR-0008-jobs-and-scheduling.md) (§15).
 
 ---
 
@@ -10,19 +11,19 @@ and [ADR-0016](../adr/ADR-0016-observability-reliability.md).
 
 | Principle | Meaning |
 |---|---|
-| **Self-diagnosis before alerting** | The process knows the state of every dependency and makes it machine-readably available (`/readyz`, `/meta/health`). The operator has to guess nothing. |
-| **Degrade rather than die** | The failure of an optional dependency (S3, SMTP, AI, search, NATS) reduces functionality — it terminates no process and blocks no write path. |
+| **Self-diagnosis before alerting** | The process knows the state of every dependency and makes it machine-readable (`/readyz`, `/meta/health`). The operator has to guess nothing. |
+| **Degrade rather than die** | The failure of an optional dependency (S3, SMTP, AI, NATS) reduces functionality. It terminates no process and blocks no write path. |
 | **No silent failure** | Every discarded operation produces a metric plus a log plus, where it matters to the business, a visible state on the object. "Failed and nobody knows" is a bug. |
 | **Alert on symptoms** | Alerts hang off user impact (an SLO violation, a backlog), not off CPU utilisation. |
-| **Restart is the normal case** | Every process may die at any time. State lives in PostgreSQL, jobs are idempotent and at-least-once. |
-| **Observability is part of the Definition of Done** | A use case without a metric, without a trace span, and without error classification is not finished. |
+| **Restart is the normal case** | Every process may die at any time. State lives in PostgreSQL; jobs are idempotent and at-least-once. |
+| **Observability is part of the Definition of Done** | A use case without a metric, a trace span and error classification is not finished (RT-12, §12). |
 
 ---
 
 ## 2. Service level objectives
 
-Reference values for provider operation; in self-hosting the same metrics apply, but without the
-error budget process.
+Reference values for provider operation. In self-hosting the same metrics apply, without the error
+budget process.
 
 | SLO | Indicator | Target | Window |
 |---|---|---|---|
@@ -31,52 +32,59 @@ error budget process.
 | SLO-3 Write latency | P95 mutating operations | < 300 ms | 30 days |
 | SLO-4 Event delivery | Outbox lag P99 | < 30 s | 7 days |
 | SLO-5 Reminder punctuality | The share of reminders within 60 s of their target time | ≥ 99% | 30 days |
-| SLO-6 Webhook delivery | The share successfully delivered (after retries, excluding 4xx recipient errors) | ≥ 99.5% | 7 days |
+| SLO-6 Webhook delivery | The share delivered (after retries, excluding 4xx recipient errors) | ≥ 99.5% | 7 days |
 | SLO-7 Automation | The share of rule runs without an internal error | ≥ 99.5% | 7 days |
 | SLO-8 Data loss | Confirmed writes that get lost | **0** | Always |
-| RPO / RTO | The data loss and recovery targets after a total outage | RPO ≤ 5 min (PITR), RTO ≤ 60 min | Per incident |
+| RPO / RTO | Data loss and recovery after a total outage | RPO ≤ 5 min (PITR), RTO ≤ 60 min | Per incident |
 
-The error budget rule: once 50% of an SLO's budget is consumed, stability work takes precedence
-over new features until it recovers. This rule lives in the repository, not just in somebody's head.
+**Error budget rule:** once 50% of an SLO's budget is consumed, stability work takes precedence over
+new features until it recovers.
+
+The RPO and RTO above are targets. What a restore drill measures stays internal and is not
+committed to this repository (§13.2).
 
 ---
 
 ## 3. Signals
 
 ### 3.1 Logs
+
 Structured JSON through `log/slog`. Mandatory fields: `ts`, `level`, `msg`, `service`, `role`,
-`version`, `component`, `request_id`, `trace_id`, `span_id`, `tenant_id`, `actor_type`,
-`use_case`, `error_code`.
+`version`, `component`, `request_id`, `trace_id`, `span_id`, `tenant_id`, `actor_type`, `use_case`,
+`error_code`.
 
-**`component` is not `role`, and the difference is the point.** The role is the process, and one
-process may serve several (ADR-0014) — so a line from a combined deployment reads `role=api,worker`
-and does not say which loop wrote it. The component is the loop: `rest`, `worker.runner`,
-`worker.scheduler`, `worker.job_listener`, `api.change_listener`, `restore-drill`. Both are set
-where a unit of work begins rather than at each call site, through the same context seam the
-request ID travels in (`core/shared/correlation`), because a field every author has to remember is
-the field missing from the line somebody is reading during an incident.
-
-`error_code` is the other one worth stating plainly: it is a **stable** code, never a sentence, so
-that a query over the logs finds every instance of one failure rather than every phrasing of it. **No** user content (titles, notes, comments, attachment names), no tokens, no email
-addresses in clear text (hashed, or the account ID). Level policy: `ERROR` only for states that
-require human action — otherwise `WARN`. Expected business errors (validation, `404`) are `INFO`.
+* **`component` is not `role`.** The role is the process, and one process may serve several
+  (`role=api,worker`). The component is the loop: `rest`, `worker.runner`, `worker.scheduler`,
+  `worker.job_listener`, `api.change_listener`, `restore-drill`. Both are set where a unit of work
+  begins, through the context seam the request ID travels in (`core/shared/correlation`), not at
+  each call site.
+* **`error_code` is a stable code, never a sentence**, so a query finds every instance of one
+  failure.
+* **No user content** (titles, notes, comments, attachment names), no tokens, no email addresses in
+  clear text (hashed, or the account ID).
+* Levels: `ERROR` only for states that require human action, otherwise `WARN`. Expected business
+  errors (validation, `404`) are `INFO`.
 
 ### 3.2 Metrics
-OpenTelemetry → a Prometheus endpoint on the internal port (9090, not public).
-Label cardinality is bounded: **never** `item_id`, `user_id`, or `rule_id` as a label;
-`tenant_id` only if the operator enables it (`HUBTASK_METRICS_TENANT_LABEL=true`) — in provider
-operation with many tenants it would otherwise explode the cardinality.
+
+OpenTelemetry → a Prometheus endpoint on the operations port (9090, never public). Label
+cardinality is bounded: **never** `item_id`, `user_id` or `rule_id` as a label; `tenant_id` only if
+the operator enables it (`HUBTASK_METRICS_TENANT_LABEL=true`), because in provider operation with
+many tenants it would explode the cardinality.
 
 ### 3.3 Traces
-OpenTelemetry; the W3C `traceparent` is adopted from incoming requests and passed on to outbound
-calls — including across the outbox and the job queue (the `trace_id` is persisted in the
-event/job). That makes a chain of *HTTP request → event → automation rule → webhook* traceable
-end to end. Sampling: 100% of errors, 100% of slow requests (> 1 s), otherwise configurable
-(5% by default).
+
+OpenTelemetry, exported over OTLP/HTTP when `HUBTASK_TRACING_ENABLED` is set
+([deployment.md](./deployment.md) §6.1). The W3C `traceparent` is adopted from incoming requests and
+passed on to outbound calls, including across the outbox and the job queue (the `trace_id` is
+persisted in the event or job), so *HTTP request → event → automation rule → webhook* is traceable
+end to end. Sampling: 100% of errors, 100% of slow requests (> 1 s), otherwise
+`HUBTASK_TRACING_SAMPLE_RATIO` (5% by default). An upstream decision to sample is honoured.
 
 ### 3.4 Business events
-`activity_entry` and `rule_run` are observability visible to users: why was this task moved? Which
-rule fired, and what did it do? That view is part of the product, not just of operations.
+
+`activity_entry` and `rule_run` are observability visible to users: why was this task moved, which
+rule fired and what did it do. That view is part of the product.
 
 ---
 
@@ -86,12 +94,12 @@ rule fired, and what did it do? That view is part of the product, not just of op
 |---|---|---|---|
 | `hubtask_http_requests_total` | Counter | `route`, `method`, `status_class` | RED rate/errors |
 | `hubtask_http_request_duration_seconds` | Histogram | `route`, `method` | RED duration, SLO-2/3 |
-| `hubtask_usecase_total` | Counter | `use_case`, `result` (see below) | The business error rate per use case |
+| `hubtask_usecase_total` | Counter | `use_case`, `result` (§4.1) | The business error rate per use case |
 | `hubtask_inflight_requests` | Gauge | `role` | Overload detection |
-| `hubtask_db_pool_connections` | Gauge | `pool`, `state` (`in_use`/`idle`/`max`) | Saturation. The configured ceiling rides the same series as a third state, so A-11 divides one metric by itself and needs no configuration knowledge |
-| `hubtask_db_query_duration_seconds` | Histogram | `query_name` (from sqlc) | Slow queries. **Not built yet**: no alert reads it, and sqlc names every query, so it is a wiring question rather than a design one |
-| `hubtask_db_errors_total` | Counter | `class` (`timeout`/`serialization`/`connection`) | Instability. **Not built yet**: the categories exist in the error model; nothing counts them per class |
-| `hubtask_outbox_pending` | Gauge | — | Backlog. **Not built yet as a series**: the number exists as a field in `/meta/health`, and A-05 alerts on the lag rather than on the depth |
+| `hubtask_db_pool_connections` | Gauge | `pool`, `state` (`in_use`/`idle`/`max`) | Saturation. The ceiling rides the same series as a third state, so A-11 divides one metric by itself |
+| `hubtask_db_query_duration_seconds` | Histogram | `query_name` (from sqlc) | Slow queries. **Not built** |
+| `hubtask_db_errors_total` | Counter | `class` (`timeout`/`serialization`/`connection`) | Instability. **Not built** |
+| `hubtask_outbox_pending` | Gauge | — | Backlog. **Not built as a series**: the number is a field of `/meta/health`, and A-05 alerts on the lag |
 | `hubtask_outbox_lag_seconds` | Histogram | — | SLO-4 |
 | `hubtask_job_queue_depth` | Gauge | `job_type` | Backlog |
 | `hubtask_job_duration_seconds` | Histogram | `job_type` | Runtime behaviour |
@@ -99,59 +107,54 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_job_dead_letter_total` | Counter | `job_type` | Finally failed → always visible |
 | `hubtask_scheduler_tick_lag_seconds` | Gauge | — | The scheduler is stuck |
 | `hubtask_reminder_delivery_delay_seconds` | Histogram | `channel` | SLO-5 |
-| `hubtask_recurrence_occurrence_lag_seconds` | Histogram | `mode` | How late a series' entries appear (ADR-0008, D-05) |
-| `hubtask_notifications_recorded_total` | Counter | `category`, `channel`, `state` | Who is told what, and how much of it is suppressed (C-09) |
+| `hubtask_recurrence_occurrence_lag_seconds` | Histogram | `mode` | How late a series' entries appear |
+| `hubtask_notifications_recorded_total` | Counter | `category`, `channel`, `state` | Who is told what, and how much is suppressed |
 | `hubtask_notification_send_duration_seconds` | Histogram | `category`, `channel` | How long a message takes to leave |
 | `hubtask_notification_failures_total` | Counter | `category`, `channel`, `reason` | A mail server that is down, told apart from an address that is refused |
-| `hubtask_stream_connections` | Gauge | — | Long-lived connections a process is holding open: change streams (C-10) **and agent streams** (J-13), counted together because they are the same resource and share one set of caps. Which endpoint a connection came in at is deliberately not a label — an operator watching a pod's capacity is watching one number |
+| `hubtask_stream_connections` | Gauge | — | Long-lived connections a process holds open — change streams and agent streams together, because they are one resource with one set of caps. The endpoint is deliberately not a label |
 | `hubtask_stream_duration_seconds` | Histogram | — | A one-second stream is a client reconnecting in a loop; a day-long one is working |
 | `hubtask_stream_refused_total` | Counter | `reason` | Which cap refused a connection: credential, tenant, process, or a drain |
-| `hubtask_stream_records_total` | Counter | — | Change records delivered; against the log's growth, whether the streams keep up. The change stream alone: an agent is told *that* its resource list moved and re-reads what it needs, so there are no records to count |
-| `hubtask_sync_push_mutations_total` | Counter | `result` | Mutations `POST /sync:push` answered, by result - `APPLIED`, `MERGED`, `REJECTED`, `CONFLICT` (N-04). Whether offline work is landing, and how much of it the server turned away |
-| `hubtask_sync_pull_records_total` | Counter | — | Change records handed out by `POST /sync:pull` (N-01) and by `POST /sync:snapshot` (P-12), which is the same walk as one response and is counted as a stream connection while it runs. Beside the stream's counter rather than folded into it: the two together say whether devices keep up with the log, and apart, by which door |
+| `hubtask_stream_records_total` | Counter | — | Change records delivered by the change stream |
+| `hubtask_sync_push_mutations_total` | Counter | `result` | Mutations `POST /sync:push` answered: `APPLIED`, `MERGED`, `REJECTED`, `CONFLICT` |
+| `hubtask_sync_pull_records_total` | Counter | — | Change records handed out by `POST /sync:pull` and `POST /sync:snapshot` |
 | `hubtask_rule_runs_total` | Counter | `result`, `trigger_type` | SLO-7 |
 | `hubtask_rule_disabled_total` | Counter | `reason` | Makes self-protection visible |
 | `hubtask_webhook_deliveries_total` | Counter | `result` (`ok`/`retry`/`dead`), `status_class` | SLO-6 |
 | `hubtask_webhook_retry_backlog` | Gauge | — | Backlog |
+| `hubtask_bus_publications_total` | Counter | `outcome`, `event_type` or `reason` | Events put on the optional message bus, and the ones refused. The subject is not a label: it carries a tenant identifier |
 | `hubtask_outbound_http_duration_seconds` | Histogram | `target_class` | Third-party latency |
 | `hubtask_circuit_breaker_state` | Gauge | `dependency` | 0 closed / 1 half / 2 open |
 | `hubtask_dependency_up` | Gauge | `dependency` | Self-diagnosis as a time series |
 | `hubtask_degraded_mode` | Gauge | `feature` | Which feature is currently restricted |
 | `hubtask_auth_failures_total` | Counter | `reason` | A security and misconfiguration signal |
-| `hubtask_rate_limited_total` | Counter | `scope` | Overload/abuse |
-| `hubtask_panics_recovered_total` | Counter | `component` | **must be permanently 0** |
+| `hubtask_rate_limited_total` | Counter | `scope` | Overload/abuse; load shedding counts as `scope="load_shed:deferrable"` |
+| `hubtask_panics_recovered_total` | Counter | `component` | **Must be permanently 0** |
 | `hubtask_config_invalid_total` | Counter | `key` | Misconfiguration instead of guesswork |
 | `hubtask_build_info` | Gauge (1) | `version`, `commit`, `go_version` | The version situation across the cluster |
-| `hubtask_migration_version` | Gauge | — | Makes schema drift between pods visible |
+| `hubtask_migration_version` | Gauge | — | The migration a pod's build embeds; makes schema drift between pods visible (A-13) |
 | `hubtask_tenant_quota_usage_ratio` | Gauge | `quota` | Approaching a quota |
-| `hubtask_backup_last_success_timestamp_seconds` | Gauge | `target_id` | A-12. By target and not by tenant: which targets exist is bounded by configuration, how many tenants there are is not |
-| `hubtask_dsr_deadline_total` | Counter | `stage` | A-19. A counter rather than a gauge, for the reason [`data-protection.md`](./data-protection.md) §4 gives |
-| `hubtask_retention_deleted_total` | Counter | `data_kind` | What a deletion run removed for good ([`data-retention.md`](./data-retention.md) §5) |
-| `hubtask_retention_blocked_total` | Counter | `reason` | And what it kept past its period, which is the half an operator has to be able to see |
+| `hubtask_backup_last_success_timestamp_seconds` | Gauge | `target_id` | A-12. By target, not by tenant: targets are bounded by configuration, tenants are not |
+| `hubtask_restore_drill_last_success_timestamp_seconds` | Gauge | — | A-20. Read from `HUBTASK_RESTORE_DRILL_RECORD_FILE` at every scrape; absent when no drill runs |
+| `hubtask_dsr_deadline_total` | Counter | `stage` | A-19. A counter rather than a gauge ([data-protection.md](./data-protection.md) §4) |
+| `hubtask_retention_deleted_total` | Counter | `data_kind` | What a deletion run removed for good ([data-retention.md](./data-retention.md) §5) |
+| `hubtask_retention_blocked_total` | Counter | `reason` | What it kept past its period |
 | `hubtask_retention_run_duration_seconds` | Histogram | `data_kind` | How long one pass took |
-| `hubtask_secret_reseals_total` | Counter | `store`, `outcome` | What a re-sealing round moved under the current master key, and what it had to leave (ADR-0045). The key identifier is deliberately not a label - it is read from `/admin/encryption` |
+| `hubtask_secret_reseals_total` | Counter | `store`, `outcome` | What a re-sealing round moved under the current master key, and what it had to leave. The key identifier is not a label |
 | `hubtask_media_reclaimed_total` | Counter | — | Media objects removed because nothing referenced them |
-| `hubtask_media_reclaim_failed_total` | Counter | — | Orphans a pass could not reclaim. A number that keeps rising is a bucket that will not let go, not a backlog that clears |
-| `hubtask_ai_requests_total` | Counter | `provider_kind`, `operation`, `result` | AI provider calls (J-03). The endpoint is deliberately not a label — it is a tenant's configuration, and a label per endpoint would grow a series per customer (§3.2). `provider_kind` is the closed set `noop`, `openai_compatible`, `ollama` |
-| `hubtask_ai_tokens_total` | Counter | `provider_kind`, `operation`, `direction` | What a provider reported consuming. The unit every provider agrees on, and the input to the per-tenant budget (J-15) — not a price, which this project does not have |
+| `hubtask_media_reclaim_failed_total` | Counter | — | Orphans a pass could not reclaim. A number that keeps rising is a bucket that will not let go |
+| `hubtask_ai_requests_total` | Counter | `provider_kind`, `operation`, `result` | AI provider calls. `provider_kind` is the closed set `noop`, `openai_compatible`, `ollama`; the endpoint is a tenant's configuration and never a label |
+| `hubtask_ai_tokens_total` | Counter | `provider_kind`, `operation`, `direction` | What a provider reported consuming; the input to the per-tenant budget |
 
 ### 4.1 The `result` label
 
-`result` is `ok`, or **the error category of the domain error model in lower case** — one label
-value per category, never a summary of several. Today that is `validation`, `not_found`,
-`conflict`, `forbidden`, `unauthenticated`, `gone`, `rate_limited`, `unavailable`, `internal`. The
-set is defined by `core/domain/model/shared.Category`, not by this table: it grows when the error
-model grows a category, which is a deliberate act rather than an accident, and the code derives
-the label rather than translating it.
+`result` is `ok`, or **the error category of the domain error model in lower case** — one value
+per category, never a summary of several: `validation`, `not_found`, `conflict`, `forbidden`,
+`unauthenticated`, `gone`, `rate_limited`, `unavailable`, `internal`. The set is defined by
+`core/domain/model/shared.Category`; the code derives the label rather than translating it.
 
-The rule follows from §1. **No silent failure** says every discarded operation produces a signal —
-and a throttled request counted as `internal` does produce one, it just reports a defect that did
-not happen. **Alert on symptoms** then makes that concrete: an alert on "our fault" would page
-when a tenant hits the rate limit it was given, which is a system working exactly as configured.
-And a use case is not finished without an *error classification*; a classification that contradicts
-the domain's own is a second, competing truth about the same failure.
-
-Coarser views are a query, not a label:
+A throttled request counted as `internal` would report a defect that did not happen, and an alert
+on "our fault" would page when a tenant hits the rate limit it was given. Coarser views are a
+query, not a label:
 
 ```promql
 # Our fault - the error budget of SLO-1
@@ -161,14 +164,8 @@ sum(rate(hubtask_usecase_total{result=~"internal|unavailable"}[5m])) by (use_cas
 sum(rate(hubtask_usecase_total{result=~"validation|not_found|gone|conflict|forbidden|unauthenticated"}[5m]))
 ```
 
-Aggregating at read time costs a regular expression. Aggregating at write time costs the
-information, permanently — a label written coarsely cannot be refined afterwards, and the incident
-that needed the distinction is the one where nobody can go back and get it.
-
-Cardinality stays bounded, which is the constraint this rule has to respect (§3.2): ten values is
-a closed set fixed by the domain, and a counter series exists only once it has been incremented,
-so outcomes that never occur cost nothing. The enemy of cardinality is the unbounded label — an
-item ID, a raw path — not the tenth value of an enumeration.
+A label written coarsely cannot be refined afterwards. A closed set of ten values is bounded
+cardinality; the enemy is the unbounded label — an item ID, a raw path.
 
 ---
 
@@ -178,10 +175,13 @@ Four levels, deliberately kept separate:
 
 | Endpoint | Semantics | Who uses it |
 |---|---|---|
-| `/healthz` | The process is alive, the event loop responds. **Checks no dependencies** — otherwise a database outage kills every pod at once. | Liveness probe |
-| `/startupz` | Initialisation complete, the migration state is compatible | Startup probe |
-| `/readyz` | The process can serve traffic: the database is reachable, the pool is not exhausted, the schema is compatible, and it is not shutting down | Readiness probe, load balancer |
-| `GET /api/v1/meta/health` (authenticated) | **Deep self-diagnosis**: per dependency the status, latency, last error, and circuit breaker state; per feature the degradation state; backlogs (outbox, queue, webhook retries); configuration warnings. **One route, two answers** since K-06: a credential holding `admin:tenants` reads all of it; anybody else reads `status`, `version` and `degraded_features` and needs `ops:read` plus a workspace administrator's permission. The rest is the installation's internals and does not cross a tenant boundary. The same report is served unauthenticated at `/meta/health` on the operations listener, which answers `503` when the status is `down` where this route answers `200` | Operators, support, a status page, and the client's health banner |
+| `/healthz` | The process is alive. **Checks no dependency** — otherwise a database outage kills every pod at once | Liveness probe |
+| `/startupz` | Initialisation is complete | Startup probe |
+| `/readyz` | The process can serve traffic: every mandatory dependency answers (PostgreSQL is the only one) and it is not shutting down. Answers a status code and a short reason only | Readiness probe, load balancer |
+| `GET /api/v1/meta/health` (authenticated) | **Deep self-diagnosis**: per dependency the status, latency, last error and breaker state; per feature the degradation state; backlogs (outbox, queue, webhook retries); configuration warnings. **One route, two answers:** a credential holding `admin:tenants` reads all of it; anybody else needs `ops:read` and a workspace administrator's permission, and reads `status`, `version` and `degraded_features` only. The same full report is served unauthenticated at `/meta/health` on the operations listener, which answers `503` when the status is `down` | Operators, support, a status page, the client's health banner |
+
+Neither `/startupz` nor `/readyz` compares the pod's schema with the database's yet
+([deployment.md](./deployment.md) §8, D-5).
 
 An example response (abridged):
 
@@ -189,7 +189,6 @@ An example response (abridged):
 {
   "status": "degraded",
   "version": "0.4.2",
-  "migration": { "applied": 47, "expected": 47, "status": "ok" },
   "dependencies": [
     { "name": "postgres", "required": true,  "status": "ok",   "latency_ms": 3 },
     { "name": "object_storage", "required": false, "status": "down",
@@ -202,14 +201,14 @@ An example response (abridged):
     { "feature": "media", "reason_code": "dependency.unavailable", "since": "2026-08-14T09:12:04Z" }
   ],
   "backlogs": { "outbox_pending": 12, "job_queue_depth": 3, "webhook_retry_backlog": 0 },
-  "warnings": [ { "code": "config.backup_not_configured", "severity": "warn" } ]
+  "warnings": [ { "code": "config.smtp_missing_with_reminders", "severity": "warn" } ]
 }
 ```
 
-The `warnings` field is the direct expression of the requirement to "always know what it is
-missing": a missing backup configuration, missing SMTP with reminders enabled, missing object
-storage with uploads enabled, expired signing keys, approaching token expiries, a pod on a stale
-schema version — everything is reported as a code with a severity, not as free text.
+`warnings` is the direct expression of "always know what it is missing": every gap is a code with a
+severity, never free text. Today: `config.smtp_missing`, `config.smtp_missing_with_reminders`,
+`config.smtp_without_tls`, `config.base_url_missing`, `config.egress_allowlist_missing` (multi mode)
+and `config.egress_private_networks_allowed`.
 
 ---
 
@@ -217,20 +216,20 @@ schema version — everything is reported as a code with a severity, not as free
 
 | Pattern | Binding implementation |
 |---|---|
-| **Timeouts everywhere** | No `http.Client`, no database query, no job without a deadline. A call without a timeout is a lint error (`noctx`, plus a custom check for `context.Background()` outside `main`). |
-| **Context propagation** | `ctx` is passed through; a client abort ends the work (except for an already committed transaction). |
-| **Retry with backoff + jitter** | Only for idempotent operations; exponential, capped, with a maximum attempt count; never in the synchronous request path against third-party systems. |
-| **Circuit breaker** | Per external dependency (object storage, SMTP, AI, and per webhook target). Open → an immediate error instead of a blocked thread; half-open with a probe. The state appears as a metric and in `/meta/health`. |
-| **Bulkheads** | Separate connection and worker pools for API, worker, and automation. A runaway rule must not starve the interactive path; under Kubernetes, separate deployments on top. |
-| **Load shedding** | Above a threshold for `inflight_requests`, new *non-interactive* requests (bulk, export, search, the query shapes) are rejected with `503` + `Retry-After`, before latency tips over for everyone. The threshold is `HUBTASK_LOAD_SHED_INFLIGHT`, set per role; the classification is `rest.DeferrableRoutes`, and a refusal counts as `hubtask_rate_limited_total{scope="load_shed:deferrable"}` (H-11). A parked request is not load: the change stream is admitted without being counted (`rest.LongLivedRoutes`), because counting it would make the threshold a limit on open tabs. |
-| **Rate limits** | Internally too: automation rules have throttles per rule and per tenant. |
-| **A queue instead of synchrony** | Everything external goes through the outbox or jobs. A hanging webhook recipient cannot delay an API response. |
-| **Idempotency** | `Idempotency-Key` on the outside, `job.dedupe_key` on the inside (the column's own spelling, corrected here by D-03), `delivery_id` for webhooks. At-least-once plus idempotency = effectively exactly-once. |
-| **Poison pill protection** | After *n* failed attempts → dead letter with full context, a metric, and admin visibility; the queue stays clear. |
-| **Optimistic locking** | A `version` per aggregate, a `409` with a machine-readable conflict instead of data loss through last-write-wins. |
-| **Panic recovery** | Middleware per request, a wrapper per job, and a **ban on bare goroutines**: concurrency only through `SafeGo(ctx, name, fn)` with recover plus a metric. An architecture test verifies that `go ` occurs only in `shared/concurrency`. |
-| **Memory and resource protection** | `GOMEMLIMIT` set, streaming instead of full buffering for uploads and exports, capped result sets — OOM kills are an architecture defect, not an operations problem. |
-| **Clock robustness** | The scheduler catches up (bounded catch-up after an outage) and tolerates time jumps; no assumption that "the tick arrived on time". |
+| **Timeouts everywhere** | No `http.Client`, no database query, no job without a deadline; `noctx` and `contextcheck` in `golangci-lint`. **The client is held to the same rule:** every request the sync engine's transport sends carries a deadline (`FetchTransport` refuses a transfer without a positive timeout) |
+| **Context propagation** | `ctx` is passed through; a client abort ends the work (except for an already committed transaction) |
+| **Retry with backoff + jitter** | Only for idempotent operations; exponential, capped, with a maximum attempt count; never in the synchronous request path against third-party systems |
+| **Circuit breaker** | Per external dependency (object storage, SMTP, AI per endpoint, each webhook target). Open → an immediate error instead of a blocked call; half-open with a probe. The state is a metric and is in `/meta/health` |
+| **Bulkheads** | Separate connection and worker pools for API, worker and automation. A runaway rule must not starve the interactive path; under Kubernetes, separate deployments on top |
+| **Load shedding** | Above `HUBTASK_LOAD_SHED_INFLIGHT` requests in flight (set per role), new *deferrable* requests — bulk, export, search, the query shapes (`rest.DeferrableRoutes`) — are refused with `503` + `Retry-After`, before latency tips over for everyone. A parked stream is not load: the change stream is admitted without being counted (`rest.LongLivedRoutes`) |
+| **Rate limits** | Internally too: automation rules have throttles per rule and per tenant |
+| **A queue instead of synchrony** | Everything external goes through the outbox or jobs. A hanging webhook recipient cannot delay an API response |
+| **Idempotency** | `Idempotency-Key` on the outside, `job.dedupe_key` on the inside, `delivery_id` for webhooks. At-least-once plus idempotency = effectively exactly-once |
+| **Poison pill protection** | After *n* failed attempts → dead letter with full context, a metric and admin visibility; the queue stays clear |
+| **Optimistic locking** | A `version` per aggregate; a `409` with a machine-readable conflict instead of data loss through last-write-wins |
+| **Panic recovery** | Middleware per request, a wrapper per job, and a **ban on bare goroutines**: concurrency only through `SafeGo(ctx, name, fn)` with recover plus a metric. An architecture test verifies that `go ` occurs only in `core/shared/concurrency` |
+| **Memory and resource protection** | `GOMEMLIMIT` below the container's memory limit; streaming instead of full buffering for uploads and exports; capped result sets. OOM kills are an architecture defect. Neither the image nor the chart sets `GOMEMLIMIT` yet (§14, O-5) |
+| **Clock robustness** | The scheduler catches up (bounded catch-up after an outage) and tolerates time jumps; no assumption that "the tick arrived on time" |
 
 ---
 
@@ -242,137 +241,132 @@ schema version — everything is reported as a code with a severity, not as free
 | Object storage (S3-compatible) | Core features normal; upload/download disabled, `degraded_features` set | Attachments temporarily unavailable, tasks work |
 | SMTP / push | Notifications stay in the queue and are caught up; no loss | The reminder arrives late, with an in-app notice |
 | `LISTEN/NOTIFY` (the stream's wake-up) | Streams fall back to their idle poll interval; no record is lost or reordered | Changes arrive within seconds instead of immediately |
-| AI provider | AI suggestions disappear and search stops finding entries by what they mean — two features from one dependency, so the report carries both `ai_suggestions` and `semantic_search` (J-10). Every manual route remains, and search still finds the words somebody typed. One breaker **per endpoint** (J-03), because a provider is per tenant and a single breaker would let one workspace's dead endpoint switch off everybody's; `/meta/health` reports the installation's view — `disabled` until this process has called a provider at all, then `ok` or `down`, or `degraded` where a configured embedding model produces vectors the index cannot hold ([#569](https://github.com/Jersyfi/hubtask/issues/569): every endpoint answers, the search is lexical, and the reason is `ai.embedding_too_wide` rather than the outage's `dependency.unavailable`) — and never names an endpoint or a model. Proved against a real stopped container in `TestRT1AStoppedContainerDegradesExactlyItsOwnFeature` (J-04, evidence [RT-1-2026-09-09.md](../evidence/RT-1-2026-09-09.md)), and the *disabled* half against an installation configured with no provider at all (J-17, evidence [QS-09-2026-09-09.md](../evidence/QS-09-2026-09-09.md)) - where the report is `ok` with an empty `degraded_features`, because an installation that never wanted AI has lost nothing | The feature is greyed out with a reason; where there is no provider at all there is no control, which the client reads from `/meta/capabilities` rather than from a refusal |
+| AI provider | AI suggestions disappear and search stops finding entries by meaning; the report carries both `ai_suggestions` and `semantic_search`. Every manual route remains, and search still finds the words typed. One breaker **per endpoint**, because a provider is per tenant. `/meta/health` reports the installation's view without naming an endpoint or a model: `disabled` until this process has called a provider, then `ok` or `down`, or `degraded` with `ai.embedding_too_wide` where a configured embedding model is wider than the index. An installation with no provider reports `ok` with no degraded feature — it has lost nothing | The feature is greyed out with a reason; where there is no provider at all there is no control, which the client reads from `/meta/capabilities` |
 | External search index (optional) | Fallback to PostgreSQL full-text search | Slower, slightly different search |
-| NATS (optional) | The breaker opens, the outbox holds the events, and the publish jobs retry on the queue's ladder; delivery resumes when the bus returns, without a restart (H-14, proved in `test/resilience/rt1_bus_dependency_test.go`) | No visible change |
+| NATS (optional) | The breaker opens, the outbox holds the events, and the publish jobs retry on the queue's ladder; delivery resumes when the bus returns, without a restart | No visible change |
 | Webhook recipient | Retries over 24 h, then dead letter plus a subscription warning | A warning in the integration settings |
-| OIDC provider | Existing sessions continue (tokens until expiry), local accounts work | New sign-in through SSO is not possible, with a clear message |
+| OIDC provider | Existing sessions continue (tokens until expiry), local accounts work | New sign-in through that provider is not possible, with a clear message |
 
-The rule: **no failure of an optional dependency may block the core write path.**
-That is a test case, not an intention.
+The rule: **no failure of an optional dependency may block the core write path.** RT-1 tests it
+against a stopped container for each optional dependency (§12).
 
 ---
 
 ## 8. Data integrity and restart
 
-* **The transaction boundary is the aggregate boundary**; the outbox entry is created in the same transaction as the business change → no event without a state change, and vice versa.
-* **No external calls inside transactions** (a lint rule plus a review point).
-* **Migrations** are expand/contract and backwards compatible for at least one minor version → a rolling update without downtime, a rollback without data loss.
-* **Backup**: PITR (WAL archiving) as the documented standard, `pg_dump` as the minimal variant for self-hosting; the media bucket separately. A restore drill is a **release criterion**, not a document.
-* **Post-restore verification**: a consistency check (orphaned items, outbox backlog, migration state, tenant isolation).
-* **Two safety nets for deletion**: trash for 30 days, then a hard delete; archiving is permanent and restorable. An operator error is not data loss.
+* **The transaction boundary is the aggregate boundary.** The outbox entry is created in the same
+  transaction as the business change: no event without a state change, and vice versa.
+* **No external calls inside transactions.**
+* **Migrations** are forward only and expand/contract, backwards compatible for at least one minor
+  version: a rolling update without downtime, a rollback without data loss
+  ([versioning-release.md](./versioning-release.md) §4).
+* **Backup:** PITR (WAL archiving) is the documented standard, `pg_dump` the minimal variant for
+  self-hosting; the media bucket separately. A restore drill is a **release criterion**, not a
+  document ([backup-restore.md](./backup-restore.md)).
+* **Post-restore verification:** a consistency check (orphaned items, outbox backlog, migration
+  state, tenant isolation).
+* **Two safety nets for deletion:** trash for 30 days, then a hard delete; archiving is permanent
+  and restorable. An operator error is not data loss.
 
 ---
 
 ## 9. Zero-downtime operation
 
-* Rolling update with `maxUnavailable: 0`, a readiness gate, and a `PodDisruptionBudget`.
-* Graceful shutdown: `SIGTERM` → deregister from `/readyz` → a grace period for the load balancer → drain in-flight requests → release job leases → exit. `terminationGracePeriodSeconds` ≥ the longest job timeout.
-* The migration job runs before the rollout, with an advisory lock, idempotently.
-* Schema drift detection: pods with an incompatible migration state report themselves not ready (instead of writing inconsistently).
-* Leader tasks (scheduler, outbox dispatcher) use advisory lock leader election with lease renewal; if the leader fails, another takes over within seconds.
+* Rolling update with `maxUnavailable: 0`, a readiness gate and a `PodDisruptionBudget`
+  ([deployment.md](./deployment.md) §5).
+* Graceful shutdown: `SIGTERM` → mark not ready → keep serving for the deregistration window →
+  drain in-flight requests → release job leases → exit. `terminationGracePeriodSeconds` ≥ the
+  longest job timeout plus the drain.
+* The migration Job runs before the rollout, with an advisory lock, idempotently.
+* Schema drift between pods is visible as `hubtask_migration_version` and alerted as A-13. A pod
+  does not refuse readiness on a schema mismatch yet ([deployment.md](./deployment.md) §8, D-5).
+* Leader tasks (scheduler, outbox dispatcher) use advisory-lock leader election; if the leader
+  fails, another takes over within a tick (§15).
 
 ---
 
 ## 10. Alert catalogue
 
-Symptom-based, each with a runbook. The thresholds are starting values for provider operation.
+Alerts are symptom-based, each with a runbook. **The rule files and the runbooks are the
+catalogue**: the condition, threshold and severity of each alert live in
+[`deploy/observability/alerts/`](../../deploy/observability/alerts/), and what it means and what to
+do in [`deploy/observability/runbooks/`](../../deploy/observability/runbooks/). Every rule carries
+its catalogue ID as the label `alert_id` and its runbook as the annotation `runbook`. The thresholds
+are starting values; an operator tunes them in their own copy.
 
-**The whole catalogue ships as rules since H-12.** Every row below is a rule in one of the three
-files §11 names, with a runbook beside it and a synthetic test that drives its condition. Two rows
-carry two rules — A-15's refusal rate and its token-reuse page are different severities of
-different things, and A-01/A-02 each need a long window and a short one — so the files hold more
-rules than this table has rows.
-
-| ID | Condition | Severity | Meaning |
+| ID | Alert(s) | File | Runbook |
 |---|---|---|---|
-| A-01 | SLO-1 error budget burn rate > 14× (1 h) | page | An acute outage |
-| A-02 | SLO-1 burn rate > 6× (6 h) | page | A creeping outage |
-| A-03 | `readyz` red on > 30% of instances (5 min) | page | A dependency or the rollout is broken |
-| A-04 | `hubtask_panics_recovered_total` > 0 | page | A program defect; the target is constantly 0 |
-| A-05 | Outbox lag > 60 s (10 min) | page | Events and automation are stuck |
-| A-06 | Job queue depth monotonically rising (15 min) | ticket | Processing cannot keep up |
-| A-07 | Dead letter > 0 (per type, 15 min) | ticket | Finally failed operations |
-| A-08 | Reminder delay P95 > 120 s | ticket | SLO-5 at risk |
-| A-09 | Webhook error rate > 20% (30 min, excluding 4xx recipient errors) | ticket | Delivery problems |
-| A-10 | Circuit breaker open > 10 min | ticket | A third-party system persistently disrupted |
-| A-11 | Database pool utilisation > 80% (10 min) | ticket | Saturation approaching |
-| A-12 | A replication/PITR gap, or a backup older than 24 h, per target | page | Risk of data loss. **Both halves ship since H-10.** The backup half has watched `hubtask_backup_last_success_timestamp_seconds` per target since E-05; the PITR half is a fourth rule file over the database operator's own series — the unarchived WAL queue, the archiver's failures, the age of the newest base backup, an archive with no recoverability point at all, and a replica past the objective. It is loaded only where CloudNativePG runs, because an installation with a database of its own has none of those series ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md)) |
-| A-13 | Migration versions inconsistent across the cluster > 15 min | ticket | The rollout is stuck |
-| A-14 | `hubtask_config_invalid_total` > 0 after startup | ticket | Misconfiguration |
-| A-15 | Auth error rate > 5%, or refresh reuse detected | ticket/page | Misconfiguration or an attack |
-| A-16 | Automation: rule deactivations > 0 in 1 h | ticket | The loop/error protection kicked in |
-| A-17 | A certificate or signing key expires in < 14 days | ticket | Preventive |
-| A-18 | A tenant exceeds 90% of a quota | info | Capacity planning |
-| A-19 | A data subject request is approaching its statutory deadline | ticket | The deadline is legal, not internal ([ADR-0018](../adr/ADR-0018-privacy-by-design.md), `data-protection.md` §4). Built with E-10: `hubtask_dsr_deadline_total{stage}`, incremented by the per-tenant deadline watch, with `RB-A19-dsr-deadline.md`. A counter rather than a gauge, because a gauge would need a tenant label to be true in provider operation and an unlabelled one would carry the last workspace's number |
-| A-20 | The last restore drill is older than 90 days | ticket | A backup nobody has restored is a hypothesis (`backup-restore.md` §10). **The gauge under it exists since H-10**: the drill writes a record, the record reaches every process as a mounted file, and the process reports it at every scrape. The rule still carries no `absent()` — an installation that runs no drill must not be paged for a feature it never installed — and the never-ran case is a *ticket* in the PITR file, which is loaded only where the drill is meant to run |
+| A-01 | `HubtaskErrorBudgetBurnAcute` | provider | `RB-A01-acute-burn.md` |
+| A-02 | `HubtaskErrorBudgetBurnCreeping` | provider | `RB-A02-creeping-burn.md` |
+| A-03 | `HubtaskNotReady` | self-hosting | `RB-A03-not-ready.md` |
+| A-04 | `HubtaskPanicRecovered` | self-hosting | `RB-A04-panic.md` |
+| A-05 | `HubtaskOutboxLagging` | self-hosting | `RB-A05-outbox-lag.md` |
+| A-06 | `HubtaskQueueNotKeepingUp` | provider | `RB-A06-queue-growth.md` |
+| A-07 | `HubtaskDeadLetter` | self-hosting | `RB-A07-dead-letter.md` |
+| A-08 | `HubtaskReminderDelay` | self-hosting | `RB-A08-reminder-delay.md` |
+| A-09 | `HubtaskWebhookDeliveryFailing` | provider | `RB-A09-webhook-failures.md` |
+| A-10 | `HubtaskCircuitBreakerOpen` | provider | `RB-A10-breaker-open.md` |
+| A-11 | `HubtaskPoolNearSaturation` | provider | `RB-A11-pool-saturation.md` |
+| A-12 | `HubtaskBackupStale`; the PITR half: `HubtaskArchiveGap`, `HubtaskArchiveBacklog`, `HubtaskBaseBackupStale`, `HubtaskNoRecoverabilityPoint`, `HubtaskReplicationLag` | self-hosting; pitr | `RB-A12-backup-stale.md` |
+| A-13 | `HubtaskMigrationVersionsDiverge` | provider | `RB-A13-migration-drift.md` |
+| A-14 | `HubtaskMisconfigured` | provider | `RB-A14-misconfiguration.md` |
+| A-15 | `HubtaskAuthFailureRate`, `HubtaskRefreshTokenReused` | provider | `RB-A15-auth-failures.md` |
+| A-16 | `HubtaskRuleSelfDisabled` | provider | `RB-A16-rule-disabled.md` |
+| A-17 | `HubtaskCertificateExpiring` | provider | `RB-A17-certificate-expiry.md` |
+| A-18 | `HubtaskTenantQuotaApproaching` | tenant | `RB-A18-quota-approaching.md` |
+| A-19 | `HubtaskDataSubjectDeadline` | self-hosting | `RB-A19-dsr-deadline.md` |
+| A-20 | `HubtaskRestoreDrillStale`; `HubtaskRestoreDrillNeverRan` | self-hosting; pitr | `RB-A20-restore-drill-stale.md` |
 
-For **self-hosting** there is a reduced variant: a standard Grafana dashboard and an alert rule file
-with A-03, A-04, A-05, A-07, A-08, A-12, A-19, A-20 — plus the warnings from `/meta/health`, which are visible even
-without Prometheus. **A-18 ships in its own file beside it**
-(`deploy/observability/alerts/prometheus-rules-tenant.yaml`, H-08): the self-hosting set is pinned
-to "doing nothing loses data", and a capacity-planning signal deliberately does not join it — a
-provider adds the second file, a self-hoster who configures no quotas has no series for it to
-fire on. The rest of the catalogue is the third file, and nothing in it reaches a self-hosted
-installation: the reduced set is a decision about what "doing nothing loses data" means, and H-12
-added rules without touching it.
+**Which file an alert is in is a decision about who is paged** (§11):
+
+* **self-hosting** (`prometheus-rules.yaml`) — the set where doing nothing loses data or leaves the
+  installation broken. It is pinned in `test/observability`, so adding to it is a deliberate act.
+* **tenant** (`prometheus-rules-tenant.yaml`) — the capacity signal a provider adds; a self-hoster
+  who configures no quotas has no series for it.
+* **provider** (`prometheus-rules-provider.yaml`) — the rest, for an operator with an on-call rota.
+  A-01/A-02 are multiwindow burn rates over recorded `hubtask:slo1_error_ratio:*` series.
+* **pitr** (`prometheus-rules-pitr.yaml`) — over the database operator's own series, loaded only
+  where CloudNativePG runs; the chart renders it as a `PrometheusRule` where it owns the database.
+
+An alert never fires for a feature that was never installed: A-20 carries no `absent()`, and the
+never-ran case is a ticket in the pitr file. Besides the rules, `/meta/health`'s warnings are
+visible without any Prometheus.
 
 ---
 
 ## 11. Dashboards and runbooks
 
-Shipped under `deploy/observability/`:
+Shipped under `deploy/observability/`, and copied into the chart by `make chart-files` (the chart's
+copy is checked for drift by `make gate-chart`):
 
-* `dashboards/overview.json` — RED per route, SLO burn, saturation, version situation *(shipped)*
-* `dashboards/pipeline.json` — outbox, jobs, automation, webhooks, reminders *(shipped; the
-  reminder row arrived with D-03, automation and webhooks join it as those features arrive)*
-* `dashboards/tenant.json` — quotas, top tenants *(shipped with H-12; behind the tenant label of
-  §3.2, and it degrades rather than empties — the quota panels read the unlabelled series, and
-  each per-tenant panel names the setting that fills it)*
-* `dashboards/slo.json` — the eight objectives of §2, one row each: the attainment over the
-  objective's own window and the signal underneath it *(shipped with H-12)*
-* `alerts/prometheus-rules.yaml` — the reduced self-hosting set: A-03, A-04, A-05, A-07, A-08,
-  A-12, A-19, A-20 *(shipped; the set is pinned in `test/observability`, so adding one is a
-  deliberate act)*
-* `alerts/prometheus-rules-tenant.yaml` — A-18, the capacity signal a provider adds *(shipped, H-08)*
-* `alerts/prometheus-rules-provider.yaml` — the rest of the catalogue, with an on-call rota behind
-  it *(shipped with H-12: A-01/A-02 as multiwindow burn rates over recorded `hubtask:slo1_error_ratio:*`
-  series, then A-06, A-09, A-10, A-11, A-13, A-14, A-15, A-16, A-17)*
-* `alerts/prometheus-rules-pitr.yaml` — A-12's point-in-time recovery half and A-20's never-ran
-  companion, over the **database operator's** series rather than the application's *(shipped with
-  H-10; the chart renders it as a `PrometheusRule` where it owns the database)*
-* `runbooks/RB-xx.md` — per alert: the symptom, the immediate action, the diagnostic query, escalation, follow-up *(shipped, one per shipped alert)*
+| File | Content |
+|---|---|
+| `dashboards/overview.json` | RED per route, SLO burn, saturation, version situation |
+| `dashboards/pipeline.json` | Outbox, jobs, automation, webhooks, reminders |
+| `dashboards/tenant.json` | Quotas, top tenants. Behind the tenant label of §3.2; it degrades rather than empties — the quota panels read the unlabelled series, and each per-tenant panel names the setting that fills it |
+| `dashboards/slo.json` | The objectives of §2, one row each: attainment over the objective's window and the signal underneath |
+| `alerts/prometheus-rules.yaml`, `-tenant.yaml`, `-provider.yaml`, `-pitr.yaml` | The four rule files of §10 |
+| `runbooks/RB-xx.md` | Per alert: the symptom, the immediate action, the diagnostic query, escalation, follow-up |
 
-A provider loads all three rule files; a self-hoster loads only the first and is deliberately never
-paged by anything in the other two. Three files rather than one growing file, so that the pinned
-set keeps reading a file that never changes. The fourth is orthogonal to that split: it belongs to
-whoever runs CloudNativePG, provider or not, and to nobody else — a rule reading a series the
-installation has no component for is silent, which is worse than absent, so it is loaded by the
-chart that creates the component.
+A provider loads the self-hosting, tenant and provider files; a self-hoster loads only the first
+and is never paged by the others. The pitr file belongs to whoever runs CloudNativePG and to nobody
+else, because a rule reading a series the installation has no component for is silent.
 
-One thing the synthetic tests cannot prove about that fourth file: that the operator publishes
-those series under those names. A `promtool` test invents its own input, so a rule reading a
-metric nobody emits passes it and stays quiet in production — the failure mode §11 already worries
-about, one step further out. `scripts/pitr-drill.sh` closes it in CI by scraping a real
-CloudNativePG instance and failing on a name that is missing from the scrape.
+**`make gate-observability` enforces the catalogue:**
 
-Any alert without a runbook does not ship. That is `make gate-observability`, which checks it in
-both directions — an alert whose runbook is missing, and a runbook no alert points at — and
-`promtool check rules` for the expressions themselves. `make gate-selftest` proves it catches an
-alert added without one.
+* **Any alert without a runbook does not ship**, checked in both directions — an alert whose runbook
+  is missing, and a runbook no alert points at. `make gate-selftest` proves it catches an alert added
+  without one.
+* `promtool check rules` checks every expression; `promtool test rules` drives every alert's
+  condition from crafted series and matches its labels and annotations in full, one test file per
+  rule file. The burn pair proves the negative too: an outage that ended fires neither A-01 nor A-02.
+* The dashboards: the shipped set is the one this section names, no two share a uid, `slo.json`
+  has a row for every objective, and every `tenant.json` panel reading `tenant_id` carries its
+  notice.
 
-Since H-12 the gate also *runs* the rules: `promtool test rules` drives every alert's condition
-from crafted series and matches the labels and annotations it produces in full, one test file per
-rule file. The burn pair proves the negative as well — an outage that ended fires neither A-01 nor
-A-02 — which is the test that fails if somebody simplifies a multiwindow expression to one window.
-A rule that cannot fire is the failure mode this catches: A-15's denominator selected traffic with
-a regex that could never match the route label, and no amount of checking the syntax would have
-said so.
-
-The dashboards are checked too, in the same Go test: that the shipped set is the one this section
-names, that no two share a uid — Grafana keys an import by it, and a collision quietly keeps one —
-that `slo.json` has a row for every objective, and that every panel in `tenant.json` reading
-`tenant_id` carries the notice it degrades to.
+A `promtool` test invents its input, so it cannot prove that the database operator publishes the
+series the pitr file reads. `scripts/pitr-drill.sh` (`make gate-pitr`, nightly) scrapes a real
+CloudNativePG instance and fails on a name missing from the scrape.
 
 ---
 
@@ -380,21 +374,21 @@ that `slo.json` has a row for every objective, and that every panel in `tenant.j
 
 | Test | Contents | When |
 |---|---|---|
-| RT-1 Dependency failure | The test container for S3/SMTP/AI is stopped: the core stays writable, `degraded_features` is correct, recovery happens without a restart. All three since J-04; the AI container serves the provider's wire format rather than a model, and the evidence file says why | PR |
-| RT-2 Database outage and return | Pause PostgreSQL: no panic, `readyz` red, and after it returns, operation resumes automatically without a restart | PR |
+| RT-1 Dependency failure | The test container for S3, SMTP and AI is stopped: the core stays writable, `degraded_features` is correct, recovery happens without a restart. The AI container serves the provider's wire format, not a model | PR |
+| RT-2 Database outage and return | Pause PostgreSQL: no panic, `readyz` red, and after it returns operation resumes without a restart | PR |
 | RT-3 Process death mid-job | `SIGKILL` during job processing: the lease expires, and the job takes effect exactly once | PR |
-| RT-4 Duplicate delivery | An event delivered twice: no duplicate effect (idempotency) | PR |
+| RT-4 Duplicate delivery | An event delivered twice: no duplicate effect | PR |
 | RT-5 Slow third-party system | A webhook target with 30 s latency: API latency unchanged, the breaker opens | PR |
-| RT-6 Overload | A load test beyond capacity: load shedding engages, P95 on the interactive paths stays within target, no OOM | Nightly *(in `gate-load` since H-11; first run in [docs/evidence/RT-6-2026-09-02.md](../evidence/RT-6-2026-09-02.md))* |
+| RT-6 Overload | Load beyond capacity: load shedding engages, P95 on the interactive paths stays within target, no OOM | Nightly (`make gate-load`) |
 | RT-7 Automation loop | A rule pair A↔B: the causality bound stops it, the rule is disabled, the alert metric rises | PR |
 | RT-8 Rolling update | A deployment with the N−1/N schema under load: no `5xx`, no data loss | Nightly |
-| RT-9 Restore | A point-in-time recovery to a moment between two writes, then the consistency and isolation checks against what came back | Per release *(in the cluster, as a release hook and a weekly `CronJob`; the path itself is proved nightly in `gate-pitr` on kind with a real CloudNativePG operator and object store, because production does not exist yet — `backup-restore.md` §8.5)* |
-| RT-10 Clock jump / DST | The scheduler across a time change and after a 2 h outage: no double firing and no missed firing | PR *(in `gate-resilience` since D-05; first run in [docs/evidence/RT-10-2026-08-26.md](../evidence/RT-10-2026-08-26.md))* |
+| RT-9 Restore | A point-in-time recovery to a moment between two writes, then the consistency and isolation checks | Per release, in the cluster as a release hook and a weekly `CronJob`; the path itself nightly in `make gate-pitr` on kind with a real CloudNativePG operator and object store ([backup-restore.md](./backup-restore.md) §8.5) |
+| RT-10 Clock jump / DST | The scheduler across a time change and after a 2 h outage: no double and no missed firing | PR |
 | RT-11 Memory leak test | 1 h of sustained load: `GOMEMLIMIT` held, the goroutine count stable | Nightly |
 | RT-12 Observability completeness | Every use case produces a metric plus a span; reconciled against the use case registry | PR (gate) |
 
-RT-12 is the mechanism that stops observability rotting over time: a new feature without signals →
-a red build.
+RT-12 stops observability rotting: a new feature without signals is a red build. Where each test
+runs is [ci-cd.md](./ci-cd.md) §3.2.
 
 ---
 
@@ -403,113 +397,84 @@ a red build.
 | Aspect | Self-hosting | Provider |
 |---|---|---|
 | Instances | 1 process (all roles) + PostgreSQL | Separate deployments per role, ≥ 2 replicas |
-| Backup | A documented `pg_dump` cron job in the Compose file, with a warning when it is not configured | PITR plus a verified restore |
-| Alerting | The `/meta/health` warnings, optional Prometheus rules | The full catalogue plus an on-call rota |
+| Backup | A documented `pg_dump` beside the Compose stack ([backup-restore.md](./backup-restore.md) §8.6) | PITR plus a verified restore |
+| Alerting | The `/meta/health` warnings; optionally the self-hosting rule file | All rule files plus an on-call rota |
 | Tracing | Off (default) | On, with sampling |
 | Availability target | "Keeps running, restarts cleanly" | SLOs with an error budget |
 
-Importantly: the code is identical. Only the configuration and the operating process differ — the
-self-diagnosis works in both cases.
+The code is identical. Only the configuration and the operating process differ, and the
+self-diagnosis works in both.
 
 ### 13.1 Our own operation
 
-The backend for the alerts of the environments *we* run, decided in H-12 and closing O-1:
-**Prometheus and Alertmanager in the cluster itself**, applied by
-[`deploy/integration/bootstrap.sh`](../../deploy/integration/monitoring.yaml) into a `monitoring`
+The alerting backend of the environments this project runs: **Prometheus and Alertmanager in the
+cluster itself**, applied by `deploy/integration/bootstrap.sh` from
+[`deploy/integration/monitoring.yaml`](../../deploy/integration/monitoring.yaml) into a `monitoring`
 namespace beside the application.
 
 | | |
 |---|---|
 | Evaluation | Prometheus, pinned to the Makefile's `PROMTOOL_VERSION` |
-| Rules | The three shipped files, mounted as a ConfigMap built from `deploy/observability/alerts/` |
+| Rules | The shipped rule files, mounted as a ConfigMap built from `deploy/observability/alerts/` |
 | Routing | Alertmanager, by `severity`: a page waits for nothing, a ticket groups for five minutes, an info repeats daily |
 | Delivery | SMTP into a mail catcher in the same namespace |
 | History | `ALERTS{alertstate="firing"}`, 45 days |
 
-Four properties this shape is chosen for.
-
-**What runs is what is tested.** The rules are not transcribed into a manifest; the ConfigMap is
-built from the shipped files, and Prometheus is the version `make gate-observability` checks them
-with. "It parses in CI" and "it evaluates on the cluster" are then one statement rather than two
-hopes, and a rule that fires names a file somebody can open.
-
-**The recipient is whoever is working on the environment.** An alert here is read by the session
-maintaining the cluster, so it goes where a session can read it: Prometheus keeps what fired,
-Alertmanager what is firing, the catcher what was delivered. This is deliberately not a pager —
-an alert at three in the morning waits until somebody looks, and for an environment that is
-nobody's production that is the right answer. A real installation replaces the smarthost with a
-mail server and the mailbox with a rota; the routing above does not change, which is the point of
-delivering by SMTP rather than by something local.
-
-**A dead man's switch, because a silent alerting path is indistinguishable from a quiet system.**
-`HubtaskAlertingPathAlive` fires permanently and is delivered every twelve hours. Every other
-alert's silence means nothing until that one has arrived, and no rule inside Prometheus can detect
-its own delivery failing — only the absence of something that should be there can.
-
-The stack was stood up and made to fire before the host ran it —
-[docs/evidence/O-1-2026-09-01.md](../evidence/O-1-2026-09-01.md) records the run: a discovered
-target, A-14 driven from a real scrape, and the mail at the far end carrying the catalogue ID and
-its runbook filename. It also records what the rehearsal found, including that A-12 fires
-permanently on an environment that keeps no backups by decision, and is routed to a receiver that
-sends nothing rather than silenced by hand.
-
-**The environment's own two rules are not in the catalogue.** The watchdog and the scrape check
-(`up{job="hubtask"} == 0`) carry no `alert_id`: §10 is the product's catalogue, shipped to
-operators with a runbook each, and these two are this cluster watching itself. `A-03` is the
-application saying a dependency is down; a target that stopped answering is nobody saying
-anything, which is the failure that hides every other one.
+* **What runs is what is tested.** The rules are not transcribed; the ConfigMap is built from the
+  shipped files, and Prometheus is the version `make gate-observability` checks them with.
+* **The recipient is whoever works on the environment.** Prometheus keeps what fired, Alertmanager
+  what is firing, the catcher what was delivered. It is not a pager. A real installation replaces
+  the smarthost with a mail server and the mailbox with a rota; the routing does not change.
+* **A dead man's switch.** `HubtaskAlertingPathAlive` fires permanently and is delivered every
+  twelve hours. Every other alert's silence means nothing until that one has arrived.
+* **The environment's own two rules are not in the catalogue.** The watchdog and the scrape check
+  (`up{job="hubtask"} == 0`) carry no `alert_id`: §10 is the product's catalogue, and these two are
+  this cluster watching itself.
+* A-12 fires permanently on an environment that keeps no backups by decision; it is routed to a
+  receiver that sends nothing rather than silenced by hand.
 
 ### 13.2 Capacity
 
-What one installation costs per size, written from the runs that exist and from nothing else
-(O-2, P-16). The rule of this table is the rule of the runs it reads: **a number names the run
-that produced it, and a number no run produced is written as *not measured* rather than
-estimated.** The section is internal, like the runs — no figure here is published until the
-release tier has been run on named hardware and the figures are stable (H-11, the owner's
-decision of 2026-08-21).
+**Load figures are internal.** They are measured and recorded, and nothing is published until the
+release tier has run on named hardware and the figures are stable. The same holds for the RPO and
+RTO a restore drill measures. The rules of measurement:
 
-Three sources exist today. **RT-6's overload run** ([RT-6-2026-09-02.md](../evidence/RT-6-2026-09-02.md)),
-on a development machine, over 5 000 items in 10 tenants, one process serving every role. **The
-nightly baseline** ([`test/load/baselines/steady-state.json`](../../test/load/baselines/steady-state.json)),
-the same machine and dataset at a held 200 req/s. And **the release tier's procedure**
-([`test/load/README.md`](../../test/load/README.md)), which is the run that would fill the empty
-cells — two million items over two hundred tenants on the integration server — and has not been
-run yet. The backlog names a third evidence file, `O-1-2026-09-01.md`, as "O-1's ramp"; that file
-is the alerting rehearsal (§13.1) and carries no load figure, so nothing here cites it.
+* **The figure a provider can price** is requests per second per vCPU at a held P95, and its decay
+  with items per tenant.
+* **A concurrent-user count is a derived figure** — throughput divided by a behaviour model — and
+  appears only beside that model, never as a headline.
+* **Two tiers.** A relative regression guard in the nightly compares a run against a stored
+  baseline with an explicit noise band and answers only "did this get significantly worse"; a full
+  capacity ramp runs per release on named hardware (the integration server). A shared runner is not
+  asked a percent-level question ([ci-cd.md](./ci-cd.md) §7).
+* **A number names the run that produced it; a number no run produced is written *not measured*,
+  never estimated.**
+
+The sources: **RT-6's overload run** ([RT-6-2026-09-02.md](../evidence/RT-6-2026-09-02.md)) on a
+development machine over 5 000 items in 10 tenants, one process serving every role; **the nightly
+baseline** ([`test/load/baselines/steady-state.json`](../../test/load/baselines/steady-state.json)),
+the same machine and dataset at a held 200 req/s; and **the release tier's procedure**
+([`test/load/README.md`](../../test/load/README.md)) — two million items over two hundred tenants on
+the integration server — which has not run yet.
 
 | Resource | Measured | Provenance | What a provider sets |
 |---|---|---|---|
-| Request rate at which shedding engaged | The process answered **873 req/s** in the overload stage against an offered 3 000 req/s, refusing 26 224 deferrable calls and no interactive one, at an inflight threshold of **8** and a pool of **10**; **62.4 req/s per vCPU** over 14 vCPU at a held interactive P95 of 94 ms | RT-6, 2026-09-02 | `HUBTASK_LOAD_SHED_INFLIGHT` (image default 64; the run used 8 to make the mechanism engage on a laptop), the chart's `roles.api.loadShedInflight`, `HUBTASK_LOAD_SHED_RETRY_AFTER` (5 s) |
-| Interactive P95 at steady state | **16 ms** at 200 req/s, P50 4 ms, observed between 6 and 16 ms across runs of unchanged code | the nightly baseline, 2026-09-02 | the HPA's target: `roles.api.autoscaling.targetCPUUtilizationPercentage: 70`, from `minReplicas: 2` to `maxReplicas: 10` — a target, not a measured knee |
-| Resident memory per `api` process | *not measured* — RT-6 holds the process to `GOMEMLIMIT=768 MiB` (the chart's 1 Gi limit rounded down) and asserts the ceiling only where `/proc` can be read, which the run's machine could not; the nightly runs on Linux and reads it, and no run has been written up with the figure | RT-6, 2026-09-02 (the ceiling, not the reading) | `roles.api.resources`: requests 250m / 512 Mi, limit 1 Gi |
-| Resident memory per `worker` process | *not measured* — no run has exercised the worker role on its own | — | `roles.worker.resources`: requests 250m / 512 Mi, limit 1 Gi; the scheduler 100m / 256 Mi, limit 512 Mi |
-| Database connections | **10 per process** is what the run was configured with, and the run's own reading of the overload stage — 64 client requests in flight waiting on ten connections — is the one connection figure that exists: the wait is what shedding turned into a `503` rather than a queue; how many connections a size *needs* is *not measured* | RT-6, 2026-09-02 (the setting) | `HUBTASK_DB_MAX_CONNS` (default 10) and `HUBTASK_DB_MIN_CONNS` (2) per process, times the replicas per role; the chart's CloudNativePG `Cluster` at `database.instances: 1` — a provider sizes `max_connections` to the sum |
-| Storage per item, without media | *not measured* — the seeded datasets exist in two sizes (5 000 and 40 000 items) and neither run recorded the tables' size | — | `database.storage.size` (8 Gi) |
+| Request rate at which shedding engaged | **873 req/s** answered in the overload stage against an offered 3 000 req/s, refusing 26 224 deferrable calls and no interactive one, at an inflight threshold of **8** and a pool of **10**; **62.4 req/s per vCPU** over 14 vCPU at a held interactive P95 of 94 ms | RT-6, 2026-09-02 | `HUBTASK_LOAD_SHED_INFLIGHT` (default 64; the run used 8 to make the mechanism engage on a laptop), the chart's `roles.api.loadShedInflight`, `HUBTASK_LOAD_SHED_RETRY_AFTER` (5 s) |
+| Interactive P95 at steady state | **16 ms** at 200 req/s, P50 4 ms, between 6 and 16 ms across runs of unchanged code | the nightly baseline, 2026-09-02 | the HPA's target: `roles.api.autoscaling.targetCPUUtilizationPercentage: 70`, `minReplicas: 2` to `maxReplicas: 10` — a target, not a measured knee |
+| Resident memory per `api` process | *not measured* — RT-6 holds the process to `GOMEMLIMIT=768 MiB` and asserts the ceiling only where `/proc` is readable, which the run's machine was not | RT-6, 2026-09-02 (the ceiling, not the reading) | `roles.api.resources`: requests 250m / 512 Mi, limit 1 Gi |
+| Resident memory per `worker` process | *not measured* | — | `roles.worker.resources`: requests 250m / 512 Mi, limit 1 Gi; the scheduler 100m / 256 Mi, limit 512 Mi |
+| Database connections | **10 per process** was the run's setting; 64 requests in flight waiting on ten connections is the wait shedding turned into a `503`. How many connections a size *needs* is *not measured* | RT-6, 2026-09-02 (the setting) | `HUBTASK_DB_MAX_CONNS` (10) and `HUBTASK_DB_MIN_CONNS` (2) per process, times the replicas per role; the chart's CloudNativePG `Cluster` at `database.instances: 1` — a provider sizes `max_connections` to the sum |
+| Storage per item, without media | *not measured* | — | `database.storage.size` (8 Gi) |
 | Storage per item, with media | *not measured* — no load dataset carries attachments | — | the object store the operator brings (`storage.*`) |
-| Items per tenant at which any of the above knees | *not measured* — the decay with items per tenant is exactly the release tier's question, and it has one dataset per tier rather than a series | — | the audit partition horizon: the scheduler ensures the current and the next month's partitions on every tick (`presentation/worker/Scheduler.go`), which is not a knob and needs none |
+| Items per tenant at which any of the above knees | *not measured* — the release tier's question | — | the audit partition horizon: the scheduler ensures the current and the next month's partitions on every tick; not a knob |
 
-What the table says, read whole: **one figure is a capacity figure in kind** — the per-vCPU
-throughput at a held P95, measured in the stage where the offered load is past what the process
-can serve — and it is a laptop's, over a toy dataset. Every other cell is either a setting the run
-was started with or *not measured*. That is not a gap in the runs; it is the state of the
-evidence, and the model is honest about it so that the day the release tier runs there are named
-cells to fill rather than estimates to correct.
-
-**The chart's sizing, checked against the table.** The backlog asks for the chart's `values-*.yaml`
-size presets to be checked; there are none — the chart ships one `values.yaml` and no per-size
-overlay — so what was checked is that file. Its defaults agree with everything the table measured:
-the 1 Gi memory limit is the ceiling RT-6 holds the process under; the pool of 10 is the image's
-default and the run's; the shedder's threshold is left to the image, which is 64 rather than the
-run's 8, and that is right — the run lowered it to make a laptop engage the mechanism, and 64 is
-the value the interactive path is protected at on a machine with a real pool behind it. Nothing
-was corrected because nothing disagreed; a preset per size would be a table row per size, and the
-rows do not exist yet.
+One figure is a capacity figure in kind — the per-vCPU throughput at a held P95 — and it is a
+laptop's over a toy dataset. Every other cell is a setting or *not measured*. The chart ships one
+`values.yaml` and no per-size presets; its defaults agree with everything measured.
 
 **How a cell gets filled.** The release tier, once per release on the integration server:
 `scripts/seed-load-dataset.sh --items 2000000 --tenants 200`, then `make gate-load` with
-`HUBTASK_LOAD_HARDWARE=integration`, written up under `docs/evidence/` with its JSON. The nightly
-already reads the process's resident size on Linux; writing one nightly's figure into this table,
-with its run named, is the smallest next step and needs no new tooling.
+`HUBTASK_LOAD_HARDWARE=integration`, written up under `docs/evidence/` with its JSON.
 
 ---
 
@@ -517,7 +482,32 @@ with its run named, is the smallest next step and needs no new tooling.
 
 | # | Point | Needed by |
 |---|---|---|
-| O-1 | ~~Choose the alerting backend for our own operation~~ — answered in H-12 and written into §13.1: Prometheus and Alertmanager in the cluster, the rules built from the files the gate tests, delivery by SMTP into a catcher a maintaining session reads. Wired rather than described — [`deploy/integration/monitoring.yaml`](../../deploy/integration/monitoring.yaml) is applied by the environment's own bootstrap, and a watchdog alert proves the path continuously instead of once | Closed (H-12) |
-| O-2 | ~~A capacity model (items per tenant → resources) from real load data~~ — written as §13.2 in P-16 (`0.9.0`), from the runs that exist: one measured figure (RT-6's per-vCPU throughput at a held P95, on a laptop over five thousand items), the settings the runs were started with, and *not measured* everywhere else — memory per process, connections a size needs, storage per item, the knee with items per tenant. The release tier on named hardware is what fills the cells, and the section says how. The chart's one `values.yaml` agrees with what was measured; the per-size presets the backlog names do not exist and are not invented | Closed (P-16), the cells owed to the release tier |
 | O-3 | Derive a public status page from `/meta/health` | After `1.0.0` |
-| O-4 | ~~Decide: chaos tests permanently in CI, or nightly only~~ — answered in G-12 and written into [`ci-cd.md`](./ci-cd.md) §3.2 with the measurement behind it: the chaos-shaped RT tests stay a pull request gate, because they cost four and a half minutes beside jobs that take eight and therefore no wall clock at all, and because a defect they find has to reach the run that reviews the diff that caused it. RT-6, RT-8 and RT-11 stay nightly, because an hour of sustained load is not something a shared runner has | Closed (G-12) |
+| O-5 | Set `GOMEMLIMIT` below the container's memory limit in the chart (derived from the role's limit) and document it for Compose (§6) | Before `1.0.0` |
+
+---
+
+## 15. Jobs and the scheduler
+
+The rule of [ADR-0008](../adr/ADR-0008-jobs-and-scheduling.md): background work runs on a job queue
+in PostgreSQL, and nothing else is required to run it.
+
+* **The queue** is the `job` table (`run_at`, `state`, `attempts`, `dedupe_key`). Workers claim
+  batches with `SELECT … FOR UPDATE SKIP LOCKED`, so any number of `worker` processes claim
+  disjoint work. A job can be written in the same transaction as the business change that causes it.
+* **A claim is a lease**: `HUBTASK_JOB_TIMEOUT` plus 30 seconds. A job outliving its lease is
+  claimed again, so every job is **idempotent** and effects are guarded by `dedupe_key`.
+* **Failures** retry with exponential backoff and full jitter, up to `HUBTASK_JOB_MAX_ATTEMPTS`;
+  then the job goes to the dead letter with the code of its last failure, visible in the API and
+  alerted as A-07.
+* **The scheduler** runs in exactly one active process: the `scheduler` role elects a leader with
+  `pg_try_advisory_lock`, acts every `HUBTASK_SCHEDULER_TICK_INTERVAL`, and distributes the work
+  itself as jobs. A standby takes over within a tick of the leader's lock being released.
+* **Nothing enumerates tenants.** Every per-tenant duty is seeded by its own tenant's write and
+  reschedules itself while work remains ([multi-tenancy.md](./multi-tenancy.md) §2.1).
+* **Recurrence** is RFC 5545 RRULE through `rrule-go`, read in a stored IANA time zone, and only on
+  the server. Occurrences are materialised for a rolling window (90 days by default). Overlapping
+  passes lock disjoint series, and the watermark moves under a compare-and-set, so an occurrence is
+  never created twice.
+* The `queue` port allows a broker adapter later; the queue depth and occurrence lag are metrics
+  (§4).

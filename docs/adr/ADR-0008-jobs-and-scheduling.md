@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [observability-reliability.md](../architecture/observability-reliability.md) §15, [deployment.md](../architecture/deployment.md) §6.1
+
 ## Context
 What is needed: reminders at an exact time, materialisation of recurring tasks (RRULE, correct
 across time zones), the 30-day trash retention, webhook retries, media cleanup, email sending, AI
