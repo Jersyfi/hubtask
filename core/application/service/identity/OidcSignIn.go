@@ -51,8 +51,10 @@ const (
 	// an account that already existed, on the strength of a verified address.
 	OidcLinkedAction audit.Action = "identity.provider_linked"
 	// OidcRefusedAction is a subject the provider vouched for and this workspace would not have
-	// (SI-10): an INVITED_ONLY provider met somebody nobody invited. A trail of these is either a
-	// provisioning rule set too tight or somebody trying the door, and both are worth reading.
+	// (SI-10): somebody admission turned away, nobody invited, an account that signs in another
+	// way, or an invited account arriving without its second proof (ADR-0078 §1). A trail of these
+	// is either a provisioning rule set too tight or somebody trying the door, and both are worth
+	// reading. Written in a transaction of its own, since the refused arrival's is rolled back.
 	OidcRefusedAction audit.Action = "identity.provider_refused"
 )
 
@@ -341,10 +343,7 @@ func (w OidcWriter) settleAccount(
 			// An invitation's flow finishes that invitation and no other account's sign-in: an
 			// identity connected to somebody else here is not the invited person arriving.
 			if !invitedID.IsZero() && found.ID != invitedID {
-				if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
-					return err
-				}
-				return invitationAddressDiffers()
+				return turnedAway(invitationAddressDiffers())
 			}
 			// Connected before, and still invited: an arrival before SC-24 connected the provider
 			// on its word alone, and SC-24 then accepted the invitation on the next one. A link
@@ -381,10 +380,11 @@ func (w OidcWriter) settleAccount(
 		// the configured list is refused here - not provisioned a desk of its own, which is what
 		// made the mode indistinguishable from ANY.
 		if !configured.MayAdmit(admissionOf(arriving)) {
-			if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
-				return err
+			refused := w.notAdmitted(ctx, configured, arriving)
+			if !errors.Is(refused, shared.ErrForbidden) {
+				return refused
 			}
-			return w.notAdmitted(ctx, configured, arriving)
+			return turnedAway(refused)
 		}
 
 		// Admitted. If an account here already holds the address the provider vouched for, this is
@@ -406,10 +406,7 @@ func (w OidcWriter) settleAccount(
 					account, owed = existing, true
 					return nil
 				case proofElsewhere:
-					if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
-						return err
-					}
-					return shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in")
+					return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in"))
 				}
 
 				// An invitation nobody redeemed is accepted here only with a second proof: this
@@ -452,10 +449,7 @@ func (w OidcWriter) settleAccount(
 		// able to read, and the person is told plainly rather than being provisioned a desk they
 		// were never meant to have.
 		if !configured.MayProvision() {
-			if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
-				return err
-			}
-			return shared.ErrForbidden.WithDetail("identity_provider.not_invited")
+			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_invited"))
 		}
 
 		provisioned, err := domain.ProvisionExternal(
@@ -473,11 +467,32 @@ func (w OidcWriter) settleAccount(
 		account = provisioned
 		return w.record(ctx, OidcProvisionedAction, provisioned, configured, arriving)
 	})
+	// A refusal is recorded after the arrival's transaction is over, in one of its own: everything
+	// that transaction wrote is rolled back with the refusal, and the entry is what an operator
+	// reads to see a provider turning people away (SC-32).
+	var refusal turnedAwayError
+	if errors.As(err, &refusal) {
+		if recordErr := w.recordRefusal(ctx, scope, configured); recordErr != nil {
+			return domain.Account{}, false, recordErr
+		}
+		return domain.Account{}, false, refusal.cause
+	}
 	if err != nil {
 		return domain.Account{}, false, err
 	}
 	return account, owed, nil
 }
+
+// turnedAwayError marks an arrival the provider vouched for and this workspace turned away, so that
+// settleAccount records it once the arrival's transaction has rolled back. It never leaves
+// settleAccount: the caller receives the refusal it wraps.
+type turnedAwayError struct{ cause error }
+
+func (e turnedAwayError) Error() string { return e.cause.Error() }
+func (e turnedAwayError) Unwrap() error { return e.cause }
+
+// turnedAway marks a refusal to be recorded.
+func turnedAway(cause error) error { return turnedAwayError{cause: cause} }
 
 // notAdmitted is the refusal of an arrival admission turned away - and, under INVITED_ONLY, the
 // pointer to the invitation's link where the verified address is one somebody invited here
@@ -525,16 +540,10 @@ func (w OidcWriter) arriveInvited(
 		return domain.Account{}, redemptionRefused()
 	}
 	if !configured.MayAdmitInvited(admissionOf(arriving)) {
-		if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
-			return domain.Account{}, err
-		}
-		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.not_admitted")
+		return domain.Account{}, turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_admitted"))
 	}
 	if !w.sameAddress(arriving.Email, invited.Email) {
-		if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
-			return domain.Account{}, err
-		}
-		return domain.Account{}, invitationAddressDiffers()
+		return domain.Account{}, turnedAway(invitationAddressDiffers())
 	}
 	// An invited account holds no credential of its own - a connection made before this proof is
 	// none, and is dropped below - unless somebody gave it a password, which is then asked for as
@@ -545,10 +554,7 @@ func (w OidcWriter) arriveInvited(
 		return domain.Account{}, err
 	}
 	if proof != proofNone {
-		if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
-			return domain.Account{}, err
-		}
-		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in")
+		return domain.Account{}, turnedAway(shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in"))
 	}
 	return w.activateInvited(ctx, invited, configured, arriving, invitedID)
 }
@@ -564,18 +570,12 @@ func (w OidcWriter) secondProof(
 	arriving provider.Identity, invited domain.Account, invitedID shared.ID,
 ) error {
 	if !arriving.EmailVerified || !w.sameAddress(arriving.Email, invited.Email) {
-		if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
-			return err
-		}
-		return invitationAddressDiffers()
+		return turnedAway(invitationAddressDiffers())
 	}
 	if invitedID == invited.ID || arriving.AddressAuthoritative {
 		return nil
 	}
-	if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
-		return err
-	}
-	return shared.ErrForbidden.WithDetail("identity_provider.invitation_needs_link")
+	return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.invitation_needs_link"))
 }
 
 // activateInvited accepts the invitation through the provider and connects the arriving identity,
@@ -928,23 +928,33 @@ func (w OidcWriter) recordStart(
 
 // recordRefusal notes a subject that was turned away. No address and no subject: what a reader
 // needs is that this provider refused somebody, and which issuer it was.
+//
+// In a transaction of its own (SC-32), because the arrival's was rolled back with the refusal - an
+// entry written inside it was never stored, which no test over a unit of work that keeps every write
+// could show. Not cancelled with the request and bounded by its own deadline, `recordFailure`'s
+// reasoning: a client that disconnects the moment it reads the refusal does not take the entry with
+// it (rule 7).
 func (w OidcWriter) recordRefusal(
-	ctx context.Context, tenantID shared.ID, configured domain.IdentityProvider,
+	ctx context.Context, scope persistence.Scope, configured domain.IdentityProvider,
 ) error {
-	return w.Session.Audit.Append(ctx, audit.Entry{
-		TenantID:   tenantID,
-		OccurredAt: w.Session.Clock.Now(),
-		Action:     OidcRefusedAction,
-		Outcome:    audit.OutcomeDenied,
-		Severity:   audit.SeverityWarning,
-		ActorKind:  shared.ActorSystem,
-		TargetType: identityProviderTarget,
-		TargetID:   tenantID,
-		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-		Changes: audit.Changes(
-			audit.Change{Field: "issuer", Classification: audit.Open, To: configured.Issuer},
-			audit.Change{Field: "provisioning", Classification: audit.Open,
-				To: string(configured.Provisioning)}),
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), recordFailureTimeout)
+	defer cancel()
+	return w.Session.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		return w.Session.Audit.Append(ctx, audit.Entry{
+			TenantID:   scope.TenantID,
+			OccurredAt: w.Session.Clock.Now(),
+			Action:     OidcRefusedAction,
+			Outcome:    audit.OutcomeDenied,
+			Severity:   audit.SeverityWarning,
+			ActorKind:  shared.ActorSystem,
+			TargetType: identityProviderTarget,
+			TargetID:   scope.TenantID,
+			Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+			Changes: audit.Changes(
+				audit.Change{Field: "issuer", Classification: audit.Open, To: configured.Issuer},
+				audit.Change{Field: "provisioning", Classification: audit.Open,
+					To: string(configured.Provisioning)}),
+		})
 	})
 }
 

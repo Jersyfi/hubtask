@@ -203,6 +203,9 @@ func newOidcFixture(t *testing.T, at time.Time, existing ...domain.Account) *oid
 		}},
 	}
 	session.writer.Entropy = &countingEntropy{}
+	// A refusal's trail entry has to survive the transaction it was refused in, as against the real
+	// database: here the fake rolls the trail back with everything else a failing transaction wrote.
+	session.work.trail = session.audit
 	f.writer = OidcWriter{
 		Session: session.writer, Providers: f.store, Flows: f.flows,
 		External: f.external, Accounts: f.accounts, Relying: f.relying,
