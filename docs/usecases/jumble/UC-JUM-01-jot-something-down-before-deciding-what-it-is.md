@@ -58,7 +58,4 @@ either may carry files it has already uploaded. Nothing is a task yet.
 
 ## Today
 
-* **Check 7 fails in the web app.** The navigation lists *Jumble* for everybody
-  (`apps/webapp/src/lib/navigation.ts:67`), and the capture form is rendered without asking whether
-  the reader may write (`apps/webapp/src/views/JumbleView.svelte:294`). The server refuses
-  correctly; the screen offers what it will refuse.
+* Check 7: not met in the web app — the navigation lists *Jumble* for everybody, and the capture form is drawn without asking whether the reader may write; only the server refuses, tracked in #1083.
