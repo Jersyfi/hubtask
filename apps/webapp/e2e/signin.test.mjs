@@ -909,3 +909,60 @@ test('a connection by mail that meets a second factor continues into the code st
     await close();
   }
 });
+
+// SC-33 (ADR-0078 §1): where the workspace switched the password off, the card has no *Forgot your
+// password?* - and the way back is still on it: "Get a sign-in link by mail" asks for the link that
+// connects the provider, through the same request the password's link uses, answered alike for every
+// address.
+test('where the password is off, the card offers a sign-in link by mail and sends the request', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+    const base = stubFor({ answer: refused });
+    const asked = [];
+    await context.route('**/api/v1/**', async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith('/api/v1/auth/sign-in-rules')) {
+        return route.fulfill({ json: { ...RULES, methods: ['OIDC'] } });
+      }
+      if (path.endsWith('/api/v1/auth/password:forgot')) {
+        asked.push(route.request().postDataJSON());
+        return route.fulfill({ status: 202, body: '' });
+      }
+      return base(route);
+    });
+    const page = await context.newPage();
+    await page.goto(origin);
+    await page.getByRole('button', { name: /Contoso Entra ID/ }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Forgot your password?' }).count(), 0,
+      'a password link where the workspace takes no password');
+
+    await page.getByRole('button', { name: 'Get a sign-in link by mail' }).click();
+    await page.getByRole('heading', { name: 'Get a sign-in link by mail' }).waitFor();
+    assert.match(await page.getByText(/connects it/).textContent() ?? '', /not connected to this workspace's provider yet/);
+    await page.getByLabel(/Email|Address/i).fill('anna@contoso.example');
+    await page.getByRole('button', { name: 'Send the link' }).click();
+    await page.getByText('If an account exists for that address, the link is on its way. Check the mailbox.').waitFor();
+    assert.deepEqual(asked, [{ email: 'anna@contoso.example' }]);
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// Where the password is on, the card keeps its own link and draws no second one.
+test('where the password is on, the card keeps Forgot your password and no sign-in link by mail', async () => {
+  const { origin, close } = await serve(DIST);
+  const { browser, page } = await open(origin, stubFor({ answer: refused }));
+  try {
+    await page.getByRole('button', { name: 'Forgot your password?' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Get a sign-in link by mail' }).count(), 0,
+      'a second link beside the password');
+    await page.getByRole('button', { name: 'Forgot your password?' }).click();
+    await page.getByRole('heading', { name: 'Reset your password' }).waitFor();
+  } finally {
+    await browser.close();
+    await close();
+  }
+});

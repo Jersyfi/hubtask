@@ -341,7 +341,7 @@ test('chromium: the password switch says how many people have no provider here b
   await list.waitFor();
   const password = list.getByRole('listitem').filter({ hasText: 'Password' }).first();
   await password.getByText(/3 people here have no provider switched on here to sign in with/).waitFor();
-  assert.match(await password.locator('[data-reach]').textContent() ?? '', /Forgot your password\?/);
+  assert.match(await password.locator('[data-reach]').textContent() ?? '', /Get a sign-in link by mail/, 'the sentence names the card\'s control for the password-off workspace');
   assert.ok(asked >= 1, 'the count was never asked for');
 
   // One person: the singular, from the catalogue's plural.
