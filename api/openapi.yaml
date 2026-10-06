@@ -9197,7 +9197,7 @@ components:
             Absent where there are none, which is every workspace provisioned before the table
             existed. An empty array would read as "this workspace is reachable nowhere".
         password_opening:
-          $ref: "#/components/schemas/PasswordOpening"
+          $ref: "#/components/schemas/WorkspacePasswordOpening"
           readOnly: true
           description: >
             The installation operator's opening of the password for this workspace, while it is in
@@ -10363,6 +10363,26 @@ components:
           type: string
           description: Who asked for it, as the operator entered it - a ticket reference, ideally.
         reason: { type: string }
+
+    WorkspacePasswordOpening:
+      type: object
+      description: >
+        An operator's opening of the password as the workspace itself reads it (ADR-0078 §3). Every
+        member is told until when; who asked and why are answered only to a reader of the
+        workspace's configuration (`READ_CONFIGURATION`: owners, administrators, the auditor) - the
+        requester may name a person, and the reason may say more than a member needs.
+      required: [until]
+      properties:
+        until:
+          type: string
+          format: date-time
+          description: When the opening ends on its own.
+        requester:
+          type: string
+          description: Who asked for it. Absent for a reader without `READ_CONFIGURATION`.
+        reason:
+          type: string
+          description: Why. Absent for a reader without `READ_CONFIGURATION`.
 
     PasswordOpeningRequest:
       type: object

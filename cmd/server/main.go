@@ -1095,6 +1095,8 @@ func run() error {
 		// The sign-in rule the workspace may tighten (ADR-0068 §2). The proof the one patch that
 		// touches it demands is handed in once the rule is taught (stepUpVerifier, below).
 		Resolver: signInPolicyResolver,
+		// Who reads who asked for an operator's opening of the password and why (ADR-0078 §3).
+		Permits: authorizer,
 	}
 
 	identityProviderWriter := identity.IdentityProviderWriter{

@@ -12260,7 +12260,7 @@
             "description": "The hosts this workspace answers at (SI-12). **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.\nAbsent where there are none, which is every workspace provisioned before the table existed. An empty array would read as \"this workspace is reachable nowhere\".\n"
           },
           "password_opening": {
-            "$ref": "#/components/schemas/PasswordOpening",
+            "$ref": "#/components/schemas/WorkspacePasswordOpening",
             "readOnly": true,
             "description": "The installation operator's opening of the password for this workspace, while it is in force (ADR-0078 §3): the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.\n"
           }
@@ -13873,6 +13873,28 @@
           },
           "reason": {
             "type": "string"
+          }
+        }
+      },
+      "WorkspacePasswordOpening": {
+        "type": "object",
+        "description": "An operator's opening of the password as the workspace itself reads it (ADR-0078 §3). Every member is told until when; who asked and why are answered only to a reader of the workspace's configuration (`READ_CONFIGURATION`: owners, administrators, the auditor) - the requester may name a person, and the reason may say more than a member needs.\n",
+        "required": [
+          "until"
+        ],
+        "properties": {
+          "until": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the opening ends on its own."
+          },
+          "requester": {
+            "type": "string",
+            "description": "Who asked for it. Absent for a reader without `READ_CONFIGURATION`."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why. Absent for a reader without `READ_CONFIGURATION`."
           }
         }
       },

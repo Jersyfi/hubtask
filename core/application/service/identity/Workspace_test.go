@@ -274,11 +274,13 @@ func TestTheAnswerCarriesWhatTheContractDeclares(t *testing.T) {
 	}
 }
 
-// The workspace's own read answers an operator's opening of the password while it stands, with until
-// when, for whom and why - the administrators' screen shows it (ADR-0078 §3) - and none once its end
-// has passed, whatever the row still holds until the end is recorded.
+// The workspace's own read answers an operator's opening of the password while it stands - until when
+// for every member, who asked and why only for a reader of the configuration (ADR-0078 §3) - and none
+// once its end has passed, whatever the row still holds until the end is recorded.
 func TestTheWorkspaceReadAnswersAnOpeningWhileItStands(t *testing.T) {
 	f := newWorkspaceFixture(at())
+	configuration := &permitter{allowed: true}
+	f.writer.Permits = configuration
 	read := func() usecase.Output {
 		t.Helper()
 		out, err := ReadWorkspace{Writer: f.writer}.invoke(t.Context(), workspaceActor(), usecase.Input{})
@@ -297,9 +299,32 @@ func TestTheWorkspaceReadAnswersAnOpeningWhileItStands(t *testing.T) {
 	opening, _ := read()["password_opening"].(usecase.Output)
 	if until, _ := opening["until"].(time.Time); !until.Equal(at().Add(time.Hour)) ||
 		opening["requester"] != "TICKET-4711" || opening["reason"] != "the directory answers 500" {
-		t.Errorf("the standing opening answers %+v", opening)
+		t.Errorf("a configuration reader is answered %+v", opening)
+	}
+	asked := configuration.requests[len(configuration.requests)-1]
+	if asked.Permission != service.PermissionReadConfiguration {
+		t.Errorf("the attribution was decided by %s", asked.Permission)
 	}
 
+	// A member without the configuration permission learns that the password is open and until when.
+	configuration.allowed = false
+	opening, _ = read()["password_opening"].(usecase.Output)
+	if until, _ := opening["until"].(time.Time); !until.Equal(at().Add(time.Hour)) {
+		t.Errorf("a member is not told until when: %+v", opening)
+	}
+	if _, held := opening["requester"]; held {
+		t.Errorf("a member reads who asked: %+v", opening)
+	}
+	if _, held := opening["reason"]; held {
+		t.Errorf("a member reads why: %+v", opening)
+	}
+	// Nobody to ask is nobody told.
+	f.writer.Permits = nil
+	if opening, _ := read()["password_opening"].(usecase.Output); opening["requester"] != nil {
+		t.Errorf("a writer without a permitter answered the requester: %+v", opening)
+	}
+
+	f.writer.Permits = configuration
 	f.store.row.PasswordOpening.Until = at()
 	if _, held := read()["password_opening"]; held {
 		t.Error("an opening at its end is still answered")

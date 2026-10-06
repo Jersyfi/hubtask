@@ -8300,7 +8300,7 @@ type Workspace struct {
 	Id    openapi_types.UUID `json:"id"`
 
 	// PasswordOpening The installation operator's opening of the password for this workspace, while it is in force (ADR-0078 §3): the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.
-	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
+	PasswordOpening *WorkspacePasswordOpening `json:"password_opening,omitempty"`
 
 	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree (UC-ID-12); it was a stored value of its own until SC-06 and came apart from the rule in both directions. Kept for the clients that read it.
 	RequireAdminTotp bool `json:"require_admin_totp"`
@@ -8340,6 +8340,18 @@ type WorkspaceHost struct {
 
 // WorkspaceHostState `PENDING` resolves nothing: a host somebody typed is not a host they own. `VERIFIED` is one whose zone carried the mark and which may become canonical; it is not serving yet. `ACTIVE` is verified, its certificate in place, and answering - the canonical host is always this one. `BROKEN` was `ACTIVE` and stopped, and the row is kept because it is the way back: when it recovers it is `ACTIVE` again without anybody doing anything.
 type WorkspaceHostState string
+
+// WorkspacePasswordOpening An operator's opening of the password as the workspace itself reads it (ADR-0078 §3). Every member is told until when; who asked and why are answered only to a reader of the workspace's configuration (`READ_CONFIGURATION`: owners, administrators, the auditor) - the requester may name a person, and the reason may say more than a member needs.
+type WorkspacePasswordOpening struct {
+	// Reason Why. Absent for a reader without `READ_CONFIGURATION`.
+	Reason *string `json:"reason,omitempty"`
+
+	// Requester Who asked for it. Absent for a reader without `READ_CONFIGURATION`.
+	Requester *string `json:"requester,omitempty"`
+
+	// Until When the opening ends on its own.
+	Until time.Time `json:"until"`
+}
 
 // WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here.
 type WorkspaceUpdate struct {

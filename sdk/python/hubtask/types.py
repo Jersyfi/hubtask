@@ -286,7 +286,7 @@ class Workspace(TypedDict, total=False):
     version: Required[int]
     sign_in_policy: "SignInPolicy"
     hosts: list["WorkspaceHost"]
-    password_opening: "PasswordOpening"
+    password_opening: "WorkspacePasswordOpening"
 
 class WorkspaceHost(TypedDict, total=False):
     """One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish."""
@@ -653,6 +653,12 @@ class PasswordOpening(TypedDict, total=False):
     until: Required[str]
     requester: Required[str]
     reason: Required[str]
+
+class WorkspacePasswordOpening(TypedDict, total=False):
+    """An operator's opening of the password as the workspace itself reads it (ADR-0078 §3). Every member is told until when; who asked and why are answered only to a reader of the workspace's configuration (`READ_CONFIGURATION`: owners, administrators, the auditor) - the requester may name a person, and the reason may say more than a member needs."""
+    until: Required[str]
+    requester: str
+    reason: str
 
 class PasswordOpeningRequest(TypedDict, total=False):
     hours: int
