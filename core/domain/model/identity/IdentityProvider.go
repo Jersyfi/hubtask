@@ -519,35 +519,45 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 // only with a second proof of its own (ADR-0078 §1, §5): the invitation's own link bound to the
 // flow, for the one invited account it names, or an existing account's own proof at the LINK step.
 //
-// Everything `MayAdmit` admits, and under `INVITED_ONLY` one more: an address the provider verified
-// but is not authoritative for. Authority is what stands in for a proof where there is none - a new
-// account, an invitation activated without its link - so where the person brings one, the provider
-// need not vouch for the mailbox. The caller has checked that the arriving address is the account's
-// own, and nothing is created through this. Under `DOMAINS` it widens nothing for an existing
-// account: the directory or domain list is the workspace's statement of who comes in through this
-// provider. The invitation's link is the one exception, `MayAdmitInvitation`.
+// Everything `MayAdmit` admits, and under `INVITED_ONLY` and `DOMAINS` one more: an address the
+// provider verified but would not admit on its own word - not authoritative for it, or outside the
+// directory or domain list. Authority and the list decide who comes in *new*, on the provider's word
+// alone - a new account, an invitation activated without its link. An existing account that brings
+// its own proof - its password at the LINK step, its mailbox through the connect link, an
+// invitation's link - is not coming in new: it is a member connecting a provider, with the
+// provider's verified address equal to its own (the caller checks that), and nothing is created
+// through this (the owner's decision of 2026-10-06 for DOMAINS, SC-32's for INVITED_ONLY). `ANY`
+// admits every verified address already, and a mode this build does not know admits nobody.
 func (p IdentityProvider) MayAdmitWithProof(arriving Arriving) bool {
 	if p.MayAdmit(arriving) {
 		return true
 	}
-	return p.Provisioning == ProvisionInvitedOnly &&
-		arriving.EmailVerified && emailDomain(arriving.Email) != ""
+	return p.AdmitsOwnProof() && arriving.EmailVerified && emailDomain(arriving.Email) != ""
+}
+
+// AdmitsOwnProof answers whether this provider can connect an existing account that brings its own
+// proof at all: every mode this build knows does, for a verified address. A mailed connect link is
+// pointless through a provider that never would - one whose mode a newer build wrote.
+func (p IdentityProvider) AdmitsOwnProof() bool {
+	switch p.Provisioning {
+	case ProvisionInvitedOnly, ProvisionDomains, ProvisionAny:
+		return true
+	default:
+		return false
+	}
 }
 
 // MayAdmitInvitation answers whether this provider may bring in the one invited account a sign-in
 // started from - the invitation's own link, bound to the flow (ADR-0078 §1).
 //
-// Everything `MayAdmitWithProof` admits, and under `DOMAINS` an address outside the directory or
-// domain list too. The invitation is an administrator's explicit choice of this person, so the list
-// does not overrule it - and it widens nothing beyond the invitation itself: the caller has checked
-// that the verified address is the invited account's, and the link proves that one account only.
-// An unverified address is never admitted, and a mode this build does not know admits nobody.
+// The invitation is an administrator's explicit choice of this person, so neither authority nor the
+// directory or domain list overrules it - and it widens nothing beyond the invitation itself: the
+// caller has checked that the verified address is the invited account's, and the link proves that
+// one account only. It reads as `MayAdmitWithProof` - the link is the invited account's own proof -
+// and keeps its name so that the invitation's door says which proof it relies on. An unverified
+// address is never admitted, and a mode this build does not know admits nobody.
 func (p IdentityProvider) MayAdmitInvitation(arriving Arriving) bool {
-	if p.MayAdmitWithProof(arriving) {
-		return true
-	}
-	return p.Provisioning == ProvisionDomains &&
-		arriving.EmailVerified && emailDomain(arriving.Email) != ""
+	return p.MayAdmitWithProof(arriving)
 }
 
 // admitsDirectoryOf is `DOMAINS`, read against whichever thing this preset can be sure of.

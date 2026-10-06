@@ -668,8 +668,8 @@ func (w OidcWriter) connectByMail(
 		if !arriving.EmailVerified || !w.sameAddress(arriving.Email, held.Email) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_address_differs"))
 		}
-		// Admission as for every arrival that brings its own proof (SC-32): under INVITED_ONLY the
-		// mailbox is that proof; under DOMAINS the list still decides.
+		// Admission as for every arrival that brings its own proof (SC-32): the mailbox is that proof,
+		// under INVITED_ONLY and under DOMAINS alike - the list decides who comes in new.
 		if !configured.MayAdmitWithProof(admissionOf(arriving)) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_admitted"))
 		}
@@ -759,8 +759,9 @@ func turnedAway(cause error) error { return turnedAwayError{cause: cause} }
 // notAdmitted answers an arrival admission turned away (ADR-0078 §1, §5).
 //
 // Under INVITED_ONLY a provider that is not authoritative for the address - a self-hosted one, a
-// personal Google account at somebody else's domain - still brings two people to a door they open
-// with their own proof, because authority is needed only where nothing else proves the person:
+// personal Google account at somebody else's domain - and under DOMAINS an address outside the
+// directory or domain list still bring two people to a door they open with their own proof, because
+// authority and the list decide only who comes in new, on the provider's word (MayAdmitWithProof):
 //
 //   - an existing ACTIVE account goes to the LINK step: its password (and its second factor) is
 //     asked, and nothing is connected without it. The account is answered, and owes that proof.
@@ -769,7 +770,7 @@ func turnedAway(cause error) error { return turnedAwayError{cause: cause} }
 //     connect it (P-16).
 //   - an INVITED account is pointed at its invitation's link, which is the proof it holds.
 //
-// Everybody else is refused, and INVITED_ONLY never creates an account.
+// Everybody else is refused, and nothing is created here.
 func (w OidcWriter) notAdmitted(
 	ctx context.Context, configured domain.IdentityProvider, arriving provider.Identity,
 ) (domain.Account, error) {

@@ -97,8 +97,10 @@ func (p ProviderStepUps) connectedHere(
 }
 
 // connectStands answers whether a link to connect a provider is the account's way in (ADR-0078 §1):
-// no provider it is connected to is a way in here, and at least one provider is switched on here to
-// connect. Inside a transaction bound to the account's workspace.
+// no provider it is connected to is a way in here, and at least one provider is switched on here
+// that admits an existing account bringing its own proof (MayAdmitWithProof) - which every mode this
+// build knows does, for the account's verified address. Inside a transaction bound to the account's
+// workspace.
 func (p ProviderStepUps) connectStands(
 	ctx context.Context, accountID shared.ID, now time.Time,
 ) (bool, error) {
@@ -115,7 +117,7 @@ func (p ProviderStepUps) connectStands(
 		return false, err
 	}
 	for _, candidate := range listed {
-		if offeredHere(candidate, settings, now) {
+		if offeredHere(candidate, settings, now) && candidate.AdmitsOwnProof() {
 			return true, nil
 		}
 	}

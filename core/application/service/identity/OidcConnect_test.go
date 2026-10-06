@@ -392,12 +392,11 @@ func TestAConnectionThatIsNotProvenLeavesTheLinkUnspent(t *testing.T) {
 			},
 			want: "identity_provider.connect_identity_taken", recorded: true,
 		},
-		"an address outside the domains the provider admits": {
-			arrange: func(_ *testing.T, f *oidcFixture) {
-				f.store.rows[0].Provisioning = domain.ProvisionDomains
-				f.store.rows[0].AllowedEmailDomains = []string{"elsewhere.example"}
-			},
-			want: "identity_provider.not_admitted", recorded: true,
+		// A provider that would admit no own proof leaves the link nothing to connect through: the
+		// link's reason has gone, as it has where the password is open again.
+		"a provider whose mode this build does not know": {
+			arrange: func(_ *testing.T, f *oidcFixture) { f.store.rows[0].Provisioning = "NEWER_MODE" },
+			want:    "auth.reset_failed",
 		},
 		"the password open again": {
 			arrange: func(_ *testing.T, f *oidcFixture) { f.writer.Session.Rule = shutDoor{open: true} },
@@ -443,5 +442,30 @@ func TestAConnectLinkIsSpentOnce(t *testing.T) {
 	}
 	if len(f.external.links) != 1 {
 		t.Errorf("the links are %v, want one", f.external.links)
+	}
+}
+
+// Under *Only these domains/directories* the list decides who comes in new, not whether an existing
+// member may connect (the owner's decision of 2026-10-06): the connect link admits the member's own
+// verified address inside the list and outside it alike.
+func TestUnderDomainsAMemberConnectsByMailInsideAndOutsideTheList(t *testing.T) {
+	for name, domains := range map[string][]string{
+		"inside the list":  {"example.org"},
+		"outside the list": {"elsewhere.example"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := connectFixture(t)
+			f.store.rows[0].Provisioning = domain.ProvisionDomains
+			f.store.rows[0].AllowedEmailDomains = domains
+			link, id := connectLinkFor(t, f, account, connectAt.Add(domain.ResetLifetime), 1)
+
+			result, err := completeConnect(t, f, startConnect(t, f, link))
+			if err != nil || result.Pair == nil {
+				t.Fatalf("connecting %s answered (%+v, %v)", name, result, err)
+			}
+			if !linkSpent(f, id) {
+				t.Error("the connection left the link unspent")
+			}
+		})
 	}
 }

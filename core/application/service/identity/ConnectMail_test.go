@@ -183,3 +183,27 @@ func TestANewLinkSpendsTheEarlierResetAndConnectLinks(t *testing.T) {
 		t.Error("the newest link does not work")
 	}
 }
+
+// A link is mailed only where a provider switched on here would admit the account bringing its own
+// proof - every mode this build knows does, under DOMAINS outside the list too (2026-10-06); a mode a
+// newer build wrote does not, and the provider mail stands.
+func TestAConnectLinkNeedsAProviderThatAdmitsTheAccountsOwnProof(t *testing.T) {
+	for name, mode := range map[string]domain.Provisioning{
+		"only these domains": domain.ProvisionDomains,
+		"anybody":            domain.ProvisionAny,
+		"a newer mode":       "NEWER_MODE",
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newStepFixture(now)
+			row := ownProvider
+			row.Provisioning = mode
+			row.AllowedEmailDomains = []string{"elsewhere.example"}
+			passwordOffWith(f, []domain.IdentityProvider{row})
+
+			link := mintFor(t, f)
+			if want := mode != "NEWER_MODE"; link.Connect != want {
+				t.Errorf("under %s the mail is %+v, want a connect link: %v", name, link, want)
+			}
+		})
+	}
+}

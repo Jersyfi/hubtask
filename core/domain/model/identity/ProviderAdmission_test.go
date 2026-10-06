@@ -185,9 +185,10 @@ func TestThePersonalAccountEndpointIsOneDirectoryAndNeedsNoList(t *testing.T) {
 }
 
 // A second proof the person brings - the invitation's own link, or an existing account's own proof
-// at the LINK step - admits one more arrival, and only under INVITED_ONLY: a verified address the
-// provider is not authoritative for (ADR-0078 §1). It never admits an unverified one, and under
-// DOMAINS the list stays the gate.
+// at the LINK step or through the connect link - admits one more arrival: under INVITED_ONLY a
+// verified address the provider is not authoritative for, and under DOMAINS one outside the list
+// (ADR-0078 §1; DOMAINS decided 2026-10-06). It never admits an unverified one, and without a proof
+// the list stays the gate.
 func TestTheInvitationLinkAdmitsOnlyWhatInvitedOnlyNeeds(t *testing.T) {
 	verified := Arriving{Email: "ada@example.org", EmailVerified: true}
 	unverified := Arriving{Email: "ada@example.org"}
@@ -215,8 +216,19 @@ func TestTheInvitationLinkAdmitsOnlyWhatInvitedOnlyNeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("configuring: %v", err)
 	}
-	if domains.MayAdmitWithProof(verified) {
-		t.Error("an existing account's own proof widened a DOMAINS list")
+	if domains.MayAdmit(verified) {
+		t.Fatal("an address outside the DOMAINS list was admitted on the provider's word")
+	}
+	if !domains.MayAdmitWithProof(verified) {
+		t.Error("an existing account's own proof did not admit its verified address outside the DOMAINS list")
+	}
+	if domains.MayAdmitWithProof(unverified) {
+		t.Error("an existing account's own proof admitted an address the provider did not verify")
+	}
+	unknown := domains
+	unknown.Provisioning = "NEWER_MODE"
+	if unknown.MayAdmitWithProof(verified) || unknown.AdmitsOwnProof() {
+		t.Error("a mode this build does not know admitted a proof")
 	}
 
 	// The invitation's own link is the administrator's explicit choice of one person, and the list

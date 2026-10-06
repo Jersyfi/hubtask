@@ -407,3 +407,36 @@ func TestTheLinkStepTakesThePasswordWhereThePasswordIsOff(t *testing.T) {
 		})
 	}
 }
+
+// Under *Only these domains/directories* the list decides who comes in new, not whether an existing
+// member may connect (the owner's decision of 2026-10-06): inside the list and outside it, the member
+// reaches the LINK step and is connected with its password - and only with it.
+func TestUnderDomainsAMemberConnectsWithThePasswordInsideAndOutsideTheList(t *testing.T) {
+	for name, domains := range map[string][]string{
+		"inside the list":  {"example.org"},
+		"outside the list": {"elsewhere.example"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := linkFixture(t, false)
+			f.store.rows[0].Provisioning = domain.ProvisionDomains
+			f.store.rows[0].AllowedEmailDomains = domains
+			f.relying.identity.AddressAuthoritative = false
+
+			result, err := arrive(t, f)
+			if err != nil || result.Challenge == nil || result.Challenge.Methods[0] != methodLink {
+				t.Fatalf("arriving %s: (%+v, %v), want the LINK step", name, result, err)
+			}
+			if _, err := (CompleteLink{Writer: f.writer}).Execute(t.Context(), CompleteLinkCommand{
+				PendingToken: result.Challenge.Token, Password: secret.New("a guess"),
+			}); err == nil || len(f.external.links) != 0 {
+				t.Fatalf("a wrong password connected %v (%v)", f.external.links, err)
+			}
+			next, err := CompleteLink{Writer: f.writer}.Execute(t.Context(), CompleteLinkCommand{
+				PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
+			})
+			if err != nil || next.Pair == nil || len(f.external.links) != 1 {
+				t.Errorf("the password answered (%+v, %v) with links %v", next, err, f.external.links)
+			}
+		})
+	}
+}
