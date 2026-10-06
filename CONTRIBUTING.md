@@ -222,22 +222,18 @@ a `{d, date}` refuses the file. Write the source's register: second person singu
 case, no exclamation marks ([`voice-and-tone.md`](docs/design/voice-and-tone.md)); German is *du*.
 Where the source phrases around a plural, a translation may pluralise if its grammar needs to.
 
-A translation is a contribution like any other, so the [CLA](CLA.md) covers it. The layout is the
+A translation is a contribution like any other, made under the same licence. The layout is the
 one Weblate reads unchanged, and running an instance is a decision deferred until there is
 somebody to serve ([ADR-0055](docs/adr/ADR-0055-translation-process.md)); until then, a text
 editor and the three commands above are the whole toolchain.
 
-## Licence and CLA
+## Licence
 
-Contributions are published under the project licence ([LICENSE](LICENSE), BSL 1.1, converting to
-Apache-2.0 three years after each release; the SDKs, the contract and the connector packages
-are Apache-2.0 outright). Contributors sign a [Contributor License Agreement](CLA.md) on their first
-pull request; a bot posts the link automatically. It exists because the conversion to Apache-2.0
-and, from Licensing Start, the sale of commercial licences both require the Licensor to hold
-sufficient rights in the whole codebase. You keep full ownership of your work, and the Licensor
-commits in the CLA that your contribution is never placed retroactively under stricter terms and
-always receives its Change Date. The reasoning, and what it costs you, is in
-[ADR-0013](docs/adr/ADR-0013-licensing.md) and [ADR-0059](docs/adr/ADR-0059-licensing-phases-and-licensing-start.md).
+Hubtask is licensed under the [Apache License 2.0](LICENSE)
+([ADR-0080](docs/adr/ADR-0080-hubtask-is-apache-2-0.md)). Contributions are inbound = outbound:
+whatever you submit is licensed under Apache-2.0, as section 5 of the licence says. There is no
+Contributor License Agreement to sign and no sign-off required. You keep the copyright in your
+work. The name and the logo are not covered by the licence — see [TRADEMARK.md](TRADEMARK.md).
 
 ## Security
 

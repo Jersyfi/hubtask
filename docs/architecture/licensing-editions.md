@@ -254,10 +254,8 @@ what stands between today and a licence that can be bought.
 | File | Purpose | Status |
 |---|---|---|
 | [`LICENSE`](../../LICENSE) | BSL 1.1, parameters filled in, body verbatim; the Licensed Work per version, the interim grant | in place |
-| [`LICENSE-APACHE`](../../LICENSE-APACHE) | The Change License text | in place |
 | [`NOTICE`](../../NOTICE) | Copyright, trademarks, third-party pointer, the Apache-2.0 parts | in place |
 | [`TRADEMARK.md`](../../TRADEMARK.md) | Name and logo: forks take the code, not the name | in place |
-| [`CLA.md`](../../CLA.md) | Contributor License Agreement, bot-signed on first PR; the Licensor's commitment to the Change Date | in place |
 | [`CONTRIBUTING.md`](../../CONTRIBUTING.md) | Contribution process, Conventional Commits, CLA | in place |
 | [`SECURITY.md`](../../SECURITY.md) | Reporting path, aims, advisories | in place |
 | [`CODE_OF_CONDUCT.md`](../../CODE_OF_CONDUCT.md) | Contributor Covenant | in place |

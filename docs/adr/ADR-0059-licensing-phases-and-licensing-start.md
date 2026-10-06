@@ -305,5 +305,5 @@ parameter and the "revisit before `1.0.0`" are replaced. Accepts the licence par
 [ADR-0058](./ADR-0058-connector-packages.md) (the connector packages),
 [ADR-0035](./ADR-0035-one-product-version.md) (one version, which "per version" terms attach to),
 [`licensing-editions.md`](../architecture/licensing-editions.md) (the model as implemented, the
-`0.x` declaration, the prerequisites), [`CLA.md`](../../CLA.md),
+`0.x` declaration, the prerequisites), [`CLA.md`](https://github.com/Jersyfi/hubtask/blob/663564136fb6a21c9fe96c0cfbe732df41cbbcce/CLA.md),
 [`data-protection.md`](../architecture/data-protection.md) §7 (the CRA row).

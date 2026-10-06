@@ -40,7 +40,7 @@ now rather than left open.
 * **Change Date** — three years after a given version is first publicly distributed.
 * **Change License** — Apache-2.0.
 
-Supporting pieces, all now in place: a [CLA](../../CLA.md) so the conversion and commercial
+Supporting pieces, all now in place: a [CLA](https://github.com/Jersyfi/hubtask/blob/663564136fb6a21c9fe96c0cfbe732df41cbbcce/CLA.md) so the conversion and commercial
 licensing are actually possible, a [trademark policy](../../TRADEMARK.md) covering the name and
 logo, `NOTICE`, `LICENSE-APACHE`, SPDX headers (`BUSL-1.1`) in the source, and a CI check that
 blocks GPL/AGPL dependencies — those would make relicensing impossible. Product-side details are

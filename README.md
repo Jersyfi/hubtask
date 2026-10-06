@@ -241,5 +241,5 @@ for what they are for and what happens if they do not cover maintenance.
 Conventional Commits, trunk-based development, Definition of Ready/Done from
 [engineering-guidelines.md](./docs/architecture/engineering-guidelines.md).
 Architectural changes arrive as an ADR, not as a pull request without context.
-See [CONTRIBUTING.md](./CONTRIBUTING.md), [CLA.md](./CLA.md), [SECURITY.md](./SECURITY.md),
+See [CONTRIBUTING.md](./CONTRIBUTING.md), [SECURITY.md](./SECURITY.md),
 and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).

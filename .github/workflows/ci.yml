@@ -109,7 +109,6 @@ jobs:
               - '.golangci.yml'
               - 'Makefile'
               - 'LICENSE'
-              - 'LICENSE-APACHE'
               - 'NOTICE'
             openapi:
               - 'api/**'
