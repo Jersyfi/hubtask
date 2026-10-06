@@ -132,8 +132,7 @@ type Movement struct {
 // the same gesture to a person and the same event to a rule; a consumer that cares only about reparenting
 // compares the two parent identifiers.
 //
-// `from_bucket_id` and `to_bucket_id` are in the documented payload and are null here: buckets arrive with
-// B-09, and a field invented before the thing it names would be a promise nothing keeps.
+// `from_bucket_id` and `to_bucket_id` are in the documented payload and are always null here.
 func NewItemMoved(id shared.ID, item work.WorkItem, from Movement, actor Actor,
 	occurredAt time.Time, cause Cause,
 ) (Envelope, error) {
@@ -294,8 +293,8 @@ func newAttachmentChange(id shared.ID, eventType Type, item work.WorkItem, media
 
 // NewItemAssigned announces that an entry is on somebody (domain-model.md §4).
 //
-// The payload is the reference §4 names rather than a snapshot of the entry, which is what the four
-// events of this task have in common with the label pair. For the members the reason is the label
+// The payload is the reference §4 names rather than a snapshot of the entry, which is what the
+// four assignment and membership events have in common with the label pair. For the members the reason is the label
 // pair's verbatim - a set is not a field, and a snapshot would carry one another device may already
 // have merged differently. For the assignee it is the second half of the same sentence: what a
 // notification reacts to is who it is now, `item_id` is what it reads the rest from, and an entry
@@ -420,7 +419,7 @@ func newDueMoment(
 		ItemSubject(item.ID), Actor{Kind: shared.ActorSystem}, occurredAt, cause, payload)
 }
 
-// NewOccurrenceCreated announces that a series produced an entry (D-05, domain-model.md §4).
+// NewOccurrenceCreated announces that a series produced an entry (domain-model.md §4).
 //
 // The three identifiers the catalogue names, and the moment: which series, which template it was
 // copied from, which entry came out, and which occurrence of the rule it is. The moment is the
@@ -452,7 +451,7 @@ func NewOccurrenceCreated(
 		})
 }
 
-// NewTemplateInstantiated announces that a template produced a tree (D-06, domain-model.md §4).
+// NewTemplateInstantiated announces that a template produced a tree (domain-model.md §4).
 //
 // The two identifiers the catalogue names and the size of what came out: which template, which
 // root entry, and how many entries it is - enough for a consumer to decide whether to look, which

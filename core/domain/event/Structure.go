@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The events of a collection's structure: its buckets and its labels (B-09).
+// The events of a collection's structure: its buckets and its labels.
 //
 // domain-model.md §4 names neither. It names `item.label_added` and `item.label_removed`, which are
 // events about an item, and it says nothing about the columns and the vocabulary themselves - so

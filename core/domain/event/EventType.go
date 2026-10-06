@@ -14,8 +14,7 @@ package event
 // Type is the event type, `de.hubtask.<context>.<entity>.<action>.v<n>` (domain-model.md §4).
 //
 // The context segment is `work` for work management, matching the examples in the schema and in
-// automation.md §1. The backlog entry for A-07 wrote `workmanagement`; the shorter form was
-// confirmed as the contract, and the backlog was corrected rather than the two documents.
+// automation.md §1.
 type Type string
 
 const (
@@ -104,7 +103,7 @@ const (
 	// ItemAssigned announces that an entry is on somebody. Consumers: notification.
 	//
 	// The payload is the reference domain-model.md §4 names - `assigneeId` and, when a policy did
-	// the choosing, the strategy that chose them (C-02) - rather than a snapshot of the entry. What a rule and a notification
+	// the choosing, the strategy that chose them - rather than a snapshot of the entry. What a rule and a notification
 	// react to is who it is now, and `itemId` is what they read the rest from; an entry snapshot
 	// would additionally have to say something about the member list, which merges separately and
 	// which another device may already have merged differently (offline-sync.md §4.2).
@@ -138,7 +137,7 @@ const (
 	// moves, and the scheduler must not parse a change set to learn what it is waiting for.
 	ItemDueChanged Type = "de.hubtask.work.item.due_changed.v1"
 	// ItemDueSoon announces that an entry's due date is coming up: the scheduler saw it cross the
-	// lead the payload names, and said so once. Consumers: automation, reminders (D-03).
+	// lead the payload names, and said so once. Consumers: automation, reminders.
 	//
 	// Its own event rather than a reminder, because the two answer different questions: a reminder
 	// is somebody's own arrangement with the clock, and this is the fact that a deadline is
@@ -147,7 +146,7 @@ const (
 	// in a workspace rather than depending on whether somebody set a reminder.
 	ItemDueSoon Type = "de.hubtask.work.item.due_soon.v1"
 	// ItemOverdue announces that an entry's due date has passed with the work not done. Consumers:
-	// automation (the 0.5.0 rule engine's example rule triggers on it), reminders.
+	// automation, reminders.
 	//
 	// Announced once per due date: a rule that escalated an overdue entry every time a scheduler
 	// looked at it would escalate it forever, so the announcement is bookkeeping on the entry and
@@ -252,7 +251,7 @@ const (
 	//
 	// Beside the `item.created` the occurrence also publishes rather than instead of it: what
 	// happened to the world is that an entry came into being, and a consumer that reacts to new
-	// entries has to react to this one - the same reasoning C-11's duplicate follows. What this
+	// entries has to react to this one - the same reasoning a duplicate follows. What this
 	// one adds is the connection: which series, from which template, for which moment.
 	RecurrenceOccurrenceCreated Type = "de.hubtask.work.recurrence.occurrence_created.v1"
 	// TemplateInstantiated announces that a template was stamped out (domain-model.md §4).
@@ -264,7 +263,7 @@ const (
 	// entries came into being, and what this adds is which template they came from.
 	TemplateInstantiated Type = "de.hubtask.work.template.instantiated.v1"
 	// CommentCreated announces a new contribution to an entry's discussion. Consumers:
-	// notification (C-09), automation. The payload is the comment (domain-model.md §4) - its own
+	// notification, automation. The payload is the comment (domain-model.md §4) - its own
 	// entity beside the item, so the item's snapshot events stay free of a thread that appends
 	// rather than merges (offline-sync.md §4.2).
 	CommentCreated Type = "de.hubtask.work.comment.created.v1"
@@ -278,7 +277,7 @@ const (
 	// subscriber filtering on a null payload field to avoid that is one that will eventually not.
 	CommentDeleted Type = "de.hubtask.work.comment.deleted.v1"
 
-	// RuleRunStarted announces that an automation rule began a run (G-07). Consumers: an operator's
+	// RuleRunStarted announces that an automation rule began a run. Consumers: an operator's
 	// dashboard, and anything watching whether the engine is keeping up.
 	//
 	// The context segment is `automation` rather than `work`, and it is the first event that is not
@@ -300,8 +299,8 @@ const (
 	// three in the morning for a condition answering false.
 	RuleRunFailed Type = "de.hubtask.automation.rule_run.failed.v1"
 
-	// JumbleEntryReceived announces an arrival in the jumble (G-10). Consumers: automation - it is
-	// what fires a JUMBLE_ENTRY rule - webhooks, and the AI suggestions of 0.7.0. The context
+	// JumbleEntryReceived announces an arrival in the jumble. Consumers: automation - it is
+	// what fires a JUMBLE_ENTRY rule - webhooks, and the AI suggestions. The context
 	// segment is `jumble` for the reason the run events' is `automation`: an arrival is not a
 	// change to a hub or an entry, and a subscriber filtering `de.hubtask.work.` must not have to
 	// learn about an inbox it did not ask for.
