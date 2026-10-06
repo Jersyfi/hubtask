@@ -6,8 +6,8 @@ actors: [PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-06, P-07, P-10, P-12]
 state: built
-tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21, SC-24]
-checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordSwitch_test.go]
+tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21, SC-24, SC-31]
+checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordSwitch_test.go, test/integration/password_fallback_test.go]
 ---
 
 # Set how people in our workspace sign in, in one place
@@ -75,8 +75,24 @@ can be cancelled, and the workspaces that use it say on this screen when it ends
 day, withdrawn now, or removed - is never left without one: the sign-in card offers the password again
 for the accounts that hold one, under this workspace's rules, the screen says so, and each sign-in
 through it is in the trail as `auth.password_fallback`, until another way is switched on here
-(`PasswordFallback_test.go`). An account without a password gains nothing from it and needs a new
-invitation - the limit ADR-0076 §4 sets. The walks of these screens run against a stubbed API.
+(`PasswordFallback_test.go`). An account without a password gains nothing from the sign-in - the limit
+ADR-0076 §4 sets. The walks of these screens run against a stubbed API.
+
+Since SC-31 ([#1138](https://github.com/Jersyfi/hubtask/issues/1138), the owner's decision of
+2026-10-04, E2) the fallback answers **every** cause, not only an ended offer: wherever the rule this
+workspace resolves to leaves the password out and no provider is switched on here, the password opens.
+That covers what the last-way-in guard of check 6 cannot see, because nobody on this screen made the
+change - an installation default or an installation lock without the password (a lock decides the
+methods, never which provider is on), a rescue lock lifted after the provider went, a restore or an
+import that brought the settings without the providers, two administrators switching off the last two
+ways at once - and a workspace provisioned under such a default, whose invited owner accepts the
+invitation with a password through it. Each cause, and the fallback ending the moment a way in is
+switched on, is a service test over the card, the door and the sign-in (`PasswordFallback_test.go`);
+the installation default and the invited owner are walked against PostgreSQL with the real resolver
+(`test/integration/password_fallback_test.go`). The trail entry carries `cause: NO_WAY_IN`, a
+redemption through the fallback is recorded as well, in the redemption's own transaction, and one
+sign-in reads the fallback once. The screen's sentence names no cause
+(`app.signin_settings.fallback_no_way_in`).
 
 Since SC-24 the password's own switch holds at the server too
 ([#1119](https://github.com/Jersyfi/hubtask/issues/1119)): where a workspace switched it off, the

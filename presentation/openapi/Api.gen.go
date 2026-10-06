@@ -7417,7 +7417,7 @@ type SignInRules struct {
 	// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
 	Password PasswordRules `json:"password"`
 
-	// PasswordFallback True while `PASSWORD` is among the methods only because the workspace's last way in was a provider the installation offered and has withdrawn (ADR-0076 §4): the password opens again for the accounts that hold one, under the workspace's own rules, until an administrator switches on another way. The administrators' screen says so.
+	// PasswordFallback True while `PASSWORD` is among the methods only because no other way into the workspace works - its rule leaves the password out and no provider is switched on there, whatever the cause: an offer that ended, an installation default or lock, a restore (ADR-0076 §4). The password opens for the accounts that hold one, under the workspace's own rules, until an administrator switches on a way in. The administrators' screen says so.
 	PasswordFallback *bool             `json:"password_fallback,omitempty"`
 	Providers        []ProviderSummary `json:"providers"`
 

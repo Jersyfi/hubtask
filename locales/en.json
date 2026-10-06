@@ -1361,7 +1361,7 @@
   "app.signin_settings.way_withdrawing": "The installation withdraws this provider on {date}. Switch on another way to sign in before then.",
   "app.signin_settings.way_withdrawing_off": "The installation withdraws this provider on {date}.",
   "app.signin_settings.fallback_title": "The password is open again",
-  "app.signin_settings.fallback": "The installation withdrew the provider this workspace signed in with. Until you switch on another way, people sign in with their password if they have one, under this workspace's rules; anybody without one needs a new invitation.",
+  "app.signin_settings.fallback_no_way_in": "No other way to sign in works in this workspace, so people sign in with their password if they have one, under this workspace's rules, until you switch on a way in.",
   "app.signin_settings.last_way": "The only way in left. Switch another one on first.",
   "app.signin_settings.not_offered_above": "The installation does not offer this way in.",
   "app.signin_settings.switching": "Switching",

@@ -16,10 +16,16 @@ import (
 // refuses it at every door - not only the sign-in card. The refusal is the same for every address,
 // stored passwords are kept, and ADR-0076 §4's fallback is the one exception (PasswordFallback_test).
 
-// passwordOff switches the workspace the fixture resolves to providers only.
+// passwordOff switches the workspace the fixture resolves to providers only - and switches its own
+// provider on, which is what the last-way-in guard demands of the screen. Without it the workspace has
+// no way in that works, and the password opens as the fallback (E2, #1138).
 func passwordOff(f *passwordFixture) {
 	methods := []string{domain.MethodOidc}
 	f.workspace.row.Settings.SignIn.Methods = &methods
+	f.providers.rows = append(f.providers.rows, domain.IdentityProvider{
+		ID: rulesProviderRow, TenantID: tenant, Kind: domain.KindGeneric,
+		DisplayName: "id.acme.example", Issuer: "https://id.acme.example", Enabled: true,
+	})
 }
 
 func TestASwitchedOffPasswordIsRefusedForEveryAddress(t *testing.T) {

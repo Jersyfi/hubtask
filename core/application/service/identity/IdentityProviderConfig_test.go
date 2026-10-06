@@ -32,6 +32,8 @@ type providerStore struct {
 	// afterFind runs once a Find has answered: a test's way to change the row between a use case's
 	// read and its write, which is what another administrator's request does.
 	afterFind func()
+	// lists counts the reads of the whole list - the ways in, as the fallback reads them.
+	lists int
 }
 
 func newProviderStore(scope shared.ID) *providerStore {
@@ -60,6 +62,7 @@ func (s *providerStore) writable(id shared.ID) int {
 }
 
 func (s *providerStore) List(context.Context) ([]domain.IdentityProvider, error) {
+	s.lists++
 	return s.visible(), nil
 }
 

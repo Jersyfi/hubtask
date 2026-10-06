@@ -165,8 +165,8 @@ type SignInRules struct {
 	Providers     []ProviderSummary
 	Password      PasswordRulesView
 	Legal         domain.LegalLinks
-	// PasswordFallback is true while the password is among the methods only because the
-	// workspace's last way in was an offer that ended (ADR-0076 §4).
+	// PasswordFallback is true while the password is among the methods only because no other way
+	// into the workspace works, whatever the cause (ADR-0076 §4; E2, #1138).
 	PasswordFallback bool
 }
 
@@ -334,7 +334,8 @@ func (h GetSignInRules) resolveTenant(ctx context.Context, slug, header string) 
 }
 
 // providersOf answers the ways in that are configured here, and whether the password opens only
-// as the fallback for an offer that ended (ADR-0076 §4) - read from the same rows at the same moment.
+// as the fallback because none of them works (ADR-0076 §4) - read from the same rows at the same
+// moment.
 //
 // Plural since SI-10, and both levels: what a workspace configured and what its installation offers
 // every workspace, which is what the read policy admits together (migration 0103). A provider that

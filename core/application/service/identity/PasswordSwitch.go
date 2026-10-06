@@ -20,10 +20,10 @@ import (
 // closed, for a person its directory had already let go (P-02).
 //
 // **Nothing is taken from an account.** The stored password stays; switching the password back on
-// makes it work again. **The one exception** is ADR-0076 §4's fallback: a workspace whose last way in
-// was an offer that ended signs in by password again. **The refusal is the same for every address**,
-// asked before any account is looked up, so it says nothing about who has one - only what the public
-// sign-in rules already say about the workspace.
+// makes it work again. **The one exception** is ADR-0076 §4's fallback: a workspace left with no way in
+// that works - whatever the cause (E2, #1138) - signs in by password again. **The refusal is the same
+// for every address**, asked before any account is looked up, so it says nothing about who has one -
+// only what the public sign-in rules already say about the workspace.
 
 // PasswordDoor answers whether the password is open in a workspace. The password writer is one; the
 // session writer asks it through its rule, which is that writer (teachTheRule).
@@ -51,15 +51,27 @@ func (w PasswordWriter) PasswordOpen(ctx context.Context, tenantID shared.ID) (b
 	return fallback, fallback, nil
 }
 
-// passwordShut refuses where the workspace has switched the password off. A writer whose rule cannot
-// answer - built without one, as the tests of other doors are - lets the password through, which is
-// the shape before SC-24.
-func (w SessionWriter) passwordShut(ctx context.Context, tenantID shared.ID) error {
+// passwordDoor asks the rule once whether the password is open here: the refusal where it is not,
+// and whether it is open only as the fallback. A door that lets the password through and records the
+// fallback records it from this answer - a second read could disagree with the one that opened the
+// door, and costs the same rows twice (E2, #1138). A writer whose rule cannot answer - built without
+// one, as the tests of other doors are - lets the password through, which is the shape before SC-24.
+func (w SessionWriter) passwordDoor(ctx context.Context, tenantID shared.ID) (fallback bool, err error) {
 	door, ok := w.Rule.(PasswordDoor)
 	if !ok {
-		return nil
+		return false, nil
 	}
-	return refuseShut(door.PasswordOpen(ctx, tenantID))
+	open, fallback, err := door.PasswordOpen(ctx, tenantID)
+	if err := refuseShut(open, fallback, err); err != nil {
+		return false, err
+	}
+	return fallback, nil
+}
+
+// passwordShut is passwordDoor for a door that records nothing of the fallback.
+func (w SessionWriter) passwordShut(ctx context.Context, tenantID shared.ID) error {
+	_, err := w.passwordDoor(ctx, tenantID)
+	return err
 }
 
 // refuseShut turns PasswordOpen's answer into the refusal, or into nothing.

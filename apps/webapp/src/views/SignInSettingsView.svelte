@@ -440,7 +440,7 @@
               <p class="quiet small">{t('app.signin_settings.ways_hint')}</p>
               {#if fallback}
                 <Banner tone="warning" title={t('app.signin_settings.fallback_title')}>
-                  {t('app.signin_settings.fallback')}
+                  {t('app.signin_settings.fallback_no_way_in')}
                 </Banner>
               {/if}
               <ul class="ways" aria-labelledby="ways">

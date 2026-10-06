@@ -277,7 +277,8 @@ test('chromium: a provider the installation withdraws says when, under its switc
 });
 
 // ADR-0076 §4 (SC-20): a workspace the withdrawal left with no way in is told that the password opened
-// again, from the same answer the sign-in card reads.
+// again, from the same answer the sign-in card reads - in a sentence that names no cause, because the
+// server opens the password whatever left the workspace without a way in (SC-31, E2).
 test('chromium: a workspace left without a way in is told the password is open again', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -310,7 +311,8 @@ test('chromium: a workspace left without a way in is told the password is open a
 
   await page.goto(`${served.origin}/administration/sign-in`);
   await page.getByText('The password is open again').waitFor();
-  assert.match(await page.getByText(/until you switch on another way/i).textContent() ?? '', /new invitation/);
+  const said = await page.getByText(/until you switch on a way in/i).textContent() ?? '';
+  assert.doesNotMatch(said, /withdr|invitation/i, 'the sentence names one cause of many');
 });
 
 // UC-ID-11 check 8: the provider screen configures; it switches nothing - not with a control, and
