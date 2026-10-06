@@ -1199,6 +1199,16 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 	}
 
+	// An operator's opening of the password for one workspace (ADR-0078 §3, SC-34). Built after the
+	// rule is taught, so the verifier's copy of the session writer knows whether the password is a
+	// way in at all when it names the methods a step-up may use.
+	passwordOpeningWriter := adminservice.PasswordOpeningWriter{
+		Instance: instanceWriter, Tenants: postgres.NewAdminTenantRepository(),
+		Journal: postgres.NewInstanceJournal(cursors), Audit: auditSink,
+		StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -1859,6 +1869,10 @@ func run() error {
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
+		// An operator's opening of the password for one workspace (ADR-0078 §3, SC-34): the scope
+		// and the register through the instance writer, the step-up through the session's verifier.
+		adminservice.OpenTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
+		adminservice.CloseTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
 		adminservice.ExportTenant{
 			Tenants: postgres.NewAdminTenantRepository(), Quota: quotaGuard,
 			Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,

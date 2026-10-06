@@ -1842,6 +1842,8 @@
   "app.instance.action.tenant_deletion_cancelled": "Deletion called off",
   "app.instance.action.tenant_hard_deleted": "Workspace deleted for good",
   "app.instance.action.tenant_exported": "Workspace exported",
+  "app.instance.action.tenant_password_opened": "Password opened for a workspace",
+  "app.instance.action.tenant_password_closed": "Password opening ended",
   "app.instance.action.instance_settings_changed": "Instance values changed",
   "app.instance.action.instance_operator_added": "Operator added",
   "app.instance.action.instance_operator_removed": "Operator removed",

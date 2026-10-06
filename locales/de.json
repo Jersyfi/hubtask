@@ -1186,6 +1186,8 @@
   "app.instance.action.tenant_deletion_cancelled": "Löschung abgeblasen",
   "app.instance.action.tenant_hard_deleted": "Arbeitsbereich endgültig gelöscht",
   "app.instance.action.tenant_exported": "Arbeitsbereich exportiert",
+  "app.instance.action.tenant_password_opened": "Passwort für einen Arbeitsbereich geöffnet",
+  "app.instance.action.tenant_password_closed": "Passwortöffnung beendet",
   "app.instance.action.instance_settings_changed": "Werte der Instanz geändert",
   "app.instance.action.instance_operator_added": "Betreiber hinzugefügt",
   "app.instance.action.instance_operator_removed": "Betreiber entfernt",
