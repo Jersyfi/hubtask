@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
 # The engine's session (F6-08): the first-party sync engine's own obligations under

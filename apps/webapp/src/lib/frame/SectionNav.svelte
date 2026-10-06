@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1
+<!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // A section's own navigation column (ADR-0063 decision 7, ADR-0065 decision 3).

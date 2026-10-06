@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A12 — No successful backup in the last 24 hours
 
 **Alerts:** `HubtaskBackupStale`, and A-12's point-in-time recovery half — `HubtaskArchiveGap`,

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 package architecture
@@ -12,21 +12,17 @@ import (
 	"testing"
 )
 
-const (
-	// busl is the identifier every hand-written source file of the Licensed Work carries.
-	busl = "SPDX-License-Identifier: BUSL-1.1"
-	// apache is the identifier every file of the parts ADR-0059 §6 places outside the Licensed
-	// Work carries - generated files included, because there the generator writes it.
-	apache = "SPDX-License-Identifier: Apache-2.0"
-)
+// apache is the identifier every hand-written source file carries: the whole repository is
+// Apache-2.0 (ADR-0080).
+const apache = "SPDX-License-Identifier: Apache-2.0"
 
-// apacheParts are exactly the paths that are Apache-2.0 (ADR-0059 §6 and its amendment of
-// 2026-09-17, deciding ADR-0057; licensing-editions.md §9): the three SDKs, the contract, and
-// the two connector packages. Each is a directory, relative to the repository root, and each
-// carries the Apache-2.0 text as its own LICENSE so that a reader of the directory - and a
-// package registry - needs no repository to know the terms. Everything else is BUSL-1.1.
-// Widening this list is a licence decision, not a test fix.
-var apacheParts = []string{
+// ownLicenceParts are the directories that carry the Apache-2.0 text as a LICENSE file of their
+// own: the three SDKs, the contract, and the two connector packages (ADR-0057, ADR-0058). They
+// are under the same licence as everything else; they keep the file because each may be extracted
+// into a repository or a package registry of its own, and a reader of the directory alone should
+// need nothing else to know the terms. Their generators write the header, so in these parts
+// generated files are held to the same line as hand-written ones.
+var ownLicenceParts = []string{
 	"sdk/go",
 	"sdk/python",
 	"sdk/typescript",
@@ -35,20 +31,18 @@ var apacheParts = []string{
 	"packages/zapier-app",
 }
 
-// TestEverySourceFileCarriesItsLicence keeps the claim in licensing-editions.md §9 true.
+// TestEverySourceFileCarriesItsLicence keeps the claim in licensing-editions.md true.
 //
 // The header is what tells anyone holding a single file which terms it came under - a file
-// travels: into an issue, into a paste, into a fork. BSL 1.1 converts to Apache-2.0 three years
-// after publication (ADR-0013, ADR-0059), and the identifier is what makes that datable for the
-// person holding the copy rather than a claim they would have to take on trust.
+// travels: into an issue, into a paste, into a fork.
 //
-// Generated files of the Licensed Work are exempt, and deliberately: the generator writes their
-// first line, so a header added by hand would be removed at the next `make generate` - and a rule
-// that is undone by a build step is a rule nobody can keep. The Apache-2.0 parts are the
-// exception to the exemption: there the generators write the header (a template for oapi-codegen,
-// a constant in tools/sdkgen), so generated and hand-written files are held to the same line.
+// Generated files outside the own-licence parts are exempt, and deliberately: the generator writes
+// their first line, so a header added by hand would be removed at the next `make generate` - and a
+// rule that is undone by a build step is a rule nobody can keep. Inside those parts the generators
+// write the header (a template for oapi-codegen, a constant in tools/sdkgen), so generated and
+// hand-written files are held to the same line.
 func TestEverySourceFileCarriesItsLicence(t *testing.T) {
-	var checked, apacheChecked int
+	var checked int
 
 	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd", "../../db", "../../tools", "../../test", "../../sdk"},
 		func(path string, _ *ast.File, _ *token.FileSet) {
@@ -59,13 +53,10 @@ func TestEverySourceFileCarriesItsLicence(t *testing.T) {
 			}
 			content := string(source)
 
-			if isApachePart(rel(path)) {
-				apacheChecked++
+			if isOwnLicencePart(rel(path)) {
+				checked++
 				if !strings.HasPrefix(content, "// "+apache) {
-					t.Errorf("%s does not begin with %s (ADR-0059 §6)", rel(path), apache)
-				}
-				if strings.Contains(content, busl) {
-					t.Errorf("%s names BUSL-1.1 inside an Apache-2.0 part (ADR-0059 §6)", rel(path))
+					t.Errorf("%s does not begin with %s (ADR-0080)", rel(path), apache)
 				}
 				return
 			}
@@ -74,29 +65,29 @@ func TestEverySourceFileCarriesItsLicence(t *testing.T) {
 				return
 			}
 			checked++
-			if !strings.HasPrefix(content, "// "+busl) {
-				t.Errorf("%s does not begin with %s (licensing-editions.md §9)", rel(path), busl)
+			if !strings.HasPrefix(content, "// "+apache) {
+				t.Errorf("%s does not begin with %s (ADR-0080)", rel(path), apache)
 			}
 		})
 
-	if checked == 0 || apacheChecked == 0 {
+	if checked == 0 {
 		// A test that read nothing passes for the wrong reason.
-		t.Fatalf("the walk found %d BUSL-1.1 and %d Apache-2.0 Go files - it no longer finds what it should", checked, apacheChecked)
+		t.Fatal("the walk found no Go file - it no longer finds what it should")
 	}
-	t.Logf("%d hand-written source files carry the BUSL-1.1 header, %d Go files of the SDK the Apache-2.0 one", checked, apacheChecked)
+	t.Logf("%d Go source files carry the Apache-2.0 header", checked)
 }
 
-// TestTheApachePartsCarryTheirLicence walks the parts ADR-0059 §6 places under Apache-2.0 - the
-// non-Go files the test above cannot parse - and holds every source file in them to the Apache
-// header, and every part to its own LICENSE file. The contract's JSON files are the one kind
-// that cannot carry a comment; `api/LICENSE` and `info.license` in the document cover them.
-// The SDK's generated types under sdk/typescript/dist are skipped with every other dist/: they
-// are build output, and the banner their generator writes carries the identifier anyway.
-func TestTheApachePartsCarryTheirLicence(t *testing.T) {
-	for _, dir := range apacheParts {
+// TestTheOwnLicencePartsCarryTheirLicence walks the parts that keep a LICENSE file of their own -
+// the non-Go files the test above cannot parse - and holds every source file in them to the
+// header, and every part to its LICENSE file. The contract's JSON files are the one kind that
+// cannot carry a comment; `api/LICENSE` and `info.license` in the document cover them. The SDK's
+// generated types under sdk/typescript/dist are skipped with every other dist/: they are build
+// output, and the banner their generator writes carries the identifier anyway.
+func TestTheOwnLicencePartsCarryTheirLicence(t *testing.T) {
+	for _, dir := range ownLicenceParts {
 		text, err := os.ReadFile(filepath.Join("../..", dir, "LICENSE"))
 		if err != nil {
-			t.Errorf("%s has no LICENSE file of its own (ADR-0059 §6): %v", dir, err)
+			t.Errorf("%s has no LICENSE file of its own (ADR-0057): %v", dir, err)
 			continue
 		}
 		if !strings.Contains(string(text), "Apache License") || !strings.Contains(string(text), "Version 2.0") {
@@ -105,7 +96,7 @@ func TestTheApachePartsCarryTheirLicence(t *testing.T) {
 	}
 
 	var checked int
-	for _, part := range apacheParts {
+	for _, part := range ownLicenceParts {
 		root := filepath.Join("../..", part)
 		err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 			if err != nil {
@@ -128,10 +119,7 @@ func TestTheApachePartsCarryTheirLicence(t *testing.T) {
 			}
 			checked++
 			if !strings.Contains(head(string(source), 12), apache) {
-				t.Errorf("%s does not carry %s in its first lines (ADR-0059 §6)", rel(path), apache)
-			}
-			if strings.Contains(string(source), busl) {
-				t.Errorf("%s names BUSL-1.1 inside an Apache-2.0 part (ADR-0059 §6)", rel(path))
+				t.Errorf("%s does not carry %s in its first lines (ADR-0080)", rel(path), apache)
 			}
 			return nil
 		})
@@ -140,60 +128,28 @@ func TestTheApachePartsCarryTheirLicence(t *testing.T) {
 		}
 	}
 	if checked == 0 {
-		t.Fatal("no source file was read in the Apache-2.0 parts - the walk no longer finds anything")
+		t.Fatal("no source file was read in the own-licence parts - the walk no longer finds anything")
 	}
-	t.Logf("%d files of the Apache-2.0 parts carry their header", checked)
+	t.Logf("%d files of the own-licence parts carry their header", checked)
 }
 
-// TestNoApacheHeaderOutsideTheApacheParts is the other half of "exactly these paths": a file
-// elsewhere in the workspace that claims Apache-2.0 widens the boundary without the decision.
-func TestNoApacheHeaderOutsideTheApacheParts(t *testing.T) {
-	var checked int
-	for _, root := range []string{"../../apps", "../../packages", "../../sdk", "../../tools", "../../scripts", "../../deploy", "../../k8s"} {
-		if _, err := os.Stat(root); os.IsNotExist(err) {
-			continue
-		}
-		err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() {
-				switch d.Name() {
-				case "node_modules", "dist", ".svelte-kit", "target", "__pycache__":
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !isSourceFile(path) || isApachePart(rel(path)) {
-				return nil
-			}
-			source, rerr := os.ReadFile(path)
-			if rerr != nil {
-				t.Errorf("%s is not readable: %v", rel(path), rerr)
-				return nil
-			}
-			checked++
-			// The first lines only: a generator that writes the Apache header holds it in a
-			// constant further down, and that constant is not a claim about the file itself.
-			if strings.Contains(head(string(source), 3), apache) {
-				t.Errorf("%s carries %s outside the parts ADR-0059 §6 names", rel(path), apache)
-			}
-			return nil
-		})
-		if err != nil {
-			t.Fatalf("%s is not walkable: %v", root, err)
-		}
+// TestTheRepositoryLicenceIsApache holds the root LICENSE to the Apache License 2.0 text, so that
+// the header every file carries and the file it points at cannot say two different things.
+func TestTheRepositoryLicenceIsApache(t *testing.T) {
+	text, err := os.ReadFile("../../LICENSE")
+	if err != nil {
+		t.Fatalf("the repository has no LICENSE: %v", err)
 	}
-	if checked == 0 {
-		t.Fatal("no source file was read outside the Apache-2.0 parts - the walk no longer finds anything")
+	if !strings.Contains(string(text), "Apache License") || !strings.Contains(string(text), "Version 2.0, January 2004") {
+		t.Error("LICENSE is not the Apache License 2.0 text (ADR-0080)")
 	}
-	t.Logf("%d files outside the Apache-2.0 parts checked", checked)
 }
 
-// isApachePart says whether a repository-relative path is one of, or lies under, apacheParts.
-func isApachePart(relPath string) bool {
+// isOwnLicencePart says whether a repository-relative path is one of, or lies under,
+// ownLicenceParts.
+func isOwnLicencePart(relPath string) bool {
 	p := filepath.ToSlash(relPath)
-	for _, part := range apacheParts {
+	for _, part := range ownLicenceParts {
 		if p == part || strings.HasPrefix(p, part+"/") {
 			return true
 		}
@@ -213,8 +169,8 @@ func isSourceFile(path string) bool {
 
 // head is the first n lines of a file - the part a licence header may sit in. A generated
 // file's first line belongs to the generator ("Code generated ... DO NOT EDIT"), and the
-// identifier follows within the same comment, which is why the Apache-2.0 parts are read deeper
-// than the rest.
+// identifier follows within the same comment, which is why the own-licence parts are read
+// deeper than the first line.
 func head(content string, n int) string {
 	lines := strings.SplitN(content, "\n", n+1)
 	if len(lines) > n {

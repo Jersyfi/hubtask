@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // The frame on the shell wave (F9-06, ADR-0061 decision 1): one list of destinations, drawn three

@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A02 — The error budget is leaking
 
 **Alert:** `HubtaskErrorBudgetBurnCreeping` · **Severity:** page · **Catalogue:** A-02 · **SLO:** SLO-1

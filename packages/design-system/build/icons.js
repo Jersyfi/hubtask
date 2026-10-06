@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Generates src/icons/base.ts from the declared subset of Lucide (ADR-0041).
@@ -247,7 +247,7 @@ export function render() {
     fs.readFileSync(path.join(packageRoot, 'node_modules', 'lucide-static', 'package.json'), 'utf8'),
   ).version;
 
-  const file = `// SPDX-License-Identifier: BUSL-1.1
+  const file = `// SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**

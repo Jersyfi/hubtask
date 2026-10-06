@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A15 — Authentication is being refused, or a token was used twice
 
 **Alerts:** `HubtaskAuthFailureRate` (ticket) · `HubtaskRefreshTokenReused` (page) · **Catalogue:** A-15

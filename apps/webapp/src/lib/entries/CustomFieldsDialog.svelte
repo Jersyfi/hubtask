@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1
+<!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The custom fields in force for a collection: defining one, changing what it permits, and

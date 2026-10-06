@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1
+<!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // A condition composed as a tree of sentences and stored as CEL (F8-04 decision 3, F8-13

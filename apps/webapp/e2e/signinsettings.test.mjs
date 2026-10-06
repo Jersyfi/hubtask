@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // The workspace's sign-in rules, walked as an administrator meets them (UC-ID-12, SC-06): every rule

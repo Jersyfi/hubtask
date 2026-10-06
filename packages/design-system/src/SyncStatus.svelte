@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1
+<!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // **One mark in the bar** about the copy and the server (F6-06, offline-sync.md §9, ADR-0063

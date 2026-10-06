@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1
+<!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The tree the application is navigated by - and a tree is a keyboard interaction before it is a

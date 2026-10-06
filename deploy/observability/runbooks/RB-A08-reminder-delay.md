@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A08 — Reminders are arriving late
 
 **Alert:** `HubtaskReminderDelay` · **Severity:** ticket · **Catalogue:** A-08 · **SLO:** SLO-5

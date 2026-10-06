@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A17 — A certificate expires in under two weeks
 
 **Alert:** `HubtaskCertificateExpiring` · **Severity:** ticket · **Catalogue:** A-17

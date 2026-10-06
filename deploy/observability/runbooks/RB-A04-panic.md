@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A04 — A panic was recovered
 
 **Alert:** `HubtaskPanicRecovered` · **Severity:** page · **Catalogue:** A-04

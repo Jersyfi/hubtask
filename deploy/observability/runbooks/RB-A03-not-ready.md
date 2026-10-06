@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A03 — Hubtask is not ready to serve
 
 **Alert:** `HubtaskNotReady` · **Severity:** page · **Catalogue:** A-03

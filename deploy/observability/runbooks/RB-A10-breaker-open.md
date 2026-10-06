@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A10 — A circuit breaker has been open for ten minutes
 
 **Alert:** `HubtaskCircuitBreakerOpen` · **Severity:** ticket · **Catalogue:** A-10

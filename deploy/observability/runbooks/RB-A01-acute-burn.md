@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A01 — The error budget is burning fast enough to be an outage
 
 **Alert:** `HubtaskErrorBudgetBurnAcute` · **Severity:** page · **Catalogue:** A-01 · **SLO:** SLO-1
