@@ -349,7 +349,7 @@
   "app.signin_settings.ways_hint": "Jeder Weg hinein, mit seinem eigenen Schalter. Ein Schalter hier wirkt sofort.",
   "app.signin_settings.way_password": "Passwort",
   "app.signin_settings.way_password_hint": "Die Adresse und ein Passwort, geprüft von dieser Installation.",
-  "app.signin_settings.password_off_reach": "{count, plural, one {# Person hier hat} other {# Personen hier haben}} keinen hier eingeschalteten Anbieter zum Anmelden. Ist das Passwort aus, verbindet jede von ihnen einen über „Anmeldelink per Mail anfordern“ auf der Anmeldeseite – oder mit ihrem Passwort, wenn sie den Anbieter zum ersten Mal nutzt.",
+  "app.signin_settings.password_off_reach": "{count, plural, one {# Person hier hat} other {# Personen hier haben}} keinen hier eingeschalteten Anbieter zum Anmelden. Ist das Passwort aus, kann jede von ihnen einen über „Anmeldelink per Mail anfordern“ auf der Anmeldeseite verbinden – oder mit ihrem Passwort, wenn sie den Anbieter zum ersten Mal nutzt –, sofern der Anbieter sie unter derselben Adresse kennt.",
   "app.signin_settings.way_own": "Ein eigener Anbieter dieses Arbeitsbereichs.",
   "app.signin_settings.way_offered": "Von der Installation angeboten. Hier aus, bis du ihn einschaltest.",
   "app.signin_settings.way_off_above": "Von der Installation abgeschaltet",

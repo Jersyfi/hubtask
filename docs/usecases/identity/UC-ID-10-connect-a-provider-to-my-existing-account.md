@@ -70,8 +70,8 @@ only, and no walk against a live installation and provider has been made (SC-15)
 addressed identity is connected from a signed-in session, SC-37 (#1146).
 
 **Checks 1 and 6, the mailbox, hold since SC-33 ([#1140](https://github.com/Jersyfi/hubtask/issues/1140)).**
-Where the workspace switched the password off, *Forgot your password?* mails an account no provider
-there lets in a link to connect one (UC-ID-04 check 8). The provider flow started from it carries the
+Where the workspace switched the password off, *Get a sign-in link by mail* on the card mails an
+account no provider there lets in a link to connect one (UC-ID-04 check 8). The provider flow started from it carries the
 link, bound on the server (`oidc_flow.pending_id`) and checked without being spent, and asks the
 provider for a fresh sign-in. At the return the link and that sign-in are the account's proof: an
 `auth_time` outside the step-up's window, or from before the flow left for the provider, connects
@@ -133,7 +133,8 @@ no provider identity, as after its provider was removed: until SC-32 an admitted
 it and opened a session on the provider's word in every mode, so an administrator's own issuer could
 sign in as such a member. It is connected now only by a provider authoritative for its address (the
 mailbox's host vouching, ADR-0078 §5); otherwise nothing is connected, the refusal is in the trail,
-and the answer `identity_provider.link_needs_mailbox` points at *Forgot your password?*
+and the answer `identity_provider.link_needs_mailbox` points at the card's mail link - *Forgot your
+password?* where the password is on, *Get a sign-in link by mail* where it is off
 (`TestACredentiallessAccountIsConnectedOnlyByAnAuthoritativeProvider`, every mode, authoritative and
 not).
 

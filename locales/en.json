@@ -1365,7 +1365,7 @@
   "app.signin_settings.ways_hint": "Each way in, with its own switch. A switch here takes effect at once.",
   "app.signin_settings.way_password": "Password",
   "app.signin_settings.way_password_hint": "The address and a password, checked by this installation.",
-  "app.signin_settings.password_off_reach": "{count, plural, one {# person here has} other {# people here have}} no provider switched on here to sign in with. With the password off, each of them connects one through “Get a sign-in link by mail” on the sign-in page - or with their password, the first time they use the provider.",
+  "app.signin_settings.password_off_reach": "{count, plural, one {# person here has} other {# people here have}} no provider switched on here to sign in with. With the password off, each of them can connect one through “Get a sign-in link by mail” on the sign-in page - or with their password, the first time they use the provider - if the provider knows them under the same address.",
   "app.signin_settings.way_own": "This workspace's own provider.",
   "app.signin_settings.way_offered": "Offered by the installation. Off here until you switch it on.",
   "app.signin_settings.way_off_above": "Switched off by the installation",
