@@ -368,6 +368,8 @@
   "app.signin_settings.way_withdrawing_off": "Die Installation zieht diesen Anbieter am {date} zurück.",
   "app.signin_settings.fallback_title": "Das Passwort ist wieder offen",
   "app.signin_settings.fallback_no_way_in": "In diesem Arbeitsbereich funktioniert kein anderer Weg der Anmeldung. Bis du einen einschaltest, melden sich alle mit ihrem Passwort an, sofern sie eines haben, nach den Regeln dieses Arbeitsbereichs.",
+  "app.signin_settings.opening_title": "Der Betreiber der Installation hat das Passwort geöffnet",
+  "app.signin_settings.opening_body": "Bis {until} kann sich hier jeder mit seinem Passwort anmelden, der eines hat - unabhängig von diesen Einstellungen, meist weil euer Anbieter nicht erreichbar ist. Angefragt von {requester}: {reason}. Wenn niemand hier das angefragt hat, sag dem Betreiber Bescheid.",
   "app.signin_settings.last_way": "Der einzige Weg hinein, der noch übrig ist. Schalte zuerst einen anderen ein.",
   "app.signin_settings.not_offered_above": "Die Installation bietet diesen Weg nicht an.",
   "app.signin_settings.switching": "Wird geschaltet",

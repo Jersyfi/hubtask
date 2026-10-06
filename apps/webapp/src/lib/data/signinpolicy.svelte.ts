@@ -18,7 +18,7 @@
  * that had to guess between them would be a screen that tells somebody to ask the wrong person.
  */
 
-import { TransportError, type ResourceState } from '@hubtask/sync-engine';
+import { TransportError, type PasswordOpening, type ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
@@ -95,6 +95,8 @@ interface Workspace {
   readonly slug: string;
   readonly version: number;
   readonly sign_in_policy?: SignInPolicy;
+  /** The installation operator's opening of the password, while it stands (ADR-0078 §3). */
+  readonly password_opening?: PasswordOpening;
 }
 
 class SignInPolicyStore {
@@ -108,6 +110,15 @@ class SignInPolicyStore {
 
   get policy(): SignInPolicy | undefined {
     return this.#workspace?.sign_in_policy;
+  }
+
+  /**
+   * The installation operator's opening of the password, while it stands: the password is open for
+   * everybody here who holds one, whatever these rules say, until its end. The server answers it
+   * only while it is in force.
+   */
+  get opening(): PasswordOpening | undefined {
+    return this.#workspace?.password_opening;
   }
 
   /**

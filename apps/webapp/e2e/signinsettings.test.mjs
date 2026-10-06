@@ -380,6 +380,48 @@ test('chromium: a switched-off password says no count', async (t) => {
   assert.equal(await list.locator('[data-reach]').count(), 0, 'a switched-off password still says the count');
 });
 
+// ADR-0078 §3 (SC-34): while the installation's operator has the password open, the administrators'
+// screen says so - until when, who asked and why - instead of the sentence about no way in, which the
+// sign-in card's fallback flag would otherwise draw: a person opened it, the settings did not.
+test('chromium: an operator\'s opening of the password is said with its end, its requester and its reason', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const onlyProvider = policy();
+  onlyProvider.methods = rule(['OIDC'], ['PASSWORD', 'OIDC'], { source: 'WORKSPACE' });
+  const opening = {
+    until: '2026-10-07T14:30:00Z', requester: 'TICKET-4711', reason: 'the directory answers 500',
+  };
+  const { page, close } = await open(browser, (route, path) => {
+    if (path === '/tenant') {
+      return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: onlyProvider, password_opening: opening } });
+    }
+    if (path === '/meta/capabilities') {
+      return route.fulfill({ json: { ...MANIFEST, features: { ...MANIFEST.features, sign_in_rules: true } } });
+    }
+    if (path === '/auth/sign-in-rules') {
+      return route.fulfill({ json: {
+        workspace_host: 'acme.hubtask.eu', methods: ['PASSWORD', 'OIDC'], providers: [], legal: {},
+        password: {
+          min_length: 12, min_lowercase: 0, min_uppercase: 0, min_digits: 0, min_symbols: 0,
+          min_classes: 0, max_repeat: 0, common_passwords: true, context_words: true,
+          breach_check: false, history_count: 0, not_current: false,
+        },
+        password_fallback: true,
+      } });
+    }
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.getByText('The installation\'s operator opened the password').waitFor();
+  const said = await page.getByText(/whatever these settings say/).textContent() ?? '';
+  assert.match(said, /Asked for by TICKET-4711: the directory answers 500/);
+  assert.match(said, /2026/, 'the end is not said');
+  assert.equal(await page.getByText('The password is open again').count(), 0,
+    'the opening is told as a workspace with no way in');
+});
+
 // UC-ID-11 check 8: the provider screen configures; it switches nothing - not with a control, and
 // not with the deprecated field in the body it saves (ADR-0076 §5).
 test('chromium: the provider screen has no switch of its own', async (t) => {

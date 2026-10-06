@@ -235,6 +235,10 @@
     return untrack(() => signInRules.read());
   });
   const fallback = $derived(signInRules.rules?.password_fallback === true);
+  // The installation operator's opening of the password (ADR-0078 §3), while it stands. It is the
+  // fallback too, as the sign-in card sees it - but a different sentence: a person opened it, for a
+  // reason and until a moment, rather than this workspace's settings leaving no way in.
+  const opening = $derived(signInPolicy.opening);
   const passwordOn = $derived(policy?.methods.value.includes('PASSWORD') ?? false);
   const waysOn = $derived((passwordOn ? 1 : 0) + providers.filter((one) => one.offered_here === true).length);
   let switching = $state<string | undefined>(undefined);
@@ -443,7 +447,15 @@
             <Stack gap="200">
               <h2 id="ways">{t('app.signin_settings.ways')}</h2>
               <p class="quiet small">{t('app.signin_settings.ways_hint')}</p>
-              {#if fallback}
+              {#if opening}
+                <Banner tone="warning" title={t('app.signin_settings.opening_title')}>
+                  {t('app.signin_settings.opening_body', {
+                    until: formatDateTime(opening.until, messages.locale),
+                    requester: opening.requester,
+                    reason: opening.reason,
+                  })}
+                </Banner>
+              {:else if fallback}
                 <Banner tone="warning" title={t('app.signin_settings.fallback_title')}>
                   {t('app.signin_settings.fallback_no_way_in')}
                 </Banner>
