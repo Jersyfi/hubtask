@@ -202,6 +202,13 @@ func (WorkspaceSettingsRepository) Find(ctx context.Context) (identity.Workspace
 			SignIn:              patch,
 			Legal:               links,
 		},
+		// The operator's opening, as the row holds it; whether it still stands is the reader's to
+		// judge against its clock (ADR-0078 §3).
+		PasswordOpening: identity.PasswordOpening{
+			Until:     timeFrom(row.PasswordOpenedUntil),
+			Requester: stringFrom(row.PasswordOpenedRequester),
+			Reason:    stringFrom(row.PasswordOpenedReason),
+		},
 		UpdatedAt: timeFrom(row.UpdatedAt),
 		Version:   int(row.Version),
 	}, nil

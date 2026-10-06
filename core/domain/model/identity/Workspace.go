@@ -20,9 +20,13 @@ import (
 // control plane holds.
 type Workspace struct {
 	Tenant
-	Settings  WorkspaceSettings
-	UpdatedAt time.Time
-	Version   int
+	Settings WorkspaceSettings
+	// PasswordOpening is an operator's opening of the password, where one was made (ADR-0078 §3).
+	// Read with the row and written by the control plane alone: it is not in the settings document,
+	// so nothing the workspace sends through its own form reaches it.
+	PasswordOpening PasswordOpening
+	UpdatedAt       time.Time
+	Version         int
 }
 
 // WorkspaceSettings is the modelled half of the tenant's settings document.
