@@ -212,3 +212,121 @@ func TestALinkCredentialIsNotASecondFactorCredential(t *testing.T) {
 		t.Errorf("the provider was connected without the password: %v", f.external.links)
 	}
 }
+
+// invitedOnlyLinkFixture is the member's workspace under *Only people invited here*, at a provider
+// that verified the address and is not authoritative for it - a self-hosted issuer, say (ADR-0078
+// §5). Authority is needed only where nothing else proves the person; an existing member proves
+// themselves at the LINK step.
+func invitedOnlyLinkFixture(t *testing.T, armed bool) *oidcFixture {
+	t.Helper()
+	f := linkFixture(t, armed)
+	f.store.rows[0].Provisioning = domain.ProvisionInvitedOnly
+	f.relying.identity.AddressAuthoritative = false
+	return f
+}
+
+// An existing member with a password reaches the LINK step from a provider that is not
+// authoritative, and is connected only with that password - nothing is linked before it, and a
+// wrong one links nothing.
+func TestUnderInvitedOnlyAMemberConnectsANonAuthoritativeProviderWithTheirPassword(t *testing.T) {
+	f := invitedOnlyLinkFixture(t, false)
+
+	result, err := arrive(t, f)
+	if err != nil {
+		t.Fatalf("the member's arrival was refused rather than asked for its proof: %v", err)
+	}
+	if result.Pair != nil || result.Challenge == nil || result.Challenge.Methods[0] != methodLink {
+		t.Fatalf("the arrival answered %+v, want the LINK step", result)
+	}
+	if len(f.external.links) != 0 {
+		t.Fatalf("the provider was connected before the account's proof: %v", f.external.links)
+	}
+
+	link := CompleteLink{Writer: f.writer}
+	if _, err := link.Execute(t.Context(), CompleteLinkCommand{
+		PendingToken: result.Challenge.Token, Password: secret.New("a guess"),
+	}); err == nil {
+		t.Fatal("a wrong password completed the LINK step")
+	}
+	if len(f.external.links) != 0 {
+		t.Fatalf("a wrong password linked %v", f.external.links)
+	}
+
+	done, err := link.Execute(t.Context(), CompleteLinkCommand{
+		PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
+	})
+	if err != nil {
+		t.Fatalf("the right password was refused: %v", err)
+	}
+	if done.Pair == nil || done.Pair.Session.AccountID != account {
+		t.Fatalf("the step answered %+v, want a session for the member", done)
+	}
+	if len(f.external.links) != 1 || f.external.links[0] != "attacker-made-subject" {
+		t.Errorf("the links are %v, want the provider's subject once", f.external.links)
+	}
+}
+
+// With a second factor armed, the password hands on to the code, and only the code connects.
+func TestUnderInvitedOnlyAnArmedMemberConnectsOnlyWithPasswordAndCode(t *testing.T) {
+	f := invitedOnlyLinkFixture(t, true)
+	result, err := arrive(t, f)
+	if err != nil || result.Challenge == nil {
+		t.Fatalf("arriving: (%+v, %v)", result, err)
+	}
+
+	next, err := CompleteLink{Writer: f.writer}.Execute(t.Context(), CompleteLinkCommand{
+		PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
+	})
+	if err != nil || next.Challenge == nil || next.Challenge.Methods[0] != methodTotp {
+		t.Fatalf("the right password answered (%+v, %v), want the second factor's step", next, err)
+	}
+	if len(f.external.links) != 0 {
+		t.Fatalf("the provider was connected before the second factor: %v", f.external.links)
+	}
+
+	material := f.session.writer.Encryptor.(*encryptorFake).sealedBy[string(mfaSecretPurpose(account))]
+	if _, _, err := (CompleteSignIn{Writer: f.session.writer}).Execute(t.Context(), CompleteSignInCommand{
+		PendingToken: next.Challenge.Token,
+		Code:         domain.TotpCode([]byte(material), domain.TotpStep(now)+1),
+	}); err != nil {
+		t.Fatalf("the second factor's step: %v", err)
+	}
+	if len(f.external.links) != 1 {
+		t.Errorf("after the code the links are %v, want the provider's subject once", f.external.links)
+	}
+}
+
+// What INVITED_ONLY still refuses from a provider that is not authoritative: an address no account
+// here holds - nobody is created - and a member with no password to prove on the card.
+func TestUnderInvitedOnlyANonAuthoritativeProviderStillRefusesTheRest(t *testing.T) {
+	t.Run("an address nobody here holds", func(t *testing.T) {
+		f := invitedOnlyLinkFixture(t, false)
+		f.relying.identity.Email = "eve@example.org"
+
+		_, err := arrive(t, f)
+		if detailOf(err) != "identity_provider.not_admitted" {
+			t.Fatalf("a stranger's arrival answered %v", err)
+		}
+		if len(f.external.links) != 0 || len(f.accounts.inserted) != 0 {
+			t.Errorf("a refused arrival linked %v or created %d accounts", f.external.links, len(f.accounts.inserted))
+		}
+		if !containsAction(auditActions(f.session.audit.entries), OidcRefusedAction) {
+			t.Error("the refusal is not in the trail")
+		}
+	})
+	t.Run("a member without a password", func(t *testing.T) {
+		f := newOidcFixture(t, now, ownerAccount)
+		f.store.rows[0].Provisioning = domain.ProvisionInvitedOnly
+		f.relying.identity = provider.Identity{
+			Subject: "a-subject", Email: "bert@example.org", EmailVerified: true, DisplayName: "Bert",
+		}
+
+		_, err := arrive(t, f)
+		if detailOf(err) != "identity_provider.link_needs_own_way_in" {
+			t.Fatalf("a member with nothing to prove answered %v", err)
+		}
+		if len(f.external.links) != 0 {
+			t.Errorf("the provider's word connected %v", f.external.links)
+		}
+	})
+}

@@ -515,15 +515,17 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 	}
 }
 
-// MayAdmitInvited answers whether this provider may bring in the one invited account a sign-in
-// started from - the invitation's own link, bound to the flow (ADR-0078 §1).
+// MayAdmitWithProof answers whether this provider may bring an arriving subject to a door it opens
+// only with a second proof of its own (ADR-0078 §1, §5): the invitation's own link bound to the
+// flow, for the one invited account it names, or an existing account's own proof at the LINK step.
 //
 // Everything `MayAdmit` admits, and under `INVITED_ONLY` one more: an address the provider verified
-// but is not authoritative for. The link is the second proof there, and it proves one account - the
-// caller has already checked that the arriving address is that account's own. Under `DOMAINS` the
-// link widens nothing: the directory or domain list is the workspace's statement of who comes in
-// through this provider, and an invitation is not a reason to read it differently.
-func (p IdentityProvider) MayAdmitInvited(arriving Arriving) bool {
+// but is not authoritative for. Authority is what stands in for a proof where there is none - a new
+// account, an invitation activated without its link - so where the person brings one, the provider
+// need not vouch for the mailbox. The caller has checked that the arriving address is the account's
+// own, and nothing is created through this. Under `DOMAINS` it widens nothing: the directory or
+// domain list is the workspace's statement of who comes in through this provider.
+func (p IdentityProvider) MayAdmitWithProof(arriving Arriving) bool {
 	if p.MayAdmit(arriving) {
 		return true
 	}

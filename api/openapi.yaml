@@ -3849,6 +3849,11 @@ paths:
         invitation. Whatever was connected to the invited account before the proof is dropped when
         it is activated.
 
+        Authority for the address stands in for a proof only where there is none. Under *Only
+        people invited here* a provider that is not authoritative still brings an existing active
+        account that holds a password to the `LINK` step - connected only with that password and
+        its second factor - and never creates an account.
+
         A `state` that is unknown, already spent or expired is refused indistinguishably: a flow
         handle is single use.
       requestBody:

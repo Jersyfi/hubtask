@@ -380,11 +380,17 @@ func (w OidcWriter) settleAccount(
 		// the configured list is refused here - not provisioned a desk of its own, which is what
 		// made the mode indistinguishable from ANY.
 		if !configured.MayAdmit(admissionOf(arriving)) {
-			refused := w.notAdmitted(ctx, configured, arriving)
-			if !errors.Is(refused, shared.ErrForbidden) {
-				return refused
+			existing, err := w.notAdmitted(ctx, configured, arriving)
+			if err != nil {
+				if !errors.Is(err, shared.ErrForbidden) {
+					return err
+				}
+				return turnedAway(err)
 			}
-			return turnedAway(refused)
+			// An existing member whose provider is not authoritative for the address: the LINK
+			// step, where the account's own proof is asked and nothing is connected without it.
+			account, owed = existing, true
+			return nil
 		}
 
 		// Admitted. If an account here already holds the address the provider vouched for, this is
@@ -494,28 +500,51 @@ func (e turnedAwayError) Unwrap() error { return e.cause }
 // turnedAway marks a refusal to be recorded.
 func turnedAway(cause error) error { return turnedAwayError{cause: cause} }
 
-// notAdmitted is the refusal of an arrival admission turned away - and, under INVITED_ONLY, the
-// pointer to the invitation's link where the verified address is one somebody invited here
-// (ADR-0078 §1). That person has a way in the provider cannot give them on its own, and "this
-// provider only signs in people whose address it was configured for" would hide it.
+// notAdmitted answers an arrival admission turned away (ADR-0078 §1, §5).
+//
+// Under INVITED_ONLY a provider that is not authoritative for the address - a self-hosted one, a
+// personal Google account at somebody else's domain - still brings two people to a door they open
+// with their own proof, because authority is needed only where nothing else proves the person:
+//
+//   - an existing ACTIVE account goes to the LINK step: its password (and its second factor) is
+//     asked, and nothing is connected without it. The account is answered, and owes that proof.
+//     One that cannot give it on this card is refused with the sentence naming the way in it has.
+//     Without this a member of a workspace that chose its provider only would have no way to
+//     connect it (P-16).
+//   - an INVITED account is pointed at its invitation's link, which is the proof it holds.
+//
+// Everybody else is refused, and INVITED_ONLY never creates an account.
 func (w OidcWriter) notAdmitted(
 	ctx context.Context, configured domain.IdentityProvider, arriving provider.Identity,
-) error {
+) (domain.Account, error) {
 	refused := shared.ErrForbidden.WithDetail("identity_provider.not_admitted")
-	if configured.Provisioning != domain.ProvisionInvitedOnly || !arriving.EmailVerified {
-		return refused
+	if !configured.MayAdmitWithProof(admissionOf(arriving)) {
+		return domain.Account{}, refused
 	}
 	existing, err := w.Accounts.FindByEmail(ctx, domain.LookupAddress(arriving.Email, w.Domains))
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
-			return refused
+			return domain.Account{}, refused
 		}
-		return err
+		return domain.Account{}, err
 	}
-	if existing.Status == domain.AccountInvited {
-		return shared.ErrForbidden.WithDetail("identity_provider.invitation_needs_link")
+	switch existing.Status {
+	case domain.AccountInvited:
+		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.invitation_needs_link")
+	case domain.AccountActive:
+		proof, err := w.proofOwed(ctx, existing)
+		if err != nil {
+			return domain.Account{}, err
+		}
+		if proof == proofPassword {
+			return existing, nil
+		}
+		// No password to ask for here: the provider's word does not stand in for one, so the
+		// account is refused rather than connected (proofNone) or asked for what it lacks.
+		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in")
+	default:
+		return domain.Account{}, refused
 	}
-	return refused
 }
 
 // arriveInvited is a first arrival through the invitation's own link (ADR-0078 §1): the invited
@@ -539,7 +568,7 @@ func (w OidcWriter) arriveInvited(
 		w.Session.failure(ctx, FailureRedemption)
 		return domain.Account{}, redemptionRefused()
 	}
-	if !configured.MayAdmitInvited(admissionOf(arriving)) {
+	if !configured.MayAdmitWithProof(admissionOf(arriving)) {
 		return domain.Account{}, turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_admitted"))
 	}
 	if !w.sameAddress(arriving.Email, invited.Email) {
