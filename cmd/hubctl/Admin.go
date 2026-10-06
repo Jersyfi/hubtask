@@ -38,7 +38,7 @@ func adminGroup() group {
 		commands: []command{
 			{
 				name:    "tenant",
-				usage:   "ls|create|suspend|resume|delete|export …",
+				usage:   "ls|create|suspend|resume|delete|export|open-password|close-password …",
 				summary: "the workspaces, and their lifecycle",
 				run:     adminTenant,
 				// The export waits on a job, and `--timeout` bounds one call rather than one
@@ -75,7 +75,7 @@ func adminGroup() group {
 
 // adminTenant is a noun under a noun, and dispatches its own verb - `backup target`'s reasoning.
 func adminTenant(ctx context.Context, cli *CLI, args []string) error {
-	const verbs = "ls, create, suspend, resume, delete, export"
+	const verbs = "ls, create, suspend, resume, delete, export, open-password, close-password"
 	if len(args) == 0 {
 		return usagef("admin tenant needs a command: %s", verbs)
 	}
@@ -92,6 +92,10 @@ func adminTenant(ctx context.Context, cli *CLI, args []string) error {
 		return adminTenantDelete(ctx, cli, args[1:])
 	case "export":
 		return adminTenantExport(ctx, cli, args[1:])
+	case "open-password":
+		return adminTenantOpenPassword(ctx, cli, args[1:])
+	case "close-password":
+		return adminTenantClosePassword(ctx, cli, args[1:])
 	default:
 		return usagef("admin tenant has no command %q: %s", args[0], verbs)
 	}
@@ -238,6 +242,88 @@ func adminTenantDelete(ctx context.Context, cli *CLI, args []string) error {
 	})
 }
 
+// adminTenantOpenPassword opens the password for one workspace for a while (ADR-0078 §3): the lever
+// for a provider that is switched on but broken. Who asked and why are not optional - the workspace's
+// administrators read both - and the proof is the shared mechanism, in the header the act takes it in.
+func adminTenantOpenPassword(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "admin tenant open-password <id> --requester <who asked> --reason <why> [--hours <n>]"
+	tenantID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "admin tenant", "open-password",
+		"<id> --requester <who asked> --reason <why> [--hours <n>]")
+	requester := flags.String("requester", "", "who asked for it - a ticket reference rather than a name")
+	reason := flags.String("reason", "", "why: what is wrong with the provider")
+	hours := flags.Int("hours", 0, "how long it stands, from now: 1 to 168 (a day when not given)")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+	if *requester == "" || *reason == "" {
+		return usagef("opening the password needs --requester and --reason: the workspace's administrators read both")
+	}
+	request := openapi.PasswordOpeningRequest{Requester: *requester, Reason: *reason}
+	if *hours != 0 {
+		request.Hours = hours
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var tenant openapi.AdminTenant
+	err = cli.proveAgain(ctx, client, func(stepUp string) error {
+		return client.PostWithHeader(ctx, adminTenantsPath+"/"+tenantID.String()+":open-password",
+			request, stepUpProof(stepUp), &tenant)
+	})
+	if err != nil {
+		return err
+	}
+	if cli.JSON {
+		return cli.Emit(tenant, Table{})
+	}
+	cli.emitTable(openingTable(tenant))
+	printf(cli.Err, "the workspace's administrators are told; it closes on its own at the time above, "+
+		"or with admin tenant close-password\n")
+	return nil
+}
+
+// adminTenantClosePassword ends an opening before its time. No step-up: it narrows the way in.
+func adminTenantClosePassword(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "admin tenant close-password <id>"
+	tenantID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "admin tenant", "close-password", "<id>")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var tenant openapi.AdminTenant
+	if err := client.Post(ctx, adminTenantsPath+"/"+tenantID.String()+":close-password", nil, &tenant); err != nil {
+		return err
+	}
+	if cli.JSON {
+		return cli.Emit(tenant, Table{})
+	}
+	printf(cli.Err, "the password of workspace %s follows its own settings again\n", tenantID)
+	return nil
+}
+
+// openingTable is the opening as it stands: until when, who asked, why.
+func openingTable(tenant openapi.AdminTenant) Table {
+	row := []string{tenant.Id.String(), "-", "-", "-"}
+	if opening := tenant.PasswordOpening; opening != nil {
+		row = []string{tenant.Id.String(), shortTime(&opening.Until), opening.Requester, opening.Reason}
+	}
+	return Table{Columns: []string{"workspace", "open until", "requester", "reason"}, Rows: [][]string{row}}
+}
+
 // adminTenantExport writes the workspace whole to a configured target, and follows the job.
 //
 // The archive is at the target rather than at a URL, so the job carries no result to read back:
@@ -298,12 +384,21 @@ func tenantTable(tenants []openapi.AdminTenant) Table {
 			text(tenant.DefaultLocale),
 			shortTime(&tenant.CreatedAt),
 			purgeAfter(tenant.PurgeAfter),
+			passwordOpenUntil(tenant.PasswordOpening),
 		})
 	}
 	return Table{
-		Columns: []string{"id", "slug", "name", "status", "locale", "created", "purged after"},
+		Columns: []string{"id", "slug", "name", "status", "locale", "created", "purged after", "password open until"},
 		Rows:    rows,
 	}
+}
+
+// passwordOpenUntil is a dash for every workspace whose password no operator has opened.
+func passwordOpenUntil(opening *openapi.PasswordOpening) string {
+	if opening == nil {
+		return "-"
+	}
+	return shortTime(&opening.Until)
 }
 
 // purgeAfter is empty for every workspace nobody has asked to end, which is nearly all of them.

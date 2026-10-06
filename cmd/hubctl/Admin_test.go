@@ -251,3 +251,82 @@ func TestResealingSaysWhereToWatchTheRounds(t *testing.T) {
 		t.Errorf("the operator was not told where to watch: %q", errOut)
 	}
 }
+
+// ADR-0078 §3 (SC-34): the operator's lever, from the terminal. Who asked and why travel with the
+// hours, and the proof in the header the act takes it in - as the dashboard sends it.
+func TestOpeningThePasswordProvesAgainAndSaysUntilWhen(t *testing.T) {
+	var proofHeader string
+	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == APIPath+stepUpPath:
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"step_up_token":"` + stepUpToken + `",
+			  "expires_at":"2026-10-06T09:05:00Z","method":"PASSWORD"}`))
+		case r.Header.Get(stepUpHeader) == "":
+			problemJSON(w, http.StatusForbidden, map[string]any{
+				"status": 403, "code": "forbidden", "detail_code": "auth.step_up_required",
+				"params": map[string]any{"methods": "PASSWORD"},
+			})
+		default:
+			proofHeader = r.Header.Get(stepUpHeader)
+			_, _ = w.Write([]byte(`{"id":"` + acmeID + `","slug":"acme","display_name":"Acme",
+			  "status":"ACTIVE","created_at":"2026-09-01T09:00:00Z","purge_after":null,
+			  "password_opening":{"until":"2026-10-08T09:00:00Z","requester":"TICKET-4711",
+			  "reason":"the directory answers 500"}}`))
+		}
+	})
+	profile := filepath.Join(t.TempDir(), "profile.json")
+	saveSession(t, profile, stub.server.URL, time.Now().Add(10*time.Minute))
+
+	code, out, errOut := invokeAgainst(t, stub, map[string]string{envProfile: profile}, "hunter2\n",
+		"admin", "tenant", "open-password", acmeID, "--requester", "TICKET-4711",
+		"--reason", "the directory answers 500", "--hours", "48")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.URL.Path != APIPath+adminTenantsPath+"/"+acmeID+":open-password" {
+		t.Errorf("the opening called %s", stub.request.URL.Path)
+	}
+	if proofHeader != stepUpToken {
+		t.Errorf("the proof did not travel in %s: %q", stepUpHeader, proofHeader)
+	}
+	for _, want := range []string{`"hours":48`, `"requester":"TICKET-4711"`, `"reason":"the directory answers 500"`} {
+		if !strings.Contains(stub.body, want) {
+			t.Errorf("the request lacks %s: %s", want, stub.body)
+		}
+	}
+	if !strings.Contains(out, "2026-10-08") || !strings.Contains(out, "TICKET-4711") {
+		t.Errorf("the answer does not say until when and for whom: %q", out)
+	}
+}
+
+// Who asked and why are not optional, and the default day is the server's to apply: a command that
+// names no hours sends none.
+func TestOpeningThePasswordNeedsWhoAskedAndWhy(t *testing.T) {
+	stub := serve(t, func(http.ResponseWriter, *http.Request) {
+		t.Error("a call was made for an opening nobody asked for")
+	})
+	code, _, _ := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "tenant", "open-password", acmeID, "--reason", "down")
+	if code != exitUsage {
+		t.Fatalf("exit %d, want %d", code, exitUsage)
+	}
+}
+
+func TestClosingThePasswordIsOneWrite(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"id":"`+acmeID+`","slug":"acme","display_name":"Acme",
+	  "status":"ACTIVE","created_at":"2026-09-01T09:00:00Z","purge_after":null}`)
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "tenant", "close-password", acmeID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	want := APIPath + adminTenantsPath + "/" + acmeID + ":close-password"
+	if stub.request.Method != http.MethodPost || stub.request.URL.Path != want {
+		t.Errorf("%s %s, want POST %s", stub.request.Method, stub.request.URL.Path, want)
+	}
+	if !strings.Contains(errOut, "its own settings again") {
+		t.Errorf("the close is not confirmed: %q", errOut)
+	}
+}
