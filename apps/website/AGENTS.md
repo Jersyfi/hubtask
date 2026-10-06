@@ -21,6 +21,11 @@ it into `dist/`, and `.github/workflows/website.yml` publishes that on a push to
   use". The name is not covered by the licence (`TRADEMARK.md`). The site never states a price, a
   paid edition, a support period, a deadline or a maintenance commitment — the project is provided
   as is.
+* **No capability left unnamed, and none claimed early.** The site names everything Hubtask does or
+  has decided to do — otherwise what the project can do gets lost. A built capability is stated
+  plainly; a decided one that is not built carries a *Planned* chip and is never described as
+  working. `/use-cases/` covers the deployments D1–D7, one anchor each. Check a claim against the use
+  case's `state:` and *Today*, not against the backlog; when a use case moves, the chip moves with it.
 * **No `.go` file** (rule 14).
 
 ## How to check a change

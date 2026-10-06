@@ -265,6 +265,14 @@ person or an AI agent of any make works on a task in a session. A tool that stee
 later works through the same issues, labels and pull requests ([backlog README](../backlog/README.md)
 § "For tools that steer the work"), under its own GitHub identity.
 
+### 5.2 An image scan describes the published image
+
+The nightly vulnerability scan reads the newest published image (`:latest`, else `:rc`), not
+`main`. An alert can therefore be true of that image and already fixed in `go.mod` on `main`. Check
+`main` first; if it carries the fix, dismiss the alert as **won't fix** (never *false positive* —
+it is true of that image), with a comment linking the pull request that fixed it. Only the
+govulncheck half of the job is actionable from a branch.
+
 ---
 
 ## 6. Repository secrets and variables

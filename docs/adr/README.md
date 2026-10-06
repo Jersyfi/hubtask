@@ -1,7 +1,16 @@
 # Architecture Decision Records (ADR)
 
-Format: lightweight MADR. One file per decision, immutable once accepted — a change produces a new
-ADR that supersedes the old one (`Supersedes ADR-xxxx` / `Superseded by ADR-yyyy`).
+An ADR records **why and when** a decision was taken. The rule itself lives in a subject document
+(`docs/architecture/`, `docs/design/`), and each ADR names it in its `**Rule lives in:**` line —
+read that section for what holds today ([ADR-0081](./ADR-0081-how-work-is-organised.md)).
+
+- One file per decision, short: context, decision, consequences, and the `Rule lives in` line.
+- Not edited once accepted, apart from its status line. A change is a new ADR plus the change in the
+  subject document, in the same pull request; the new one says what it supersedes.
+- Take the number from all remote branches right before writing the file, not from this folder:
+  unmerged branches hold numbers too.
+- Every new ADR is named to the owner. When the code that implements a proposed ADR merges, the
+  same pull request moves it to `accepted` here, in its header and in arc42 §9.
 
 Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 
