@@ -38,29 +38,46 @@ import (
 // own trail (ADR-0076 §4, "the workspace's trail records it").
 const PasswordFallbackAction audit.Action = "auth.password_fallback"
 
-// FallbackCauseNoWayIn is the `cause` the fallback's trail entry carries: the workspace's methods left
-// no way in that works. One cause today, because the predicate no longer asks which (E2, #1138); the
-// field is there so that an administrator reading the trail is not left to guess, and so that a
-// second way the password can open - an operator's own lever, which SC-34 builds - is told apart
-// from this one rather than recorded as the same thing.
-const FallbackCauseNoWayIn = "NO_WAY_IN"
+// FallbackCause is why the password is open only as the fallback, and what its trail entry says in
+// `cause`. Empty where the password is not open as the fallback - where it is among the methods, or
+// shut.
+type FallbackCause string
 
-// fallbackOpens answers whether the password opens only as the fallback: the workspace's methods
-// leave it out, and no provider is a way in here now. Nothing asks why (E2, #1138) - a cause the
-// predicate had to recognise is a cause it could miss, and every miss is a lockout.
+const (
+	// FallbackCauseNoWayIn is the workspace's methods leaving no way in that works, whatever brought
+	// them there. One cause for all of those, because the predicate does not ask which (E2, #1138).
+	FallbackCauseNoWayIn FallbackCause = "NO_WAY_IN"
+	// FallbackCauseOperator is an operator's opening of the password for this one workspace
+	// (ADR-0078 §3, SC-34): a person's decision, for a provider that is switched on but broken - the
+	// case NO_WAY_IN cannot see, because a provider is on. Told apart in the trail, so an
+	// administrator reading it knows the installation opened the door rather than the rules.
+	FallbackCauseOperator FallbackCause = "OPERATOR"
+)
+
+// Opens reports whether the password is open as the fallback at all.
+func (c FallbackCause) Opens() bool { return c != "" }
+
+// fallbackOpens answers why the password opens only as the fallback, or nothing where it does not:
+// the workspace's methods leave it out, and either an operator opened it here or no provider is a way
+// in here now. The operator's opening comes first, because it is the one that holds while a provider
+// is switched on: what it answers is a provider that is on and broken. Nothing asks why the methods
+// left no way in (E2, #1138) - a cause the predicate had to recognise is a cause it could miss, and
+// every miss is a lockout.
 func fallbackOpens(
-	methods []string, inForce []domain.IdentityProvider, settings domain.WorkspaceSettings,
-	now time.Time,
-) bool {
+	methods []string, inForce []domain.IdentityProvider, workspace domain.Workspace, now time.Time,
+) FallbackCause {
 	if slices.Contains(methods, domain.MethodDirect) {
-		return false
+		return ""
+	}
+	if workspace.PasswordOpening.InForce(now) {
+		return FallbackCauseOperator
 	}
 	for _, configured := range inForce {
-		if configured.Issuer != "" && offeredHere(configured, settings, now) {
-			return false
+		if configured.Issuer != "" && offeredHere(configured, workspace.Settings, now) {
+			return ""
 		}
 	}
-	return true
+	return FallbackCauseNoWayIn
 }
 
 // WaysIn reads what the fallback needs for a door that knows only the workspace: its ways in and
@@ -74,12 +91,14 @@ type WaysIn struct {
 }
 
 // PasswordFallback answers fallbackOpens for one workspace under the methods its rule resolved to.
-func (w WaysIn) PasswordFallback(ctx context.Context, tenantID shared.ID, methods []string) (bool, error) {
+func (w WaysIn) PasswordFallback(
+	ctx context.Context, tenantID shared.ID, methods []string,
+) (FallbackCause, error) {
 	if w.Providers == nil || w.Workspaces == nil || w.UnitOfWork == nil || w.Clock == nil ||
 		slices.Contains(methods, domain.MethodDirect) {
-		return false, nil
+		return "", nil
 	}
-	var opens bool
+	var opens FallbackCause
 	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
 		func(ctx context.Context) error {
 			inForce, err := w.Providers.List(ctx)
@@ -90,7 +109,7 @@ func (w WaysIn) PasswordFallback(ctx context.Context, tenantID shared.ID, method
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
 				return err
 			}
-			opens = fallbackOpens(methods, inForce, workspace.Settings, w.Clock.Now())
+			opens = fallbackOpens(methods, inForce, workspace, w.Clock.Now())
 			return nil
 		})
 	return opens, err
@@ -99,10 +118,10 @@ func (w WaysIn) PasswordFallback(ctx context.Context, tenantID shared.ID, method
 // recordFallback writes the trail entry for a password the fallback let through, in a transaction of
 // its own: the sign-in's reads have closed theirs by the time the password has proved right.
 func (w SessionWriter) recordFallback(
-	ctx context.Context, scope persistence.Scope, account domain.Account,
+	ctx context.Context, scope persistence.Scope, account domain.Account, cause FallbackCause,
 ) error {
 	return w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		return w.Audit.Append(ctx, fallbackEntry(ctx, scope.TenantID, account, w.Clock.Now()))
+		return w.Audit.Append(ctx, fallbackEntry(ctx, scope.TenantID, account, w.Clock.Now(), cause))
 	})
 }
 
@@ -110,7 +129,7 @@ func (w SessionWriter) recordFallback(
 // why the password was open, and nothing of the credential. A door that writes in a transaction of
 // its own appends it there, beside what it records itself.
 func fallbackEntry(
-	ctx context.Context, tenantID shared.ID, account domain.Account, at time.Time,
+	ctx context.Context, tenantID shared.ID, account domain.Account, at time.Time, cause FallbackCause,
 ) audit.Entry {
 	return audit.Entry{
 		TenantID:   tenantID,
@@ -126,7 +145,7 @@ func fallbackEntry(
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		Changes: audit.Changes(
 			audit.Change{Field: "method", Classification: audit.Open, To: domain.MethodDirect},
-			audit.Change{Field: "cause", Classification: audit.Open, To: FallbackCauseNoWayIn},
+			audit.Change{Field: "cause", Classification: audit.Open, To: string(cause)},
 		),
 	}
 }

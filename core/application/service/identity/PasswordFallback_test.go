@@ -162,7 +162,7 @@ func TestARescueLockLiftedAfterTheProviderWentLeavesThePasswordOpen(t *testing.T
 		if err != nil {
 			t.Fatalf("asking the door: %v", err)
 		}
-		return open, fallback
+		return open, fallback.Opens()
 	}
 	if open, fallback := door(); !open || fallback {
 		t.Fatalf("under the rescue lock the door answered open %v, fallback %v", open, fallback)
@@ -264,13 +264,13 @@ func (f *wayInFixture) fallsBack(t *testing.T) bool {
 	if err != nil {
 		t.Fatalf("asking the door: %v", err)
 	}
-	if rules.PasswordFallback != fallback {
-		t.Errorf("the card says fallback %v and the door %v", rules.PasswordFallback, fallback)
+	if rules.PasswordFallback != fallback.Opens() {
+		t.Errorf("the card says fallback %v and the door %q", rules.PasswordFallback, fallback)
 	}
-	if fallback && (!open || !slices.Equal(rules.Methods, []string{domain.MethodDirect})) {
+	if fallback.Opens() && (!open || !slices.Equal(rules.Methods, []string{domain.MethodDirect})) {
 		t.Errorf("under the fallback the door is open %v and the card offers %v", open, rules.Methods)
 	}
-	return fallback
+	return fallback.Opens()
 }
 
 // recordedFallback answers whether the workspace's trail holds a fallback entry for the account, and
@@ -278,7 +278,7 @@ func (f *wayInFixture) fallsBack(t *testing.T) bool {
 func (f *wayInFixture) recordedFallback() bool {
 	for _, entry := range f.session.audit.entries {
 		if entry.Action == PasswordFallbackAction && entry.TenantID == tenant && entry.ActorID == account {
-			return fallbackCause(entry) == FallbackCauseNoWayIn
+			return fallbackCause(entry) == string(FallbackCauseNoWayIn)
 		}
 	}
 	return false
@@ -309,7 +309,7 @@ func TestAPasswordSignInThroughTheFallbackIsRecordedInTheWorkspacesTrail(t *test
 	for _, entry := range f.session.audit.entries {
 		if entry.Action == PasswordFallbackAction {
 			recorded = entry.TenantID == tenant && entry.ActorID == account &&
-				fallbackCause(entry) == FallbackCauseNoWayIn
+				fallbackCause(entry) == string(FallbackCauseNoWayIn)
 		}
 	}
 	if !recorded {

@@ -138,7 +138,7 @@ func TestAnInstallationDefaultWithoutThePasswordOpensItAsTheFallback(t *testing.
 		if err != nil {
 			t.Fatalf("asking the door: %v", err)
 		}
-		return rules, open, fallback
+		return rules, open, fallback.Opens()
 	}
 	signsIn := func() error {
 		t.Helper()
@@ -170,7 +170,7 @@ func TestAnInstallationDefaultWithoutThePasswordOpensItAsTheFallback(t *testing.
 			WHERE tenant_id = $1 AND action = 'auth.password_fallback' AND actor_id = $2
 			  AND changes -> 'cause' ->> 'to' = $3`,
 			fallbackTenant.String(), actor.String(),
-			identityservice.FallbackCauseNoWayIn).Scan(&counted); err != nil {
+			string(identityservice.FallbackCauseNoWayIn)).Scan(&counted); err != nil {
 			t.Fatalf("reading the trail: %v", err)
 		}
 		return counted

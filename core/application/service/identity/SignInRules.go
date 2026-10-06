@@ -166,7 +166,8 @@ type SignInRules struct {
 	Password      PasswordRulesView
 	Legal         domain.LegalLinks
 	// PasswordFallback is true while the password is among the methods only because no other way
-	// into the workspace works, whatever the cause (ADR-0076 §4; E2, #1138).
+	// into the workspace works, whatever the cause (ADR-0076 §4; E2, #1138), or because an operator
+	// opened it here (ADR-0078 §3). The public card does not say which.
 	PasswordFallback bool
 }
 
@@ -276,7 +277,7 @@ func (h GetSignInRules) Execute(
 	}
 
 	methods := make([]string, 0, 2)
-	if fallback {
+	if fallback.Opens() {
 		// The password first, where the policy would have put it.
 		methods = append(methods, domain.MethodDirect)
 	}
@@ -295,7 +296,7 @@ func (h GetSignInRules) Execute(
 		Providers:        providers,
 		Password:         passwordRulesView(resolved, cmd.HasAccount),
 		Legal:            resolved.Legal,
-		PasswordFallback: fallback,
+		PasswordFallback: fallback.Opens(),
 	}, nil
 }
 
@@ -333,9 +334,9 @@ func (h GetSignInRules) resolveTenant(ctx context.Context, slug, header string) 
 	return tenantID
 }
 
-// providersOf answers the ways in that are configured here, and whether the password opens only
-// as the fallback because none of them works (ADR-0076 §4) - read from the same rows at the same
-// moment.
+// providersOf answers the ways in that are configured here, and why the password opens only as the
+// fallback, if it does: none of them works (ADR-0076 §4), or an operator opened it (ADR-0078 §3) -
+// read from the same rows at the same moment.
 //
 // Plural since SI-10, and both levels: what a workspace configured and what its installation offers
 // every workspace, which is what the read policy admits together (migration 0103). A provider that
@@ -343,40 +344,45 @@ func (h GetSignInRules) resolveTenant(ctx context.Context, slug, header string) 
 // worse than no button.
 func (h GetSignInRules) providersOf(
 	ctx context.Context, tenantID shared.ID, methods []string,
-) ([]ProviderSummary, bool, error) {
+) ([]ProviderSummary, FallbackCause, error) {
 	if tenantID.IsZero() || h.Providers == nil {
-		return []ProviderSummary{}, false, nil
+		return []ProviderSummary{}, "", nil
 	}
 
 	var (
-		inForce  []domain.IdentityProvider
-		settings domain.WorkspaceSettings
+		inForce   []domain.IdentityProvider
+		workspace domain.Workspace
 	)
 	err := h.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
 		func(ctx context.Context) error {
 			read, err := h.Providers.List(ctx)
-			if err != nil {
-				if errors.Is(err, shared.ErrNotFound) {
-					return nil
-				}
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
 				return err
 			}
 			inForce = read
 			if h.Workspaces == nil {
 				return nil
 			}
-			// Which of the installation's rows this workspace took. One read for the whole card.
-			workspace, err := h.Workspaces.Find(ctx)
+			// Which of the installation's rows this workspace took, and whether an operator opened
+			// the password here. One read for the whole card - read even where no provider is, since
+			// an opening needs none to stand.
+			found, err := h.Workspaces.Find(ctx)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
 				return err
 			}
-			settings = workspace.Settings
+			workspace = found
 			return nil
 		})
 	if err != nil {
-		return nil, false, err
+		return nil, "", err
 	}
 
+	if h.Clock == nil {
+		// Without a moment there is no telling whether an opening has ended, and an opening read as
+		// standing forever is the one mistake the bound exists to prevent.
+		workspace.PasswordOpening = domain.PasswordOpening{}
+	}
+	settings := workspace.Settings
 	now := h.now()
 	summaries := make([]ProviderSummary, 0, len(inForce))
 	for _, configured := range inForce {
@@ -397,7 +403,7 @@ func (h GetSignInRules) providersOf(
 			Scope:       scope,
 		})
 	}
-	return summaries, fallbackOpens(methods, inForce, settings, now), nil
+	return summaries, fallbackOpens(methods, inForce, workspace, now), nil
 }
 
 // rulesOutput is the projection every channel gets.

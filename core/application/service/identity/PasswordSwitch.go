@@ -25,30 +25,34 @@ import (
 // for every address**, asked before any account is looked up, so it says nothing about who has one -
 // only what the public sign-in rules already say about the workspace.
 
-// PasswordDoor answers whether the password is open in a workspace. The password writer is one; the
-// session writer asks it through its rule, which is that writer (teachTheRule).
+// PasswordDoor answers whether the password is open in a workspace, and why where it is open only as
+// the fallback - empty otherwise. The password writer is one; the session writer asks it through its
+// rule, which is that writer (teachTheRule).
 type PasswordDoor interface {
-	PasswordOpen(ctx context.Context, tenantID shared.ID) (open, fallback bool, err error)
+	PasswordOpen(ctx context.Context, tenantID shared.ID) (open bool, fallback FallbackCause, err error)
 }
 
 var _ PasswordDoor = (*PasswordWriter)(nil)
 
 // PasswordOpen resolves the workspace's methods: open where the password is among them, and where it
-// is not, open only as the fallback.
-func (w PasswordWriter) PasswordOpen(ctx context.Context, tenantID shared.ID) (bool, bool, error) {
+// is not, open only as the fallback - which an operator's opening is too, overriding the workspace's
+// switch and any installation lock alike (ADR-0078 §3), because both are read through the methods.
+func (w PasswordWriter) PasswordOpen(
+	ctx context.Context, tenantID shared.ID,
+) (bool, FallbackCause, error) {
 	rules, err := w.ResolveFor(ctx, tenantID)
 	if err != nil {
-		return false, false, err
+		return false, "", err
 	}
 	methods := rules.Effective.Policy.Methods
 	if slices.Contains(methods, domain.MethodDirect) {
-		return true, false, nil
+		return true, "", nil
 	}
 	fallback, err := w.WaysIn.PasswordFallback(ctx, tenantID, methods)
 	if err != nil {
-		return false, false, err
+		return false, "", err
 	}
-	return fallback, fallback, nil
+	return fallback.Opens(), fallback, nil
 }
 
 // passwordDoor asks the rule once whether the password is open here: the refusal where it is not,
@@ -56,14 +60,16 @@ func (w PasswordWriter) PasswordOpen(ctx context.Context, tenantID shared.ID) (b
 // fallback records it from this answer - a second read could disagree with the one that opened the
 // door, and costs the same rows twice (E2, #1138). A writer whose rule cannot answer - built without
 // one, as the tests of other doors are - lets the password through, which is the shape before SC-24.
-func (w SessionWriter) passwordDoor(ctx context.Context, tenantID shared.ID) (fallback bool, err error) {
+func (w SessionWriter) passwordDoor(
+	ctx context.Context, tenantID shared.ID,
+) (fallback FallbackCause, err error) {
 	door, ok := w.Rule.(PasswordDoor)
 	if !ok {
-		return false, nil
+		return "", nil
 	}
 	open, fallback, err := door.PasswordOpen(ctx, tenantID)
 	if err := refuseShut(open, fallback, err); err != nil {
-		return false, err
+		return "", err
 	}
 	return fallback, nil
 }
@@ -75,7 +81,7 @@ func (w SessionWriter) passwordShut(ctx context.Context, tenantID shared.ID) err
 }
 
 // refuseShut turns PasswordOpen's answer into the refusal, or into nothing.
-func refuseShut(open, _ bool, err error) error {
+func refuseShut(open bool, _ FallbackCause, err error) error {
 	if err != nil {
 		return err
 	}
