@@ -2,7 +2,7 @@
 
 Two tiers, because they answer different questions and only one of them can be answered on a
 shared runner. The split is the owner's decision of 2026-08-21, recorded as decision 7 in
-[`milestone-0.6.0.md`](../../docs/backlog/milestone-0.6.0.md).
+[`milestone-0.6.0.md`](../../docs/archive/backlog/milestone-0.6.0.md).
 
 | | The nightly tier | The release tier |
 |---|---|---|

@@ -88,7 +88,7 @@ which is the honest state and not a gap.
 * `i18n-l10n.md` §2's resolution order is untouched, and the asymmetry is now deliberate rather
   than accidental: language, time zone and week start resolve through the account; appearance does
   not resolve at all, because there is nothing above the device to resolve to.
-* F1-10's acceptance criterion in `docs/backlog/milestone-F1.md` asked for an override that does
+* F1-10's acceptance criterion in `docs/archive/backlog/milestone-F1.md` asked for an override that does
   not exist. It is corrected there with a note saying so, and the closed issue carries a comment
   pointing here — the same repair ADR-0025 made when it invalidated three criteria, and for the
   same reason: the next reader of a task must not be sent looking for something the product does

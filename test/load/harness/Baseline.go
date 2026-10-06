@@ -11,7 +11,8 @@ import (
 	"sort"
 )
 
-// The two tiers of decision 7 (docs/backlog/milestone-0.6.0.md), and this file is the cheap one.
+// The two tiers of decision 7 (docs/archive/backlog/milestone-0.6.0.md), and this file is the
+// cheap one.
 //
 // A shared runner varies by 10-30 % between runs, so a percent-level regression is invisible there
 // and an absolute target is a coin toss. What a shared runner *can* answer is a narrower question:

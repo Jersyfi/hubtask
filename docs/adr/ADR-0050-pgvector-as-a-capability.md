@@ -14,7 +14,7 @@ project:
 ```
 
 `0.7.0` is the milestone that has to decide what to do with it
-([`milestone-0.7.0.md`](../backlog/milestone-0.7.0.md), J-09, J-10), and the comment is more
+([`milestone-0.7.0.md`](../archive/backlog/milestone-0.7.0.md), J-09, J-10), and the comment is more
 load-bearing than it looks. **Uncommenting it would break every existing installation.** Neither
 `postgres:16-alpine`, which the reference Compose stack runs, nor
 `ghcr.io/cloudnative-pg/postgresql:17.6`, which the chart defaults to, ships the extension —

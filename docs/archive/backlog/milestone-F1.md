@@ -354,7 +354,7 @@ itself made visible.
 > asked for "the theme following the system preference **until an account preference overrides
 > it** (F1-08 makes that readable)". There is no such preference — `Account` carries `locale`,
 > `time_zone` and `week_start` and nothing about appearance — and
-> [ADR-0043](../adr/ADR-0043-theme-per-device.md) decided there should not be one: the theme is a
+> [ADR-0043](../../adr/ADR-0043-theme-per-device.md) decided there should not be one: the theme is a
 > property of the device. What F1-08 made readable is the *language*, and that is what the frame
 > made override the browser. The line above is what was built and what is right.
 

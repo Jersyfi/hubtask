@@ -11,7 +11,7 @@
 manifest, so that they stay complete automatically", and `0.5.0` and `0.6.0` built what they
 need on the server side — the REST hooks pattern, trigger polling, OAuth2 with PKCE — with the
 sentence "this milestone builds the endpoints they will be generated against". Milestone `0.9.0`
-generates them (P-04, P-05 in [`milestone-0.9.0.md`](../backlog/milestone-0.9.0.md)).
+generates them (P-04, P-05 in [`milestone-0.9.0.md`](../archive/backlog/milestone-0.9.0.md)).
 
 Both packages are TypeScript or JavaScript, both live in `packages/` as workspace members, and
 both are loaded by a platform this repository does not run: an n8n community node imports

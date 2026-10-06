@@ -13,7 +13,7 @@ unchanged.*
 [ADR-0012](./ADR-0012-ai-first-mcp.md) decided the outbound direction in one sentence —
 "`core/port/ai/Port.go` with `Complete`/`Embed`; adapters for OpenAI-compatible APIs, local Ollama,
 and `NoopAi` (the default)" — and nothing has built it. `0.7.0` does
-([`milestone-0.7.0.md`](../backlog/milestone-0.7.0.md), J-01…J-08, J-10), and three questions have
+([`milestone-0.7.0.md`](../archive/backlog/milestone-0.7.0.md), J-01…J-08, J-10), and three questions have
 to be answered before the first line of the port is written, because each of them is expensive to
 change once four features sit on it.
 

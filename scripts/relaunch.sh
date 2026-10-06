@@ -173,8 +173,8 @@ JSON
 # ------------------------------------------------------------------ 5. issues
 
 echo
-echo "== Issues from docs/backlog/milestone-0.1.0.md =="
-BACKLOG="docs/backlog/milestone-0.1.0.md"
+echo "== Issues from docs/archive/backlog/milestone-0.1.0.md =="
+BACKLOG="docs/archive/backlog/milestone-0.1.0.md"
 if [[ ! -f "$BACKLOG" ]]; then
   echo "  backlog not found - skipped"
 else

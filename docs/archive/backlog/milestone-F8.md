@@ -31,7 +31,7 @@ Legend: **[L]** = best done locally with Claude Code (you see every step),
 **[G]** = delegable through a GitHub issue. Both are **[L]** during the initial phase (`CLAUDE.md`).
 
 What deliberately is **not** in this milestone: **a free node graph.** Hubtask's rule model is a
-list with nested branches ([`automation.md`](../architecture/automation.md) §1) and a canvas that
+list with nested branches ([`automation.md`](../../architecture/automation.md) §1) and a canvas that
 let two arms rejoin anywhere, or a step point back up, would draw freedoms the engine does not
 have. **A description field on the rule.** The sentence the client builds from the rule is the
 description, and it is the second view of the same rule rather than a text that can drift from
@@ -99,7 +99,7 @@ Eleven decisions taken while writing this backlog, so that nobody re-derives the
    by the check with the audit entry and the notification the auto-disable already sends to the
    author. The check runs **on demand** (`POST /automation/rules:check`, the whole workspace; the
    list screen calls it when it opens, which is what makes "after an update" true without
-   anything enumerating tenants — [`multi-tenancy.md`](../architecture/multi-tenancy.md) §2.1),
+   anything enumerating tenants — [`multi-tenancy.md`](../../architecture/multi-tenancy.md) §2.1),
    and **on the deletion events** of what a parameter may name, as far as those events exist,
    through a subscriber that checks the rules of the tenant the event belongs to. It writes an
    ADR because it adds to `automation.md`, and the ADR is put to the owner by name.

@@ -240,7 +240,7 @@ match nothing and a client could not tell that from an empty collection; they ar
 (`query.field_unknown`) until the milestone that writes them, which is the acceptance criterion's
 "refused" branch. `count=exact` runs a second `COUNT(*)` over the same predicate; `count=estimated`
 is refused by name rather than answered with a null total. How the compiler stays inside rule 9 is
-[ADR-0026](../adr/ADR-0026-query-dsl-sql-construction.md).
+[ADR-0026](../../adr/ADR-0026-query-dsl-sql-construction.md).
 
 **Read:** `api-guidelines.md` §query, `security.md` §T-06, `domain-model.md` §6, ADR-0026
 
@@ -322,7 +322,7 @@ the matrix instead of standing alone.
 
 ## B-16 — Tenant-scoped foreign keys **[L]**
 
-*Can run in parallel. Arose from B-03 and is decided by [ADR-0024](../adr/ADR-0024-tenant-scoped-foreign-keys.md).*
+*Can run in parallel. Arose from B-03 and is decided by [ADR-0024](../../adr/ADR-0024-tenant-scoped-foreign-keys.md).*
 
 ADR-0010 promises isolation "even in the presence of application bugs" and multi-tenancy.md calls
 row level security "the last, unbypassable boundary". For **references** that is not true:

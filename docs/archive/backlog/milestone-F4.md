@@ -1013,7 +1013,7 @@ reaches none of it; `pnpm -r build lint typecheck test` green.
 *Depends on: everything. The milestone looking at itself.*
 
 R-08 a third time, and the first walk of the administration area. The first two walks
-([2026-09-04](../evidence/R-08-2026-09-04.md), [2026-09-08](../evidence/R-08-2026-09-08.md)) walked
+([2026-09-04](../../evidence/R-08-2026-09-04.md), [2026-09-08](../../evidence/R-08-2026-09-08.md)) walked
 the end-user route: create, organise, assign, comment, date, save a view. This one signs in with a
 password, enrols a second factor, invites somebody, grants them a role, mints a token, writes a
 rule and watches it run, subscribes a webhook and replays a dead letter, configures a backup target,

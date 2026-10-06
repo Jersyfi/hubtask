@@ -40,7 +40,7 @@ container, and they cannot be written without one.
 ## Options
 
 **A. `409 version_conflict` everywhere.** The documents and the code stay as they are; the acceptance criteria
-in `docs/backlog/milestone-0.2.0.md` are corrected to say `409`. One status, one code, one precedent already
+in `docs/archive/backlog/milestone-0.2.0.md` are corrected to say `409`. One status, one code, one precedent already
 in production for groups. Costs: a client cannot distinguish "you sent a stale `If-Match`" from "somebody beat
 you to it", and a caching proxy sees a status it has no special handling for.
 

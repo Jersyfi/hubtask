@@ -1,6 +1,6 @@
 # Milestone 0.8.5 — Offline synchronisation, complete
 
-The goal: [`offline-sync.md`](../architecture/offline-sync.md) stops being a contract the server
+The goal: [`offline-sync.md`](../../architecture/offline-sync.md) stops being a contract the server
 has *prepared for* and becomes one it *serves*. The preparation is real and has been paid for
 since `0.3.0`: every write records its change log entry — one per field that moved, one per set
 element with its tag, a `DELETE` with no payload — through fifty-five call sites; the hybrid
@@ -41,7 +41,7 @@ milestone serves; a kind is an additive enum value for the milestone that finds 
 notifications to devices**: `sync_device.push_token` stays a column nobody writes, because the
 product has no push channel and §1 of `i18n-l10n.md` already corrected the one place that
 pretended otherwise. And **the extent of the default scope** (SY-B), which is engine configuration
-by [ADR-0033](../adr/ADR-0033-shared-client-architecture.md): the server filters by whatever scope
+by [ADR-0033](../../adr/ADR-0033-shared-client-architecture.md): the server filters by whatever scope
 a device names, and what a device names by default is a product decision the sync-engine work
 package takes.
 

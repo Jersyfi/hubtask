@@ -13,7 +13,7 @@ entered from the bar and can be narrowed, administration is a section with its o
 selection has an *off* and it is the default, a card is dragged by being dragged, and an entry is
 edited one way — where it is shown, and only where its type carries the field.
 
-What the walk of 2026-09-22 found is [ADR-0063](../adr/ADR-0063-navigation-and-the-working-surface.md);
+What the walk of 2026-09-22 found is [ADR-0063](../../adr/ADR-0063-navigation-and-the-working-surface.md);
 this backlog cuts it into tasks and adds only what the cutting decided.
 
 F10 is the tenth milestone of the client track (`roadmap.md` phase 5). It continues F9 and
@@ -35,7 +35,7 @@ ADR-0061's own contract for the compact bar, which the walk found is true of thr
 of twenty-six; the second is three fields the contract promises and the descriptor refuses. Both
 were open issues with nowhere to be, and both are this milestone's subject — one is the shell's
 promise, the other is the rule that the contract is the source. F10-18 joined with
-[ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md) on the same day: two of this milestone's own
+[ADR-0064](../../adr/ADR-0064-the-workspace-wide-read.md) on the same day: two of this milestone's own
 screens asked the product a question neither of its reads could answer, and the ADR decided which
 read learns to.
 
@@ -57,7 +57,7 @@ Seven decisions taken while cutting, beyond what the ADR holds:
    capabilities and the two date rows (#916), the auto-assign without a policy (#917), the
    editor's border (#918). They were fixed as findings against `main` on 2026-09-22, in the shape
    the ADR proposes and no further, and each task below says which part is already done. What they
-   measured is in [`evidence/F10-2026-09-22.md`](../evidence/F10-2026-09-22.md).
+   measured is in [`evidence/F10-2026-09-22.md`](../../evidence/F10-2026-09-22.md).
 2. **`SideNav` is one component with two drawings, never two components.** The rail is a prop,
    the flyout is the same tree in a `Popover`, and a second tree is the failure this is guarded
    against — as it was in F9.
@@ -72,7 +72,7 @@ Seven decisions taken while cutting, beyond what the ADR holds:
    `FilterNode` (ADR-0026); the language becomes one of them. **The contract does not accept one
    yet** — `POST /search` takes words and no filter, and `POST /items:query` takes a filter and
    demands an anchor. That is a wall both endpoints were written to keep, and getting through it
-   is [ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md), not a task's to decide.
+   is [ADR-0064](../../adr/ADR-0064-the-workspace-wide-read.md), not a task's to decide.
 6. **Selection's `off` is the default and its `on` survives a layout switch.** The store is the
    one both the list and the board already use; the mode is a property of the screen, not of
    either layout, so switching from list to board keeps what is selected.
@@ -356,7 +356,7 @@ decision 12
 
 ## F10-18 — The search takes a filter, and its words become optional **[L]**
 
-*Depends on: nothing. [ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md), accepted 2026-09-22.
+*Depends on: nothing. [ADR-0064](../../adr/ADR-0064-the-workspace-wide-read.md), accepted 2026-09-22.
 A **core** task, and the one F10-04 and F10-05 wait on.*
 
 `POST /search` gains `filter` — the tree `Spec` already compiles, with the same closed field

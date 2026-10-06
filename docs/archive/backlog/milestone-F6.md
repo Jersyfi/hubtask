@@ -6,7 +6,7 @@ of the catalogue is reachable from the browser or its omission is written down w
 That is the state the owner walks the demo in before convergence, and it is the state `0.9.5`'s
 coverage report starts from rather than discovers.
 
-Three things are owed. `0.8.5` built the server half of [`offline-sync.md`](../architecture/offline-sync.md)
+Three things are owed. `0.8.5` built the server half of [`offline-sync.md`](../../architecture/offline-sync.md)
 — `:pull`, `:push`, `:snapshot`, the devices, `ACCESS_REVOKED`, the tombstones — and
 `packages/sync-engine/SyncEngine.ts` still says in its own header that it holds no queue, no local
 store and no clock because those "arrive in F6": no client code calls a single one of those routes,
@@ -15,7 +15,7 @@ for ten seconds shows a skeleton where a list was. `0.9.0` built an import path 
 and a template generated from a description, and neither has a screen: `POST /imports` is called
 by nothing under `apps/`, and a `TEMPLATE` suggestion falls through `shapeOf` to `unknown`. And two
 pieces of the product the design system decided in its first week — the rewarding moments of
-[`design-system.md`](../design/design-system.md) §7 and the onboarding tour of §8 — have a motion
+[`design-system.md`](../../design/design-system.md) §7 and the onboarding tour of §8 — have a motion
 role waiting for them (`motion.celebration`, "first user: F6's celebration kit") and no user.
 
 F6 is the sixth milestone of the client track (`roadmap.md` phase 5). It opens with `0.8.5` and
@@ -27,8 +27,8 @@ version stays the single line ADR-0035 decided. The client's maturity stage is `
 
 **This file was cut twice.** F6-01 and F6-02 were scheduled on 2026-09-17, when the review of
 every `proposed` ADR found two decisions that were accepted, consistent with the product, and built
-by nobody — [ADR-0047](../adr/ADR-0047-media-origin-in-the-interface-policy.md) and
-[ADR-0048](../adr/ADR-0048-browser-job-driver.md); their origin tasks F3-09 and F3-19 wrote the
+by nobody — [ADR-0047](../../adr/ADR-0047-media-origin-in-the-interface-policy.md) and
+[ADR-0048](../../adr/ADR-0048-browser-job-driver.md); their origin tasks F3-09 and F3-19 wrote the
 records and closed, and the building half was owed to no milestone. The rest, F6-03 onwards, was
 cut the same day by the owner's decision on the milestone's scope, recorded below.
 
@@ -61,7 +61,7 @@ Sixteen decisions taken while writing this backlog, so that nobody re-derives th
    scope on mobile (*subscribed containers*, SY-B) is set there with the phone's storage to
    measure against; the mutation kinds §1's left column promises and the frame does not carry
    (decision 8) are a core task there, because the offline *promise* is the installed clients'
-   ([ADR-0031](../adr/ADR-0031-tauri-app-shell.md)) and a browser cache does not need them; the
+   ([ADR-0031](../../adr/ADR-0031-tauri-app-shell.md)) and a browser cache does not need them; the
    admin routes F4 tagged are excluded from the mobile build there, with ADR-0032's affordance;
    platform adaptation (`design-system.md` §9's last open point) is raised there by the shell that
    raises the question; and the webview smoke matrix (`1.0.0` prerequisite 18) is driven there.
@@ -76,7 +76,7 @@ Sixteen decisions taken while writing this backlog, so that nobody re-derives th
    collection's entries or that `POST /items/{id}:complete` is an `ITEM_PATCH` of `completed`.
    Both functions are tested beside `live.test.ts`.
 4. **Reads go through to the server while it answers, and the replica answers when it does not.**
-   [ADR-0033](../adr/ADR-0033-shared-client-architecture.md) §4 gives the browser a *best-effort
+   [ADR-0033](../../adr/ADR-0033-shared-client-architecture.md) §4 gives the browser a *best-effort
    cache: resilience across brief disconnects, never the offline promise*. That is read-through:
    a subscribed resource is read from the server as today; when the transport fails to reach it —
    a network failure, not a status — the replica answers for every path `storeFor` knows, and the
@@ -140,7 +140,7 @@ Sixteen decisions taken while writing this backlog, so that nobody re-derives th
     none; F6 finds one, and it is small: §7 says a celebration is *on by default, and each user
     can switch it off — one preference, all tiers*, and §8 says the tour runs *on first start* and
     is *restartable from the help menu*. Neither is knowable from a client. They are properties
-    of the person, not of the screen — [ADR-0043](../adr/ADR-0043-theme-per-device.md) keeps the
+    of the person, not of the screen — [ADR-0043](../../adr/ADR-0043-theme-per-device.md) keeps the
     theme and reduced motion on the device because the *operating system* sets them, and nothing
     sets these but the person — so F6-12 adds `celebrations` and `onboarding_completed_at` to
     `AccountPreferences`, additive and specification first, the shape F1-08's `GET /accounts/me`

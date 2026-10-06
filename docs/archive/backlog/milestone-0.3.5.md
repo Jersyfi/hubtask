@@ -20,8 +20,8 @@ Legend: **[L]** = best done locally with Claude Code (you see every step),
 
 The milestone was written with the frontend framework deliberately excluded — its ADR did not
 exist, and nothing here was allowed to prejudge it. That reason is gone:
-[ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md) through
-[ADR-0033](../adr/ADR-0033-shared-client-architecture.md) are accepted, and the milestone gained a
+[ADR-0030](../../adr/ADR-0030-svelte-frontend-framework.md) through
+[ADR-0033](../../adr/ADR-0033-shared-client-architecture.md) are accepted, and the milestone gained a
 second wave, W-06–W-09, which finishes the house with the decisions in hand: the Svelte scaffold,
 the token wiring, the embedded pipeline proven against the real bundle, and the dependency lint
 the refined map needs.
@@ -30,7 +30,7 @@ What remains deliberately **not** in this milestone: any component in
 `packages/design-system/src/` (its own work package on the frontend track, roadmap phase 5), the
 sync engine and the Tauri shells (same track), the website's deployment target, and the extraction
 of the generated SDK into a separately licensed repository
-([ADR-0027](../adr/ADR-0027-monorepo-structure.md) defers that to before 1.0.0).
+([ADR-0027](../../adr/ADR-0027-monorepo-structure.md) defers that to before 1.0.0).
 
 Three decisions taken while writing this backlog, so that nobody re-derives them later:
 
@@ -51,9 +51,9 @@ Three decisions taken while writing this backlog, so that nobody re-derives them
 
 *Depends on: nothing. No code may be written before it is finished.*
 
-[ADR-0027](../adr/ADR-0027-monorepo-structure.md) (one repository for the core, the clients and the
-design system), [ADR-0028](../adr/ADR-0028-embedded-web-ui.md) (the web UI ships inside the binary,
-as an adapter) and [ADR-0029](../adr/ADR-0029-design-system-tokens.md) (the design system is code,
+[ADR-0027](../../adr/ADR-0027-monorepo-structure.md) (one repository for the core, the clients and the
+design system), [ADR-0028](../../adr/ADR-0028-embedded-web-ui.md) (the web UI ships inside the binary,
+as an adapter) and [ADR-0029](../../adr/ADR-0029-design-system-tokens.md) (the design system is code,
 and `tokens.json` is its only origin). One pull request, because each is unreadable without the
 other two.
 
@@ -196,9 +196,9 @@ green and `make generate` produces no diff.
 *Depends on: W-05, and on the acceptance of ADR-0030 and ADR-0033 — both given.*
 
 The framework-free skeleton in `apps/webapp` becomes what
-[ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md) decided: Svelte 5 (runes) with
+[ADR-0030](../../adr/ADR-0030-svelte-frontend-framework.md) decided: Svelte 5 (runes) with
 TypeScript, built by Vite as a static single-page application. Deliberately **no SvelteKit** —
-its inline bootstrap script cannot pass the CSP [ADR-0028](../adr/ADR-0028-embedded-web-ui.md)
+its inline bootstrap script cannot pass the CSP [ADR-0028](../../adr/ADR-0028-embedded-web-ui.md)
 fixed, and Vite's `index.html` references only external module scripts.
 
 Three things belong to the scaffold and nothing more. First, client-side routing over the History
@@ -206,7 +206,7 @@ API — real paths, because ADR-0028's `index.html` fallback exists so deep link
 Whether that router is a small library or a minimal in-house module is a supply-chain decision
 (CLAUDE.md, "What you do not decide yourself"): the task proposes it with reasoning before
 anything is installed. Second, the platform seam from
-[ADR-0033](../adr/ADR-0033-shared-client-architecture.md): `src/lib/platform/` defines the
+[ADR-0033](../../adr/ADR-0033-shared-client-architecture.md): `src/lib/platform/` defines the
 platform interface with the browser implementation, so no `isTauri` conditional ever lands in a
 component. Third, the promise kept mechanical: a **CSP conformance check** in the webapp's CI lane
 that fails on any inline `<script>` or `<style>` in the built bundle — the constraint ADR-0028
@@ -274,7 +274,7 @@ untouched; a Go-only change still builds without Node.
 
 *Depends on: W-02. Independent of W-06 — it guards the map, not the framework.*
 
-[ADR-0033](../adr/ADR-0033-shared-client-architecture.md) refined the workspace map:
+[ADR-0033](../../adr/ADR-0033-shared-client-architecture.md) refined the workspace map:
 `apps/* → packages/*`, `packages/* → packages/*` acyclically, never `apps/* → apps/*`, and
 nothing anywhere depends on an app. Today the whole map holds by convention; the Go side has
 `gate-architecture`, the workspace has nothing. This task gives it the pnpm counterpart: a check

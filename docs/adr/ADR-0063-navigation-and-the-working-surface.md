@@ -405,7 +405,7 @@ No view branches on the input. Both rules live in `viewport.svelte.ts` and in th
 
 | Work package | Target |
 |---|---|
-| The tasks of the milestone | [`backlog/milestone-F10.md`](../backlog/milestone-F10.md) |
+| The tasks of the milestone | [`backlog/milestone-F10.md`](../archive/backlog/milestone-F10.md) |
 | `design-system.md` §4 and §6 | with the tasks that build them |
 
 ## Notes

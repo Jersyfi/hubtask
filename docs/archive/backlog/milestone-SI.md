@@ -11,9 +11,9 @@ installation has a layer above its workspaces to decide it from.
 
 The concept was drawn on 2026-09-21 and walked by the owner in six passes; the client half was
 built and walked against a local server on 2026-09-24/26 before this was cut. What the walk
-settled is [ADR-0068](../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md),
-[ADR-0069](../adr/ADR-0069-third-party-brand-marks.md) and
-[ADR-0070](../adr/ADR-0070-the-instance-layer.md); this backlog cuts them into tasks and adds only
+settled is [ADR-0068](../../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md),
+[ADR-0069](../../adr/ADR-0069-third-party-brand-marks.md) and
+[ADR-0070](../../adr/ADR-0070-the-instance-layer.md); this backlog cuts them into tasks and adds only
 what the cutting decided.
 
 **Where this sits in the roadmap is the owner's to set.** Its centre is in the core — a policy, a
@@ -21,7 +21,7 @@ reset, an instance layer — while its visible half is the client, so it belongs
 cleanly. The tasks are numbered `SI-xx` and carry no version.
 
 **SI is not a release.** Nothing is published by it; the product version stays the single line
-[ADR-0035](../adr/ADR-0035-one-product-version.md) decided.
+[ADR-0035](../../adr/ADR-0035-one-product-version.md) decided.
 
 Every task is one pull request. The order is binding where dependencies exist, and one order is
 binding beyond them: **the specification before the code, and the core before the screen.**
@@ -32,8 +32,8 @@ Legend: **[L]** = best done locally with Claude Code (you see every step),
 What deliberately is **not** in this milestone:
 
 * **Passkeys.** The next milestone, with its own ADR (*since 2026-09-30, milestones
-  [SC](./milestone-SC.md) and [PH](./milestone-PH.md) come first*) — the library-or-in-house question
-  (`go-webauthn` against a minimal in-house verifier, the way [ADR-0053](../adr/ADR-0053-totp-qr-code.md)
+  [SC](../../backlog/milestone-SC.md) and [PH](../../backlog/milestone-PH.md) come first*) — the library-or-in-house question
+  (`go-webauthn` against a minimal in-house verifier, the way [ADR-0053](../../adr/ADR-0053-totp-qr-code.md)
   answered the QR encoder) is a supply-chain decision that deserves its own reading. What lands
   here is only what makes them cheap later: credentials in the plural, `session.signed_in_with`,
   the step machine as the contract's own shape, and `methods` as a list.
@@ -46,7 +46,7 @@ What deliberately is **not** in this milestone:
 * **An operator console beyond the four screens SI-17 names.** No billing, no contracts, no
   dunning: Hubtask holds a state and a consumption, and the platform in front of it holds the rest.
 * **A second catalogue, a second frame, a second app.** The instance area is a route area of the
-  web app, for the reason [ADR-0070](../adr/ADR-0070-the-instance-layer.md) §5 gives.
+  web app, for the reason [ADR-0070](../../adr/ADR-0070-the-instance-layer.md) §5 gives.
 
 Nine decisions taken while cutting, beyond what the ADRs hold:
 
@@ -72,7 +72,7 @@ Nine decisions taken while cutting, beyond what the ADRs hold:
    and the one live region says the count once. A banner would be the same sentence twice on a
    card that has one slot for a sentence.
 8. **The brand marks live in the application** until a second client draws one
-   ([ADR-0069](../adr/ADR-0069-third-party-brand-marks.md) §5), and every colour carries the lint
+   ([ADR-0069](../../adr/ADR-0069-third-party-brand-marks.md) §5), and every colour carries the lint
    exemption with its reason.
 9. **`instance_setting` carries no row-level policy**, like `job`, and its exception is entered in
    all three lists in the same commit as the table.
@@ -83,9 +83,9 @@ Nine decisions taken while cutting, beyond what the ADRs hold:
 
 *Depends on: nothing.*
 
-[ADR-0068](../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md),
-[ADR-0069](../adr/ADR-0069-third-party-brand-marks.md) and
-[ADR-0070](../adr/ADR-0070-the-instance-layer.md), the index rows in `docs/adr/README.md` and
+[ADR-0068](../../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md),
+[ADR-0069](../../adr/ADR-0069-third-party-brand-marks.md) and
+[ADR-0070](../../adr/ADR-0070-the-instance-layer.md), the index rows in `docs/adr/README.md` and
 `arc42.md` §9, this backlog, `security.md` §5 (the rule instead of the constant, the four doors,
 the reset, rotation as an event and not a calendar) and `multi-tenancy.md` §4.1 (the instance
 layer). The deviation this milestone makes from a subject document is recorded where the document
@@ -303,7 +303,7 @@ the tenant-boundary test names the new NULL-row rule.
 
 *Depends on: SI-01, SI-10.*
 
-[ADR-0069](../adr/ADR-0069-third-party-brand-marks.md) made real: the marks that ship, each with
+[ADR-0069](../../adr/ADR-0069-third-party-brand-marks.md) made real: the marks that ship, each with
 its row in `THIRD-PARTY-LICENSES.md` naming the source and the guideline, each colour with its
 lint exemption and reason; the letter tile for everything else; `Button`'s `lead` and `isFull`
 (built with the client half and reviewed here against the ADR).

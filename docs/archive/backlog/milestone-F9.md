@@ -13,7 +13,7 @@ first, on every width.
 
 The concept was designed on 2026-09-20 as a page outside the repository, walked by the owner in
 four passes, and approved in its fourth with the instruction to build the workbench first. What
-the walk settled is [ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md); this backlog cuts
+the walk settled is [ADR-0061](../../adr/ADR-0061-page-anatomy-and-the-shell.md); this backlog cuts
 it into tasks and adds only what the cutting decided.
 
 F9 is the ninth milestone of the client track (`roadmap.md` phase 5). It runs beside F8, the rule

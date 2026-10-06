@@ -1,6 +1,6 @@
 # Milestone 0.8.0 — Every language, proved on the server
 
-The goal: [`i18n-l10n.md`](../architecture/i18n-l10n.md) stops being a document the product
+The goal: [`i18n-l10n.md`](../../architecture/i18n-l10n.md) stops being a document the product
 agrees with in principle and becomes one it can be checked against, line by line. The requirement
 that document opens with — *the application must support every language* — has had its ground
 rule in place since `0.1.0`: the server emits codes and never sentences, and one catalogue,
@@ -47,7 +47,7 @@ Fourteen decisions taken while writing this backlog, so that nobody re-derives t
   `Task:` trailer read for years. The alphabet already has two gaps for the same kind of reason —
   F belongs to the client track, I is unreadable beside `1` and `l` — and a third is cheaper than
   a ledger entry somebody misreads.
-* **Weblate-ready, not Weblate-connected** ([ADR-0055](../adr/ADR-0055-translation-process.md)).
+* **Weblate-ready, not Weblate-connected** ([ADR-0055](../../adr/ADR-0055-translation-process.md)).
   The owner delegated the choice on 2026-09-13 with one instruction: decide for the project. A
   Weblate instance is a server, a database, upgrades and accounts for translators — an operating
   commitment and a data-catalogue entry — for a project with one developer and, today, one
@@ -84,7 +84,7 @@ Fourteen decisions taken while writing this backlog, so that nobody re-derives t
   `golang.org/x/text/feature/plural`, the same CLDR data `Intl.PluralRules` carries. One subset,
   one gate on each side, and §3's paragraph rewritten to say so.
 * **`golang.org/x/text` and `golang.org/x/net/idna` become direct dependencies, confirmed rather
-  than chosen** ([ADR-0056](../adr/ADR-0056-golang-x-text-and-idna.md)). Both modules are already
+  than chosen** ([ADR-0056](../../adr/ADR-0056-golang-x-text-and-idna.md)). Both modules are already
   in the module graph as `// indirect` — `x/text v0.41.0`, `x/net v0.58.0` — so the SBOM does not
   grow and no new origin appears. §2 names `language.NewMatcher` and §5 names `unicode/norm`
   explicitly; what the ADR adds is the plural rules and `idna`, all from the same two modules, and
@@ -201,7 +201,7 @@ every branch, apostrophe quoting — and refuses by name everything `format.ts` 
 right by hand; the port's `map[string]string` stays, and a plural argument parses its operand from
 the string, refusing one that is not a number.
 
-This task opens with [ADR-0056](../adr/ADR-0056-golang-x-text-and-idna.md): `golang.org/x/text`
+This task opens with [ADR-0056](../../adr/ADR-0056-golang-x-text-and-idna.md): `golang.org/x/text`
 promoted from indirect to direct, its three packages named — `language`, `unicode/norm`,
 `feature/plural` — and `golang.org/x/net/idna` beside it for M-10, both confined to adapters. The
 draft is written before the first import and the owner's answer is recorded in it.
@@ -512,7 +512,7 @@ Producing.go` (the prompt store, the fence, the injection test); ADR-0049; `i18n
 
 *Depends on: M-03.*
 
-The half of [ADR-0055](../adr/ADR-0055-translation-process.md) that ships now. `CONTRIBUTING.md`
+The half of [ADR-0055](../../adr/ADR-0055-translation-process.md) that ships now. `CONTRIBUTING.md`
 gains a section on translating: where the files are, that a file is a flat map of the source's
 keys in the source's ICU subset, that `make locales` says how complete it is and the gate says what
 is wrong, that a partial file is welcome because the fallback is a feature, that the CLA covers a

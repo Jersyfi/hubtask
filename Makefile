@@ -67,9 +67,9 @@ help:
 # ------------------------------------------------------------------- Utilities
 
 # go_test runs the tests of a package set - but only once that set exists. The milestone builds
-# every gate up front and fills them in task by task (docs/backlog/milestone-0.1.0.md); a gate
-# for an empty directory must say so rather than fail, and must start biting the moment the
-# first package appears.
+# every gate up front and fills them in task by task (docs/archive/backlog/milestone-0.1.0.md);
+# a gate for an empty directory must say so rather than fail, and must start biting the moment
+# the first package appears.
 # $(1) = build tags, $(2) = package patterns, $(3) = extra go test flags
 define go_test
 	@pkgs="$$($(GO) list -tags='$(1)' $(2) 2>/dev/null)"; \

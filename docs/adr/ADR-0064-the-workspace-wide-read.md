@@ -142,7 +142,7 @@ question. Precisely:
 | Work package | Target |
 |---|---|
 | The contract, the domain, the compiler and the use case | a core task, cut when this ADR is accepted |
-| F10-04 and F10-05 | [`backlog/milestone-F10.md`](../backlog/milestone-F10.md), after it |
+| F10-04 and F10-05 | [`backlog/milestone-F10.md`](../archive/backlog/milestone-F10.md), after it |
 
 ## Notes
 
