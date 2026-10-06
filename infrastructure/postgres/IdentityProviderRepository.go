@@ -381,15 +381,20 @@ func (r OidcFlowRepository) Insert(
 	if err != nil {
 		return err
 	}
+	invited, err := optionalUUID(flow.InvitedAccountID)
+	if err != nil {
+		return err
+	}
 	if err := queries.InsertOidcFlow(ctx, sqlc.InsertOidcFlowParams{
-		SessionID:    session,
-		ID:           id,
-		ProviderID:   provider,
-		StateHash:    r.stateHasher.Hash(presented.Secret()),
-		CodeVerifier: flow.Verifier,
-		Nonce:        flow.Nonce,
-		CreatedAt:    pgtype.Timestamptz{Time: flow.CreatedAt, Valid: true},
-		ExpiresAt:    pgtype.Timestamptz{Time: flow.ExpiresAt, Valid: true},
+		SessionID:        session,
+		InvitedAccountID: invited,
+		ID:               id,
+		ProviderID:       provider,
+		StateHash:        r.stateHasher.Hash(presented.Secret()),
+		CodeVerifier:     flow.Verifier,
+		Nonce:            flow.Nonce,
+		CreatedAt:        pgtype.Timestamptz{Time: flow.CreatedAt, Valid: true},
+		ExpiresAt:        pgtype.Timestamptz{Time: flow.ExpiresAt, Valid: true},
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -430,9 +435,15 @@ func (r OidcFlowRepository) Consume(
 	if err != nil {
 		return identity.OidcFlow{}, false, err
 	}
+	// A flow opened by the previous binary, or by any sign-in that did not start from an
+	// invitation, carries none.
+	invitedAccountID, err := optionalID(row.InvitedAccountID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
 	return identity.OidcFlow{
 		ID: id, TenantID: presented.TenantID(), ProviderID: providerID,
-		Nonce: row.Nonce, Verifier: row.CodeVerifier,
+		Nonce: row.Nonce, Verifier: row.CodeVerifier, InvitedAccountID: invitedAccountID,
 	}, true, nil
 }
 

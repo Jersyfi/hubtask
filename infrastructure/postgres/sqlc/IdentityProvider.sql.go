@@ -59,7 +59,7 @@ WHERE state_hash = $2
   AND session_id IS NULL
   AND consumed_at IS NULL
   AND expires_at > $1
-RETURNING id, provider_id, code_verifier, nonce
+RETURNING id, provider_id, code_verifier, nonce, invited_account_id
 `
 
 type ConsumeOidcFlowParams struct {
@@ -68,10 +68,11 @@ type ConsumeOidcFlowParams struct {
 }
 
 type ConsumeOidcFlowRow struct {
-	ID           pgtype.UUID
-	ProviderID   pgtype.UUID
-	CodeVerifier string
-	Nonce        string
+	ID               pgtype.UUID
+	ProviderID       pgtype.UUID
+	CodeVerifier     string
+	Nonce            string
+	InvitedAccountID pgtype.UUID
 }
 
 // Judged and burned in one statement, ConsumeOauthCode's discipline: unexpired and unconsumed,
@@ -85,6 +86,7 @@ func (q *Queries) ConsumeOidcFlow(ctx context.Context, arg ConsumeOidcFlowParams
 		&i.ProviderID,
 		&i.CodeVerifier,
 		&i.Nonce,
+		&i.InvitedAccountID,
 	)
 	return i, err
 }
@@ -447,27 +449,30 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 
 const insertOidcFlow = `-- name: InsertOidcFlow :exec
 INSERT INTO oidc_flow
-  (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id)
+  (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id,
+   invited_account_id)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6, $7,
-  $8
+  $8, $9
 )
 `
 
 type InsertOidcFlowParams struct {
-	ID           pgtype.UUID
-	ProviderID   pgtype.UUID
-	StateHash    []byte
-	CodeVerifier string
-	Nonce        string
-	CreatedAt    pgtype.Timestamptz
-	ExpiresAt    pgtype.Timestamptz
-	SessionID    pgtype.UUID
+	ID               pgtype.UUID
+	ProviderID       pgtype.UUID
+	StateHash        []byte
+	CodeVerifier     string
+	Nonce            string
+	CreatedAt        pgtype.Timestamptz
+	ExpiresAt        pgtype.Timestamptz
+	SessionID        pgtype.UUID
+	InvitedAccountID pgtype.UUID
 }
 
 // A NULL session is a sign-in flow; a session is the step-up at the provider it belongs to
-// (ADR-0075 §2).
+// (ADR-0075 §2). An invited account is the invitation a sign-in started from (ADR-0078 §1) - and the
+// foreign key on (tenant, account) is what keeps it this workspace's.
 func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) error {
 	_, err := q.db.Exec(ctx, insertOidcFlow,
 		arg.ID,
@@ -478,6 +483,7 @@ func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) 
 		arg.CreatedAt,
 		arg.ExpiresAt,
 		arg.SessionID,
+		arg.InvitedAccountID,
 	)
 	return err
 }

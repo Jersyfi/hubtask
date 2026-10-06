@@ -271,6 +271,10 @@ func TestAFlowNeedsAVerifierWorthTheName(t *testing.T) {
 		"long verifier": {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n",
 			Verifier: strings.Repeat("v", 129), Now: at},
 		"no clock": {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n", Verifier: good},
+		// A step-up belongs to somebody signed in, and an invitation to somebody who is not yet:
+		// one flow is never both (ADR-0078 §1).
+		"a step-up carrying an invitation": {ID: id, TenantID: sessionTenant, ProviderID: providerRow,
+			Nonce: "n", Verifier: good, Now: at, SessionID: providerRow, InvitedAccountID: providerRow},
 	}
 	for name, in := range cases {
 		t.Run(name, func(t *testing.T) {

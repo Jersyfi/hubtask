@@ -601,8 +601,13 @@ CREATE TABLE oidc_flow (
   -- The session a step-up at the provider belongs to (ADR-0075 §2, migration 0112). NULL is a
   -- sign-in flow. Each callback consumes only its own kind.
   session_id    uuid,
+  -- The invited account the flow accepts, when it started from the invitation's own link
+  -- (ADR-0078 §1, migration 0116). NULL is every other sign-in.
+  invited_account_id uuid,
   CONSTRAINT oidc_flow_session_fkey FOREIGN KEY (tenant_id, session_id)
-    REFERENCES session (tenant_id, id) ON DELETE CASCADE
+    REFERENCES session (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT oidc_flow_invited_account_fkey FOREIGN KEY (tenant_id, invited_account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX oidc_flow_state_uq ON oidc_flow (state_hash);
 CREATE INDEX oidc_flow_expiry_idx ON oidc_flow (expires_at);

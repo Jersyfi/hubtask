@@ -634,6 +634,10 @@ type OidcFlow struct {
 	// SessionID binds the flow to the session that asked for a step-up at the provider (ADR-0075
 	// §2). Zero is a sign-in flow, which finishes a sign-in and no step-up.
 	SessionID shared.ID
+	// InvitedAccountID is the invited account a sign-in started from the invitation's own link
+	// accepts (ADR-0078 §1): the second proof that lets a provider activate it. Zero is every
+	// other sign-in. Checked when the flow opened, and spent only by an arrival that succeeds.
+	InvitedAccountID shared.ID
 }
 
 // NewOidcFlowInput is what starting a sign-in needs.
@@ -646,6 +650,9 @@ type NewOidcFlowInput struct {
 	Now        time.Time
 	// SessionID makes the flow a step-up of that session. Zero for a sign-in.
 	SessionID shared.ID
+	// InvitedAccountID is the invitation a sign-in started from. Zero for every other flow, and
+	// never beside a session: a step-up belongs to somebody already signed in.
+	InvitedAccountID shared.ID
 }
 
 // NewOidcFlow opens one.
@@ -655,13 +662,15 @@ type NewOidcFlowInput struct {
 // nobody wrote.
 func NewOidcFlow(in NewOidcFlowInput) (OidcFlow, error) {
 	if in.ID.IsZero() || in.TenantID.IsZero() || in.ProviderID.IsZero() || in.Now.IsZero() ||
-		in.Nonce == "" || len(in.Verifier) < 43 || len(in.Verifier) > 128 {
+		in.Nonce == "" || len(in.Verifier) < 43 || len(in.Verifier) > 128 ||
+		(!in.SessionID.IsZero() && !in.InvitedAccountID.IsZero()) {
 		return OidcFlow{}, shared.ErrInternal.WithDetail("identity_provider.flow_incomplete")
 	}
 	return OidcFlow{
 		ID: in.ID, TenantID: in.TenantID, ProviderID: in.ProviderID,
 		Nonce: in.Nonce, Verifier: in.Verifier, SessionID: in.SessionID,
-		CreatedAt: in.Now.UTC(), ExpiresAt: in.Now.Add(OidcFlowLifetime).UTC(),
+		InvitedAccountID: in.InvitedAccountID,
+		CreatedAt:        in.Now.UTC(), ExpiresAt: in.Now.Add(OidcFlowLifetime).UTC(),
 	}, nil
 }
 
