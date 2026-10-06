@@ -191,6 +191,8 @@
   "identity_provider.last_way_in": "Das ist der letzte Weg in diesen Arbeitsbereich. Schalte zuerst einen anderen ein, sonst könnte sich niemand mehr anmelden.",
   "identity_provider.switch_in_list": "Ein Anbieter wird in der Liste der Anmeldewege ein- oder ausgeschaltet, nicht in seinem eigenen Formular.",
   "identity_provider.invitation_lapsed": "Diese Einladung ist abgelaufen. Bitte jemanden aus der Verwaltung des Arbeitsbereichs, dich noch einmal einzuladen.",
+  "identity_provider.invitation_needs_link": "Dieser Anbieter kann deine Einladung nicht allein annehmen. Öffne den Link in deiner Einladung und wähle dort den Anbieter.",
+  "identity_provider.invitation_address_differs": "Der Anbieter hat dich mit einer anderen Adresse angemeldet als der, für die diese Einladung gilt. Melde dich dort mit der eingeladenen Adresse an.",
   "identity_provider.withdrawn": "Die Installation hat diesen Anbieter zurückgezogen. Schalte einen anderen Anmeldeweg ein.",
   "identity_provider.withdraw_instead": "Ob die Installation einen Anbieter anbietet, wird nicht in seinem Formular geändert. Zieh ihn stattdessen zurück – angekündigt zu einem Datum oder sofort mit bestätigter Anzahl.",
   "identity_provider.withdraw_first": "{count, plural, one {# Arbeitsbereich nutzt} other {# Arbeitsbereiche nutzen}} diesen Anbieter noch. Zieh ihn zuerst zurück; entfernen lässt er sich, sobald sein Tag gekommen ist.",

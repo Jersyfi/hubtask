@@ -276,7 +276,7 @@ func (h CompleteOidcSignIn) Execute(
 		return SignInResult{}, err
 	}
 
-	account, owed, err := w.settleAccount(ctx, scope, configured, identity)
+	account, owed, err := w.settleAccount(ctx, scope, configured, identity, flow.InvitedAccountID)
 	if err != nil {
 		return SignInResult{}, err
 	}
@@ -320,9 +320,14 @@ func (h CompleteOidcSignIn) Execute(
 //
 // The second answer is whether the account the arrival matched still owes its own proof before the
 // provider may be connected to it (ADR-0071's addendum, E2). Then nothing is linked yet.
+//
+// `invitedID` is the invited account the flow started from, zero for every other sign-in. It is
+// one of the two second proofs that activate an invited account; the provider being authoritative
+// for the address is the other (ADR-0078 §1). Without either, a provider's word activates nothing
+// and connects nothing.
 func (w OidcWriter) settleAccount(
 	ctx context.Context, scope persistence.Scope,
-	configured domain.IdentityProvider, arriving provider.Identity,
+	configured domain.IdentityProvider, arriving provider.Identity, invitedID shared.ID,
 ) (domain.Account, bool, error) {
 	var (
 		account domain.Account
@@ -333,10 +338,23 @@ func (w OidcWriter) settleAccount(
 		found, err := w.External.FindBySubject(ctx, configured.ID, arriving.Subject)
 		switch {
 		case err == nil:
+			// An invitation's flow finishes that invitation and no other account's sign-in: an
+			// identity connected to somebody else here is not the invited person arriving.
+			if !invitedID.IsZero() && found.ID != invitedID {
+				if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
+					return err
+				}
+				return invitationAddressDiffers()
+			}
 			// Connected before, and still invited: an arrival before SC-24 connected the provider
-			// and was then refused as an account that may not act. The invitation is accepted now.
+			// on its word alone, and SC-24 then accepted the invitation on the next one. A link
+			// made without a second proof activates nothing (ADR-0078 §1): the arrival has to
+			// bring the proof now, as a first arrival would.
 			if found.Status == domain.AccountInvited {
-				accepted, err := w.acceptInvitation(ctx, found, configured)
+				if err := w.secondProof(ctx, scope, configured, arriving, found, invitedID); err != nil {
+					return err
+				}
+				accepted, err := w.activateInvited(ctx, found, configured, arriving, invitedID)
 				if err != nil {
 					return err
 				}
@@ -348,6 +366,16 @@ func (w OidcWriter) settleAccount(
 			return err
 		}
 
+		// A first arrival through the invitation's own link: the invited account, and only it.
+		if !invitedID.IsZero() {
+			accepted, err := w.arriveInvited(ctx, scope, configured, arriving, invitedID)
+			if err != nil {
+				return err
+			}
+			account = accepted
+			return nil
+		}
+
 		// A first arrival, and the first gate is admission: may this provider bring this person
 		// into this workspace at all (SI-10, the concept's §8). Under DOMAINS an address outside
 		// the configured list is refused here - not provisioned a desk of its own, which is what
@@ -356,7 +384,7 @@ func (w OidcWriter) settleAccount(
 			if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
 				return err
 			}
-			return shared.ErrForbidden.WithDetail("identity_provider.not_admitted")
+			return w.notAdmitted(ctx, configured, arriving)
 		}
 
 		// Admitted. If an account here already holds the address the provider vouched for, this is
@@ -384,17 +412,20 @@ func (w OidcWriter) settleAccount(
 					return shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in")
 				}
 
-				// An invitation nobody redeemed is accepted here, through the provider, in the
-				// same transaction as the connection (SC-24): the account becomes ACTIVE as
-				// redeeming would make it, and an invited person in a workspace without the password
-				// has a way in. One that ran out stays refused - the provider's word does not renew
-				// the operator's offer.
+				// An invitation nobody redeemed is accepted here only with a second proof: this
+				// arrival did not come through the invitation's link, so the provider has to be
+				// authoritative for the address (ADR-0078 §1). The address is the account's own -
+				// it is what found it.
 				if existing.Status == domain.AccountInvited {
-					accepted, err := w.acceptInvitation(ctx, existing, configured)
+					if err := w.secondProof(ctx, scope, configured, arriving, existing, ""); err != nil {
+						return err
+					}
+					accepted, err := w.activateInvited(ctx, existing, configured, arriving, "")
 					if err != nil {
 						return err
 					}
-					existing = accepted
+					account = accepted
+					return nil
 				}
 
 				linked, err := w.External.LinkSubject(
@@ -448,10 +479,164 @@ func (w OidcWriter) settleAccount(
 	return account, owed, nil
 }
 
+// notAdmitted is the refusal of an arrival admission turned away - and, under INVITED_ONLY, the
+// pointer to the invitation's link where the verified address is one somebody invited here
+// (ADR-0078 §1). That person has a way in the provider cannot give them on its own, and "this
+// provider only signs in people whose address it was configured for" would hide it.
+func (w OidcWriter) notAdmitted(
+	ctx context.Context, configured domain.IdentityProvider, arriving provider.Identity,
+) error {
+	refused := shared.ErrForbidden.WithDetail("identity_provider.not_admitted")
+	if configured.Provisioning != domain.ProvisionInvitedOnly || !arriving.EmailVerified {
+		return refused
+	}
+	existing, err := w.Accounts.FindByEmail(ctx, domain.LookupAddress(arriving.Email, w.Domains))
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return refused
+		}
+		return err
+	}
+	if existing.Status == domain.AccountInvited {
+		return shared.ErrForbidden.WithDetail("identity_provider.invitation_needs_link")
+	}
+	return refused
+}
+
+// arriveInvited is a first arrival through the invitation's own link (ADR-0078 §1): the invited
+// account is activated and connected, or nothing happens and the invitation stays as it was.
+//
+// The link is the second proof, so under INVITED_ONLY the provider need not be authoritative for
+// the address - for this account only. What it does not relax is the address: the provider's
+// verified address has to be the invited one. A person who signed in there as somebody else is told
+// so, and their invitation is still waiting for them.
+func (w OidcWriter) arriveInvited(
+	ctx context.Context, scope persistence.Scope,
+	configured domain.IdentityProvider, arriving provider.Identity, invitedID shared.ID,
+) (domain.Account, error) {
+	invited, err := w.Accounts.Find(ctx, invitedID)
+	if err != nil && !errors.Is(err, shared.ErrNotFound) {
+		return domain.Account{}, err
+	}
+	// Accepted some other way since the flow began, or gone: the redemption's one sentence, the
+	// one the start would have answered.
+	if err != nil || invited.Status != domain.AccountInvited {
+		w.Session.failure(ctx, FailureRedemption)
+		return domain.Account{}, redemptionRefused()
+	}
+	if !configured.MayAdmitInvited(admissionOf(arriving)) {
+		if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
+			return domain.Account{}, err
+		}
+		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.not_admitted")
+	}
+	if !w.sameAddress(arriving.Email, invited.Email) {
+		if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
+			return domain.Account{}, err
+		}
+		return domain.Account{}, invitationAddressDiffers()
+	}
+	// An invited account holds no credential of its own - a connection made before this proof is
+	// none, and is dropped below - unless somebody gave it a password, which is then asked for as
+	// at every other arrival. The card cannot ask that on the invitation's path, so it is refused
+	// with the sentence that names the way in it has.
+	proof, err := w.proofOwed(ctx, invited)
+	if err != nil {
+		return domain.Account{}, err
+	}
+	if proof != proofNone {
+		if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
+			return domain.Account{}, err
+		}
+		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in")
+	}
+	return w.activateInvited(ctx, invited, configured, arriving, invitedID)
+}
+
+// secondProof refuses to activate an invited account the arrival brings no second proof for
+// (ADR-0078 §1): neither the invitation's own link nor a provider authoritative for the address.
+// Either way the provider's verified address has to be the account's.
+//
+// The refusal points at the link, which is the proof the person holds: the provider cannot give
+// the other one.
+func (w OidcWriter) secondProof(
+	ctx context.Context, scope persistence.Scope, configured domain.IdentityProvider,
+	arriving provider.Identity, invited domain.Account, invitedID shared.ID,
+) error {
+	if !arriving.EmailVerified || !w.sameAddress(arriving.Email, invited.Email) {
+		if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
+			return err
+		}
+		return invitationAddressDiffers()
+	}
+	if invitedID == invited.ID || arriving.AddressAuthoritative {
+		return nil
+	}
+	if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
+		return err
+	}
+	return shared.ErrForbidden.WithDetail("identity_provider.invitation_needs_link")
+}
+
+// activateInvited accepts the invitation through the provider and connects the arriving identity,
+// in the arrival's own transaction: the account becomes ACTIVE as redeeming would make it, the
+// invitation is spent, and the arriving subject is connected - or none of it (SC-24, ADR-0078 §1).
+//
+// Whatever was connected to the account before this second proof is dropped first. Such a link was
+// made on a provider's word alone, which is no credential; the person makes it again by signing in.
+// The arriving identity is connected afresh, so an account connected earlier through the same
+// subject keeps exactly that one, now proven.
+//
+// One that ran out stays refused - the provider's word does not renew the operator's offer. Through
+// the invitation's link that is the redemption's one sentence; without it, the lapse is named.
+func (w OidcWriter) activateInvited(
+	ctx context.Context, invited domain.Account, configured domain.IdentityProvider,
+	arriving provider.Identity, invitedID shared.ID,
+) (domain.Account, error) {
+	var lapsed error = shared.ErrForbidden.WithDetail("identity_provider.invitation_lapsed")
+	if invitedID == invited.ID {
+		lapsed = redemptionRefused()
+	}
+	accepted, err := w.acceptInvitation(ctx, invited, configured, lapsed)
+	if err != nil {
+		return domain.Account{}, err
+	}
+	dropped, err := w.External.UnlinkAll(ctx, invited.ID)
+	if err != nil {
+		return domain.Account{}, err
+	}
+	linked, err := w.External.LinkSubject(
+		ctx, configured.ID, invited.ID, arriving.Subject, w.Session.Clock.Now())
+	if err != nil {
+		return domain.Account{}, err
+	}
+	if !linked {
+		return domain.Account{}, shared.ErrConflict.WithDetail("identity_provider.account_taken")
+	}
+	return accepted, w.record(ctx, OidcLinkedAction, accepted, configured, arriving,
+		audit.Change{Field: "identities_dropped", Classification: audit.Open, To: strconv.Itoa(dropped)})
+}
+
+// sameAddress compares two addresses the way an account's address is looked up: case and an
+// internationalised domain's spelling do not make two addresses (M-10).
+func (w OidcWriter) sameAddress(arriving, held string) bool {
+	if arriving == "" || held == "" {
+		return false
+	}
+	return domain.LookupAddress(arriving, w.Domains) == domain.LookupAddress(held, w.Domains)
+}
+
+// invitationAddressDiffers is the refusal of an arrival whose provider identity is not the invited
+// address. The invitation is not spent by it.
+func invitationAddressDiffers() error {
+	return shared.ErrForbidden.WithDetail("identity_provider.invitation_address_differs")
+}
+
 // acceptInvitation activates an invited account through the provider and records it as the
 // redemption is recorded: the same action, the status it moved, and the provider it came through.
+// `lapsed` is the refusal of an invitation that ran out or was accepted meanwhile.
 func (w OidcWriter) acceptInvitation(
-	ctx context.Context, invited domain.Account, configured domain.IdentityProvider,
+	ctx context.Context, invited domain.Account, configured domain.IdentityProvider, lapsed error,
 ) (domain.Account, error) {
 	now := w.Session.Clock.Now()
 	accepted, err := w.Accounts.AcceptInvitation(ctx, invited.ID, now)
@@ -459,7 +644,7 @@ func (w OidcWriter) acceptInvitation(
 		return domain.Account{}, err
 	}
 	if !accepted {
-		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.invitation_lapsed")
+		return domain.Account{}, lapsed
 	}
 	invited.Status = domain.AccountActive
 	return invited, w.Session.Audit.Append(ctx, audit.Entry{
@@ -488,7 +673,8 @@ type linkProof int
 
 const (
 	// proofNone: the account holds no credential yet - an invitation nobody redeemed - so there is
-	// nothing to prove and nothing to take over. That is what "invited" means.
+	// no password to ask for. An invited account still needs its second proof before a provider
+	// activates it (ADR-0078 §1): the invitation's link, or a provider authoritative for the address.
 	proofNone linkProof = iota
 	// proofPassword: the account has a password, and the card asks for it (and for the second
 	// factor, if one is armed) before connecting.
@@ -516,6 +702,12 @@ func (w OidcWriter) proofOwed(ctx context.Context, existing domain.Account) (lin
 		if err == nil && !enrollment.ConfirmedAt.IsZero() {
 			return proofElsewhere, nil
 		}
+	}
+	// An invited account's provider identities were connected on a provider's word alone, before
+	// any second proof: they are not a credential, and activating the account drops them
+	// (ADR-0078 §1).
+	if existing.Status == domain.AccountInvited {
+		return proofNone, nil
 	}
 	held, err := w.External.HasIdentity(ctx, existing.ID)
 	if err != nil {
@@ -761,8 +953,12 @@ func (w OidcWriter) recordRefusal(
 // reader needs.
 func (w OidcWriter) record(
 	ctx context.Context, action audit.Action, account domain.Account,
-	configured domain.IdentityProvider, arriving provider.Identity,
+	configured domain.IdentityProvider, arriving provider.Identity, extra ...audit.Change,
 ) error {
+	changes := append([]audit.Change{
+		{Field: "issuer", Classification: audit.Open, To: configured.Issuer},
+		{Field: "email_verified", Classification: audit.Open, To: strconv.FormatBool(arriving.EmailVerified)},
+	}, extra...)
 	return w.Session.Audit.Append(ctx, audit.Entry{
 		TenantID:    account.TenantID,
 		OccurredAt:  w.Session.Clock.Now(),
@@ -776,11 +972,7 @@ func (w OidcWriter) record(
 		TargetID:    account.ID,
 		TargetLabel: account.DisplayName,
 		Context:     audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-		Changes: audit.Changes(
-			audit.Change{Field: "issuer", Classification: audit.Open, To: configured.Issuer},
-			audit.Change{Field: "email_verified", Classification: audit.Open,
-				To: strconv.FormatBool(arriving.EmailVerified)},
-		),
+		Changes:     audit.Changes(changes...),
 	})
 }
 
@@ -856,9 +1048,11 @@ func (h CompleteOidcSignIn) Descriptor() usecase.Descriptor {
 			"with the verifier this installation kept, the identity token is verified in full, " +
 			"and the answer is the same pair a password sign-in answers - because it is the " +
 			"same session. A subject arriving for the first time is provisioned, or linked to " +
-			"an account whose verified address falls inside the configured domains - at once " +
-			"where that account holds no credential yet, and otherwise only after its own " +
-			"password (and second factor): the answer is then a LINK challenge instead of a pair.",
+			"an account whose verified address falls inside the configured domains - after its " +
+			"own password (and second factor) where it holds one, the answer then a LINK " +
+			"challenge instead of a pair. An invited account is activated only with a second " +
+			"proof: the flow started from its invitation's link, or a provider authoritative for " +
+			"the address, and the provider's verified address equal to the invited one.",
 		SideEffects: "Spends the flow, may create or link an account, opens a session, and " +
 			"writes an audit entry.",
 		Input: []usecase.Field{

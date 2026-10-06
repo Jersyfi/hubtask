@@ -515,6 +515,22 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 	}
 }
 
+// MayAdmitInvited answers whether this provider may bring in the one invited account a sign-in
+// started from - the invitation's own link, bound to the flow (ADR-0078 §1).
+//
+// Everything `MayAdmit` admits, and under `INVITED_ONLY` one more: an address the provider verified
+// but is not authoritative for. The link is the second proof there, and it proves one account - the
+// caller has already checked that the arriving address is that account's own. Under `DOMAINS` the
+// link widens nothing: the directory or domain list is the workspace's statement of who comes in
+// through this provider, and an invitation is not a reason to read it differently.
+func (p IdentityProvider) MayAdmitInvited(arriving Arriving) bool {
+	if p.MayAdmit(arriving) {
+		return true
+	}
+	return p.Provisioning == ProvisionInvitedOnly &&
+		arriving.EmailVerified && emailDomain(arriving.Email) != ""
+}
+
 // admitsDirectoryOf is `DOMAINS`, read against whichever thing this preset can be sure of.
 func (p IdentityProvider) admitsDirectoryOf(arriving Arriving) bool {
 	preset, known := PresetOf(p.Kind)

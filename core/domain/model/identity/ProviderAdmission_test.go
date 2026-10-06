@@ -183,3 +183,38 @@ func TestThePersonalAccountEndpointIsOneDirectoryAndNeedsNoList(t *testing.T) {
 		t.Fatalf("configuring the personal-account endpoint: %v", err)
 	}
 }
+
+// The invitation's own link admits one more arrival, and only under INVITED_ONLY: a verified
+// address the provider is not authoritative for (ADR-0078 §1). It never admits an unverified one,
+// and under DOMAINS the list stays the gate.
+func TestTheInvitationLinkAdmitsOnlyWhatInvitedOnlyNeeds(t *testing.T) {
+	verified := Arriving{Email: "ada@example.org", EmailVerified: true}
+	unverified := Arriving{Email: "ada@example.org"}
+
+	in := providerInput()
+	in.Provisioning = string(ProvisionInvitedOnly)
+	invitedOnly, err := NewIdentityProvider(in)
+	if err != nil {
+		t.Fatalf("configuring: %v", err)
+	}
+	if invitedOnly.MayAdmit(verified) {
+		t.Fatal("a non-authoritative address was admitted under INVITED_ONLY without the link")
+	}
+	if !invitedOnly.MayAdmitInvited(verified) {
+		t.Error("the invitation's link did not admit a verified address under INVITED_ONLY")
+	}
+	if invitedOnly.MayAdmitInvited(unverified) {
+		t.Error("the invitation's link admitted an address the provider did not verify")
+	}
+
+	in = providerInput()
+	in.Provisioning = string(ProvisionDomains)
+	in.AllowedEmailDomains = []string{"elsewhere.org"}
+	domains, err := NewIdentityProvider(in)
+	if err != nil {
+		t.Fatalf("configuring: %v", err)
+	}
+	if domains.MayAdmitInvited(verified) {
+		t.Error("the invitation's link widened a DOMAINS list")
+	}
+}

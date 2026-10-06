@@ -3839,6 +3839,16 @@ paths:
         another provider or a second factor cannot give that proof here and is refused with
         `identity_provider.link_needs_own_way_in`.
 
+        An **invited** account is activated and connected only with a second proof (ADR-0078 §1):
+        the sign-in started from the invitation's own link (`invitation_token` at the start), or
+        the provider is authoritative for the address. The provider's verified address must equal
+        the invited one either way. Without the proof nothing is connected or activated and the
+        answer is `identity_provider.invitation_needs_link`; a different address is
+        `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted
+        meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the
+        invitation. Whatever was connected to the invited account before the proof is dropped when
+        it is activated.
+
         A `state` that is unknown, already spent or expired is refused indistinguishably: a flow
         handle is single use.
       requestBody:
