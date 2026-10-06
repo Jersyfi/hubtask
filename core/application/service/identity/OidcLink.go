@@ -243,8 +243,15 @@ func (w OidcWriter) Connect(ctx context.Context, account domain.Account, link do
 		return shared.ErrConflict.WithDetail("identity_provider.account_taken")
 	}
 	// The provider vouched for the address when the arrival was admitted; that is what the entry's
-	// email_verified field records.
-	return w.record(ctx, OidcLinkedAction, account, configured, provider.Identity{EmailVerified: true})
+	// email_verified field records. The proof is the one the account gave: its password, or its
+	// mailbox with a fresh sign-in at the provider (ADR-0078 §1). A credential written before there
+	// were two carries none, and it was the password.
+	proof := link.Proof
+	if proof == "" {
+		proof = domain.LinkProofPassword
+	}
+	return w.record(ctx, OidcLinkedAction, account, configured, provider.Identity{EmailVerified: true},
+		audit.Change{Field: "proof", Classification: audit.Open, To: string(proof)})
 }
 
 var _ IdentityConnector = (*OidcWriter)(nil)

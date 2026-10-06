@@ -3863,6 +3863,19 @@ paths:
         mode; otherwise nothing is connected and the answer is
         `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
 
+        A sign-in begun from the link a workspace without the password mails (`connect_token` at
+        the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a
+        **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time`
+        older than the step-up's window, or none, is `identity_provider.connect_not_fresh`; the
+        provider's verified address must equal the account's (`identity_provider.connect_address_differs`);
+        admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`);
+        and an identity already connected to another account here is
+        `identity_provider.connect_identity_taken`. None of these spends the link. An armed second
+        factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is
+        connected when that step completes. The link is spent in the transaction that connects the
+        provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link
+        whose password was switched back on meanwhile. No password is stored.
+
         A `state` that is unknown, already spent or expired is refused indistinguishably: a flow
         handle is single use.
       requestBody:
@@ -3879,7 +3892,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/SessionTokens"
         "202":
-          description: The address matched an account with a password, which is asked for first
+          description: >
+            The address matched an account with a password, which is asked for first - or a
+            connection by mail reached an account with a second factor, which is asked for before
+            the provider is connected
           content:
             application/json:
               schema:

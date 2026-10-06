@@ -381,6 +381,12 @@ func (h CompleteOidcSignIn) Execute(
 		return SignInResult{}, err
 	}
 
+	// A sign-in begun from a CONNECT link connects that link's account and no other, with the
+	// mailbox and this fresh sign-in as its proof (ADR-0078 §1).
+	if !flow.PendingID.IsZero() {
+		return w.connectByMail(ctx, scope, configured, identity, flow.PendingID, cmd)
+	}
+
 	account, owed, err := w.settleAccount(ctx, scope, configured, identity, flow.InvitedAccountID)
 	if err != nil {
 		return SignInResult{}, err
@@ -600,6 +606,141 @@ func (w OidcWriter) settleAccount(
 		return domain.Account{}, false, err
 	}
 	return account, owed, nil
+}
+
+// connectByMail is the arrival of a sign-in begun from a CONNECT link (ADR-0078 §1, SC-33): the
+// mailbox proved by the link, and a fresh sign-in at the provider, are together the account's proof -
+// in place of the password, and of an identity at an offer that ended. They are never the second
+// factor's: an armed one is still asked, and the connection is written at the end of that step.
+// No password is stored.
+//
+// The link is spent in the same transaction that connects the identity, or that hands on to the
+// factor, and only if it is still unspent - so a second callback for the same link is refused. Every
+// refusal before that leaves it unspent, and an arrival the workspace turned away is recorded in a
+// transaction of its own, the sign-in's discipline.
+func (w OidcWriter) connectByMail(
+	ctx context.Context, scope persistence.Scope, configured domain.IdentityProvider,
+	arriving provider.Identity, pendingID shared.ID, cmd CompleteOidcSignInCommand,
+) (SignInResult, error) {
+	s := w.Session
+	// Switched back on meanwhile, or open as the fallback: there the password is the proof again,
+	// and the link is one whose reason has gone.
+	if err := w.passwordShutFor(ctx, scope); err != nil {
+		return SignInResult{}, err
+	}
+
+	var (
+		account   domain.Account
+		challenge *SignInChallenge
+	)
+	err := s.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		now := s.Clock.Now()
+		found, err := s.Pending.FindByID(ctx, pendingID)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return err
+		}
+		stands := false
+		if err == nil {
+			if stands, err = w.connectStands(ctx, found); err != nil {
+				return err
+			}
+		}
+		if !stands {
+			s.failure(ctx, FailureOidc)
+			return resetRefused()
+		}
+		held, err := w.Accounts.Find(ctx, found.Account.ID)
+		if err != nil {
+			return err
+		}
+
+		// A sign-in the browser kept at the provider proves nothing about who is at the keyboard
+		// now; the start asked for a fresh one, and a provider that ignored the question is not
+		// taken at its word (ADR-0075 §2's reading of auth_time).
+		if !domain.ProviderProofFresh(arriving.AuthTime, now, s.stepUpWindow()) {
+			s.failure(ctx, FailureOidc)
+			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_not_fresh"))
+		}
+		// The address the link was mailed to, and no other: a differently addressed identity is
+		// connected from a signed-in session, never at the front door (ADR-0078 §1, SC-37).
+		if !arriving.EmailVerified || !w.sameAddress(arriving.Email, held.Email) {
+			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_address_differs"))
+		}
+		// Admission as for every arrival that brings its own proof (SC-32): under INVITED_ONLY the
+		// mailbox is that proof; under DOMAINS the list still decides.
+		if !configured.MayAdmitWithProof(admissionOf(arriving)) {
+			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_admitted"))
+		}
+		// An identity already connected to somebody else here is that person's, and is never
+		// re-pointed at the account the link names.
+		owner, err := w.External.FindBySubject(ctx, configured.ID, arriving.Subject)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return err
+		}
+		if err == nil && owner.ID != held.ID {
+			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_identity_taken"))
+		}
+
+		spent, err := s.Pending.Consume(ctx, found.Credential.ID, now)
+		if err != nil {
+			return err
+		}
+		if !spent {
+			s.failure(ctx, FailureOidc)
+			return resetRefused()
+		}
+		link := domain.LinkIntent{
+			ProviderID: configured.ID, Subject: arriving.Subject, Proof: domain.LinkProofMailbox,
+		}
+		armed := false
+		if s.Enrollments != nil {
+			enrollment, err := s.Enrollments.Find(ctx, held.ID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			armed = err == nil && !enrollment.ConfirmedAt.IsZero()
+		}
+		account = held
+		if armed {
+			next, err := w.handOnToTheFactor(ctx, scope, held, domain.PendingCredential{
+				UserAgent: cmd.UserAgent, IPClass: domain.IPClass(cmd.RemoteAddr), Link: &link,
+			}, now)
+			if err != nil {
+				return err
+			}
+			// The person typed no address on this card: the step says whose account it is, as the
+			// reset's code step does (UC-ID-04 check 5).
+			next.Email = held.Email
+			challenge = &next
+			return nil
+		}
+		return w.Connect(ctx, held, link)
+	})
+	var refusal turnedAwayError
+	if errors.As(err, &refusal) {
+		if recordErr := w.recordRefusal(ctx, scope, configured); recordErr != nil {
+			return SignInResult{}, recordErr
+		}
+		return SignInResult{}, refusal.cause
+	}
+	if err != nil {
+		return SignInResult{}, err
+	}
+	if challenge != nil {
+		return SignInResult{Challenge: challenge}, nil
+	}
+
+	bounds, err := s.sessionBounds(ctx, scope.TenantID, account)
+	if err != nil {
+		return SignInResult{}, err
+	}
+	pair, err := s.openSessionVia(ctx, scope, scope.TenantID, account,
+		cmd.UserAgent, cmd.RemoteAddr, OidcSignedInAction, nil,
+		bounds, domain.SignedInWithOidc, configured.ID)
+	if err != nil {
+		return SignInResult{}, err
+	}
+	return SignInResult{Pair: &pair}, nil
 }
 
 // turnedAwayError marks an arrival the provider vouched for and this workspace turned away, so that
@@ -899,7 +1040,9 @@ func (w OidcWriter) challengeLink(
 			IPClass:   domain.IPClass(cmd.RemoteAddr),
 			CreatedAt: now.UTC(),
 			ExpiresAt: now.Add(domain.PendingLifetime).UTC(),
-			Link:      &domain.LinkIntent{ProviderID: configured.ID, Subject: arriving.Subject},
+			Link: &domain.LinkIntent{
+				ProviderID: configured.ID, Subject: arriving.Subject, Proof: domain.LinkProofPassword,
+			},
 		}
 		if err := w.Session.Pending.Insert(ctx, credential, presented); err != nil {
 			return err
@@ -1221,7 +1364,10 @@ func (h CompleteOidcSignIn) Descriptor() usecase.Descriptor {
 			"own password (and second factor) where it holds one, the answer then a LINK " +
 			"challenge instead of a pair. An invited account is activated only with a second " +
 			"proof: the flow started from its invitation's link, or a provider authoritative for " +
-			"the address, and the provider's verified address equal to the invited one.",
+			"the address, and the provider's verified address equal to the invited one. A sign-in " +
+			"begun from the link a workspace without the password mails connects that link's " +
+			"account with the mailbox and a fresh sign-in at the provider as its proof - the " +
+			"provider's verified address equal to the account's, an armed second factor still asked.",
 		SideEffects: "Spends the flow, may create or link an account, opens a session, and " +
 			"writes an audit entry.",
 		Input: []usecase.Field{
