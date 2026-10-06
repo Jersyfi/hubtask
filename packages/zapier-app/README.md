@@ -30,9 +30,7 @@ platform's warnings for the identifier fields no listing can feed, and its remin
 the address field, which the connection test does.
 
 **Licence.** Apache-2.0 — the `LICENSE` file beside this README, copied into `dist/` with the
-manifest, and the header every file carries
-([ADR-0059](../../docs/adr/ADR-0059-licensing-phases-and-licensing-start.md) §6, like the n8n
-node): an app a company may not ship is an app nobody ships.
+manifest, and the header every file carries, like the whole repository ([ADR-0080](../../docs/adr/ADR-0080-hubtask-is-apache-2-0.md)).
 
 **Not published.** The marketplace is an account, a client registration and a review the owner
 runs; until then the package is `private`.

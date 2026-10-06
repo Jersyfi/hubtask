@@ -22,9 +22,7 @@ workspace's manifest names none, so this repository's lockfile carries no platfo
 format; `pnpm test` proves every operation and every event type of the contract is reachable.
 
 **Licence.** Apache-2.0 — the `LICENSE` file beside this README, copied into `dist/` with the
-manifest, and the header every file carries
-([ADR-0059](../../docs/adr/ADR-0059-licensing-phases-and-licensing-start.md) §6). A node that a
-company may not ship is a node nobody ships.
+manifest, and the header every file carries, like the whole repository ([ADR-0080](../../docs/adr/ADR-0080-hubtask-is-apache-2-0.md)).
 
 **Not published.** Publication to the community node registry is an account and a review the
 owner runs; until then the package is `private`.

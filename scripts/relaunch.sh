@@ -92,8 +92,8 @@ if [[ $SKIP_HISTORY -eq 0 ]]; then
   git add -A
   git commit -q -m "feat: initial public release
 
-Architecture documentation, repository skeleton, licence construct (BSL 1.1
-with a conversion to Apache-2.0) and the operating material for milestone 0.1.0."
+Architecture documentation, repository skeleton, the licence (Apache-2.0)
+and the operating material for milestone 0.1.0."
   echo "  1 commit: $(git log --format='%an <%ae>' -1)"
 
   echo

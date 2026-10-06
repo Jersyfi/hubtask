@@ -26,7 +26,7 @@ Ten content pages plus the two legal ones. The order is the priority order of th
 | `/security/` | Isolation, the trail, data protection, the gates | 3, 2 | Every claim links to the mechanism |
 | `/developers/` | REST, MCP, CLI, events, SDKs, sync | 4 | The API is the product, and the agent runs on your box |
 | `/self-hosting/` | Requirements, support matrix, backup, operations | 1, 2 | PostgreSQL, and that is the list |
-| `/licence/` | BSL, who pays, the Change Date, editions | 1, 2 | Free for you; the guarantee is per version and irrevocable |
+| `/licence/` | Apache-2.0, the name, contributions, funding | 1, 2 | Open source, free for any use; the name stays ours ([ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md)) |
 | `/roadmap/` | The milestones, and the working method | 4, 3 | Why the guarantees elsewhere are checkable |
 | `/download/` | Server, clients, CLI | 1, 2 | Nothing to sign up for |
 | `/accessibility/` | The statement the EAA expects | 3 | Operable by keyboard, or it is a defect |
@@ -181,9 +181,9 @@ service level objectives; the support matrix rows; and every statement on `/lice
 
 ### 5.4 Deliberately absent
 
-No price, no date for a price, no load-test figures (they stay internal by decision), no claim of
-“open source”, no comparison table naming a competitor, no statement that anybody has to pay today,
-and no maintenance or support commitment before Licensing Start (`licensing-editions.md` §6).
+No price, no paid edition, no load-test figures (they stay internal by decision), no comparison
+table naming a competitor, and no maintenance or support commitment (`licensing-editions.md`). Since
+[ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md) the site says “open source”: it is Apache-2.0.
 
 ---
 
@@ -193,9 +193,9 @@ and no maintenance or support commitment before Licensing Start (`licensing-edit
    workbench's three-nested-planes placeholder in the masthead, the footer and the favicon. That is
    the right placeholder — it is the only drawn record of the idea — but a launch is the moment it
    stops being one.
-2. **Which mailbox.** The site uses `info@hubtask.eu` everywhere, including for licence enquiries.
-   [`licensing-editions.md`](../architecture/licensing-editions.md) §2 names `licensing@hubtask.eu`.
-   Either create that mailbox and split the two, or amend the document.
+2. **Which mailbox.** The site uses `info@hubtask.eu` everywhere. [`TRADEMARK.md`](../../TRADEMARK.md)
+   names `licensing@hubtask.eu` for requests about the name. Either create that mailbox, or amend
+   the document.
 3. **The colour mode does not persist across a navigation.** CSS cannot write storage, and the site
    loads no script. A reader who picks Light gets dark again on the next page unless their system
    preference agrees. The system preference — which is what most people actually have set — is

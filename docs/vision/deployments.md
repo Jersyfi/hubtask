@@ -84,7 +84,7 @@ says the smallest comes first.
 
 ## A note on the licence
 
-`D5`–`D7`, offered to third parties, are the provider case the licence reserves until Licensing
-Start ([ADR-0059](../adr/ADR-0059-licensing-phases-and-licensing-start.md)). The product is built
-for them now; offering it commercially waits for that date. A use case may name `D5`–`D7` without
-contradicting the licence — it describes what the software can do, not who may sell it.
+Hubtask is Apache-2.0 ([ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md)): anyone may run
+`D5`–`D7` for third parties, commercially or not, without asking. What the licence does not grant
+is the name — an offering built on Hubtask follows [TRADEMARK.md](../../TRADEMARK.md). A use case
+that names `D5`–`D7` describes what the software can do, not who may offer it.

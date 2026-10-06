@@ -30,6 +30,5 @@ on every `make generate`, and `test/contract` drives the client against the in-p
 that the two halves cannot drift apart.
 
 **Licence.** Apache-2.0 — the `LICENSE` file beside this README, and the header every file
-carries ([ADR-0059](../../docs/adr/ADR-0059-licensing-phases-and-licensing-start.md) §6, deciding
-[ADR-0057](../../docs/adr/ADR-0057-sdk-licence-and-extraction.md)). A module path of its own and
-an extraction into a repository of its own stay open.
+carries, like the whole repository ([ADR-0080](../../docs/adr/ADR-0080-hubtask-is-apache-2-0.md)). A module path of its own and an extraction into a
+repository of its own stay open ([ADR-0057](../../docs/adr/ADR-0057-sdk-licence-and-extraction.md)).

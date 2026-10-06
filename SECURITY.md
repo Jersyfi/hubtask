@@ -12,8 +12,9 @@ Do not use real user data, and do not test systems that are not yours.
 
 ## What you can expect
 
-Until Licensing Start ([licensing-editions.md](docs/architecture/licensing-editions.md) §6) the
-project is maintained by one person on a best-effort basis, and these are **aims, not deadlines**:
+Hubtask is open source under Apache-2.0, provided as is, and maintained by one person on a
+best-effort basis ([licensing-editions.md](docs/architecture/licensing-editions.md)). These are
+**aims, not deadlines**:
 
 | Step | Aim |
 |---|---|
@@ -25,17 +26,11 @@ project is maintained by one person on a best-effort basis, and these are **aims
 Once fixed, an advisory is published with the affected versions, a workaround, and detection
 guidance. Credit as the finder on request.
 
-From Licensing Start, a major that licences have been sold for carries a declared support period
-and the vulnerability-handling obligations of the Cyber Resilience Act; the deadlines that come
-with them are stated here from that day.
-
 ## Supported versions
 
-Until Licensing Start, security fixes go into the current minor version, best effort; no version
-is promised a fix, and no version is promised a support period. What every version keeps is its
-Change Date: three years after publication it is Apache-2.0, whatever happens to the project.
-From Licensing Start, the policy in `docs/architecture/versioning-release.md` §5 applies to majors
-with sold licences.
+Security fixes go into the current minor version, best effort; no version is promised a fix, and
+no version is promised a support period. Every version is Apache-2.0, so anyone may carry a fix
+into an older one.
 
 ## What counts as a vulnerability
 

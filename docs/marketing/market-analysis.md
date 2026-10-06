@@ -23,7 +23,7 @@ four with one code path — which is an opportunity and, unaddressed, a position
 |---|---|---|
 | **Personal task managers** | Todoist, TickTick, Things, Apple Reminders, Microsoft To Do | Speed, capture, a good phone app, a sense that the tool is theirs |
 | **Team work management** | Asana, ClickUp, Monday.com, Notion, Trello, Linear | Shared visibility, low onboarding cost, integrations |
-| **Self-hosted / source available** | Vikunja, OpenProject, Plane, Taiga, Redmine, WeKan, Nextcloud Deck, Super Productivity | Control of the data, no per-seat bill, a stack they can operate |
+| **Self-hosted / open source** | Vikunja, OpenProject, Plane, Taiga, Redmine, WeKan, Nextcloud Deck, Super Productivity | Control of the data, no per-seat bill, a stack they can operate |
 | **Agent-facing surfaces** | The incumbents' own MCP servers (Todoist, Asana, ClickUp, Notion), plus community bridges | An agent that can actually *do* the work, with permissions somebody can reason about |
 
 ### 1.1 Four movements that changed the ground under this category
@@ -107,7 +107,8 @@ built.
 Three deliberate exclusions, because a position is defined as much by what it refuses:
 
 * **Not "the open source Asana".** It invites a comparison on integrations and seats, both of which
-  Hubtask loses today, and it is factually wrong about the licence.
+  Hubtask loses today. (Since [ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md) the licence half
+  of the phrase is true; the comparison half is still the wrong one.)
 * **Not "AI-powered".** AI is optional, switchable off, and the product with it switched off is the
   whole product ([`ai-first.md`](../architecture/ai-first.md) §2). A site that leads with AI would be
   advertising the one part a buyer may decide never to turn on.
@@ -119,7 +120,7 @@ Three deliberate exclusions, because a position is defined as much by what it re
 
 | # | Who | What they arrive worried about | The page that answers them |
 |---|---|---|---|
-| 1 | **The sovereign individual and their household** — homelab, prosumer, developer running their own stack, and the family sharing it (D1, D2) | "Will this still be mine in five years, and can I get my data out?" | Start → Self-hosting → Licence (the Change Date) |
+| 1 | **The sovereign individual and their household** — homelab, prosumer, developer running their own stack, and the family sharing it (D1, D2) | "Will this still be mine in five years, and can I get my data out?" | Start → Self-hosting → Licence (Apache-2.0) |
 | 2 | **The provider** — agency, freelancer, consultancy running work for several clients; a platform selling workspaces to consumers or to companies; a managed service provider (D5, D6, D7) | "Can one instance hold five clients without them seeing each other?" | Use cases → Security → Licence |
 | 3 | **The team, from a club to a compliance-bound European company** (D3, D4, and the customers of D6) | "Can I answer an access request, prove the trail, and show an accessibility statement?" | Security and privacy → Accessibility |
 | 4 | **The automation and agent builder** | "Is the API real, or is it a UI with an export button?" | Developers and agents → Roadmap |
@@ -168,46 +169,20 @@ justify keeping.
 
 ## 5. Licence and monetisation — what the site may say
 
-**The licence is decided; the money is not.** These are two different sentences and the website must
-not blur them.
+> Rewritten on 2026-10-07 for [ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md). The version of
+> this section written for the BSL 1.1 model — Licensing Start, the commercial grant, "never say
+> open source" — is superseded with it.
 
-*Decided, and therefore stated plainly:* Business Source License 1.1, per version. Until
-Licensing Start any use is free — including commercial production use by companies and freelancers,
-with the full feature set — and the one thing reserved is offering Hubtask itself to third parties
-as a service. Each released version converts to Apache-2.0 three years after it is published, per
-version and irrevocably, and keeps the grant it went out with. That is
-[ADR-0059](../adr/ADR-0059-licensing-phases-and-licensing-start.md), it is the text in
-[`LICENSE`](../../LICENSE), and it is the single most persuasive thing on the site for audience 1 —
-because it is the answer to "what if this project is abandoned or sold".
+**The licence is decided, and there is no money to blur it with.** Hubtask is open source under the
+Apache License 2.0: any use, commercial included, with the full feature set and no licence key. It
+is the text in [`LICENSE`](../../LICENSE), and it is the single most persuasive thing on the site
+for audience 1 — because it is the answer to "what if this project is abandoned or sold": anyone
+may carry it on, only not under the name ([`TRADEMARK.md`](../../TRADEMARK.md)).
 
-*Intended, and therefore said as intended:* the grant from Licensing Start (organisations under five
-persons stay free; larger ones in production need a licence for versions published after that day)
-and the model — a one-time licence per major, an optional support contract, an annual provider
-licence, the fairness rules. *Not decided, and therefore not said:* a price, or a date.
-[`licensing-editions.md`](../architecture/licensing-editions.md) §4 and §5 carry the draft.
-
-**How to present that — the recommendation.** Not as a gap, and not as a coming-soon banner. As a
-position, honestly bounded:
-
-> *Until Licensing Start, everything is free — commercial use included — and every version you
-> install keeps those terms. Licensing Start is a date we announce at least sixty days ahead; from
-> the first release after it, organisations of five persons or more need a licence. No price
-> exists yet, and none is asked. Until that day the project is provided as is: no support period
-> and no promise about maintenance — what is promised is written into each version's licence and
-> needs nobody to keep it.*
-
-Three reasons this is the right presentation rather than silence. A buyer in audience 2 who cannot
-find a price assumes the worst and leaves; a buyer who is told the price is unsettled *and* told the
-guarantee that is settled has been given something. Saying it in public is a commitment against
-quietly worsening the terms later. And "we would rather get this right than guess" reads as
-seriousness in a category where surprise repricing is a live memory for anybody who has watched a
-BSL relicensing.
-
-**What the site must never say**: "open source" (it is source available, and
-[`apps/website/CLAUDE.md`](../../apps/website/CLAUDE.md) already makes that a build-level rule), any
-price, any date for a price, that anybody has to pay today, or anything that reads as a support
-period, a deadline or a maintenance commitment before Licensing Start
-([`licensing-editions.md`](../architecture/licensing-editions.md) §6).
+**What the site says:** "open source", "Apache-2.0", "free for any use", and that the work is funded
+by donations that buy nothing in return. **What the site must never say:** a price, a paid edition,
+a support period, a deadline or a maintenance commitment — the project is provided as is
+([`licensing-editions.md`](../architecture/licensing-editions.md)).
 
 ---
 
@@ -233,7 +208,6 @@ wanted, it is a decision with a data-catalogue entry attached, not a form somebo
 |---|---|---|
 | **"Built like infrastructure" reads as "hard to use"** | The proof device and the security page pull hard in that direction | The start page leads with the model and the five levels, not with the audit trail. Rigour is the second thing a visitor meets, never the first |
 | **The private user does not care about audit trails** | They genuinely do not, until they do | Audience 1's page is the licence and the self-hosting page. The compliance material lives behind its own navigation entry and is not pushed at them |
-| **BSL costs community goodwill** | Some contributors and some aggregator sites treat non-OSI licences as disqualifying | State it plainly and first, with the Change Date beside it. The projects that were damaged by BSL were the ones that *changed to* it; this one starts there |
 | **A 1.0 site claiming client parity before the shells ship** | The site is written for 1.0 and today is 0.7.0 | The claim ledger in [`website-1.0.md`](./website-1.0.md) § 5: every sentence that is not true today is listed, with the milestone that makes it true. The site does not go live until they are |
 | **No mobile story against Todoist** | It is the first question a private user asks | Do not fight there. The download page says what exists, per platform, from the support matrix — and says nothing about what it is like to use until it is worth saying |
 

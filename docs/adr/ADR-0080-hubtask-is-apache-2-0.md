@@ -57,7 +57,7 @@ decided that the sale is not the point: **Hubtask itself shall be freely usable 
 * **Removed:** `CLA.md`, `LICENSE-APACHE` (its text is now `LICENSE`), the phase model, the
   commercial grant draft, the editions table and the prerequisites list in
   [licensing-editions.md](../architecture/licensing-editions.md), which is rewritten as a short
-  statement of the model. arc42 loses the constraint C-11 as written and the risk R-02.
+  statement of the model. arc42's constraint C-11 is rewritten and its risk R-02 resolved.
 * **Changed:** about 2,350 SPDX headers, the two generators that write them
   (`packages/design-system/build/formats.js` and `icons.js`), the licence header test in
   `test/architecture`, every `package.json` `license` field, `NOTICE` (a short Apache notice),
