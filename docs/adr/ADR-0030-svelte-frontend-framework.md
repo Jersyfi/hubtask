@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-23
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §1
+
 ## Context
 
 C-14 (arc42 §2.2) has held the frontend open since the beginning. Three accepted decisions have

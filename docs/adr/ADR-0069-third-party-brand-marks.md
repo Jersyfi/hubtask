@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-26
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §12
+
 ## Context
 
 A workspace may sign in through its own identity provider (H-04), and the sign-in concept extends

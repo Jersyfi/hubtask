@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-09 · **Decided:** 2026-09-11
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §4
+
 ## Context
 
 `POST /auth/mfa/totp:enroll` answers two things about one secret: `secret`, base32, "for typing by

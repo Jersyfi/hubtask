@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-24 · **Accepted:** 2026-09-24
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §11.4, [i18n-l10n.md](../architecture/i18n-l10n.md) §5
+
 ## Context
 
 The owner asked for the search to be looked at whole: what the bar does, what the search screen can

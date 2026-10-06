@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-03
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §1, §11.10
+
 ## Context
 
 Three places in the client promised an account preference for the theme that no decision had ever

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-21 · **Accepted:** 2026-09-21
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §4, §6, §11, [engineering-guidelines.md](../architecture/engineering-guidelines.md) §2
+
 ## Context
 
 The design system's foundations are settled and gated: one source for every value
