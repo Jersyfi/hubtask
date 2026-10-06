@@ -4637,7 +4637,7 @@ type Capabilities struct {
 	Features *map[string]bool `json:"features,omitempty"`
 
 	// Instance What this caller may do at the level above the workspaces (SI-17, ADR-0070 §5). Caller- scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers `reachable: false`, and the answer changes with the actor.
-	// **This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled (`apps/webapp/CLAUDE.md`).
+	// **This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled (principle P-05).
 	Instance  *InstanceReach `json:"instance,omitempty"`
 	ItemTypes *[]struct {
 		AllowedChildTypes *[]ItemType `json:"allowed_child_types,omitempty"`

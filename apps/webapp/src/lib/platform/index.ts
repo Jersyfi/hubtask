@@ -14,7 +14,7 @@ import type { SessionPair } from './tokenStore.ts';
  * The interface is deliberately as small as what exists. The ports ADR-0033 already names for
  * later — local persistence, the keystore-held encryption key — are added here when the
  * sync-engine and shell work packages bring their first real implementation, not before
- * (CLAUDE.md: no speculative abstractions).
+ * (AGENTS.md: no speculative abstractions).
  */
 export interface Platform {
   /**

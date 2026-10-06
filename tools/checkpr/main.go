@@ -5,7 +5,7 @@
 // description` in ci.yml, part of `CI required`; `make gate-pr BODY=<file>` locally).
 //
 // A description is where the review, the use cases' checks and the Definition of Done are recorded,
-// and the template is how CLAUDE.md asks for them. It was skipped anyway, by a session that wrote
+// and the template is how AGENTS.md asks for them. It was skipped anyway, by a session that wrote
 // descriptions from scratch with `gh pr create --body`: GitHub shows the template only to somebody
 // who opens the form. This reads the description the way a reviewer would and names what is missing.
 //

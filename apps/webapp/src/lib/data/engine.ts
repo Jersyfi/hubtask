@@ -45,7 +45,7 @@ export function whenCredentialRefused(handler: () => void): void {
  * It goes through the transport rather than through the engine deliberately: the engine's own
  * calls are what get retried after an exchange, and an exchange made through them would be an
  * exchange that could trigger an exchange. Every `fetch` in this client still happens in exactly
- * one place — `FetchTransport` — which is the rule that matters (`packages/CLAUDE.md`).
+ * one place — `FetchTransport` — which is the rule that matters (`packages/sync-engine/AGENTS.md`).
  */
 const transport = new FetchTransport({ baseUrl: '/api/v1' });
 

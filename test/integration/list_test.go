@@ -473,7 +473,7 @@ func stamp(ctx context.Context, t *testing.T, id shared.ID, column string) {
 	t.Helper()
 
 	// The column name is a constant of this test and never a value from anywhere else, which is what
-	// keeps CLAUDE.md rule 9 intact here, where sqlc cannot express "either of two columns".
+	// keeps rule 9 intact here, where sqlc cannot express "either of two columns".
 	switch column {
 	case "archived_at", "deleted_at":
 	default:

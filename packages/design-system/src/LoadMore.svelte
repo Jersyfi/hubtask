@@ -2,7 +2,7 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The next page, and **no page numbers** - the API has none, so no component may imply them
-  // (apps/webapp/CLAUDE.md). There is no `page`, no `total pages`, and no way for a caller to ask
+  // (apps/webapp/AGENTS.md). There is no `page`, no `total pages`, and no way for a caller to ask
   // for the fourth one.
   //
   // It is a control a person presses rather than an infinite scroll, and that is an accessibility

@@ -45,7 +45,7 @@ var forbiddenOutbound = map[string]string{
 	"DefaultTransport": "http.DefaultTransport",
 }
 
-// TestOutboundHTTPGoesThroughTheGuardedClient checks rule 6 from CLAUDE.md (ADR-0015,
+// TestOutboundHTTPGoesThroughTheGuardedClient checks rule 6 from AGENTS.md (ADR-0015,
 // security.md §T-07). An outbound call that skips GuardedClient skips the SSRF guard, the
 // redirect budget, and the response size limit - and the first one to do so will be an adapter
 // written in a hurry against a third-party API.

@@ -13,7 +13,7 @@ import (
 //
 // **It is written here rather than imported.** A real corpus - rockyou, SecLists, the Pwned
 // Passwords set - is somebody else's work under somebody else's terms, and adding one is a
-// supply-chain and licence decision rather than a commit (`CLAUDE.md`, "What you do not decide
+// supply-chain and licence decision rather than a commit (`AGENTS.md`, "What you do not decide
 // yourself"). ADR-0068's own escape is taken instead: what ships is a short in-house list of the
 // families every leak's top hundred is made of, and an installation that needs a real corpus points
 // `sign_in.blocklist_file` at one. The switch then consults both, and neither says which refused a

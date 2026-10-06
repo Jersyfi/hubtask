@@ -1,7 +1,7 @@
 # Product principles
 
 Sixteen principles every use case is measured against. They are about what a **person** meets,
-not about how the code is layered — the engineering rules are in [`CLAUDE.md`](../../CLAUDE.md)
+not about how the code is layered — the engineering rules are in [`AGENTS.md`](../../AGENTS.md)
 and the ADRs, and several principles here are the reason those rules exist.
 
 **When two principles pull in different directions, the lower number wins.** A use case names the

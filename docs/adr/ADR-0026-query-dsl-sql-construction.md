@@ -11,7 +11,7 @@ B-12 adds `QueryItems` (`POST /items:query`), the one endpoint that serves list,
 `AND`, `OR` and `NOT` — a sort list, a grouping and a page. The set of possible requests is open, so the SQL
 that answers them cannot be one statement written in advance.
 
-That collides with the wording of rule 9 in [CLAUDE.md](../../CLAUDE.md):
+That collides with the wording of rule 9 in [CLAUDE.md](../../AGENTS.md):
 
 > SQL only parameterised, through sqlc. Never string concatenation to build a query, not even for filters.
 

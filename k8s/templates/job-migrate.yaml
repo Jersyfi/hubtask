@@ -2,7 +2,7 @@
 The migration, as a hook before the rollout (deployment.md §2.2).
 
 It runs before the new pods start and it runs once: migrations are expand/contract-safe
-(CLAUDE.md rule 12), so the old version keeps working against the new schema while the rollout
+(rule 12), so the old version keeps working against the new schema while the rollout
 proceeds. Doing it the other way round - migrating from inside the application at startup - would
 have as many migrators as replicas and no order between them.
 

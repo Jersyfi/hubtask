@@ -25,7 +25,7 @@ import (
 //
 // Hand-written rather than imported, and that is a decision with a reason: an S3 SDK is a new
 // third-party dependency, and a dependency is a supply-chain decision that is not taken inside a
-// pull request (CLAUDE.md). The protocol below is HMAC-SHA256 chained four times over public,
+// pull request (AGENTS.md). The protocol below is HMAC-SHA256 chained four times over public,
 // stable inputs - the standard library's primitives, no cryptography of our own (security.md §8)
 // - and the three requests this adapter makes carry no query strings and three headers, which is
 // the corner of SigV4 that fits on a page. The conformance suite runs against a server that

@@ -9,7 +9,7 @@
   // and the first use of every collection needed `hubctl`.
   //
   // **Here rather than in the picker.** Putting a create control inside `LabelPicker` would mean
-  // changing a design system component, and `packages/design-system/CLAUDE.md` rules out a
+  // changing a design system component, and `packages/design-system/AGENTS.md` rules out a
   // component changing as a side effect of application work. It also belongs here on its own
   // merits: a label is a property of the collection, and this is the collection's screen. The
   // picker stays what it is - a chooser among what exists.

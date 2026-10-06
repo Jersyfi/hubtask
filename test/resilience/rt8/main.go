@@ -52,7 +52,7 @@ const envToken = "HUBTASK_TOKEN" //nolint:gosec // G101: the name of an environm
 
 // requestTimeout bounds one call. Generous, because what is under test is whether a request is
 // answered at all - a slow answer during a rollout is a different finding from a refused one, and
-// this has to be able to tell them apart (CLAUDE.md rule 7).
+// this has to be able to tell them apart (rule 7).
 const requestTimeout = 30 * time.Second
 
 // stagger is how far apart the workers begin.

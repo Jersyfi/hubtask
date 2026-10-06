@@ -464,7 +464,7 @@ func unnamedAttachmentName(mediaType string) string {
 //
 // Two charsets are handled outright and everything else is treated as ISO-8859-1, which is what a
 // byte-for-rune reading is. That is a decision rather than a gap: the alternative is a character
-// set library, which is a dependency, and a dependency is not taken in passing (CLAUDE.md). A
+// set library, which is a dependency, and a dependency is not taken in passing (AGENTS.md). A
 // mis-decoded accent in an inbox entry is a legible message with a wrong character in it; a
 // dependency taken without a decision is a supply chain nobody chose.
 func normaliseText(content []byte, charset string) string {

@@ -14,7 +14,7 @@ import (
 // The model: as much of the contract as a thin client needs, in the document's own order.
 //
 // Not a general OpenAPI library - the tool reads a fifth of the specification and a dependency
-// for the other four fifths would be a supply chain decision (CLAUDE.md). The YAML is walked as a
+// for the other four fifths would be a supply chain decision (AGENTS.md). The YAML is walked as a
 // node tree so that the operations and the fields come out in the order they were written, which
 // is the order a reader of the generated client meets them in.
 

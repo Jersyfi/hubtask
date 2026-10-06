@@ -16,7 +16,7 @@
 /core/domain/                       @Jersyfi
 /LICENSE                            @Jersyfi
 /NOTICE                             @Jersyfi
-/CLAUDE.md                          @Jersyfi
+/AGENTS.md                          @Jersyfi
 
 # The clients and what they share (ADR-0027). Separate entries rather than one `/apps/` line:
 # the two applications are unrelated to each other, and the design system governs both.

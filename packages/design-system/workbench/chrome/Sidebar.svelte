@@ -12,7 +12,7 @@
   //
   // The filter above it is an `<input type="search">` with no form around it, no submit and
   // nothing kept - it narrows the list already on the page and does nothing else, which is what
-  // `packages/design-system/CLAUDE.md` means by a control that is not a form.
+  // `packages/design-system/AGENTS.md` means by a control that is not a form.
   import SearchField from '../../src/SearchField.svelte';
   import { componentOf, filtered } from '../lib/index.ts';
   import type { StoryGroup } from '../lib/story.ts';

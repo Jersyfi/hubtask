@@ -10,7 +10,7 @@
  * afterwards is metadata about a credential, never the credential.
  *
  * **A token's shape is never checked here.** The security scheme accepts three kinds of credential
- * and a client enforcing one pattern refuses the other two (`apps/webapp/CLAUDE.md`).
+ * and a client enforcing one pattern refuses the other two (`apps/webapp/AGENTS.md`).
  *
  * **`account_id` is the one exception to "a token is its holder's".** Omitted means the caller's
  * own; naming a service account lists or mints that account's, which needs the permission that

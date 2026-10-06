@@ -11,7 +11,7 @@
 //
 // **There is no page here.** This product's API answers a page and an opaque cursor and has no
 // page numbers, and a client-side pager over a list that happens to have arrived whole would give
-// the product two different answers to "where am I in this list" (`apps/webapp/CLAUDE.md`,
+// the product two different answers to "where am I in this list" (`apps/webapp/AGENTS.md`,
 // `design-system.md` §4). A long list is sorted or narrowed; a list with a cursor behind it uses
 // `LoadMore`.
 //

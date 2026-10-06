@@ -21,7 +21,7 @@ import (
 
 const module = "github.com/Jersyfi/hubtask"
 
-// TestCoreStaysClean checks rule 1 from CLAUDE.md (ADR-0001): the core must point neither
+// TestCoreStaysClean checks rule 1 from AGENTS.md (ADR-0001): the core must point neither
 // outwards nor at third-party libraries. core/shared is included - the promise in go.mod covers
 // the whole core.
 func TestCoreStaysClean(t *testing.T) {
@@ -52,7 +52,7 @@ func TestCoreStaysClean(t *testing.T) {
 	})
 }
 
-// TestNoBareGoroutines checks rule 5 from CLAUDE.md (ADR-0016). A panic in an unguarded
+// TestNoBareGoroutines checks rule 5 from AGENTS.md (ADR-0016). A panic in an unguarded
 // goroutine terminates the whole process.
 func TestNoBareGoroutines(t *testing.T) {
 	allowed := filepath.Clean("../../core/shared/concurrency")
@@ -72,7 +72,7 @@ func TestNoBareGoroutines(t *testing.T) {
 		})
 }
 
-// TestNoDirectTimeSource checks rule 4 from CLAUDE.md: the domain and application layers must
+// TestNoDirectTimeSource checks rule 4 from AGENTS.md: the domain and application layers must
 // not reach for the clock or for randomness themselves, otherwise they are not deterministically
 // testable (arc42 §8.13).
 func TestNoDirectTimeSource(t *testing.T) {
@@ -156,7 +156,7 @@ func TestAdaptersDoNotCallUseCases(t *testing.T) {
 	})
 }
 
-// TestDriverStaysInThePostgresAdapter checks rule 3 from CLAUDE.md: every query goes through the
+// TestDriverStaysInThePostgresAdapter checks rule 3 from AGENTS.md: every query goes through the
 // transaction wrapper, which is the only place that sets `SET LOCAL app.tenant_id` (ADR-0010).
 // Anything holding the driver itself can bypass that wrapper - so nothing else may hold it.
 func TestDriverStaysInThePostgresAdapter(t *testing.T) {

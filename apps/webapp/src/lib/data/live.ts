@@ -7,7 +7,7 @@
  * **The engine does not learn what a hub is.** It reads `entity`, `entity_id`, `container_id` and
  * `op`, hands them here, and invalidates what comes back — so this function is the one place that
  * knows a comment lives under `/items/{id}/comments` and a label under a container. That split is
- * `packages/sync-engine/CLAUDE.md`'s: the seam is the network, the paths are the product.
+ * `packages/sync-engine/AGENTS.md`'s: the seam is the network, the paths are the product.
  *
  * **A record is a signal to re-read, never data to apply.** Nothing here touches `payload`. Applying
  * it would be a merge, and merging is the server's (ADR-0021, `offline-sync.md` §4) — which is also

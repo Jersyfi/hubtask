@@ -21,7 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// Do runs fn under a deadline. It is the answer to rule 7 of CLAUDE.md - no call without a
+// Do runs fn under a deadline. It is the answer to rule 7 of AGENTS.md - no call without a
 // timeout - in the form an adapter can actually use.
 //
 // budget bounds this call; an earlier deadline already on ctx wins, because a request that has

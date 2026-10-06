@@ -53,7 +53,7 @@ INSERT INTO audit_log (
 -- name: ListAuditEntries :many
 -- One page of the trail, newest first, with every filter audit.md §5 names.
 --
--- The filters are parameters rather than a query assembled from strings, which is CLAUDE.md rule 9
+-- The filters are parameters rather than a query assembled from strings, which is rule 9
 -- with no exception for "it is only a filter": every one of them is a `narg` that is either NULL -
 -- meaning the condition is not there - or a value the driver binds. A `WHERE` built by hand for the
 -- three or four filters a caller happened to send is exactly the shape T-06 is about.

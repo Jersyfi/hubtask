@@ -147,7 +147,7 @@
   /**
    * How much of the screen the sheet takes (decision 27): half to begin with, and afterwards
    * whatever the reader dragged it to, kept in this browser. Not the account's: it is a choice
-   * about this screen, like the theme (`apps/webapp/CLAUDE.md`).
+   * about this screen, like the theme (`apps/webapp/AGENTS.md`).
    */
   let sheetSize = $state(0.5);
   try {

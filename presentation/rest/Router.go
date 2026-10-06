@@ -43,7 +43,7 @@ func NewMux() *Mux {
 }
 
 // HandleFunc implements the ServeMux interface of the generated code, which is the seam that lets
-// this rewrite happen without touching a generated line (CLAUDE.md rule 11).
+// this rewrite happen without touching a generated line (rule 11).
 func (m *Mux) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
 	routable := routablePattern(pattern)
 	if _, exists := m.templates[routable]; !exists {

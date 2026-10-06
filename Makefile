@@ -225,7 +225,7 @@ fmt:
 	@test -x $(TOOLS_DIR)/golangci-lint && $(TOOLS_DIR)/golangci-lint fmt ./... || true
 
 ## generate: Generate code from openapi.yaml and db/queries
-# The specification is the source, the code is the result (ADR-0004, CLAUDE.md rule 11). Running
+# The specification is the source, the code is the result (ADR-0004, rule 11). Running
 # this target must never be a judgement call, which is why gate-quick runs it and fails on a diff.
 .PHONY: generate
 generate:

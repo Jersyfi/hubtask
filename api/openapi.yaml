@@ -14959,7 +14959,7 @@ components:
             **This is what decides whether a client draws a way into `/instance` at all.** Hubtask
             does not draw a control somebody may not use and then refuse it: what the installation
             permits is read, never compiled in, and a capability that is refused outright is absent
-            rather than disabled (`apps/webapp/CLAUDE.md`).
+            rather than disabled (principle P-05).
         deprecations:
           type: array
           items: { $ref: "#/components/schemas/DeprecatedField" }

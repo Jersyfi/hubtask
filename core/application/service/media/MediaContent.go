@@ -28,7 +28,7 @@ import (
 // decision, and the same one a presigned bucket URL makes - so the adapter turns the signed token
 // into a Grant and this decides what may be done with it. Validating a signature is
 // authentication, which an adapter may do; everything after it is here (ADR-0005,
-// presentation/CLAUDE.md).
+// presentation/AGENTS.md).
 type MediaContent struct {
 	Objects    repository.Objects
 	Store      storage.ObjectStore

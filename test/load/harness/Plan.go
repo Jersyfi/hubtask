@@ -110,7 +110,7 @@ type Pacer struct {
 
 // NewPacer starts producing permits at the plan's rate until the context ends or the plan does.
 //
-// The goroutine is bare, and it may be: this package is a test harness, and CLAUDE.md rule 5
+// The goroutine is bare, and it may be: this package is a test harness, and rule 5
 // governs the production tree. Everything it owns ends with the context.
 func NewPacer(ctx context.Context, plan Plan, started time.Time) *Pacer {
 	p := &Pacer{permits: make(chan struct{}), plan: plan}

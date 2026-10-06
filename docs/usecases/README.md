@@ -105,7 +105,7 @@ that does not exist.
    `**Use cases:** UC-ID-04 (1, 3), UC-ID-05` line, with the check numbers it is meant to make true.
    A milestone file that uses the line anywhere must use it in every task.
 2. **Starting a task:** the session reads those use cases completely, before the code
-   ([`CLAUDE.md`](../../CLAUDE.md), the loop, step 1).
+   ([`AGENTS.md`](../../AGENTS.md), the loop, step 1).
 3. **Leaving draft:** the pull request body carries a *Use cases* section — each named check, met or
    not, and how it was confirmed. A check that cannot be met is reported, not rewritten.
 4. **Merging:** the same pull request moves `state:` and adds `checked_by:`.

@@ -84,7 +84,7 @@ func TestABodyWithinTheLimitPassesThrough(t *testing.T) {
 	}
 }
 
-// Rule 7 of CLAUDE.md: no call without a deadline. A handler that forgets one still gets it.
+// Rule 7 of AGENTS.md: no call without a deadline. A handler that forgets one still gets it.
 func TestEveryHandlerInheritsADeadline(t *testing.T) {
 	var deadline time.Time
 	var hasDeadline bool

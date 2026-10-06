@@ -73,7 +73,7 @@ export class FetchTransport implements Transport {
 
   /**
    * `GET /stream`, read from the body as it arrives - never through `EventSource`, which cannot
-   * carry a bearer, and a token in a URL is forbidden (`security.md`, `apps/webapp/CLAUDE.md`).
+   * carry a bearer, and a token in a URL is forbidden (`security.md`, `apps/webapp/AGENTS.md`).
    * The cursor goes in `Last-Event-ID`, which the contract says a client that manages its own
    * connection should send explicitly.
    */

@@ -3,7 +3,7 @@
 
 // Package access decides whether an actor may do something.
 //
-// This is the one place authorisation happens (CLAUDE.md rule 2, ADR-0005). Not in an adapter,
+// This is the one place authorisation happens (rule 2, ADR-0005). Not in an adapter,
 // not in a repository, not in a middleware: a check in an adapter covers the channel it sits in,
 // and the same use case reached through MCP or through an automation rule would then be checked
 // by nobody. It also has to be one place for the audit trail's sake - a refusal is recorded here,

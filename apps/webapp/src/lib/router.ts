@@ -5,7 +5,7 @@
  * Client-side routing over the History API — a minimal in-house module, not a library. The
  * reasoning is recorded in the W-06 pull request: the need is path matching, `pushState` and
  * link interception against a stable browser API, and a router dependency is a supply-chain
- * decision this small need does not justify (CLAUDE.md).
+ * decision this small need does not justify (AGENTS.md).
  *
  * Real paths, never `#/`: ADR-0028's `index.html` fallback exists precisely so that a deep link
  * survives a reload, and hash routing would waste it. ADR-0030 fixes both points.

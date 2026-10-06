@@ -273,7 +273,7 @@ func tokenFrom(row sqlc.AccessTokensForAccountRow) (identity.AccessToken, error)
 
 // queriesFrom binds the generated queries to the transaction in the context. There is no path
 // that binds them to the pool: a query outside a unit of work would run without a tenant context
-// (CLAUDE.md rule 3).
+// (rule 3).
 func queriesFrom(ctx context.Context) (*sqlc.Queries, error) {
 	tx, err := FromContext(ctx)
 	if err != nil {

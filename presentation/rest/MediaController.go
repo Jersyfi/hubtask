@@ -35,7 +35,7 @@ const (
 // An interface here rather than the issuer itself, because presentation may not import
 // infrastructure - and because this is the whole of what this layer does with a media token:
 // it verifies a signature, which is authentication, and decides nothing else
-// (presentation/CLAUDE.md, ADR-0005).
+// (presentation/AGENTS.md, ADR-0005).
 type MediaTokenValidator interface {
 	ValidateUpload(token string, mediaID shared.ID, now time.Time) (shared.ID, error)
 	ValidateDownload(token string, mediaID shared.ID, now time.Time) (shared.ID, error)

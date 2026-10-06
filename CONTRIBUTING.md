@@ -5,7 +5,7 @@ accident, it is the basis you work from.
 
 ## Before you write code
 
-1. Read `CLAUDE.md`. The fifteen rules it lists apply to humans just the same.
+1. Read `AGENTS.md`. The fifteen rules it lists apply to humans just the same.
 2. Read the use cases your task names (`docs/usecases/`) and the principles they serve
    (`docs/vision/principles.md`). They say what must be true for the person; the rest says how.
 3. Read the document under `docs/architecture/` that matches what you are doing, and the ADRs it

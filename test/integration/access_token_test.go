@@ -128,7 +128,7 @@ func TestATokenIsFoundInItsOwnTenant(t *testing.T) {
 }
 
 // The cross-tenant negative test the security gate requires for every repository method
-// (security.md §6, CLAUDE.md "the loop", step 5). Row level security is what makes it pass: the
+// (security.md §6, AGENTS.md "the loop", step 5). Row level security is what makes it pass: the
 // query carries no tenant condition of its own.
 func TestATokenIsInvisibleFromAnotherTenant(t *testing.T) {
 	ctx := context.Background()
@@ -220,7 +220,7 @@ func TestTouchLastUsedStaysInsideTheTenant(t *testing.T) {
 }
 
 // A repository called outside a unit of work must fail rather than reach for the pool - a query
-// on the pool would run with no tenant context at all (CLAUDE.md rule 3).
+// on the pool would run with no tenant context at all (rule 3).
 func TestTheRepositoryRefusesToRunOutsideATransaction(t *testing.T) {
 	ctx := context.Background()
 	tokenA, _ := tokenFixtures(ctx, t)

@@ -105,7 +105,7 @@ packages/design-system/
 ├── workbench/                the component workbench, and the generated foundations (ADR-0037)
 ├── test/
 ├── src/                      components, wave by wave
-├── CLAUDE.md
+├── AGENTS.md
 └── README.md
 ```
 

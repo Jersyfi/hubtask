@@ -7,7 +7,7 @@
 // The standard library's net/smtp is what carries it. It is frozen rather than maintained, which
 // is precisely the argument for using it here: what this adapter needs is EHLO, STARTTLS, AUTH and
 // DATA, none of which has changed since the package was frozen - and a third-party mailer would be
-// a supply chain decision (CLAUDE.md, "What you do not decide yourself") bought for nothing.
+// a supply chain decision (AGENTS.md, "What you do not decide yourself") bought for nothing.
 package mail
 
 import (

@@ -9,7 +9,7 @@
 // **There is no paging arithmetic here, and that is the point.** This product's API answers a page
 // and an opaque cursor; it has no page numbers and cannot be asked for a fourth page, so no part
 // of the client may grow a `pageOf` that would imply one. A list too long to read is narrowed or
-// sorted, or it arrives through `LoadMore`. `apps/webapp/CLAUDE.md` states the rule.
+// sorted, or it arrives through `LoadMore`. `apps/webapp/AGENTS.md` states the rule.
 
 /** Which way a column is sorted. `none` is a sortable column nobody has sorted by. */
 export type SortDirection = 'ascending' | 'descending' | 'none';

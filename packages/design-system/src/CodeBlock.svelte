@@ -5,7 +5,7 @@
   // language named beside it and, where the caller asks for one, a control that copies it.
   //
   // **Still no highlighter.** Colouring tokens needs a grammar per language, and every grammar in
-  // circulation is a dependency - a supply chain decision (CLAUDE.md) for a brochure that ships
+  // circulation is a dependency - a supply chain decision (AGENTS.md) for a brochure that ships
   // no script at all (ADR-0030). What the market actually built on top of its highlighters over
   // the last few years is not more colour; it is **the line**. Shiki's transformers are line
   // numbers, a marked line, an added and a removed line, a focused line. Every one of those is a

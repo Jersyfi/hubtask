@@ -8,7 +8,7 @@
 // is true on the day it is run; this one is true on the day somebody changes a neutral step.
 //
 // Two properties make it worth trusting. It reads colours from tokens/tokens.json and from nowhere
-// else, so it cannot drift away from the source it is checking (ADR-0029, CLAUDE.md rule 15). And
+// else, so it cannot drift away from the source it is checking (ADR-0029, rule 15). And
 // every semantic colour token has to carry a role in ROLES below - a token nobody has classified
 // fails the suite instead of being skipped, so the check cannot quietly shrink as the token set
 // grows.

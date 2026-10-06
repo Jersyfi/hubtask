@@ -14,7 +14,7 @@
 //     second one waits rather than interleaves. A retried hook, a rollout started twice, an
 //     operator running it by hand during a deploy - all of them wait.
 //   - Forward only. goose applies what has not been applied; there is no down. Recovery from a bad
-//     deploy is a restore, not a reversal (CLAUDE.md rule 12, ADR-0003).
+//     deploy is a restore, not a reversal (rule 12, ADR-0003).
 //
 // The migrations travel inside the binary, so the schema a version brings and the code that reads
 // it cannot come apart.

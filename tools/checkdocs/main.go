@@ -4,7 +4,7 @@
 // Command checkdocs is the documentation gate (make gate-docs).
 //
 // The documents in this repository are load-bearing: the ADRs are what the code cites instead of
-// repeating an argument, and CLAUDE.md sends a reader through them in a fixed order. A link that
+// repeating an argument, and AGENTS.md sends a reader through them in a fixed order. A link that
 // stops resolving therefore does not only annoy - it quietly removes the reason a piece of code
 // looks the way it does.
 //
@@ -21,7 +21,7 @@
 //   - Every statement of the Go version agrees with go.mod. It is repeated in thirty places
 //     across eight files, and a base image bumped on its own would have the release built by a
 //     compiler no gate ever ran.
-//   - Every document CLAUDE.md's reading order names exists, because that list is what a new
+//   - Every document AGENTS.md's reading order names exists, because that list is what a new
 //     session is told to read.
 //   - The support matrix and the workflows agree in both directions, so that support can neither
 //     be claimed without a job nor removed by deleting one (see matrix.go).

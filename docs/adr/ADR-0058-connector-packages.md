@@ -22,7 +22,7 @@ it here would add it to this repository's lockfile, its licence scan and its vul
 for the sake of one thing: a local typecheck of the generated description against the platform's
 types.
 
-[`CLAUDE.md`](../../CLAUDE.md) makes every dependency a supply chain decision, and this is one
+[`CLAUDE.md`](../../AGENTS.md) makes every dependency a supply chain decision, and this is one
 that a pull request must not take in passing. It is also one where the value is genuinely
 unclear: the n8n declarative node format is JSON with a documented schema, and a schema written
 into the generator's tests catches a malformed description as surely as a `.d.ts` would — but

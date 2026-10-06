@@ -128,7 +128,7 @@ type TokenAuthenticator interface {
 // Authenticated turns a presented credential into the actor of the request.
 //
 // It authenticates and stops there. Whether the actor may perform the operation is decided by the
-// use case behind the route, in the application layer and nowhere else (ADR-0005, CLAUDE.md
+// use case behind the route, in the application layer and nowhere else (ADR-0005, AGENTS.md
 // rule 2) - this middleware never reads a scope and never denies an operation.
 type Authenticated struct {
 	Next http.Handler

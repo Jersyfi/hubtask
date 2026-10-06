@@ -8,7 +8,7 @@
  * capability profiles, view layouts, the query fields F2's filter editor is built from, the
  * supported locales and their direction, the role matrix, the limits. Nothing here may be
  * hard-coded against it — a list somebody typed is a list that is wrong on the installation that
- * has one more (`apps/webapp/CLAUDE.md`).
+ * has one more (`apps/webapp/AGENTS.md`).
  *
  * It is a module rather than a `resource()` in a component for one reason: *once*. The engine
  * already keeps one state per path and loads it only when idle, so a second component asking
