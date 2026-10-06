@@ -116,6 +116,11 @@ type ExternalAccounts interface {
 	// it was still invited, without a second proof, is no credential, and the person makes it again
 	// by signing in.
 	UnlinkAll(ctx context.Context, accountID shared.ID) (int, error)
+
+	// CountWithoutIdentityAt answers how many active people of the workspace - service accounts and
+	// invitations aside - hold no identity at any of these providers (ADR-0078 §1): the number the
+	// password switch says before the password is switched off. A number, never a list.
+	CountWithoutIdentityAt(ctx context.Context, providerIDs []shared.ID) (int, error)
 }
 
 // SealedProviderSecret is one row's wrapping, as a rotation needs it: which row, and what is

@@ -6,8 +6,8 @@ actors: [PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-06, P-07, P-10, P-12]
 state: built
-tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21, SC-24, SC-25, SC-31]
-checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordSwitch_test.go, test/integration/password_fallback_test.go, core/application/service/identity/FallbackReset_test.go]
+tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21, SC-24, SC-25, SC-31, SC-33]
+checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordSwitch_test.go, test/integration/password_fallback_test.go, core/application/service/identity/FallbackReset_test.go, core/application/service/identity/ProviderReach_test.go]
 ---
 
 # Set how people in our workspace sign in, in one place
@@ -106,8 +106,28 @@ provider. Stored passwords are kept and work again when the password is switched
 ADR-0076 §4's fallback is the one exception, at every one of those doors (`PasswordSwitch_test.go`,
 service tests over fakes). All nine checks hold.
 
+Since SC-33 ([#1140](https://github.com/Jersyfi/hubtask/issues/1140), ADR-0078 §1, P-04) the
+password's switch says what switching it off costs before it is switched: while the password is on and
+could go off, its row says how many active people here no provider switched on here signs in, and
+that each of them connects one through "Get a sign-in link by mail" on the sign-in card - or with
+their password at the provider's first arrival (`chromium: the password switch says how many people have no provider here
+before it goes off`, `signinsettings.test.mjs`). The number is the server's, never a list
+(`CountAccountsWithoutProvider`, `GET /tenant/accounts-without-provider`, `ProviderReach_test.go`;
+connected, invited and service accounts excluded, and another workspace's never counted, against
+PostgreSQL in `TestTheCountIsTheWorkspacesUnconnectedPeopleOnly`). Where the password goes off, the card's
+"Get a sign-in link by mail" mails each of them a link to connect a provider (UC-ID-04 check 8).
+
+That is not everybody the count names, and the screen does not claim it is. An account whose address
+no provider switched on here vouches for - a personal address, an address on another domain than the
+organisation's directory - cannot use that link, because the provider's verified address has to be
+the account's, and has no way in once the password is off (UC-ID-10). The count is the warning the
+administrator gets; connecting a differently addressed identity from a signed-in session is SC-37
+([#1146](https://github.com/Jersyfi/hubtask/issues/1146)), not built yet. The owner decides this
+limit.
+
 Two things stay open, said so that nobody reads more into it. A sign-in already past its password when
 the switch flips may finish its second-factor step within the pending credential's five minutes - the
 credential does not record whether a password or a provider began it. And the LINK step still asks an
 account that holds a password for it before a provider is connected: that is ADR-0071's safeguard
-(E2), and closing it would leave such an account no way in.
+(E2), and the password is a proof there even where it is off as a way in (ADR-0078 §1); the mailbox
+is the other proof since SC-33.

@@ -4,9 +4,9 @@
 package identity
 
 import (
-	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -177,18 +177,63 @@ func TestConnectingAnAccountWithOnlyAPasswordTakesThePassword(t *testing.T) {
 func TestAnAccountThatSignsInElsewhereIsNotConnectedHere(t *testing.T) {
 	f := newOidcFixture(t, now, ownerAccount)
 	f.store.rows[0].Provisioning = domain.ProvisionAny
-	f.external.bySubject[linkKey(shared.ID("01936f2a-7c1e-7000-8000-0000000000b9"), "elsewhere")] = ownerAccount
+	elsewhere := configureFixtureProvider(t, f, shared.ID("01936f2a-7c1e-7000-8000-0000000000b9"),
+		tenant, "https://login.elsewhere.example", now)
+	f.external.bySubject[linkKey(elsewhere.ID, "elsewhere")] = ownerAccount
 	f.relying.identity = provider.Identity{
 		Subject: "a-new-subject", Email: "bert@example.org", EmailVerified: true,
 		AddressAuthoritative: true, DisplayName: "Bert",
 	}
 
-	_, err := arrive(t, f)
-	if !errors.Is(err, shared.ErrForbidden) {
-		t.Fatalf("the arrival answered %v, want a refusal", err)
+	// Two providers switched on here, so the card names the one it starts.
+	started, err := StartOidcSignIn{Writer: f.writer}.Execute(t.Context(),
+		StartOidcSignInCommand{ProviderID: f.provider.ID})
+	if err != nil {
+		t.Fatalf("starting: %v", err)
+	}
+	_, err = CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(),
+		CompleteOidcSignInCommand{Code: "x", State: started.State})
+	if detailOf(err) != "identity_provider.link_needs_own_way_in" {
+		t.Fatalf("the arrival answered %v, want the sentence naming the other provider", err)
 	}
 	if len(f.external.links) != 0 {
 		t.Errorf("an account with another provider was linked on this one's word: %v", f.external.links)
+	}
+}
+
+// An account whose only way in has gone - its one identity at an offer that ended, or a second factor
+// with no password and no provider that lets it in - holds a credential nothing on this card proves,
+// and no provider's word stands in for it, an authoritative one's neither. The sentence points at the
+// mailbox, where *Forgot your password?* mails the way back (ADR-0078 §1, §4).
+func TestAnAccountWhoseWayInEndedIsPointedAtItsMailbox(t *testing.T) {
+	cases := map[string]func(t *testing.T, f *oidcFixture){
+		"an identity only at an ended offer": func(t *testing.T, f *oidcFixture) {
+			ended := offeredUntil(now.Add(-time.Hour))
+			f.store.rows = append(f.store.rows, ended)
+			f.external.bySubject[linkKey(ended.ID, "at-the-platform")] = ownerAccount
+		},
+		"a second factor and nothing else": func(t *testing.T, f *oidcFixture) {
+			enrolled(t, f.session)
+		},
+	}
+	for name, arrange := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := newOidcFixture(t, now, ownerAccount)
+			f.store.rows[0].Provisioning = domain.ProvisionAny
+			arrange(t, f)
+			f.relying.identity = provider.Identity{
+				Subject: "a-new-subject", Email: "bert@example.org", EmailVerified: true,
+				AddressAuthoritative: true, DisplayName: "Bert",
+			}
+
+			_, err := arrive(t, f)
+			if detailOf(err) != "identity_provider.link_needs_mailbox" {
+				t.Fatalf("the arrival answered %v, want the sentence pointing at the mailbox", err)
+			}
+			if len(f.external.links) != 0 {
+				t.Errorf("the provider's word connected %v", f.external.links)
+			}
+		})
 	}
 }
 
@@ -329,4 +374,69 @@ func TestUnderInvitedOnlyANonAuthoritativeProviderStillRefusesTheRest(t *testing
 			t.Errorf("the provider's word connected %v", f.external.links)
 		}
 	})
+}
+
+// A workspace that switched the password off closed the sign-in by password, not the account's proof
+// that it is the person (ADR-0078 §1): the LINK step still takes the password - and the armed factor
+// after it - and connects the provider. Nothing else of the password door opens on the way.
+func TestTheLinkStepTakesThePasswordWhereThePasswordIsOff(t *testing.T) {
+	for name, armed := range map[string]bool{"without a factor": false, "with a factor": true} {
+		t.Run(name, func(t *testing.T) {
+			f := linkFixture(t, armed)
+			f.writer.Session.Rule = shutDoor{}
+			result, err := arrive(t, f)
+			if err != nil || result.Challenge == nil || result.Challenge.Methods[0] != methodLink {
+				t.Fatalf("arriving: (%+v, %v), want the LINK step", result, err)
+			}
+
+			next, err := CompleteLink{Writer: f.writer}.Execute(t.Context(), CompleteLinkCommand{
+				PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
+			})
+			if err != nil {
+				t.Fatalf("the password was refused where the password is off: %v", err)
+			}
+			if armed {
+				if next.Pair != nil || next.Challenge == nil || next.Challenge.Methods[0] != methodTotp {
+					t.Fatalf("the password answered %+v, want the second factor's step", next)
+				}
+				return
+			}
+			if next.Pair == nil || len(f.external.links) != 1 {
+				t.Errorf("the password answered %+v with links %v, want the provider connected", next, f.external.links)
+			}
+		})
+	}
+}
+
+// Under *Only these domains/directories* the list decides who comes in new, not whether an existing
+// member may connect (the owner's decision of 2026-10-06): inside the list and outside it, the member
+// reaches the LINK step and is connected with its password - and only with it.
+func TestUnderDomainsAMemberConnectsWithThePasswordInsideAndOutsideTheList(t *testing.T) {
+	for name, domains := range map[string][]string{
+		"inside the list":  {"example.org"},
+		"outside the list": {"elsewhere.example"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := linkFixture(t, false)
+			f.store.rows[0].Provisioning = domain.ProvisionDomains
+			f.store.rows[0].AllowedEmailDomains = domains
+			f.relying.identity.AddressAuthoritative = false
+
+			result, err := arrive(t, f)
+			if err != nil || result.Challenge == nil || result.Challenge.Methods[0] != methodLink {
+				t.Fatalf("arriving %s: (%+v, %v), want the LINK step", name, result, err)
+			}
+			if _, err := (CompleteLink{Writer: f.writer}).Execute(t.Context(), CompleteLinkCommand{
+				PendingToken: result.Challenge.Token, Password: secret.New("a guess"),
+			}); err == nil || len(f.external.links) != 0 {
+				t.Fatalf("a wrong password connected %v (%v)", f.external.links, err)
+			}
+			next, err := CompleteLink{Writer: f.writer}.Execute(t.Context(), CompleteLinkCommand{
+				PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
+			})
+			if err != nil || next.Pair == nil || len(f.external.links) != 1 {
+				t.Errorf("the password answered (%+v, %v) with links %v", next, err, f.external.links)
+			}
+		})
+	}
 }

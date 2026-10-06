@@ -3778,6 +3778,12 @@ type AccountSummaryKind string
 // AccountSummaryStatus defines model for AccountSummary.Status.
 type AccountSummaryStatus string
 
+// AccountsWithoutProvider How many active people of the workspace no provider switched on there signs in (ADR-0078 §1). A number, never a list.
+type AccountsWithoutProvider struct {
+	// Count The active people - service accounts and invitations aside - without an identity at any provider that is a way in here now.
+	Count int `json:"count"`
+}
+
 // ActivityEntry One step of an entry's history. Append-only: nothing edits one, and what removes one is the deletion of the entry it belongs to.
 type ActivityEntry struct {
 	// Actor Who did it. The label is not here: the account is one request away and this record is deleted with its entry, so there is nothing for a copy of somebody's name to outlive.
@@ -6200,6 +6206,9 @@ type OidcCallback struct {
 
 // OidcStart What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely.
 type OidcStart struct {
+	// ConnectToken The token of the link *Forgot your password?* mails where the workspace switched the password off - to connect the workspace's provider to an existing account (ADR-0078 §1, SC-33). It is checked here - a standing link of this workspace, its account active and connected to no provider switched on here, the password still off - and **not spent**: the flow remembers which link it carries, the provider is asked for a **fresh** sign-in (`prompt=login`, `max_age=0`), and only an arrival that connects the provider spends it. An unknown, expired, spent or foreign link is refused with `auth.reset_failed`, the reset link's one sentence. It is not sent beside `invitation_token`, and it never travels to the provider.
+	ConnectToken *string `json:"connect_token,omitempty"`
+
 	// InvitationToken The redemption token of the invitation this sign-in accepts, when the person chose the provider on the invitation card (ADR-0078 §1). It is checked here - a standing invitation of this workspace, its account still invited - and **not spent**: the flow remembers which account it invites, and only an arrival that succeeds accepts it. It is the second proof that lets a provider activate the invited account even where the provider is not authoritative for the address, or the address is outside a domains or directories list - only for that account; the provider's verified address must still equal the invited one. An unknown, expired, spent or foreign token is refused with `auth.redemption_failed`, the one sentence the invitation's other half answers. The token never travels to the provider.
 	InvitationToken *string `json:"invitation_token,omitempty"`
 
@@ -10608,6 +10617,9 @@ type ServerInterface interface {
 	// UpdateWorkspace Change how the workspace is set up
 	// (PATCH /tenant)
 	UpdateWorkspace(w http.ResponseWriter, r *http.Request, params UpdateWorkspaceParams)
+	// CountAccountsWithoutProvider How many people here no provider switched on here signs in
+	// (GET /tenant/accounts-without-provider)
+	CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request)
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
@@ -20140,6 +20152,20 @@ func (siw *ServerInterfaceWrapper) UpdateWorkspace(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// CountAccountsWithoutProvider operation middleware
+func (siw *ServerInterfaceWrapper) CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CountAccountsWithoutProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTrash operation middleware
 func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Request) {
 
@@ -20820,6 +20846,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant", wrapper.ReadWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant", wrapper.UpdateWorkspace)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureFirstIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-providers", wrapper.ListIdentityProviders)

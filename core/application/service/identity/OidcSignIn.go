@@ -97,6 +97,9 @@ type StartOidcSignInCommand struct {
 	// InvitationToken is the redemption token of the invitation this sign-in accepts, when it
 	// began on the invitation card (ADR-0078 §1). Empty for every other sign-in.
 	InvitationToken secret.Secret
+	// ConnectToken is the CONNECT link a workspace without the password mailed, when the sign-in
+	// began on the card that link opens (ADR-0078 §1, SC-33). Empty for every other sign-in.
+	ConnectToken secret.Secret
 }
 
 // OidcAuthorization is the answer: where to go, and the handle to come back with.
@@ -129,6 +132,16 @@ func (h StartOidcSignIn) Execute(
 	if err != nil {
 		return OidcAuthorization{}, err
 	}
+	// One link per sign-in: an invited account holds nothing to connect, and a connection is not an
+	// invitation. A client that sends both is told which field it should not have.
+	if !invited.IsZero() && !cmd.ConnectToken.IsEmpty() {
+		return OidcAuthorization{}, shared.ErrValidation.WithDetail("usecase.input_invalid").
+			WithFields(shared.FieldError{Path: "/connect_token", Code: "usecase.input_invalid"})
+	}
+	connect, err := w.connectLinkOf(ctx, scope, cmd.ConnectToken)
+	if err != nil {
+		return OidcAuthorization{}, err
+	}
 
 	state, verifier, nonce, err := w.draw(tenantID)
 	if err != nil {
@@ -138,7 +151,7 @@ func (h StartOidcSignIn) Execute(
 	now := w.Session.Clock.Now()
 	flow, err := domain.NewOidcFlow(domain.NewOidcFlowInput{
 		ID: w.Session.IDs.NewID(), TenantID: tenantID, ProviderID: configured.ID,
-		Nonce: nonce, Verifier: verifier, Now: now, InvitedAccountID: invited,
+		Nonce: nonce, Verifier: verifier, Now: now, InvitedAccountID: invited, PendingID: connect,
 	})
 	if err != nil {
 		return OidcAuthorization{}, err
@@ -148,6 +161,9 @@ func (h StartOidcSignIn) Execute(
 	// and the person is told it is the provider rather than being sent to a page that is not there.
 	url, err := w.Relying.AuthorizationURL(ctx, relyingConfig(configured, sealed, w.RedirectURL), provider.Authorization{
 		State: state.Secret(), Nonce: nonce, CodeVerifier: verifier, LoginHint: cmd.LoginHint,
+		// The mailbox is half of a connection's proof and a sign-in at the provider the other half -
+		// one made now, not a session the browser happened to keep there (ADR-0078 §1).
+		Fresh: !connect.IsZero(),
 	})
 	if err != nil {
 		return OidcAuthorization{}, err
@@ -208,6 +224,93 @@ func (w OidcWriter) invitationOf(
 		return nil
 	})
 	return invited, err
+}
+
+// connectLinkOf reads the CONNECT link a sign-in starts from and answers its credential, or zero
+// where the sign-in carries none (ADR-0078 §1, SC-33).
+//
+// Checked and **not spent**: the flow keeps which credential it carries, and only an arrival that
+// connects the provider spends it. Unknown, expired, spent and another workspace's are one refusal,
+// the reset link's own - and so is a link whose reason has gone: the password is open again, or a
+// provider switched on here lets the account in by now.
+func (w OidcWriter) connectLinkOf(
+	ctx context.Context, scope persistence.Scope, presented secret.Secret,
+) (shared.ID, error) {
+	if presented.IsEmpty() {
+		return "", nil
+	}
+	token, err := domain.ParsePendingToken(presented.Reveal())
+	if err != nil || token.TenantID() != scope.TenantID {
+		w.Session.failure(ctx, FailureOidc)
+		return "", resetRefused()
+	}
+	if err := w.passwordShutFor(ctx, scope); err != nil {
+		return "", err
+	}
+	var credential shared.ID
+	err = w.Session.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		found, err := w.Session.Pending.FindByToken(ctx, token)
+		if err != nil {
+			if errors.Is(err, shared.ErrNotFound) {
+				w.Session.failure(ctx, FailureOidc)
+				return resetRefused()
+			}
+			return err
+		}
+		stands, err := w.connectStands(ctx, found)
+		if err != nil {
+			return err
+		}
+		if !stands {
+			w.Session.failure(ctx, FailureOidc)
+			return resetRefused()
+		}
+		credential = found.Credential.ID
+		return nil
+	})
+	return credential, err
+}
+
+// passwordShutFor refuses a CONNECT link where the password is open again - switched back on, or open
+// as the fallback: there the mailbox does not stand in for the password, and *Forgot your
+// password?* mails the reset link instead. Asked outside any transaction, because the rule reads the
+// installation's level under a scope of its own.
+func (w OidcWriter) passwordShutFor(ctx context.Context, scope persistence.Scope) error {
+	door, ok := w.Session.Rule.(PasswordDoor)
+	if !ok {
+		return nil
+	}
+	open, _, err := door.PasswordOpen(ctx, scope.TenantID)
+	if err != nil {
+		return err
+	}
+	if open {
+		w.Session.failure(ctx, FailureOidc)
+		return resetRefused()
+	}
+	return nil
+}
+
+// connectStands answers whether a CONNECT link may still stand in for the account's password, inside
+// a transaction bound to the link's workspace: a live CONNECT credential, an active account of a
+// workspace in good standing, and no provider switched on there that already lets the account in.
+// The start asks it before the browser leaves, the callback again when it comes back.
+func (w OidcWriter) connectStands(ctx context.Context, found repository.PendingLookup) (bool, error) {
+	now := w.Session.Clock.Now()
+	if found.Credential.Purpose != domain.PendingConnect || found.Credential.Verify(now) != nil ||
+		found.Account.Status != domain.AccountActive {
+		return false, nil
+	}
+	if err := found.TenantStatus.Verify(); err != nil {
+		return false, err
+	}
+	return w.connectsHere().connectStands(ctx, found.Account.ID, now)
+}
+
+// connectsHere is the provider stores as the reset's question reads them: which providers the
+// account is connected to, and which are switched on here.
+func (w OidcWriter) connectsHere() ProviderStepUps {
+	return ProviderStepUps{Providers: w.Providers, External: w.External, Workspaces: w.Workspaces}
 }
 
 // CompleteOidcSignIn is the second half: the code becomes a session.
@@ -276,6 +379,12 @@ func (h CompleteOidcSignIn) Execute(
 	if err != nil {
 		w.Session.failure(ctx, FailureOidc)
 		return SignInResult{}, err
+	}
+
+	// A sign-in begun from a CONNECT link connects that link's account and no other, with the
+	// mailbox and this fresh sign-in as its proof (ADR-0078 §1).
+	if !flow.PendingID.IsZero() {
+		return w.connectByMail(ctx, scope, configured, identity, flow, cmd)
 	}
 
 	account, owed, err := w.settleAccount(ctx, scope, configured, identity, flow.InvitedAccountID)
@@ -413,6 +522,8 @@ func (w OidcWriter) settleAccount(
 					return nil
 				case proofElsewhere:
 					return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in"))
+				case proofMailbox:
+					return turnedAway(linkNeedsMailbox())
 				}
 
 				// An invitation nobody redeemed is accepted here only with a second proof: this
@@ -499,6 +610,142 @@ func (w OidcWriter) settleAccount(
 	return account, owed, nil
 }
 
+// connectByMail is the arrival of a sign-in begun from a CONNECT link (ADR-0078 §1, SC-33): the
+// mailbox proved by the link, and a fresh sign-in at the provider, are together the account's proof -
+// in place of the password, and of an identity at an offer that ended. They are never the second
+// factor's: an armed one is still asked, and the connection is written at the end of that step.
+// No password is stored.
+//
+// The link is spent in the same transaction that connects the identity, or that hands on to the
+// factor, and only if it is still unspent - so a second callback for the same link is refused. Every
+// refusal before that leaves it unspent, and an arrival the workspace turned away is recorded in a
+// transaction of its own, the sign-in's discipline.
+func (w OidcWriter) connectByMail(
+	ctx context.Context, scope persistence.Scope, configured domain.IdentityProvider,
+	arriving provider.Identity, flow domain.OidcFlow, cmd CompleteOidcSignInCommand,
+) (SignInResult, error) {
+	s := w.Session
+	// Switched back on meanwhile, or open as the fallback: there the password is the proof again,
+	// and the link is one whose reason has gone.
+	if err := w.passwordShutFor(ctx, scope); err != nil {
+		return SignInResult{}, err
+	}
+
+	var (
+		account   domain.Account
+		challenge *SignInChallenge
+	)
+	err := s.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		now := s.Clock.Now()
+		found, err := s.Pending.FindByID(ctx, flow.PendingID)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return err
+		}
+		stands := false
+		if err == nil {
+			if stands, err = w.connectStands(ctx, found); err != nil {
+				return err
+			}
+		}
+		if !stands {
+			s.failure(ctx, FailureOidc)
+			return resetRefused()
+		}
+		held, err := w.Accounts.Find(ctx, found.Account.ID)
+		if err != nil {
+			return err
+		}
+
+		// A sign-in the browser kept at the provider proves nothing about who is at the keyboard
+		// now; the start asked for a fresh one, and a provider that ignored the question is not
+		// taken at its word (ADR-0075 §2's reading of auth_time) - nor one made before this flow
+		// left for the provider.
+		if !domain.ProviderProofFreshSince(arriving.AuthTime, flow.CreatedAt, now, s.stepUpWindow()) {
+			s.failure(ctx, FailureOidc)
+			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_not_fresh"))
+		}
+		// The address the link was mailed to, and no other: a differently addressed identity is
+		// connected from a signed-in session, never at the front door (ADR-0078 §1, SC-37).
+		if !arriving.EmailVerified || !w.sameAddress(arriving.Email, held.Email) {
+			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_address_differs"))
+		}
+		// Admission as for every arrival that brings its own proof (SC-32): the mailbox is that proof,
+		// under INVITED_ONLY and under DOMAINS alike - the list decides who comes in new.
+		if !configured.MayAdmitWithProof(admissionOf(arriving)) {
+			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_admitted"))
+		}
+		// An identity already connected to somebody else here is that person's, and is never
+		// re-pointed at the account the link names.
+		owner, err := w.External.FindBySubject(ctx, configured.ID, arriving.Subject)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return err
+		}
+		if err == nil && owner.ID != held.ID {
+			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_identity_taken"))
+		}
+
+		spent, err := s.Pending.Consume(ctx, found.Credential.ID, now)
+		if err != nil {
+			return err
+		}
+		if !spent {
+			s.failure(ctx, FailureOidc)
+			return resetRefused()
+		}
+		link := domain.LinkIntent{
+			ProviderID: configured.ID, Subject: arriving.Subject, Proof: domain.LinkProofMailbox,
+		}
+		armed := false
+		if s.Enrollments != nil {
+			enrollment, err := s.Enrollments.Find(ctx, held.ID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			armed = err == nil && !enrollment.ConfirmedAt.IsZero()
+		}
+		account = held
+		if armed {
+			next, err := w.handOnToTheFactor(ctx, scope, held, domain.PendingCredential{
+				UserAgent: cmd.UserAgent, IPClass: domain.IPClass(cmd.RemoteAddr), Link: &link,
+			}, now)
+			if err != nil {
+				return err
+			}
+			// The person typed no address on this card: the step says whose account it is, as the
+			// reset's code step does (UC-ID-04 check 5).
+			next.Email = held.Email
+			challenge = &next
+			return nil
+		}
+		return w.Connect(ctx, held, link)
+	})
+	var refusal turnedAwayError
+	if errors.As(err, &refusal) {
+		if recordErr := w.recordRefusal(ctx, scope, configured); recordErr != nil {
+			return SignInResult{}, recordErr
+		}
+		return SignInResult{}, refusal.cause
+	}
+	if err != nil {
+		return SignInResult{}, err
+	}
+	if challenge != nil {
+		return SignInResult{Challenge: challenge}, nil
+	}
+
+	bounds, err := s.sessionBounds(ctx, scope.TenantID, account)
+	if err != nil {
+		return SignInResult{}, err
+	}
+	pair, err := s.openSessionVia(ctx, scope, scope.TenantID, account,
+		cmd.UserAgent, cmd.RemoteAddr, OidcSignedInAction, nil,
+		bounds, domain.SignedInWithOidc, configured.ID)
+	if err != nil {
+		return SignInResult{}, err
+	}
+	return SignInResult{Pair: &pair}, nil
+}
+
 // turnedAwayError marks an arrival the provider vouched for and this workspace turned away, so that
 // settleAccount records it once the arrival's transaction has rolled back. It never leaves
 // settleAccount: the caller receives the refusal it wraps.
@@ -513,8 +760,9 @@ func turnedAway(cause error) error { return turnedAwayError{cause: cause} }
 // notAdmitted answers an arrival admission turned away (ADR-0078 §1, §5).
 //
 // Under INVITED_ONLY a provider that is not authoritative for the address - a self-hosted one, a
-// personal Google account at somebody else's domain - still brings two people to a door they open
-// with their own proof, because authority is needed only where nothing else proves the person:
+// personal Google account at somebody else's domain - and under DOMAINS an address outside the
+// directory or domain list still bring two people to a door they open with their own proof, because
+// authority and the list decide only who comes in new, on the provider's word (MayAdmitWithProof):
 //
 //   - an existing ACTIVE account goes to the LINK step: its password (and its second factor) is
 //     asked, and nothing is connected without it. The account is answered, and owes that proof.
@@ -523,7 +771,7 @@ func turnedAway(cause error) error { return turnedAwayError{cause: cause} }
 //     connect it (P-16).
 //   - an INVITED account is pointed at its invitation's link, which is the proof it holds.
 //
-// Everybody else is refused, and INVITED_ONLY never creates an account.
+// Everybody else is refused, and nothing is created here.
 func (w OidcWriter) notAdmitted(
 	ctx context.Context, configured domain.IdentityProvider, arriving provider.Identity,
 ) (domain.Account, error) {
@@ -730,9 +978,14 @@ const (
 	// proofPassword: the account has a password, and the card asks for it (and for the second
 	// factor, if one is armed) before connecting.
 	proofPassword
-	// proofElsewhere: no password, but a second factor or another provider's identity. Neither can
-	// be proven on this card, so the arrival is refused and pointed at the way in the account has.
+	// proofElsewhere: no password, but an identity at another provider that is a way in here. It
+	// cannot be proven on this card, so the arrival is refused and pointed at that provider.
 	proofElsewhere
+	// proofMailbox: no password and no provider that lets the account in here, but a credential all
+	// the same - a second factor, or an identity at an offer that ended or a provider switched off.
+	// Nothing on this card proves it and no provider's word stands in for it: the arrival is refused
+	// and pointed at the mailbox, whose link sets a password or connects a provider (ADR-0078 §1, §4).
+	proofMailbox
 )
 
 // proofOwed reads what the account holds, in the transaction the arrival already opened.
@@ -745,27 +998,39 @@ func (w OidcWriter) proofOwed(ctx context.Context, existing domain.Account) (lin
 		return proofPassword, nil
 	}
 
+	armed := false
 	if w.Session.Enrollments != nil {
 		enrollment, err := w.Session.Enrollments.Find(ctx, existing.ID)
 		if err != nil && !errors.Is(err, shared.ErrNotFound) {
 			return proofNone, err
 		}
-		if err == nil && !enrollment.ConfirmedAt.IsZero() {
-			return proofElsewhere, nil
-		}
+		armed = err == nil && !enrollment.ConfirmedAt.IsZero()
 	}
 	// An invited account's provider identities were connected on a provider's word alone, before
 	// any second proof: they are not a credential, and activating the account drops them
 	// (ADR-0078 §1).
 	if existing.Status == domain.AccountInvited {
+		if armed {
+			return proofElsewhere, nil
+		}
 		return proofNone, nil
+	}
+	// The way in the account has is the provider that lets it in here - if one does.
+	if w.Providers != nil {
+		_, reaches, err := w.connectsHere().connectedHere(ctx, existing.ID, w.Session.Clock.Now())
+		if err != nil {
+			return proofNone, err
+		}
+		if reaches {
+			return proofElsewhere, nil
+		}
 	}
 	held, err := w.External.HasIdentity(ctx, existing.ID)
 	if err != nil {
 		return proofNone, err
 	}
-	if held {
-		return proofElsewhere, nil
+	if armed || held {
+		return proofMailbox, nil
 	}
 	return proofNone, nil
 }
@@ -796,7 +1061,9 @@ func (w OidcWriter) challengeLink(
 			IPClass:   domain.IPClass(cmd.RemoteAddr),
 			CreatedAt: now.UTC(),
 			ExpiresAt: now.Add(domain.PendingLifetime).UTC(),
-			Link:      &domain.LinkIntent{ProviderID: configured.ID, Subject: arriving.Subject},
+			Link: &domain.LinkIntent{
+				ProviderID: configured.ID, Subject: arriving.Subject, Proof: domain.LinkProofPassword,
+			},
 		}
 		if err := w.Session.Pending.Insert(ctx, credential, presented); err != nil {
 			return err
@@ -1065,6 +1332,10 @@ func (h StartOidcSignIn) Descriptor() usecase.Descriptor {
 				Description: "The redemption token of the invitation this sign-in accepts. Checked, not " +
 					"spent: the flow remembers the invited account, and only an arrival that succeeds " +
 					"accepts the invitation."},
+			{Name: "connect_token", Kind: usecase.KindString,
+				Description: "The token of the link a workspace without the password mails to connect " +
+					"its provider. Checked, not spent: the flow remembers the link, the provider is " +
+					"asked for a fresh sign-in, and only an arrival that connects spends it."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: OidcSignInStartedAction, TargetType: identityProviderTarget,
@@ -1090,6 +1361,7 @@ func (h StartOidcSignIn) invoke(
 		TenantSlug:      in.String("tenant_slug"),
 		TenantHeader:    in.String("tenant_header"),
 		InvitationToken: secret.New(in.String("invitation_token")),
+		ConnectToken:    secret.New(in.String("connect_token")),
 	})
 	if err != nil {
 		return nil, err
@@ -1113,7 +1385,10 @@ func (h CompleteOidcSignIn) Descriptor() usecase.Descriptor {
 			"own password (and second factor) where it holds one, the answer then a LINK " +
 			"challenge instead of a pair. An invited account is activated only with a second " +
 			"proof: the flow started from its invitation's link, or a provider authoritative for " +
-			"the address, and the provider's verified address equal to the invited one.",
+			"the address, and the provider's verified address equal to the invited one. A sign-in " +
+			"begun from the link a workspace without the password mails connects that link's " +
+			"account with the mailbox and a fresh sign-in at the provider as its proof - the " +
+			"provider's verified address equal to the account's, an armed second factor still asked.",
 		SideEffects: "Spends the flow, may create or link an account, opens a session, and " +
 			"writes an audit entry.",
 		Input: []usecase.Field{

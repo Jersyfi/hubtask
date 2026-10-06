@@ -345,7 +345,9 @@ func TestUnderDomainsTheLinkAdmitsTheInvitedAddressOutsideTheList(t *testing.T) 
 		f, invitation := outsideTheList(t)
 		f.relying.identity.AddressAuthoritative = true
 		_, err := complete(t, f, start(t, f))
-		if detailOf(err) != "identity_provider.not_admitted" {
+		// Pointed at the proof the invited person holds, as under INVITED_ONLY: an invited account
+		// is not let in new on the provider's word, and its link is how it comes in.
+		if detailOf(err) != "identity_provider.invitation_needs_link" {
 			t.Fatalf("the plain arrival outside the list answered %v", err)
 		}
 		assertStillInvited(t, f, invitation)
@@ -360,6 +362,8 @@ func TestUnderDomainsTheLinkAdmitsTheInvitedAddressOutsideTheList(t *testing.T) 
 		}
 		assertStillInvited(t, f, invitation)
 	})
+	// The list decides who comes in new (the owner's decision of 2026-10-06): an existing member
+	// outside it brings its own proof to the LINK step, and nothing is connected without it.
 	t.Run("an existing member outside the list", func(t *testing.T) {
 		f := newOidcFixture(t, now, ownerAccount)
 		f.session.withAccount("bert@example.org", "correct horse battery")
@@ -369,8 +373,27 @@ func TestUnderDomainsTheLinkAdmitsTheInvitedAddressOutsideTheList(t *testing.T) 
 			Subject: "a-subject", Email: "bert@example.org", EmailVerified: true, DisplayName: "Bert",
 		}
 		result, err := complete(t, f, start(t, f))
-		if detailOf(err) != "identity_provider.not_admitted" || result.Challenge != nil {
-			t.Fatalf("a member outside the list answered (%+v, %v), want a refusal", result, err)
+		if err != nil || result.Challenge == nil || result.Challenge.Methods[0] != methodLink {
+			t.Fatalf("a member outside the list answered (%+v, %v), want the LINK step", result, err)
+		}
+		if len(f.external.links) != 0 {
+			t.Errorf("the provider was connected before the member's proof: %v", f.external.links)
+		}
+	})
+	// And an address nobody here holds stays outside: the list still decides who comes in new.
+	t.Run("a new address outside the list", func(t *testing.T) {
+		f := newOidcFixture(t, now, ownerAccount)
+		f.store.rows[0].Provisioning = domain.ProvisionDomains
+		f.store.rows[0].AllowedEmailDomains = []string{"elsewhere.org"}
+		f.relying.identity = provider.Identity{
+			Subject: "eve-subject", Email: "eve@example.org", EmailVerified: true, DisplayName: "Eve",
+		}
+		_, err := complete(t, f, start(t, f))
+		if detailOf(err) != "identity_provider.not_admitted" {
+			t.Fatalf("a new address outside the list answered %v", err)
+		}
+		if len(f.external.links) != 0 || len(f.accounts.inserted) != 0 {
+			t.Errorf("a refused arrival linked %v or created %d accounts", f.external.links, len(f.accounts.inserted))
 		}
 	})
 }

@@ -40,6 +40,11 @@ type CompleteLinkCommand struct {
 // account already holds a password, and the provider is connected to it only once that password -
 // and the account's second factor, if it has one - has been proven.
 //
+// It does not ask whether the password is a way in here. A workspace that switched the password off
+// closed the sign-in by password, not the account's own proof that it is the person, and a member
+// who still knows it connects the workspace's provider with it (ADR-0078 §1). The mailbox is the
+// proof for one who does not (connectByMail).
+//
 // The answer is a pair when the account has no second factor, and otherwise the ordinary TOTP
 // challenge with the link still carried, so the connection happens at the end of the second
 // factor's step and not a moment before.
@@ -243,8 +248,15 @@ func (w OidcWriter) Connect(ctx context.Context, account domain.Account, link do
 		return shared.ErrConflict.WithDetail("identity_provider.account_taken")
 	}
 	// The provider vouched for the address when the arrival was admitted; that is what the entry's
-	// email_verified field records.
-	return w.record(ctx, OidcLinkedAction, account, configured, provider.Identity{EmailVerified: true})
+	// email_verified field records. The proof is the one the account gave: its password, or its
+	// mailbox with a fresh sign-in at the provider (ADR-0078 §1). A credential written before there
+	// were two carries none, and it was the password.
+	proof := link.Proof
+	if proof == "" {
+		proof = domain.LinkProofPassword
+	}
+	return w.record(ctx, OidcLinkedAction, account, configured, provider.Identity{EmailVerified: true},
+		audit.Change{Field: "proof", Classification: audit.Open, To: string(proof)})
 }
 
 var _ IdentityConnector = (*OidcWriter)(nil)
@@ -257,7 +269,8 @@ func (h CompleteLink) Descriptor() usecase.Descriptor {
 			"address whose account already holds a password, and it is connected to that " +
 			"account only once the password is proven here - and, where the account has a " +
 			"second factor, the answer is the ordinary TOTP challenge and the connection " +
-			"happens when that step completes. Wrong passwords count against the account.",
+			"happens when that step completes. Wrong passwords count against the account. The " +
+			"password is a proof here even where the workspace switched it off as a way in.",
 		SideEffects: "Consumes the pending credential; then either connects the provider " +
 			"identity, opens a session and writes audit entries, or hands on to the second " +
 			"factor's step with the connection still pending.",

@@ -275,6 +275,12 @@ func TestAFlowNeedsAVerifierWorthTheName(t *testing.T) {
 		// one flow is never both (ADR-0078 §1).
 		"a step-up carrying an invitation": {ID: id, TenantID: sessionTenant, ProviderID: providerRow,
 			Nonce: "n", Verifier: good, Now: at, SessionID: providerRow, InvitedAccountID: providerRow},
+		// A CONNECT link stands in for an existing account's password at its first arrival: never
+		// beside an invitation, and never on a step-up (ADR-0078 §1).
+		"a connect link beside an invitation": {ID: id, TenantID: sessionTenant, ProviderID: providerRow,
+			Nonce: "n", Verifier: good, Now: at, PendingID: providerRow, InvitedAccountID: providerRow},
+		"a step-up carrying a connect link": {ID: id, TenantID: sessionTenant, ProviderID: providerRow,
+			Nonce: "n", Verifier: good, Now: at, PendingID: providerRow, SessionID: providerRow},
 	}
 	for name, in := range cases {
 		t.Run(name, func(t *testing.T) {

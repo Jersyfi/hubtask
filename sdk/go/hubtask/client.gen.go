@@ -3784,6 +3784,12 @@ type AccountSummaryKind string
 // AccountSummaryStatus defines model for AccountSummary.Status.
 type AccountSummaryStatus string
 
+// AccountsWithoutProvider How many active people of the workspace no provider switched on there signs in (ADR-0078 §1). A number, never a list.
+type AccountsWithoutProvider struct {
+	// Count The active people - service accounts and invitations aside - without an identity at any provider that is a way in here now.
+	Count int `json:"count"`
+}
+
 // ActivityEntry One step of an entry's history. Append-only: nothing edits one, and what removes one is the deletion of the entry it belongs to.
 type ActivityEntry struct {
 	// Actor Who did it. The label is not here: the account is one request away and this record is deleted with its entry, so there is nothing for a copy of somebody's name to outlive.
@@ -6206,6 +6212,9 @@ type OidcCallback struct {
 
 // OidcStart What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely.
 type OidcStart struct {
+	// ConnectToken The token of the link *Forgot your password?* mails where the workspace switched the password off - to connect the workspace's provider to an existing account (ADR-0078 §1, SC-33). It is checked here - a standing link of this workspace, its account active and connected to no provider switched on here, the password still off - and **not spent**: the flow remembers which link it carries, the provider is asked for a **fresh** sign-in (`prompt=login`, `max_age=0`), and only an arrival that connects the provider spends it. An unknown, expired, spent or foreign link is refused with `auth.reset_failed`, the reset link's one sentence. It is not sent beside `invitation_token`, and it never travels to the provider.
+	ConnectToken *string `json:"connect_token,omitempty"`
+
 	// InvitationToken The redemption token of the invitation this sign-in accepts, when the person chose the provider on the invitation card (ADR-0078 §1). It is checked here - a standing invitation of this workspace, its account still invited - and **not spent**: the flow remembers which account it invites, and only an arrival that succeeds accepts it. It is the second proof that lets a provider activate the invited account even where the provider is not authoritative for the address, or the address is outside a domains or directories list - only for that account; the provider's verified address must still equal the invited one. An unknown, expired, spent or foreign token is refused with `auth.redemption_failed`, the one sentence the invitation's other half answers. The token never travels to the provider.
 	InvitationToken *string `json:"invitation_token,omitempty"`
 
@@ -10573,9 +10582,10 @@ type ClientInterface interface {
 	//
 	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
 	// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
-	// Authority for the address stands in for a proof only where there is none. Under *Only people invited here* a provider that is not authoritative still brings an existing active account that holds a password to the `LINK` step - connected only with that password and its second factor - and never creates an account. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+	// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes any type of body and a specified content type.
@@ -10587,9 +10597,10 @@ type ClientInterface interface {
 	//
 	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
 	// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
-	// Authority for the address stands in for a proof only where there is none. Under *Only people invited here* a provider that is not authoritative still brings an existing active account that holds a password to the `LINK` step - connected only with that password and its second factor - and never creates an account. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+	// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes a body of the `application/json` content type.
@@ -10603,6 +10614,7 @@ type ClientInterface interface {
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
 	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10615,6 +10627,7 @@ type ClientInterface interface {
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
 	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -10793,6 +10806,7 @@ type ClientInterface interface {
 	//
 	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10803,6 +10817,7 @@ type ClientInterface interface {
 	//
 	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -13402,6 +13417,15 @@ type ClientInterface interface {
 	// Corresponds with PATCH /tenant (the `UpdateWorkspace` operationId).
 	UpdateWorkspaceWithApplicationMergePatchPlusJSONBody(ctx context.Context, params *UpdateWorkspaceParams, body UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CountAccountsWithoutProvider How many people here no provider switched on here signs in
+	//
+	// The number the password switch says before the password is switched off (ADR-0078 §1, UC-ID-12): the active people of this workspace who hold no identity at any provider that is a way in here now - the workspace's own switched on, the installation's taken and not past a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in with a token, so neither is counted. Where the password goes off, each of them connects a provider through *Forgot your password?* - or, holding a password, at the provider's first arrival with it.
+	// A number, never a list: the screen needs how many, not who.
+	// Needs the permission that manages structure, or the auditor's read-only configuration permission, as the list of providers does.
+	//
+	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
+	CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListTrash What is in the trash
 	//
 	// One entry per deletion, newest first - not one per deleted row. A hub with two hundred entries under it went into the trash as one act and comes back as one act, so what is listed is the root of each deletion: the thing somebody deleted. The batch beside it is what took the rest, and restoring the root brings all of it back.
@@ -14820,9 +14844,10 @@ func (c *Client) DisableTotp(ctx context.Context, params *DisableTotpParams, bod
 //
 // The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
 // An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
-// Authority for the address stands in for a proof only where there is none. Under *Only people invited here* a provider that is not authoritative still brings an existing active account that holds a password to the `LINK` step - connected only with that password and its second factor - and never creates an account. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes any type of body and a specified content type.
@@ -14844,9 +14869,10 @@ func (c *Client) CompleteOidcSignInWithBody(ctx context.Context, contentType str
 //
 // The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
 // An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
-// Authority for the address stands in for a proof only where there is none. Under *Only people invited here* a provider that is not authoritative still brings an existing active account that holds a password to the `LINK` step - connected only with that password and its second factor - and never creates an account. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes a body of the `application/json` content type.
@@ -14870,6 +14896,7 @@ func (c *Client) CompleteOidcSignIn(ctx context.Context, body CompleteOidcSignIn
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
 // A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
 // Takes any type of body and a specified content type.
 //
@@ -14892,6 +14919,7 @@ func (c *Client) StartOidcSignInWithBody(ctx context.Context, contentType string
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
 // A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15250,6 +15278,7 @@ func (c *Client) ElevateSession(ctx context.Context, params *ElevateSessionParam
 //
 // The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes any type of body and a specified content type.
 //
@@ -15270,6 +15299,7 @@ func (c *Client) CompleteLinkWithBody(ctx context.Context, contentType string, b
 //
 // The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes a body of the `application/json` content type.
 //
@@ -20819,6 +20849,25 @@ func (c *Client) UpdateWorkspaceWithBody(ctx context.Context, params *UpdateWork
 // Corresponds with PATCH /tenant (the `UpdateWorkspace` operationId).
 func (c *Client) UpdateWorkspaceWithApplicationMergePatchPlusJSONBody(ctx context.Context, params *UpdateWorkspaceParams, body UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateWorkspaceRequestWithApplicationMergePatchPlusJSONBody(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CountAccountsWithoutProvider How many people here no provider switched on here signs in
+//
+// The number the password switch says before the password is switched off (ADR-0078 §1, UC-ID-12): the active people of this workspace who hold no identity at any provider that is a way in here now - the workspace's own switched on, the installation's taken and not past a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in with a token, so neither is counted. Where the password goes off, each of them connects a provider through *Forgot your password?* - or, holding a password, at the provider's first arrival with it.
+// A number, never a list: the screen needs how many, not who.
+// Needs the permission that manages structure, or the auditor's read-only configuration permission, as the list of providers does.
+//
+// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
+func (c *Client) CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCountAccountsWithoutProviderRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -33810,6 +33859,33 @@ func NewUpdateWorkspaceRequestWithBody(server string, params *UpdateWorkspacePar
 	return req, nil
 }
 
+// NewCountAccountsWithoutProviderRequest constructs an http.Request for the CountAccountsWithoutProvider method
+func NewCountAccountsWithoutProviderRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/accounts-without-provider")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListTrashRequest constructs an http.Request for the ListTrash method
 func NewListTrashRequest(server string, params *ListTrashParams) (*http.Request, error) {
 	var err error
@@ -35075,9 +35151,10 @@ type ClientWithResponsesInterface interface {
 	//
 	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
 	// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
-	// Authority for the address stands in for a proof only where there is none. Under *Only people invited here* a provider that is not authoritative still brings an existing active account that holds a password to the `LINK` step - connected only with that password and its second factor - and never creates an account. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+	// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -35089,9 +35166,10 @@ type ClientWithResponsesInterface interface {
 	//
 	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
 	// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
-	// Authority for the address stands in for a proof only where there is none. Under *Only people invited here* a provider that is not authoritative still brings an existing active account that holds a password to the `LINK` step - connected only with that password and its second factor - and never creates an account. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+	// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -35105,6 +35183,7 @@ type ClientWithResponsesInterface interface {
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
 	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35117,6 +35196,7 @@ type ClientWithResponsesInterface interface {
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
 	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35305,6 +35385,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35315,6 +35396,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -38219,6 +38301,17 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /tenant (the `UpdateWorkspace` operationId).
 	UpdateWorkspaceWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, params *UpdateWorkspaceParams, body UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateWorkspaceResult, error)
+
+	// CountAccountsWithoutProviderWithResponse How many people here no provider switched on here signs in
+	//
+	// The number the password switch says before the password is switched off (ADR-0078 §1, UC-ID-12): the active people of this workspace who hold no identity at any provider that is a way in here now - the workspace's own switched on, the installation's taken and not past a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in with a token, so neither is counted. Where the password goes off, each of them connects a provider through *Forgot your password?* - or, holding a password, at the provider's first arrival with it.
+	// A number, never a list: the screen needs how many, not who.
+	// Needs the permission that manages structure, or the auditor's read-only configuration permission, as the list of providers does.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
+	CountAccountsWithoutProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CountAccountsWithoutProviderResult, error)
 
 	// ListTrashWithResponse What is in the trash
 	//
@@ -51371,6 +51464,54 @@ func (r UpdateWorkspaceResult) ContentType() string {
 	return ""
 }
 
+type CountAccountsWithoutProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AccountsWithoutProvider
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CountAccountsWithoutProviderResult) GetJSON200() *AccountsWithoutProvider {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CountAccountsWithoutProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CountAccountsWithoutProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CountAccountsWithoutProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CountAccountsWithoutProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CountAccountsWithoutProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListTrashResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -52945,9 +53086,10 @@ func (c *ClientWithResponses) DisableTotpWithResponse(ctx context.Context, param
 //
 // The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
 // An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
-// Authority for the address stands in for a proof only where there is none. Under *Only people invited here* a provider that is not authoritative still brings an existing active account that holds a password to the `LINK` step - connected only with that password and its second factor - and never creates an account. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -52965,9 +53107,10 @@ func (c *ClientWithResponses) CompleteOidcSignInWithBodyWithResponse(ctx context
 //
 // The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
 // An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
-// Authority for the address stands in for a proof only where there is none. Under *Only people invited here* a provider that is not authoritative still brings an existing active account that holds a password to the `LINK` step - connected only with that password and its second factor - and never creates an account. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -52987,6 +53130,7 @@ func (c *ClientWithResponses) CompleteOidcSignInWithResponse(ctx context.Context
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
 // A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53005,6 +53149,7 @@ func (c *ClientWithResponses) StartOidcSignInWithBodyWithResponse(ctx context.Co
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
 // A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53301,6 +53446,7 @@ func (c *ClientWithResponses) ElevateSessionWithResponse(ctx context.Context, pa
 //
 // The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53317,6 +53463,7 @@ func (c *ClientWithResponses) CompleteLinkWithBodyWithResponse(ctx context.Conte
 //
 // The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -57996,6 +58143,23 @@ func (c *ClientWithResponses) UpdateWorkspaceWithApplicationMergePatchPlusJSONBo
 		return nil, err
 	}
 	return ParseUpdateWorkspaceResult(rsp)
+}
+
+// CountAccountsWithoutProviderWithResponse How many people here no provider switched on here signs in
+//
+// The number the password switch says before the password is switched off (ADR-0078 §1, UC-ID-12): the active people of this workspace who hold no identity at any provider that is a way in here now - the workspace's own switched on, the installation's taken and not past a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in with a token, so neither is counted. Where the password goes off, each of them connects a provider through *Forgot your password?* - or, holding a password, at the provider's first arrival with it.
+// A number, never a list: the screen needs how many, not who.
+// Needs the permission that manages structure, or the auditor's read-only configuration permission, as the list of providers does.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
+func (c *ClientWithResponses) CountAccountsWithoutProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CountAccountsWithoutProviderResult, error) {
+	rsp, err := c.CountAccountsWithoutProvider(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCountAccountsWithoutProviderResult(rsp)
 }
 
 // ListTrashWithResponse What is in the trash
@@ -67600,6 +67764,39 @@ func ParseUpdateWorkspaceResult(rsp *http.Response) (*UpdateWorkspaceResult, err
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Workspace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCountAccountsWithoutProviderResult parses an HTTP response from a CountAccountsWithoutProviderWithResponse call
+func ParseCountAccountsWithoutProviderResult(rsp *http.Response) (*CountAccountsWithoutProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CountAccountsWithoutProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AccountsWithoutProvider
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

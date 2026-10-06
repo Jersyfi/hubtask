@@ -140,14 +140,15 @@ WHERE id = sqlc.arg('id')
 -- name: InsertOidcFlow :exec
 -- A NULL session is a sign-in flow; a session is the step-up at the provider it belongs to
 -- (ADR-0075 §2). An invited account is the invitation a sign-in started from (ADR-0078 §1) - and the
--- foreign key on (tenant, account) is what keeps it this workspace's.
+-- foreign key on (tenant, account) is what keeps it this workspace's. A pending credential is the
+-- CONNECT link a sign-in started from (ADR-0078 §1, SC-33), kept this workspace's the same way.
 INSERT INTO oidc_flow
   (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id,
-   invited_account_id)
+   invited_account_id, pending_id)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.narg('provider_id'), sqlc.arg('state_hash'),
   sqlc.arg('code_verifier'), sqlc.arg('nonce'), sqlc.arg('created_at'), sqlc.arg('expires_at'),
-  sqlc.narg('session_id'), sqlc.narg('invited_account_id')
+  sqlc.narg('session_id'), sqlc.narg('invited_account_id'), sqlc.narg('pending_id')
 );
 
 -- name: ConsumeOidcFlow :one
@@ -159,7 +160,7 @@ WHERE state_hash = sqlc.arg('state_hash')
   AND session_id IS NULL
   AND consumed_at IS NULL
   AND expires_at > sqlc.arg('now')
-RETURNING id, provider_id, code_verifier, nonce, invited_account_id;
+RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id, created_at;
 
 -- name: ConsumeStepUpOidcFlow :one
 -- The step-up's: only a flow bound to this very session, judged and burned in the same statement.
@@ -204,6 +205,20 @@ SELECT provider_id FROM account_identity WHERE account_id = sqlc.arg('account_id
 SELECT EXISTS (
   SELECT 1 FROM account_identity WHERE account_id = sqlc.arg('account_id')
 ) AS held;
+
+-- name: CountAccountsWithoutIdentityAt :one
+-- How many people of this workspace no provider in the list signs in (ADR-0078 §1, SC-33): the
+-- number the password switch says before the password is switched off. Active people only - an
+-- invited account has not chosen a way in yet, and a service account signs in with a token - and a
+-- number, never a list (P-01's discipline inside the workspace too: the screen needs how many, not
+-- who). Row level security keeps both tables to this workspace.
+SELECT count(*) FROM account a
+WHERE a.kind = 'USER' AND a.status = 'ACTIVE' AND a.deleted_at IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM account_identity i
+    WHERE i.tenant_id = a.tenant_id AND i.account_id = a.id
+      AND i.provider_id = ANY(sqlc.arg('provider_ids')::uuid[])
+  );
 
 -- name: UnlinkAccountIdentities :execrows
 -- Every provider identity of one account (ADR-0078 §1): an invited account is activated only with a

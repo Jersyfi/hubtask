@@ -170,6 +170,12 @@ const (
 	// account's password, and - where the account has a second factor - continues into the TOTP
 	// step with the link still carried. The provider's word alone never opens such an account.
 	PendingLink PendingPurpose = "LINK"
+	// PendingConnect is the link a workspace that switched the password off mails instead of a
+	// reset link (ADR-0078 §1): it connects the workspace's provider to the account, together with
+	// a fresh sign-in there. The reset link's discipline - thirty minutes, single use, the newest
+	// one wins - and it does one thing only: stand in for the password at the provider's first
+	// arrival. It is never a session and never replaces the second factor.
+	PendingConnect PendingPurpose = "CONNECT"
 )
 
 // ParsePendingToken and NewPendingToken are the credential's shape, ParseToken's discipline.
@@ -201,7 +207,22 @@ type PendingCredential struct {
 type LinkIntent struct {
 	ProviderID shared.ID
 	Subject    string
+	// Proof is what proved the account before the connection: the password, or the mailbox with a
+	// fresh sign-in at the provider. The trail entry says which (ADR-0078 §1). Empty reads as the
+	// password - a credential written before there was a second kind of proof.
+	Proof LinkProof
 }
+
+// LinkProof names the proof an existing account gave before a provider identity was connected to it.
+type LinkProof string
+
+const (
+	// LinkProofPassword is the LINK step: the account's own password (ADR-0071's addendum, E2).
+	LinkProofPassword LinkProof = "PASSWORD"
+	// LinkProofMailbox is the link mailed to the account's address together with a fresh sign-in at
+	// the provider, where the workspace switched the password off (ADR-0078 §1).
+	LinkProofMailbox LinkProof = "MAILBOX"
+)
 
 // Verify decides whether the credential may still complete its sign-in. One indistinguishable
 // refusal for consumed and expired: which of the two ended a stolen token is not for its thief

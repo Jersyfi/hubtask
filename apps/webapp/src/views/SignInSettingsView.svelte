@@ -37,6 +37,11 @@
   // password opened again for the accounts that hold one - the server's word, from the same answer
   // the sign-in card reads - until another way is switched on here.
   //
+  // **Switching the password off says what it costs first** (P-04, ADR-0078 §1): while the password
+  // is on, its row says how many people here no provider switched on here signs in - the people who
+  // will connect one by mail, or with their password at the provider's first arrival. A number from
+  // the server, never a list.
+  //
   // **Asking everybody for a new password is a button, not a field.** It sets a moment, and every
   // password older than it meets the change step at the next sign-in. It is red, it is behind a
   // confirmation, and its sentence says what it does to sessions.
@@ -452,6 +457,12 @@
                     onchange={(event) => void setPassword((event.currentTarget as HTMLInputElement).checked)}
                     disabledReason={switching === 'password' ? t('app.signin_settings.switching') : passwordFixed()}
                   />
+                  {#if passwordOn && waysOn > 1 && (identityProvider.withoutProvider ?? 0) > 0}
+                    <!-- Only where it can go off: as the last way in, the switch is held. -->
+                    <p class="quiet small" data-reach>
+                      {t('app.signin_settings.password_off_reach', { count: identityProvider.withoutProvider ?? 0 })}
+                    </p>
+                  {/if}
                   {#if refusalOf('methods')}<p class="refusal" role="alert">{refusalOf('methods')}</p>{/if}
                   {@render origin(originOf(policy.methods, (value) => (value.includes('PASSWORD') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
                 </li>

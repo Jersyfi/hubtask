@@ -476,7 +476,7 @@ func (q *Queries) FindPasswordHash(ctx context.Context, id pgtype.UUID) (*string
 
 const findPendingByHash = `-- name: FindPendingByHash :one
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
-       p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject,
+       p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -501,6 +501,7 @@ type FindPendingByHashRow struct {
 	ConsumedAt         pgtype.Timestamptz
 	LinkProviderID     pgtype.UUID
 	LinkSubject        *string
+	LinkProof          *string
 	AccountKind        AccountKind
 	AccountStatus      AccountStatus
 	AccountDisplayName string
@@ -528,6 +529,78 @@ func (q *Queries) FindPendingByHash(ctx context.Context, tokenHash []byte) (Find
 		&i.ConsumedAt,
 		&i.LinkProviderID,
 		&i.LinkSubject,
+		&i.LinkProof,
+		&i.AccountKind,
+		&i.AccountStatus,
+		&i.AccountDisplayName,
+		&i.AccountLocale,
+		&i.AccountTimeZone,
+		&i.DefaultLocale,
+		&i.DefaultTimeZone,
+		&i.TenantSlug,
+		&i.TenantStatus,
+	)
+	return i, err
+}
+
+const findPendingByID = `-- name: FindPendingByID :one
+SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
+       p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
+       a.kind     AS account_kind,
+       a.status   AS account_status,
+       a.display_name AS account_display_name,
+       a.locale   AS account_locale,
+       a.time_zone AS account_time_zone,
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
+FROM auth_pending p
+JOIN account a ON a.id = p.account_id
+JOIN tenant  n ON n.id = p.tenant_id
+WHERE p.id = $1 AND a.deleted_at IS NULL
+`
+
+type FindPendingByIDRow struct {
+	ID                 pgtype.UUID
+	AccountID          pgtype.UUID
+	Purpose            string
+	UserAgent          *string
+	IpClass            *string
+	CreatedAt          pgtype.Timestamptz
+	ExpiresAt          pgtype.Timestamptz
+	ConsumedAt         pgtype.Timestamptz
+	LinkProviderID     pgtype.UUID
+	LinkSubject        *string
+	LinkProof          *string
+	AccountKind        AccountKind
+	AccountStatus      AccountStatus
+	AccountDisplayName string
+	AccountLocale      *string
+	AccountTimeZone    *string
+	DefaultLocale      string
+	DefaultTimeZone    string
+	TenantSlug         string
+	TenantStatus       string
+}
+
+// FindPendingByHash for a credential the server itself remembered rather than one a caller
+// presented: the CONNECT link a provider flow carries (ADR-0078 §1, SC-33). The flow kept the
+// credential's identifier, never its token. Row level security keeps it to the workspace the
+// transaction is bound to.
+func (q *Queries) FindPendingByID(ctx context.Context, id pgtype.UUID) (FindPendingByIDRow, error) {
+	row := q.db.QueryRow(ctx, findPendingByID, id)
+	var i FindPendingByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.AccountID,
+		&i.Purpose,
+		&i.UserAgent,
+		&i.IpClass,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.ConsumedAt,
+		&i.LinkProviderID,
+		&i.LinkSubject,
+		&i.LinkProof,
 		&i.AccountKind,
 		&i.AccountStatus,
 		&i.AccountDisplayName,
@@ -736,12 +809,12 @@ const insertPendingCredential = `-- name: InsertPendingCredential :exec
 
 INSERT INTO auth_pending
   (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
-   link_provider_id, link_subject)
+   link_provider_id, link_subject, link_proof)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8,
-  $9, $10
+  $9, $10, $11
 )
 `
 
@@ -756,6 +829,7 @@ type InsertPendingCredentialParams struct {
 	ExpiresAt      pgtype.Timestamptz
 	LinkProviderID pgtype.UUID
 	LinkSubject    *string
+	LinkProof      *string
 }
 
 // ====================== The pending credential (H-02) ======================
@@ -771,6 +845,7 @@ func (q *Queries) InsertPendingCredential(ctx context.Context, arg InsertPending
 		arg.ExpiresAt,
 		arg.LinkProviderID,
 		arg.LinkSubject,
+		arg.LinkProof,
 	)
 	return err
 }

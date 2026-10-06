@@ -315,6 +315,71 @@ test('chromium: a workspace left without a way in is told the password is open a
   assert.doesNotMatch(said, /withdr|invitation/i, 'the sentence names one cause of many');
 });
 
+// P-04, ADR-0078 §1 (SC-33): before the password goes off, its row says how many people here no
+// provider switched on here signs in - the server's number - and says nothing once it is off, or
+// where nobody is without one.
+test('chromium: the password switch says how many people have no provider here before it goes off', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  let count = 3;
+  let asked = 0;
+  const { page, close } = await open(browser, (route, path) => {
+    if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: policy() } });
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [provider('own', 'Contoso Entra ID', 'workspace')] });
+    }
+    if (path === '/tenant/accounts-without-provider') {
+      asked += 1;
+      return route.fulfill({ json: { count } });
+    }
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const list = page.getByRole('list', { name: 'Ways to sign in' });
+  await list.waitFor();
+  const password = list.getByRole('listitem').filter({ hasText: 'Password' }).first();
+  await password.getByText(/3 people here have no provider switched on here to sign in with/).waitFor();
+  assert.match(await password.locator('[data-reach]').textContent() ?? '', /Get a sign-in link by mail/, 'the sentence names the card\'s control for the password-off workspace');
+  assert.ok(asked >= 1, 'the count was never asked for');
+
+  // One person: the singular, from the catalogue's plural.
+  count = 1;
+  await page.reload();
+  await list.waitFor();
+  await list.getByText(/1 person here has no provider/).waitFor();
+
+  // Nobody without a provider: nothing to say.
+  count = 0;
+  await page.reload();
+  await list.waitFor();
+  await list.getByRole('listitem').filter({ hasText: 'Contoso Entra ID' }).waitFor();
+  assert.equal(await list.locator('[data-reach]').count(), 0, 'a count of nobody was said');
+});
+
+// The password already off: the cost is past, and the row says nothing of it.
+test('chromium: a switched-off password says no count', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const onlyProvider = policy();
+  onlyProvider.methods = rule(['OIDC'], ['PASSWORD', 'OIDC'], { source: 'WORKSPACE' });
+  const { page, close } = await open(browser, (route, path) => {
+    if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: onlyProvider } });
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [provider('own', 'Contoso Entra ID', 'workspace')] });
+    }
+    if (path === '/tenant/accounts-without-provider') return route.fulfill({ json: { count: 3 } });
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const list = page.getByRole('list', { name: 'Ways to sign in' });
+  await list.getByRole('listitem').filter({ hasText: 'Contoso Entra ID' }).waitFor();
+  assert.equal(await list.locator('[data-reach]').count(), 0, 'a switched-off password still says the count');
+});
+
 // UC-ID-11 check 8: the provider screen configures; it switches nothing - not with a control, and
 // not with the deprecated field in the body it saves (ADR-0076 §5).
 test('chromium: the provider screen has no switch of its own', async (t) => {

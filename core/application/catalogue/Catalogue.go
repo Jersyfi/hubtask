@@ -225,6 +225,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.UpdateWorkspace{}.Descriptor(),
 		identity.ConfigureIdentityProvider{}.Descriptor(),
 		identity.ListIdentityProviders{}.Descriptor(),
+		identity.CountAccountsWithoutProvider{}.Descriptor(),
 		identity.ReadIdentityProvider{}.Descriptor(),
 		identity.ConfigureFirstIdentityProvider{}.Descriptor(),
 		identity.OfferIdentityProvider{}.Descriptor(),

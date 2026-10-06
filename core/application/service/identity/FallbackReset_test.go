@@ -75,6 +75,7 @@ func (c connectedTo) ProvidersOf(context.Context, shared.ID) ([]shared.ID, error
 var ownProvider = domain.IdentityProvider{
 	ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000e6"), TenantID: tenant, Kind: domain.KindGeneric,
 	DisplayName: "Our directory", Issuer: "https://login.example.org", Enabled: true,
+	Provisioning: domain.ProvisionInvitedOnly,
 }
 
 // passwordOnWith keeps the password on beside the ended offer, with the providers given in force,

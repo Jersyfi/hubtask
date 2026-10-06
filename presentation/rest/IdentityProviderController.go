@@ -21,6 +21,7 @@ const (
 	configureFirstIdentityProviderUseCase = "ConfigureFirstIdentityProvider"
 	offerIdentityProviderUseCase          = "OfferIdentityProvider"
 	listIdentityProvidersUseCase          = "ListIdentityProviders"
+	countAccountsWithoutProviderUseCase   = "CountAccountsWithoutProvider"
 	configureIdentityProviderUseCase      = "ConfigureIdentityProvider"
 	removeIdentityProviderUseCase         = "RemoveIdentityProvider"
 	listIdentityProviderPresetsUseCase    = "ListIdentityProviderPresets"
@@ -84,6 +85,22 @@ func (c *RestController) OfferIdentityProvider(
 		return
 	}
 	writeJSON(w, r, http.StatusOK, identityProviderResponse(out))
+}
+
+// CountAccountsWithoutProvider answers GET /tenant/accounts-without-provider: the number the password
+// switch says before the password is switched off (ADR-0078 §1).
+func (c *RestController) CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), countAccountsWithoutProviderUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, openapi.AccountsWithoutProvider{Count: out.Int("count")})
 }
 
 // ListIdentityProviders answers GET /identity-providers.
@@ -466,6 +483,9 @@ func (c *RestController) StartOidcSignIn(w http.ResponseWriter, r *http.Request)
 	}
 	if body.InvitationToken != nil && *body.InvitationToken != "" {
 		in["invitation_token"] = *body.InvitationToken
+	}
+	if body.ConnectToken != nil && *body.ConnectToken != "" {
+		in["connect_token"] = *body.ConnectToken
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), startOidcSignInUseCase, actorOf(r), in)

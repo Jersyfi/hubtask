@@ -385,9 +385,14 @@ func (r OidcFlowRepository) Insert(
 	if err != nil {
 		return err
 	}
+	pending, err := optionalUUID(flow.PendingID)
+	if err != nil {
+		return err
+	}
 	if err := queries.InsertOidcFlow(ctx, sqlc.InsertOidcFlowParams{
 		SessionID:        session,
 		InvitedAccountID: invited,
+		PendingID:        pending,
 		ID:               id,
 		ProviderID:       provider,
 		StateHash:        r.stateHasher.Hash(presented.Secret()),
@@ -441,9 +446,17 @@ func (r OidcFlowRepository) Consume(
 	if err != nil {
 		return identity.OidcFlow{}, false, err
 	}
+	// The same for the CONNECT link a sign-in started from (ADR-0078 §1).
+	pendingID, err := optionalID(row.PendingID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
 	return identity.OidcFlow{
 		ID: id, TenantID: presented.TenantID(), ProviderID: providerID,
 		Nonce: row.Nonce, Verifier: row.CodeVerifier, InvitedAccountID: invitedAccountID,
+		// When the flow left for the provider: a connection by mail counts only a sign-in made
+		// after it (ADR-0078 §1).
+		PendingID: pendingID, CreatedAt: timeFrom(row.CreatedAt),
 	}, true, nil
 }
 
@@ -623,6 +636,32 @@ func (ExternalAccountRepository) UnlinkAll(ctx context.Context, accountID shared
 			WithCause(fmt.Errorf("removing an account's provider identities: %w", err))
 	}
 	return int(removed), nil
+}
+
+// CountWithoutIdentityAt counts the workspace's active people no provider in the list signs in
+// (ADR-0078 §1). The providers travel as one array parameter (rule 9).
+func (ExternalAccountRepository) CountWithoutIdentityAt(
+	ctx context.Context, providerIDs []shared.ID,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	providers := make([]pgtype.UUID, 0, len(providerIDs))
+	for _, providerID := range providerIDs {
+		provider, err := uuidOf(providerID)
+		if err != nil {
+			return 0, err
+		}
+		providers = append(providers, provider)
+	}
+	counted, err := queries.CountAccountsWithoutIdentityAt(ctx, providers)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the accounts without a provider: %w", err))
+	}
+	return int(counted), nil
 }
 
 var _ repository.IdentityProviderSealing = IdentityProviderRepository{}

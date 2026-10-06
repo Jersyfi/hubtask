@@ -59,7 +59,7 @@ WHERE state_hash = $2
   AND session_id IS NULL
   AND consumed_at IS NULL
   AND expires_at > $1
-RETURNING id, provider_id, code_verifier, nonce, invited_account_id
+RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id, created_at
 `
 
 type ConsumeOidcFlowParams struct {
@@ -73,6 +73,8 @@ type ConsumeOidcFlowRow struct {
 	CodeVerifier     string
 	Nonce            string
 	InvitedAccountID pgtype.UUID
+	PendingID        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
 }
 
 // Judged and burned in one statement, ConsumeOauthCode's discipline: unexpired and unconsumed,
@@ -87,6 +89,8 @@ func (q *Queries) ConsumeOidcFlow(ctx context.Context, arg ConsumeOidcFlowParams
 		&i.CodeVerifier,
 		&i.Nonce,
 		&i.InvitedAccountID,
+		&i.PendingID,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -126,6 +130,28 @@ func (q *Queries) ConsumeStepUpOidcFlow(ctx context.Context, arg ConsumeStepUpOi
 		&i.SessionID,
 	)
 	return i, err
+}
+
+const countAccountsWithoutIdentityAt = `-- name: CountAccountsWithoutIdentityAt :one
+SELECT count(*) FROM account a
+WHERE a.kind = 'USER' AND a.status = 'ACTIVE' AND a.deleted_at IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM account_identity i
+    WHERE i.tenant_id = a.tenant_id AND i.account_id = a.id
+      AND i.provider_id = ANY($1::uuid[])
+  )
+`
+
+// How many people of this workspace no provider in the list signs in (ADR-0078 §1, SC-33): the
+// number the password switch says before the password is switched off. Active people only - an
+// invited account has not chosen a way in yet, and a service account signs in with a token - and a
+// number, never a list (P-01's discipline inside the workspace too: the screen needs how many, not
+// who). Row level security keeps both tables to this workspace.
+func (q *Queries) CountAccountsWithoutIdentityAt(ctx context.Context, providerIds []pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countAccountsWithoutIdentityAt, providerIds)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const countIdentityProviders = `-- name: CountIdentityProviders :one
@@ -450,11 +476,11 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 const insertOidcFlow = `-- name: InsertOidcFlow :exec
 INSERT INTO oidc_flow
   (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id,
-   invited_account_id)
+   invited_account_id, pending_id)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6, $7,
-  $8, $9
+  $8, $9, $10
 )
 `
 
@@ -468,11 +494,13 @@ type InsertOidcFlowParams struct {
 	ExpiresAt        pgtype.Timestamptz
 	SessionID        pgtype.UUID
 	InvitedAccountID pgtype.UUID
+	PendingID        pgtype.UUID
 }
 
 // A NULL session is a sign-in flow; a session is the step-up at the provider it belongs to
 // (ADR-0075 §2). An invited account is the invitation a sign-in started from (ADR-0078 §1) - and the
-// foreign key on (tenant, account) is what keeps it this workspace's.
+// foreign key on (tenant, account) is what keeps it this workspace's. A pending credential is the
+// CONNECT link a sign-in started from (ADR-0078 §1, SC-33), kept this workspace's the same way.
 func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) error {
 	_, err := q.db.Exec(ctx, insertOidcFlow,
 		arg.ID,
@@ -484,6 +512,7 @@ func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) 
 		arg.ExpiresAt,
 		arg.SessionID,
 		arg.InvitedAccountID,
+		arg.PendingID,
 	)
 	return err
 }

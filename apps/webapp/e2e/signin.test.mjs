@@ -798,3 +798,171 @@ test('an invitation the provider start refuses is said on the invitation card', 
     await close();
   }
 });
+
+// SC-33 (ADR-0078 §1, UC-ID-04 check 8): where the workspace switched the password off, the reset
+// mail links `/reset#connect=…`. The card offers the workspace's providers - no password field, the
+// workspace takes none - and each starts the provider's flow with the link bound to it, the link
+// out of the address before the first request leaves.
+test('a connect link opens a card that starts the provider with the link, not a password', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+    const base = stubFor({ answer: refused });
+    const started = [];
+    await context.route('**/api/v1/**', async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith('/api/v1/auth/sign-in-rules')) {
+        return route.fulfill({ json: { ...RULES, methods: ['OIDC'] } });
+      }
+      if (path.endsWith('/api/v1/auth/oidc:start')) {
+        started.push(route.request().postDataJSON());
+        // Never answered: what is asserted is what the start carried.
+        return new Promise(() => {});
+      }
+      return base(route);
+    });
+    const page = await context.newPage();
+    await page.goto(`${origin}/reset#connect=connect-token`);
+    await page.getByRole('heading', { name: 'Connect your sign-in' }).waitFor();
+    assert.equal(new URL(page.url()).hash, '', 'the link stayed in the address');
+    assert.equal(await page.locator('input[type="password"]').count(), 0, 'a password field is offered where none is accepted');
+    assert.equal(await page.locator('h1').count(), 1);
+
+    await page.getByRole('button', { name: /Contoso Lab/ }).click();
+    await page.waitForFunction(() => document.querySelector('[aria-busy="true"]') !== null);
+    assert.deepEqual(started, [{ provider_id: 'p-lab', connect_token: 'connect-token' }],
+      'the provider was started without the link');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// A link that cannot be used - spent, expired, or its reason gone - is refused before the browser
+// leaves, on this card, in the reset link's one sentence.
+test('a connect link the provider start refuses is said on the connect card', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const base = stubFor({ answer: refused });
+    await context.route('**/api/v1/**', async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith('/api/v1/auth/sign-in-rules')) {
+        return route.fulfill({ json: { ...RULES, methods: ['OIDC'] } });
+      }
+      if (path.endsWith('/api/v1/auth/oidc:start')) {
+        return route.fulfill({ status: 401, json: { code: 'errors.unauthenticated', detail_code: 'auth.reset_failed', status: 401, request_id: 'req_e2e' } });
+      }
+      return base(route);
+    });
+    const page = await context.newPage();
+    await page.goto(`${origin}/reset#connect=connect-token`);
+    await page.getByRole('heading', { name: 'Connect your sign-in' }).waitFor();
+    await page.getByRole('button', { name: /Contoso Entra ID/ }).click();
+    await page.getByText('That reset link cannot be used. Ask for a new one.').waitFor();
+    assert.equal(new URL(page.url()).pathname, '/reset');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// The mailbox stands in for the password, never for the second factor: the provider's return from a
+// connection by mail answers the code step, and the card asks for it with the identity line.
+test('a connection by mail that meets a second factor continues into the code step', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = {};
+  const stub = async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/oidc:callback')) {
+      return route.fulfill({
+        status: 202,
+        json: {
+          pending_token: 'totp-1', methods: ['TOTP', 'RECOVERY'], expires_at: '2099-01-01T00:00:00Z',
+          email: 'anna@contoso.example',
+        },
+      });
+    }
+    if (path.endsWith('/api/v1/auth/sessions:verify')) {
+      sent.verify = request.postDataJSON();
+      return route.fulfill({ status: 201, json: TOKENS });
+    }
+    return stubFor({ answer: refused })(route);
+  };
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.route('**/api/v1/**', stub);
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/auth/callback?code=the-code&state=the-state`);
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+    assert.ok(await page.getByText('anna@contoso.example').isVisible(), 'the identity line names the account');
+    await page.locator('input[autocomplete="one-time-code"]').fill('123456');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForFunction(() => !document.querySelector('input[autocomplete="one-time-code"]'));
+    assert.equal(sent.verify?.pending_token, 'totp-1');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// SC-33 (ADR-0078 §1): where the workspace switched the password off, the card has no *Forgot your
+// password?* - and the way back is still on it: "Get a sign-in link by mail" asks for the link that
+// connects the provider, through the same request the password's link uses, answered alike for every
+// address.
+test('where the password is off, the card offers a sign-in link by mail and sends the request', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+    const base = stubFor({ answer: refused });
+    const asked = [];
+    await context.route('**/api/v1/**', async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith('/api/v1/auth/sign-in-rules')) {
+        return route.fulfill({ json: { ...RULES, methods: ['OIDC'] } });
+      }
+      if (path.endsWith('/api/v1/auth/password:forgot')) {
+        asked.push(route.request().postDataJSON());
+        return route.fulfill({ status: 202, body: '' });
+      }
+      return base(route);
+    });
+    const page = await context.newPage();
+    await page.goto(origin);
+    await page.getByRole('button', { name: /Contoso Entra ID/ }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Forgot your password?' }).count(), 0,
+      'a password link where the workspace takes no password');
+
+    await page.getByRole('button', { name: 'Get a sign-in link by mail' }).click();
+    await page.getByRole('heading', { name: 'Get a sign-in link by mail' }).waitFor();
+    assert.match(await page.getByText(/connects it/).textContent() ?? '', /not connected to this workspace's provider yet/);
+    await page.getByLabel(/Email|Address/i).fill('anna@contoso.example');
+    await page.getByRole('button', { name: 'Send the link' }).click();
+    await page.getByText('If an account exists for that address, the link is on its way. Check the mailbox.').waitFor();
+    assert.deepEqual(asked, [{ email: 'anna@contoso.example' }]);
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// Where the password is on, the card keeps its own link and draws no second one.
+test('where the password is on, the card keeps Forgot your password and no sign-in link by mail', async () => {
+  const { origin, close } = await serve(DIST);
+  const { browser, page } = await open(origin, stubFor({ answer: refused }));
+  try {
+    await page.getByRole('button', { name: 'Forgot your password?' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Get a sign-in link by mail' }).count(), 0,
+      'a second link beside the password');
+    await page.getByRole('button', { name: 'Forgot your password?' }).click();
+    await page.getByRole('heading', { name: 'Reset your password' }).waitFor();
+  } finally {
+    await browser.close();
+    await close();
+  }
+});

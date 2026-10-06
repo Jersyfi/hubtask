@@ -1305,6 +1305,9 @@ func run() error {
 		identity.UpdateWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.ListIdentityProviders{Writer: identityProviderWriter}.Descriptor(),
+		identity.CountAccountsWithoutProvider{
+			Writer: identityProviderWriter, External: postgres.NewExternalAccountRepository(),
+		}.Descriptor(),
 		identity.ReadIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.ConfigureFirstIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.OfferIdentityProvider{
@@ -3250,6 +3253,7 @@ func (a resetMinterAdapter) MintResetToken(
 		Token:       link.Token,
 		HasPassword: link.HasPassword,
 		First:       link.First,
+		Connect:     link.Connect,
 		Address:     link.Address,
 		Locale:      link.Locale,
 	}, nil

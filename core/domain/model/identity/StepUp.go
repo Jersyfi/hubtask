@@ -54,3 +54,15 @@ func ProviderProofFresh(authTime, now time.Time, window time.Duration) bool {
 	}
 	return now.Sub(authTime) <= window
 }
+
+// ProviderProofFreshSince is ProviderProofFresh for a flow that asked for the sign-in at `since`
+// (ADR-0078 §1): the sign-in has also to be one made after the flow left for the provider, give or
+// take a clock's skew. A provider that ignored `prompt=login` and answered with a session from before
+// the flow proves nothing about who is at the keyboard now, however recent that session was. A zero
+// `since` - a flow written before its start was read back - asks only the window.
+func ProviderProofFreshSince(authTime, since, now time.Time, window time.Duration) bool {
+	if !ProviderProofFresh(authTime, now, window) {
+		return false
+	}
+	return since.IsZero() || !authTime.Before(since.Add(-ProviderClockSkew))
+}

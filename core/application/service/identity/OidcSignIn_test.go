@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -136,6 +137,28 @@ func (s *externalStore) UnlinkAll(_ context.Context, accountID shared.ID) (int, 
 	}
 	s.unlinked = append(s.unlinked, accountID)
 	return removed, nil
+}
+
+// CountWithoutIdentityAt counts the active people of the account store that none of these providers
+// signs in, the query's reading.
+func (s *externalStore) CountWithoutIdentityAt(_ context.Context, providerIDs []shared.ID) (int, error) {
+	counted := 0
+	for _, account := range s.accounts.byID {
+		if account.Kind != domain.AccountUser || account.Status != domain.AccountActive {
+			continue
+		}
+		connected := false
+		for key, linked := range s.bySubject {
+			provider := shared.ID(strings.SplitN(key, "\x00", 2)[0])
+			if linked.ID == account.ID && slices.Contains(providerIDs, provider) {
+				connected = true
+			}
+		}
+		if !connected {
+			counted++
+		}
+	}
+	return counted, nil
 }
 
 // arriving is the identity the library would have verified.

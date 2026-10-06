@@ -118,6 +118,35 @@ func TestAProviderOnlyAccountUnderTheFallbackGetsALinkToSetOne(t *testing.T) {
 	}
 }
 
+// A workspace that switched the password off mails an account no provider there lets in a link to
+// connect one (ADR-0078 §1) - its own mail, and a link the card reads as a connection, not a reset.
+func TestAnAccountWithoutAProviderWhereThePasswordIsOffGetsALinkToConnectOne(t *testing.T) {
+	mailer := &mailbox{}
+
+	err := SendPasswordReset{
+		Resets: &resetMinter{link: ResetLink{
+			Token: secret.New("hbt_mfa_0123_abc"), Connect: true, Address: "mara@contoso.example",
+		}},
+		Mail: mailer, Renderer: catalogue{}, FallbackLocale: "en", BaseURL: "https://acme.example/",
+	}.Execute(t.Context(), tenant, anna)
+	if err != nil {
+		t.Fatalf("sending: %v", err)
+	}
+	if len(mailer.sent) != 1 {
+		t.Fatalf("%d messages sent", len(mailer.sent))
+	}
+	if !strings.Contains(mailer.sent[0].Subject, subjectPasswordConnect) ||
+		!strings.Contains(mailer.sent[0].Body, bodyPasswordConnect) {
+		t.Errorf("the mail was rendered from %q / %q", mailer.sent[0].Subject, mailer.sent[0].Body)
+	}
+	if !strings.Contains(mailer.sent[0].Body, "https://acme.example/reset#connect=hbt_mfa_0123_abc") {
+		t.Errorf("the mail carries no link to connect the provider: %q", mailer.sent[0].Body)
+	}
+	if strings.Contains(mailer.sent[0].Body, "#token=") {
+		t.Errorf("the connect mail carries a link to set a password: %q", mailer.sent[0].Body)
+	}
+}
+
 // An account that is gone between the request and the job is finished business rather than a
 // failure: there is nothing a retry would find.
 func TestAnAccountThatIsGoneSendsNothing(t *testing.T) {

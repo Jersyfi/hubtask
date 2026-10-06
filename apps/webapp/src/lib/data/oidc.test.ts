@@ -70,3 +70,12 @@ test('a sign-in begun on the invitation card carries the invitation, and no othe
   // An empty token is no invitation, and an empty hint no hint.
   assert.deepEqual(startRequest('  ', undefined, ''), {});
 });
+
+test('a sign-in begun on the connect card carries the link, and no other does', () => {
+  // ADR-0078 §1: where the password is off, the mailed link is half of the account's proof.
+  assert.deepEqual(startRequest(undefined, 'p-entra', undefined, 'connect-token'), {
+    provider_id: 'p-entra',
+    connect_token: 'connect-token',
+  });
+  assert.deepEqual(startRequest(undefined, 'p-entra', undefined, ''), { provider_id: 'p-entra' });
+});

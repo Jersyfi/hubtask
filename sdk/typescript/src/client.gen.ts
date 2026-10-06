@@ -900,6 +900,11 @@ export class HubtaskClient {
     return this.call("PATCH", "/tenant", {  }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
+  /** How many people here no provider switched on here signs in */
+  countAccountsWithoutProvider(options: CallOptions = {}): Promise<operations["countAccountsWithoutProvider"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/tenant/accounts-without-provider", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The workspace's first identity provider */
   readIdentityProvider(options: CallOptions = {}): Promise<operations["readIdentityProvider"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/identity-provider", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

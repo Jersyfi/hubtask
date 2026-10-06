@@ -3109,6 +3109,13 @@ paths:
         With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is
         connected when `/auth/sessions:verify` completes - never before the account's whole proof.
         A wrong password counts against the account like any other, and is refused as a sign-in is.
+
+        **The password is a proof here even where the workspace switched it off as a way in**
+        (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof
+        that it is the person: a member who still knows the password connects the workspace's
+        provider with it, once. Where the password is off, the other proof is the mailbox - the link
+        *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at
+        `/auth/oidc:start`).
       requestBody:
         required: true
         content:
@@ -3798,6 +3805,11 @@ paths:
         A sign-in begun on the invitation card carries the invitation's token, and the flow
         remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be
         redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+
+        A sign-in begun from the link a workspace without the password mails to connect its
+        provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the
+        link and asks the provider for a fresh sign-in; a link that cannot be used is refused here
+        with `auth.reset_failed`, before the browser leaves.
       requestBody:
         required: false
         content:
@@ -3836,8 +3848,11 @@ paths:
         An existing account that already holds a password is **not** linked on the provider's
         word: the answer is `202` with the single method `LINK`, and the account's password is
         presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but
-        another provider or a second factor cannot give that proof here and is refused with
-        `identity_provider.link_needs_own_way_in`.
+        another provider that lets it in here cannot give that proof here and is refused with
+        `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an
+        offer that ended or a provider switched off, or a second factor and nothing else - is
+        refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your
+        password?*.
 
         An **invited** account is activated and connected only with a second proof (ADR-0078 §1):
         the sign-in started from the invitation's own link (`invitation_token` at the start), or
@@ -3850,13 +3865,29 @@ paths:
         invitation. Whatever was connected to the invited account before the proof is dropped when
         it is activated.
 
-        Authority for the address stands in for a proof only where there is none. Under *Only
-        people invited here* a provider that is not authoritative still brings an existing active
-        account that holds a password to the `LINK` step - connected only with that password and
-        its second factor - and never creates an account. An existing account that holds no
+        Authority for the address, and a domains or directories list, decide only who comes in new
+        on the provider's word. Under *Only people invited here* a provider that is not
+        authoritative, and under *Only these domains/directories* an address outside the list,
+        still bring an existing active account to the `LINK` step - connected only with its
+        password and its second factor - or through its connect link; neither ever creates an
+        account, and an address nobody here holds is refused. An existing account that holds no
         credential at all is connected only by a provider authoritative for its address, in every
         mode; otherwise nothing is connected and the answer is
         `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
+
+        A sign-in begun from the link a workspace without the password mails (`connect_token` at
+        the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a
+        **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time`
+        older than the step-up's window, one from before the flow left for the provider (beyond a
+        minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the
+        provider's verified address must equal the account's (`identity_provider.connect_address_differs`);
+        admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`);
+        and an identity already connected to another account here is
+        `identity_provider.connect_identity_taken`. None of these spends the link. An armed second
+        factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is
+        connected when that step completes. The link is spent in the transaction that connects the
+        provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link
+        whose password was switched back on meanwhile. No password is stored.
 
         A `state` that is unknown, already spent or expired is refused indistinguishably: a flow
         handle is single use.
@@ -3874,7 +3905,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/SessionTokens"
         "202":
-          description: The address matched an account with a password, which is asked for first
+          description: >
+            The address matched an account with a password, which is asked for first - or a
+            connection by mail reached an account with a second factor, which is asked for before
+            the provider is connected
           content:
             application/json:
               schema:
@@ -4539,6 +4573,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Workspace"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /tenant/accounts-without-provider:
+    get:
+      tags: [auth]
+      operationId: countAccountsWithoutProvider
+      summary: How many people here no provider switched on here signs in
+      description: >
+        The number the password switch says before the password is switched off (ADR-0078 §1,
+        UC-ID-12): the active people of this workspace who hold no identity at any provider that is
+        a way in here now - the workspace's own switched on, the installation's taken and not past
+        a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in
+        with a token, so neither is counted. Where the password goes off, each of them connects a
+        provider through *Forgot your password?* - or, holding a password, at the provider's first
+        arrival with it.
+
+        A number, never a list: the screen needs how many, not who.
+
+        Needs the permission that manages structure, or the auditor's read-only configuration
+        permission, as the list of providers does.
+      responses:
+        "200":
+          description: The count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountsWithoutProvider"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -8627,6 +8689,18 @@ components:
             Present exactly when a recovery code completed this sign-in: how many remain. Zero is
             the number to act on - re-enrol before the authenticator is needed again.
 
+    AccountsWithoutProvider:
+      type: object
+      description: >
+        How many active people of the workspace no provider switched on there signs in
+        (ADR-0078 §1). A number, never a list.
+      required: [count]
+      properties:
+        count:
+          type: integer
+          minimum: 0
+          description: The active people - service accounts and invitations aside - without an identity at any provider that is a way in here now.
+
     OidcStart:
       type: object
       description: >
@@ -8660,6 +8734,18 @@ components:
             equal the invited one. An unknown, expired,
             spent or foreign token is refused with `auth.redemption_failed`, the one sentence the
             invitation's other half answers. The token never travels to the provider.
+        connect_token:
+          type: [string, "null"]
+          description: >
+            The token of the link *Forgot your password?* mails where the workspace switched the
+            password off - to connect the workspace's provider to an existing account (ADR-0078 §1,
+            SC-33). It is checked here - a standing link of this workspace, its account active and
+            connected to no provider switched on here, the password still off - and **not spent**:
+            the flow remembers which link it carries, the provider is asked for a **fresh** sign-in
+            (`prompt=login`, `max_age=0`), and only an arrival that connects the provider spends it.
+            An unknown, expired, spent or foreign link is refused with `auth.reset_failed`, the
+            reset link's one sentence. It is not sent beside `invitation_token`, and it never
+            travels to the provider.
 
     OidcAuthorization:
       type: object

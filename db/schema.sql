@@ -393,8 +393,9 @@ CREATE TABLE auth_pending (
   token_hash  bytea NOT NULL,
   -- What the credential may complete. TOTP presents a code, ENROLL is the second factor's
   -- enforcement route, RESET is the token a reset mail carries, PASSWORD is the credential
-  -- the PASSWORD_CHANGE step hands out (migration 0098), and LINK is a provider arrival waiting
-  -- for the account's own proof (migration 0110).
+  -- the PASSWORD_CHANGE step hands out (migration 0098), LINK is a provider arrival waiting
+  -- for the account's own proof (migration 0110), and CONNECT is the link a workspace without
+  -- the password mails to connect its provider (migration 0117).
   purpose     text NOT NULL,
   user_agent  text,
   ip_class    text,
@@ -405,14 +406,19 @@ CREATE TABLE auth_pending (
   -- Its foreign key is declared after identity_provider, which this file defines further down.
   link_provider_id uuid,
   link_subject     text CHECK (length(link_subject) BETWEEN 1 AND 255),
+  -- What proved the account when the link is connected: the password at the LINK step, or the
+  -- mailbox with a fresh sign-in at the provider (migration 0117). NULL reads as the password.
+  link_proof       text CHECK (link_proof IN ('PASSWORD', 'MAILBOX')),
   CONSTRAINT auth_pending_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT auth_pending_purpose_check
-    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK')),
+    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT')),
   CONSTRAINT auth_pending_link_whole CHECK ((link_provider_id IS NULL) = (link_subject IS NULL)),
   CONSTRAINT auth_pending_link_purpose CHECK (purpose <> 'LINK' OR link_provider_id IS NOT NULL)
 );
 CREATE UNIQUE INDEX auth_pending_token_uq ON auth_pending (token_hash);
+-- What a sign-in flow's key to its CONNECT link points at (migration 0117).
+CREATE UNIQUE INDEX auth_pending_tenant_id_uq ON auth_pending (tenant_id, id);
 
 -- A registered third-party app (H-05). Redirect URIs match exactly, byte for byte.
 CREATE TABLE oauth_client (
@@ -604,10 +610,15 @@ CREATE TABLE oidc_flow (
   -- The invited account the flow accepts, when it started from the invitation's own link
   -- (ADR-0078 §1, migration 0116). NULL is every other sign-in.
   invited_account_id uuid,
+  -- The CONNECT link a sign-in started from, in a workspace without the password (ADR-0078 §1,
+  -- migration 0117). NULL is every other sign-in.
+  pending_id    uuid,
   CONSTRAINT oidc_flow_session_fkey FOREIGN KEY (tenant_id, session_id)
     REFERENCES session (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT oidc_flow_invited_account_fkey FOREIGN KEY (tenant_id, invited_account_id)
-    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT oidc_flow_pending_fkey FOREIGN KEY (tenant_id, pending_id)
+    REFERENCES auth_pending (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX oidc_flow_state_uq ON oidc_flow (state_hash);
 CREATE INDEX oidc_flow_expiry_idx ON oidc_flow (expires_at);
