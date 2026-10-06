@@ -62,5 +62,7 @@ invitation used twice, or after it expired, gets one plain sentence and the name
   redeemed is refused on the card in check 3's one sentence. Without the link only a provider
   authoritative for the address accepts the invitation; a connection made by an arrival before SC-32
   without either proof activates nothing. In a workspace that switched the password off the card
-  offers only the providers. Under *Only these organisations* an address outside the list stays
-  refused: the link does not widen the list.
+  offers only the providers. Under *Only these organisations* the link admits the invited address
+  even outside the list - the invitation is the administrator's choice of that person - and admits
+  nobody else; without the link an address outside the list stays refused
+  (`TestUnderDomainsTheLinkAdmitsTheInvitedAddressOutsideTheList`).

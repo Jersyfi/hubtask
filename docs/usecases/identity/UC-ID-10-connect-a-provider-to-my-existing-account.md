@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6]
 serves: [P-02, P-05, P-12, P-16]
 state: partial
 tasks: [SC-01, SC-32, SC-33, SC-37]
-checked_by: [core/application/service/identity/OidcLinking_test.go, core/application/service/identity/OidcAdmission_test.go, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/IdentityProviderConfig_test.go, core/domain/model/identity/IdentityProviderPreset_test.go, core/domain/model/identity/ProviderAdmission_test.go, infrastructure/oidc/Authority_test.go, test/integration/identity_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/provider_refusal_test.go, apps/webapp/e2e/signin.test.mjs]
+checked_by: [core/application/service/identity/OidcLinking_test.go, core/application/service/identity/OidcAdmission_test.go, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/OidcCredentialless_test.go, core/application/service/identity/IdentityProviderConfig_test.go, core/domain/model/identity/IdentityProviderPreset_test.go, core/domain/model/identity/ProviderAdmission_test.go, infrastructure/oidc/Authority_test.go, test/integration/identity_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/provider_refusal_test.go, apps/webapp/e2e/signin.test.mjs]
 ---
 
 # Connect a sign-in provider to the account I already have
@@ -88,3 +88,12 @@ without them - and an address nobody here holds is still refused
 (`TestUnderInvitedOnlyAMemberConnectsANonAuthoritativeProviderWithTheirPassword`,
 `TestUnderInvitedOnlyAnArmedMemberConnectsOnlyWithPasswordAndCode`,
 `TestUnderInvitedOnlyANonAuthoritativeProviderStillRefusesTheRest`).
+
+**Checks 5 and 6 for an account that holds no credential at all** - no password, no second factor,
+no provider identity, as after its provider was removed: until SC-32 an admitted arrival connected
+it and opened a session on the provider's word in every mode, so an administrator's own issuer could
+sign in as such a member. It is connected now only by a provider authoritative for its address (the
+mailbox's host vouching, ADR-0078 §5); otherwise nothing is connected, the refusal is in the trail,
+and the answer `identity_provider.link_needs_mailbox` points at *Forgot your password?*
+(`TestACredentiallessAccountIsConnectedOnlyByAnAuthoritativeProvider`, every mode, authoritative and
+not).
