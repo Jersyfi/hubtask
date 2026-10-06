@@ -186,3 +186,48 @@ func TestUnderAnOpeningAProviderOnlyAccountIsMailedAFirstPassword(t *testing.T) 
 		t.Errorf("the session the opening let in is in the trail with cause %v, want OPERATOR", cause)
 	}
 }
+
+// SC-33's connect link is for a workspace whose password is shut: the mailbox stands in for it there.
+// Under an operator's opening the password is open, so the reset mails what it mails wherever the
+// password is open - the reset link to a password holder, SC-25's first-password link to an account
+// without one - and never a link to connect a provider (ADR-0078 §1, §3, §4).
+func TestUnderAnOpeningNoConnectLinkIsMailed(t *testing.T) {
+	for name, arrange := range map[string]func(*stepFixture){
+		"a password holder never connected": func(*stepFixture) {},
+		"an account without a password":     withoutPassword,
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newStepFixture(now)
+			arrange(f)
+			passwordOffWith(f, []domain.IdentityProvider{ownProvider})
+			if link := mintFor(t, f); !link.Connect {
+				t.Fatalf("with the password off a connect link was not mailed: %+v", link)
+			}
+
+			operatorOpened(f, now.Add(time.Hour))
+			link := mintFor(t, f)
+			if link.Connect {
+				t.Errorf("under the opening a connect link was mailed: %+v", link)
+			}
+			if !link.HasPassword && !link.First {
+				t.Errorf("under the opening the mail carries no link to sign in by password: %+v", link)
+			}
+		})
+	}
+}
+
+// A connect link mailed before the operator opened the password is refused at the start while the
+// opening stands: the password is open, and the reset link is the way in there (SC-33's door).
+func TestUnderAnOpeningAConnectLinkStartsNoFlow(t *testing.T) {
+	f := connectFixture(t)
+	f.writer.Session.Rule = shutDoor{open: true, cause: FallbackCauseOperator}
+	link, _ := connectLinkFor(t, f, account, connectAt.Add(time.Hour), 51)
+
+	_, err := StartOidcSignIn{Writer: f.writer}.Execute(t.Context(), StartOidcSignInCommand{ConnectToken: link})
+	if err == nil {
+		t.Fatal("a connect link started a flow under an operator's opening")
+	}
+	if len(f.flows.byState) != 0 {
+		t.Errorf("a refused start wrote %d flows", len(f.flows.byState))
+	}
+}
