@@ -173,6 +173,7 @@ class OidcStart(TypedDict, total=False):
     provider_id: str | None
     login_hint: str | None
     invitation_token: str | None
+    connect_token: str | None
 
 class OidcAuthorization(TypedDict, total=False):
     """Where to send the browser, and the handle to finish with."""

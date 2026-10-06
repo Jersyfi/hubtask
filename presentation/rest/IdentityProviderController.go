@@ -467,6 +467,9 @@ func (c *RestController) StartOidcSignIn(w http.ResponseWriter, r *http.Request)
 	if body.InvitationToken != nil && *body.InvitationToken != "" {
 		in["invitation_token"] = *body.InvitationToken
 	}
+	if body.ConnectToken != nil && *body.ConnectToken != "" {
+		in["connect_token"] = *body.ConnectToken
+	}
 
 	out, err := c.UseCases.Invoke(r.Context(), startOidcSignInUseCase, actorOf(r), in)
 	if err != nil {
