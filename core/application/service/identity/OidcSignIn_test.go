@@ -63,6 +63,8 @@ type externalStore struct {
 	bySubject map[string]domain.Account
 	links     []string
 	refuse    bool
+	// unlinked names the accounts whose identities were dropped, in order.
+	unlinked []shared.ID
 	// accounts is where a linked subject's account is read back from, so that the second
 	// arrival finds the person rather than a stub the double invented.
 	accounts *accountStore
@@ -121,6 +123,19 @@ func (s *externalStore) HasIdentity(_ context.Context, accountID shared.ID) (boo
 		}
 	}
 	return false, nil
+}
+
+// UnlinkAll drops every identity of the account, and records that it did.
+func (s *externalStore) UnlinkAll(_ context.Context, accountID shared.ID) (int, error) {
+	removed := 0
+	for key, account := range s.bySubject {
+		if account.ID == accountID {
+			delete(s.bySubject, key)
+			removed++
+		}
+	}
+	s.unlinked = append(s.unlinked, accountID)
+	return removed, nil
 }
 
 // arriving is the identity the library would have verified.

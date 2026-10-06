@@ -139,3 +139,55 @@ func TestAFlowCarriesItsInvitationHomeAndNowhereElse(t *testing.T) {
 		return nil
 	})
 }
+
+// An invited account activated with its second proof loses what was connected to it before that
+// proof (ADR-0078 §1): UnlinkAll drops the account's identities in its own workspace and touches
+// nothing next door (gate SG-3).
+func TestAnInvitedAccountsConnectionsAreDroppedAtHomeOnly(t *testing.T) {
+	ctx := context.Background()
+	seedSecondProofTenants(ctx, t)
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO identity_provider (id, tenant_id, issuer, client_id, client_secret_enc,
+		                               client_secret_key_id, created_at)
+		VALUES ($1, $2, 'https://sc32.example/idp', 'hubtask', '\x00', 'k-sc32', now())
+		ON CONFLICT (id) DO NOTHING`, sc32Provider.String(), sc32TenantA.String()); err != nil {
+		t.Fatalf("seeding the provider: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `DELETE FROM account_identity WHERE account_id = $1`,
+		sc32InvitedA.String()); err != nil {
+		t.Fatalf("clearing an earlier run's links: %v", err)
+	}
+
+	external := postgres.NewExternalAccountRepository()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	inTenant(t, uow, sc32TenantA, func(ctx context.Context) error {
+		linked, err := external.LinkSubject(ctx, sc32Provider, sc32InvitedA, "sc32-subject", time.Now())
+		if err != nil || !linked {
+			t.Fatalf("linking: (%v, %v)", linked, err)
+		}
+		return nil
+	})
+
+	// Gate SG-3: B removes nothing of A's account, however exactly it names it.
+	inTenant(t, uow, sc32TenantB, func(ctx context.Context) error {
+		removed, err := external.UnlinkAll(ctx, sc32InvitedA)
+		if err != nil || removed != 0 {
+			t.Errorf("B removed A's account's identities: (%d, %v)", removed, err)
+		}
+		return nil
+	})
+	inTenant(t, uow, sc32TenantA, func(ctx context.Context) error {
+		if held, err := external.HasIdentity(ctx, sc32InvitedA); err != nil || !held {
+			t.Fatalf("A's link did not survive B's attempt: (%v, %v)", held, err)
+		}
+		removed, err := external.UnlinkAll(ctx, sc32InvitedA)
+		if err != nil || removed != 1 {
+			t.Errorf("A removed %d identities (%v), want its one", removed, err)
+		}
+		if held, err := external.HasIdentity(ctx, sc32InvitedA); err != nil || held {
+			t.Errorf("the account still holds an identity: (%v, %v)", held, err)
+		}
+		return nil
+	})
+}

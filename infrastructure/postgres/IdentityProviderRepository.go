@@ -606,6 +606,25 @@ func (ExternalAccountRepository) HasIdentity(ctx context.Context, accountID shar
 	return held, nil
 }
 
+// UnlinkAll drops every provider identity of the account (ADR-0078 §1).
+func (ExternalAccountRepository) UnlinkAll(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return 0, err
+	}
+	removed, err := queries.UnlinkAccountIdentities(ctx, account)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("removing an account's provider identities: %w", err))
+	}
+	return int(removed), nil
+}
+
 var _ repository.IdentityProviderSealing = IdentityProviderRepository{}
 
 func (IdentityProviderRepository) ListSealed(

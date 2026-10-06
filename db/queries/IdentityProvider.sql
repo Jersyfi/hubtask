@@ -205,6 +205,12 @@ SELECT EXISTS (
   SELECT 1 FROM account_identity WHERE account_id = sqlc.arg('account_id')
 ) AS held;
 
+-- name: UnlinkAccountIdentities :execrows
+-- Every provider identity of one account (ADR-0078 §1): an invited account is activated only with a
+-- second proof, and what was connected to it before that proof is dropped in the activation's
+-- transaction. Row level security keeps it to this workspace's accounts.
+DELETE FROM account_identity WHERE account_id = sqlc.arg('account_id');
+
 -- name: LinkAccountIdentity :execrows
 -- Writes the link, and races safely: the unique index on (tenant, provider, subject) is what
 -- refuses a subject already spoken for, and `DO NOTHING` is what makes a second sign-in that got

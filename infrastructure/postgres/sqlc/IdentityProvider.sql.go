@@ -735,6 +735,21 @@ func (q *Queries) SetProviderWithdrawal(ctx context.Context, arg SetProviderWith
 	return i, err
 }
 
+const unlinkAccountIdentities = `-- name: UnlinkAccountIdentities :execrows
+DELETE FROM account_identity WHERE account_id = $1
+`
+
+// Every provider identity of one account (ADR-0078 §1): an invited account is activated only with a
+// second proof, and what was connected to it before that proof is dropped in the activation's
+// transaction. Row level security keeps it to this workspace's accounts.
+func (q *Queries) UnlinkAccountIdentities(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, unlinkAccountIdentities, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateIdentityProvider = `-- name: UpdateIdentityProvider :one
 UPDATE identity_provider SET
   issuer                = $1,
