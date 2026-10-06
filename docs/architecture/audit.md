@@ -103,8 +103,10 @@ full database access who recomputes it. For that, the chain end is anchored outs
   shorter than the audit period** (400 days by default) — an anchor that expires before the entries
   it seals cannot be checked. 400 files of a few hundred bytes are under a megabyte.
 
-Entries are deleted only by the retention job, a month partition at a time, never individually. The
-deletion writes an entry with the count and the period.
+Entries are deleted only by retention, a month partition at a time, never individually, and the
+deletion writes an entry with the count and the period. **Not built yet:** nothing drops an
+`audit_log` partition today, so the trail is kept beyond its period
+([data-retention.md](./data-retention.md) §3, kind `AUDIT`).
 
 ---
 
@@ -219,7 +221,7 @@ So pseudonymisation happens at the two points where it can:
   as a pseudonym derived per tenant from the identifier (`audit_pseudonym`), not as the stored label.
   The row is untouched, the chain still verifies, and one actor's entries stay one actor's.
 * **At the end of life.** When the retention period is up, the partition is dropped whole (§3) — the
-  same deletion for everybody.
+  same deletion for everybody. (Not built yet; see §3.)
 
 The erasure itself is audited with `legal_basis = dsr.erasure`: the entry about the erasure is the
 one that has to survive it.
