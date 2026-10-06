@@ -19,7 +19,8 @@ accident, it is the basis you work from.
 make tools
 make db-up && make migrate
 # work
-make verify          # must be green
+make verify          # the fast gates, while working
+make verify-pr       # the pull request check, before it leaves draft
 ```
 
 ## Signing in locally
@@ -111,7 +112,7 @@ each and record the split as a checklist in the pull request body, before you st
 request as a **draft** at that point; it takes the checklist and marks the work as running.
 
 Per step: one commit, pushed straight away, and its box ticked. `make gate-quick` stays green at
-every commit and `make verify` at the last one; only then does the pull request leave draft.
+every commit and `make verify-pr` at the last one; only then does the pull request leave draft.
 
 A step is one concern. Tests travel with the code they test, not in a trailing "add tests" commit.
 No `wip` or `fixup` commits: while the pull request is a draft you may rewrite history, once it is
@@ -135,14 +136,21 @@ never shows it. `make gate-pr BODY=<file>` checks a draft locally. Two items are
 
 ## The pipeline: one required check
 
-Every workflow runs on every pull request, but most jobs decide for themselves that they have
-nothing to do. A documentation change does not run twelve security gates, and a change to the
+**A draft runs no CI** ([ADR-0078](docs/adr/ADR-0078-a-draft-is-checked-locally.md)). It is
+checked where it is written: `make verify-pr` runs `make verify`, then every gate the pipeline would
+run for your branch — selected by the same path filters — and the description against the template.
+The pipeline runs when the pull request leaves draft, once. Rework on a pull request that is ready
+goes back to draft first (`gh pr ready --undo`); bringing it up to date with `main` does not.
+
+Once a pull request is ready, every workflow runs, but most jobs decide for themselves that they
+have nothing to do. A documentation change does not run twelve security gates, and a change to the
 design system does not run the Helm chart lint.
 
 **`CI required` is the only required status check.** It waits for every other job and fails if any
 of them failed or was cancelled; a job that was skipped because its part of the tree did not change
 counts as passing. So a green `CI required` means "everything that had something to say about this
-change said it".
+change said it". On a draft the same job reports as `CI not run (draft)`, so a draft can never meet
+the required check.
 
 Two consequences worth knowing:
 

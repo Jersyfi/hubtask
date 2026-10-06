@@ -141,7 +141,9 @@ ready, once, and again only when what is ready changes.**
    what it could not, and on success writes a stamp naming the checked commit into the checkout's
    git directory. A test in `test/architecture` holds every job in `ci-required`'s `needs` to one
    of two lists: run by `make verify-pr` for the same filters, or *CI only* with the reason
-   (`dependencies`: the review needs the pull request; CodeQL).
+   (`secrets`: gitleaks is not among the pinned tools, and push protection stops a key at the
+   push; `dependencies`: the review needs the pull request; the description, which `make verify-pr`
+   checks with `make gate-pr` itself). CodeQL is a workflow of its own and runs after *Ready*.
 7. **A Claude Code hook enforces the two transitions.** `.claude/settings.json`, committed, runs a
    `PreToolUse` hook on `Bash` that refuses
    * `gh pr ready` (not `--undo`) unless the stamp names `HEAD` and `HEAD` is pushed — a pull

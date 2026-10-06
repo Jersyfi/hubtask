@@ -50,7 +50,7 @@ injected.
 
 ## 3. Definition of Done
 
-1. Code and tests green at every relevant level; coverage thresholds held.
+1. Code and tests green at every relevant level; coverage thresholds held; `make verify-pr` green for the pushed `HEAD` before the pull request leaves draft ([ADR-0078](../adr/ADR-0078-a-draft-is-checked-locally.md)).
 2. `openapi.yaml` updated, code generation run, no diff after `make generate`.
 3. The use case is registered in the registry → available via REST, MCP, and automation (parity test green).
 4. Event schemas added under `api/events/`.

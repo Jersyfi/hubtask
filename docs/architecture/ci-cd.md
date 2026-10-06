@@ -10,7 +10,8 @@ Implements [ADR-0022](../adr/ADR-0022-github-platform.md) and makes concrete the
 Every step of a workflow is a `make` target. The workflow contains no logic, only orchestration.
 Which means:
 
-* Every gate is reproducible locally (`make verify` = the complete PR pipeline).
+* Every gate is reproducible locally: `make verify-pr` runs what the pull request pipeline runs for
+  the branch, and `make verify` is its fast half ([ADR-0078](../adr/ADR-0078-a-draft-is-checked-locally.md), §3.4).
 * Switching platform touches only `.github/workflows/`.
 * Contributors get the same result before pushing as after.
 
@@ -20,15 +21,15 @@ Which means:
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `ci.yml` | Pull request, push to `main` | The PR gates: format, lint, generation, build, tests, security, architecture, data, chart, Compose, documentation and licences |
+| `ci.yml` | Pull request once it is ready — opened ready, leaving draft, or pushed to while ready; push to `main` | The PR gates: format, lint, generation, build, tests, security, architecture, data, chart, Compose, documentation and licences |
 | `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the privacy gates that need a database — PG-2 and PG-7 (`make gate-privacy-full`, on arm64; on amd64 they run in every pull request's data job since #246) — and `make gate-selftest` on the other architecture, the point-in-time recovery drill against a real operator and object store (`make gate-pitr`, H-10), the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
 | `release.yml` | Tag `v*` | Compute the version, build the multi-arch image, SBOM, signature, provenance, Helm chart, GitHub release |
 | `deploy.yml` | Push to `main`, manual dispatch | `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
 | `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/` or the lockfile; manual dispatch | Build `apps/website/dist`, prove it is plain static files, mirror it to the webspace over SFTP (§CI-4). A failure files an issue labelled `claude:task` |
 | `workbench.yml` | Push to `main` touching `packages/design-system/` | Publish the component workbench to `workbench.hubtask.eu` from its own scoped account ([ADR-0038](../adr/ADR-0038-workbench-published.md)) |
-| `codeql.yml` | PR, schedule | Static security analysis |
+| `codeql.yml` | Pull request once it is ready, push to `main`, schedule | Static security analysis |
 | `scorecard.yml` | Schedule | OpenSSF supply chain scorecard |
-| `claude-review.yml` | Pull request, unless it is a draft or Dependabot's | **Switched off** — posts the review checklist as the record that no automated reviewer ran (§5) |
+| `claude-review.yml` | A pull request opened ready or leaving draft, unless it is Dependabot's | **Switched off** — posts the review checklist as the record that no automated reviewer ran (§5) |
 | `claude.yml` | `@claude` in an issue, comment or review; the label `claude:task` on an issue | **Switched off** — answers that delegation is off rather than dropping the request (§5) |
 
 ---
@@ -103,6 +104,7 @@ outputs whether it has work to do.
 | `webapp`, `design_system`, `api_client`, `go`, `deploy` | The container build, because the image contains both halves ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
 | documentation only | The documentation gate, the secret scan, the dependency review and the licence gate — the four that are behind no filter — and, on a pull request, the description check |
 | `.github/**` | Everything, no exceptions |
+| anything, on a draft | Nothing: every job is skipped and `ci-required` reports as `CI not run (draft)` — the draft is checked with `make verify-pr` (§3.4) |
 
 Four jobs are behind no filter at all — `secrets`, `dependencies`, `licences` and `docs`. A key
 and a copyleft dependency get in through any path, including a stylesheet and a README, so a
@@ -160,6 +162,15 @@ It fails if any dependency ended as `failure` or `cancelled`, and passes when th
 individual job to the required list re-introduces exactly the deadlock above, so a new job is
 added to `ci-required`'s `needs` and nowhere else.
 
+**On a draft it has another name.** Every job is skipped on a draft (§3.4), so `ci-required` would
+pass — and a green `CI required` on a draft's commit satisfies branch protection without a gate
+having run. GitHub supersedes it once the next run's check suite exists, but the probe of #1137
+read the pull request as mergeable in the moment after *Ready for review*. So the job's name is an
+expression: `CI not run (draft)` on a draft, `CI required` on every other run. A draft's commit
+carries no required check at all, and the one that satisfies branch protection can only come from
+a run that checked something. `test/architecture` holds the expression, and `gate-selftest` proves
+that test goes red without it.
+
 A gate whose subject does not exist yet (no migrations, no contract tests) reports that it is
 skipping and stays green. It starts biting the moment the first package appears - which is what
 lets the milestone build all gates up front and fill them in task by task. What must never happen
@@ -183,6 +194,33 @@ decides nothing: a restored directory that does not match is thrown away and ins
 The same reasoning has not yet been applied to the *project's* build and module caches, which is
 where the rest of a job's cold start lives. That is measured work of its own, because thirteen
 jobs each keeping a build cache is a real question against the repository's 10 GB.
+
+### 3.4 A draft is checked locally; CI runs when it is ready
+
+Decided in [ADR-0078](../adr/ADR-0078-a-draft-is-checked-locally.md) on the measurement of
+2026-09-24…10-03: 140 of 220 runs — 64 % — ran on drafts, 66 of them cancelled by the next push, and
+the description check failed 59 times on descriptions that were unfinished by design.
+
+* **`ci.yml` and `codeql.yml` trigger on `ready_for_review` as well**, and every job that needs no
+  other job carries `github.event_name != 'pull_request' || !github.event.pull_request.draft`. All
+  others depend on one of them and are skipped with it. The review notice is posted when a pull
+  request opens ready or leaves draft; an edited draft's description re-runs nothing.
+* **`make verify-pr` is the check before leaving draft.** It runs `make verify`, then every gate
+  this pipeline would run for the branch's diff against `origin/main`, selected through
+  `tools/cilocal` — the filters of the `changes` job and a table of the jobs, which
+  `test/architecture` holds to this file: the same jobs `ci-required` waits for, the same filters
+  per job and per package. Three jobs are CI only and say why: `secrets`, `dependencies`, and the
+  description, which verify-pr checks with `make gate-pr` itself.
+* **The container gates take turns.** Their compose projects and host ports are fixed, and every
+  worktree on a machine shares one Docker daemon, so `make verify-pr` runs them under a lock in the
+  common git directory. When Docker does not answer it reports them as not run, and this pipeline
+  runs them after *Ready*.
+* **A stamp and a hook.** On success `make verify-pr` writes the checked commit into the checkout's
+  git directory; the hook in `.claude/settings.json` refuses `gh pr ready` unless that commit is
+  `HEAD` and pushed, and `gh pr create` without `--draft`.
+
+Measured on a laptop, every gate for a change that touches everything takes about fifteen minutes,
+once, against roughly eight of wall clock for this pipeline running the same in parallel.
 
 ---
 

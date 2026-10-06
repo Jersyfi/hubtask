@@ -58,7 +58,8 @@ where. They load when work happens in that directory.
 
 | Changed | Run |
 |---|---|
-| Anything in the Go tree | `make verify` — the local equivalent of the pull request check |
+| Anything in the Go tree | `make verify` — the fast gates, while working |
+| Before `gh pr ready` — any change | `make verify-pr` — the pull request check, locally: `make verify`, then every gate CI runs for the branch, and the description ([ADR-0078](docs/adr/ADR-0078-a-draft-is-checked-locally.md)) |
 | A single concern while iterating | `make gate-quick`, `gate-unit`, `gate-architecture`, `gate-security` |
 | `api/openapi.yaml`, `db/queries/` | `make generate`, then `make verify` — it must produce no diff |
 | `packages/design-system/tokens/tokens.json` | `make tokens`, then commit the regenerated `core/domain/model/shared/LabelTokens.go` |
@@ -133,13 +134,14 @@ that instead of breaking the rule.
    One step, one commit, pushed immediately.
 5. **Test**: domain logic with table tests and no infrastructure. Repositories with Testcontainers.
    A cross-tenant negative test for every new repository method — otherwise gate SG-3 fails.
-6. **Check**: `make verify` must be green locally, and `/usecase-check` over the branch must find
-   every named check met with evidence, before the pull request leaves draft.
-7. **Finish**: take the pull request out of draft, fill in the template completely — including the
+6. **Check**: `/usecase-check` over the branch must find every named check met with evidence, and
+   `make verify-pr` must be green for the pushed `HEAD`, before the pull request leaves draft.
+7. **Finish**: fill in the template completely — including the
    *Use cases* section, check by check; start from a copy of `.github/PULL_REQUEST_TEMPLATE.md`,
    because `gh pr create --body` never shows it, and CI refuses a description with a section
    missing — move the use cases' `state:` and `checked_by:`, and work
-   through the Definition of Done in `docs/architecture/engineering-guidelines.md` §3.
+   through the Definition of Done in `docs/architecture/engineering-guidelines.md` §3. Then
+   `gh pr ready` — the moment CI runs (§ "When CI runs").
 
 ## The issue is the task
 
@@ -200,7 +202,7 @@ the checklist. Push right away — an unpushed commit protects nobody.
 
 Rules for a good step:
 
-* It builds. `make gate-quick` is green at **every** commit; `make verify` is green at the last.
+* It builds. `make gate-quick` is green at **every** commit; `make verify-pr` is green at the last.
 * It is one concern. Two concerns in one commit means two commits, even if they are three lines each.
 * Tests travel with the code they test, never as a trailing "add tests" commit.
 * More than about 8 files, or a title needing the word "and", means the step is too big.
@@ -220,6 +222,27 @@ make verify                       # where it stands
 
 Continue at the first unticked box. Do not start over, and do not rewrite what is already pushed.
 
+## When CI runs
+
+**A draft is checked in the session; CI runs when the pull request is ready**
+([ADR-0078](docs/adr/ADR-0078-a-draft-is-checked-locally.md)). A push to a draft starts nothing,
+and `CI required` cannot be met by a draft — its check is called `CI not run (draft)`.
+
+* **Every pull request starts as a draft**, documentation included: `gh pr create --draft`.
+* **Leaving draft:** `make verify-pr` green, the commit pushed on its own, then `gh pr ready`. CI
+  then runs once, on what is ready.
+* **Rework on a ready pull request goes back to draft first** — the owner's review, a use case
+  check, a red CI run alike: `gh pr ready --undo`, the commits, `make verify-pr`, `gh pr ready`.
+* **Except bringing the branch up to date with `main`:** branch protection requires it and it
+  changes nothing that was reviewed, so the pull request stays ready and that run is the one that
+  has to happen.
+
+The hook in `.claude/settings.json` holds a session to the first two: it refuses `gh pr create`
+without `--draft`, and `gh pr ready` unless `make verify-pr`'s stamp names the pushed `HEAD`. It
+loads when a session starts, so a session older than the hook keeps the rules by hand.
+`make verify-pr` runs the container gates one session at a time across all worktrees; when Docker
+does not answer it says so and leaves them to CI.
+
 ## Definition of Done (short form — the long form governs)
 
 A piece of work is finished when, in addition to working code:
@@ -233,13 +256,14 @@ A piece of work is finished when, in addition to working code:
 - A merge rule is defined for every new field for offline synchronisation (LWW, OR-set,
   fractional index, or server-side) — see `offline-sync.md` §4
 - Message codes are in `locales/en.json`
-- `make verify` is green, and `make generate` produces no diff
+- `make verify-pr` is green for the pushed `HEAD`, and `make generate` produces no diff
 
 ## Commands
 
 ```bash
 make tools              # install the tools once
-make verify             # all fast gates — the local equivalent of the PR check
+make verify             # the fast gates, while working
+make verify-pr          # the pull request check, locally — before gh pr ready (ADR-0078)
 make gate-unit          # tests only
 make gate-architecture  # layer boundaries, goroutine ban, parity checks
 make gate-security      # SG-1..SG-12
