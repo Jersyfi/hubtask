@@ -1,30 +1,35 @@
-# Working in docs/usecases
+# docs/usecases — the yardstick
 
-A use case is the owner's statement of what must be true for a person. It is the yardstick a task
-is checked against, so it is changed with more care than the code it describes.
+One file per use case: the owner's statement of what must be true for a person, and the yardstick
+every task is checked against. The format and the states are in [`README.md`](./README.md).
 
-**What a session may change on its own:**
+## What must not happen here
 
-* `state:`, `tasks:` and `checked_by:` in the front matter — when a pull request builds or proves a
-  check, it moves the state and names the evidence, in the same pull request.
-* The *Today* section — which checks are not met yet, and where that is tracked.
-* A new use case in `state: specified`, **only when the owner asked for it** in the conversation or
-  in the task. Say so in the pull request body.
+* **No change to *Goal*, *How to check* or *Where it ends* without the owner.** If the code cannot
+  meet a check, or a check turns out to be wrong, stop and report it in the issue and the pull
+  request. A check rewritten to match what was built is the drift this folder exists to prevent.
+* **No use case deleted or renumbered.** One that no longer applies moves to `state: retired` with
+  a line saying why. An ID is never reused.
+* **No new use case unless the owner asked for it**, in the conversation or the task — and then
+  only in `state: specified`, said so in the pull request body.
+* **No check a reviewer has to interpret.** Each check is one observable fact: a person does X and
+  sees Y; a request without Z is refused with code W; in deployment D1 the screen does not show V.
+  "Works well", "is intuitive", "handles errors" are not checks. A check only a walk can confirm
+  names the screen and the persona.
+* **No *Today* that says more than what is missing.** It lists only the checks not met yet, one line
+  per check with where it is tracked, and it is absent once the state is `built` or `verified`.
 
-**What needs the owner:**
+## What you may change on your own
 
-* *Goal*, *How to check* and *Where it ends*. If the code cannot meet a check, or a check turns out
-  to be wrong, **stop and report** — in the issue and in the pull request — instead of softening
-  the sentence. A check rewritten to match what was built is exactly the drift this folder exists
-  to prevent.
-* Removing or renumbering a use case. A use case that no longer applies moves to
-  `state: retired` with a line saying why; its ID is never reused.
+`state:`, `tasks:` and `checked_by:` in the front matter, and *Today* — in the pull request that
+builds or proves a check, naming its evidence.
 
-**Writing checks.** Each check under *How to check* is one observable fact a reviewer can confirm
-without interpreting it: a person does X and sees Y; a request without Z is refused with code W; in
-deployment D1 the screen does not show V. "Works well", "is intuitive", "handles errors" are not
-checks. When a check can only be confirmed by walking the app, say which screen and which persona.
+## How to check a change
 
-**Before building a task**, read every use case the task names, completely — including *Where it
-ends*, which is what stops a session from building more than was asked. Measure the change against
-the principles the use case serves ([`../vision/principles.md`](../vision/principles.md)).
+```bash
+make gate-docs           # front matter, sections, the index, and every UC-… cited anywhere
+```
+
+Before building, read every use case the task names completely — *Where it ends* is what stops
+you building more than was asked. Before a pull request leaves draft, work through the checklist
+in `README.md` § Checking work.
