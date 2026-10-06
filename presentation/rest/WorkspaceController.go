@@ -155,6 +155,9 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 	if policy, held := out["sign_in_policy"].(usecase.Output); held {
 		answer.SignInPolicy = signInPolicyResponse(policy)
 	}
+	if opening, held := out["password_opening"].(usecase.Output); held {
+		answer.PasswordOpening = passwordOpeningResponse(opening)
+	}
 	if rows, held := out["hosts"].([]usecase.Output); held && len(rows) > 0 {
 		hosts := make([]openapi.WorkspaceHost, 0, len(rows))
 		for _, row := range rows {

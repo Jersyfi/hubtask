@@ -286,6 +286,17 @@ func (w WorkspaceWriter) record(
 	})
 }
 
+// standing keeps an operator's opening of the password only while it stands (ADR-0078 §3): an
+// opening past its end is answered as none, whatever the row still holds until the job that records
+// the end has run. Without a clock there is no telling, and an opening read as standing forever is
+// the one mistake its bound exists to prevent.
+func (w WorkspaceWriter) standing(workspace domain.Workspace) domain.Workspace {
+	if w.Clock == nil || !workspace.PasswordOpening.InForce(w.Clock.Now()) {
+		workspace.PasswordOpening = domain.PasswordOpening{}
+	}
+	return workspace
+}
+
 // workspaceOutput is the read shape, shared by both use cases so that the answer after a write is
 // the answer a read gives.
 //
@@ -318,6 +329,14 @@ func workspaceOutput(
 	}
 	if resolved != nil {
 		out["sign_in_policy"] = signInPolicyOutput(*resolved)
+	}
+	// The installation operator's opening of the password, while it stands (ADR-0078 §3): the
+	// administrators' screen says so, with until when, for whom and why. Read-only - it is the
+	// control plane's, and the PATCH declares no field for it.
+	if opening := workspace.PasswordOpening; !opening.Until.IsZero() {
+		out["password_opening"] = usecase.Output{
+			"until": opening.Until, "requester": opening.Requester, "reason": opening.Reason,
+		}
 	}
 	// The hosts this workspace answers at (SI-12). Read-only and absent where there are none: the
 	// canonical one is derived from the slug and nothing resolves a request through the table yet,
@@ -378,7 +397,7 @@ func (h ReadWorkspace) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return workspaceOutput(workspace, h.Writer.resolvedPolicy(ctx, actor.TenantID), hosts), nil
+	return workspaceOutput(h.Writer.standing(workspace), h.Writer.resolvedPolicy(ctx, actor.TenantID), hosts), nil
 }
 
 func (h UpdateWorkspace) Descriptor() usecase.Descriptor {
@@ -456,7 +475,7 @@ func (h UpdateWorkspace) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return workspaceOutput(workspace, h.Writer.resolvedPolicy(ctx, actor.TenantID), hosts), nil
+	return workspaceOutput(h.Writer.standing(workspace), h.Writer.resolvedPolicy(ctx, actor.TenantID), hosts), nil
 }
 
 // resolvedPolicy answers the rule for the projection, or nil where there is no level above to

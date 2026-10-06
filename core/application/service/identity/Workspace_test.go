@@ -10,6 +10,7 @@ import (
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -270,5 +271,37 @@ func TestTheAnswerCarriesWhatTheContractDeclares(t *testing.T) {
 	read.Settings.AuditAnchorTargetID = shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
 	if got := workspaceOutput(read, nil, nil)["audit_anchor_target_id"]; got != "0192f000-0000-7000-8000-0000000000b1" {
 		t.Errorf("the answer names %v as the anchoring target", got)
+	}
+}
+
+// The workspace's own read answers an operator's opening of the password while it stands, with until
+// when, for whom and why - the administrators' screen shows it (ADR-0078 §3) - and none once its end
+// has passed, whatever the row still holds until the end is recorded.
+func TestTheWorkspaceReadAnswersAnOpeningWhileItStands(t *testing.T) {
+	f := newWorkspaceFixture(at())
+	read := func() usecase.Output {
+		t.Helper()
+		out, err := ReadWorkspace{Writer: f.writer}.invoke(t.Context(), workspaceActor(), usecase.Input{})
+		if err != nil {
+			t.Fatalf("reading: %v", err)
+		}
+		return out
+	}
+	if _, held := read()["password_opening"]; held {
+		t.Error("a workspace with no opening answers one")
+	}
+
+	f.store.row.PasswordOpening = domain.PasswordOpening{
+		Until: at().Add(time.Hour), Requester: "TICKET-4711", Reason: "the directory answers 500",
+	}
+	opening, _ := read()["password_opening"].(usecase.Output)
+	if until, _ := opening["until"].(time.Time); !until.Equal(at().Add(time.Hour)) ||
+		opening["requester"] != "TICKET-4711" || opening["reason"] != "the directory answers 500" {
+		t.Errorf("the standing opening answers %+v", opening)
+	}
+
+	f.store.row.PasswordOpening.Until = at()
+	if _, held := read()["password_opening"]; held {
+		t.Error("an opening at its end is still answered")
 	}
 }
