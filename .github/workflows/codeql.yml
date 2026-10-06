@@ -3,8 +3,10 @@ name: CodeQL
 on:
   push:
     branches: [main]
+  # Not on a draft: the analysis runs when the pull request is ready (ADR-0079).
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   schedule:
     - cron: "0 4 * * 1"
 
@@ -13,6 +15,7 @@ permissions:
 
 jobs:
   analyze:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     permissions:
       security-events: write

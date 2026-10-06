@@ -85,3 +85,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0076](./ADR-0076-withdrawing-an-offered-provider.md) | Withdrawing an offered sign-in provider: a count, a notice, and a way back in | accepted | Identity, multi-tenancy |
 | [0077](./ADR-0077-nobody-is-locked-out.md) | Nobody is locked out: amendments to the withdrawal of an offered provider | accepted | Identity, multi-tenancy |
 | [0078](./ADR-0078-the-ways-back-in.md) | The ways back in: a second proof for a provider, a fallback for every cause, and an operator's lever | accepted | Identity, multi-tenancy |
+| [0079](./ADR-0079-a-draft-is-checked-locally.md) | A draft is checked locally; CI runs when a pull request is ready | accepted | CI, process, tooling |

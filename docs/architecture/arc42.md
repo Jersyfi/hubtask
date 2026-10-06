@@ -798,6 +798,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0076 | Withdrawing an offered sign-in provider: a count, a notice, and a way back in | accepted |
 | 0077 | Nobody is locked out: amendments to the withdrawal of an offered provider | accepted |
 | 0078 | The ways back in: a second proof for a provider, a fallback for every cause, and an operator's lever | accepted |
+| 0079 | A draft is checked locally; CI runs when a pull request is ready | accepted |
 
 ---
 

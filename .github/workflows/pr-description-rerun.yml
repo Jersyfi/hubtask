@@ -21,7 +21,8 @@ concurrency:
 jobs:
   rerun:
     name: Judge the edited description again
-    if: github.event.pull_request.user.type != 'Bot' && github.event.changes.body != null
+    # Not on a draft: its description is unfinished by design, and its CI run judged nothing (ADR-0079).
+    if: github.event.pull_request.user.type != 'Bot' && !github.event.pull_request.draft && github.event.changes.body != null
     runs-on: ubuntu-latest
     permissions:
       actions: write
