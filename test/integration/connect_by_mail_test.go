@@ -277,3 +277,78 @@ func TestAFlowCarriesItsConnectLinkHomeAndNowhereElse(t *testing.T) {
 		return nil
 	})
 }
+
+// The password switch's count (ADR-0078 §1): the workspace's active people that no provider in the
+// list signs in - connected, invited and service accounts aside - and none of the workspace next
+// door (gate SG-3).
+func TestTheCountIsTheWorkspacesUnconnectedPeopleOnly(t *testing.T) {
+	ctx := context.Background()
+	seedConnectTenants(ctx, t)
+	admin := adminPool(ctx, t)
+	var (
+		connected = shared.MustParseID("01936f2a-7c1e-7000-8000-000000033a51")
+		invited   = shared.MustParseID("01936f2a-7c1e-7000-8000-000000033a52")
+		service   = shared.MustParseID("01936f2a-7c1e-7000-8000-000000033a53")
+		disabled  = shared.MustParseID("01936f2a-7c1e-7000-8000-000000033a54")
+		other     = shared.MustParseID("01936f2a-7c1e-7000-8000-000000033a22")
+	)
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO account (id, tenant_id, kind, email, display_name, status)
+		VALUES ($1, $5, 'USER', 'connected@sc33.example', 'Connected', 'ACTIVE'),
+		       ($2, $5, 'USER', 'invited@sc33.example', 'Invited', 'INVITED'),
+		       ($3, $5, 'SERVICE_ACCOUNT', NULL, 'Robot', 'ACTIVE'),
+		       ($4, $5, 'USER', 'disabled@sc33.example', 'Disabled', 'DISABLED')
+		ON CONFLICT (id) DO NOTHING`,
+		connected.String(), invited.String(), service.String(), disabled.String(),
+		sc33TenantA.String()); err != nil {
+		t.Fatalf("seeding the accounts: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO identity_provider (id, tenant_id, issuer, client_id, client_secret_enc,
+		                               client_secret_key_id, created_at)
+		VALUES ($1, $3, 'https://sc33.example/idp', 'hubtask', '\x00', 'k-sc33', now()),
+		       ($2, $3, 'https://sc33.example/other', 'hubtask', '\x00', 'k-sc33', now())
+		ON CONFLICT (id) DO NOTHING`, sc33Provider.String(), other.String(), sc33TenantA.String()); err != nil {
+		t.Fatalf("seeding the providers: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO account_identity (tenant_id, account_id, provider_id, subject, linked_at)
+		VALUES ($1, $2, $3, 'sc33-connected', now()), ($1, $4, $5, 'sc33-elsewhere', now())
+		ON CONFLICT DO NOTHING`, sc33TenantA.String(), connected.String(), sc33Provider.String(),
+		sc33AccountA.String(), other.String()); err != nil {
+		t.Fatalf("seeding the identities: %v", err)
+	}
+
+	external := postgres.NewExternalAccountRepository()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	count := func(tenantID shared.ID, providers ...shared.ID) int {
+		t.Helper()
+		var counted int
+		if err := uow.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) error {
+			n, err := external.CountWithoutIdentityAt(ctx, providers)
+			counted = n
+			return err
+		}); err != nil {
+			t.Fatalf("counting: %v", err)
+		}
+		return counted
+	}
+
+	// Switched on: the one provider. Member A's identity is at the other one, which is not a way in
+	// here, so A counts; the connected account does not; invited, service and disabled never do.
+	if got := count(sc33TenantA, sc33Provider); got != 1 {
+		t.Errorf("A's count with its provider = %d, want 1", got)
+	}
+	// Both switched on: nobody active is without one.
+	if got := count(sc33TenantA, sc33Provider, other); got != 0 {
+		t.Errorf("A's count with both providers = %d, want 0", got)
+	}
+	// None switched on: every active person.
+	if got := count(sc33TenantA); got != 2 {
+		t.Errorf("A's count with no provider = %d, want 2", got)
+	}
+	// Gate SG-3: B counts its own one member and none of A's, whichever providers it names.
+	if got := count(sc33TenantB, sc33Provider, other); got != 1 {
+		t.Errorf("B's count = %d, want its own one member", got)
+	}
+}

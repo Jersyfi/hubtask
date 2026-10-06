@@ -206,6 +206,20 @@ SELECT EXISTS (
   SELECT 1 FROM account_identity WHERE account_id = sqlc.arg('account_id')
 ) AS held;
 
+-- name: CountAccountsWithoutIdentityAt :one
+-- How many people of this workspace no provider in the list signs in (ADR-0078 §1, SC-33): the
+-- number the password switch says before the password is switched off. Active people only - an
+-- invited account has not chosen a way in yet, and a service account signs in with a token - and a
+-- number, never a list (P-01's discipline inside the workspace too: the screen needs how many, not
+-- who). Row level security keeps both tables to this workspace.
+SELECT count(*) FROM account a
+WHERE a.kind = 'USER' AND a.status = 'ACTIVE' AND a.deleted_at IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM account_identity i
+    WHERE i.tenant_id = a.tenant_id AND i.account_id = a.id
+      AND i.provider_id = ANY(sqlc.arg('provider_ids')::uuid[])
+  );
+
 -- name: UnlinkAccountIdentities :execrows
 -- Every provider identity of one account (ADR-0078 §1): an invited account is activated only with a
 -- second proof, and what was connected to it before that proof is dropped in the activation's

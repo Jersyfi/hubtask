@@ -130,6 +130,28 @@ func (q *Queries) ConsumeStepUpOidcFlow(ctx context.Context, arg ConsumeStepUpOi
 	return i, err
 }
 
+const countAccountsWithoutIdentityAt = `-- name: CountAccountsWithoutIdentityAt :one
+SELECT count(*) FROM account a
+WHERE a.kind = 'USER' AND a.status = 'ACTIVE' AND a.deleted_at IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM account_identity i
+    WHERE i.tenant_id = a.tenant_id AND i.account_id = a.id
+      AND i.provider_id = ANY($1::uuid[])
+  )
+`
+
+// How many people of this workspace no provider in the list signs in (ADR-0078 §1, SC-33): the
+// number the password switch says before the password is switched off. Active people only - an
+// invited account has not chosen a way in yet, and a service account signs in with a token - and a
+// number, never a list (P-01's discipline inside the workspace too: the screen needs how many, not
+// who). Row level security keeps both tables to this workspace.
+func (q *Queries) CountAccountsWithoutIdentityAt(ctx context.Context, providerIds []pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countAccountsWithoutIdentityAt, providerIds)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countIdentityProviders = `-- name: CountIdentityProviders :one
 SELECT count(*) FROM identity_provider WHERE tenant_id = current_tenant_id()
 `

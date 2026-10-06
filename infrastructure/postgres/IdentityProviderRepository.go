@@ -636,6 +636,32 @@ func (ExternalAccountRepository) UnlinkAll(ctx context.Context, accountID shared
 	return int(removed), nil
 }
 
+// CountWithoutIdentityAt counts the workspace's active people no provider in the list signs in
+// (ADR-0078 §1). The providers travel as one array parameter (rule 9).
+func (ExternalAccountRepository) CountWithoutIdentityAt(
+	ctx context.Context, providerIDs []shared.ID,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	providers := make([]pgtype.UUID, 0, len(providerIDs))
+	for _, providerID := range providerIDs {
+		provider, err := uuidOf(providerID)
+		if err != nil {
+			return 0, err
+		}
+		providers = append(providers, provider)
+	}
+	counted, err := queries.CountAccountsWithoutIdentityAt(ctx, providers)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the accounts without a provider: %w", err))
+	}
+	return int(counted), nil
+}
+
 var _ repository.IdentityProviderSealing = IdentityProviderRepository{}
 
 func (IdentityProviderRepository) ListSealed(
