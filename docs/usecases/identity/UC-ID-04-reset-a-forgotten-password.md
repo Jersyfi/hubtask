@@ -4,8 +4,8 @@ title: Reset a forgotten password
 context: identity
 actors: [PE-person, PE-member, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
-serves: [P-02, P-11, P-12, P-13]
-state: built
+serves: [P-02, P-11, P-12, P-13, P-16]
+state: partial
 tasks: [SI-04, SI-15, SC-03]
 checked_by: [core/application/service/identity/Reset_test.go, apps/webapp/e2e/signin.test.mjs]
 ---
@@ -46,6 +46,9 @@ person falls back to recovery codes or a local recovery (see *Where it ends*).
 6. Every other session of the account has ended; personal access tokens have not.
 7. The trail holds `account.password_reset_requested` and `account.password_reset`, with no
    password and no address in either.
+8. Where the workspace has switched the password off, the mail carries a link that connects the
+   workspace's provider instead of one that sets a password; an account connected to a provider that
+   works there gets the mail that points to it.
 
 ## Where it ends
 
@@ -56,3 +59,8 @@ person falls back to recovery codes or a local recovery (see *Where it ends*).
 * No security questions, no hints, no SMS.
 * A household without a mail server is not served by this use case; that is a separate use case
   for local recovery.
+
+## Today
+
+Check 8 was added with the owner's approval on 2026-10-06 ([ADR-0078](../../adr/ADR-0078-the-ways-back-in.md)
+§1); it is SC-33 (#1140). Until it is built the state is `partial`; checks 1–7 hold as before.

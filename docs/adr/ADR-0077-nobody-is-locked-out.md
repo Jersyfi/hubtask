@@ -1,6 +1,6 @@
 # ADR-0077 — Nobody is locked out: amendments to the withdrawal of an offered provider
 
-**Status:** accepted · **Date:** 2026-10-03 · **Accepted:** 2026-10-03
+**Status:** accepted (amended by [ADR-0078](./ADR-0078-the-ways-back-in.md): §3, §4) · **Date:** 2026-10-03 · **Accepted:** 2026-10-03
 
 Amends [ADR-0076](./ADR-0076-withdrawing-an-offered-provider.md) §1, §2 and §4. ADR-0076 stays in
 force for everything this record does not name.
