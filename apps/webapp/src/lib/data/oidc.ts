@@ -74,6 +74,7 @@ export interface StartRequest {
   readonly login_hint?: string;
   readonly provider_id?: string;
   readonly invitation_token?: string;
+  readonly connect_token?: string;
 }
 
 /**
@@ -83,8 +84,18 @@ export interface StartRequest {
  * second proof that lets the provider activate the invited account — the server binds it to the
  * flow without spending it — and a sign-in begun anywhere else carries none. It goes to this
  * installation only: the provider never sees it.
+ *
+ * **So does the connect link**, when the sign-in begins on the card that link opens (ADR-0078 §1):
+ * where a workspace switched the password off, the link *Forgot your password?* mailed is the
+ * account's proof at the provider's first arrival, together with a fresh sign-in there. One or the
+ * other, never both.
  */
-export function startRequest(loginHint?: string, providerId?: string, invitationToken?: string): StartRequest {
+export function startRequest(
+  loginHint?: string,
+  providerId?: string,
+  invitationToken?: string,
+  connectToken?: string,
+): StartRequest {
   const hint = loginHint?.trim();
   return {
     ...(hint ? { login_hint: hint } : {}),
@@ -92,5 +103,6 @@ export function startRequest(loginHint?: string, providerId?: string, invitation
     // name the server takes the only one, which is what every installation with one has.
     ...(providerId ? { provider_id: providerId } : {}),
     ...(invitationToken ? { invitation_token: invitationToken } : {}),
+    ...(connectToken ? { connect_token: connectToken } : {}),
   };
 }

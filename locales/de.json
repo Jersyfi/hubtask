@@ -554,6 +554,8 @@
   "app.password.reset_submit": "Passwort setzen",
   "app.password.reset_setting": "Wird gesetzt",
   "app.password.reset_no_token": "Dieser Link enthält kein Zurücksetzen. Fordere einen neuen an; ein Link funktioniert einmal und dreißig Minuten lang.",
+  "app.password.connect_title": "Verbinde deine Anmeldung",
+  "app.password.connect_intro": "In diesem Arbeitsbereich meldest du dich über seinen Anbieter an, nicht mit einem Passwort. Melde dich dort mit der Adresse an, an die dieser Link ging, und der Anbieter wird mit deinem Konto verbunden – ab dann meldet er dich an. Hat dein Konto einen zweiten Faktor, wird er danach abgefragt.",
   "app.recovery.title": "Wiederherstellungscodes",
   "app.recovery.left": "Übrig: {count} von {total}.",
   "app.recovery.none_left": "Keine mehr übrig. Erstelle neue, bevor dein Authenticator außer Reichweite ist.",

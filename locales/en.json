@@ -1571,6 +1571,8 @@
   "app.password.reset_submit": "Set the password",
   "app.password.reset_setting": "Setting it",
   "app.password.reset_no_token": "This link carries no reset. Ask for a new one; a link works once and for thirty minutes.",
+  "app.password.connect_title": "Connect your sign-in",
+  "app.password.connect_intro": "This workspace signs in through its provider, not with a password. Sign in there with the address this link was sent to, and the provider is connected to your account - from then on it signs you in. If your account has a second factor, it is asked next.",
   "app.recovery.title": "Recovery codes",
   "app.recovery.left": "Left: {count} of {total}.",
   "app.recovery.none_left": "None left. Make new ones before your authenticator is out of reach.",

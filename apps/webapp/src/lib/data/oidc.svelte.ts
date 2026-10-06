@@ -87,10 +87,15 @@ class Oidc {
    * Begins the flow and answers where to send the browser.
    *
    * `undefined` means it did not begin, and `failure` says why — no provider, one switched off,
-   * discovery unreachable, or an invitation that cannot be redeemed. The caller stays on its screen
-   * with the password form intact.
+   * discovery unreachable, an invitation that cannot be redeemed, or a connect link that cannot be
+   * used. The caller stays on its screen with the password form intact.
    */
-  async begin(loginHint?: string, providerId?: string, invitationToken?: string): Promise<string | undefined> {
+  async begin(
+    loginHint?: string,
+    providerId?: string,
+    invitationToken?: string,
+    connectToken?: string,
+  ): Promise<string | undefined> {
     this.#working = true;
     this.#handingOver = providerId;
     this.#failure = undefined;
@@ -98,7 +103,7 @@ class Oidc {
       const answer = await engine.mutate<Authorization>(
         'POST',
         START,
-        startRequest(loginHint, providerId, invitationToken),
+        startRequest(loginHint, providerId, invitationToken, connectToken),
       );
       const url = navigableUrl(answer.authorization_url);
       // An answer that is not a navigation is this installation's own defect rather than a
