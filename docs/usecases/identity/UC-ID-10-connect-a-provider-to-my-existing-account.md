@@ -80,3 +80,11 @@ arrival with neither proof links nothing, activates nothing and spends nothing, 
 provider that is not authoritative for that one account (`TestAnInvitedPersonAcceptsTheInvitationThroughItsLink`).
 A connection made earlier while the account was invited activates nothing and is dropped when the
 account is activated (`TestAnEarlierLinkWithoutProofActivatesNothing`).
+
+Authority stands in for a proof only where there is none. Under *Only people invited here* a provider
+that is not authoritative for the address still brings an existing member with a password to the
+LINK step of check 1 - connected only with the password and the armed second factor, nothing linked
+without them - and an address nobody here holds is still refused
+(`TestUnderInvitedOnlyAMemberConnectsANonAuthoritativeProviderWithTheirPassword`,
+`TestUnderInvitedOnlyAnArmedMemberConnectsOnlyWithPasswordAndCode`,
+`TestUnderInvitedOnlyANonAuthoritativeProviderStillRefusesTheRest`).
