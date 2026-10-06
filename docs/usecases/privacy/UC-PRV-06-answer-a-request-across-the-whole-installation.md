@@ -54,10 +54,5 @@ See [data-protection.md](../../architecture/data-protection.md) §4.
 
 ## Today
 
-* **Check 3 fails.** The job carries the case out as a system actor with no token scopes
-  (`core/application/service/privacy/Perform.go`), and the collection asks that actor for
-  `admin:tenants` again (`Export.go`, `workspaces`), so a started installation-wide case is refused
-  by its own job. The unit test calls the collection directly with an operator and does not see it.
-  Besides, other workspaces are matched by address only, which finds the person's mail-intake rows
-  but not their account, entries or comments there (`SubjectSource.go`).
-* **Check 4** is written by the collection loop and therefore not reached while check 3 fails.
+* Check 3: not met — the job carries the case out as a system actor without token scopes, and the collection asks it for `admin:tenants` again, so a started installation-wide case is refused by its own job; other workspaces are also matched by address only, which misses the person's account, entries and comments there, tracked in #1076.
+* Check 4: not met — the `dsr.collected` entries are written by the collection loop, which is not reached while check 3 fails, tracked in #1076.

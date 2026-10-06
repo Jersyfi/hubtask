@@ -49,9 +49,6 @@ See [data-protection.md](../../architecture/data-protection.md) §4.
 
 ## Today
 
-* **Check 1 fails in part.** The web app can restrict but not lift (`PrivacyView.svelte`), and
-  `hubctl` has no command for either (`cmd/hubctl/Privacy.go`).
-* **Checks 4 and 5 fail.** Only automatic assignment asks whether processing is allowed
-  (`core/application/service/work/AutoAssignWorkItem.go`, `withoutRestricted`); the automation
-  engine and the suggestion service do not, although the screen's note
-  (`app.privacy.restrict_note`) says they do.
+* Check 1: not met in part — the web app can restrict but not lift, and `hubctl` has no command for either.
+* Check 4: not met — the automation engine does not ask whether a person's processing is restricted, although the screen's note says it does.
+* Check 5: not met — the suggestion service does not ask whether a person's processing is restricted, although the screen's note says it does.
