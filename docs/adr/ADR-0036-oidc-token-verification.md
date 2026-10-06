@@ -1,6 +1,7 @@
 # ADR-0036 — The OIDC token verification library
 
 **Status:** accepted · **Date:** 2026-09-02
+**Rule lives in:** [identity.md](../architecture/identity.md) §10.1, [security.md](../architecture/security.md) §4 (T-13), §11
 
 ## Context
 
