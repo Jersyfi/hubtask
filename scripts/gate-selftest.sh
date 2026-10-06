@@ -894,7 +894,7 @@ rm -f "$PROBE_WORKFLOW"
 
 header "Drafts run nothing (make gate-architecture)"
 
-# ADR-0078 rests on two lines of ci.yml, and both fail quietly: a root job without the draft
+# ADR-0079 rests on two lines of ci.yml, and both fail quietly: a root job without the draft
 # condition runs on every push to a draft again, and `ci-required` under its plain name puts a green
 # `CI required` on a draft's commit that no gate earned (#1137). Each probe takes one of them away;
 # the workflow is put back whatever happens.

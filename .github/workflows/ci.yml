@@ -3,7 +3,7 @@ name: CI
 on:
   # A draft is checked in the session that writes it (`make verify-pr`), and the pipeline runs when
   # the pull request is ready - so `ready_for_review` is a trigger, and every job below that needs no
-  # other job carries the draft condition (ADR-0078). On a draft nothing runs but `ci-required`, under
+  # other job carries the draft condition (ADR-0079). On a draft nothing runs but `ci-required`, under
   # a name that is not the required one.
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -103,7 +103,7 @@ jobs:
               - 'k8s/**'
               - 'go.mod'
               - 'go.sum'
-              # The hook a session runs before a pull request leaves draft (ADR-0078): test/architecture
+              # The hook a session runs before a pull request leaves draft (ADR-0079): test/architecture
               # reads it and runs its script, so a change to it runs that test.
               - '.claude/settings.json'
               - '.golangci.yml'
@@ -855,7 +855,7 @@ jobs:
   # On a draft it runs too - every job it waits for was skipped - but under another name. A draft's
   # commit must not carry a `CI required` at all: a green one would satisfy branch protection without
   # a single gate having run, and GitHub drops it only once the next run's check suite exists, which
-  # a probe measured as mergeable in the moment after *Ready for review* (#1137, ADR-0078). Named
+  # a probe measured as mergeable in the moment after *Ready for review* (#1137, ADR-0079). Named
   # this way, the required check can only come from a run that checked something.
   ci-required:
     name: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft) && 'CI not run (draft)' || 'CI required' }}

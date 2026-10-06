@@ -21,7 +21,7 @@ name: Claude architecture review
 
 on:
   # Once, when the pull request is opened ready or leaves draft: the notice never changes, so a
-  # push had nothing to add to it (ADR-0078).
+  # push had nothing to add to it (ADR-0079).
   pull_request:
     types: [opened, ready_for_review]
 

@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/tools/cilocal"
 )
 
-// `make verify-pr` is the pull request check on a laptop (ADR-0078), and it is only that while its
+// `make verify-pr` is the pull request check on a laptop (ADR-0079), and it is only that while its
 // job table says what `ci.yml` says. A job added to the pipeline without a local counterpart, or a
 // filter changed in the workflow and not in the table, would make verify-pr green on a branch CI
 // then turns red - the round trip the local check exists to save. So the table is held to the
@@ -121,7 +121,7 @@ func TestVerifyPRKnowsEveryJobCIRequiredWaitsFor(t *testing.T) {
 
 	if got, want := sorted(known), sorted(waitedFor); !slices.Equal(got, want) {
 		t.Errorf("tools/cilocal knows the jobs\n  %v\nbut ci-required waits for\n  %v\n"+
-			"a job verify-pr does not know is a job a branch can only learn about after Ready (ADR-0078)",
+			"a job verify-pr does not know is a job a branch can only learn about after Ready (ADR-0079)",
 			got, want)
 	}
 }

@@ -136,7 +136,7 @@ never shows it. `make gate-pr BODY=<file>` checks a draft locally. Two items are
 
 ## The pipeline: one required check
 
-**A draft runs no CI** ([ADR-0078](docs/adr/ADR-0078-a-draft-is-checked-locally.md)). It is
+**A draft runs no CI** ([ADR-0079](docs/adr/ADR-0079-a-draft-is-checked-locally.md)). It is
 checked where it is written: `make verify-pr` runs `make verify`, then every gate the pipeline would
 run for your branch — selected by the same path filters — and the description against the template.
 The pipeline runs when the pull request leaves draft, once. Rework on a pull request that is ready

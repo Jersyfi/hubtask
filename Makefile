@@ -349,7 +349,7 @@ run:
 verify: gate-quick gate-unit gate-architecture gate-security gate-privacy gate-chart gate-licenses gate-docs gate-observability gate-sdk
 	@echo "All locally runnable gates are green."
 
-## verify-pr: The pull request check, locally - make verify, then every gate CI runs for this branch (ADR-0078)
+## verify-pr: The pull request check, locally - make verify, then every gate CI runs for this branch (ADR-0079)
 # A draft is checked in the session that writes it, and CI runs when the pull request is ready. This
 # selects the gates by the same filters ci.yml does (tools/cilocal), runs the container gates one
 # session at a time, checks the description (BODY=<file>, or read with gh), and on success leaves

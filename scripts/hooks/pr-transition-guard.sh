@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A Claude Code PreToolUse hook on Bash (.claude/settings.json, ADR-0078). It guards the two moments
+# A Claude Code PreToolUse hook on Bash (.claude/settings.json, ADR-0079). It guards the two moments
 # a pull request changes what CI does:
 #
 #   gh pr create   - only as a draft: a draft runs no CI, and a session checks it locally.
@@ -27,7 +27,7 @@ refuse() {
 boundary='(^|[;&|(`[:space:]])'
 if [[ "$command" =~ ${boundary}gh[[:space:]]+pr[[:space:]]+create([[:space:]]|$) ]]; then
 	if [[ ! "$command" =~ [[:space:]](--draft|-d)([[:space:]=]|$) ]]; then
-		refuse "Refused: a pull request starts as a draft (ADR-0078). Run the same command with --draft."
+		refuse "Refused: a pull request starts as a draft (ADR-0079). Run the same command with --draft."
 	fi
 fi
 
@@ -35,7 +35,7 @@ if [[ "$command" =~ ${boundary}gh[[:space:]]+pr[[:space:]]+ready([[:space:]]|$) 
 	head="$(git rev-parse HEAD 2>/dev/null)" || refuse "Refused: not inside a git checkout, so make verify-pr cannot have passed here."
 	stamp="$(git rev-parse --absolute-git-dir)/hubtask-verify-pr"
 	if [[ ! -f "$stamp" || "$(head -n 1 "$stamp")" != "$head" ]]; then
-		refuse "Refused: make verify-pr has not passed for ${head:0:12} (ADR-0078). Run make verify-pr, push, then gh pr ready."
+		refuse "Refused: make verify-pr has not passed for ${head:0:12} (ADR-0079). Run make verify-pr, push, then gh pr ready."
 	fi
 	if ! upstream="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)" ||
 		! git merge-base --is-ancestor "$head" "$upstream" 2>/dev/null; then

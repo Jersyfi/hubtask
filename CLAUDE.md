@@ -59,7 +59,7 @@ where. They load when work happens in that directory.
 | Changed | Run |
 |---|---|
 | Anything in the Go tree | `make verify` — the fast gates, while working |
-| Before `gh pr ready` — any change | `make verify-pr` — the pull request check, locally: `make verify`, then every gate CI runs for the branch, and the description ([ADR-0078](docs/adr/ADR-0078-a-draft-is-checked-locally.md)) |
+| Before `gh pr ready` — any change | `make verify-pr` — the pull request check, locally: `make verify`, then every gate CI runs for the branch, and the description ([ADR-0079](docs/adr/ADR-0079-a-draft-is-checked-locally.md)) |
 | A single concern while iterating | `make gate-quick`, `gate-unit`, `gate-architecture`, `gate-security` |
 | `api/openapi.yaml`, `db/queries/` | `make generate`, then `make verify` — it must produce no diff |
 | `packages/design-system/tokens/tokens.json` | `make tokens`, then commit the regenerated `core/domain/model/shared/LabelTokens.go` |
@@ -225,7 +225,7 @@ Continue at the first unticked box. Do not start over, and do not rewrite what i
 ## When CI runs
 
 **A draft is checked in the session; CI runs when the pull request is ready**
-([ADR-0078](docs/adr/ADR-0078-a-draft-is-checked-locally.md)). A push to a draft starts nothing,
+([ADR-0079](docs/adr/ADR-0079-a-draft-is-checked-locally.md)). A push to a draft starts nothing,
 and `CI required` cannot be met by a draft — its check is called `CI not run (draft)`.
 
 * **Every pull request starts as a draft**, documentation included: `gh pr create --draft`.
@@ -263,7 +263,7 @@ A piece of work is finished when, in addition to working code:
 ```bash
 make tools              # install the tools once
 make verify             # the fast gates, while working
-make verify-pr          # the pull request check, locally — before gh pr ready (ADR-0078)
+make verify-pr          # the pull request check, locally — before gh pr ready (ADR-0079)
 make gate-unit          # tests only
 make gate-architecture  # layer boundaries, goroutine ban, parity checks
 make gate-security      # SG-1..SG-12

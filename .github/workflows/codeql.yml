@@ -3,7 +3,7 @@ name: CodeQL
 on:
   push:
     branches: [main]
-  # Not on a draft: the analysis runs when the pull request is ready (ADR-0078).
+  # Not on a draft: the analysis runs when the pull request is ready (ADR-0079).
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]

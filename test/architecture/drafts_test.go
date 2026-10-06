@@ -13,7 +13,7 @@ import (
 )
 
 // A draft is checked in the session that writes it, and the pipeline runs when the pull request is
-// ready (ADR-0078). Three things in the workflows make that true, and each one fails quietly when
+// ready (ADR-0079). Three things in the workflows make that true, and each one fails quietly when
 // it goes missing: without `ready_for_review` leaving draft starts nothing, without the draft
 // condition a draft runs everything again, and without the second name for `ci-required` a draft's
 // commit carries a green `CI required` that no gate earned. These tests are what notices.
@@ -76,7 +76,7 @@ func TestLeavingDraftStartsThePipeline(t *testing.T) {
 		for _, want := range []string{"opened", "synchronize", "reopened", "ready_for_review"} {
 			if !slices.Contains(types, want) {
 				t.Errorf("%s does not trigger on pull_request %q - leaving draft, or a push, would "+
-					"start no run (ADR-0078)", file, want)
+					"start no run (ADR-0079)", file, want)
 			}
 		}
 	}
@@ -96,7 +96,7 @@ func TestADraftRunsNothing(t *testing.T) {
 		roots++
 		if !strings.Contains(job.If, draftCondition) {
 			t.Errorf("ci.yml: job %q needs no other job and has no draft condition - it runs on every "+
-				"push to a draft (ADR-0078). Its `if:` needs %q", id, draftCondition)
+				"push to a draft (ADR-0079). Its `if:` needs %q", id, draftCondition)
 		}
 	}
 	if roots < 5 {
@@ -108,7 +108,7 @@ func TestADraftRunsNothing(t *testing.T) {
 		t.Fatal("codeql.yml has no job `analyze`")
 	}
 	if !strings.Contains(analyze.If, draftCondition) {
-		t.Errorf("codeql.yml: `analyze` has no draft condition (ADR-0078)")
+		t.Errorf("codeql.yml: `analyze` has no draft condition (ADR-0079)")
 	}
 }
 
@@ -119,7 +119,7 @@ func TestADraftNeverCarriesCIRequired(t *testing.T) {
 	}
 	if summary.Name != ciRequiredName {
 		t.Errorf("ci.yml: `ci-required` is named %q; it must be\n  %s\nso that a draft's commit carries "+
-			"no check called `CI required` (ADR-0078, #1137)", summary.Name, ciRequiredName)
+			"no check called `CI required` (ADR-0079, #1137)", summary.Name, ciRequiredName)
 	}
 	if summary.If != "always()" {
 		t.Errorf("ci.yml: `ci-required` must run `if: always()`, it says %q - a skipped required "+

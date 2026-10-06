@@ -11,7 +11,7 @@ Every step of a workflow is a `make` target. The workflow contains no logic, onl
 Which means:
 
 * Every gate is reproducible locally: `make verify-pr` runs what the pull request pipeline runs for
-  the branch, and `make verify` is its fast half ([ADR-0078](../adr/ADR-0078-a-draft-is-checked-locally.md), §3.4).
+  the branch, and `make verify` is its fast half ([ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md), §3.4).
 * Switching platform touches only `.github/workflows/`.
 * Contributors get the same result before pushing as after.
 
@@ -197,7 +197,7 @@ jobs each keeping a build cache is a real question against the repository's 10 G
 
 ### 3.4 A draft is checked locally; CI runs when it is ready
 
-Decided in [ADR-0078](../adr/ADR-0078-a-draft-is-checked-locally.md) on the measurement of
+Decided in [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md) on the measurement of
 2026-09-24…10-03: 140 of 220 runs — 64 % — ran on drafts, 66 of them cancelled by the next push, and
 the description check failed 59 times on descriptions that were unfinished by design.
 

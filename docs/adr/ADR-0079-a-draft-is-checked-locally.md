@@ -1,6 +1,9 @@
-# ADR-0078 — A draft is checked locally; CI runs when a pull request is ready
+# ADR-0079 — A draft is checked locally; CI runs when a pull request is ready
 
 **Status:** accepted · **Date:** 2026-10-04 · **Accepted:** 2026-10-06
+
+Approved as ADR-0078; renumbered before merging, because #1147 brought its own ADR-0078 (the ways
+back in) to `main` first.
 
 Amends [`ci-cd.md`](../architecture/ci-cd.md) §1, §2, §3.1 and §3.2, `CLAUDE.md` ("Which command
 checks what", "The loop for every task", "Steps and commits") and `CONTRIBUTING.md`. Replaces the

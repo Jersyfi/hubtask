@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// The hook is what makes ADR-0078 a rule rather than a paragraph: a session cannot open a pull
+// The hook is what makes ADR-0079 a rule rather than a paragraph: a session cannot open a pull
 // request ready, and cannot mark one ready, before `make verify-pr` passed for the commit GitHub
 // has. Proven live on 2026-10-06 with a fresh session; proven here on every run, against a real
 // git repository with a real remote, because each refusal depends on git's answer.
@@ -46,7 +46,7 @@ func TestTheSettingsWireTheGuardToEveryBashCall(t *testing.T) {
 			}
 		}
 	}
-	t.Errorf(".claude/settings.json has no PreToolUse hook on Bash running %s (ADR-0078)", guardScript)
+	t.Errorf(".claude/settings.json has no PreToolUse hook on Bash running %s (ADR-0079)", guardScript)
 }
 
 func TestTheGuardRefusesWhatADraftMayNotSkip(t *testing.T) {

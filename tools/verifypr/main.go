@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Command verifypr is the pull request check on a laptop (`make verify-pr`, ADR-0078).
+// Command verifypr is the pull request check on a laptop (`make verify-pr`, ADR-0079).
 //
 // A draft is checked in the session that writes it, and CI runs once the pull request is ready. So
 // before `gh pr ready`, this runs `make verify` and then every gate CI would run for this branch,

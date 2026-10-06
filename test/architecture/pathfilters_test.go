@@ -86,7 +86,7 @@ func TestEveryFilterNamesSomethingThatExists(t *testing.T) {
 }
 
 // loadPathFilters reads the filters through the same code `make verify-pr` selects its gates with
-// (tools/cilocal, ADR-0078), so that a filter this test approves is the filter both sides use.
+// (tools/cilocal, ADR-0079), so that a filter this test approves is the filter both sides use.
 func loadPathFilters(t *testing.T) map[string][]string {
 	t.Helper()
 

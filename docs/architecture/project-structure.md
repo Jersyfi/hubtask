@@ -175,7 +175,7 @@ hubtask/
 │                                   # adr/, backlog/, roadmap
 ├── tools/                          # checkdocs/ (make gate-docs), openapijson/ and sdkgen/
 │                                   # (make generate), licenses.md.tpl (make licenses),
-│                                   # verifypr/ and cilocal/ (make verify-pr, ADR-0078)
+│                                   # verifypr/ and cilocal/ (make verify-pr, ADR-0079)
 ├── .github/workflows/              # CI/CD (ADR-0022, docs/architecture/ci-cd.md)
 ├── go.mod                          # module github.com/Jersyfi/hubtask
 ├── Makefile
