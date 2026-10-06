@@ -41,7 +41,5 @@ was provisioned, suspended, changed and by whom, newest first.
 
 ## Today
 
-* **Check 2 fails:** with an empty register the overview says "0 accounts may run this
-  installation" to the person who runs it, without a plural form.
-* **Check 5 fails:** the bootstrap's `operator` workspace is counted and can be suspended or deleted,
-  which kills the bootstrap token.
+* Check 2: not met — with an empty register the overview says "0 accounts may run this installation" to the person who runs it, without a plural form, tracked in #1063.
+* Check 5: not met — the bootstrap's `operator` workspace is counted, and can be suspended or deleted, tracked in #1060.

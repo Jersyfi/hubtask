@@ -47,8 +47,8 @@ yourself asks twice.
 
 ## Today
 
-* **Check 1 fails:** the list shows account and workspace identifiers.
-* **Check 3 fails:** adding a colleague first ends the owner's own access on the next request.
-* **Check 4 fails:** an invited or disabled account can be added.
-* **Check 5 fails:** *Remove* has no confirmation.
-* **Check 6 fails:** see UC-INS-06.
+* Check 1: not met — the list shows account and workspace identifiers, tracked in #1061.
+* Check 3: not met — adding a colleague first ends the owner's own access on the next request, tracked in #1061.
+* Check 4: not met — an invited or disabled account can be added, tracked in #1061.
+* Check 5: not met — *Remove* has no confirmation, tracked in #1061.
+* Check 6: not met — the screen adds operators only by address, which a service account does not have (UC-INS-06), tracked in #1061.

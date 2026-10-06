@@ -40,5 +40,4 @@ that deliver it themselves.
 
 ## Today
 
-* **Check 4 fails:** *New workspace* is offered in single mode and fails with
-  `admin.multi_mode_required`.
+* Check 4: not met — *New workspace* is offered in single-tenant mode and fails with `admin.multi_mode_required`, tracked in #1064.

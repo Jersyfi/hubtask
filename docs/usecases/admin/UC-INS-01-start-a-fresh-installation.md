@@ -52,6 +52,10 @@ the setup card is gone for good.
 
 ## Today
 
-* **Not built.** Nothing creates the first workspace: `multi-tenancy.md` says single mode creates
-  its tenant at first start, but no code does, and provisioning is refused in single mode. Every
-  installation starts with SQL (`scripts/dev-workspace.sh --bootstrap`, `compose-smoke.sh`).
+* Check 1: not met — nothing creates the first workspace and no setup code is printed; every installation starts with SQL, tracked in #1060.
+* Check 2: not met — there is no setup card, tracked in #1060.
+* Check 3: not met — there is no setup code to refuse, tracked in #1060.
+* Check 4: not met — no single step creates the workspace, its owner and the owner's operator entry, tracked in #1060.
+* Check 5: not met — there is no setup card, and provisioning is refused in single-tenant mode, tracked in #1060.
+* Check 6: not met — setting up needs database access, tracked in #1060.
+* Check 7: not met — `scripts/dev-workspace.sh --bootstrap` and the smoke tests reach the state through SQL, tracked in #1060.

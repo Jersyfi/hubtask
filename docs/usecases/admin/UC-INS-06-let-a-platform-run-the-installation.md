@@ -45,6 +45,5 @@ purchase; a webhook arriving twice creates one workspace.
 
 ## Today
 
-* **Checks 1 and 2 fail outside the API:** the screen adds operators only by address (a service
-  account has none); `hubctl token create` never sends a step-up. Possible today only through a
-  four-step path across the web app and `hubctl` that nobody documents.
+* Check 1: not met — the *Operators* screen adds operators only by address, which a service account does not have, tracked in #1061.
+* Check 2: not met in `hubctl` — `hubctl token create` never sends a step-up, so an administrative token cannot be created from the terminal, tracked in #1061.
