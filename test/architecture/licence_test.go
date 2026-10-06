@@ -145,6 +145,56 @@ func TestTheRepositoryLicenceIsApache(t *testing.T) {
 	}
 }
 
+// buslHistory are the tracked paths that may still name the Business Source License's SPDX
+// identifier, because they are records of what was: the ADRs (immutable once accepted, and
+// ADR-0013 and ADR-0059 are the decisions ADR-0080 replaced), the backlog's task texts, and the
+// evidence files written at the time. This file is in the list because it names what it looks for.
+var buslHistory = []string{
+	"docs/adr/",
+	"docs/backlog/",
+	"docs/evidence/",
+	"test/architecture/licence_test.go",
+}
+
+// TestNoFileNamesTheOldLicence keeps the switch to Apache-2.0 complete (ADR-0080): a header, a
+// manifest, a generator or a sentence that still says BUSL is a file claiming terms the repository
+// no longer has. Every tracked file is read, not only source - a package.json, a README and a
+// website page made that claim as much as a header did.
+func TestNoFileNamesTheOldLicence(t *testing.T) {
+	var checked int
+	for _, file := range trackedFiles(t) {
+		if isBuslHistory(file) {
+			continue
+		}
+		content, err := os.ReadFile(filepath.Join("../..", file))
+		if os.IsNotExist(err) {
+			// Tracked but deleted in the work tree - the commit that removes it is on its way.
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s is not readable: %v", file, err)
+			continue
+		}
+		checked++
+		if strings.Contains(string(content), "BUSL") {
+			t.Errorf("%s still names BUSL; Hubtask is Apache-2.0 (ADR-0080)", file)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no tracked file was read - the walk no longer finds anything")
+	}
+	t.Logf("%d tracked files name no BUSL", checked)
+}
+
+func isBuslHistory(file string) bool {
+	for _, allowed := range buslHistory {
+		if file == allowed || (strings.HasSuffix(allowed, "/") && strings.HasPrefix(file, allowed)) {
+			return true
+		}
+	}
+	return false
+}
+
 // isOwnLicencePart says whether a repository-relative path is one of, or lies under,
 // ownLicenceParts.
 func isOwnLicencePart(relPath string) bool {
