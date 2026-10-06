@@ -132,6 +132,8 @@ export type {
   TenantProvision,
   ProvisionedTenant,
   TenantQuotas,
+  PasswordOpening,
+  PasswordOpeningRequest,
   EncryptionStatus,
   ItemQueryResult,
   ItemSearchQuery,

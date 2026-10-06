@@ -17,6 +17,10 @@
   // name to be typed — the server compares it, and a deletion nobody typed the name of is a deletion
   // somebody clicked past. The owner's redemption token is shown once, through `OneTimeSecret`, and
   // dies with the panel.
+  //
+  // **Opening the password for one workspace** (ADR-0078 §3) is the lever for a provider that is
+  // switched on but broken: a day unless said otherwise, a week at most, with who asked and why. The
+  // row says while one stands, and closes it with one press.
 
   import { untrack } from 'svelte';
 
@@ -38,8 +42,14 @@
 
   const { onnavigate }: Props = $props();
 
+  /** The opening's bounds, as the contract states them: a day unless said otherwise, a week at most. */
+  const OPENING_DEFAULT_HOURS = 24;
+  const OPENING_MAXIMUM_HOURS = 168;
+
   /** Which act is open, and on which workspace. One at a time: two dialogs would be two answers. */
-  let acting = $state<{ kind: 'new' | 'delete' | 'export' | 'quotas'; tenant?: AdminTenant } | undefined>(undefined);
+  let acting = $state<
+    { kind: 'new' | 'delete' | 'export' | 'quotas' | 'open-password'; tenant?: AdminTenant } | undefined
+  >(undefined);
   let working = $state<string | undefined>(undefined);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   /** The owner's way in, from the one answer that carries it. Held by the screen, never the store. */
@@ -54,6 +64,10 @@
   let confirmation = $state('');
   let targetId = $state('');
   let quotas = $state<TenantQuotas>({});
+  // What an opening of the password is told: how long, who asked and why.
+  let hours = $state(String(OPENING_DEFAULT_HOURS));
+  let requester = $state('');
+  let reason = $state('');
 
   $effect(() => {
     // The instance level too, so the limits dialog can say what an empty field actually means:
@@ -95,12 +109,15 @@
     'ai_tokens_per_day',
   ] as const;
 
-  function open(kind: 'new' | 'delete' | 'export' | 'quotas', tenant?: AdminTenant): void {
+  function open(kind: 'new' | 'delete' | 'export' | 'quotas' | 'open-password', tenant?: AdminTenant): void {
     acting = { kind, tenant };
     failure = undefined;
     confirmation = '';
     targetId = '';
     quotas = {};
+    hours = String(OPENING_DEFAULT_HOURS);
+    requester = '';
+    reason = '';
     if (kind === 'new') {
       slug = '';
       displayName = '';
@@ -214,6 +231,18 @@
                   >
                     {t(`app.instance.state_${workspace.status.toLowerCase()}`)}
                   </Badge>
+                  {#if workspace.password_opening}
+                    <!-- An operator's opening of the password, while it stands: until when, and for
+                         whom - the facts somebody asking "why can people sign in by password there"
+                         needs before anything else. -->
+                    <Badge tone="warning">{t('app.instance.password_open')}</Badge>
+                    <span class="slug">
+                      {t('app.instance.password_open_until', {
+                        at: formatDateTime(workspace.password_opening.until, messages.locale),
+                        requester: workspace.password_opening.requester,
+                      })}
+                    </span>
+                  {/if}
                   {#if workspace.purge_after}
                     <!-- The grace, where one stands: the number an operator needs before deciding
                          whether there is still time to resume. -->
@@ -250,6 +279,20 @@
                     <Button tone="subtle" onclick={() => open('export', workspace)}>
                       {t('app.instance.export')}
                     </Button>
+                    {#if workspace.password_opening}
+                      <Button
+                        tone="subtle"
+                        isBusy={working === `close:${workspace.id}`}
+                        busyLabel={t('app.instance.working')}
+                        onclick={() => void run(`close:${workspace.id}`, () => instance.closePassword(workspace.id))}
+                      >
+                        {t('app.instance.password_close')}
+                      </Button>
+                    {:else if workspace.status !== 'PENDING_DELETION'}
+                      <Button tone="subtle" onclick={() => open('open-password', workspace)}>
+                        {t('app.instance.password_open_action')}
+                      </Button>
+                    {/if}
                     {#if workspace.status !== 'PENDING_DELETION'}
                       <Button tone="subtle" onclick={() => open('delete', workspace)}>
                         {t('app.instance.delete')}
@@ -338,6 +381,65 @@
       bind:value={confirmation}
       autocomplete="off"
       spellcheck={false}
+      isRequired
+    />
+  </Stack>
+</Dialog>
+
+<Dialog
+  title={t('app.instance.password_open_title', { name: acting?.tenant?.display_name ?? '' })}
+  isOpen={acting?.kind === 'open-password'}
+  dismissLabel={t('app.instance.cancel')}
+  onClose={() => (acting = undefined)}
+>
+  {#snippet actions()}
+    <Button tone="subtle" onclick={() => (acting = undefined)}>{t('app.instance.cancel')}</Button>
+    <Button
+      tone="primary"
+      isBusy={working === 'open-password'}
+      busyLabel={t('app.instance.working')}
+      onclick={() =>
+        void run('open-password', () =>
+          instance.openPassword(acting?.tenant?.id ?? '', {
+            hours: Number(hours.trim() === '' ? OPENING_DEFAULT_HOURS : hours.trim()),
+            requester: requester.trim(),
+            reason: reason.trim(),
+          }),
+        )}
+    >
+      {t('app.instance.password_open_now')}
+    </Button>
+  {/snippet}
+  <Stack gap="150">
+    <!-- What it does, before the button: every account there that holds a password gets in with it,
+         whatever the workspace decided - and its administrators are told. -->
+    <Banner tone="warning">{t('app.instance.password_open_cost')}</Banner>
+    <Input
+      label={t('app.instance.password_open_hours_label')}
+      hint={t('app.instance.password_open_hours_hint', { maximum: String(OPENING_MAXIMUM_HOURS) })}
+      error={failure?.fields.get('/hours')}
+      value={hours}
+      oninput={(event) => (hours = (event.currentTarget as HTMLInputElement).value)}
+      type="number"
+      inputmode="numeric"
+      min="1"
+      max={String(OPENING_MAXIMUM_HOURS)}
+      autocomplete="off"
+    />
+    <Input
+      label={t('app.instance.password_open_requester_label')}
+      hint={t('app.instance.password_open_requester_hint')}
+      error={failure?.fields.get('/requester')}
+      bind:value={requester}
+      autocomplete="off"
+      isRequired
+    />
+    <Input
+      label={t('app.instance.password_open_reason_label')}
+      hint={t('app.instance.password_open_reason_hint')}
+      error={failure?.fields.get('/reason')}
+      bind:value={reason}
+      autocomplete="off"
       isRequired
     />
   </Stack>

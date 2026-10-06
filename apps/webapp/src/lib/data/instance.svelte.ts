@@ -29,6 +29,7 @@ import type {
   InstanceOverview,
   InstanceSettings,
   Operator,
+  PasswordOpeningRequest,
   ProvisionedTenant,
   TenantProvision,
   TenantQuotas,
@@ -343,6 +344,27 @@ class Instance {
         invalidates: EVERYTHING,
       }),
     );
+  }
+
+  /**
+   * Opens the password for one workspace for a while (ADR-0078 §3): for a provider that is switched
+   * on but broken. Behind a step-up, like every act that widens a way in; the hours, the requester
+   * and the reason are refused before the proof is asked for, so a typo costs no proof.
+   */
+  async openPassword(tenantId: string, request: PasswordOpeningRequest): Promise<void> {
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('POST', `${TENANTS}/${tenantId}:open-password`, request, {
+        stepUpToken,
+        invalidates: EVERYTHING,
+      }),
+    );
+  }
+
+  /** Ends an opening before its time. No step-up: it narrows the way in. */
+  async closePassword(tenantId: string): Promise<void> {
+    await engine.mutate('POST', `${TENANTS}/${tenantId}:close-password`, undefined, {
+      invalidates: EVERYTHING,
+    });
   }
 
   /** Exports a workspace to one of its backup targets. Answered `202`: the work is a job. */

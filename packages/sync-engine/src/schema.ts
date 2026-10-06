@@ -503,6 +503,12 @@ export type ProvisionedTenant = components['schemas']['ProvisionedTenant'];
 /** A workspace's limits, each absent where the installation's default applies. */
 export type TenantQuotas = components['schemas']['TenantQuotas'];
 /**
+ * An operator's opening of the password for one workspace (ADR-0078 §3): until when, who asked and
+ * why - and what opening one asks for.
+ */
+export type PasswordOpening = components['schemas']['PasswordOpening'];
+export type PasswordOpeningRequest = components['schemas']['PasswordOpeningRequest'];
+/**
  * The master keyring's census. Read at the instance layer and never turned there: a rotation is an
  * operator at a terminal with the new key in their hand (ADR-0045, the concept's §5.7).
  */
