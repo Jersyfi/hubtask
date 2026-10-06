@@ -496,7 +496,7 @@ test('chromium: the accessibility statement is reachable signed in, and signed o
   const links = page.locator('main section a');
   assert.deepEqual((await links.allTextContents()).map((each) => each.trim()), [
     STATEMENT,
-    'Licence and editions, on hubtask.eu',
+    'Licence, on hubtask.eu',
     'Source code, on github.com',
   ]);
   const statement = page.getByRole('link', { name: STATEMENT });

@@ -11,7 +11,7 @@
   <title>Hubtask — task management, built like infrastructure</title>
   <meta
     name="description"
-    content="A self-hostable task manager with five levels, an API that is the product, a native MCP server for agents, and guarantees about backup, audit and deletion that are checked in a pipeline. Source available under BSL 1.1, free for private use."
+    content="A self-hostable task manager with five levels, an API that is the product, a native MCP server for agents, and guarantees about backup, audit and deletion that are checked in a pipeline. Open source under Apache-2.0, free for any use."
   />
 </svelte:head>
 
@@ -33,9 +33,8 @@
       <a class="cta-quiet" href="/product/">See what it does</a>
     </p>
     <p class="hero-fineprint">
-      Free for any use until Licensing Start — private, non-profit, and commercial alike. Source
-      available under BSL 1.1, and every version becomes Apache-2.0 three years after it is
-      published.
+      Open source under the Apache License 2.0 — free for any use, private, non-profit and
+      commercial alike, with every feature and no licence key.
       <a href="/licence/">What that means</a>
     </p>
 
@@ -297,8 +296,8 @@ curl /api/v1/meta/capabilities</code></pre>
         <h3>You and your household</h3>
         <p>
           Free, complete, with no feature held back and nothing phoning home — for one person or a
-          family sharing some hubs and keeping others to themselves. The licence converts to
-          Apache-2.0 on a schedule, so an abandoned project is still yours.
+          family sharing some hubs and keeping others to themselves. It is Apache-2.0, so an
+          abandoned project is still yours.
         </p>
         <a href="/use-cases/#individual">How that looks</a>
       </div>

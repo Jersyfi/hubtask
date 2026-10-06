@@ -138,10 +138,10 @@ hubctl item complete "$ITEM"</code></pre>
   <div class="wrap">
     <div class="callout">
       <p>
-        <strong>Running it for a business?</strong> Free, with everything, until Licensing Start —
-        and every version published before that day keeps its terms. Only offering Hubtask itself to
-        third parties as a service is reserved. No price exists, and none is asked.
-        <a href="/licence/">The terms as they stand</a>
+        <strong>Running it for a business?</strong> Free, with everything — Hubtask is open source
+        under Apache-2.0, for any use, offering it to others as a service included. No price exists,
+        and none is asked.
+        <a href="/licence/">The terms</a>
       </p>
     </div>
   </div>

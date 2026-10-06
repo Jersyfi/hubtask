@@ -111,7 +111,7 @@
         <h4>Project</h4>
         <a href="https://github.com/Jersyfi/hubtask">Source on GitHub</a>
         <a href="https://github.com/Jersyfi/hubtask/tree/main/docs">Documentation</a>
-        <a href="/licence/">Licence and editions</a>
+        <a href="/licence/">Licence</a>
         <a href="https://github.com/sponsors/Jersyfi">Sponsor the work</a>
       </nav>
 
@@ -127,9 +127,8 @@
 
     <div class="colophon-note">
       <p>
-        © 2026 Jérôme Bastian Winkel · Business Source License 1.1 per version, converting to
-        Apache-2.0 three years after each version is published. Source available, not open source —
-        and the difference is stated rather than blurred. Provided as is until Licensing Start.
+        © 2026 Jérôme Bastian Winkel · Open source under the Apache License 2.0. “Hubtask” and the
+        logo are trademarks. Provided as is.
       </p>
       <nav aria-label="Contact">
         <a href="mailto:info@hubtask.eu">info@hubtask.eu</a>

@@ -23,13 +23,12 @@ skips politely on a fork or an installation where the deploy variables are not c
 * **The framework is decided**: Svelte 5 with SvelteKit and `adapter-static`, fully prerendered
   ([ADR-0030](../../docs/adr/ADR-0030-svelte-frontend-framework.md)). Build-time Node only —
   the output is plain static files, and nothing here runs a server.
-* **No claim about the licence that `LICENSE` does not make.** BSL 1.1 with a Change Date to
-  Apache-2.0 after three years is "source available", not "open source", and
-  [ADR-0013](../../docs/adr/ADR-0013-licensing.md) is explicit about that. Saying otherwise on the
-  website is a legal problem, not a wording preference. The same rule the other way round: no
-  statement that anybody has to pay today, no price, and no support period, deadline or
-  maintenance commitment before Licensing Start
-  ([ADR-0059](../../docs/adr/ADR-0059-licensing-phases-and-licensing-start.md)).
+* **No claim about the licence that `LICENSE` does not make.** Hubtask is open source under the
+  Apache License 2.0 ([ADR-0080](../../docs/adr/ADR-0080-hubtask-is-apache-2-0.md)), and the site
+  says so plainly: "open source", "Apache-2.0", "free for any use". The name is not covered by the
+  licence ([`TRADEMARK.md`](../../TRADEMARK.md)). What the site never says: a price, a paid
+  edition, a support period, a deadline or a maintenance commitment — the project is provided as
+  is.
 
 ## How to check a change
 
