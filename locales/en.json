@@ -1386,6 +1386,7 @@
   "app.signin_settings.fallback_no_way_in": "No other way to sign in works in this workspace, so people sign in with their password if they have one, under this workspace's rules, until you switch on a way in.",
   "app.signin_settings.opening_title": "The installation's operator opened the password",
   "app.signin_settings.opening_body": "Until {until}, everybody here who holds a password can sign in with it, whatever these settings say - usually because your provider cannot be reached. Asked for by {requester}: {reason}. If nobody here asked for this, tell the operator.",
+  "app.signin_settings.opening_body_unattributed": "Until {until}, everybody here who holds a password can sign in with it, whatever these settings say - usually because your provider cannot be reached.",
   "app.signin_settings.last_way": "The only way in left. Switch another one on first.",
   "app.signin_settings.not_offered_above": "The installation does not offer this way in.",
   "app.signin_settings.switching": "Switching",

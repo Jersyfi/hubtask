@@ -449,11 +449,17 @@
               <p class="quiet small">{t('app.signin_settings.ways_hint')}</p>
               {#if opening}
                 <Banner tone="warning" title={t('app.signin_settings.opening_title')}>
-                  {t('app.signin_settings.opening_body', {
-                    until: formatDateTime(opening.until, messages.locale),
-                    requester: opening.requester,
-                    reason: opening.reason,
-                  })}
+                  <!-- Who asked and why come only to a reader of the configuration; without them the
+                       sentence says the rest rather than printing an empty attribution. -->
+                  {opening.requester && opening.reason
+                    ? t('app.signin_settings.opening_body', {
+                        until: formatDateTime(opening.until, messages.locale),
+                        requester: opening.requester,
+                        reason: opening.reason,
+                      })
+                    : t('app.signin_settings.opening_body_unattributed', {
+                        until: formatDateTime(opening.until, messages.locale),
+                      })}
                 </Banner>
               {:else if fallback}
                 <Banner tone="warning" title={t('app.signin_settings.fallback_title')}>

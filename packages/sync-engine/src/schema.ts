@@ -508,6 +508,8 @@ export type TenantQuotas = components['schemas']['TenantQuotas'];
  */
 export type PasswordOpening = components['schemas']['PasswordOpening'];
 export type PasswordOpeningRequest = components['schemas']['PasswordOpeningRequest'];
+/** The same opening as the workspace reads it: who asked and why only for a configuration reader. */
+export type WorkspacePasswordOpening = components['schemas']['WorkspacePasswordOpening'];
 /**
  * The master keyring's census. Read at the instance layer and never turned there: a rotation is an
  * operator at a terminal with the new key in their hand (ADR-0045, the concept's §5.7).

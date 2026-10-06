@@ -134,6 +134,7 @@ export type {
   TenantQuotas,
   PasswordOpening,
   PasswordOpeningRequest,
+  WorkspacePasswordOpening,
   EncryptionStatus,
   ItemQueryResult,
   ItemSearchQuery,

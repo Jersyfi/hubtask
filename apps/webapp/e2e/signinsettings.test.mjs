@@ -422,6 +422,23 @@ test('chromium: an operator\'s opening of the password is said with its end, its
     'the opening is told as a workspace with no way in');
 });
 
+// A reader without the configuration permission is answered the end alone; the banner says the rest
+// rather than an empty attribution.
+test('chromium: an opening answered without who asked is said without an empty attribution', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, (route, path) =>
+    path === '/tenant'
+      ? route.fulfill({ json: { ...WORKSPACE, sign_in_policy: policy(), password_opening: { until: '2026-10-07T14:30:00Z' } } })
+      : undefined);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.getByText('The installation\'s operator opened the password').waitFor();
+  const said = await page.getByText(/whatever these settings say/).textContent() ?? '';
+  assert.doesNotMatch(said, /Asked for by|undefined|\{/, said);
+});
+
 // UC-ID-11 check 8: the provider screen configures; it switches nothing - not with a control, and
 // not with the deprecated field in the body it saves (ADR-0076 §5).
 test('chromium: the provider screen has no switch of its own', async (t) => {
