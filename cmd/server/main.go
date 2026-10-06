@@ -21,6 +21,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -70,6 +71,7 @@ import (
 	mailport "github.com/Jersyfi/hubtask/core/port/mail"
 	persistenceport "github.com/Jersyfi/hubtask/core/port/persistence"
 	queueport "github.com/Jersyfi/hubtask/core/port/queue"
+	stepupport "github.com/Jersyfi/hubtask/core/port/stepup"
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -468,9 +470,9 @@ func run() error {
 	backupRestorer := backupservice.Restorer{
 		Targets: backupTargets, Restores: backupRestores,
 		Workspace: postgres.NewWorkspaceRepository(), Jobs: jobs,
-		// The verifier H-03 built into the seam E-06 cut: a fresh re-authentication on the
-		// current session, consumed by the one privileged action it is presented to.
-		StepUp:    identity.StepUpVerifier{Writer: sessionWriter},
+		// The verifier H-03 built into the seam E-06 cut - a fresh re-authentication on the
+		// current session, consumed by the one privileged action it is presented to - is handed in
+		// once the sign-in rule is taught (stepUpVerifier, below).
 		Encryptor: encryptor, Opener: backupAdapters,
 		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Authorizer: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -509,8 +511,8 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Entropy:     clockadapter.CryptoRandom{},
 		KnownScopes: catalogue.Scopes(),
-		StepUp:      identity.StepUpVerifier{Writer: sessionWriter},
-		Text:        forms,
+		// StepUp is handed in once the sign-in rule is taught (stepUpVerifier, below).
+		Text: forms,
 		// The register bounds the control plane's scope where it is minted (ADR-0070 §1); the
 		// other end of the same bound is in AuthenticateToken, where it is exercised.
 		Operators: postgres.NewOperatorRepository(),
@@ -1090,10 +1092,9 @@ func run() error {
 		UnitOfWork: unitOfWork,
 		Clock:      clockadapter.System{},
 		Text:       forms,
-		// The sign-in rule the workspace may tighten, and the proof the one patch that touches it
-		// demands (ADR-0068 §2).
+		// The sign-in rule the workspace may tighten (ADR-0068 §2). The proof the one patch that
+		// touches it demands is handed in once the rule is taught (stepUpVerifier, below).
 		Resolver: signInPolicyResolver,
-		StepUp:   identity.StepUpVerifier{Writer: sessionWriter},
 	}
 
 	identityProviderWriter := identity.IdentityProviderWriter{
@@ -1107,8 +1108,8 @@ func run() error {
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries (SI-10).
 		RedirectURL: oidcRedirectURL,
-		// A change to a way in asks for a fresh proof, at both levels (ADR-0071's addendum, E2).
-		StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+		// A change to a way in asks for a fresh proof, at both levels (ADR-0071's addendum, E2) -
+		// handed in once the rule is taught (stepUpVerifier, below).
 	}
 
 	// The operator register and the installation's own settings (ADR-0070 §1, §2). Built here
@@ -1160,7 +1161,6 @@ func run() error {
 		Resolver: signInPolicyResolver,
 		Accounts: passwordStore, Histories: passwordStore,
 		Pending: mfaStore,
-		StepUp:  identity.StepUpVerifier{Writer: sessionWriter},
 		// ADR-0076 §4: a workspace left with no way in that works - whatever the cause (E2, #1138) -
 		// signs in by password again, and the sign-in records it. Set here, in the literal, so that
 		// every copy teachTheRule hands out below carries it.
@@ -1180,6 +1180,35 @@ func run() error {
 	// the same reason as the rule - every value built from `sessionWriter` after this line carries it,
 	// which is exactly CompleteSignIn below.
 	sessionWriter.Connector = oidcWriter
+
+	// Every step-up verifier is a copy of the session writer, so the ones the writers above hold are
+	// taken here, after the rule: a verifier copied before it cannot ask whether the password is a way
+	// in, and names PASSWORD as a proof in a workspace that switched the password off - a field the
+	// step-up then refuses (SC-24). Wiring_test.go keeps every verifier literal below this line.
+	stepUpVerifier := identity.StepUpVerifier{Writer: sessionWriter}
+	backupRestorer.StepUp = stepUpVerifier
+	accessTokenWriter.StepUp = stepUpVerifier
+	workspaceWriter.StepUp = stepUpVerifier
+	identityProviderWriter.StepUp = stepUpVerifier
+	instanceProviderWriter.Configure = identityProviderWriter
+	passwordWriter.StepUp = stepUpVerifier
+	// And a writer whose rule cannot say whether the password is open lets the password through at
+	// every door it guards - the shape before SC-24, kept for tests that wire no rule. The server
+	// refuses to start that way rather than run with it (SC-34).
+	if err := requirePasswordDoors(map[string]identity.SessionWriter{
+		"the sign-in path":                 sessionWriter,
+		"the reset's session writer":       passwordWriter.Session,
+		"the provider's session writer":    oidcWriter.Session,
+		"the step-up verifier":             stepUpVerifier.Writer,
+		"the password's step-up":           verifierWriter(passwordWriter.StepUp),
+		"the restore's step-up":            verifierWriter(backupRestorer.StepUp),
+		"the access token's step-up":       verifierWriter(accessTokenWriter.StepUp),
+		"the workspace's step-up":          verifierWriter(workspaceWriter.StepUp),
+		"the identity provider's step-up":  verifierWriter(identityProviderWriter.StepUp),
+		"the installation provider's step": verifierWriter(instanceProviderWriter.Configure.StepUp),
+	}); err != nil {
+		return err
+	}
 
 	// The check (ADR-0060, F8-03): the same catalogue, compiler and authoriser the write uses,
 	// the resolver for what a rule names, and the streak's own path to the author. One value,
@@ -3126,6 +3155,32 @@ func teachTheRule(
 	session.Rule = rule
 	passwords.Session.Rule = rule
 	oidc.Session.Rule = rule
+}
+
+// requirePasswordDoors refuses a set of session writers in which one holds a rule that cannot say
+// whether the password is a way into a workspace (identity.PasswordDoor). Such a writer lets the
+// password through at every door it guards and offers it as a step-up proof, silently - which is what
+// a test that wires no rule wants, and what a server must never do (SC-24, SC-34).
+func requirePasswordDoors(writers map[string]identity.SessionWriter) error {
+	names := make([]string, 0, len(writers))
+	for name := range writers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if _, ok := writers[name].Rule.(identity.PasswordDoor); !ok {
+			return fmt.Errorf("server: %s holds no sign-in rule that can say whether the password "+
+				"is open, so every password door it guards would let the password through", name)
+		}
+	}
+	return nil
+}
+
+// verifierWriter is the session writer a step-up verifier proves with; the zero writer - which
+// requirePasswordDoors refuses - where the verifier is not the session's.
+func verifierWriter(verifier stepupport.Verifier) identity.SessionWriter {
+	held, _ := verifier.(identity.StepUpVerifier)
+	return held.Writer
 }
 
 func runsBackgroundWork(cfg envport.Config) bool {

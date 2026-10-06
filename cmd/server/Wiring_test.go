@@ -4,14 +4,19 @@
 package main
 
 import (
+	"context"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 // The writers are values, so a copy taken before the sign-in path learns the rule never learns it.
@@ -216,5 +221,88 @@ func TestTheResetLinkAdapterCopiesEveryField(t *testing.T) {
 		if name := fields.Field(i).Name; !copied[name] {
 			t.Errorf("the reset adapter does not copy %s into the mail's link", name)
 		}
+	}
+}
+
+// judgeOnly is a sign-in rule that judges a password and cannot say whether the password is a way
+// in at all - the shape of a rule written before SC-24.
+type judgeOnly struct{}
+
+func (judgeOnly) JudgeSignIn(
+	context.Context, shared.ID, domain.Account, secret.Secret,
+) (identity.SignInVerdict, error) {
+	return identity.SignInVerdict{}, nil
+}
+
+// A writer whose rule cannot answer lets the password through at every door it guards and offers it
+// as a step-up proof (SC-24's "the shape before"). In a test that wires no rule that is the point; in
+// the server it is a door left open without anybody deciding it, so the server refuses to start.
+func TestTheServerRefusesAWriterWhoseRuleCannotSayWhetherThePasswordIsOpen(t *testing.T) {
+	session := identity.SessionWriter{}
+	passwords := identity.PasswordWriter{Session: session}
+	oidc := identity.OidcWriter{Session: session}
+	teachTheRule(&session, &passwords, &oidc)
+	if err := requirePasswordDoors(map[string]identity.SessionWriter{
+		"the sign-in path": session, "the reset's session writer": passwords.Session,
+		"the provider's session writer": oidc.Session,
+		"the step-up verifier":          verifierWriter(identity.StepUpVerifier{Writer: session}),
+	}); err != nil {
+		t.Fatalf("taught writers were refused: %v", err)
+	}
+
+	for name, untaught := range map[string]identity.SessionWriter{
+		"no rule at all":             {},
+		"a rule that only judges":    {Rule: judgeOnly{}},
+		"a verifier of another kind": verifierWriter(nil),
+	} {
+		err := requirePasswordDoors(map[string]identity.SessionWriter{
+			"the sign-in path": session, "the copy": untaught,
+		})
+		if err == nil || !strings.Contains(err.Error(), "the copy") {
+			t.Errorf("%s: the server would start (%v)", name, err)
+		}
+	}
+}
+
+// The verifiers are copies of the session writer too, and one copied before the rule is taught names
+// PASSWORD as a proof in a workspace that switched the password off - a field the step-up refuses.
+// Every verifier literal in main.go therefore comes after teachTheRule; the writers built before it
+// are handed theirs there.
+func TestEveryStepUpVerifierIsTakenAfterTheRule(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "main.go", nil, 0)
+	if err != nil {
+		t.Fatalf("reading main.go: %v", err)
+	}
+	var taught token.Pos
+	ast.Inspect(file, func(node ast.Node) bool {
+		if call, ok := node.(*ast.CallExpr); ok {
+			if name, ok := call.Fun.(*ast.Ident); ok && name.Name == "teachTheRule" {
+				taught = call.Pos()
+			}
+		}
+		return true
+	})
+	if !taught.IsValid() {
+		t.Fatal("main.go never calls teachTheRule")
+	}
+	found := 0
+	ast.Inspect(file, func(node ast.Node) bool {
+		literal, ok := node.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		selector, ok := literal.Type.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "StepUpVerifier" {
+			return true
+		}
+		found++
+		if literal.Pos() < taught {
+			t.Errorf("a step-up verifier is copied from the session writer before the rule is taught "+
+				"(offset %d) - it would offer the password where a workspace switched it off", literal.Pos())
+		}
+		return true
+	})
+	if found == 0 {
+		t.Fatal("main.go builds no step-up verifier at all - the pattern no longer matches")
 	}
 }
