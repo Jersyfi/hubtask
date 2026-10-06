@@ -1,7 +1,9 @@
 # ADR-0017: An immutable audit trail, separate from the business history
 
-* **Status:** accepted
-* **Date:** 2026-08-14
+**Status:** accepted · **Date:** 2026-08-14
+
+**Rule lives in:** [audit.md](../architecture/audit.md) §1, §2, §3, §4, §5, §6, §7
+
 * **Concerns:** audit, security, data protection, persistence
 * **Related:** [ADR-0007](./ADR-0007-events-outbox-cloudevents.md), [ADR-0015](./ADR-0015-security-baseline.md), [audit.md](../architecture/audit.md)
 

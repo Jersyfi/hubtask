@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-18
 
+**Rule lives in:** [multi-tenancy.md](../architecture/multi-tenancy.md) §2.1.2
+
 ## Context
 
 [ADR-0010](./ADR-0010-multi-tenancy.md) makes row level security the boundary between tenants and

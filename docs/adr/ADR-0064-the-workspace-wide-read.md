@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-22 · **Accepted:** 2026-09-22
 
+**Rule lives in:** [api-guidelines.md](../architecture/api-guidelines.md) §3
+
 ## Context
 
 Two screens of milestone F10 asked the product a question it cannot answer, and the same wall

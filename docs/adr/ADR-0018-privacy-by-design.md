@@ -1,7 +1,9 @@
 # ADR-0018: Data protection by design — classification, a retention engine, no telemetry
 
-* **Status:** accepted
-* **Date:** 2026-08-14
+**Status:** accepted · **Date:** 2026-08-14
+
+**Rule lives in:** [data-protection.md](../architecture/data-protection.md) §2, §3, §4, §5, §6, §9, §10, [data-catalog.md](../privacy/data-catalog.md)
+
 * **Concerns:** data protection, data model, operations, product
 * **Related:** [ADR-0010](./ADR-0010-multi-tenancy.md), [ADR-0012](./ADR-0012-ai-first-mcp.md), [ADR-0017](./ADR-0017-audit-trail.md), [data-protection.md](../architecture/data-protection.md)
 

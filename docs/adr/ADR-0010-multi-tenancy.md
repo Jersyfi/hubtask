@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [multi-tenancy.md](../architecture/multi-tenancy.md) §1, §2, §2.1, §3
+
 ## Context
 The application is meant to be offered by service providers "at scale to end users" (Atlassian and
 Trello as the model) and at the same time to run as a single installation. Data leaks between
