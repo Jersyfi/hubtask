@@ -227,3 +227,30 @@ func TestASecondResetLinkReplacesTheFirst(t *testing.T) {
 		t.Fatalf("the newest link was refused: %v", err)
 	}
 }
+
+// A password set any other way spends the reset links mailed before it (ADR-0078 §4): a link from
+// last week must not replace the password the person chose today.
+func TestAPasswordChangeSpendsTheResetLinksBeforeIt(t *testing.T) {
+	fixture := newResetFixture(now)
+	link, err := MintResetToken{Writer: fixture.writer}.MintResetToken(t.Context(), tenant, account)
+	if err != nil || link.Token.IsEmpty() {
+		t.Fatalf("minting: %+v (%v)", link, err)
+	}
+	held := fixture.accounts.rows[account]
+	rules, err := fixture.writer.ResolveFor(t.Context(), tenant)
+	if err != nil {
+		t.Fatalf("resolving the rules: %v", err)
+	}
+	if err := fixture.writer.Write(t.Context(), PasswordCandidate{
+		TenantID: tenant, Account: held, Password: secret.New("the one chosen today"), Rules: rules,
+	}, "", false); err != nil {
+		t.Fatalf("changing the password: %v", err)
+	}
+
+	_, err = ResetPassword{Writer: fixture.writer}.Execute(t.Context(), ResetPasswordCommand{
+		Token: link.Token, Password: secret.New("a brand new passphrase"),
+	})
+	if detailOf(err) != "auth.reset_failed" {
+		t.Fatalf("a link mailed before the change answered %v, want auth.reset_failed", err)
+	}
+}
