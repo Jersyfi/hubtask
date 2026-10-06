@@ -43,7 +43,7 @@ language; a member who switched that kind of message off does not.
 
 ## Today
 
-* **No check holds.** The actions `NOTIFY_ACCOUNT`, `NOTIFY_GROUP` and `SEND_EMAIL` are listed in
-  [automation.md](../../architecture/automation.md) §1.3, but no such use case exists in the
-  catalogue, so a rule naming one is refused with `automation.action_unknown`. No backlog task
-  names them.
+* Check 1: not met — no action names an account or a group as recipient; `NOTIFY_ACCOUNT` and `NOTIFY_GROUP` are refused with `automation.action_unknown`.
+* Check 2: not met — no rule step reaches the notification path.
+* Check 3: not met — there is no notification step whose recipients could be narrowed.
+* Check 4: not met — there is no recipient for the save or the check to refuse or flag.
