@@ -121,6 +121,7 @@ func TestMicrosoftsDomainOwnerClaimIsReadAsVerification(t *testing.T) {
 
 	cfg := configFor(idp)
 	cfg.DirectoryClaim = "tid"
+	cfg.Authority = port.Authority{Claim: "xms_edov"}
 	identity, err := relyingParty(idp, now).Exchange(t.Context(), cfg, exchange())
 	if err != nil {
 		t.Fatalf("exchanging: %v", err)
@@ -143,6 +144,7 @@ func TestMicrosoftsDomainOwnerClaimRefusesWhenItSaysNo(t *testing.T) {
 
 	cfg := configFor(idp)
 	cfg.DirectoryClaim = "tid"
+	cfg.Authority = port.Authority{Claim: "xms_edov"}
 	identity, err := relyingParty(idp, now).Exchange(t.Context(), cfg, exchange())
 	if err != nil {
 		t.Fatalf("exchanging: %v", err)
@@ -162,6 +164,7 @@ func TestAVerifiedAddressOutsideItsDirectoryIsNotAuthoritative(t *testing.T) {
 
 	cfg := configFor(idp)
 	cfg.DirectoryClaim = "hd"
+	cfg.Authority = port.Authority{DirectoryIsDomain: true}
 	identity, err := relyingParty(idp, now).Exchange(t.Context(), cfg, exchange())
 	if err != nil {
 		t.Fatalf("exchanging: %v", err)

@@ -113,11 +113,7 @@ func (w SessionWriter) stepUpConfig(
 		}
 		return domain.IdentityProvider{}, provider.Config{}, err
 	}
-	return configured, provider.Config{
-		Issuer: configured.Issuer, ClientID: configured.ClientID,
-		ClientSecret: opened, RedirectURL: p.RedirectURL,
-		DirectoryClaim: directoryClaimOf(configured),
-	}, nil
+	return configured, relyingConfig(configured, opened, p.RedirectURL), nil
 }
 
 // ProviderName answers the name the refusal carries beside PROVIDER (stepup.ProviderNamer).

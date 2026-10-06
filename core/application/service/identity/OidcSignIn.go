@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"slices"
 	"strconv"
 	"time"
 
@@ -133,11 +134,7 @@ func (h StartOidcSignIn) Execute(
 
 	// The provider is asked before the flow is written: an unreachable one leaves no row behind,
 	// and the person is told it is the provider rather than being sent to a page that is not there.
-	url, err := w.Relying.AuthorizationURL(ctx, provider.Config{
-		Issuer: configured.Issuer, ClientID: configured.ClientID,
-		ClientSecret: sealed, RedirectURL: w.RedirectURL,
-		DirectoryClaim: directoryClaimOf(configured),
-	}, provider.Authorization{
+	url, err := w.Relying.AuthorizationURL(ctx, relyingConfig(configured, sealed, w.RedirectURL), provider.Authorization{
 		State: state.Secret(), Nonce: nonce, CodeVerifier: verifier, LoginHint: cmd.LoginHint,
 	})
 	if err != nil {
@@ -218,11 +215,7 @@ func (h CompleteOidcSignIn) Execute(
 		return SignInResult{}, err
 	}
 
-	identity, err := w.Relying.Exchange(ctx, provider.Config{
-		Issuer: configured.Issuer, ClientID: configured.ClientID,
-		ClientSecret: sealed, RedirectURL: w.RedirectURL,
-		DirectoryClaim: directoryClaimOf(configured),
-	}, provider.Exchange{
+	identity, err := w.Relying.Exchange(ctx, relyingConfig(configured, sealed, w.RedirectURL), provider.Exchange{
 		Code: cmd.Code, CodeVerifier: flow.Verifier, Nonce: flow.Nonce,
 	})
 	if err != nil {
@@ -852,16 +845,27 @@ func (h CompleteOidcSignIn) invoke(
 	return pairOutput(*result.Pair), nil
 }
 
-// directoryClaimOf is the preset's name for the claim the adapter reads the organisation out of.
+// relyingConfig is one provider's configuration as the relying party needs it, for a sign-in and
+// for a step-up alike.
 //
-// Read from the preset rather than stored on the row: it is a property of the provider, not of a
-// workspace's configuration of it, and a column would be a second place for it to be wrong.
-func directoryClaimOf(configured domain.IdentityProvider) string {
-	preset, known := domain.PresetOf(configured.Kind)
-	if !known {
-		return ""
+// The directory claim and the way the provider says it hosts a mailbox are read from the preset
+// rather than stored on the row: they are properties of the provider, not of a workspace's
+// configuration of it, and a column would be a second place for them to be wrong. A kind this build
+// does not know is the zero preset - no directory, never authoritative (ADR-0078 §5).
+func relyingConfig(
+	configured domain.IdentityProvider, opened secret.Secret, redirectURL string,
+) provider.Config {
+	preset, _ := domain.PresetOf(configured.Kind)
+	return provider.Config{
+		Issuer: configured.Issuer, ClientID: configured.ClientID,
+		ClientSecret: opened, RedirectURL: redirectURL,
+		DirectoryClaim: preset.DirectoryClaim,
+		Authority: provider.Authority{
+			Claim:             preset.AuthorityClaim,
+			OwnDomains:        slices.Clone(preset.OwnMailDomains),
+			DirectoryIsDomain: preset.DirectoryIsMailDomain,
+		},
 	}
-	return preset.DirectoryClaim
 }
 
 // admissionOf is the port's identity as the domain's admission question (ADR-0071 §1).

@@ -184,7 +184,7 @@ func (p *Provider) Exchange(
 		return port.Identity{}, invalidToken(errors.New("issued further ahead than a clock explains"))
 	}
 
-	return identityFrom(verified, cfg.DirectoryClaim)
+	return identityFrom(verified, cfg.DirectoryClaim, cfg.Authority)
 }
 
 // discover fetches the provider's metadata, or reuses what was fetched recently.
@@ -376,9 +376,12 @@ func invalidToken(cause error) error {
 // identityFrom reads the claims this product has a use for, and no others.
 //
 // `directoryClaim` is the preset's name for the claim that says which organisation this person
-// belongs to (ADR-0071 §1). It is read by name rather than by a switch on the provider, so nothing
-// here learns that Microsoft calls it `tid` and Google calls it `hd` - the preset does.
-func identityFrom(token *gooidc.IDToken, directoryClaim string) (port.Identity, error) {
+// belongs to (ADR-0071 §1), and `authority` the preset's way of saying it hosts the mailbox
+// (ADR-0078 §5). Both are read by name rather than by a switch on the provider, so nothing here
+// learns that Microsoft calls them `tid` and `xms_edov` and Google `hd` - the preset does.
+func identityFrom(
+	token *gooidc.IDToken, directoryClaim string, authority port.Authority,
+) (port.Identity, error) {
 	var claims struct {
 		Email         string          `json:"email"`
 		EmailVerified json.RawMessage `json:"email_verified"`
@@ -422,6 +425,12 @@ func identityFrom(token *gooidc.IDToken, directoryClaim string) (port.Identity, 
 		verified = verifiedFlag(claims.DomainOwnerVerified)
 	}
 
+	var asserted json.RawMessage
+	if authority.Claim != "" {
+		// Absent is no statement, which the reading below answers as not authoritative.
+		asserted, _ = rawClaim(token, authority.Claim)
+	}
+
 	var authTime time.Time
 	if claims.AuthTime > 0 {
 		authTime = time.Unix(int64(claims.AuthTime), 0).UTC()
@@ -433,20 +442,16 @@ func identityFrom(token *gooidc.IDToken, directoryClaim string) (port.Identity, 
 		EmailVerified:        verified,
 		DisplayName:          name,
 		Directory:            directory,
-		AddressAuthoritative: authoritative(claims.Email, verified, directory, claims.DomainOwnerVerified),
+		AddressAuthoritative: authoritative(claims.Email, verified, directory, asserted, authority),
 		AuthTime:             authTime,
 	}, nil
 }
 
 // tokenClaim reads one string claim out of a verified token.
 func tokenClaim(token *gooidc.IDToken, name string) (string, error) {
-	var claims map[string]json.RawMessage
-	if err := token.Claims(&claims); err != nil {
+	raw, err := rawClaim(token, name)
+	if err != nil {
 		return "", err
-	}
-	raw, held := claims[name]
-	if !held {
-		return "", errors.New("the token carries no such claim")
 	}
 	var value string
 	if err := json.Unmarshal(raw, &value); err != nil {
@@ -455,33 +460,65 @@ func tokenClaim(token *gooidc.IDToken, name string) (string, error) {
 	return value, nil
 }
 
-// authoritative answers whether the provider vouches for the address **and** its domain.
+// rawClaim reads one claim out of a verified token as it was sent, so the caller decides which
+// shapes it accepts.
+func rawClaim(token *gooidc.IDToken, name string) (json.RawMessage, error) {
+	var claims map[string]json.RawMessage
+	if err := token.Claims(&claims); err != nil {
+		return nil, err
+	}
+	raw, held := claims[name]
+	if !held {
+		return nil, errors.New("the token carries no such claim")
+	}
+	return raw, nil
+}
+
+// authoritative answers whether the provider hosts the mailbox the address names (ADR-0078 §5,
+// amending ADR-0071 §1). It is what activates an invited account without the invitation's own
+// link, so every doubt answers no.
 //
-// Three readings, and each is the provider's own (ADR-0071 §1):
+// Only the provider's own statement counts, in the shape its preset names:
 //
-//   - Microsoft answers it directly with `xms_edov`, which is documented as exactly this question.
-//   - Google does not, and says why the obvious substitute is wrong: "The domain of the email claim
-//     is insufficient to ensure that the account is managed by a domain or organization - you must
-//     verify the `hd` claim explicitly." So it is verified **and** the directory the token named is
-//     the address's own domain. A personal account is verified and not authoritative.
-//   - An issuer with no directory claim has nothing more to say than `email_verified`, and that is
-//     what it gets. A self-hosted provider is the workspace's own directory; treating its word as
-//     authoritative is the reading that matches what configuring it means.
-func authoritative(email string, verified bool, directory string, microsoft json.RawMessage) bool {
+//   - **A claim that says so** - Microsoft's `xms_edov`, documented as whether the address's domain
+//     owner was verified. Exactly the JSON value `true`: present and `false`, the string "true", or
+//     absent is no statement. The `email` claim alone never is one.
+//   - **The provider's own consumer domains** - Google's: an address at gmail.com is a mailbox
+//     Google runs.
+//   - **A hosted domain equal to the address's** - Google's `hd`. Google, in its own words: "The
+//     domain of the email claim is insufficient to ensure that the account is managed by a domain
+//     or organization - you must verify the `hd` claim explicitly." A personal Google account with
+//     a verified address at somebody else's domain is verified and not authoritative.
+//
+// Any other issuer - a workspace's own Keycloak or Authentik included - has none of the three and
+// is never authoritative. Until a workspace can prove a domain and bind it to an issuer, the safe
+// answer for a provider somebody here configured is no: the address it vouches for is one its
+// administrator typed.
+func authoritative(
+	email string, verified bool, directory string, asserted json.RawMessage, rule port.Authority,
+) bool {
 	if !verified {
 		return false
-	}
-	if len(microsoft) > 0 {
-		return true
-	}
-	if directory == "" {
-		return true
 	}
 	at := strings.LastIndex(email, "@")
 	if at < 0 || at == len(email)-1 {
 		return false
 	}
-	return strings.EqualFold(email[at+1:], directory)
+	domain := email[at+1:]
+
+	if rule.Claim != "" {
+		// Unmarshalled into a bool and nothing else: a string, a number or null fails here.
+		var said bool
+		if json.Unmarshal(asserted, &said) == nil && said {
+			return true
+		}
+	}
+	for _, own := range rule.OwnDomains {
+		if strings.EqualFold(domain, own) {
+			return true
+		}
+	}
+	return rule.DirectoryIsDomain && directory != "" && strings.EqualFold(domain, directory)
 }
 
 // verifiedFlag reads `email_verified` from either shape providers send it in.

@@ -82,6 +82,24 @@ type ProviderPreset struct {
 	// substitution itself is the adapter's, and what decides who comes in is the directory list.
 	SupportsTemplatedIssuer bool
 
+	// AuthorityClaim, OwnMailDomains and DirectoryIsMailDomain are how this provider says it hosts
+	// the mailbox an address names (ADR-0078 §5) - which is what "authoritative for the address"
+	// means, and what lets a provider activate an invited account without the invitation's link.
+	//
+	// AuthorityClaim is a boolean claim that says so when it is exactly `true`: Microsoft's
+	// `xms_edov`. OwnMailDomains are the domains whose mailboxes the provider runs itself, its
+	// consumer domains: Google's. DirectoryIsMailDomain says the directory claim names a mail
+	// domain, so an address in exactly that domain is hosted there: Google's `hd`, never
+	// Microsoft's `tid`, which is a directory's identifier and not a domain.
+	//
+	// All three empty is GENERIC, and it stays empty: a self-hosted issuer is not authoritative for
+	// any address until a workspace can prove a domain and bind it to the issuer, which is a later
+	// task. Trusting the preset rather than the token is safe because the preset is bound to its
+	// issuer's host (SpeaksFor): a `GOOGLE` row cannot point at somebody else's issuer.
+	AuthorityClaim        string
+	OwnMailDomains        []string
+	DirectoryIsMailDomain bool
+
 	// Public is whether anybody in the world can hold an account at this issuer.
 	//
 	// A public provider may **only** be INVITED_ONLY, and the rule is not an operator's to relax:
@@ -115,12 +133,15 @@ var providerPresets = []ProviderPreset{
 		Scopes:            []string{"openid", "email", "profile"},
 		AddressesVerified: true,
 		// One issuer for every Google account there is, private ones included. The `hd` claim is
-		// how a token says which domain it came from - and this installation does not read it,
-		// because INVITED_ONLY makes the question moot: the account has to exist here already.
+		// how a token says which Workspace domain it came from, absent for a personal account.
 		DirectoryClaim: "hd",
-		Public:         true,
-		Particular:     "identity_provider.preset.google.particular",
-		Instructions:   "identity_provider.preset.google.instructions",
+		// A Google account at Google's own domains is a mailbox Google runs; one at any other
+		// domain is Google's only where the token names that domain as its hosted domain.
+		OwnMailDomains:        []string{providerHost("gmail", "com"), providerHost("googlemail", "com")},
+		DirectoryIsMailDomain: true,
+		Public:                true,
+		Particular:            "identity_provider.preset.google.particular",
+		Instructions:          "identity_provider.preset.google.instructions",
 	},
 	{
 		Kind: KindMicrosoft,
@@ -132,6 +153,10 @@ var providerPresets = []ProviderPreset{
 		AddressesVerified: true,
 		Public:            false,
 		DirectoryClaim:    "tid",
+		// Microsoft says it in a claim of its own, documented as whether the domain owner of the
+		// address was verified. The `email` claim alone never is: Microsoft calls it mutable and
+		// unverified, and says never to authorise on it.
+		AuthorityClaim: "xms_edov",
 		// `common` and `organizations` are the multi-directory endpoints, and a token minted behind
 		// one names the *directory* in `iss` - never `common`. Microsoft publishes the issuer as a
 		// template and documents the rule: substitute the token's `tid` and compare exactly. That

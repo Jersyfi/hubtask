@@ -474,11 +474,13 @@ type Arriving struct {
 	// Directory is the provider's identifier for the organisation, empty where the token named
 	// none — a personal account, or an issuer with no such claim.
 	Directory string
-	// AddressAuthoritative is whether the provider vouches for the address **and** the domain it
-	// sits in: Google's `email_verified` together with a matching `hd`, Microsoft's `xms_edov`.
+	// AddressAuthoritative is whether the provider hosts the mailbox the address names, in its own
+	// terms (ADR-0078 §5): Microsoft's `xms_edov` exactly `true`; Google for its consumer domains or
+	// a hosted domain equal to the address's; no other issuer, a self-hosted one included.
 	//
 	// It is what `INVITED_ONLY` needs, because claiming an account that already exists is done on
-	// the strength of an address, and an address nobody owns the domain of is an assertion.
+	// the strength of an address, and an address nobody owns the domain of is an assertion. It is
+	// also one of the two second proofs that activate an invited account (ADR-0078 §1).
 	AddressAuthoritative bool
 }
 
