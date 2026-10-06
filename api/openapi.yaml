@@ -3852,7 +3852,10 @@ paths:
         Authority for the address stands in for a proof only where there is none. Under *Only
         people invited here* a provider that is not authoritative still brings an existing active
         account that holds a password to the `LINK` step - connected only with that password and
-        its second factor - and never creates an account.
+        its second factor - and never creates an account. An existing account that holds no
+        credential at all is connected only by a provider authoritative for its address, in every
+        mode; otherwise nothing is connected and the answer is
+        `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
 
         A `state` that is unknown, already spent or expired is refused indistinguishably: a flow
         handle is single use.

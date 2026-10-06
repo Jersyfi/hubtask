@@ -431,6 +431,16 @@ func (w OidcWriter) settleAccount(
 					return nil
 				}
 
+				// An account that holds no credential at all - its provider removed, its identity
+				// gone with it - has nothing to prove on the card. The provider's word connects it
+				// only where the provider hosts the mailbox (ADR-0078 §1, §5): that is a mailbox
+				// proof. Anything else is an issuer vouching for an address it does not own, which
+				// is how an administrator's own provider would sign in as a member (P-02). The way
+				// back is the mailbox: *Forgot your password?*.
+				if !arriving.AddressAuthoritative {
+					return turnedAway(linkNeedsMailbox())
+				}
+
 				linked, err := w.External.LinkSubject(
 					ctx, configured.ID, existing.ID, arriving.Subject, w.Session.Clock.Now())
 				if err != nil {
@@ -536,12 +546,15 @@ func (w OidcWriter) notAdmitted(
 		if err != nil {
 			return domain.Account{}, err
 		}
-		if proof == proofPassword {
+		switch proof {
+		case proofPassword:
 			return existing, nil
+		case proofElsewhere:
+			return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in")
 		}
-		// No password to ask for here: the provider's word does not stand in for one, so the
-		// account is refused rather than connected (proofNone) or asked for what it lacks.
-		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in")
+		// No credential at all, and a provider that is not authoritative: its word does not stand
+		// in for a proof, and the way back is the mailbox.
+		return domain.Account{}, linkNeedsMailbox()
 	default:
 		return domain.Account{}, refused
 	}
@@ -653,6 +666,14 @@ func (w OidcWriter) sameAddress(arriving, held string) bool {
 		return false
 	}
 	return domain.LookupAddress(arriving, w.Domains) == domain.LookupAddress(held, w.Domains)
+}
+
+// linkNeedsMailbox is the refusal of an existing account that holds no credential, arriving from a
+// provider that is not authoritative for its address. Its sentence names the way back that works:
+// *Forgot your password?* mails the account a link - to set a password where the password is open
+// (SC-25), to connect the provider where it is off (SC-33).
+func linkNeedsMailbox() error {
+	return shared.ErrForbidden.WithDetail("identity_provider.link_needs_mailbox")
 }
 
 // invitationAddressDiffers is the refusal of an arrival whose provider identity is not the invited

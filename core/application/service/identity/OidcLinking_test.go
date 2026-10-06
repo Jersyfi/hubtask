@@ -322,7 +322,7 @@ func TestUnderInvitedOnlyANonAuthoritativeProviderStillRefusesTheRest(t *testing
 		}
 
 		_, err := arrive(t, f)
-		if detailOf(err) != "identity_provider.link_needs_own_way_in" {
+		if detailOf(err) != "identity_provider.link_needs_mailbox" {
 			t.Fatalf("a member with nothing to prove answered %v", err)
 		}
 		if len(f.external.links) != 0 {
