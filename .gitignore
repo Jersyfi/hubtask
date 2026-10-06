@@ -58,10 +58,12 @@ coverage.*
 !/presentation/webui/dist/index.html
 
 # Local Claude Code tooling (launch configurations, settings, worktrees); session-specific, not
-# project content. The project's skills are the exception: they are how a session checks work
-# against the use cases (docs/usecases/README.md), and every session needs the same ones.
+# project content. Two exceptions: the project's skills, which are how a session checks work against
+# the use cases (docs/usecases/README.md), and settings.json, which carries the hook that keeps a pull
+# request a draft until make verify-pr passed (ADR-0078) - every session needs the same ones.
 /.claude/*
 !/.claude/skills/
+!/.claude/settings.json
 
 # Python bytecode from running the SDK example or its test
 __pycache__/

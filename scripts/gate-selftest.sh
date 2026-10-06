@@ -920,6 +920,9 @@ expect_architecture_failure_after "a root job that runs on a draft" \
 	.github/workflows/ci.yml "/^    name: What changed$/{n;/draft/d;}"
 expect_architecture_failure_after "CI required on a draft's commit" \
 	.github/workflows/ci.yml "s/^    name: .*'CI not run (draft)'.*$/    name: CI required/"
+# And the hook that keeps a session from skipping the local check: a guard that never refuses.
+expect_architecture_failure_after "a pull request hook that refuses nothing" \
+	scripts/hooks/pr-transition-guard.sh 's/^	exit 2$/	exit 0/'
 
 header "Action pins (make gate-architecture)"
 

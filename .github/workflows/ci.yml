@@ -103,6 +103,9 @@ jobs:
               - 'k8s/**'
               - 'go.mod'
               - 'go.sum'
+              # The hook a session runs before a pull request leaves draft (ADR-0078): test/architecture
+              # reads it and runs its script, so a change to it runs that test.
+              - '.claude/settings.json'
               - '.golangci.yml'
               - 'Makefile'
               - 'LICENSE'
