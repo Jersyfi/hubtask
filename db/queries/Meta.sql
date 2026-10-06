@@ -64,8 +64,11 @@ SELECT EXISTS (
 -- The tenant's own row, read from inside the tenant (F4-01). No tenant parameter: row level
 -- security has already bound the transaction to exactly one, which is what makes another
 -- workspace invisible rather than forbidden (ADR-0010).
+-- The operator's opening of the password rides along (SC-34): it is read wherever the ways in are,
+-- and honoured against the clock by the reader.
 SELECT id, slug, display_name, status, default_locale, default_time_zone,
-       settings, created_at, updated_at, version
+       settings, created_at, updated_at, version,
+       password_opened_until, password_opened_requester, password_opened_reason
 FROM tenant
 WHERE id = current_tenant_id() AND deleted_at IS NULL;
 

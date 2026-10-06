@@ -58,6 +58,14 @@ const (
 	// exists only to be an exception.
 	KindPasswordResetEmail Kind = "notification.password_reset"
 
+	// KindPasswordOpeningEmail tells one administrator of a workspace that an operator opened the
+	// password there, or that the opening ended (ADR-0078 §3, SC-34). Queued in the transaction
+	// that opened or closed it, one job per administrator, so the act and its notices commit
+	// together. Not a notification record, for KindPasswordResetEmail's reason: it is the one
+	// message about the way into a workspace that no preference may silence, and a category that
+	// existed only to be an exception would be the wrong shape for it.
+	KindPasswordOpeningEmail Kind = "notification.password_opening"
+
 	// KindNotificationDeliver sends one notification (C-09). One job per record rather than one
 	// per tenant, because the retry belongs to the message: an address the server refuses must not
 	// hold up everybody else's mail, and the queue's own attempt budget and dead letter are
@@ -288,6 +296,17 @@ const (
 	// the job), with RunAt at the grace's end. The handler re-reads the two facts the grace
 	// could have changed and deletes nothing if either moved.
 	KindTenantHardDelete Kind = "tenant.hard_delete"
+
+	// KindPasswordOpeningEnd records the end of an operator's opening of the password once its time
+	// has passed (ADR-0078 §3, SC-34): the trail entry, the journal entry and the notices. The
+	// password itself closed at that moment whether or not this has run - the end is honoured where
+	// the opening is read - so the job is bookkeeping, not the end.
+	//
+	// Seeded by the opening's own write, with RunAt at its end and the tenant as the dedupe key
+	// (per-tenant work is seeded by a write in that tenant, never by a sweep). An opening replaced
+	// by a later one moves the pending job no later; the handler re-reads the row and comes back
+	// when the opening it finds is still running.
+	KindPasswordOpeningEnd Kind = "tenant.password_opening_end"
 
 	// KindSecretReseal moves one workspace's sealed values under the current master key
 	// (ADR-0045, security.md §8.1): the half of a rotation that lets a key leave the ring. One

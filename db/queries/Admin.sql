@@ -11,7 +11,12 @@
 -- The casts are for the generator: it cannot see into the function's OUT table.
 SELECT id::uuid, slug::text, display_name::text, status::text,
        default_locale::text, default_time_zone::text,
-       created_at::timestamptz, purge_after::timestamptz AS purge_after
+       created_at::timestamptz, purge_after::timestamptz AS purge_after,
+       password_opened_until::timestamptz AS password_opened_until,
+       -- Empty rather than NULL where no opening stands: the generator cannot see that the
+       -- function's text columns may be NULL, and a NULL scanned into a string is an error.
+       coalesce(password_opened_requester, '')::text AS password_opened_requester,
+       coalesce(password_opened_reason, '')::text AS password_opened_reason
 FROM admin_tenants();
 
 -- name: InsertTenant :exec
@@ -27,9 +32,36 @@ VALUES (
 
 -- name: FindTenantForAdmin :one
 SELECT id, slug, display_name, status, default_locale, default_time_zone,
-       created_at, purge_after, version
+       created_at, purge_after, version,
+       password_opened_until, password_opened_requester, password_opened_reason
 FROM tenant
 WHERE id = current_tenant_id() AND deleted_at IS NULL;
+
+-- name: OpenTenantPassword :execrows
+-- An operator opens the password for this one workspace (ADR-0078 §3, SC-34). A second opening
+-- replaces the first - the operator's latest word on how long, who asked and why. Only an active
+-- workspace opens: a suspended one refuses its people before any password is asked for, and a
+-- leaving one is shut out for good.
+-- The version is left alone: the opening is not the workspace's configuration, and an
+-- administrator's form open on it must not meet a conflict for something it never showed.
+UPDATE tenant
+SET password_opened_until = sqlc.arg('until'),
+    password_opened_requester = sqlc.arg('requester'),
+    password_opened_reason = sqlc.arg('reason'),
+    updated_at = sqlc.arg('now')
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND status = 'ACTIVE';
+
+-- name: CloseTenantPassword :execrows
+-- Ends the opening: early by the operator (no `due`), or once its time has passed (`due` is the
+-- moment, and an opening extended in between is left standing). Zero rows is an opening that was not
+-- there, or not yet due - which the caller reads as "nothing to close" rather than as a fault.
+UPDATE tenant
+SET password_opened_until = NULL, password_opened_requester = NULL, password_opened_reason = NULL,
+    updated_at = sqlc.arg('now')
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND password_opened_until IS NOT NULL
+  AND (sqlc.narg('due')::timestamptz IS NULL OR password_opened_until <= sqlc.narg('due')::timestamptz);
 
 -- name: SetTenantStatus :execrows
 -- The lifecycle edges of §5, one guarded write each: the expected status is the edge's origin,

@@ -54,6 +54,10 @@ func (AdminTenantRepository) List(ctx context.Context) ([]repository.TenantRecor
 			Status:        identity.TenantStatus(row.Status),
 			DefaultLocale: row.DefaultLocale, DefaultTimeZone: row.DefaultTimeZone,
 			CreatedAt: timeFrom(row.CreatedAt), PurgeAfter: timeFrom(row.PurgeAfter),
+			PasswordOpening: identity.PasswordOpening{
+				Until:     timeFrom(row.PasswordOpenedUntil),
+				Requester: row.PasswordOpenedRequester, Reason: row.PasswordOpenedReason,
+			},
 		})
 	}
 	return records, nil
@@ -112,6 +116,11 @@ func (AdminTenantRepository) Find(ctx context.Context) (repository.TenantRecord,
 		Status:        identity.TenantStatus(row.Status),
 		DefaultLocale: row.DefaultLocale, DefaultTimeZone: row.DefaultTimeZone,
 		CreatedAt: timeFrom(row.CreatedAt), PurgeAfter: timeFrom(row.PurgeAfter),
+		PasswordOpening: identity.PasswordOpening{
+			Until:     timeFrom(row.PasswordOpenedUntil),
+			Requester: stringFrom(row.PasswordOpenedRequester),
+			Reason:    stringFrom(row.PasswordOpenedReason),
+		},
 		Version: int(row.Version),
 	}, nil
 }
@@ -216,6 +225,48 @@ func (AdminTenantRepository) RequestDeletion(
 		return false, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("requesting the tenant deletion: %w", err))
+	}
+	return changed > 0, nil
+}
+
+// OpenPassword writes an operator's opening on the transaction's own tenant (ADR-0078 §3).
+func (AdminTenantRepository) OpenPassword(
+	ctx context.Context, opening identity.PasswordOpening, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	changed, err := queries.OpenTenantPassword(ctx, sqlc.OpenTenantPasswordParams{
+		Until:     pgtype.Timestamptz{Time: opening.Until, Valid: true},
+		Requester: &opening.Requester,
+		Reason:    &opening.Reason,
+		Now:       pgtype.Timestamptz{Time: now, Valid: true},
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("opening the password: %w", err))
+	}
+	return changed > 0, nil
+}
+
+// ClosePassword ends the opening on the transaction's own tenant - any, or only one due by `due`.
+func (AdminTenantRepository) ClosePassword(ctx context.Context, due, now time.Time) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	changed, err := queries.CloseTenantPassword(ctx, sqlc.CloseTenantPasswordParams{
+		Due: pgtype.Timestamptz{Time: due, Valid: !due.IsZero()},
+		Now: pgtype.Timestamptz{Time: now, Valid: true},
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("closing the password: %w", err))
 	}
 	return changed > 0, nil
 }

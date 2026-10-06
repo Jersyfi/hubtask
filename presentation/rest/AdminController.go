@@ -21,6 +21,8 @@ const (
 	resumeTenantUseCase          = "ResumeTenant"
 	requestTenantDeletionUseCase = "RequestTenantDeletion"
 	exportTenantUseCase          = "ExportTenant"
+	openTenantPasswordUseCase    = "OpenTenantPassword"
+	closeTenantPasswordUseCase   = "CloseTenantPassword"
 	readEncryptionStatusUseCase  = "ReadEncryptionStatus"
 	resealSecretsUseCase         = "ResealSecrets"
 )
@@ -139,7 +141,73 @@ func adminTenantResponse(row usecase.Output) openapi.AdminTenant {
 	if zone := row.String("default_time_zone"); zone != "" {
 		tenant.DefaultTimeZone = &zone
 	}
+	if opening, held := row["password_opening"].(usecase.Output); held {
+		tenant.PasswordOpening = passwordOpeningResponse(opening)
+	}
 	return tenant
+}
+
+// passwordOpeningResponse maps an operator's opening of the password (ADR-0078 §3), which the
+// listing, the two acts on it and the workspace's own read all answer in one shape.
+func passwordOpeningResponse(opening usecase.Output) *openapi.PasswordOpening {
+	return &openapi.PasswordOpening{
+		Until:     timeValue(opening["until"]),
+		Requester: opening.String("requester"),
+		Reason:    opening.String("reason"),
+	}
+}
+
+// OpenTenantPassword answers POST /admin/tenants/{tenantId}:open-password. Written out longhand for
+// the same reason as its siblings above.
+func (c *RestController) OpenTenantPassword(
+	w http.ResponseWriter, r *http.Request,
+	tenantID openapi.AdminTenantId, params openapi.OpenTenantPasswordParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.PasswordOpeningRequest
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), openTenantPasswordUseCase, actorOf(r), usecase.Input{
+		"tenant_id":     tenantID.String(),
+		"hours":         optionalIntField(body.Hours),
+		"requester":     body.Requester,
+		"reason":        body.Reason,
+		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, adminTenantResponse(out))
+}
+
+// CloseTenantPassword answers POST /admin/tenants/{tenantId}:close-password. Written out longhand
+// for the same reason as its siblings above.
+func (c *RestController) CloseTenantPassword(
+	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), closeTenantPasswordUseCase, actorOf(r), usecase.Input{
+		"tenant_id": tenantID.String(),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, adminTenantResponse(out))
 }
 
 // RequestTenantDeletion answers POST /admin/tenants/{tenantId}:delete. Written out longhand for

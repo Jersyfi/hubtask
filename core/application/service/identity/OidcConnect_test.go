@@ -24,15 +24,21 @@ import (
 // connectAt is the fixture clock the second factor's codes are computed against.
 var connectAt = now
 
-// shutDoor is the workspace's rule as far as a connection asks it: whether the password is open.
-type shutDoor struct{ open bool }
+// shutDoor is the workspace's rule as far as a connection asks it: whether the password is open, and
+// why where it is open only as the fallback.
+type shutDoor struct {
+	open  bool
+	cause FallbackCause
+}
+
+var _ PasswordDoor = shutDoor{}
 
 func (shutDoor) JudgeSignIn(context.Context, shared.ID, domain.Account, secret.Secret) (SignInVerdict, error) {
 	return SignInVerdict{}, nil
 }
 
-func (d shutDoor) PasswordOpen(context.Context, shared.ID) (bool, bool, error) {
-	return d.open, false, nil
+func (d shutDoor) PasswordOpen(context.Context, shared.ID) (bool, FallbackCause, error) {
+	return d.open, d.cause, nil
 }
 
 // bertMember is the active account the link was mailed to.

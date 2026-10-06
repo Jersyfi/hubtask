@@ -10,6 +10,7 @@ import (
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -270,5 +271,62 @@ func TestTheAnswerCarriesWhatTheContractDeclares(t *testing.T) {
 	read.Settings.AuditAnchorTargetID = shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
 	if got := workspaceOutput(read, nil, nil)["audit_anchor_target_id"]; got != "0192f000-0000-7000-8000-0000000000b1" {
 		t.Errorf("the answer names %v as the anchoring target", got)
+	}
+}
+
+// The workspace's own read answers an operator's opening of the password while it stands - until when
+// for every member, who asked and why only for a reader of the configuration (ADR-0078 §3) - and none
+// once its end has passed, whatever the row still holds until the end is recorded.
+func TestTheWorkspaceReadAnswersAnOpeningWhileItStands(t *testing.T) {
+	f := newWorkspaceFixture(at())
+	configuration := &permitter{allowed: true}
+	f.writer.Permits = configuration
+	read := func() usecase.Output {
+		t.Helper()
+		out, err := ReadWorkspace{Writer: f.writer}.invoke(t.Context(), workspaceActor(), usecase.Input{})
+		if err != nil {
+			t.Fatalf("reading: %v", err)
+		}
+		return out
+	}
+	if _, held := read()["password_opening"]; held {
+		t.Error("a workspace with no opening answers one")
+	}
+
+	f.store.row.PasswordOpening = domain.PasswordOpening{
+		Until: at().Add(time.Hour), Requester: "TICKET-4711", Reason: "the directory answers 500",
+	}
+	opening, _ := read()["password_opening"].(usecase.Output)
+	if until, _ := opening["until"].(time.Time); !until.Equal(at().Add(time.Hour)) ||
+		opening["requester"] != "TICKET-4711" || opening["reason"] != "the directory answers 500" {
+		t.Errorf("a configuration reader is answered %+v", opening)
+	}
+	asked := configuration.requests[len(configuration.requests)-1]
+	if asked.Permission != service.PermissionReadConfiguration {
+		t.Errorf("the attribution was decided by %s", asked.Permission)
+	}
+
+	// A member without the configuration permission learns that the password is open and until when.
+	configuration.allowed = false
+	opening, _ = read()["password_opening"].(usecase.Output)
+	if until, _ := opening["until"].(time.Time); !until.Equal(at().Add(time.Hour)) {
+		t.Errorf("a member is not told until when: %+v", opening)
+	}
+	if _, held := opening["requester"]; held {
+		t.Errorf("a member reads who asked: %+v", opening)
+	}
+	if _, held := opening["reason"]; held {
+		t.Errorf("a member reads why: %+v", opening)
+	}
+	// Nobody to ask is nobody told.
+	f.writer.Permits = nil
+	if opening, _ := read()["password_opening"].(usecase.Output); opening["requester"] != nil {
+		t.Errorf("a writer without a permitter answered the requester: %+v", opening)
+	}
+
+	f.writer.Permits = configuration
+	f.store.row.PasswordOpening.Until = at()
+	if _, held := read()["password_opening"]; held {
+		t.Error("an opening at its end is still answered")
 	}
 }

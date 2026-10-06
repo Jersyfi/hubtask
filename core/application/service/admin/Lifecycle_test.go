@@ -6,6 +6,7 @@ package admin
 import (
 	"errors"
 	"testing"
+	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -269,5 +270,26 @@ func TestTheAdminUseCasesRoundTripThroughTheRegistry(t *testing.T) {
 	}
 	if out.String("job_id") == "" || out.String("export_id") == "" {
 		t.Errorf("export output %v", out)
+	}
+}
+
+// The listing answers an opening while it stands, and none once its end has passed.
+func TestTheListingAnswersAnOpeningOnlyWhileItStands(t *testing.T) {
+	standing := domain.PasswordOpening{Until: now.Add(time.Hour), Requester: "TICKET-4711", Reason: "down"}
+	ended := domain.PasswordOpening{Until: now, Requester: "TICKET-4710", Reason: "down"}
+	store := &tenantsStore{listed: []adminrepo.TenantRecord{
+		{ID: lifecycleTenant, Slug: "acme", PasswordOpening: standing},
+		{ID: operatorHome, Slug: "home", PasswordOpening: ended},
+	}}
+	records, err := ListTenants{Tenants: store, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now)}.
+		Execute(t.Context(), operator())
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	if records[0].PasswordOpening != standing || !records[1].PasswordOpening.Until.IsZero() {
+		t.Errorf("listed %+v, %+v", records[0].PasswordOpening, records[1].PasswordOpening)
+	}
+	if _, held := adminTenantOutput(records[1])["password_opening"]; held {
+		t.Error("an ended opening is in the answer")
 	}
 }

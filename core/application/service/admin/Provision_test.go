@@ -62,6 +62,11 @@ type tenantsStore struct {
 	listed    []adminrepo.TenantRecord
 	deletions []time.Time
 	deleteOK  bool
+	// The operator's opening (SC-34): what was written, and the moments a close was asked for.
+	openings []domain.PasswordOpening
+	closes   []time.Time
+	// racing is an opening another transaction commits just before a close's statement runs.
+	racing *domain.PasswordOpening
 }
 
 func (s *tenantsStore) List(context.Context) ([]adminrepo.TenantRecord, error) {
@@ -85,6 +90,33 @@ func (s *tenantsStore) RequestDeletion(
 ) (bool, error) {
 	s.deletions = append(s.deletions, purgeAfter)
 	return s.deleteOK, nil
+}
+
+// OpenPassword writes the opening onto the one row, as the statement does where the workspace is
+// active.
+func (s *tenantsStore) OpenPassword(
+	_ context.Context, opening domain.PasswordOpening, _ time.Time,
+) (bool, error) {
+	if s.record.Status != domain.TenantActive {
+		return false, nil
+	}
+	s.openings = append(s.openings, opening)
+	s.record.PasswordOpening = opening
+	return true, nil
+}
+
+// ClosePassword clears it - any, or only one due by `due` - as the statement does.
+func (s *tenantsStore) ClosePassword(_ context.Context, due, _ time.Time) (bool, error) {
+	s.closes = append(s.closes, due)
+	if s.racing != nil {
+		s.record.PasswordOpening, s.racing = *s.racing, nil
+	}
+	until := s.record.PasswordOpening.Until
+	if until.IsZero() || (!due.IsZero() && until.After(due)) {
+		return false, nil
+	}
+	s.record.PasswordOpening = domain.PasswordOpening{}
+	return true, nil
 }
 
 func (s *tenantsStore) SetStatus(

@@ -3835,6 +3835,9 @@ type AdminTenant struct {
 	DisplayName     string             `json:"display_name"`
 	Id              openapi_types.UUID `json:"id"`
 
+	// PasswordOpening The operator's opening of the password while it is in force (ADR-0078 §3), null otherwise - an opening past its end is answered as none, whatever the row still holds.
+	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
+
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
 	PurgeAfter *time.Time        `json:"purge_after,omitempty"`
 	Slug       string            `json:"slug"`
@@ -6287,6 +6290,29 @@ type PasswordForgot struct {
 	Email openapi_types.Email `json:"email"`
 }
 
+// PasswordOpening An operator's opening of the password for one workspace (ADR-0078 §3): when it ends, who asked and why.
+type PasswordOpening struct {
+	Reason string `json:"reason"`
+
+	// Requester Who asked for it, as the operator entered it - a ticket reference, ideally.
+	Requester string `json:"requester"`
+
+	// Until When the opening ends on its own.
+	Until time.Time `json:"until"`
+}
+
+// PasswordOpeningRequest defines model for PasswordOpeningRequest.
+type PasswordOpeningRequest struct {
+	// Hours How long the opening stands, counted from now. A day unless said otherwise.
+	Hours *int `json:"hours,omitempty"`
+
+	// Reason Why the password is opened - what is wrong with the provider.
+	Reason string `json:"reason"`
+
+	// Requester Who asked for the opening. Free text the workspace's administrators read; a ticket reference rather than a person's name where the operator can (data-catalog.md).
+	Requester string `json:"requester"`
+}
+
 // PasswordPolicySettings The thirteen switches about the password itself, each at its three levels.
 type PasswordPolicySettings struct {
 	BreachCheck     SignInPolicyFlag `json:"breach_check"`
@@ -6486,6 +6512,9 @@ type ProvisionedTenant struct {
 
 	// OwnerRedemptionToken The owner's way in, shown for the only time: whoever the workspace is for redeems it, sets a password, and is signed in (H-01). Hand it to them; it cannot be read again.
 	OwnerRedemptionToken string `json:"owner_redemption_token"`
+
+	// PasswordOpening The operator's opening of the password while it is in force (ADR-0078 §3), null otherwise - an opening past its end is answered as none, whatever the row still holds.
+	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
 	PurgeAfter *time.Time              `json:"purge_after,omitempty"`
@@ -8270,6 +8299,9 @@ type Workspace struct {
 	Hosts *[]WorkspaceHost   `json:"hosts,omitempty"`
 	Id    openapi_types.UUID `json:"id"`
 
+	// PasswordOpening The installation operator's opening of the password for this workspace, while it is in force (ADR-0078 §3): the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.
+	PasswordOpening *WorkspacePasswordOpening `json:"password_opening,omitempty"`
+
 	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree (UC-ID-12); it was a stored value of its own until SC-06 and came apart from the rule in both directions. Kept for the clients that read it.
 	RequireAdminTotp bool `json:"require_admin_totp"`
 
@@ -8308,6 +8340,18 @@ type WorkspaceHost struct {
 
 // WorkspaceHostState `PENDING` resolves nothing: a host somebody typed is not a host they own. `VERIFIED` is one whose zone carried the mark and which may become canonical; it is not serving yet. `ACTIVE` is verified, its certificate in place, and answering - the canonical host is always this one. `BROKEN` was `ACTIVE` and stopped, and the row is kept because it is the way back: when it recovers it is `ACTIVE` again without anybody doing anything.
 type WorkspaceHostState string
+
+// WorkspacePasswordOpening An operator's opening of the password as the workspace itself reads it (ADR-0078 §3). Every member is told until when; who asked and why are answered only to a reader of the workspace's configuration (`READ_CONFIGURATION`: owners, administrators, the auditor) - the requester may name a person, and the reason may say more than a member needs.
+type WorkspacePasswordOpening struct {
+	// Reason Why. Absent for a reader without `READ_CONFIGURATION`.
+	Reason *string `json:"reason,omitempty"`
+
+	// Requester Who asked for it. Absent for a reader without `READ_CONFIGURATION`.
+	Requester *string `json:"requester,omitempty"`
+
+	// Until When the opening ends on its own.
+	Until time.Time `json:"until"`
+}
 
 // WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here.
 type WorkspaceUpdate struct {
@@ -8493,6 +8537,12 @@ type ProvisionTenantParams struct {
 
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
 type RequestTenantDeletionParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// OpenTenantPasswordParams defines parameters for OpenTenantPassword.
+type OpenTenantPasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
@@ -9499,6 +9549,9 @@ type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
 // ExportTenantJSONRequestBody defines body for ExportTenant for application/json ContentType.
 type ExportTenantJSONRequestBody = TenantExportRequest
 
+// OpenTenantPasswordJSONRequestBody defines body for OpenTenantPassword for application/json ContentType.
+type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
+
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
@@ -10275,6 +10328,13 @@ type ClientInterface interface {
 	// Corresponds with PATCH /admin/tenants/{tenantId}/quotas (the `UpdateTenantQuotas` operationId).
 	UpdateTenantQuotasWithApplicationMergePatchPlusJSONBody(ctx context.Context, tenantId AdminTenantId, body UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CloseTenantPassword Close an operator's opening of the password early
+	//
+	// Ends the opening `:open-password` made before its time (ADR-0078 §3). The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:close-password (the `CloseTenantPassword` operationId).
+	CloseTenantPassword(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RequestTenantDeletionWithBody Request a workspace's deletion
 	//
 	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up (H-03) in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
@@ -10310,6 +10370,26 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:export (the `ExportTenant` operationId).
 	ExportTenant(ctx context.Context, tenantId AdminTenantId, body ExportTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// OpenTenantPasswordWithBody Open the password for one workspace
+	//
+	// For a provider that is switched on but broken - unreachable, or admitting nobody - the operator opens the password for this one workspace, for a limited time: 24 hours unless `hours` says otherwise, at most 168 (ADR-0078 §3). Every account there that holds a password signs in with it, under the workspace's own rules and second factor, whatever the workspace's own switch and any installation lock say; an account without one is mailed a link to set one when it asks (`POST /auth/password:forgot`). It ends on its own at `password_opening.until`, and `:close-password` ends it early.
+	// Demands `admin:tenants`, the operator register and a fresh step-up in the `X-Hubtask-Step-Up` header. The requester and the reason are recorded with the end in the workspace's trail (`tenant.password_opened`) and in the installation's journal, and the workspace's administrators are told. A second opening replaces the first. It reads and changes nothing of the workspace's content. Only an active workspace is opened: a suspended one refuses its people before any password is asked for (`admin.password_opening_suspended`), and one pending deletion is leaving (`admin.tenant_leaving`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
+	OpenTenantPasswordWithBody(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// OpenTenantPassword Open the password for one workspace
+	//
+	// For a provider that is switched on but broken - unreachable, or admitting nobody - the operator opens the password for this one workspace, for a limited time: 24 hours unless `hours` says otherwise, at most 168 (ADR-0078 §3). Every account there that holds a password signs in with it, under the workspace's own rules and second factor, whatever the workspace's own switch and any installation lock say; an account without one is mailed a link to set one when it asks (`POST /auth/password:forgot`). It ends on its own at `password_opening.until`, and `:close-password` ends it early.
+	// Demands `admin:tenants`, the operator register and a fresh step-up in the `X-Hubtask-Step-Up` header. The requester and the reason are recorded with the end in the workspace's trail (`tenant.password_opened`) and in the installation's journal, and the workspace's administrators are told. A second opening replaces the first. It reads and changes nothing of the workspace's content. Only an active workspace is opened: a suspended one refuses its people before any password is asked for (`admin.password_opening_suspended`), and one pending deletion is leaving (`admin.tenant_leaving`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
+	OpenTenantPassword(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ResumeTenant Reactivate a workspace
 	//
@@ -14247,6 +14327,23 @@ func (c *Client) UpdateTenantQuotasWithApplicationMergePatchPlusJSONBody(ctx con
 	return c.Client.Do(req)
 }
 
+// CloseTenantPassword Close an operator's opening of the password early
+//
+// Ends the opening `:open-password` made before its time (ADR-0078 §3). The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:close-password (the `CloseTenantPassword` operationId).
+func (c *Client) CloseTenantPassword(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCloseTenantPasswordRequest(c.Server, tenantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RequestTenantDeletionWithBody Request a workspace's deletion
 //
 // The most irreversible act this API has, and it behaves like it: it demands a fresh step-up (H-03) in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
@@ -14313,6 +14410,46 @@ func (c *Client) ExportTenantWithBody(ctx context.Context, tenantId AdminTenantI
 // Corresponds with POST /admin/tenants/{tenantId}:export (the `ExportTenant` operationId).
 func (c *Client) ExportTenant(ctx context.Context, tenantId AdminTenantId, body ExportTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExportTenantRequest(c.Server, tenantId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// OpenTenantPasswordWithBody Open the password for one workspace
+//
+// For a provider that is switched on but broken - unreachable, or admitting nobody - the operator opens the password for this one workspace, for a limited time: 24 hours unless `hours` says otherwise, at most 168 (ADR-0078 §3). Every account there that holds a password signs in with it, under the workspace's own rules and second factor, whatever the workspace's own switch and any installation lock say; an account without one is mailed a link to set one when it asks (`POST /auth/password:forgot`). It ends on its own at `password_opening.until`, and `:close-password` ends it early.
+// Demands `admin:tenants`, the operator register and a fresh step-up in the `X-Hubtask-Step-Up` header. The requester and the reason are recorded with the end in the workspace's trail (`tenant.password_opened`) and in the installation's journal, and the workspace's administrators are told. A second opening replaces the first. It reads and changes nothing of the workspace's content. Only an active workspace is opened: a suspended one refuses its people before any password is asked for (`admin.password_opening_suspended`), and one pending deletion is leaving (`admin.tenant_leaving`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
+func (c *Client) OpenTenantPasswordWithBody(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOpenTenantPasswordRequestWithBody(c.Server, tenantId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// OpenTenantPassword Open the password for one workspace
+//
+// For a provider that is switched on but broken - unreachable, or admitting nobody - the operator opens the password for this one workspace, for a limited time: 24 hours unless `hours` says otherwise, at most 168 (ADR-0078 §3). Every account there that holds a password signs in with it, under the workspace's own rules and second factor, whatever the workspace's own switch and any installation lock say; an account without one is mailed a link to set one when it asks (`POST /auth/password:forgot`). It ends on its own at `password_opening.until`, and `:close-password` ends it early.
+// Demands `admin:tenants`, the operator register and a fresh step-up in the `X-Hubtask-Step-Up` header. The requester and the reason are recorded with the end in the workspace's trail (`tenant.password_opened`) and in the installation's journal, and the workspace's administrators are told. A second opening replaces the first. It reads and changes nothing of the workspace's content. Only an active workspace is opened: a suspended one refuses its people before any password is asked for (`admin.password_opening_suspended`), and one pending deletion is leaving (`admin.tenant_leaving`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
+func (c *Client) OpenTenantPassword(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOpenTenantPasswordRequest(c.Server, tenantId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -22146,6 +22283,40 @@ func NewUpdateTenantQuotasRequestWithBody(server string, tenantId AdminTenantId,
 	return req, nil
 }
 
+// NewCloseTenantPasswordRequest constructs an http.Request for the CloseTenantPassword method
+func NewCloseTenantPasswordRequest(server string, tenantId AdminTenantId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s:close-password", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewRequestTenantDeletionRequest calls the generic RequestTenantDeletion builder with application/json body
 func NewRequestTenantDeletionRequest(server string, tenantId AdminTenantId, params *RequestTenantDeletionParams, body RequestTenantDeletionJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -22251,6 +22422,68 @@ func NewExportTenantRequestWithBody(server string, tenantId AdminTenantId, conte
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewOpenTenantPasswordRequest calls the generic OpenTenantPassword builder with application/json body
+func NewOpenTenantPasswordRequest(server string, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewOpenTenantPasswordRequestWithBody(server, tenantId, params, "application/json", bodyReader)
+}
+
+// NewOpenTenantPasswordRequestWithBody constructs an http.Request for the OpenTenantPassword method, with any body, and a specified content type
+func NewOpenTenantPasswordRequestWithBody(server string, tenantId AdminTenantId, params *OpenTenantPasswordParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s:open-password", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -34830,6 +35063,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /admin/tenants/{tenantId}/quotas (the `UpdateTenantQuotas` operationId).
 	UpdateTenantQuotasWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, tenantId AdminTenantId, body UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTenantQuotasResult, error)
 
+	// CloseTenantPasswordWithResponse Close an operator's opening of the password early
+	//
+	// Ends the opening `:open-password` made before its time (ADR-0078 §3). The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:close-password (the `CloseTenantPassword` operationId).
+	CloseTenantPasswordWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*CloseTenantPasswordResult, error)
+
 	// RequestTenantDeletionWithBodyWithResponse Request a workspace's deletion
 	//
 	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up (H-03) in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
@@ -34865,6 +35107,26 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:export (the `ExportTenant` operationId).
 	ExportTenantWithResponse(ctx context.Context, tenantId AdminTenantId, body ExportTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportTenantResult, error)
+
+	// OpenTenantPasswordWithBodyWithResponse Open the password for one workspace
+	//
+	// For a provider that is switched on but broken - unreachable, or admitting nobody - the operator opens the password for this one workspace, for a limited time: 24 hours unless `hours` says otherwise, at most 168 (ADR-0078 §3). Every account there that holds a password signs in with it, under the workspace's own rules and second factor, whatever the workspace's own switch and any installation lock say; an account without one is mailed a link to set one when it asks (`POST /auth/password:forgot`). It ends on its own at `password_opening.until`, and `:close-password` ends it early.
+	// Demands `admin:tenants`, the operator register and a fresh step-up in the `X-Hubtask-Step-Up` header. The requester and the reason are recorded with the end in the workspace's trail (`tenant.password_opened`) and in the installation's journal, and the workspace's administrators are told. A second opening replaces the first. It reads and changes nothing of the workspace's content. Only an active workspace is opened: a suspended one refuses its people before any password is asked for (`admin.password_opening_suspended`), and one pending deletion is leaving (`admin.tenant_leaving`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
+	OpenTenantPasswordWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*OpenTenantPasswordResult, error)
+
+	// OpenTenantPasswordWithResponse Open the password for one workspace
+	//
+	// For a provider that is switched on but broken - unreachable, or admitting nobody - the operator opens the password for this one workspace, for a limited time: 24 hours unless `hours` says otherwise, at most 168 (ADR-0078 §3). Every account there that holds a password signs in with it, under the workspace's own rules and second factor, whatever the workspace's own switch and any installation lock say; an account without one is mailed a link to set one when it asks (`POST /auth/password:forgot`). It ends on its own at `password_opening.until`, and `:close-password` ends it early.
+	// Demands `admin:tenants`, the operator register and a fresh step-up in the `X-Hubtask-Step-Up` header. The requester and the reason are recorded with the end in the workspace's trail (`tenant.password_opened`) and in the installation's journal, and the workspace's administrators are told. A second opening replaces the first. It reads and changes nothing of the workspace's content. Only an active workspace is opened: a suspended one refuses its people before any password is asked for (`admin.password_opening_suspended`), and one pending deletion is leaving (`admin.tenant_leaving`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
+	OpenTenantPasswordWithResponse(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*OpenTenantPasswordResult, error)
 
 	// ResumeTenantWithResponse Reactivate a workspace
 	//
@@ -39596,6 +39858,54 @@ func (r UpdateTenantQuotasResult) ContentType() string {
 	return ""
 }
 
+type CloseTenantPasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AdminTenant
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CloseTenantPasswordResult) GetJSON200() *AdminTenant {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CloseTenantPasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CloseTenantPasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CloseTenantPasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CloseTenantPasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CloseTenantPasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RequestTenantDeletionResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -39686,6 +39996,54 @@ func (r ExportTenantResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ExportTenantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type OpenTenantPasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AdminTenant
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r OpenTenantPasswordResult) GetJSON200() *AdminTenant {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r OpenTenantPasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r OpenTenantPasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r OpenTenantPasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r OpenTenantPasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r OpenTenantPasswordResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -52591,6 +52949,21 @@ func (c *ClientWithResponses) UpdateTenantQuotasWithApplicationMergePatchPlusJSO
 	return ParseUpdateTenantQuotasResult(rsp)
 }
 
+// CloseTenantPasswordWithResponse Close an operator's opening of the password early
+//
+// Ends the opening `:open-password` made before its time (ADR-0078 §3). The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:close-password (the `CloseTenantPassword` operationId).
+func (c *ClientWithResponses) CloseTenantPasswordWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*CloseTenantPasswordResult, error) {
+	rsp, err := c.CloseTenantPassword(ctx, tenantId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCloseTenantPasswordResult(rsp)
+}
+
 // RequestTenantDeletionWithBodyWithResponse Request a workspace's deletion
 //
 // The most irreversible act this API has, and it behaves like it: it demands a fresh step-up (H-03) in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
@@ -52649,6 +53022,38 @@ func (c *ClientWithResponses) ExportTenantWithResponse(ctx context.Context, tena
 		return nil, err
 	}
 	return ParseExportTenantResult(rsp)
+}
+
+// OpenTenantPasswordWithBodyWithResponse Open the password for one workspace
+//
+// For a provider that is switched on but broken - unreachable, or admitting nobody - the operator opens the password for this one workspace, for a limited time: 24 hours unless `hours` says otherwise, at most 168 (ADR-0078 §3). Every account there that holds a password signs in with it, under the workspace's own rules and second factor, whatever the workspace's own switch and any installation lock say; an account without one is mailed a link to set one when it asks (`POST /auth/password:forgot`). It ends on its own at `password_opening.until`, and `:close-password` ends it early.
+// Demands `admin:tenants`, the operator register and a fresh step-up in the `X-Hubtask-Step-Up` header. The requester and the reason are recorded with the end in the workspace's trail (`tenant.password_opened`) and in the installation's journal, and the workspace's administrators are told. A second opening replaces the first. It reads and changes nothing of the workspace's content. Only an active workspace is opened: a suspended one refuses its people before any password is asked for (`admin.password_opening_suspended`), and one pending deletion is leaving (`admin.tenant_leaving`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
+func (c *ClientWithResponses) OpenTenantPasswordWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*OpenTenantPasswordResult, error) {
+	rsp, err := c.OpenTenantPasswordWithBody(ctx, tenantId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseOpenTenantPasswordResult(rsp)
+}
+
+// OpenTenantPasswordWithResponse Open the password for one workspace
+//
+// For a provider that is switched on but broken - unreachable, or admitting nobody - the operator opens the password for this one workspace, for a limited time: 24 hours unless `hours` says otherwise, at most 168 (ADR-0078 §3). Every account there that holds a password signs in with it, under the workspace's own rules and second factor, whatever the workspace's own switch and any installation lock say; an account without one is mailed a link to set one when it asks (`POST /auth/password:forgot`). It ends on its own at `password_opening.until`, and `:close-password` ends it early.
+// Demands `admin:tenants`, the operator register and a fresh step-up in the `X-Hubtask-Step-Up` header. The requester and the reason are recorded with the end in the workspace's trail (`tenant.password_opened`) and in the installation's journal, and the workspace's administrators are told. A second opening replaces the first. It reads and changes nothing of the workspace's content. Only an active workspace is opened: a suspended one refuses its people before any password is asked for (`admin.password_opening_suspended`), and one pending deletion is leaving (`admin.tenant_leaving`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
+func (c *ClientWithResponses) OpenTenantPasswordWithResponse(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*OpenTenantPasswordResult, error) {
+	rsp, err := c.OpenTenantPassword(ctx, tenantId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseOpenTenantPasswordResult(rsp)
 }
 
 // ResumeTenantWithResponse Reactivate a workspace
@@ -59156,6 +59561,39 @@ func ParseUpdateTenantQuotasResult(rsp *http.Response) (*UpdateTenantQuotasResul
 	return response, nil
 }
 
+// ParseCloseTenantPasswordResult parses an HTTP response from a CloseTenantPasswordWithResponse call
+func ParseCloseTenantPasswordResult(rsp *http.Response) (*CloseTenantPasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CloseTenantPasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminTenant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRequestTenantDeletionResult parses an HTTP response from a RequestTenantDeletionWithResponse call
 func ParseRequestTenantDeletionResult(rsp *http.Response) (*RequestTenantDeletionResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -59209,6 +59647,39 @@ func ParseExportTenantResult(rsp *http.Response) (*ExportTenantResult, error) {
 			return nil, err
 		}
 		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseOpenTenantPasswordResult parses an HTTP response from a OpenTenantPasswordWithResponse call
+func ParseOpenTenantPasswordResult(rsp *http.Response) (*OpenTenantPasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &OpenTenantPasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminTenant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

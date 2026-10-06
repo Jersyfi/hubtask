@@ -800,6 +800,16 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants/{tenantId}:delete", { "tenantId": tenantId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Open the password for one workspace */
+  openTenantPassword(tenantId: string, body: NonNullable<operations["openTenantPassword"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["openTenantPassword"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants/{tenantId}:open-password", { "tenantId": tenantId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Close an operator's opening of the password early */
+  closeTenantPassword(tenantId: string, options: CallOptions = {}): Promise<operations["closeTenantPassword"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants/{tenantId}:close-password", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Export a workspace whole */
   exportTenant(tenantId: string, body: NonNullable<operations["exportTenant"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exportTenant"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/admin/tenants/{tenantId}:export", { "tenantId": tenantId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

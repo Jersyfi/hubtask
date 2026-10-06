@@ -144,7 +144,16 @@ CREATE TABLE tenant (
   -- The plan this workspace is on (ADR-0070 §3, migration 0099). Nullable and unread: plans are
   -- their own milestone, and the column exists now so that the layer arrives without a migration
   -- through the sign-in path.
-  plan_id            uuid
+  plan_id            uuid,
+  -- An operator's opening of the password for this workspace (0118, ADR-0078 §3, SC-34): when it
+  -- ends, who asked and why. Honoured where it is read - past the end it is over, whatever the row
+  -- still says - and cleared with the opening. Not in `settings`, so the workspace's own PATCH cannot
+  -- reach it.
+  password_opened_until     timestamptz,
+  password_opened_requester text CHECK (length(password_opened_requester) BETWEEN 1 AND 200),
+  password_opened_reason    text CHECK (length(password_opened_reason) BETWEEN 1 AND 500),
+  CONSTRAINT tenant_password_opening_whole_check
+    CHECK (num_nulls(password_opened_until, password_opened_requester, password_opened_reason) IN (0, 3))
 );
 
 CREATE TYPE account_kind   AS ENUM ('USER', 'SERVICE_ACCOUNT');
@@ -2713,15 +2722,18 @@ GRANT EXECUTE ON FUNCTION count_provider_offers(uuid) TO hubtask_app;
 -- control plane's job, and the control plane must see its rows. SECURITY DEFINER for
 -- resolve_tenant's reason; what bounds it is the application - the use case behind it demands
 -- the admin:tenants scope, which no session carries.
+-- Since 0118 it answers an operator's opening of the password beside the lifecycle (SC-34).
 CREATE OR REPLACE FUNCTION admin_tenants()
 RETURNS TABLE (
   id uuid, slug text, display_name text, status text,
   default_locale text, default_time_zone text,
-  created_at timestamptz, purge_after timestamptz
+  created_at timestamptz, purge_after timestamptz,
+  password_opened_until timestamptz, password_opened_requester text, password_opened_reason text
 )
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT id, slug, display_name, status::text,
-         default_locale, default_time_zone, created_at, purge_after
+         default_locale, default_time_zone, created_at, purge_after,
+         password_opened_until, password_opened_requester, password_opened_reason
   FROM tenant
   WHERE deleted_at IS NULL
   ORDER BY created_at, id

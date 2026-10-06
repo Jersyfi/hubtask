@@ -155,6 +155,14 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 	if policy, held := out["sign_in_policy"].(usecase.Output); held {
 		answer.SignInPolicy = signInPolicyResponse(policy)
 	}
+	if opening, held := out["password_opening"].(usecase.Output); held {
+		// Who asked and why travel only where the use case answered them (READ_CONFIGURATION).
+		answer.PasswordOpening = &openapi.WorkspacePasswordOpening{
+			Until:     timeValue(opening["until"]),
+			Requester: optionalStringOutput(opening, "requester"),
+			Reason:    optionalStringOutput(opening, "reason"),
+		}
+	}
 	if rows, held := out["hosts"].([]usecase.Output); held && len(rows) > 0 {
 		hosts := make([]openapi.WorkspaceHost, 0, len(rows))
 		for _, row := range rows {
@@ -295,4 +303,13 @@ func methodEnums(value any) []openapi.SignInMethod {
 		}
 	}
 	return methods
+}
+
+// optionalStringOutput is a string field of an answer, nil where the answer left it out.
+func optionalStringOutput(out usecase.Output, field string) *string {
+	value, held := out[field].(string)
+	if !held || value == "" {
+		return nil
+	}
+	return &value
 }

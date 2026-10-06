@@ -6,8 +6,8 @@ actors: [PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-06, P-07, P-10, P-12]
 state: built
-tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21, SC-24, SC-25, SC-31, SC-33]
-checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordSwitch_test.go, test/integration/password_fallback_test.go, core/application/service/identity/FallbackReset_test.go, core/application/service/identity/ProviderReach_test.go]
+tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21, SC-24, SC-25, SC-31, SC-33, SC-34]
+checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordSwitch_test.go, test/integration/password_fallback_test.go, core/application/service/identity/FallbackReset_test.go, core/application/service/identity/ProviderReach_test.go, core/application/service/identity/OperatorOpening_test.go, test/integration/password_opening_test.go, cmd/server/Wiring_test.go]
 ---
 
 # Set how people in our workspace sign in, in one place
@@ -124,6 +124,22 @@ the account's, and has no way in once the password is off (UC-ID-10). The count 
 administrator gets; connecting a differently addressed identity from a signed-in session is SC-37
 ([#1146](https://github.com/Jersyfi/hubtask/issues/1146)), not built yet. The owner decides this
 limit.
+
+Since SC-34 ([#1141](https://github.com/Jersyfi/hubtask/issues/1141),
+[ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §3) the fallback has a second cause: the
+installation's operator opens the password for this one workspace for a limited time - for a provider
+that is switched on but broken, which nothing on this screen can see - and it overrides this screen's
+switch and any installation lock until its end, read where the ways in are. The trail entry of a
+sign-in through it carries `cause: OPERATOR`; an account without a password is mailed a link to set
+one under it, and nobody is mailed SC-33's link to connect a provider while it stands - nor does one
+mailed before start a flow - because the password is open (`TestUnderAnOpeningNoConnectLinkIsMailed`,
+`TestUnderAnOpeningAConnectLinkStartsNoFlow`); and this screen says while it stands - until when, who asked and why - instead of the
+sentence about no way in (`OperatorOpening_test.go`, the real resolver in
+`test/integration/password_opening_test.go`, `signinsettings.test.mjs`). The guard of check 6 is
+unchanged: the opening switches nothing on this screen. And the step-up's refusal no longer offers the
+password at any door where it is switched off: five verifiers were copied from the session writer
+before the rule and offered it, and a server whose writers cannot say whether the password is open now
+refuses to start (`cmd/server/Wiring_test.go`).
 
 Two things stay open, said so that nobody reads more into it. A sign-in already past its password when
 the switch flips may finish its second-factor step within the pending credential's five minutes - the

@@ -312,7 +312,7 @@ func (m MintResetToken) MintResetToken(
 	// more, the mail would point to nothing, and the mailbox is the proof a reset accepts from every
 	// other account.
 	if open && !link.HasPassword {
-		first, err := w.firstPasswordOpens(ctx, tenantID, accountID, fallback)
+		first, err := w.firstPasswordOpens(ctx, tenantID, accountID, fallback.Opens())
 		if err != nil {
 			return ResetLink{}, err
 		}
@@ -483,7 +483,7 @@ func (h ResetPassword) Execute(
 	// A first password is set only while no provider lets the account in - the condition the link
 	// was mailed under (ADR-0077 §3, §4). Once one does again, the link is a spent one.
 	if held.PasswordHash.IsEmpty() {
-		first, err := w.firstPasswordOpens(ctx, tenantID, held.Account.ID, fallback)
+		first, err := w.firstPasswordOpens(ctx, tenantID, held.Account.ID, fallback.Opens())
 		if err != nil {
 			return SignInResult{}, err
 		}
@@ -527,8 +527,8 @@ func (h ResetPassword) Execute(
 	}
 
 	// A session the fallback opens is recorded as one, whichever step follows - the sign-in's rule.
-	if fallback {
-		if err := w.Session.recordFallback(ctx, scope, lookup.Account); err != nil {
+	if fallback.Opens() {
+		if err := w.Session.recordFallback(ctx, scope, lookup.Account, fallback); err != nil {
 			return SignInResult{}, err
 		}
 	}

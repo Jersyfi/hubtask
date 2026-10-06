@@ -66,6 +66,10 @@ type WorkspaceWriter struct {
 	// decides whether a stolen tab can weaken the way in, so the one patch that touches it asks
 	// the person to prove themselves afresh - and the name, the locale and the zone do not.
 	StepUp stepupport.Verifier
+	// Permits decides who reads who asked for an operator's opening of the password and why
+	// (ADR-0078 §3): the configuration readers - administrators, owners, the auditor - and nobody
+	// else. Nil withholds both from everybody, which is the safe direction.
+	Permits Permitter
 }
 
 // ReadWorkspace answers the workspace the caller is in (F4-01).
@@ -286,6 +290,44 @@ func (w WorkspaceWriter) record(
 	})
 }
 
+// standing keeps an operator's opening of the password only while it stands (ADR-0078 §3): an
+// opening past its end is answered as none, whatever the row still holds until the job that records
+// the end has run. Without a clock there is no telling, and an opening read as standing forever is
+// the one mistake its bound exists to prevent.
+//
+// And who asked and why only for a reader of the workspace's configuration: every member is told
+// that the password is open and until when - it concerns how they sign in - but the requester may
+// name a person and the reason may say more than a member needs, so both are the administrators'.
+// Asked without a record: withholding two fields is no refusal anybody attempted.
+func (w WorkspaceWriter) standing(
+	ctx context.Context, actor appshared.ActorContext, workspace domain.Workspace,
+) (domain.Workspace, error) {
+	if w.Clock == nil || !workspace.PasswordOpening.InForce(w.Clock.Now()) {
+		workspace.PasswordOpening = domain.PasswordOpening{}
+		return workspace, nil
+	}
+	attributed := false
+	if w.Permits != nil {
+		permitted, err := w.Permits.Permits(ctx, actor, access.Request{
+			Permission: service.PermissionReadConfiguration,
+			Path:       []domain.Scope{domain.TenantScope()},
+			Action:     WorkspaceReadAction,
+			TokenScope: workspaceRead,
+			TargetType: workspaceTarget,
+			TargetID:   actor.TenantID,
+		})
+		if err != nil {
+			return domain.Workspace{}, err
+		}
+		attributed = permitted
+	}
+	if !attributed {
+		workspace.PasswordOpening.Requester = ""
+		workspace.PasswordOpening.Reason = ""
+	}
+	return workspace, nil
+}
+
 // workspaceOutput is the read shape, shared by both use cases so that the answer after a write is
 // the answer a read gives.
 //
@@ -318,6 +360,19 @@ func workspaceOutput(
 	}
 	if resolved != nil {
 		out["sign_in_policy"] = signInPolicyOutput(*resolved)
+	}
+	// The installation operator's opening of the password, while it stands (ADR-0078 §3): until
+	// when for everybody, and for whom and why where the reader may read the configuration
+	// (standing). Read-only - it is the control plane's, and the PATCH declares no field for it.
+	if opening := workspace.PasswordOpening; !opening.Until.IsZero() {
+		answer := usecase.Output{"until": opening.Until}
+		if opening.Requester != "" {
+			answer["requester"] = opening.Requester
+		}
+		if opening.Reason != "" {
+			answer["reason"] = opening.Reason
+		}
+		out["password_opening"] = answer
 	}
 	// The hosts this workspace answers at (SI-12). Read-only and absent where there are none: the
 	// canonical one is derived from the slug and nothing resolves a request through the table yet,
@@ -378,7 +433,11 @@ func (h ReadWorkspace) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return workspaceOutput(workspace, h.Writer.resolvedPolicy(ctx, actor.TenantID), hosts), nil
+	standing, err := h.Writer.standing(ctx, actor, workspace)
+	if err != nil {
+		return nil, err
+	}
+	return workspaceOutput(standing, h.Writer.resolvedPolicy(ctx, actor.TenantID), hosts), nil
 }
 
 func (h UpdateWorkspace) Descriptor() usecase.Descriptor {
@@ -456,7 +515,11 @@ func (h UpdateWorkspace) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return workspaceOutput(workspace, h.Writer.resolvedPolicy(ctx, actor.TenantID), hosts), nil
+	standing, err := h.Writer.standing(ctx, actor, workspace)
+	if err != nil {
+		return nil, err
+	}
+	return workspaceOutput(standing, h.Writer.resolvedPolicy(ctx, actor.TenantID), hosts), nil
 }
 
 // resolvedPolicy answers the rule for the projection, or nil where there is no level above to

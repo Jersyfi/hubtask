@@ -132,7 +132,7 @@ func (h RedeemInvitation) Execute(
 	// records, so that a person invited into a workspace with no way in that works (a provisioned
 	// workspace born under an installation default without the password, say) can accept the
 	// invitation, and its administrators can see that they did (E2, #1138).
-	var fallback bool
+	var fallback FallbackCause
 	if h.Passwords != nil {
 		open, viaFallback, err := h.Passwords.PasswordOpen(ctx, token.TenantID())
 		if err := refuseShut(open, viaFallback, err); err != nil {
@@ -227,11 +227,11 @@ func (h RedeemInvitation) Execute(
 		}); err != nil {
 			return err
 		}
-		if !fallback {
+		if !fallback.Opens() {
 			return nil
 		}
 		// In the redemption's own transaction: the password is set and the entry lands, or neither.
-		return w.Audit.Append(ctx, fallbackEntry(ctx, token.TenantID(), account, now))
+		return w.Audit.Append(ctx, fallbackEntry(ctx, token.TenantID(), account, now, fallback))
 	})
 	if err != nil {
 		return SessionPair{}, err

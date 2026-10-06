@@ -15,19 +15,27 @@ const adminTenants = `-- name: AdminTenants :many
 
 SELECT id::uuid, slug::text, display_name::text, status::text,
        default_locale::text, default_time_zone::text,
-       created_at::timestamptz, purge_after::timestamptz AS purge_after
+       created_at::timestamptz, purge_after::timestamptz AS purge_after,
+       password_opened_until::timestamptz AS password_opened_until,
+       -- Empty rather than NULL where no opening stands: the generator cannot see that the
+       -- function's text columns may be NULL, and a NULL scanned into a string is an error.
+       coalesce(password_opened_requester, '')::text AS password_opened_requester,
+       coalesce(password_opened_reason, '')::text AS password_opened_reason
 FROM admin_tenants()
 `
 
 type AdminTenantsRow struct {
-	ID              pgtype.UUID
-	Slug            string
-	DisplayName     string
-	Status          string
-	DefaultLocale   string
-	DefaultTimeZone string
-	CreatedAt       pgtype.Timestamptz
-	PurgeAfter      pgtype.Timestamptz
+	ID                      pgtype.UUID
+	Slug                    string
+	DisplayName             string
+	Status                  string
+	DefaultLocale           string
+	DefaultTimeZone         string
+	CreatedAt               pgtype.Timestamptz
+	PurgeAfter              pgtype.Timestamptz
+	PasswordOpenedUntil     pgtype.Timestamptz
+	PasswordOpenedRequester string
+	PasswordOpenedReason    string
 }
 
 // The control plane (H-06, multi-tenancy.md §5): provisioning, suspension, the deletion request
@@ -57,6 +65,9 @@ func (q *Queries) AdminTenants(ctx context.Context) ([]AdminTenantsRow, error) {
 			&i.DefaultTimeZone,
 			&i.CreatedAt,
 			&i.PurgeAfter,
+			&i.PasswordOpenedUntil,
+			&i.PasswordOpenedRequester,
+			&i.PasswordOpenedReason,
 		); err != nil {
 			return nil, err
 		}
@@ -66,6 +77,31 @@ func (q *Queries) AdminTenants(ctx context.Context) ([]AdminTenantsRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const closeTenantPassword = `-- name: CloseTenantPassword :execrows
+UPDATE tenant
+SET password_opened_until = NULL, password_opened_requester = NULL, password_opened_reason = NULL,
+    updated_at = $1
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND password_opened_until IS NOT NULL
+  AND ($2::timestamptz IS NULL OR password_opened_until <= $2::timestamptz)
+`
+
+type CloseTenantPasswordParams struct {
+	Now pgtype.Timestamptz
+	Due pgtype.Timestamptz
+}
+
+// Ends the opening: early by the operator (no `due`), or once its time has passed (`due` is the
+// moment, and an opening extended in between is left standing). Zero rows is an opening that was not
+// there, or not yet due - which the caller reads as "nothing to close" rather than as a fault.
+func (q *Queries) CloseTenantPassword(ctx context.Context, arg CloseTenantPasswordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, closeTenantPassword, arg.Now, arg.Due)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const countLiveTenantExports = `-- name: CountLiveTenantExports :one
@@ -268,21 +304,25 @@ func (q *Queries) DisableAllAutomationRules(ctx context.Context, now pgtype.Time
 
 const findTenantForAdmin = `-- name: FindTenantForAdmin :one
 SELECT id, slug, display_name, status, default_locale, default_time_zone,
-       created_at, purge_after, version
+       created_at, purge_after, version,
+       password_opened_until, password_opened_requester, password_opened_reason
 FROM tenant
 WHERE id = current_tenant_id() AND deleted_at IS NULL
 `
 
 type FindTenantForAdminRow struct {
-	ID              pgtype.UUID
-	Slug            string
-	DisplayName     string
-	Status          TenantStatus
-	DefaultLocale   string
-	DefaultTimeZone string
-	CreatedAt       pgtype.Timestamptz
-	PurgeAfter      pgtype.Timestamptz
-	Version         int32
+	ID                      pgtype.UUID
+	Slug                    string
+	DisplayName             string
+	Status                  TenantStatus
+	DefaultLocale           string
+	DefaultTimeZone         string
+	CreatedAt               pgtype.Timestamptz
+	PurgeAfter              pgtype.Timestamptz
+	Version                 int32
+	PasswordOpenedUntil     pgtype.Timestamptz
+	PasswordOpenedRequester *string
+	PasswordOpenedReason    *string
 }
 
 func (q *Queries) FindTenantForAdmin(ctx context.Context) (FindTenantForAdminRow, error) {
@@ -298,6 +338,9 @@ func (q *Queries) FindTenantForAdmin(ctx context.Context) (FindTenantForAdminRow
 		&i.CreatedAt,
 		&i.PurgeAfter,
 		&i.Version,
+		&i.PasswordOpenedUntil,
+		&i.PasswordOpenedRequester,
+		&i.PasswordOpenedReason,
 	)
 	return i, err
 }
@@ -453,6 +496,42 @@ func (q *Queries) ListTenantStorageKeys(ctx context.Context, arg ListTenantStora
 		return nil, err
 	}
 	return items, nil
+}
+
+const openTenantPassword = `-- name: OpenTenantPassword :execrows
+UPDATE tenant
+SET password_opened_until = $1,
+    password_opened_requester = $2,
+    password_opened_reason = $3,
+    updated_at = $4
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND status = 'ACTIVE'
+`
+
+type OpenTenantPasswordParams struct {
+	Until     pgtype.Timestamptz
+	Requester *string
+	Reason    *string
+	Now       pgtype.Timestamptz
+}
+
+// An operator opens the password for this one workspace (ADR-0078 §3, SC-34). A second opening
+// replaces the first - the operator's latest word on how long, who asked and why. Only an active
+// workspace opens: a suspended one refuses its people before any password is asked for, and a
+// leaving one is shut out for good.
+// The version is left alone: the opening is not the workspace's configuration, and an
+// administrator's form open on it must not meet a conflict for something it never showed.
+func (q *Queries) OpenTenantPassword(ctx context.Context, arg OpenTenantPasswordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, openTenantPassword,
+		arg.Until,
+		arg.Requester,
+		arg.Reason,
+		arg.Now,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const pageInstanceJournal = `-- name: PageInstanceJournal :many
