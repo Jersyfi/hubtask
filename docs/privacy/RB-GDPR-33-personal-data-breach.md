@@ -84,8 +84,9 @@ WHERE k.token_prefix = 'hbt_pat_…';
 ```
 
 For a stolen backup archive, the archive's own manifest is the authority on what it contained
-([backup-restore.md](../architecture/backup-restore.md) §4): it names the workspace, the schema
-version and the entity counts, and it is signed.
+([backup-restore.md](../architecture/backup-restore.md) §3): it names the workspace, the schema
+version and the entity counts, and it is never encrypted, so it can be read without the key. It is
+not signed; `checksums.txt` beside it says whether the members are intact.
 
 ## 4. Which categories of personal data
 
