@@ -61,14 +61,20 @@ func NewOpening(
 			WithParams(map[string]string{"maximum": itoa(PasswordOpeningMaximumHours)}).
 			WithFields(shared.FieldError{Path: "/hours", Code: "admin.password_opening_hours"})
 	}
-	who, err := openingText(requester, "/requester", maxOpeningRequester, form,
-		"admin.password_opening_requester_required", "admin.password_opening_requester_too_long")
+	who, err := openingText(requester, form)
 	if err != nil {
 		return PasswordOpening{}, err
 	}
-	why, err := openingText(reason, "/reason", maxOpeningReason, form,
-		"admin.password_opening_reason_required", "admin.password_opening_reason_too_long")
+	if err := boundOpeningText(who, "/requester", maxOpeningRequester,
+		"admin.password_opening_requester_required", "admin.password_opening_requester_too_long"); err != nil {
+		return PasswordOpening{}, err
+	}
+	why, err := openingText(reason, form)
 	if err != nil {
+		return PasswordOpening{}, err
+	}
+	if err := boundOpeningText(why, "/reason", maxOpeningReason,
+		"admin.password_opening_reason_required", "admin.password_opening_reason_too_long"); err != nil {
 		return PasswordOpening{}, err
 	}
 	return PasswordOpening{
@@ -78,29 +84,30 @@ func NewOpening(
 	}, nil
 }
 
-// openingText trims, brings to normal form C (M-07) and bounds one of the two texts. Empty is refused:
-// an opening nobody asked for, or that nobody can say the reason of, is not one an operator should be
-// able to make without noticing.
-func openingText(
-	raw, path string, maximum int, form text.Normalizer, required, tooLong string,
-) (string, error) {
-	value, err := shared.NFC(strings.TrimSpace(raw), form)
-	if err != nil {
-		return "", err
-	}
+// openingText trims one of the two texts and brings it to normal form C (M-07). Its own function, with
+// no message code among its arguments, because the text it answers is recorded: a call handed a code
+// spelled "password_…" is what CodeQL's heuristic reads as a password source.
+func openingText(raw string, form text.Normalizer) (string, error) {
+	return shared.NFC(strings.TrimSpace(raw), form)
+}
+
+// boundOpeningText refuses an empty or overlong text at its field. Empty is refused: an opening
+// nobody asked for, or that nobody can say the reason of, is not one an operator should be able to
+// make without noticing.
+func boundOpeningText(value, path string, maximum int, required, tooLong string) error {
 	switch {
 	case value == "":
-		return "", shared.ErrValidation.
+		return shared.ErrValidation.
 			WithDetail(required).
 			WithFields(shared.FieldError{Path: path, Code: required})
 	case utf8.RuneCountInString(value) > maximum:
 		params := map[string]string{"maximum": itoa(maximum)}
-		return "", shared.ErrValidation.
+		return shared.ErrValidation.
 			WithDetail(tooLong).
 			WithParams(params).
 			WithFields(shared.FieldError{Path: path, Code: tooLong, Params: params})
 	}
-	return value, nil
+	return nil
 }
 
 // InForce answers whether the opening stands at `now`. Its end is honoured here, where it is read:
