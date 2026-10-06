@@ -79,7 +79,7 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 | 11 | `api/openapi.yaml` is the source: change it first, then `make generate`, then implement. Never hand-edit generated code. | `[partial: gate-quick; open: the order of the work]` |
 | 12 | Migrations are forward-only and safe for rolling updates (expand/contract). A merged migration never changes. | `[partial: gate-integration; open: an edit to a merged migration]` |
 | 13 | English everywhere: documents, code, identifiers, comments, commits. | `[unchecked: no tool judges language reliably]` |
-| 14 | `core/` knows nothing about a frontend; no `.go` file under `apps/` or `packages/`. | `[partial: gate-quick; open: a .go file under apps/ or packages/]` |
+| 14 | `core/` knows nothing about a frontend; no `.go` file under `apps/` or `packages/`. | `[gate: gate-architecture]` |
 | 15 | No colour, spacing, radius or duration value outside `packages/design-system/tokens/tokens.json`; the generated `LabelTokens.go` is never hand-edited. | `[gate: ci:node]` |
 
 ## Working rules
@@ -107,7 +107,7 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 - A rule lives in its subject document; an ADR records why and names that place. Numbered sections
   of subject documents are never renumbered. `[partial: gate-docs; open: a renumbered section]`
 - No file named `CLAUDE.md`, `CLAUDE.local.md` or `AGENTS.override.md` is committed — it would hide
-  this file from some agents. `[unchecked: not yet gated]`
+  this file from some agents. `[gate: gate-architecture]`
 - Merge only on the owner's word. `[unchecked: the owner's own agents work under the owner's GitHub
   identity; nobody else can merge, by GitHub permissions]`
 - Knowledge another worker needs goes into the repository, never only into a tool's private notes;
@@ -230,7 +230,7 @@ to this by the hook in `.claude/settings.json`; other agents keep it by themselv
 - Public text — `api/openapi.yaml` descriptions, metric help, operator messages — contains no
   internal reference. `[unchecked: not yet gated]`
 - Every Go package has a package comment saying what it is responsible for.
-  `[unchecked: not yet gated]`
+  `[gate: gate-architecture]`
 
 ## Style
 
