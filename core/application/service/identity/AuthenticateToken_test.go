@@ -34,6 +34,10 @@ type unitOfWork struct {
 	// wrote (infrastructure/postgres UnitOfWork). A fake that kept a write the refusal undid is how
 	// the second factor's uncounted guesses passed every test here (#1117).
 	ledger *attemptsStore
+	// trail is rolled back the same way where a fixture opts in: an audit entry appended inside a
+	// transaction that then fails was never stored, which is how the provider's refusals went
+	// unrecorded while every test here read them (SC-32).
+	trail *auditSink
 }
 
 func (u *unitOfWork) Within(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
@@ -42,9 +46,16 @@ func (u *unitOfWork) Within(ctx context.Context, scope persistence.Scope, fn fun
 	if u.ledger != nil {
 		saved = maps.Clone(u.ledger.standing)
 	}
+	written := 0
+	if u.trail != nil {
+		written = len(u.trail.entries)
+	}
 	err := fn(ctx)
 	if err != nil && u.ledger != nil {
 		u.ledger.standing = saved
+	}
+	if err != nil && u.trail != nil {
+		u.trail.entries = u.trail.entries[:written]
 	}
 	return err
 }

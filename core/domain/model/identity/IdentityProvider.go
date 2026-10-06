@@ -474,11 +474,13 @@ type Arriving struct {
 	// Directory is the provider's identifier for the organisation, empty where the token named
 	// none — a personal account, or an issuer with no such claim.
 	Directory string
-	// AddressAuthoritative is whether the provider vouches for the address **and** the domain it
-	// sits in: Google's `email_verified` together with a matching `hd`, Microsoft's `xms_edov`.
+	// AddressAuthoritative is whether the provider hosts the mailbox the address names, in its own
+	// terms (ADR-0078 §5): Microsoft's `xms_edov` exactly `true`; Google for its consumer domains or
+	// a hosted domain equal to the address's; no other issuer, a self-hosted one included.
 	//
 	// It is what `INVITED_ONLY` needs, because claiming an account that already exists is done on
-	// the strength of an address, and an address nobody owns the domain of is an assertion.
+	// the strength of an address, and an address nobody owns the domain of is an assertion. It is
+	// also one of the two second proofs that activate an invited account (ADR-0078 §1).
 	AddressAuthoritative bool
 }
 
@@ -511,6 +513,41 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 		// row this one does not act on, which is the only safe reading of it.
 		return false
 	}
+}
+
+// MayAdmitWithProof answers whether this provider may bring an arriving subject to a door it opens
+// only with a second proof of its own (ADR-0078 §1, §5): the invitation's own link bound to the
+// flow, for the one invited account it names, or an existing account's own proof at the LINK step.
+//
+// Everything `MayAdmit` admits, and under `INVITED_ONLY` one more: an address the provider verified
+// but is not authoritative for. Authority is what stands in for a proof where there is none - a new
+// account, an invitation activated without its link - so where the person brings one, the provider
+// need not vouch for the mailbox. The caller has checked that the arriving address is the account's
+// own, and nothing is created through this. Under `DOMAINS` it widens nothing for an existing
+// account: the directory or domain list is the workspace's statement of who comes in through this
+// provider. The invitation's link is the one exception, `MayAdmitInvitation`.
+func (p IdentityProvider) MayAdmitWithProof(arriving Arriving) bool {
+	if p.MayAdmit(arriving) {
+		return true
+	}
+	return p.Provisioning == ProvisionInvitedOnly &&
+		arriving.EmailVerified && emailDomain(arriving.Email) != ""
+}
+
+// MayAdmitInvitation answers whether this provider may bring in the one invited account a sign-in
+// started from - the invitation's own link, bound to the flow (ADR-0078 §1).
+//
+// Everything `MayAdmitWithProof` admits, and under `DOMAINS` an address outside the directory or
+// domain list too. The invitation is an administrator's explicit choice of this person, so the list
+// does not overrule it - and it widens nothing beyond the invitation itself: the caller has checked
+// that the verified address is the invited account's, and the link proves that one account only.
+// An unverified address is never admitted, and a mode this build does not know admits nobody.
+func (p IdentityProvider) MayAdmitInvitation(arriving Arriving) bool {
+	if p.MayAdmitWithProof(arriving) {
+		return true
+	}
+	return p.Provisioning == ProvisionDomains &&
+		arriving.EmailVerified && emailDomain(arriving.Email) != ""
 }
 
 // admitsDirectoryOf is `DOMAINS`, read against whichever thing this preset can be sure of.
@@ -632,6 +669,10 @@ type OidcFlow struct {
 	// SessionID binds the flow to the session that asked for a step-up at the provider (ADR-0075
 	// §2). Zero is a sign-in flow, which finishes a sign-in and no step-up.
 	SessionID shared.ID
+	// InvitedAccountID is the invited account a sign-in started from the invitation's own link
+	// accepts (ADR-0078 §1): the second proof that lets a provider activate it. Zero is every
+	// other sign-in. Checked when the flow opened, and spent only by an arrival that succeeds.
+	InvitedAccountID shared.ID
 }
 
 // NewOidcFlowInput is what starting a sign-in needs.
@@ -644,6 +685,9 @@ type NewOidcFlowInput struct {
 	Now        time.Time
 	// SessionID makes the flow a step-up of that session. Zero for a sign-in.
 	SessionID shared.ID
+	// InvitedAccountID is the invitation a sign-in started from. Zero for every other flow, and
+	// never beside a session: a step-up belongs to somebody already signed in.
+	InvitedAccountID shared.ID
 }
 
 // NewOidcFlow opens one.
@@ -653,13 +697,15 @@ type NewOidcFlowInput struct {
 // nobody wrote.
 func NewOidcFlow(in NewOidcFlowInput) (OidcFlow, error) {
 	if in.ID.IsZero() || in.TenantID.IsZero() || in.ProviderID.IsZero() || in.Now.IsZero() ||
-		in.Nonce == "" || len(in.Verifier) < 43 || len(in.Verifier) > 128 {
+		in.Nonce == "" || len(in.Verifier) < 43 || len(in.Verifier) > 128 ||
+		(!in.SessionID.IsZero() && !in.InvitedAccountID.IsZero()) {
 		return OidcFlow{}, shared.ErrInternal.WithDetail("identity_provider.flow_incomplete")
 	}
 	return OidcFlow{
 		ID: in.ID, TenantID: in.TenantID, ProviderID: in.ProviderID,
 		Nonce: in.Nonce, Verifier: in.Verifier, SessionID: in.SessionID,
-		CreatedAt: in.Now.UTC(), ExpiresAt: in.Now.Add(OidcFlowLifetime).UTC(),
+		InvitedAccountID: in.InvitedAccountID,
+		CreatedAt:        in.Now.UTC(), ExpiresAt: in.Now.Add(OidcFlowLifetime).UTC(),
 	}, nil
 }
 

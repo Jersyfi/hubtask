@@ -63,6 +63,8 @@ type externalStore struct {
 	bySubject map[string]domain.Account
 	links     []string
 	refuse    bool
+	// unlinked names the accounts whose identities were dropped, in order.
+	unlinked []shared.ID
 	// accounts is where a linked subject's account is read back from, so that the second
 	// arrival finds the person rather than a stub the double invented.
 	accounts *accountStore
@@ -121,6 +123,19 @@ func (s *externalStore) HasIdentity(_ context.Context, accountID shared.ID) (boo
 		}
 	}
 	return false, nil
+}
+
+// UnlinkAll drops every identity of the account, and records that it did.
+func (s *externalStore) UnlinkAll(_ context.Context, accountID shared.ID) (int, error) {
+	removed := 0
+	for key, account := range s.bySubject {
+		if account.ID == accountID {
+			delete(s.bySubject, key)
+			removed++
+		}
+	}
+	s.unlinked = append(s.unlinked, accountID)
+	return removed, nil
 }
 
 // arriving is the identity the library would have verified.
@@ -188,6 +203,9 @@ func newOidcFixture(t *testing.T, at time.Time, existing ...domain.Account) *oid
 		}},
 	}
 	session.writer.Entropy = &countingEntropy{}
+	// A refusal's trail entry has to survive the transaction it was refused in, as against the real
+	// database: here the fake rolls the trail back with everything else a failing transaction wrote.
+	session.work.trail = session.audit
 	f.writer = OidcWriter{
 		Session: session.writer, Providers: f.store, Flows: f.flows,
 		External: f.external, Accounts: f.accounts, Relying: f.relying,
@@ -304,7 +322,8 @@ func TestASecondArrivalFindsTheSameAccount(t *testing.T) {
 
 // Linking hands somebody an account that already exists, so it happens only on a verified
 // address inside the configured domains - and it is recorded, because it is the event a review
-// looks for.
+// looks for. The account here holds no credential, so the provider has to be authoritative for the
+// address as well (ADR-0078 §5, OidcCredentialless_test.go).
 func TestAVerifiedAddressInsideTheDomainsLinksAndIsRecorded(t *testing.T) {
 	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
 	existing := domain.Account{
@@ -313,6 +332,7 @@ func TestAVerifiedAddressInsideTheDomainsLinksAndIsRecorded(t *testing.T) {
 		Status: domain.AccountActive,
 	}
 	f := newOidcFixture(t, at, existing)
+	f.relying.identity.AddressAuthoritative = true
 
 	pairResult, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(), CompleteOidcSignInCommand{
 		Code: "the-code", State: start(t, f),

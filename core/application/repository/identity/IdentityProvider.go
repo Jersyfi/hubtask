@@ -110,6 +110,12 @@ type ExternalAccounts interface {
 	// identity is a credential, and an account that holds one is not connected to a second provider
 	// on that provider's word (ADR-0071's addendum, E2).
 	HasIdentity(ctx context.Context, accountID shared.ID) (bool, error)
+
+	// UnlinkAll removes every provider identity the account is connected to and answers how many.
+	// Its one caller is an invited account being activated (ADR-0078 §1): a connection made while
+	// it was still invited, without a second proof, is no credential, and the person makes it again
+	// by signing in.
+	UnlinkAll(ctx context.Context, accountID shared.ID) (int, error)
 }
 
 // SealedProviderSecret is one row's wrapping, as a rotation needs it: which row, and what is

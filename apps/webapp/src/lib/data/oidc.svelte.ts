@@ -24,7 +24,7 @@
 import { TransportError } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { navigableUrl, type Handoff } from './oidc.ts';
+import { navigableUrl, startRequest, type Handoff } from './oidc.ts';
 import { session } from '../session.svelte.ts';
 
 const START = '/auth/oidc:start';
@@ -86,21 +86,20 @@ class Oidc {
   /**
    * Begins the flow and answers where to send the browser.
    *
-   * `undefined` means it did not begin, and `failure` says why — no provider, one switched off, or
-   * discovery unreachable. The caller stays on the sign-in screen with the password form intact.
+   * `undefined` means it did not begin, and `failure` says why — no provider, one switched off,
+   * discovery unreachable, or an invitation that cannot be redeemed. The caller stays on its screen
+   * with the password form intact.
    */
-  async begin(loginHint?: string, providerId?: string): Promise<string | undefined> {
+  async begin(loginHint?: string, providerId?: string, invitationToken?: string): Promise<string | undefined> {
     this.#working = true;
     this.#handingOver = providerId;
     this.#failure = undefined;
     try {
-      const hint = loginHint?.trim();
-      // The provider is named where a workspace has more than one (§ the sign-in rules); without
-      // a name the server takes the only one, which is what every installation with one has.
-      const answer = await engine.mutate<Authorization>('POST', START, {
-        ...(hint ? { login_hint: hint } : {}),
-        ...(providerId ? { provider_id: providerId } : {}),
-      });
+      const answer = await engine.mutate<Authorization>(
+        'POST',
+        START,
+        startRequest(loginHint, providerId, invitationToken),
+      );
       const url = navigableUrl(answer.authorization_url);
       // An answer that is not a navigation is this installation's own defect rather than a
       // refusal, and `errors.internal` is what a reader is owed for one.

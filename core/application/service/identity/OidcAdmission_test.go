@@ -10,6 +10,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	provider "github.com/Jersyfi/hubtask/core/port/identityprovider"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 // E1, decided 2026-09-30 (docs/backlog/milestone-SC.md): the admission ladder is one axis - who
@@ -105,5 +106,23 @@ func TestTheAdmissionLadderIsWhoComesIn(t *testing.T) {
 				t.Errorf("a refused arrival still linked %v", f.external.links)
 			}
 		})
+	}
+}
+
+// The relying party is told the preset's way of saying it hosts a mailbox (ADR-0078 §5), for the
+// sign-in and the step-up alike: a configuration built without it reads every address as not
+// authoritative, and one built from the token would let any issuer say it.
+func TestTheRelyingConfigCarriesThePresetsAuthority(t *testing.T) {
+	cfg := relyingConfig(domain.IdentityProvider{Kind: domain.KindMicrosoft}, secret.Secret{}, "")
+	if cfg.Authority.Claim != "xms_edov" || cfg.DirectoryClaim != "tid" {
+		t.Errorf("a Microsoft row is configured with %+v", cfg)
+	}
+	cfg = relyingConfig(domain.IdentityProvider{Kind: domain.KindGoogle}, secret.Secret{}, "")
+	if !cfg.Authority.DirectoryIsDomain || len(cfg.Authority.OwnDomains) != 2 {
+		t.Errorf("a Google row is configured with %+v", cfg.Authority)
+	}
+	cfg = relyingConfig(domain.IdentityProvider{Kind: domain.KindGeneric}, secret.Secret{}, "")
+	if cfg.Authority.Claim != "" || len(cfg.Authority.OwnDomains) != 0 || cfg.Authority.DirectoryIsDomain {
+		t.Errorf("a generic row is configured with %+v", cfg.Authority)
 	}
 }

@@ -3794,6 +3794,10 @@ paths:
         Refused with a clear code when the workspace has no provider configured or has switched
         it off, and when discovery cannot be reached - the degradation
         `observability-reliability.md` §7 describes: local accounts keep signing in.
+
+        A sign-in begun on the invitation card carries the invitation's token, and the flow
+        remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be
+        redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
       requestBody:
         required: false
         content:
@@ -3834,6 +3838,25 @@ paths:
         presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but
         another provider or a second factor cannot give that proof here and is refused with
         `identity_provider.link_needs_own_way_in`.
+
+        An **invited** account is activated and connected only with a second proof (ADR-0078 §1):
+        the sign-in started from the invitation's own link (`invitation_token` at the start), or
+        the provider is authoritative for the address. Through the link the invited address is
+        admitted even outside a domains or directories list. The provider's verified address must
+        equal the invited one either way. Without the proof nothing is connected or activated and the
+        answer is `identity_provider.invitation_needs_link`; a different address is
+        `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted
+        meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the
+        invitation. Whatever was connected to the invited account before the proof is dropped when
+        it is activated.
+
+        Authority for the address stands in for a proof only where there is none. Under *Only
+        people invited here* a provider that is not authoritative still brings an existing active
+        account that holds a password to the `LINK` step - connected only with that password and
+        its second factor - and never creates an account. An existing account that holds no
+        credential at all is connected only by a provider authoritative for its address, in every
+        mode; otherwise nothing is connected and the answer is
+        `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
 
         A `state` that is unknown, already spent or expired is refused indistinguishably: a flow
         handle is single use.
@@ -8624,6 +8647,19 @@ components:
             An address to pass the provider as `login_hint`, so somebody who typed it here does
             not type it again. A hint and nothing more - it never decides which account is signed
             in, which is the ID token's `sub` and only that.
+        invitation_token:
+          type: [string, "null"]
+          description: >
+            The redemption token of the invitation this sign-in accepts, when the person chose the
+            provider on the invitation card (ADR-0078 §1). It is checked here - a standing
+            invitation of this workspace, its account still invited - and **not spent**: the flow
+            remembers which account it invites, and only an arrival that succeeds accepts it. It
+            is the second proof that lets a provider activate the invited account even where the
+            provider is not authoritative for the address, or the address is outside a domains or
+            directories list - only for that account; the provider's verified address must still
+            equal the invited one. An unknown, expired,
+            spent or foreign token is refused with `auth.redemption_failed`, the one sentence the
+            invitation's other half answers. The token never travels to the provider.
 
     OidcAuthorization:
       type: object

@@ -282,3 +282,23 @@ func TestEveryPresetIsReachableByItsKind(t *testing.T) {
 		}
 	}
 }
+
+// Which presets say they host a mailbox, and how (ADR-0078 §5). GENERIC says nothing and must keep
+// saying nothing: a self-hosted issuer's address is one its administrator typed, so it never
+// activates an invited account without the invitation's own link.
+func TestOnlyThePresetsThatHostMailboxesNameAnAuthority(t *testing.T) {
+	google, _ := PresetOf(KindGoogle)
+	if !google.DirectoryIsMailDomain || len(google.OwnMailDomains) != 2 || google.AuthorityClaim != "" {
+		t.Errorf("Google's authority is %q %v %v, want its consumer domains and its hosted domain",
+			google.AuthorityClaim, google.OwnMailDomains, google.DirectoryIsMailDomain)
+	}
+	microsoft, _ := PresetOf(KindMicrosoft)
+	if microsoft.AuthorityClaim != "xms_edov" || len(microsoft.OwnMailDomains) != 0 || microsoft.DirectoryIsMailDomain {
+		t.Errorf("Microsoft's authority is %q %v %v, want its domain-ownership claim only",
+			microsoft.AuthorityClaim, microsoft.OwnMailDomains, microsoft.DirectoryIsMailDomain)
+	}
+	generic, _ := PresetOf(KindGeneric)
+	if generic.AuthorityClaim != "" || len(generic.OwnMailDomains) != 0 || generic.DirectoryIsMailDomain {
+		t.Error("a generic issuer names a way of being authoritative for an address")
+	}
+}

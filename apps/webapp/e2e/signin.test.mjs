@@ -706,17 +706,25 @@ test('the footer shows only the links that were set, with neutral labels', async
 });
 
 // SC-24: a workspace that switched the password off does not ask an invited person for one - the
-// server would refuse it. The screen says the invitation is accepted through the provider and
-// leads to the card that has the buttons.
+// server would refuse it. The screen says the invitation is accepted through the provider and offers
+// the providers right there - with the invitation bound to the flow (SC-32, ADR-0078 §1): a person
+// sent on to the sign-in card would arrive at the provider without it.
 test('an invitation in a workspace without the password leads to the provider, not to a password', async () => {
   const { origin, close } = await serve(DIST);
   const browser = await chromium.launch();
   try {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const base = stubFor({ answer: refused });
+    const started = [];
     await context.route('**/api/v1/**', async (route) => {
-      if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sign-in-rules')) {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith('/api/v1/auth/sign-in-rules')) {
         return route.fulfill({ json: { ...RULES, methods: ['OIDC'] } });
+      }
+      if (path.endsWith('/api/v1/auth/oidc:start')) {
+        started.push(route.request().postDataJSON());
+        // Never answered: what is asserted is what the start carried.
+        return new Promise(() => {});
       }
       return base(route);
     });
@@ -725,10 +733,11 @@ test('an invitation in a workspace without the password leads to the provider, n
     await page.getByRole('heading', { name: 'Accept your invitation' }).waitFor();
     assert.equal(await page.getByLabel(/New password/).count(), 0, 'a password field is offered where none is accepted');
 
-    await page.getByRole('button', { name: 'Continue to sign in' }).click();
-    await page.getByRole('button', { name: /Contoso Entra ID/ }).waitFor();
-    assert.equal(new URL(page.url()).pathname, '/');
-    assert.equal(await page.getByLabel(/^Password/).count(), 0, 'the sign-in card asks for a password');
+    await page.getByRole('button', { name: /Contoso Entra ID/ }).click();
+    await page.waitForFunction(() => document.querySelector('[aria-busy="true"]') !== null);
+    assert.deepEqual(started, [{ provider_id: 'p-entra', invitation_token: 'invitation-token' }],
+      'the provider was started without the invitation');
+    assert.equal(new URL(page.url()).pathname, '/redeem');
   } finally {
     await browser.close();
     await close();
@@ -736,19 +745,54 @@ test('an invitation in a workspace without the password leads to the provider, n
 });
 
 // UC-ID-07 check 5: where the workspace offers a provider, the invitation is accepted through it as
-// well as with a password.
+// well as with a password - from this card, the invitation going with the provider's flow (SC-32).
 test('an invitation where a provider is offered can be accepted through it instead of a password', async () => {
   const { origin, close } = await serve(DIST);
   const browser = await chromium.launch();
   try {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-    await context.route('**/api/v1/**', stubFor({ answer: refused }));
+    const base = stubFor({ answer: refused });
+    const started = [];
+    await context.route('**/api/v1/**', async (route) => {
+      if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/oidc:start')) {
+        started.push(route.request().postDataJSON());
+        return new Promise(() => {});
+      }
+      return base(route);
+    });
     const page = await context.newPage();
     await page.goto(`${origin}/redeem#token=invitation-token`);
     await page.getByRole('heading', { name: 'Set your password' }).waitFor();
     await page.getByText(/Or accept it by signing in through/).waitFor();
-    await page.getByRole('button', { name: 'Continue to sign in' }).click();
-    await page.getByRole('button', { name: /Contoso Entra ID/ }).waitFor();
+    await page.getByRole('button', { name: /Contoso Lab/ }).click();
+    await page.waitForFunction(() => document.querySelector('[aria-busy="true"]') !== null);
+    assert.deepEqual(started, [{ provider_id: 'p-lab', invitation_token: 'invitation-token' }]);
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// An invitation that cannot be redeemed is refused before the browser leaves, on this card, in the
+// redemption's one sentence (UC-ID-07 check 3).
+test('an invitation the provider start refuses is said on the invitation card', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const base = stubFor({ answer: refused });
+    await context.route('**/api/v1/**', async (route) => {
+      if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/oidc:start')) {
+        return route.fulfill({ status: 401, json: { code: 'errors.unauthenticated', detail_code: 'auth.redemption_failed', status: 401, request_id: 'req_e2e' } });
+      }
+      return base(route);
+    });
+    const page = await context.newPage();
+    await page.goto(`${origin}/redeem#token=invitation-token`);
+    await page.getByRole('heading', { name: 'Set your password' }).waitFor();
+    await page.getByRole('button', { name: /Contoso Entra ID/ }).click();
+    await page.getByText('That invitation cannot be redeemed. Ask for a new invitation.').waitFor();
+    assert.equal(new URL(page.url()).pathname, '/redeem');
   } finally {
     await browser.close();
     await close();

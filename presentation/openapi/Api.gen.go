@@ -6200,6 +6200,9 @@ type OidcCallback struct {
 
 // OidcStart What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely.
 type OidcStart struct {
+	// InvitationToken The redemption token of the invitation this sign-in accepts, when the person chose the provider on the invitation card (ADR-0078 §1). It is checked here - a standing invitation of this workspace, its account still invited - and **not spent**: the flow remembers which account it invites, and only an arrival that succeeds accepts it. It is the second proof that lets a provider activate the invited account even where the provider is not authoritative for the address, or the address is outside a domains or directories list - only for that account; the provider's verified address must still equal the invited one. An unknown, expired, spent or foreign token is refused with `auth.redemption_failed`, the one sentence the invitation's other half answers. The token never travels to the provider.
+	InvitationToken *string `json:"invitation_token,omitempty"`
+
 	// LoginHint An address to pass the provider as `login_hint`, so somebody who typed it here does not type it again. A hint and nothing more - it never decides which account is signed in, which is the ID token's `sub` and only that.
 	LoginHint *string `json:"login_hint,omitempty"`
 

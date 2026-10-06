@@ -1105,16 +1105,17 @@ type OauthGrant struct {
 }
 
 type OidcFlow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	StateHash    []byte
-	CodeVerifier string
-	Nonce        string
-	CreatedAt    pgtype.Timestamptz
-	ExpiresAt    pgtype.Timestamptz
-	ConsumedAt   pgtype.Timestamptz
-	ProviderID   pgtype.UUID
-	SessionID    pgtype.UUID
+	ID               pgtype.UUID
+	TenantID         pgtype.UUID
+	StateHash        []byte
+	CodeVerifier     string
+	Nonce            string
+	CreatedAt        pgtype.Timestamptz
+	ExpiresAt        pgtype.Timestamptz
+	ConsumedAt       pgtype.Timestamptz
+	ProviderID       pgtype.UUID
+	SessionID        pgtype.UUID
+	InvitedAccountID pgtype.UUID
 }
 
 type Operator struct {

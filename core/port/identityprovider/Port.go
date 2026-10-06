@@ -37,6 +37,25 @@ type Config struct {
 	// DirectoryClaim is the claim the adapter reads the organisation out of, as the preset names
 	// it: `tid`, `hd`, or empty where this provider has none (ADR-0071 §1).
 	DirectoryClaim string
+	// Authority is how this provider says it hosts the mailbox an address names (ADR-0078 §5).
+	// The zero value is an issuer this installation knows no such statement of, and its addresses
+	// are never authoritative.
+	Authority Authority
+}
+
+// Authority is a provider's own way of saying "this mailbox is mine", as its preset reads it
+// (ADR-0078 §5). Three shapes, and a provider uses whichever of them it has; none of them is the
+// `email` claim, which says where mail arrives and not who runs the mailbox.
+type Authority struct {
+	// Claim is a boolean claim that says so when it is exactly `true`: Microsoft's domain-ownership
+	// claim. Present and false, a string, or absent says nothing.
+	Claim string
+	// OwnDomains are the domains the provider runs the mailboxes of itself - its consumer domains.
+	// An address there is one it hosts.
+	OwnDomains []string
+	// DirectoryIsDomain says the directory claim names a mail domain (Google's hosted domain): an
+	// address in exactly that domain is one the provider hosts.
+	DirectoryIsDomain bool
 }
 
 // Authorization is what one sign-in needs on its way out. The three unguessable values are drawn
@@ -91,10 +110,11 @@ type Identity struct {
 	// and a directory is something the provider vouched for. Which claim carries it is the
 	// preset's, so nothing inwards of the adapter learns a provider's vocabulary.
 	Directory string
-	// AddressAuthoritative is whether the provider vouches for the address **and** the domain it
-	// sits in: Google's `email_verified` together with a matching `hd`, Microsoft's `xms_edov`.
-	// `EmailVerified` alone says mail arrives there, which is not the same claim and not enough to
-	// hand over an account that already exists.
+	// AddressAuthoritative is whether the provider hosts the mailbox the address names, in its own
+	// terms (ADR-0078 §5): Microsoft's `xms_edov` exactly `true`; Google for its own consumer
+	// domains or a hosted domain equal to the address's; no other issuer. `EmailVerified` alone
+	// says mail arrives there, which is not the same claim and not enough to hand over an account
+	// that already exists.
 	AddressAuthoritative bool
 	// AuthTime is when the person last authenticated at the provider, the token's `auth_time`.
 	// Zero where the token carried none - which a step-up reads as nothing fresh proven

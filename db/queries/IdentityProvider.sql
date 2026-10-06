@@ -139,13 +139,15 @@ WHERE id = sqlc.arg('id')
 
 -- name: InsertOidcFlow :exec
 -- A NULL session is a sign-in flow; a session is the step-up at the provider it belongs to
--- (ADR-0075 §2).
+-- (ADR-0075 §2). An invited account is the invitation a sign-in started from (ADR-0078 §1) - and the
+-- foreign key on (tenant, account) is what keeps it this workspace's.
 INSERT INTO oidc_flow
-  (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id)
+  (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id,
+   invited_account_id)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.narg('provider_id'), sqlc.arg('state_hash'),
   sqlc.arg('code_verifier'), sqlc.arg('nonce'), sqlc.arg('created_at'), sqlc.arg('expires_at'),
-  sqlc.narg('session_id')
+  sqlc.narg('session_id'), sqlc.narg('invited_account_id')
 );
 
 -- name: ConsumeOidcFlow :one
@@ -157,7 +159,7 @@ WHERE state_hash = sqlc.arg('state_hash')
   AND session_id IS NULL
   AND consumed_at IS NULL
   AND expires_at > sqlc.arg('now')
-RETURNING id, provider_id, code_verifier, nonce;
+RETURNING id, provider_id, code_verifier, nonce, invited_account_id;
 
 -- name: ConsumeStepUpOidcFlow :one
 -- The step-up's: only a flow bound to this very session, judged and burned in the same statement.
@@ -202,6 +204,12 @@ SELECT provider_id FROM account_identity WHERE account_id = sqlc.arg('account_id
 SELECT EXISTS (
   SELECT 1 FROM account_identity WHERE account_id = sqlc.arg('account_id')
 ) AS held;
+
+-- name: UnlinkAccountIdentities :execrows
+-- Every provider identity of one account (ADR-0078 §1): an invited account is activated only with a
+-- second proof, and what was connected to it before that proof is dropped in the activation's
+-- transaction. Row level security keeps it to this workspace's accounts.
+DELETE FROM account_identity WHERE account_id = sqlc.arg('account_id');
 
 -- name: LinkAccountIdentity :execrows
 -- Writes the link, and races safely: the unique index on (tenant, provider, subject) is what

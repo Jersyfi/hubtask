@@ -68,3 +68,29 @@ export function navigableUrl(candidate: string): string | undefined {
   }
   return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.href : undefined;
 }
+
+/** What a sign-in through a provider begins with, as `OidcStart` takes it. */
+export interface StartRequest {
+  readonly login_hint?: string;
+  readonly provider_id?: string;
+  readonly invitation_token?: string;
+}
+
+/**
+ * The body of `:start`, with only what was given in it.
+ *
+ * **The invitation travels when the sign-in begins on the invitation card** (ADR-0078 §1). It is the
+ * second proof that lets the provider activate the invited account — the server binds it to the
+ * flow without spending it — and a sign-in begun anywhere else carries none. It goes to this
+ * installation only: the provider never sees it.
+ */
+export function startRequest(loginHint?: string, providerId?: string, invitationToken?: string): StartRequest {
+  const hint = loginHint?.trim();
+  return {
+    ...(hint ? { login_hint: hint } : {}),
+    // The provider is named where a workspace has more than one (§ the sign-in rules); without a
+    // name the server takes the only one, which is what every installation with one has.
+    ...(providerId ? { provider_id: providerId } : {}),
+    ...(invitationToken ? { invitation_token: invitationToken } : {}),
+  };
+}

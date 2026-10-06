@@ -183,3 +183,51 @@ func TestThePersonalAccountEndpointIsOneDirectoryAndNeedsNoList(t *testing.T) {
 		t.Fatalf("configuring the personal-account endpoint: %v", err)
 	}
 }
+
+// A second proof the person brings - the invitation's own link, or an existing account's own proof
+// at the LINK step - admits one more arrival, and only under INVITED_ONLY: a verified address the
+// provider is not authoritative for (ADR-0078 §1). It never admits an unverified one, and under
+// DOMAINS the list stays the gate.
+func TestTheInvitationLinkAdmitsOnlyWhatInvitedOnlyNeeds(t *testing.T) {
+	verified := Arriving{Email: "ada@example.org", EmailVerified: true}
+	unverified := Arriving{Email: "ada@example.org"}
+
+	in := providerInput()
+	in.Provisioning = string(ProvisionInvitedOnly)
+	invitedOnly, err := NewIdentityProvider(in)
+	if err != nil {
+		t.Fatalf("configuring: %v", err)
+	}
+	if invitedOnly.MayAdmit(verified) {
+		t.Fatal("a non-authoritative address was admitted under INVITED_ONLY without the link")
+	}
+	if !invitedOnly.MayAdmitWithProof(verified) {
+		t.Error("the invitation's link did not admit a verified address under INVITED_ONLY")
+	}
+	if invitedOnly.MayAdmitWithProof(unverified) {
+		t.Error("the invitation's link admitted an address the provider did not verify")
+	}
+
+	in = providerInput()
+	in.Provisioning = string(ProvisionDomains)
+	in.AllowedEmailDomains = []string{"elsewhere.org"}
+	domains, err := NewIdentityProvider(in)
+	if err != nil {
+		t.Fatalf("configuring: %v", err)
+	}
+	if domains.MayAdmitWithProof(verified) {
+		t.Error("an existing account's own proof widened a DOMAINS list")
+	}
+
+	// The invitation's own link is the administrator's explicit choice of one person, and the list
+	// does not overrule it - for a verified address only.
+	if !domains.MayAdmitInvitation(verified) {
+		t.Error("the invitation's link did not admit the invited address outside the DOMAINS list")
+	}
+	if domains.MayAdmitInvitation(unverified) {
+		t.Error("the invitation's link admitted an address the provider did not verify")
+	}
+	if !invitedOnly.MayAdmitInvitation(verified) || invitedOnly.MayAdmitInvitation(unverified) {
+		t.Error("the invitation's link reads INVITED_ONLY differently from MayAdmitWithProof")
+	}
+}
