@@ -1,0 +1,37 @@
+name: Decision for the owner
+description: A question only the owner decides (AGENTS.md, "What you do not decide yourself"), with a worked-out proposal.
+title: "[Decision] "
+labels: ["decision"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening this, search docs/vision, docs/architecture, docs/usecases, the milestones'
+        "Decisions" and closed `decision` issues. An answered question is cited, not asked again.
+  - type: textarea
+    id: about
+    attributes:
+      label: What it is about
+      description: In plain words, for someone who did not read the code.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What you propose, and what it means in each deployment D1–D7 where it differs.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and why not
+    validations:
+      required: true
+  - type: textarea
+    id: waits
+    attributes:
+      label: What waits until the answer
+      description: The task or milestone it blocks, and what can go on meanwhile.
+    validations:
+      required: true

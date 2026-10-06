@@ -1,102 +1,51 @@
-name: Implementation task
-description: An actionable task for Claude Code or a human.
-title: "[Task] "
+name: Task
+description: A task of a milestone — a copy of its entry in docs/backlog/milestone-<X>.md, which stays the source.
+title: "<ID> — "
 labels: ["task"]
 body:
   - type: markdown
     attributes:
       value: |
-        A task is ready to implement when it meets the Definition of Ready
-        (`docs/architecture/engineering-guidelines.md` §2). The more precisely it is
-        located, the fewer follow-up questions.
+        A task is written in its milestone file first (docs/backlog/README.md). This issue copies it;
+        where the two differ, the file wins. A task of a released milestone carries only checks
+        from the milestone's `Delivers`.
 
   - type: input
     id: milestone
     attributes:
       label: Milestone
-      placeholder: "0.1.0"
-    validations:
-      required: true
-
-  - type: textarea
-    id: goal
-    attributes:
-      label: Goal
-      description: What should be possible afterwards? From the point of view of the user or the calling system.
+      placeholder: "PH"
     validations:
       required: true
 
   - type: input
     id: usecases
     attributes:
-      label: Use cases from the catalogue
-      description: Names from `docs/architecture/domain-model.md` §5.
-      placeholder: "CreateContainer, RenameContainer"
+      label: Use cases
+      description: The checks this task carries, as in its `**Use cases:**` line.
+      placeholder: "UC-PRV-01 (9, 10)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: text
+    attributes:
+      label: The task
+      description: What is built, and how it is proven (Acceptance) — copied from the milestone file.
     validations:
       required: true
 
   - type: input
-    id: context
+    id: depends
     attributes:
-      label: Bounded context and aggregate
-      placeholder: "Work Management / Container"
-    validations:
-      required: true
-
-  - type: textarea
-    id: documents
-    attributes:
-      label: Governing documents and ADRs
-      description: What Claude should read before starting.
-      value: |
-        - docs/architecture/domain-model.md
-        - docs/architecture/api-guidelines.md
-        - docs/adr/ADR-...
-    validations:
-      required: true
-
-  - type: textarea
-    id: acceptance
-    attributes:
-      label: Acceptance criteria
-      description: Formulated so they can be checked, including error cases.
-      value: |
-        - [ ]
-        - [ ] A cross-tenant negative test for every new repository method
-        - [ ] `make verify` green, no diff after `make generate`
-    validations:
-      required: true
-
-  - type: textarea
-    id: crosscutting
-    attributes:
-      label: Cross-cutting impact
-      value: |
-        - API change: yes/no — which operations
-        - Migration: yes/no — the expand/contract steps
-        - Domain events: which ones
-        - Permissions: which role, which scope
-        - Audit obligation: yes/no — which action
-        - Personal data: new fields, purpose, retention, deletion path
-        - Offline sync: the merge rule per new field (LWW / OR-set / fractional index / server-side)
-        - i18n: the message codes needed
-    validations:
-      required: true
-
-  - type: textarea
-    id: outofscope
-    attributes:
-      label: Explicitly not part of this task
-      placeholder: "e.g. the kanban view, automation triggers, the frontend"
+      label: Depends on
+      placeholder: "nothing"
 
   - type: checkboxes
     id: areas
     attributes:
       label: Affected areas
-      description: >
-        This is a personal repository, so organisation-level issue types and fields are not
-        available and the `area:` labels carry that dimension instead. Tick what the work touches;
-        the labels are applied from this.
+      description: Tick what the work touches; the `area:` labels are applied from this.
       options:
         - label: "area:core — the domain, the application layer, the ports"
         - label: "area:api — the OpenAPI contract, REST, MCP, the generated client"
@@ -105,14 +54,4 @@ body:
         - label: "area:design-system — tokens, the CSS layer, the visual reference"
         - label: "area:infra — persistence, storage, mail, outbound adapters, deployment"
         - label: "area:ci — workflows, gates, release"
-        - label: "area:docs — arc42, ADRs, the backlog, the guides"
-
-  - type: checkboxes
-    id: readiness
-    attributes:
-      label: Definition of Ready
-      options:
-        - label: No contradiction with an existing ADR (otherwise draft an ADR first)
-          required: true
-        - label: The scope can be finished in one pull request
-          required: true
+        - label: "area:docs — subject documents, ADRs, use cases, the backlog, the guides"
