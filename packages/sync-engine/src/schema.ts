@@ -311,6 +311,12 @@ export type IdentityProviderProvisioning =
 export type IdentityProviderPreset = components['schemas']['IdentityProviderPreset'];
 
 /**
+ * How many active people of the workspace no provider switched on there signs in (ADR-0078 §1): the
+ * number the password switch says before the password goes off. A number, never a list.
+ */
+export type AccountsWithoutProvider = components['schemas']['AccountsWithoutProvider'];
+
+/**
  * One step of an entry's history. `code` is a message the client renders, never a sentence — which
  * is what lets one history read in whichever language each client is set to (ADR-0011, §3.5).
  */

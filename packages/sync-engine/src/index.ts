@@ -115,6 +115,7 @@ export type {
   IdentityProviderConfiguration,
   IdentityProviderKind,
   IdentityProviderPreset,
+  AccountsWithoutProvider,
   IdentityProviderProvisioning,
   ProviderWithdrawal,
   ImportKind,

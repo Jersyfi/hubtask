@@ -29,9 +29,14 @@
  * **The presets are read once and are not a provider.** They are three rows and this installation's
  * own callback address — what a registration form asks for — so they live beside the listing rather
  * than inside it.
+ *
+ * **So is the number the password switch says** (ADR-0078 §1): how many people here no provider
+ * switched on here signs in. It follows the providers - switching one on or off, or removing it,
+ * reads it again - and it is a number, never a list.
  */
 
 import type {
+  AccountsWithoutProvider,
   IdentityProvider,
   IdentityProviderConfiguration,
   IdentityProviderPreset,
@@ -43,10 +48,20 @@ import { stepUp } from './stepup.svelte.ts';
 
 const PATH = '/identity-providers';
 const PRESETS = '/identity-provider-presets';
+const WITHOUT = '/tenant/accounts-without-provider';
 
 class IdentityProviderStore {
   #state = $state<ResourceState<readonly IdentityProvider[]>>({ status: 'idle' });
   #presets = $state<ResourceState<readonly IdentityProviderPreset[]>>({ status: 'idle' });
+  #without = $state<ResourceState<AccountsWithoutProvider>>({ status: 'idle' });
+
+  /**
+   * How many active people here no provider switched on here signs in, once read. `undefined`
+   * before the read and where it was refused - the screen then says nothing rather than a guess.
+   */
+  get withoutProvider(): number | undefined {
+    return this.#without.status === 'ready' ? this.#without.data.count : undefined;
+  }
 
   /** What the last read answered: loading, the providers, or the refusal. */
   get state(): ResourceState<readonly IdentityProvider[]> {
@@ -85,9 +100,13 @@ class IdentityProviderStore {
     const stopPresets = engine.subscribe<readonly IdentityProviderPreset[]>({ path: PRESETS }, (next) => {
       this.#presets = next;
     });
+    const stopWithout = engine.subscribe<AccountsWithoutProvider>({ path: WITHOUT }, (next) => {
+      this.#without = next;
+    });
     return () => {
       stopProviders();
       stopPresets();
+      stopWithout();
     };
   }
 
@@ -112,7 +131,7 @@ class IdentityProviderStore {
     return stepUp.around((stepUpToken) =>
       engine.mutate<IdentityProvider>('POST', `${PATH}/${id}:offer`, { offered }, {
         stepUpToken,
-        invalidates: [PATH],
+        invalidates: [PATH, WITHOUT],
       }),
     );
   }
@@ -133,7 +152,7 @@ class IdentityProviderStore {
    */
   async remove(id: string): Promise<void> {
     await stepUp.around((stepUpToken) =>
-      engine.mutate('DELETE', `${PATH}/${id}`, undefined, { stepUpToken, invalidates: [PATH] }),
+      engine.mutate('DELETE', `${PATH}/${id}`, undefined, { stepUpToken, invalidates: [PATH, WITHOUT] }),
     );
   }
 }
