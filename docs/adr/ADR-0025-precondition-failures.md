@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-19
 
+**Rule lives in:** [api-guidelines.md](../architecture/api-guidelines.md) §5, §6
+
 ## Context
 
 Two documents in this repository disagree about one status code, and the disagreement blocks B-05 and B-06.

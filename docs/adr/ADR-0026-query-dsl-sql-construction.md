@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-20
 
+**Rule lives in:** [api-guidelines.md](../architecture/api-guidelines.md) §3.1, [security.md](../architecture/security.md) §4 (T-06)
+
 ## Context
 
 B-12 adds `QueryItems` (`POST /items:query`), the one endpoint that serves list, board and timeline
