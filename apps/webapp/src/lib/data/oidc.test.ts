@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { navigableUrl, readArrival } from './oidc.ts';
+import { navigableUrl, readArrival, startRequest } from './oidc.ts';
 
 test('a code and a state are the handoff', () => {
   const arrival = readArrival('?code=abc&state=xyz');
@@ -55,4 +55,18 @@ test('anything that is not a navigation is refused', () => {
   assert.equal(navigableUrl('data:text/html,<script>'), undefined);
   assert.equal(navigableUrl('/authorize'), undefined, 'a relative path is not a provider');
   assert.equal(navigableUrl(''), undefined);
+});
+
+test('a sign-in begun on the invitation card carries the invitation, and no other does', () => {
+  // ADR-0078 §1: the invitation's own link is the second proof the server binds to the flow.
+  assert.deepEqual(startRequest(undefined, 'p-entra', 'inv-token'), {
+    provider_id: 'p-entra',
+    invitation_token: 'inv-token',
+  });
+  assert.deepEqual(startRequest('ada@example.org', 'p-entra'), {
+    login_hint: 'ada@example.org',
+    provider_id: 'p-entra',
+  });
+  // An empty token is no invitation, and an empty hint no hint.
+  assert.deepEqual(startRequest('  ', undefined, ''), {});
 });

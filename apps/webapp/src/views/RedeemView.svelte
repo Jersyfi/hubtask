@@ -20,14 +20,22 @@
   //
   // **No password where the workspace has none** (SC-24). A workspace that switched the password off
   // refuses one here, so this screen does not ask for it: it says the invitation is accepted by
-  // signing in through the workspace's provider - which makes the account active - and leads to the
-  // card that has the buttons. Nobody invited is left in front of a field that cannot work.
+  // signing in through the workspace's provider - which makes the account active. Nobody invited is
+  // left in front of a field that cannot work.
+  //
+  // **The provider is chosen here, and the invitation goes with it** (SC-32, ADR-0078 §1). A
+  // provider's word alone activates no invited account: the second proof is this link, which the
+  // server binds to the provider flow without spending it. So the buttons are on this card rather
+  // than on the sign-in card - a person sent there would arrive without the invitation and be
+  // refused by any provider that is not authoritative for their address.
 
   import { Banner, Button, Stack } from '@hubtask/design-system/components';
 
   import PasswordField from '../lib/signin/PasswordField.svelte';
+  import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import SignInCard from '../lib/signin/SignInCard.svelte';
   import { takeFragmentToken } from '../lib/signin/fragmentToken.ts';
+  import { oidc } from '../lib/data/oidc.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import { session } from '../lib/session.svelte.ts';
@@ -59,6 +67,20 @@
 
   $effect(() => signInRules.read());
 
+  /**
+   * Hands the browser to one of the workspace's providers with this invitation bound to the flow.
+   *
+   * An invitation that cannot be redeemed is refused before the browser leaves, and the refusal is
+   * shown on this card.
+   */
+  async function useProvider(providerId: string): Promise<void> {
+    const url = await oidc.begin(undefined, providerId, token);
+    // Leaving this origin entirely. `assign` rather than `replace`: Back returns to this card, which
+    // is where somebody who changed their mind at the provider wants to be - with the token already
+    // out of the address, so the history entry carries no credential.
+    if (url) location.assign(url);
+  }
+
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const signedIn = await session.redeem(token, password);
@@ -69,7 +91,11 @@
 </script>
 
 {#snippet notice()}
-  {#if session.problem}
+  {#if oidc.failure}
+    <!-- The server's own code: an invitation that cannot be redeemed, or a provider that is not
+         there. -->
+    <Banner tone="danger">{t(oidc.failure)}</Banner>
+  {:else if session.problem}
     <Banner tone="danger" title={session.problem.message}>
       {#if session.problem.reference}{session.problem.reference}{/if}
     </Banner>
@@ -85,7 +111,13 @@
   </SignInCard>
 {:else if signInRules.wasRead && !signInRules.hasPassword}
   <SignInCard title={t('app.redeem.provider_title')} lead={t('app.redeem.provider_intro')} {notice}>
-    <Button tone="primary" isFull onclick={() => onnavigate?.('/')}>{t('app.redeem.to_sign_in')}</Button>
+    {#if signInRules.providers.length > 0}
+      {@render providers('primary')}
+    {:else}
+      <!-- No provider the rules name: the sign-in card says what there is, which is all this
+           card could say too. -->
+      <Button tone="primary" isFull onclick={() => onnavigate?.('/')}>{t('app.redeem.to_sign_in')}</Button>
+    {/if}
   </SignInCard>
 {:else}
   <SignInCard title={t('app.redeem.title')} lead={t('app.redeem.intro')} {notice}>
@@ -108,11 +140,31 @@
            through it as well as with a password - the card with the buttons does it. -->
       <div class="instead">
         <p class="quiet">{t('app.redeem.or_provider')}</p>
-        <Button tone="subtle" isFull onclick={() => onnavigate?.('/')}>{t('app.redeem.to_sign_in')}</Button>
+        {@render providers('secondary')}
       </div>
     {/if}
   </SignInCard>
 {/if}
+
+{#snippet providers(tone: 'primary' | 'secondary')}
+  <!-- One button per provider the rules name, each carrying this invitation (ADR-0078 §1). -->
+  <Stack gap="100">
+    {#each signInRules.providers as provider (provider.id)}
+      <Button
+        {tone}
+        isFull
+        isBusy={oidc.isHandingOverTo(provider.id)}
+        busyLabel={t('app.sign_in.provider_working')}
+        onclick={() => void useProvider(provider.id)}
+      >
+        {#snippet lead()}
+          <ProviderMark kind={provider.kind} name={provider.display_name} />
+        {/snippet}
+        {t('app.sign_in.provider_named', { name: provider.display_name })}
+      </Button>
+    {/each}
+  </Stack>
+{/snippet}
 
 <style>
   form { margin: 0; }
