@@ -619,14 +619,17 @@ claim shape; a PostgreSQL test that a refusal's trail entry is stored.
 
 In a workspace that switched the password off, *Forgot your password?* mails an account that holds a
 password but is connected to no provider switched on there - or holds only an identity at an offer that
-ended - a link to connect the workspace's provider. The link and a fresh sign-in at the provider
-together are the account's proof at the LINK step; an armed second factor is still asked; no password
-is stored; the provider's verified address must equal the account's. Before the password is switched
-off, the switch says how many people have never signed in through a provider.
+ended, or holds no credential at all (no password, no factor, no identity; decided 2026-10-06, so that
+SC-32's `identity_provider.link_needs_mailbox` has its way back where the password is off) - a link to
+connect the workspace's provider. The link and a fresh sign-in at the provider together are the
+account's proof at the LINK step; an armed second factor is still asked; no password is stored; the
+provider's verified address must equal the account's. The LINK step keeps accepting the password as a
+proof where the password is off as a way in. Before the password is switched off, the switch says how
+many people have never signed in through a provider.
 
-**Acceptance:** both cases connect and sign in; an armed factor is still asked; a mismatched address
-or a sign-in that is not fresh connects nothing and leaves the link unspent; a link is spent once; the
-switch's count excludes connected, invited and service accounts.
+**Acceptance:** all three cases connect and sign in; an armed factor is still asked; a mismatched
+address or a sign-in that is not fresh connects nothing and leaves the link unspent; a link is spent
+once; the switch's count excludes connected, invited and service accounts.
 
 ---
 

@@ -5,9 +5,9 @@ context: identity
 actors: [PE-member, PE-owner, PE-admin]
 deployments: [D3, D4, D5, D6]
 serves: [P-02, P-05, P-12, P-16]
-state: partial
+state: verified
 tasks: [SC-01, SC-32, SC-33, SC-37]
-checked_by: [core/application/service/identity/OidcLinking_test.go, core/application/service/identity/OidcAdmission_test.go, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/OidcCredentialless_test.go, core/application/service/identity/IdentityProviderConfig_test.go, core/domain/model/identity/IdentityProviderPreset_test.go, core/domain/model/identity/ProviderAdmission_test.go, infrastructure/oidc/Authority_test.go, test/integration/identity_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/provider_refusal_test.go, apps/webapp/e2e/signin.test.mjs]
+checked_by: [core/application/service/identity/OidcConnect_test.go, core/application/service/identity/ConnectMail_test.go, test/integration/connect_by_mail_test.go, core/application/service/identity/OidcLinking_test.go, core/application/service/identity/OidcAdmission_test.go, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/OidcCredentialless_test.go, core/application/service/identity/IdentityProviderConfig_test.go, core/domain/model/identity/IdentityProviderPreset_test.go, core/domain/model/identity/ProviderAdmission_test.go, infrastructure/oidc/Authority_test.go, test/integration/identity_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/provider_refusal_test.go, apps/webapp/e2e/signin.test.mjs]
 ---
 
 # Connect a sign-in provider to the account I already have
@@ -64,8 +64,35 @@ The story and checks 1, 4 and 6 were reworded with the owner's approval on 2026-
 ([ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §1): a provider joins an existing account only
 with a second proof — the password, or the mailbox where the password is off — and an invited account
 only through its own link or an authoritative provider. The checks as they stood before held since
-SC-01. The mailbox proof of checks 1 and 6 is SC-33 (#1140); until it is built the state is
-`partial`. A differently addressed identity is connected from a signed-in session, SC-37 (#1146).
+SC-01; with SC-32 (check 4) and SC-33 (the mailbox of checks 1 and 6) every check holds again. A
+differently addressed identity is connected from a signed-in session, SC-37 (#1146).
+
+**Checks 1 and 6, the mailbox, hold since SC-33 ([#1140](https://github.com/Jersyfi/hubtask/issues/1140)).**
+Where the workspace switched the password off, *Forgot your password?* mails an account no provider
+there lets in a link to connect one (UC-ID-04 check 8). The provider flow started from it carries the
+link, bound on the server (`oidc_flow.pending_id`) and checked without being spent, and asks the
+provider for a fresh sign-in. At the return the link and that sign-in are the account's proof: an
+`auth_time` outside the step-up's window connects nothing (`identity_provider.connect_not_fresh`),
+the verified address must be the account's (`identity_provider.connect_address_differs`), admission is
+that of an arrival bringing its own proof, and an identity connected to somebody else here is refused
+(`identity_provider.connect_identity_taken`) - each leaving the link unspent and recorded in the trail
+in a transaction of its own (`TestAConnectionThatIsNotProvenLeavesTheLinkUnspent`). An armed second
+factor is still asked, the connection written at the end of its step
+(`TestAnArmedFactorIsStillAskedAfterTheMailbox`); the link is spent with the connection, once
+(`TestAConnectLinkIsSpentOnce`); no password is stored; `identity.provider_linked` records the proof as
+`MAILBOX` (and `PASSWORD` at the LINK step). It holds for the password holder never connected, the
+account whose only identity was at an ended offer, and the account with no credential at all
+(`TestEachAccountNoProviderLetsInConnectsByMailAndSignsIn`). So an administrator's own provider
+reaches no member's account without that member's mailbox and second factor (check 6). An account
+whose way in ended is answered with the sentence that points at its mailbox
+(`identity_provider.link_needs_mailbox`, `TestAnAccountWhoseWayInEndedIsPointedAtItsMailbox`); one
+with an identity at a provider that works here, with the one that names it.
+
+**The LINK step keeps the password as a proof where the password is switched off** as a way in: the
+switch closes the sign-in by password, not the account's own proof that it is the person, so a member
+who still knows it connects the provider with it once, the factor after it
+(`TestTheLinkStepTakesThePasswordWhereThePasswordIsOff`; said in the contract of
+`/auth/sessions:link`).
 
 **Check 4 holds since SC-32 (#1139).** An invited account is activated or connected through a
 provider only when the flow started from the invitation's own link — the token checked at the start
