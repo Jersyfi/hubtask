@@ -223,6 +223,11 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 	if err != nil {
 		return SignInResult{}, err
 	}
+	// Before any account is looked up: where the workspace switched the password off, the answer is
+	// the same for every address (SC-24).
+	if err := w.passwordShut(ctx, tenantID); err != nil {
+		return SignInResult{}, err
+	}
 
 	address := domain.LookupAddress(cmd.Email, w.Domains)
 	subjects := attemptSubjects(address, cmd.RemoteAddr)

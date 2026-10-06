@@ -83,6 +83,29 @@ func (r AccountRepository) FindByEmail(ctx context.Context, email string) (ident
 		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
+// AcceptInvitation activates an invited account whose invitation has not run out (SC-24).
+func (r AccountRepository) AcceptInvitation(
+	ctx context.Context, accountID shared.ID, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	changed, err := queries.AcceptInvitation(ctx, sqlc.AcceptInvitationParams{
+		ID: id, Now: pgtype.Timestamptz{Time: now.UTC(), Valid: true},
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("accepting an invitation: %w", err))
+	}
+	return changed > 0, nil
+}
+
 // ListOfKind answers the tenant's accounts of one kind, newest first. Its one caller is the
 // service account listing: a person is found by name or address, and a machine is found in the
 // list of machines.

@@ -34,6 +34,11 @@ func (a *accountShelf) Find(_ context.Context, id shared.ID) (identity.Account, 
 func (a *accountShelf) FindByEmail(context.Context, string) (identity.Account, error) {
 	return identity.Account{}, shared.ErrNotFound
 }
+
+// AcceptInvitation is not this fixture's concern: nothing here accepts an invitation.
+func (a *accountShelf) AcceptInvitation(context.Context, shared.ID, time.Time) (bool, error) {
+	return false, nil
+}
 func (a *accountShelf) Insert(context.Context, identity.Account) error { return nil }
 
 // Nothing here lists accounts by kind; the method exists so the port is implemented.

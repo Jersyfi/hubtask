@@ -10453,6 +10453,7 @@ type ClientInterface interface {
 	// RedeemInvitationWithBody Redeem an invitation and set the first password
 	//
 	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24).
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 	//
 	// Takes any type of body and a specified content type.
@@ -10463,6 +10464,7 @@ type ClientInterface interface {
 	// RedeemInvitation Redeem an invitation and set the first password
 	//
 	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24).
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 	//
 	// Takes a body of the `application/json` content type.
@@ -10678,7 +10680,7 @@ type ClientInterface interface {
 
 	// ResetPasswordWithBody Spend a reset link and set the password
 	//
-	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
 	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
 	//
@@ -10689,7 +10691,7 @@ type ClientInterface interface {
 
 	// ResetPassword Spend a reset link and set the password
 	//
-	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
 	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
 	//
@@ -10740,6 +10742,7 @@ type ClientInterface interface {
 	// SignInWithBody Sign in with email and password
 	//
 	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
+	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace whose last way in was an offered provider that has been withdrawn (`password_fallback` on the sign-in rules, ADR-0076 §4).
 	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 	//
@@ -10751,6 +10754,7 @@ type ClientInterface interface {
 	// SignIn Sign in with email and password
 	//
 	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
+	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace whose last way in was an offered provider that has been withdrawn (`password_fallback` on the sign-in rules, ADR-0076 §4).
 	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 	//
@@ -14570,6 +14574,7 @@ func (c *Client) VerifyAuditChain(ctx context.Context, body VerifyAuditChainJSON
 // RedeemInvitationWithBody Redeem an invitation and set the first password
 //
 // The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24).
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 //
 // Takes any type of body and a specified content type.
@@ -14590,6 +14595,7 @@ func (c *Client) RedeemInvitationWithBody(ctx context.Context, contentType strin
 // RedeemInvitation Redeem an invitation and set the first password
 //
 // The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24).
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 //
 // Takes a body of the `application/json` content type.
@@ -15015,7 +15021,7 @@ func (c *Client) ForgetPassword(ctx context.Context, body ForgetPasswordJSONRequ
 
 // ResetPasswordWithBody Spend a reset link and set the password
 //
-// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 // **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
 // Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
 //
@@ -15036,7 +15042,7 @@ func (c *Client) ResetPasswordWithBody(ctx context.Context, contentType string, 
 
 // ResetPassword Spend a reset link and set the password
 //
-// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 // **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
 // Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
 //
@@ -15147,6 +15153,7 @@ func (c *Client) ListSessions(ctx context.Context, reqEditors ...RequestEditorFn
 // SignInWithBody Sign in with email and password
 //
 // The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
+// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace whose last way in was an offered provider that has been withdrawn (`password_fallback` on the sign-in rules, ADR-0076 §4).
 // The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 // Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 //
@@ -15168,6 +15175,7 @@ func (c *Client) SignInWithBody(ctx context.Context, contentType string, body io
 // SignIn Sign in with email and password
 //
 // The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
+// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace whose last way in was an offered provider that has been withdrawn (`password_fallback` on the sign-in rules, ADR-0076 §4).
 // The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 // Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 //
@@ -34931,6 +34939,7 @@ type ClientWithResponsesInterface interface {
 	// RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 	//
 	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24).
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -34941,6 +34950,7 @@ type ClientWithResponsesInterface interface {
 	// RedeemInvitationWithResponse Redeem an invitation and set the first password
 	//
 	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24).
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -35160,7 +35170,7 @@ type ClientWithResponsesInterface interface {
 
 	// ResetPasswordWithBodyWithResponse Spend a reset link and set the password
 	//
-	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
 	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
 	//
@@ -35171,7 +35181,7 @@ type ClientWithResponsesInterface interface {
 
 	// ResetPasswordWithResponse Spend a reset link and set the password
 	//
-	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
 	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
 	//
@@ -35228,6 +35238,7 @@ type ClientWithResponsesInterface interface {
 	// SignInWithBodyWithResponse Sign in with email and password
 	//
 	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
+	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace whose last way in was an offered provider that has been withdrawn (`password_fallback` on the sign-in rules, ADR-0076 §4).
 	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 	//
@@ -35239,6 +35250,7 @@ type ClientWithResponsesInterface interface {
 	// SignInWithResponse Sign in with email and password
 	//
 	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
+	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace whose last way in was an offered provider that has been withdrawn (`password_fallback` on the sign-in rules, ADR-0076 §4).
 	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 	//
@@ -52719,6 +52731,7 @@ func (c *ClientWithResponses) VerifyAuditChainWithResponse(ctx context.Context, 
 // RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 //
 // The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24).
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -52735,6 +52748,7 @@ func (c *ClientWithResponses) RedeemInvitationWithBodyWithResponse(ctx context.C
 // RedeemInvitationWithResponse Redeem an invitation and set the first password
 //
 // The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24).
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -53080,7 +53094,7 @@ func (c *ClientWithResponses) ForgetPasswordWithResponse(ctx context.Context, bo
 
 // ResetPasswordWithBodyWithResponse Spend a reset link and set the password
 //
-// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 // **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
 // Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
 //
@@ -53097,7 +53111,7 @@ func (c *ClientWithResponses) ResetPasswordWithBodyWithResponse(ctx context.Cont
 
 // ResetPasswordWithResponse Spend a reset link and set the password
 //
-// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 // **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
 // Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
 //
@@ -53190,6 +53204,7 @@ func (c *ClientWithResponses) ListSessionsWithResponse(ctx context.Context, reqE
 // SignInWithBodyWithResponse Sign in with email and password
 //
 // The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
+// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace whose last way in was an offered provider that has been withdrawn (`password_fallback` on the sign-in rules, ADR-0076 §4).
 // The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 // Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 //
@@ -53207,6 +53222,7 @@ func (c *ClientWithResponses) SignInWithBodyWithResponse(ctx context.Context, co
 // SignInWithResponse Sign in with email and password
 //
 // The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
+// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace whose last way in was an offered provider that has been withdrawn (`password_fallback` on the sign-in rules, ADR-0076 §4).
 // The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 // Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 //

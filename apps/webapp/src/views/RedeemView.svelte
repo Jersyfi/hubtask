@@ -17,6 +17,11 @@
   //
   // **One field, not two.** The eye is what replaces "repeat it" (3.3.8): a password that can be
   // read is one nobody has to type twice.
+  //
+  // **No password where the workspace has none** (SC-24). A workspace that switched the password off
+  // refuses one here, so this screen does not ask for it: it says the invitation is accepted by
+  // signing in through the workspace's provider - which makes the account active - and leads to the
+  // card that has the buttons. Nobody invited is left in front of a field that cannot work.
 
   import { Banner, Button, Stack } from '@hubtask/design-system/components';
 
@@ -78,6 +83,10 @@
          whether the token was real. -->
     <Banner tone="warning">{t('app.redeem.no_token')}</Banner>
   </SignInCard>
+{:else if signInRules.wasRead && !signInRules.hasPassword}
+  <SignInCard title={t('app.redeem.provider_title')} lead={t('app.redeem.provider_intro')} {notice}>
+    <Button tone="primary" isFull onclick={() => onnavigate?.('/')}>{t('app.redeem.to_sign_in')}</Button>
+  </SignInCard>
 {:else}
   <SignInCard title={t('app.redeem.title')} lead={t('app.redeem.intro')} {notice}>
     <form onsubmit={submit}>
@@ -94,9 +103,19 @@
         </Button>
       </Stack>
     </form>
+    {#if signInRules.providers.length > 0}
+      <!-- UC-ID-07 check 5: where the workspace offers a provider, the invitation is accepted
+           through it as well as with a password - the card with the buttons does it. -->
+      <div class="instead">
+        <p class="quiet">{t('app.redeem.or_provider')}</p>
+        <Button tone="subtle" isFull onclick={() => onnavigate?.('/')}>{t('app.redeem.to_sign_in')}</Button>
+      </div>
+    {/if}
   </SignInCard>
 {/if}
 
 <style>
   form { margin: 0; }
+  .instead { display: grid; gap: var(--sp-100); margin-block-start: var(--sp-200); }
+  .quiet { margin: 0; color: var(--text-secondary); }
 </style>
