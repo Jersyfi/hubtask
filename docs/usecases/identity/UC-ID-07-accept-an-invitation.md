@@ -6,8 +6,8 @@ actors: [PE-member, PE-guest, PE-child, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-10, P-12, P-13]
 state: partial
-tasks: [H-01, SI-14, SI-15, SC-24]
-checked_by: [apps/webapp/e2e/signin.test.mjs, core/application/service/identity/OidcInvitation_test.go, test/integration/invitation_by_provider_test.go]
+tasks: [H-01, SI-14, SI-15, SC-24, SC-32]
+checked_by: [apps/webapp/e2e/signin.test.mjs, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, test/integration/invitation_by_provider_test.go, test/integration/oidc_flow_invitation_test.go]
 ---
 
 # Accept an invitation and set up my account
@@ -48,13 +48,19 @@ invitation used twice, or after it expired, gets one plain sentence and the name
 ## Today
 
 * **Check 4 fails:** there is no terms agreement at all — see UC-ID-19.
-* **Check 5 holds since SC-24.** Signing in through the workspace's provider accepts the invitation:
-  the account becomes ACTIVE and the invitation is spent in one statement, unless it ran out
-  (`TestAnInvitedPersonAcceptsTheInvitationThroughTheProvider`, `invitation_by_provider_test.go`).
-  Before, the arrival connected the provider and then refused the account as not active - the server
-  half was missing too. The invitation card offers the provider beside the password, and in a
-  workspace that switched the password off offers only the provider (`signin.test.mjs`, against a
-  stubbed API). An account connected by an arrival before SC-24 - connected, then refused - is
-  accepted on its next arrival. The way through the provider works where the provider admits the
-  invited address; one that would refuse it is offered all the same, and the person reads the
-  provider's refusal.
+* **Check 5 holds since SC-24, with a second proof since SC-32.** Signing in through the workspace's
+  provider accepts the invitation: the account becomes ACTIVE and the invitation is spent in one
+  statement, unless it ran out (`invitation_by_provider_test.go`). Since SC-32 (ADR-0078 §1) the
+  provider is chosen on the invitation card itself, and the card starts the flow with the invitation's
+  token; the server checks it without spending it and binds the invited account to the flow
+  (`TestAFlowStartedFromAnInvitationRemembersTheInvitedAccount`, `oidc_flow_invitation_test.go`,
+  `signin.test.mjs`). That link is the second proof: the invitation is accepted through it in every
+  admission mode, under *Only people invited here* even from a provider that is not authoritative for
+  the address (`TestAnInvitedPersonAcceptsTheInvitationThroughItsLink`). The provider's verified
+  address must be the invited one, and an arrival that fails leaves the invitation unspent
+  (`TestAMismatchedAddressIsRefusedAndTheInvitationWaits`). An invitation that can no longer be
+  redeemed is refused on the card in check 3's one sentence. Without the link only a provider
+  authoritative for the address accepts the invitation; a connection made by an arrival before SC-32
+  without either proof activates nothing. In a workspace that switched the password off the card
+  offers only the providers. Under *Only these organisations* an address outside the list stays
+  refused: the link does not widen the list.

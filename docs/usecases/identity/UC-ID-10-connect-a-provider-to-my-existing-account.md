@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6]
 serves: [P-02, P-05, P-12, P-16]
 state: partial
 tasks: [SC-01, SC-32, SC-33, SC-37]
-checked_by: [core/application/service/identity/OidcLinking_test.go, core/application/service/identity/OidcAdmission_test.go, core/application/service/identity/IdentityProviderConfig_test.go, core/domain/model/identity/IdentityProviderPreset_test.go, test/integration/identity_provider_test.go, apps/webapp/e2e/signin.test.mjs]
+checked_by: [core/application/service/identity/OidcLinking_test.go, core/application/service/identity/OidcAdmission_test.go, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/IdentityProviderConfig_test.go, core/domain/model/identity/IdentityProviderPreset_test.go, core/domain/model/identity/ProviderAdmission_test.go, infrastructure/oidc/Authority_test.go, test/integration/identity_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/provider_refusal_test.go, apps/webapp/e2e/signin.test.mjs]
 ---
 
 # Connect a sign-in provider to the account I already have
@@ -64,6 +64,19 @@ The story and checks 1, 4 and 6 were reworded with the owner's approval on 2026-
 ([ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §1): a provider joins an existing account only
 with a second proof — the password, or the mailbox where the password is off — and an invited account
 only through its own link or an authoritative provider. The checks as they stood before held since
-SC-01. Check 4 in its new form is SC-32 (#1139), the mailbox proof of checks 1 and 6 is SC-33 (#1140);
-until both are built the state is `partial`. A differently addressed identity is connected from a
-signed-in session, SC-37 (#1146).
+SC-01. The mailbox proof of checks 1 and 6 is SC-33 (#1140); until it is built the state is
+`partial`. A differently addressed identity is connected from a signed-in session, SC-37 (#1146).
+
+**Check 4 holds since SC-32 (#1139).** An invited account is activated or connected through a
+provider only when the flow started from the invitation's own link — the token checked at the start
+without being spent, the invited account bound to the flow on the server — or when the provider is
+authoritative for the address, read as ADR-0078 §5 says: Microsoft's `xms_edov` exactly `true`, Google
+for its consumer domains or a hosted domain equal to the address's, and no other issuer
+(`Authority_test.go`). The provider's verified address must equal the invited one either way. An
+arrival with neither proof links nothing, activates nothing and spends nothing, is answered
+`identity_provider.invitation_needs_link`, and is recorded in the trail in a transaction of its own
+(`TestAnArrivalWithoutTheLinkActivatesNothing`; stored against PostgreSQL,
+`TestARefusedProviderArrivalIsStoredInTheTrail`). Through the link, *Only people invited here* admits a
+provider that is not authoritative for that one account (`TestAnInvitedPersonAcceptsTheInvitationThroughItsLink`).
+A connection made earlier while the account was invited activates nothing and is dropped when the
+account is activated (`TestAnEarlierLinkWithoutProofActivatesNothing`).
