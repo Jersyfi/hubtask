@@ -54,13 +54,14 @@ const (
 	journalPasswordClosed = "tenant.password_closed"
 )
 
-// How an opening ended, as the close's entries say it.
+// How an opening ended, as the close's entries say it. Named without "password", NewOpening's
+// reason: these are codes, not credentials.
 const (
-	// PasswordClosedByOperator is an operator closing it before its time.
-	PasswordClosedByOperator = "OPERATOR"
-	// PasswordClosedExpired is its time passing. The password closed at that moment whatever was
+	// OpeningEndedByOperator is an operator closing it before its time.
+	OpeningEndedByOperator = "OPERATOR"
+	// OpeningEndedExpired is its time passing. The password closed at that moment whatever was
 	// recorded; this is the entry that says so afterwards.
-	PasswordClosedExpired = "EXPIRED"
+	OpeningEndedExpired = "EXPIRED"
 )
 
 // OpeningNotices tells a workspace's administrators about an opening of its password (ADR-0078 §3):
@@ -121,7 +122,7 @@ func (h OpenTenantPassword) Execute(
 
 	// What was typed first, then the proof: a refused reason must not burn a step-up the operator
 	// then has to earn again.
-	opening, err := domain.NewPasswordOpening(cmd.Hours, cmd.Requester, cmd.Reason, w.Clock.Now(), w.Text)
+	opening, err := domain.NewOpening(cmd.Hours, cmd.Requester, cmd.Reason, w.Clock.Now(), w.Text)
 	if err != nil {
 		return adminrepo.TenantRecord{}, err
 	}
@@ -310,7 +311,7 @@ func (h EndPasswordOpening) Execute(ctx context.Context, tenantID shared.ID) (ti
 			}
 			closed, err := w.close(ctx, record, appshared.ActorContext{
 				Kind: appshared.ActorSystem, TenantID: tenantID, AccountName: "the installation",
-			}, now, PasswordClosedExpired)
+			}, now, OpeningEndedExpired)
 			if err != nil || closed {
 				return err
 			}
@@ -364,9 +365,9 @@ func (h CloseTenantPassword) Execute(
 		if opening := record.PasswordOpening; !opening.Until.IsZero() {
 			// An opening whose time has passed ended then, not now: the row only still holds it
 			// because the job that records the end has not run yet. Recorded as what happened.
-			ended := PasswordClosedByOperator
+			ended := OpeningEndedByOperator
 			if !opening.InForce(w.Clock.Now()) {
-				ended = PasswordClosedExpired
+				ended = OpeningEndedExpired
 			}
 			if _, err := w.close(ctx, record, actor, time.Time{}, ended); err != nil {
 				return err

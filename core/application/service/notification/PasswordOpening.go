@@ -47,7 +47,7 @@ const (
 	bodyPasswordClosedEarly = "email.password_closed_early.body"
 )
 
-// closedEarly is the `ended` the admin service writes for an operator's close (PasswordClosedByOperator).
+// closedEarly is the `ended` the admin service writes for an operator's close (OpeningEndedByOperator).
 // Repeated rather than imported, so this package points at nothing the control plane owns.
 const closedEarly = "OPERATOR"
 

@@ -32,7 +32,7 @@ func TestAnOpeningIsDatedFromNowAndBoundedToAWeek(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			opening, err := NewPasswordOpening(c.hours, "TICKET-4711", "the directory is down", openedAt, text.Composing{})
+			opening, err := NewOpening(c.hours, "TICKET-4711", "the directory is down", openedAt, text.Composing{})
 			if c.code != "" {
 				if got := shared.AsError(err).DetailCode; got != c.code {
 					t.Fatalf("answer %v, want %s", err, c.code)
@@ -65,7 +65,7 @@ func TestAnOpeningSaysWhoAskedAndWhy(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := NewPasswordOpening(24, c.requester, c.reason, openedAt, text.Composing{})
+			_, err := NewOpening(24, c.requester, c.reason, openedAt, text.Composing{})
 			refused := shared.AsError(err)
 			if refused == nil || refused.DetailCode != c.code {
 				t.Fatalf("answer %v, want %s", err, c.code)
@@ -76,7 +76,7 @@ func TestAnOpeningSaysWhoAskedAndWhy(t *testing.T) {
 		})
 	}
 
-	opening, err := NewPasswordOpening(24, "  Ticket Büro-12 ", " Entra answers 500 ", openedAt, text.Composing{})
+	opening, err := NewOpening(24, "  Ticket Büro-12 ", " Entra answers 500 ", openedAt, text.Composing{})
 	if err != nil {
 		t.Fatalf("opening: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestAnOpeningSaysWhoAskedAndWhy(t *testing.T) {
 }
 
 func TestAnOpeningEndsOnItsOwn(t *testing.T) {
-	opening, err := NewPasswordOpening(2, "TICKET-4711", "the directory is down", openedAt, text.Composing{})
+	opening, err := NewOpening(2, "TICKET-4711", "the directory is down", openedAt, text.Composing{})
 	if err != nil {
 		t.Fatalf("opening: %v", err)
 	}

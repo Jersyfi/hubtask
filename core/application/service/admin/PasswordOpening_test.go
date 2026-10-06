@@ -229,11 +229,11 @@ func TestAnOperatorClosesAnOpeningEarly(t *testing.T) {
 	}
 	entry := f.audit.entries[len(f.audit.entries)-1]
 	if entry.Action != TenantPasswordClosedAction || entry.ActorID != operatorID ||
-		changedTo(entry, "ended") != PasswordClosedByOperator {
+		changedTo(entry, "ended") != OpeningEndedByOperator {
 		t.Errorf("trail entry %+v", entry)
 	}
 	recorded := f.journal.entries[len(f.journal.entries)-1]
-	if recorded.Action != journalPasswordClosed || recorded.Details["ended"] != PasswordClosedByOperator {
+	if recorded.Action != journalPasswordClosed || recorded.Details["ended"] != OpeningEndedByOperator {
 		t.Errorf("journal entry %+v", recorded)
 	}
 
@@ -334,7 +334,7 @@ func TestAnOpeningSeedsItsEndAndTellsTheAdministrators(t *testing.T) {
 	if _, err := (CloseTenantPassword{Writer: f.writer}).Execute(t.Context(), operator(), lifecycleTenant); err != nil {
 		t.Fatalf("closing: %v", err)
 	}
-	if want := "closed " + lifecycleTenant.String() + " " + PasswordClosedByOperator; len(f.notices.told) != 2 || f.notices.told[1] != want {
+	if want := "closed " + lifecycleTenant.String() + " " + OpeningEndedByOperator; len(f.notices.told) != 2 || f.notices.told[1] != want {
 		t.Errorf("the administrators were told %v, want %q last", f.notices.told, want)
 	}
 }
@@ -358,14 +358,14 @@ func TestTheEndOfAnOpeningIsRecordedWhenItsTimeHasPassed(t *testing.T) {
 	}
 	entry := f.audit.entries[0]
 	if entry.Action != TenantPasswordClosedAction || entry.ActorKind != appshared.ActorSystem ||
-		changedTo(entry, "ended") != PasswordClosedExpired {
+		changedTo(entry, "ended") != OpeningEndedExpired {
 		t.Errorf("trail entry %+v", entry)
 	}
 	if recorded := f.journal.entries[0]; recorded.Action != journalPasswordClosed ||
-		recorded.Details["ended"] != PasswordClosedExpired {
+		recorded.Details["ended"] != OpeningEndedExpired {
 		t.Errorf("journal entry %+v", recorded)
 	}
-	if want := "closed " + lifecycleTenant.String() + " " + PasswordClosedExpired; len(f.notices.told) != 1 || f.notices.told[0] != want {
+	if want := "closed " + lifecycleTenant.String() + " " + OpeningEndedExpired; len(f.notices.told) != 1 || f.notices.told[0] != want {
 		t.Errorf("the administrators were told %v", f.notices.told)
 	}
 }
@@ -433,13 +433,13 @@ func TestClosingAnOpeningPastItsEndRecordsItAsExpired(t *testing.T) {
 	if _, err := (CloseTenantPassword{Writer: f.writer}).Execute(t.Context(), operator(), lifecycleTenant); err != nil {
 		t.Fatalf("closing: %v", err)
 	}
-	if entry := f.audit.entries[0]; changedTo(entry, "ended") != PasswordClosedExpired {
+	if entry := f.audit.entries[0]; changedTo(entry, "ended") != OpeningEndedExpired {
 		t.Errorf("trail entry %+v", entry)
 	}
-	if recorded := f.journal.entries[0]; recorded.Details["ended"] != PasswordClosedExpired {
+	if recorded := f.journal.entries[0]; recorded.Details["ended"] != OpeningEndedExpired {
 		t.Errorf("journal entry %+v", recorded)
 	}
-	if want := "closed " + lifecycleTenant.String() + " " + PasswordClosedExpired; len(f.notices.told) != 1 || f.notices.told[0] != want {
+	if want := "closed " + lifecycleTenant.String() + " " + OpeningEndedExpired; len(f.notices.told) != 1 || f.notices.told[0] != want {
 		t.Errorf("the administrators were told %v", f.notices.told)
 	}
 }
