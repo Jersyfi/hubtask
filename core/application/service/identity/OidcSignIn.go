@@ -384,7 +384,7 @@ func (h CompleteOidcSignIn) Execute(
 	// A sign-in begun from a CONNECT link connects that link's account and no other, with the
 	// mailbox and this fresh sign-in as its proof (ADR-0078 §1).
 	if !flow.PendingID.IsZero() {
-		return w.connectByMail(ctx, scope, configured, identity, flow.PendingID, cmd)
+		return w.connectByMail(ctx, scope, configured, identity, flow, cmd)
 	}
 
 	account, owed, err := w.settleAccount(ctx, scope, configured, identity, flow.InvitedAccountID)
@@ -622,7 +622,7 @@ func (w OidcWriter) settleAccount(
 // transaction of its own, the sign-in's discipline.
 func (w OidcWriter) connectByMail(
 	ctx context.Context, scope persistence.Scope, configured domain.IdentityProvider,
-	arriving provider.Identity, pendingID shared.ID, cmd CompleteOidcSignInCommand,
+	arriving provider.Identity, flow domain.OidcFlow, cmd CompleteOidcSignInCommand,
 ) (SignInResult, error) {
 	s := w.Session
 	// Switched back on meanwhile, or open as the fallback: there the password is the proof again,
@@ -637,7 +637,7 @@ func (w OidcWriter) connectByMail(
 	)
 	err := s.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		now := s.Clock.Now()
-		found, err := s.Pending.FindByID(ctx, pendingID)
+		found, err := s.Pending.FindByID(ctx, flow.PendingID)
 		if err != nil && !errors.Is(err, shared.ErrNotFound) {
 			return err
 		}
@@ -658,8 +658,9 @@ func (w OidcWriter) connectByMail(
 
 		// A sign-in the browser kept at the provider proves nothing about who is at the keyboard
 		// now; the start asked for a fresh one, and a provider that ignored the question is not
-		// taken at its word (ADR-0075 §2's reading of auth_time).
-		if !domain.ProviderProofFresh(arriving.AuthTime, now, s.stepUpWindow()) {
+		// taken at its word (ADR-0075 §2's reading of auth_time) - nor one made before this flow
+		// left for the provider.
+		if !domain.ProviderProofFreshSince(arriving.AuthTime, flow.CreatedAt, now, s.stepUpWindow()) {
 			s.failure(ctx, FailureOidc)
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_not_fresh"))
 		}

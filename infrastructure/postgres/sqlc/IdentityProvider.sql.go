@@ -59,7 +59,7 @@ WHERE state_hash = $2
   AND session_id IS NULL
   AND consumed_at IS NULL
   AND expires_at > $1
-RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id
+RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id, created_at
 `
 
 type ConsumeOidcFlowParams struct {
@@ -74,6 +74,7 @@ type ConsumeOidcFlowRow struct {
 	Nonce            string
 	InvitedAccountID pgtype.UUID
 	PendingID        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
 }
 
 // Judged and burned in one statement, ConsumeOauthCode's discipline: unexpired and unconsumed,
@@ -89,6 +90,7 @@ func (q *Queries) ConsumeOidcFlow(ctx context.Context, arg ConsumeOidcFlowParams
 		&i.Nonce,
 		&i.InvitedAccountID,
 		&i.PendingID,
+		&i.CreatedAt,
 	)
 	return i, err
 }

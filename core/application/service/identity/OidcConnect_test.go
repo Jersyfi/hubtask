@@ -367,6 +367,14 @@ func TestAConnectionThatIsNotProvenLeavesTheLinkUnspent(t *testing.T) {
 			},
 			want: "identity_provider.connect_not_fresh", recorded: true,
 		},
+		// Inside the window, but a session the provider kept from before this flow left for it: a
+		// provider that ignored prompt=login proves nothing fresh.
+		"a session from before the flow": {
+			arrange: func(_ *testing.T, f *oidcFixture) {
+				f.relying.identity.AuthTime = connectAt.Add(-2 * time.Minute)
+			},
+			want: "identity_provider.connect_not_fresh", recorded: true,
+		},
 		"no auth_time at all": {
 			arrange: func(_ *testing.T, f *oidcFixture) { f.relying.identity.AuthTime = time.Time{} },
 			want:    "identity_provider.connect_not_fresh", recorded: true,

@@ -369,6 +369,30 @@ func TestProviderProofFresh(t *testing.T) {
 	}
 }
 
+// ADR-0078 §1: a connection by mail counts only a sign-in made after its flow left for the provider -
+// a provider that ignored prompt=login answers with an older session, however recent.
+func TestProviderProofFreshSince(t *testing.T) {
+	at := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	since := at.Add(-2 * time.Minute)
+	window := 5 * time.Minute
+	cases := map[string]struct {
+		authTime, since time.Time
+		fresh           bool
+	}{
+		"after the flow began":            {at.Add(-time.Minute), since, true},
+		"within the skew before it":       {since.Add(-30 * time.Second), since, true},
+		"before the flow, inside window":  {since.Add(-ProviderClockSkew - time.Second), since, false},
+		"not named":                       {time.Time{}, since, false},
+		"a flow without its start":        {at.Add(-4 * time.Minute), time.Time{}, true},
+		"after the flow, past the window": {at.Add(-window - time.Second), at.Add(-time.Hour), false},
+	}
+	for name, tc := range cases {
+		if got := ProviderProofFreshSince(tc.authTime, tc.since, at, window); got != tc.fresh {
+			t.Errorf("%s: fresh %v, want %v", name, got, tc.fresh)
+		}
+	}
+}
+
 // VerifyOpen is the one definition of "open" (SC-19): the session's own bounds first, in Verify's
 // order, then the workspace's cutoff - and a session that passes all of them is open.
 func TestVerifyOpenAsksEveryComparisonTheNextRequestMakes(t *testing.T) {

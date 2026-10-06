@@ -454,7 +454,9 @@ func (r OidcFlowRepository) Consume(
 	return identity.OidcFlow{
 		ID: id, TenantID: presented.TenantID(), ProviderID: providerID,
 		Nonce: row.Nonce, Verifier: row.CodeVerifier, InvitedAccountID: invitedAccountID,
-		PendingID: pendingID,
+		// When the flow left for the provider: a connection by mail counts only a sign-in made
+		// after it (ADR-0078 §1).
+		PendingID: pendingID, CreatedAt: timeFrom(row.CreatedAt),
 	}, true, nil
 }
 

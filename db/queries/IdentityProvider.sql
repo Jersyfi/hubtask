@@ -160,7 +160,7 @@ WHERE state_hash = sqlc.arg('state_hash')
   AND session_id IS NULL
   AND consumed_at IS NULL
   AND expires_at > sqlc.arg('now')
-RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id;
+RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id, created_at;
 
 -- name: ConsumeStepUpOidcFlow :one
 -- The step-up's: only a flow bound to this very session, judged and burned in the same statement.

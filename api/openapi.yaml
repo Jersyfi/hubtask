@@ -3878,7 +3878,8 @@ paths:
         A sign-in begun from the link a workspace without the password mails (`connect_token` at
         the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a
         **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time`
-        older than the step-up's window, or none, is `identity_provider.connect_not_fresh`; the
+        older than the step-up's window, one from before the flow left for the provider (beyond a
+        minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the
         provider's verified address must equal the account's (`identity_provider.connect_address_differs`);
         admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`);
         and an identity already connected to another account here is

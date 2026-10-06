@@ -267,6 +267,10 @@ func TestAFlowCarriesItsConnectLinkHomeAndNowhereElse(t *testing.T) {
 		if consumed.PendingID != sc33ConnectA || !consumed.InvitedAccountID.IsZero() {
 			t.Errorf("the flow came back carrying %q, want the CONNECT link", consumed.PendingID)
 		}
+		// When it left for the provider, which a connection's sign-in has to follow (ADR-0078 §1).
+		if consumed.CreatedAt.IsZero() || consumed.CreatedAt.Sub(now).Abs() > time.Second {
+			t.Errorf("the flow came back started at %v, want %v", consumed.CreatedAt, now)
+		}
 		plain, found, err := flows.Consume(ctx, plainState, now)
 		if err != nil || !found {
 			t.Fatalf("A consuming its plain flow: (%v, %v)", found, err)
