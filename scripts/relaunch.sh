@@ -112,13 +112,13 @@ label() {
     && echo "  $1" || echo "  $1 (unchanged)"
 }
 label "task"         "0e8a16" "An actionable implementation task"
-label "claude:task"  "5319e7" "Triggers Claude Code"
+label "finding"      "fbca04" "Found outside a task; the next milestone cut takes it in or closes it"
+label "decision"     "5319e7" "A question only the owner decides"
 label "adr"          "1d76db" "Architecture decision"
 label "discussion"   "cfd3d7" "Needs clarification"
 label "security"     "b60205" "Security relevant"
 label "privacy"      "b60205" "Data protection relevant"
 label "breaking"     "d93f0b" "Breaking change"
-label "blocked"      "e4e669" "Waiting on a decision"
 
 echo
 echo "== Milestones =="
@@ -206,7 +206,6 @@ fi
 
 echo
 echo "Done. Remaining manual steps:"
-echo "  1. gh secret set ANTHROPIC_API_KEY --repo $FULL"
-echo "  2. Settings -> Actions -> General -> Workflow permissions: 'Read repository contents'"
-echo "  3. Settings -> Code security: enable secret scanning + push protection"
-echo "  4. Check that exactly 10 issues exist: gh issue list --repo $FULL"
+echo "  1. Settings -> Actions -> General -> Workflow permissions: 'Read repository contents'"
+echo "  2. Settings -> Code security: enable secret scanning + push protection"
+echo "  3. Check that exactly 10 issues exist: gh issue list --repo $FULL"

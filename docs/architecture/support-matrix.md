@@ -117,7 +117,7 @@ CSS Anchor Positioning. The job asks each engine for each, and none of them has 
    support does not lapse by neglect.
 3. `best effort` and `unsupported` rows have no job and carry a dash plus the reason. The reason is
    what a bug reporter reads, so it says why.
-4. A failing nightly matrix job files an issue automatically (labels `task` and `claude:task`), so a
+4. A failing nightly matrix job files an issue automatically (label `finding`), so a
    platform that broke does not stay broken until somebody looks ([ci-cd.md](./ci-cd.md) §9).
 
 ## 7. The installed clients

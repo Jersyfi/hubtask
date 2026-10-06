@@ -31,8 +31,6 @@ Therefore:
 | `deploy.yml` | Push to `main`, manual dispatch | Builds and signs the per-commit image, verifies the signature, and runs `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
 | `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/` or the lockfile; manual dispatch | Builds `apps/website/dist` and mirrors it to the webspace over SFTP (§10). A failure files an issue |
 | `workbench.yml` | Push to `main` touching `packages/design-system/`; manual dispatch | Publishes the component workbench to `workbench.hubtask.eu` (§10) |
-| `claude-review.yml` | A pull request opened ready or leaving draft, unless it is Dependabot's | **Switched off.** Posts the review checklist as the record that no automated reviewer ran (§5.1) |
-| `claude.yml` | `@claude` in an issue, comment or review; the label `claude:task` on an issue | **Switched off.** Answers that delegation is off (§5.1) |
 | `scorecard.yml` | Schedule | **Planned, not built.** The OpenSSF supply chain scorecard. The file does not exist; the row stays as the plan |
 
 ---
@@ -259,19 +257,13 @@ Rules for any AI workflow:
 * Costs are capped per run and per month; exceeding the cap aborts the run, not the gate.
 * An unavailable AI provider is not a pipeline failure (`continue-on-error: true`).
 
-### 5.1 Both AI workflows are off during the initial development phase
+### 5.1 No workflow reviews or works on its own
 
-Every task is worked on locally in a Claude Code session. The architecture review is done by the
-session that wrote the change, before the pull request leaves draft, against the checklist in
-`claude-review.yml`. Every task is `[L]`; the `[G]` markers in the backlog are a decision for the
-end of this phase. Neither workflow is deleted: `claude-review.yml` posts the checklist as the
-record that no automated reviewer ran, and `claude.yml` answers a `claude:task` label or an
-`@claude` mention with a comment saying delegation is off. A green check that reviews nothing is
-worse than no check.
-
-Re-enabling either means first bringing the action's inputs up to date — `direct_prompt` is now
-`prompt`; `allowed_tools` and `disallowed_tools` are part of `claude_args` — and then proving the
-gate can go red, as `make gate-selftest` does for the deterministic gates.
+No workflow reviews a pull request or starts work by itself, and none offers a trigger that would.
+The author reviews a change against the rules no gate checks (Definition of Done item 19); a
+person or an AI agent of any make works on a task in a session. A tool that steers coding agents
+later works through the same issues, labels and pull requests ([backlog README](../backlog/README.md)
+§ "For tools that steer the work"), under its own GitHub identity.
 
 ---
 
@@ -285,7 +277,6 @@ gate can go red, as `make gate-selftest` does for the deterministic gates.
 | `WORKBENCH_SFTP_USER`, `WORKBENCH_SFTP_PASSWORD` | Secret | `workbench.yml` | The workbench's own, scoped SFTP account |
 | `WEBSITE_SFTP_HOST`, `WEBSITE_SFTP_HOST_KEY` | Variable | `website.yml`, `workbench.yml` | The webspace and its pinned host key (one webspace) |
 | `WEBSITE_REMOTE_DIR`, `WORKBENCH_REMOTE_DIR` | Variable | `website.yml`, `workbench.yml` | Target directories |
-| `ANTHROPIC_API_KEY` | Secret | `claude-review.yml`, `claude.yml` | Only when the AI workflows are re-enabled (§5.1) |
 
 **There is no credential for production in this repository.** Production pulls a published chart
 and image through Argo CD ([deployment.md](./deployment.md) §4); no workflow can reach it.
@@ -324,8 +315,8 @@ into a throwaway kind cluster. Their names are load-bearing: `make gate-docs` re
 the table in both directions, and fails a matrix job that the nightly's `report` job does not wait
 on.
 
-A failing nightly job files an issue labelled `task` and `claude:task`: one issue per job, reopened
-rather than duplicated, and closed again by the first run that passes.
+A failing nightly job files an issue labelled `finding`: one issue per job, reopened rather than
+duplicated, and closed again by the first run that passes. It starts no work by itself.
 
 The nightly image scan targets `ghcr.io/<repo>:latest`, which exists only after `release.yml` has
 run on a `v*` tag. Before the first release the scan is skipped with a notice in the run summary;
