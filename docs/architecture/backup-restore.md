@@ -1,75 +1,77 @@
 # Backup and Restore
 
 In Hubtask, backup is a **feature of the application**, not merely an operations task: targets,
-schedules, and retention are configurable, existing backups at the target are listed, and restores
-happen from those.
-
-Complements [observability-reliability.md](./observability-reliability.md) §8 and
-[data-protection.md](./data-protection.md). Decision:
-[ADR-0019](../adr/ADR-0019-backup-targets.md).
+schedules and retention are configurable, the archives at a target are listed, and restores run
+from those. Decision: [ADR-0019](../adr/ADR-0019-backup-targets.md). Related:
+[observability-reliability.md](./observability-reliability.md) §8,
+[data-protection.md](./data-protection.md), [tenant-export.md](./tenant-export.md).
 
 ---
 
 ## 1. Two kinds of backup
 
-They are often conflated, but they solve different problems and have different people entitled to
-them.
+They solve different problems for different people.
 
 | | **System backup** | **Data backup (logical)** |
 |---|---|---|
 | Scope | The complete database plus object storage | One tenant, one hub, or one collection |
-| Format | `pg_dump`/PITR base copy plus a media mirror | A Hubtask archive (§3): JSON Lines + manifest + media |
+| Format | PITR from the WAL archive, or a `pg_dump`, plus a media mirror | A Hubtask archive (§3): JSON Lines + manifest + media |
 | Purpose | Total loss, server migration, ransomware | Operator error, tenant migration, export, archiving |
 | Entitled | The operator (instance administrator) | Tenant `OWNER`, for their own tenant |
-| Across versions | No (bound to the PostgreSQL version) | Yes (the schema version is in the manifest, migration happens on import) |
+| Across versions | No (bound to the PostgreSQL version) | Yes (the schema version is in the manifest; migration happens on import) |
 | Selective restore | No | Yes, down to item level |
-| In self-hosting | Recommended | The standard |
-
-Both use the same targets, the same scheduler, and the same retention logic. Anyone who wants only
-one variant runs only one.
+| Who performs it | The database operator (CloudNativePG) or the operator by hand — never Hubtask (§8.5, §8.6) | Hubtask, through the API and jobs |
+| In self-hosting | Recommended (§8.6) | The standard |
 
 ---
 
 ## 2. Backup targets
 
 The target is a port (`core/port/backupstorage/Port.go`) with interchangeable adapters. No target is
-preferred, and none is a prerequisite.
-
-The four the roadmap opens with exist (E-03); the rest ship when they pass the same conformance
-suite, which is what ADR-0019 decision 2 means by a gate rather than an aspiration. A target of a
-kind this build has no adapter for is refused with `backup.kind_unsupported` — "Hubtask cannot talk
-to SMB yet" rather than "SMB is not a thing".
+preferred and none is a prerequisite. A kind with no adapter in this build is refused with
+`backup.kind_unsupported`. An adapter ships when it passes the same conformance suite (BK-1).
 
 | Adapter | Built | Protocol / notes |
 |---|---|---|
-| `local` | yes | A directory inside the installation's backup volume (`HUBTASK_BACKUP_LOCAL_PATH`, the self-hosting default). A target's own path is **relative** to that volume and cannot leave it: whoever configures a target administers the instance, not the machine |
-| `s3` | yes | S3-compatible: AWS, SeaweedFS, Ceph, Wasabi, Backblaze B2, Hetzner, IDrive e2 — the endpoint is free; server-side encryption and object lock usable. An archive of unknown length is uploaded in parts, so the process holds one part rather than an archive |
-| `sftp` | yes | SSH-based, password or key. The host key is **configuration**: a target names the server's public key or its SHA-256 fingerprint, and one that names neither is refused. There is no trust on first use and no way to switch the check off — a target is created through an API, and a first connection that accepted whatever answered is one an attacker only has to be present for once |
+| `local` | yes | A directory inside the installation's backup volume (`HUBTASK_BACKUP_LOCAL_PATH`, the self-hosting default). A target's path is **relative** to that volume and cannot leave it: whoever configures a target administers the instance, not the machine |
+| `s3` | yes | S3-compatible: AWS, SeaweedFS, Ceph, Wasabi, Backblaze B2, Hetzner, IDrive e2 — the endpoint is free; server-side encryption and object lock usable. An archive of unknown length is uploaded in parts, so the process holds one part, not an archive |
+| `sftp` | yes | SSH, password or key. SFTP version 3 is spoken by an in-house client (eleven packet types) over `golang.org/x/crypto/ssh` — the one dependency this target adds; no SFTP library ([security.md](./security.md) §11). The host key is **configuration**: a target names the server's public key or its SHA-256 fingerprint, and one that names neither is refused. No trust on first use, no way to switch the check off |
 | `ftps` | — | FTP over TLS (explicit) |
 | `ftp` | — | Only with explicit confirmation — unencrypted transport, a warning in the UI/API, and an audit entry |
-| `webdav` | yes | Nextcloud, ownCloud, generic WebDAV servers. Listed by recursing `PROPFIND` at depth one rather than asking for infinite depth, which Apache refuses by default |
+| `webdav` | yes | Nextcloud, ownCloud, generic WebDAV servers. Listed by recursing `PROPFIND` at depth one rather than infinite depth, which Apache refuses by default |
 | `smb` | — | Windows/NAS shares |
 | `azure_blob`, `gcs` | — | Through the respective S3-compatible or native API |
-| `rclone` (optional) | — | An umbrella adapter for Dropbox, Google Drive, OneDrive, pCloud and others, when `rclone` is available in the image. Gated additionally on open point B-1 |
+| `rclone` (optional) | — | An umbrella adapter for Dropbox, Google Drive, OneDrive, pCloud and others, when `rclone` is in the image. Gated on open point B-1 |
 | `http_put` | — | A generic target for home-grown solutions |
 
-Several targets in parallel are explicitly provided for (the 3-2-1 rule: local + remote + a
-different provider). Each target has its own schedule and its own retention.
+Several targets in parallel are intended (3-2-1: local + remote + a different provider). Each target
+has its own schedule and its own retention.
 
-**The target configuration is an exception to the SSRF rule** from [security.md](./security.md) —
-and a deliberately narrow one:
+**The target configuration is a narrow exception to the SSRF rule** of [security.md](./security.md):
 
-* Backup targets may **only** be created by instance administrators, not by arbitrary tenant users. In practice that is the owner's right in the role matrix: in single-tenant operation the tenant's owner *is* the instance administrator, and in provider operation the operator can allow tenants their own targets (`HUBTASK_BACKUP_TENANT_TARGETS=true`, off by default) — an egress allowlist then applies on top.
-* **Every** call to a target runs through the same `GuardedClient`, not only the connection test: metadata endpoints, RFC 1918 ranges and loopback are refused unless `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS` releases them, and no redirect is followed. SSH is not HTTP, so the SFTP adapter uses the guard's resolver and dial-time control directly rather than the client. Gate BK-9 is that sentence as a test.
-  The consequence is worth stating plainly, because self-hosters hit it: an object store or a NAS on the same LAN needs that release. It is a decision an operator makes once for the installation rather than one every target gets for free.
-* Creating or changing a target is auditable (`backup.target_changed`), because a backup target is by definition a data egress channel. The entry records where the data may now go — the kind, the configuration, the encryption mode — and never the credential.
-* Credentials are sealed with the envelope of E-02, bound to the row they belong to, and are read back by exactly one repository method. The statements that feed a response do not select the column, so a credential cannot reach a client because somebody added a field to a mapper.
+* **Who may create a target:** the owner's right in the role matrix. In single mode the tenant's owner
+  *is* the instance administrator. In provider operation tenants may have their own targets only when
+  the operator sets `HUBTASK_BACKUP_TENANT_TARGETS=true` (off by default); an egress allowlist then
+  applies on top. Otherwise creation answers `backup.tenant_targets_disabled`.
+* **Every call to a target** goes through `GuardedClient`, not only the connection test: metadata
+  endpoints, RFC 1918 ranges and loopback are refused unless `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS`
+  releases them, and no redirect is followed. SFTP is not HTTP, so it uses the guard's resolver and
+  dial-time control directly. Gate BK-9. An object store or NAS on the same LAN therefore needs that
+  release — a decision the operator makes once for the installation.
+* **Creating or changing a target is audited** (`backup.target_changed`): the kind, the
+  configuration, the encryption mode — never the credential.
+* **Removing a target** removes it from the workspace's configuration and touches nothing at the
+  target; the archives there remain (`backup.target_removed`).
+* **Credentials are sealed** with the envelope encryption of [security.md](./security.md) §8, bound to
+  their row, and read back by exactly one repository method. The statements that feed a response do
+  not select the column.
 
 ---
 
 ## 3. The archive format
 
-A Hubtask archive is a directory or `tar` stream with a fixed structure:
+A Hubtask archive is a directory of members under one name at a target. The full specification an
+importer can build against is [tenant-export.md](./tenant-export.md); this is the backup's view.
 
 ```
 hubtask-backup-<tenant>-<utc-timestamp>-<full|incremental>/
@@ -81,67 +83,68 @@ hubtask-backup-<tenant>-<utc-timestamp>-<full|incremental>/
 │   ├── comments.jsonl
 │   ├── labels.jsonl … automation_rules.jsonl, saved_views.jsonl, templates.jsonl
 │   └── audit.jsonl        # optional, see §7
-├── media/<sha256-prefix>/<sha256>   # content-addressed, deduplicated
+├── media/<first two hex digits>/<sha256>   # content-addressed, deduplicated
 └── checksums.txt
 ```
 
 Properties:
 
-* **JSON Lines rather than an SQL dump**, so that an archive from version 1.2 stays readable in version 1.7: on import, the same upward migrations run as for domain objects. A `pg_dump` would be tied to the PostgreSQL and schema version.
-* **Content-addressed media**, so that incremental runs do not re-transfer unchanged files.
-* **Incremental** based on `updated_at`/`seq` against a parent archive; deletions are carried as tombstones, otherwise deleted objects would come back on restore.
-* **Encrypted** (§4) — before it leaves the process, not just at the target.
-* **Checksums** per file and over the manifest; `POST /backups/{id}:verify` checks an archive at the target without restoring it.
+* **JSON Lines, not an SQL dump**, so an archive from version 1.2 stays readable in 1.7: on import
+  the same upward migrations run as for domain objects.
+* **Content-addressed media**, so incremental runs do not re-transfer unchanged files.
+* **Incremental** on `updated_at`/`seq` against a parent archive; deletions travel as tombstones,
+  or deleted objects would come back on restore.
+* **Encrypted** (§4) before it leaves the process, not only at the target.
+* **Checksums** per member; `POST /backups/{id}:verify` checks an archive at the target without
+  restoring it.
+* **Streamed, not staged.** The archive is written to the target as it is produced, so memory and
+  disk stay flat however large the holding (a container's writable layer is small). A checksum per
+  member replaces one over the whole, and a resumed run finds what is already at the target with
+  one `List`.
 
-**The archive is streamed to the target as it is produced, not staged and then transferred** (E-04).
-Both were open and both buy something real: staging makes a checksum over the whole archive trivial
-and a resumption after process death cheap, because the finished part is on local disk; streaming
-keeps memory and disk flat whatever the holding weighs. Streaming wins on the case that decides it —
-this system runs in a container whose writable layer is small and whose data volume is the database,
-and staging a hundred gigabytes there fails at the disk rather than at the target, which is the
-worse of the two failures because it happens on the machine that is still working. What staging
-bought is bought differently: the archive is a directory of members rather than one stream, so a
-checksum per member replaces a checksum over the whole, and a resumption finds what is already at
-the target with one `List` rather than on a scratch disk a restarted container no longer has.
+Rules of the format:
 
-Three consequences follow from that, and they are the format rather than the implementation:
+* **`checksums.txt` is written last and is the commit point.** Without it an archive is a run that
+  died or is still running — not a damaged archive (§8.1 reports the difference). It covers the
+  manifest. It catches corruption, not an attacker; against an attacker the defence is the
+  authenticated cipher.
+* **The manifest is never encrypted**, so §8.1 can list archives with only the target credentials.
+  Hence **no user content in the manifest** — counts by entity, never names. The manifest is not
+  signed.
+* **Media are counted, not listed** (a digest list is a list of file names, and the largest member
+  of a large archive). A medium lives in the archive of the chain that first referenced it; a
+  restore resolves a digest by searching the chain from newest to oldest.
 
-* **`checksums.txt` is written last and is the commit point.** An archive without it is a run that
-  died or one still going — not a damaged archive, and the difference is what §8.1 reports as the
-  checksum status. The manifest names the members and their checksums and therefore cannot name its
-  own, so `checksums.txt` closes over it. What that catches is corruption and not an attacker;
-  against an attacker the defence is the authenticated cipher the members are written through.
-* **The manifest is the one member that is never encrypted.** §8.1 requires the archives at a target
-  to be listed with no state in the database at all, and an operator who has lost the database and
-  holds the target credentials has not necessarily got the archive key yet. From that follows a rule
-  with teeth: no user content in the manifest — counts are by entity, never by name — because
-  whoever holds the storage can read it.
-* **Media are counted, not listed.** A content-addressed file is named after the SHA-256 of its
-  content, so a list of media checksums is a list of the file names; on a holding with a hundred
-  thousand attachments it would be the largest thing in the archive. A medium lives in whichever
-  archive of the chain first referenced it, and a restore resolves a digest by searching the chain
-  from newest to oldest.
-
-**Golden archives** are committed to the repository under `test/backup/golden/` — one per archive
-format version, imported by BK-4, added at a major release ([versioning-release.md](./versioning-release.md) §1, §7).
+**Golden archives**, one per archive format version, are committed under `test/backup/golden/` and
+imported by BK-4; one is added at a major release
+([versioning-release.md](./versioning-release.md) §1, §7).
 
 ---
 
 ## 4. Encryption
 
-Backups sit, by definition, on somebody else's storage. Therefore:
+Backups sit on somebody else's storage. Therefore:
 
-* **Client-side encryption is the standard**, not an option: AES-256-GCM with a backup key per target (derived from a passphrase via Argon2id, or supplied directly). Neither of those two is available yet — a passphrase is not stored anywhere by design, and the surface that would take one is refused until a run exists to hand it to. Until then the key is **derived from the installation's master key with HKDF-SHA256, bound to the target** (E-05): two targets never share one, nobody has to remember a second secret, and the key that protects a backup is not itself a thing to back up. The master key's identifier goes into the manifest, which is what makes the rotation property below true for archives exactly as it is for sealed values.
-* The key is **not** stored in the archive. Without it the backup is useless — this is stated as an unmissable notice during setup and is logged on confirmation.
+* **Client-side encryption is the standard**: AES-256-GCM. The key is **derived from the
+  installation's master key with HKDF-SHA256, bound to the target**: two targets never share a key,
+  nobody has to remember a second secret, and the master key's identifier goes into the manifest.
+* **A passphrase is not available.** `encryption_passphrase` on a target and `decryption_passphrase`
+  on a restore are refused with `backup.encryption_passphrase_not_available`, because a passphrase
+  that had no effect would leave somebody believing it protects the archive.
+* The key is **not** in the archive. Without it (that is, without the master key) the backup is
+  unreadable.
 * Optionally, server-side encryption at the target on top (S3 SSE) — it does not replace our own.
-* The key can be rotated; old archives stay readable with the old key (the key ID is in the manifest).
-* An unencrypted backup is possible (`encryption: none`), but it requires explicit confirmation and produces a permanent warning in `/meta/health`.
+* The master key can be rotated; old archives stay readable with the old key (the key ID is in the
+  manifest).
+* An unencrypted target (`encryption_mode: NONE`) requires explicit confirmation
+  (`insecure_acknowledged`) and carries the warning `backup.target_unencrypted` on the resource for
+  as long as it exists.
 
 ---
 
 ## 5. Schedule and execution
 
-Schedules are RRULE-based — the same mechanism as recurring tasks, not a second scheduling system:
+Schedules are RRULE-based — the same mechanism as recurring tasks:
 
 ```json
 {
@@ -160,105 +163,90 @@ Schedules are RRULE-based — the same mechanism as recurring tasks, not a secon
 }
 ```
 
-**`trial_restore`** (B-4, P-14) is the schedule reading its own work back. When it is on, the run
-that wrote a `FULL` archive is followed, in the same job, by an `INSPECT` restore of that archive:
-every member read from the target, every checksum verified, every encrypted member decrypted with
-the key the schedule names, and the difference report against the workspace produced and kept on
-the run (`BackupRun.trial_restore`, with `inspected_at` and the report in §8.2's shape); the run is
-also marked verified, since a trial is the verification `:verify` would have done. A trial that
-fails **fails the run** — `backup.trial_restore_failed`, with the reader's code and the member it
-stopped at kept on the run — because an archive the product cannot read back is not a backup, and
-`notify_on` covers it as it covers any failure. An incremental run is not tried on its own: it is
-read back with its chain when the next full one is. The flag is on for a new schedule; the
-schedules that existed before the field (migration 0091) kept it off, because a change in what a
-nightly job does belongs to the person who owns it, through the ordinary update. `hubctl backup
-schedule ls` shows it in the `trial` column and `set --trial` / `--no-trial` moves it. The chart's
-restore-drill job stays what it is: the quarterly `NEW_TENANT` drill, which is the one a trial
-cannot replace, because a trial proves the archive can be *read* and the drill proves a workspace
-can be *stood up* from it.
+**Schedule rules:**
 
-Execution is an ordinary job (the `worker` role) with progress, the ability to cancel, resumption
-after process death, and a lock against parallel runs per target. A running backup job must not slow
-down interactive operation: reads go through a replica or at a throttled rate, on a bulkhead pool
-separate from the API path.
+* **The rule counts from when the schedule was created**, in its own zone — not from "now", which
+  would drift a weekly backup to whatever weekday a pod restarted on.
+* **`full_every` selects among the schedule's occurrences**; it produces none of its own. The daily
+  run on a Sunday is the full one. Compared by calendar day in the schedule's zone.
+* **Who fires what.** A tenant's schedules are fired by that tenant's own poller, seeded by the write
+  that created a schedule ([multi-tenancy.md](./multi-tenancy.md) §2.1). An instance-wide schedule
+  belongs to no tenant and is fired by the leader under the installation scope, which can reach only
+  rows that have no tenant.
 
-**Consistency:** the export runs in a transaction with a `REPEATABLE READ` snapshot, so that the
-archive represents a consistent point in time rather than a mixture of before and after. Media are
-fetched after the snapshot, using the referenced checksums — and their locations are resolved inside
-the same snapshot, so the mapping from a content address to a storage key is the one the snapshot
-saw and cannot change under the run.
+**`trial_restore`** — when on, the job that wrote a `FULL` archive follows it with an `INSPECT`
+restore of that archive: every member read from the target, every checksum verified, every encrypted
+member decrypted, and the difference report against the workspace kept on the run
+(`BackupRun.trial_restore`, with `inspected_at` and the report in §8.2's shape). The run is then
+marked verified. A trial that fails **fails the run** (`backup.trial_restore_failed`, with the
+reader's code and the member it stopped at), and `notify_on` covers it. An incremental is read back
+with its chain when the next full one is. On by default for a new schedule; schedules made before the
+field keep it off until their owner changes it. `hubctl backup schedule ls` shows it in the `trial`
+column; `set --trial` / `--no-trial` moves it. The trial proves an archive can be *read*; the
+quarterly `NEW_TENANT` drill proves a workspace can be *stood up* from it (§10).
 
-Four things E-05 had to decide, and each is stated where the code is as well as here:
+**Execution** is an ordinary job (the `worker` role) with progress, cancellation, resumption after
+process death, and a lock against parallel runs per target. Reads go through a replica or at a
+throttled rate, on a bulkhead pool separate from the API path.
 
-* **What anchors the rule.** A recurring task counts from its due date; a backup schedule has no due
-  date, so **it counts from when the schedule was created**, read in its own zone. Counting from
-  "now" at each expansion makes a rule without a `BYDAY` drift to whatever weekday the process
-  happened to ask on — a weekly backup that moves because a pod restarted on a Tuesday. Counting
-  from midnight of the creation day is a value nobody chose. For a rule that pins its own time —
-  `FREQ=DAILY;BYHOUR=3` — the anchor does not matter at all.
-* **`full_rrule` selects among `rrule`'s occurrences rather than producing occurrences of its own.**
-  The example above names no hour in `full_every`: expanded on its own it would fire at whatever
-  time of day the anchor carries, giving a full backup at a moment nobody scheduled *and* a second
-  run beside the three o'clock one. Read as a filter it means what "every" means — the daily run on
-  a Sunday is the full one. That also disposes of "what if both fall on the same instant" by making
-  it impossible: only one of the two produces instants. The comparison is by calendar day in the
-  schedule's zone, because a rule that names a day names a day.
-* **The lock is the insert.** `INSERT … WHERE NOT EXISTS (… status = 'RUNNING' AND id <> …)` — a
-  check followed by an insert has a gap between them wide enough for exactly the thing it prevents.
-  The `id <>` is what makes a resumption possible: a worker that died left its own row RUNNING, and
-  the attempt that takes the job over is the same run, so it must not be locked out by itself
-  (BK-7). A second, different run answers "no", which is not an error: the work is happening.
-* **Who fires what.** A tenant's schedules are fired by that tenant's own poller, seeded by the
-  write that created one and rescheduling itself to the next moment the tenant owes — the shape
-  every per-tenant job here has, because nothing may enumerate tenants
-  ([multi-tenancy.md](./multi-tenancy.md) §2.1). An **instance-wide** schedule belongs to no tenant,
-  so nothing seeds one, and firing it is the leader's duty. That is not a licence to enumerate
-  tenants and cannot become one: the pass runs under a system scope, every tenant-scoped table
-  compares against a tenant that scope does not have, and the only rows it can reach are the ones
-  with none.
+* **The lock is the insert:** `INSERT … WHERE NOT EXISTS (… status = 'RUNNING' AND id <> …)`. The
+  `id <>` lets a resumed run continue its own row (BK-7); a second, different run is answered "no",
+  which is not an error.
+* **Consistency:** the export runs in one `REPEATABLE READ` snapshot. Media locations are resolved
+  inside the same snapshot and the bytes fetched by checksum after it.
+* The run is **detached** from the runner's transaction (it streams for minutes); its completion is
+  written in a short transaction of its own, which is safe because the run is repeatable.
 
 ---
 
 ## 6. Retention of backups
 
-Two levels, deliberately kept separate from the retention of business data
-([data-retention.md](./data-retention.md)):
+Separate from the retention of business data ([data-retention.md](./data-retention.md)); neither
+reads the other's tables.
 
-1. **The generation principle** (`keep_last`, `keep_daily`, `keep_weekly`, `keep_monthly`, `keep_yearly`) — as in established backup tools.
-2. **`min_keep`** as a floor: a retention rule may never result in **no** backup being left. If a run fails, old archives are not deleted.
+1. **The generation principle** (`keep_last`, `keep_daily`, `keep_weekly`, `keep_monthly`, `keep_yearly`).
+2. **`min_keep`** as a floor: retention may never leave **no** backup. If a run fails, old archives are not deleted.
 
-Expiry rules apply only to archives Hubtask created itself (recognised by the manifest); other files
-at the target are never touched. Deletion is auditable. At targets with object lock/WORM, Hubtask
-reports non-deletable archives as a notice instead of retrying endlessly.
+Rules:
 
-Three things follow from that and are worth stating (E-05):
-
-* **An archive another kept archive needs is kept.** An incremental restores only through its chain
-  back to a full archive, so deleting a parent does not free one archive — it destroys every archive
-  after it, silently, and the loss is discovered at the restore. This is not a retention rule; it is
-  what makes the retention rules safe to run.
-* **A run with no schedule behind it deletes nothing.** The plan lives on a schedule; a backup
-  somebody asked for by hand has none, and inventing a default for it would mean the thing people do
-  *before* something risky could delete the archives they were making it alongside.
-* **What is at the target is read from the manifests, not from the database.** A row that says an
-  archive exists is a row; the archive is what is at the target, and expiry deletes files. A file
-  that is not a Hubtask archive is therefore never a candidate — the absence of a code path rather
-  than a check. `checksums.txt` is removed first, so an interrupted deletion leaves something that
-  reads as unfinished rather than as sound.
+* **Only Hubtask's own archives expire**, recognised by the manifest and the name prefix
+  `hubtask-backup-<tenant>-`; other files at the target are never touched. A tenant export
+  (`hubtask-export-…`) is therefore never pruned. Deletion is audited.
+* **What is at the target is read from the manifests, not from the database.** `checksums.txt` is
+  removed first, so an interrupted deletion leaves something that reads as unfinished, not as sound.
+* **An archive another kept archive needs is kept**: deleting a parent would silently destroy every
+  incremental after it.
+* **A run with no schedule behind it deletes nothing** — a manual backup made before something risky
+  must not delete its neighbours.
+* At a target with object lock/WORM, a non-deletable archive is reported as a notice, not retried
+  endlessly.
 
 ---
 
 ## 7. Backup and data protection
 
-The conflict is well known: an erasure request takes effect immediately in the primary system, but
-last week's archive still contains the data. How it is handled:
+An erasure takes effect at once in the primary system, but last week's archive still holds the data.
+The rules:
 
-* Deletions are recorded in a **deletion journal**. On restore they are reapplied: objects deleted between the archive point and the restore do not come back. This is the most effective measure, because it works without access to old archives. The reader arrived with E-06, and it reads a window rather than the table: the journal outlives every archive, and an object deleted *before* the archive was taken is not in it, so what has to be kept out is what was deleted between the archive and now. A record that *points at* something the journal kept out is kept out with it — otherwise a restore obeying §7 would leave the workspace holding a row that references an object it deliberately did not create.
-* The retention period of the backups is the effective upper bound on deletion. For the system backups and the point-in-time window an operator keeps it is **35 days** ([data-protection.md](./data-protection.md) §12, P-5), and the plan for that target keeps no monthly or yearly generation, because a promise of 35 days and a `keep_yearly` of 3 cannot both be true. A tenant's own archive backups are the tenant's to plan; the number above does not bind them, and the generation defaults in §6 are what they start from. Either way it is documented in the data catalogue and made transparent to data subjects rather than concealed.
-* **A point-in-time restore is the one restore the deletion journal does not cover.** The journal is read from the database, so a recovery that rewinds the database past a completed erasure rewinds the record of it too, and the erasure would have to be discovered rather than replayed. The operator procedure closes that: before traffic is admitted, the erasures completed after the restore point are read from the audit export at the backup target — which is outside the database being rewound — and re-run. It is a step in the drill's checklist rather than a component, because a point-in-time recovery is already an act with a human in front of it.
-* `include_audit` is configurable: including the audit trail gives better evidence, but longer persistence of personal metadata.
-* Downloading an archive is itself an auditable data access (`backup.downloaded`).
-* An archive that leaves the server falls under the operator's responsibility for the chosen target — with third-country targets that is a transfer within the meaning of GDPR Chapter V. Hubtask points this out during target setup and records the region in the target record.
+* **The deletion journal.** Deletions are recorded in `deletion_journal`; a restore reapplies them, so
+  objects deleted between the archive point and the restore do not come back. The reader takes the
+  window between the archive and now. A record that *points at* something the journal kept out is
+  kept out with it, so a restore never leaves a row referencing an object it deliberately did not
+  create.
+* **The retention of the backups is the upper bound on deletion.** For the operator's system backups
+  and PITR window it is **35 days** ([data-protection.md](./data-protection.md) §5), and that plan
+  keeps no monthly or yearly generation. A tenant's own archive backups are the tenant's to plan; the
+  generation defaults of §6 are where they start.
+* **A point-in-time restore is the one restore the journal does not cover**: the journal lives in
+  the database being rewound. Before traffic is admitted, the erasures completed after the restore
+  point are read from the audit export at the backup target — outside the rewound database — and
+  re-run (§8.5 step 5).
+* `include_audit` is configurable: better evidence against longer persistence of personal metadata.
+* No route hands an archive to a caller today; when one exists its download is an audited access
+  (`backup.downloaded`, reserved).
+* An archive that leaves the server falls under the operator's responsibility for the target; a
+  third-country target is a transfer under GDPR Chapter V. Hubtask says so during target setup and
+  records the region on the target.
 
 ---
 
@@ -266,19 +254,16 @@ last week's archive still contains the data. How it is handled:
 
 ### 8.1 Browsing the target
 
-`GET /backup-targets/{id}/backups` lists the archives present at the target without requiring any
-state in the database — the list is read from the manifests at the target. That means a restore
-works even when the database is lost and only the target credentials exist. Shown are the timestamp,
-scope, size, full/incremental, the chain to the parent archive, the checksum status, and the
-encryption key ID — and whether the run that wrote each one finished, which is the difference between
-an archive that is damaged and one that is still being written.
+`GET /backup-targets/{id}/backups` lists the archives at the target **from the manifests there**,
+with no state in the database — a restore works when the database is lost and only the target
+credentials exist. Shown: timestamp, scope, size, full/incremental, the chain to the parent, the
+checksum status, the encryption key ID, and whether the run that wrote it finished (damaged vs still
+being written).
 
-What the route reads is the point of it. The only database access is the target's own row and its
-sealed credential, which is what opening a connection needs and nothing more; the use case has no
-run repository at all, so joining `backup_run` is not something the path could do by accident. At a
-shared target the archive's own name is the filter, so one tenant is never told about another's —
-and asking for another tenant's archives outright is refused rather than answered with an empty
-list, which would be a wrong answer to a question nobody may ask.
+* The only database access is the target's own row and its sealed credential; the use case has no
+  run repository, so it cannot join `backup_run` by accident.
+* At a shared target the archive's name is the filter, so one tenant is never told about another's.
+  Asking for another tenant's archives outright is refused, not answered with an empty list.
 
 ### 8.2 Modes
 
@@ -289,186 +274,142 @@ list, which would be a wrong answer to a question nobody may ask.
 | `MERGE` | Import the archive, handling existing objects by rule (`skip`, `overwrite`, `duplicate`) | Merging, partial loss |
 | `REPLACE_TENANT` | Reset the tenant entirely to the archive state | A serious error, ransomware |
 | `NEW_TENANT` | Import the archive as a new tenant | Migration, a test copy, forensics |
-| `INSTANCE` | Import a system backup (operator, maintenance mode) | Total loss |
+| `INSTANCE` | Import a system backup | Total loss — refused, see below |
 
-`NEW_TENANT` is the recommended way to check before a destructive mode: import alongside first, look
-at it, then decide. The API makes that the cheap path rather than a documented discipline: it is a
-mode rather than a procedure, and the tenant it creates is minted by the use case rather than named
-by the caller — which is what makes the job's elevation into it safe, because nothing of anybody
-else's is under a tenant that did not exist a moment ago.
+**Who may use which mode.** A workspace's own screens offer neither `NEW_TENANT` nor `INSTANCE`: one
+creates a workspace and the other crosses all of them, and both are the installation operator's. The
+API still accepts `NEW_TENANT` from a workspace member holding `STRUCTURE` (open point B-6).
+`INSPECT`, `SELECTIVE` and `MERGE` need `STRUCTURE`; the destructive modes need `DELETE_CONTAINER`.
+A mode that writes into a living tenant writes only into the caller's own (BK-10).
 
-Four things E-06 had to decide about the table above:
+**Mode rules:**
 
-* **Destructive is `REPLACE_TENANT` and `INSTANCE`, and deliberately not `MERGE` with `overwrite`.**
-  An overwrite replaces the objects the archive names and leaves everything else; a replace removes
-  what the archive does *not* name. That is the difference between losing an edit and losing a
-  month, and only the second is worth a typed workspace name and a step-up in front of it.
-* **`duplicate` applies to content, not to context.** An account is who somebody is, a medium is the
-  same bytes under a content address, and a webhook subscription copied is a subscription that fires
-  twice to somebody who never asked. For those the rule falls back to `skip` and the report says so.
-  What is copied — collections, buckets, labels, items and everything hanging off them — gets a
-  **derived** identity rather than a drawn one, so that a resumed restore produces the same
-  identifiers instead of a second copy of what it already wrote, and the copies point at each other
-  rather than at the originals. (This sentence used to name a label in both lists at once; a label
-  belongs to a collection, and a copied collection gets copied labels.)
-* **A copy also needs the rest of what the schema insists is unique** (#790). The identity was the
-  only thing `duplicate` used to change, so a duplicated hub arrived under the living one's name and
-  met `container_name_uq` — landing nothing, which is not a duplicate. Each entity declares the
-  columns a copy may not carry unchanged, beside its keys and references, and an integration test
-  compares that declaration against the unique indexes the database actually has. Three answers
-  cover what is there today:
-  * **A name is suffixed**, and only where the copy has not already moved somewhere the name is
-    free. A collection's parent is a reference, so the copy lands under the copy of the hub and
-    keeps its name; what is left is the top of the duplicated tree. The suffix is
-    `Errands (restored 2026-09-24 a1b2c3)` — the date for whoever reads the sidebar, and six
-    characters derived from the run so that restoring the same archive twice into one workspace
-    still lands. Derived rather than counted, for the reason the identity is: a resumed restore has
-    to produce the same name, and counting asks how many copies are already there. Renaming the
-    copy afterwards is an ordinary edit.
-  * **A calendar UID is dropped.** A client minted it and keys its todo by it; the copy is not the
-    entry the client made, and two rows claiming one address is what `wi_calendar_uid_uq` refuses.
-  * **A tenant-wide custom field definition is not copied at all**, and falls back to `skip` like an
-    account. Its key cannot be suffixed — `work_item.custom_fields` is a document keyed by the key
-    rather than by the definition's identity, so a renamed copy would be a field none of the copied
-    values are stored under. A definition inside a collection needs none of this: the collection
-    moved, so the key is free in the copy.
-
-  None of it applies to `NEW_TENANT`, which goes through the same minting. Every one of these
-  indexes is per tenant, and that mode's copy lands in a tenant that did not exist a moment ago —
-  so a migrated collection keeps its name and a migrated item keeps its calendar UID.
-* **`SELECTIVE`'s closure comes out of the archive's reference graph.** A bucket names its
-  collection, an item names its collection, a comment names its item — so "everything below the
-  collection I named" falls out of the declarations. Only the containers need a pass of their own,
-  because the order within an entity is by change time and a sub-collection can be written before
-  its hub.
-* **`INSTANCE` is refused rather than approximated, and the refusal now says what to do instead.**
-  No archive this build writes has an instance-wide scope — B-2 is answered, and it leaves system
-  backups to the operator (ADR-0046) — so the mode is accepted, the archive's manifest is read, and
-  the scope check refuses it. Until H-10 it answered `backup.restore_archive_scope_mismatch`, which
-  said "that archive belongs to another workspace" about an archive that belongs to nobody and sent
-  the reader looking for a permission problem. It now answers
-  `backup.restore_instance_is_the_operators`, whose message names [§8.5](#85-the-operator-procedure-point-in-time-recovery)
-  — the recovery that *does* restore an installation, and who runs it. The day an instance-wide
-  archive exists the mode works without anything changing shape.
+* **Destructive is `REPLACE_TENANT` and `INSTANCE`** — not `MERGE` with `overwrite`, which replaces
+  only the objects the archive names; a replace removes what the archive does *not* name. Only the
+  destructive modes ask for the typed workspace name and a step-up (§8.3).
+* **`NEW_TENANT`** imports beside the living data, which makes it the cheap way to look before a
+  destructive mode. Its tenant identifier is minted by the use case, never named by the caller, so
+  nothing of anybody else's is under it. A `NEW_TENANT` copy keeps names and calendar UIDs: every
+  unique index is per tenant.
+* **`duplicate` applies to content, not to context.** Accounts, media (the same bytes under a
+  content address) and webhook subscriptions fall back to `skip`, and the report says so. What is
+  copied — collections, buckets, labels, items and everything hanging off them — gets a **derived**
+  identity, so a resumed restore produces the same identifiers and the copies point at each other.
+* **A copy also changes what the schema insists is unique.** Each entity declares the columns a copy
+  may not carry unchanged; an integration test compares that declaration with the database's unique
+  indexes. Today:
+  * **A name is suffixed** at the top of the duplicated tree, where the name is not already free:
+    `Errands (restored 2026-09-24 a1b2c3)` — the date, and six characters derived from the run, so
+    restoring the same archive twice still lands and a resumed restore produces the same name.
+  * **A calendar UID is dropped** (`wi_calendar_uid_uq`): the copy is not the entry the client made.
+  * **A tenant-wide custom field definition is not copied** and falls back to `skip`: its key cannot
+    be suffixed, because `work_item.custom_fields` is keyed by it. A definition inside a collection
+    moves with the collection and needs nothing.
+* **`SELECTIVE`'s closure comes from the archive's reference graph**: everything below the named
+  container falls out of the declared references. Containers need a pass of their own, because a
+  sub-collection can be written before its hub.
+* **`INSTANCE` is refused**: no archive this build writes has an instance-wide scope, because system
+  backups are the operator's (§8.5). The mode is accepted, the manifest read, and the scope check
+  answers `backup.restore_instance_is_the_operators`, whose message points at §8.5.
 
 ### 8.3 The procedure
 
-1. Pre-check: checksums, schema/product version, decryptability, scope, estimated duration.
-2. A dry run with a report (the number of new/overwritten/skipped objects, conflicts).
-3. Confirmation by typing the tenant name for destructive modes; plus step-up authentication.
-4. An automatic safety copy of the current state before destructive modes (if there is room at the target).
-5. Execution as a job with progress; on cancellation, rollback within a transaction per batch size.
-6. Follow-up: apply the deletion journal (§7), rebuild the search index, do **not** re-fire automation for the period (§8.4), and write the report to the audit.
+1. **Pre-check:** checksums, schema/product version, decryptability, scope, estimated duration.
+2. **Dry run with a report:** new/overwritten/skipped objects, conflicts. `dry_run` is true by
+   default. A client offers the real run only after the rehearsal's report has been shown, and
+   composes it from the rehearsed request (`dry_run: false`), so what was reviewed is what runs.
+3. **Confirmation for destructive modes:** the tenant name typed (`confirmation`) **and** a step-up
+   ([security.md](./security.md) §5). The proof is a fresh re-authentication on the current session,
+   valid for `HUBTASK_STEP_UP_WINDOW`, sent as `step_up_token` and consumed by the one restore it is
+   presented to. Without it: `403 auth.step_up_required` with the accepted methods. An unwired
+   verifier refuses rather than permits.
+4. **A safety copy of the current state** before a destructive mode (`create_safety_backup`, on by
+   default). Nowhere to write it **stops the restore**. The copy's identifier is recorded on the run
+   *before* the destructive mode runs, so the way back is findable even if the run fails.
+5. **Execution as a job with progress**; a cancellation rolls back at most the batch in flight. Each
+   batch commits its rows and the run's progress marker in one transaction, so a replacement worker continues rather than re-deciding (`duplicate` depends on
+   it). One restore at a time per workspace (`backup.restore_in_progress`). A child that arrives
+   before its parent (`parent_id` in the same table) is deferred and written once the entity's
+   stream is exhausted, in rounds; what still has no parent after a round that settled nothing is
+   withheld as `orphaned`. The progress marker stops before the first deferred row until it settles.
+6. **Follow-up:** apply the deletion journal (§7); the search index needs no pass (a trigger indexes
+   each row as it lands); fire **no** automation for the period (§8.4); write the report to the audit.
+   A restore into an existing workspace (`REPLACE_TENANT`, `MERGE`, `SELECTIVE`) advances the
+   workspace's `sync_epoch` in the transaction that records its success, so every device cursor from
+   before answers `sync.cursor_too_old` and the device resynchronises
+   ([offline-sync.md](./offline-sync.md) §3.1). A dry run and a `NEW_TENANT` restore advance nothing.
 
-Three of those steps are worth pinning down as E-06 implemented them:
-
-* **Step 3's step-up is implemented since H-03** ([security.md](./security.md) §5). The seam E-06
-  cut — `core/port/stepup` — is filled by a verifier that judges a fresh re-authentication on the
-  current session, recorded there, valid for `HUBTASK_STEP_UP_WINDOW` and consumed by the one
-  restore it is presented to. A destructive mode without the proof answers `403` with
-  `auth.step_up_required` and the accepted methods; the "nothing here can prove it" refusal of
-  E-06 died with the verifier that made a step-up satisfiable, and the fail-closed rule survives
-  it — an unwired verifier still refuses rather than permits, kept by the tombstone test.
-* **Step 4 is a refusal when there is nowhere to write the copy.** The step's own parenthesis is
-  "if there is room at the target"; a destructive restore with no way back is the situation it
-  exists to prevent, so "there was nowhere to write it" stops the restore rather than waiving the
-  step. The copy's identifier is recorded on the run *before* the destructive mode runs, so the way
-  back is findable even if the run then fails.
-* **Step 5's batches carry their own progress marker.** Each batch commits its rows and how far the
-  run has got in one transaction, so a worker that dies is replaced by one that continues rather
-  than one that decides the same records again. That is what makes `duplicate` resumable at all:
-  the question it turns on — "does the workspace already hold this" — changes its answer once the
-  first attempt has written half the archive.
-* **A child that arrives before its parent waits for it.** The order within an entity is by change
-  time, so a task renamed after its activity was made — or a whole tree imported in one instant —
-  puts the child first, and `parent_id` is an immediate foreign key. The applier defers such a row
-  and writes the deferred ones once the entity's stream is exhausted, in rounds; what still has no
-  parent after a round that settled nothing is withheld as `orphaned` rather than failing the run.
-  The progress marker stops before the first deferred row until it is settled, so a replaced
-  worker re-reads it instead of skipping it (#693).
-* **Step 6's index needs no pass of its own.** The search document is maintained by a trigger on
-  the row, so rows written by a restore are indexed as they land.
+**A destructive restore ends sign-ins.** The archive carries no session or token tables (§8.4), so
+the credential that started a `REPLACE_TENANT` is refused part-way through following its own job;
+read `restore_run` for the result instead.
 
 ### 8.4 What deliberately does *not* happen during a restore
 
-* **No automation rules fire.** A restore would otherwise trigger hundreds of webhooks and emails effectively reporting old states. Restored changes produce events with `replay: true`, which the rule engine ignores. The flag arrived with E-06 rather than with the engine in `0.5.0`, because a flag introduced alongside the consumer that reads it has a window in which the consumer does not know about it — and that window is a restore. It is not delivered to a subscriber that has not asked for it: the decision is the dispatcher's, so a consumer added later by somebody who has never read this section is not handed a replay by accident.
-* **No reminders are caught up** whose time lies in the past; they are marked as lapsed. `LAPSED` is a state of its own (migration 0037) rather than `CANCELLED`: nobody cancelled them, and an auditor reading a workspace after a restore should not find hundreds of cancellations that never happened.
+* **No automation rules fire.** Restored changes produce events with `replay: true`, which the rule
+  engine ignores. The dispatcher decides it, so a subscriber added later is never handed a replay by
+  accident.
+* **No reminders are caught up** whose time lies in the past; they become `LAPSED` — a state of its
+  own, not `CANCELLED`, because nobody cancelled them.
 * **No webhooks are re-delivered**; the archive's outbox is not imported.
-* **No tokens or sessions are restored** — making credentials from an archive valid again is a security risk. Users must sign in again; PATs must be recreated. This is displayed before the restore. Neither table is in the archive at all, which is the stronger form of the same promise: a restore cannot write back what it was never given.
-
-One entity is in the archive and is deliberately **not written back**: the audit trail. §4 of
-[audit.md](./audit.md) makes the live trail a hash chain and E-09's `:verify` walks it; inserting
-last month's entries into the middle of a live chain is not a restore but a rewrite, and "the trail
-cannot be rewritten" is the property the whole audit surface rests on. `include_audit` still puts it
-in the archive, which is what it was for — the evidence is readable where it was written down.
+* **No tokens or sessions are restored.** Neither table is in the archive at all. Users sign in again;
+  PATs are recreated. This is shown before the restore.
+* **No sign-in provider is reopened.** A provider configuration (`identity_provider`) is not in the
+  archive, nor are pending sign-ins (`auth_pending`).
+* **The audit trail is in the archive and not written back.** Inserting last month's entries into a
+  live hash chain is a rewrite, not a restore ([audit.md](./audit.md) §3). `include_audit` keeps the
+  evidence readable where it was written down.
+* **Retention rules are not in the archive**: `EXPORT_THEN_DELETE` names an egress a restore does not
+  recreate.
 
 ### 8.5 The operator procedure: point-in-time recovery
 
-*Everything above is a **tenant's** restore, from an archive this application wrote. This section is
-the other kind: the **operator's** recovery of the whole installation from the database's own
-continuous archive (§1's system backup, [ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md)).
-It is the procedure the `INSTANCE` refusal points at.*
+The **operator's** recovery of the whole installation from the database's continuous WAL archive
+(§1's system backup, [ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md)). The
+`INSTANCE` refusal points here.
 
-**Hubtask does not perform this restore, and that is B-2's answer rather than a gap.** An
-application cannot restore the database it has to be running to reach, and it is least able to
-precisely when it is most needed. What performs it is CloudNativePG, from the WAL archive the
-`Cluster` writes continuously; what Hubtask contributes is the drill that proves the archive works,
-and the checks that say what came back is sound.
-
-**The runbook is executable by a person alone.** Not by this project's automation, and not by the
-platform's — the platform does not do application-level restores, and a runbook whose only operator
-is an AI session is a runbook with a single point of failure that cannot be paged.
+**Hubtask does not perform this restore**: an application cannot restore the database it needs to be
+running. CloudNativePG performs it from the WAL archive the `Cluster` writes
+([`k8s/templates/cnpg-cluster.yaml`](../../k8s/templates/cnpg-cluster.yaml)), with the platform's
+volume snapshots as a second net for what is not a database. Hubtask contributes the drill and the
+checks. **The runbook is executable by a person alone** — not only by this project's automation.
 
 #### The procedure
 
-1. **Decide the moment.** A recovery target is a point in time, and choosing it is the only step
-   nobody can automate: everything after the target is discarded. Read the audit trail or the
-   incident's own timeline for the moment before the damage.
-2. **Stop writing.** Scale the workloads to zero. A restore that races the application it is
-   restoring for produces a database with two histories in it.
-3. **Bootstrap a new cluster from the archive**, with `bootstrap.recovery` naming the external
-   cluster and `recoveryTarget.targetTime` the moment from step 1. Into a *new* cluster, never over
-   the live one: the archive is the only copy of the history being replayed, and a cluster
-   recovering over itself can archive over what it is reading.
-4. **Check what came back before admitting traffic.** The drill's own checks are the list, and the
-   drill is the way to run them — `hubtask-restore-drill` against a target time is the same code
-   path (`cmd/restore-drill`). The markers, the schema version, index and constraint validity, row
-   level security forced on every tenant table, the application role still unable to bypass it.
-5. **Re-apply the erasures the rewind undid.** This is the step §7 flags and the one most easily
-   forgotten: a recovery that rewinds past a completed erasure rewinds the *record* of it too, so
-   the erasures completed after the recovery point are read from the audit export at the backup
-   target — outside the database being rewound — and re-run before traffic is admitted.
+1. **Decide the moment.** Everything after the recovery target is discarded. Read the audit trail or
+   the incident timeline for the moment before the damage. Nobody can automate this step.
+2. **Stop writing.** Scale the workloads to zero, or the database ends up with two histories.
+3. **Bootstrap a new cluster from the archive**: `bootstrap.recovery` names the external cluster,
+   `recoveryTarget.targetTime` the moment from step 1. Always a *new* cluster, never over the live
+   one — the archive is the only copy of the history being replayed.
+4. **Check what came back before admitting traffic**, with the drill's checks
+   (`hubtask-restore-drill` against a target time, `cmd/restore-drill`): the markers, the schema
+   version, index and constraint validity, row level security forced on every tenant table, the
+   application role still unable to bypass it.
+5. **Re-apply the erasures the rewind undid.** Read the erasures completed after the recovery point
+   from the audit export at the backup target — outside the rewound database — and re-run them before
+   traffic is admitted (§7).
 6. **Point the application at the recovered cluster** and scale back up. The migration runs on the
-   way in as always; a recovered database is at the schema version its moment had, and forward-only
-   migrations take it the rest of the way.
-7. **Write down what happened.** The measured recovery is evidence, and it is internal (decision 7
-   of [milestone 0.6.0](../backlog/milestone-0.6.0.md)) — the incident record, not this repository.
+   way in; forward-only migrations take the recovered schema the rest of the way.
+7. **Write down what happened.** The measured recovery is evidence for the incident record. RPO and
+   RTO figures stay internal and are not published in this repository.
 
 #### What proves it in advance
 
-**RT-9, per release and weekly**: `hubtask-restore-drill` writes two marker rows with a recorded
+**RT-9, per release and weekly:** `hubtask-restore-drill` writes two marker rows with a recorded
 moment between them, recovers a temporary cluster to that moment, and expects the first marker and
-not the second. Then it runs step 4's checks against what came back, measures how far the archive
-was behind (the RPO) and how long the recovery took (the RTO), and removes the temporary cluster
-whatever happened. It is a hook of every release and a `CronJob` between releases; a pass moves the
-record that feeds `hubtask_restore_drill_last_success_timestamp_seconds`, which is what A-20
-watches (§10).
+not the second. It then runs step 4's checks, measures RPO and RTO, and removes the temporary
+cluster whatever happened. It is a hook of every release and a `CronJob` in between. A pass updates
+the record behind `hubtask_restore_drill_last_success_timestamp_seconds`, which A-20 watches (§10).
+A failed drill does **not** fail the release; the record keeps the previous success.
 
-A drill that fails does **not** fail the release. The record keeps the previous success, so the
-alert keeps counting from the last real proof rather than from the last attempt.
-
-**And in CI, where production does not exist yet**: `make gate-pitr` runs exactly this on a kind
-cluster with the CloudNativePG operator and an S3-compatible store — a real archive, a real
-recovery to a point
-between two writes, the wrong marker's survival failing the build. What it cannot prove is the size
-of the numbers, because a CI runner is not the target; what it proves is the path.
+**In CI:** `make gate-pitr` runs the same on a kind cluster with the CloudNativePG operator and an
+S3-compatible store — a real archive, a real recovery between two writes, the wrong marker's
+survival failing the build. It proves the path, not the size of the numbers.
 
 ### 8.6 The minimal path: a dump, and what it does not give
 
-§8.5 describes a recovery a Kubernetes operator performs from a continuous archive. A self-hoster
-running the two-container Compose stack has no operator, and §1's table has always said the system
-backup is *recommended* there rather than provided. This is what "recommended" means concretely, so
-that the honest version is written down rather than left as an exercise.
+A self-hoster on the two-container Compose stack has no database operator. The system backup there
+is a dump:
 
 ```bash
 # The dump. Custom format, so pg_restore can be selective and parallel later.
@@ -483,23 +424,18 @@ docker compose exec -T db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --cle
   < hubtask-20260907T020000Z.dump
 ```
 
-**What this gives you.** A consistent snapshot of the whole installation at the moment the dump
-started, restorable onto the same PostgreSQL major version, from a stack anybody can run.
+**It gives** a consistent snapshot of the whole installation at the moment the dump started,
+restorable onto the same PostgreSQL major version.
 
-**And what it does not — four things, each of which the operator path in §8.5 does give:**
+**It does not give** what §8.5 gives:
 
-* **No point in time except the ones you took.** A dump is a photograph, so the worst case is
-  everything written since the last one. Nightly means a day. The RPO of ≤ 5 minutes
-  [observability-reliability.md §2](./observability-reliability.md#2-service-level-objectives)
-  names is a property of continuous WAL archiving, and nothing about a dump schedule approaches it.
-* **No protection against a deletion you copy.** A dump written over the previous one by a cron
-  job is one command away from being a backup of the damage. Object Lock is what makes that
-  impossible (B-3), and it is a property of the target rather than of the dump.
-* **Nothing has restored it.** The drill of §8.5 is what turns a backup into a restorable backup,
-  and `hubtask_restore_drill_last_success_timestamp_seconds` stays absent here — so **A-20 never
-  fires and never reassures**, which is the honest state rather than a silent pass. A self-hoster
-  who wants the alert to mean something can write the record themselves after a restore they
-  performed, which is the whole of the mechanism:
+* **No point in time but the ones you took.** Nightly means up to a day lost. The RPO of ≤ 5 minutes
+  in [observability-reliability.md §2](./observability-reliability.md#2-service-level-objectives) is a
+  property of continuous WAL archiving.
+* **No protection against a deletion you copy.** A dump written over the previous one is one command
+  from being a backup of the damage. Object lock on the target prevents that (B-3).
+* **Nothing has restored it.** The restore drill metric stays absent, so **A-20 never fires and never
+  reassures**. After a restore you checked yourself, write the record:
 
   ```bash
   # After a restore you checked: one integer, in the file the process reads at every scrape.
@@ -508,97 +444,72 @@ started, restorable onto the same PostgreSQL major version, from a stack anybody
   #   HUBTASK_RESTORE_DRILL_RECORD_FILE: /var/lib/hubtask/restore-drill/last_success_unix
   ```
 
-* **The tenant archives are a different promise.** Everything else in this document — targets,
-  schedules, encryption, retention, the `NEW_TENANT` trial restore — works in the Compose stack and
-  is the backup a *tenant* is entitled to (§1). It is not a substitute for the system backup: it
-  holds one workspace's content, not the installation's database.
+* **Tenant archives are a different promise.** Targets, schedules, encryption, retention and the
+  `NEW_TENANT` trial work in the Compose stack, but they hold one workspace's content, not the
+  installation's database.
 
-**Which is why the recommendation is what it is.** For one person's own installation, a nightly
-dump to a second machine plus the tenant archives is a defensible arrangement, and it is a great
-deal better than nothing. It is not what the operator path promises, and the difference is a day
-of writes and an untested archive rather than a matter of degree.
+For one person's own installation, a nightly dump to a second machine plus the tenant archives is
+defensible. It is not what §8.5 promises: the difference is a day of writes and an untested archive.
 
 ---
 
 ## 9. Import and export of existing systems
 
-Separate from backup, but technically related: the importers for CSV, Trello, Google Tasks and
-Microsoft To Do (built in `0.9.0`, P-08…P-10) produce the same internal intermediate form as an
-archive. That gives one ingestion path, not two — and it is *this* path, not the jumble's, which
-the `0.5.0` backlog once said and P-17 corrected there.
+**Importers write archive records, and the restore applies them** — one ingestion path, not two.
+`POST /imports` names a file uploaded through the media flow with `usage: IMPORT` and the hub the
+collections land under. A converter per kind (`infrastructure/importer`) turns the file into
+`archive.Record`s in memory; the records never leave the process as an archive. The applier
+(`Applier.Ingest`) lands them in `MERGE` mode with `skip`.
 
-**Built in P-08, with CSV as the first kind.** `POST /imports` names a file uploaded through the
-media flow with `usage: IMPORT` and the hub the collections land under; a converter per kind
-(`infrastructure/importer`) turns the file into `archive.Record`s under identities derived from
-the hub and the source's own identity — the file's digest for a CSV, the board's identifier for
-a Trello export — so that the same source imported into the same hub twice produces the same
-identifiers, and the applier (`Applier.Ingest`) lands them in `MERGE` mode with `skip`, which
-makes the second import a no-op. A CSV names its collection after the file (`errands.csv` →
-*errands*; a `collection` column overrides it per row), so two files are two collections
-([#766](https://github.com/Jersyfi/hubtask/issues/766)); a *different* file whose collection
-meets a name the hub already holds is refused on the run with `imports.collection_exists` and
-lands nothing — the applier answers a unique index's refusal as the conflict it is
-(`containers.name_taken`, `backup.row_conflicts`), never as a database error the queue would
-retry into the same name. The run's row (`import_run`) carries the report in §8.2's shape
-and the rows the converter refused by number; the file is deleted when the job ends; and the
-workspace's synchronisation epoch advances as after a `MERGE` restore, because the rows land
-without change log entries (§12 B-5). `hubctl import <kind> <file> --hub <id>` is the verb.
-P-09 and P-10 added the other three kinds: a Trello board export, Google Takeout's `Tasks.json`,
-and the Graph API's JSON for Microsoft To Do, whose zone names are Windows names — the converter
-carries Unicode CLDR's `windowsZones` table (`infrastructure/importer/WindowsZones.go`) rather
-than a library, and refuses a row whose zone it does not know rather than guessing.
+| Kind | Source |
+|---|---|
+| CSV | A CSV file. The collection is named after the file (`errands.csv` → *errands*); a `collection` column overrides it per row |
+| Trello | A board export |
+| Google Tasks | Google Takeout's `Tasks.json` |
+| Microsoft To Do | The Graph API's JSON, **fetched by the person**: `GET /me/todo/lists` and each list's `tasks` (`hubctl import todo` shows the two requests). No live connection — it would need an app registration and a token this product would have to hold. Zone names are Windows names, mapped by Unicode CLDR's `windowsZones` table (`infrastructure/importer/WindowsZones.go`); a row with an unknown zone is refused, not guessed |
 
-The user export (`GET /tenants/{id}:export`, GDPR portability) also produces a Hubtask archive —
-unencrypted or password-protected, directly downloadable. An export is therefore simultaneously a
-restorable backup, without a second format coming into existence.
+Rules:
+
+* **Identities are derived** from the hub and the source's own identity (a CSV's digest, a board's
+  identifier), so importing the same source into the same hub twice is a no-op.
+* **A different file whose collection meets a name the hub already holds** is refused on the run with
+  `imports.collection_exists` and lands nothing; the applier answers a unique index as a conflict
+  (`containers.name_taken`, `backup.row_conflicts`), never as a database error the queue would retry.
+* The run (`import_run`) carries the report in §8.2's shape and the refused row numbers; the file is
+  deleted when the job ends; the workspace's `sync_epoch` advances as after a `MERGE` restore,
+  because the rows land without change log entries.
+* `hubctl import <kind> <file> --hub <id>` is the verb.
+
+**Exports are archives too.** A tenant export (`POST /admin/tenants/{id}:export`,
+[tenant-export.md](./tenant-export.md)) and a data subject export
+([data-protection.md](./data-protection.md) §4, prefix `hubtask-dsr-`) are Hubtask archives written
+unencrypted to a backup target. An export is therefore also restorable, and no second format exists.
 
 ---
 
 ## 10. Self-diagnosis and alerts
 
-Complements the catalogue in [observability-reliability.md](./observability-reliability.md):
-
-Two vocabularies, and E-03 settled which is which rather than leaving them to drift: a warning is
-named after what it describes. `backup.target_*` is a warning **a target carries about itself** and
-travels in the `warnings` array of the resource; `config.backup_*` is a warning about **the
-installation** and belongs in the health report. They are not synonyms and neither is a rename of
-the other.
+Two vocabularies: a warning is named after what it describes. `backup.target_*` is a warning **a
+target carries about itself**, in the resource's `warnings` array. `config.backup_*` is a warning
+about **the installation**.
 
 | Signal | Meaning |
 |---|---|
 | `backup.target_unencrypted` (on the resource) | This target stores archives unencrypted |
-| `backup.target_plaintext_protocol` (on the resource) | This target is reached over a connection anybody on the wire can read. Judged by the scheme in the configuration for every kind addressed by a URL, and by the name only for `ftp`, which has no secure form |
-| `config.backup_not_configured` (a warning in `/meta/health`) | No target configured |
+| `backup.target_plaintext_protocol` (on the resource) | This target is reached over a connection anybody on the wire can read — judged by the configured scheme for every URL-addressed kind, and by the name for `ftp` |
+| `config.backup_not_configured` | No target configured |
 | `config.backup_unencrypted` | A target without encryption |
 | `config.backup_single_target` | Only one target — a pointer to 3-2-1 |
+| `hubtask_backup_last_success_timestamp_seconds` (metric) | When each target last had a backup that worked; emitted by the leader, labelled by target. A timestamp, so the alert computes the age; **absent**, not zero, for a target that never had one |
+| `hubtask_restore_drill_last_success_timestamp_seconds` (metric) | When the system restore drill last passed (§8.5). Emitted by every process handed `HUBTASK_RESTORE_DRILL_RECORD_FILE`: the drill writes one integer into a mounted file, read at every scrape — no sidecar, no pushgateway, no Kubernetes client. Absent where nothing recorded a drill. The tenant-level `NEW_TENANT` trial does not write it |
+| A-12 | No successful backup in 24 hours, **per target** — a `max()` across targets would let a healthy target hide a broken one |
+| A-20 | The restore drill is older than 90 days. A ticket, not a page, and no `absent()` rule: an installation without a drill (Compose) records nothing |
 
-The three `config.backup_*` warnings have their message codes and the repository count behind them
-(E-03) and no surface yet. `/meta/health` on the operations port is process-wide, and a backup
-target is a row in a tenant's database behind row level security — a count taken there sees
-nothing. They arrive with the tenant-facing health report, which is still
-`route.operation_not_available`. Until then they were **not** derived from environment variables:
-the previous condition read `HUBTASK_BACKUP_LOCAL_PATH` and `HUBTASK_BACKUP_TARGETS`, neither of
-which said whether a target exists, and the second was read by nothing else and documented nowhere.
-It is removed.
-| Signal | Meaning |
-|---|---|
-| `hubtask_backup_last_success_timestamp_seconds` (metric) | When each target last had a backup that worked. Emitted by the leader since E-05, labelled by target, and a timestamp rather than an age so that the alert computes the age at evaluation time rather than at scrape time. A target that has never had one is **absent** rather than zero — a gauge of zero reads as 1970 |
-| `hubtask_restore_drill_last_success_timestamp_seconds` (metric) | When the system restore drill last passed (H-10, §8.5). Emitted since H-10 by every process that is handed `HUBTASK_RESTORE_DRILL_RECORD_FILE`: the drill writes one integer into a record, the record reaches the process as a mounted file, and the process reads it at every scrape — no sidecar, no pushgateway, no Kubernetes client in the application ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md), amended 2026-09-07). Absent rather than zero where no drill has recorded anything, which is why A-20 still carries no `absent()`. The tenant-level trial restore E-12 built (`hubctl restore run --mode NEW_TENANT`) does not write it: that drill proves an archive, this one proves the installation |
-| A-12 | No successful backup in 24 hours, **per target** — a `max()` across targets would let one healthy target hide a broken one, which is exactly the 3-2-1 arrangement §2 recommends |
-| A-20 (new) | The restore drill is older than 90 days |
+The three `config.backup_*` codes are in the catalogue and **emitted by nothing yet**: `/meta/health`
+is process-wide and a target is a tenant row behind RLS, so they wait for a workspace-facing health
+check.
 
-**A-20 rather than A-19**, and the renumbering is this way round on purpose. `data-protection.md` §4
-and [ADR-0018](../adr/ADR-0018-privacy-by-design.md) had already given A-19 to the data subject
-request deadline; an ADR records a decision that was taken, and editing one so that a later table
-can keep its number is the wrong direction. The restore drill is the newcomer, so the restore drill
-moves (E-05).
-
-The drill itself is deliberate: a backup that has never been restored is a hypothesis. The regular
-`NEW_TENANT` trial restore can be automated and evaluated as a test run. Its alert is a ticket
-rather than a page, and it does not fire on the metric's absence the way A-12 does — nothing records
-a drill yet, and an absence rule would page every installation for a feature that does not exist.
-
-**What runs one** (E-12). The client is the drill:
+**The tenant-level drill is the client:**
 
 ```bash
 hubctl backup run --target "$TARGET" --follow --wait 30m
@@ -607,11 +518,9 @@ hubctl restore inspect --target "$TARGET" --archive "$ARCHIVE"
 hubctl restore run --target "$TARGET" --archive "$ARCHIVE" --mode NEW_TENANT --apply
 ```
 
-`scripts/hubctl-e2e.sh` runs exactly that against the reference Compose stack on every pull
-request, and it compares the number of entries in the restored workspace with the number in the
-source — from the database on both sides, so that nothing in the check can agree with itself. That
-is the first proof outside a test that the whole chain survives a round trip: schedule, job,
-encryption, target, manifest, listing, restore.
+`scripts/hubctl-e2e.sh` runs exactly that against the reference Compose stack on every pull request
+and compares the entry counts of the restored and the source workspace from the database on both
+sides — schedule, job, encryption, target, manifest, listing and restore in one round trip.
 
 ---
 
@@ -622,14 +531,14 @@ encryption, target, manifest, listing, restore.
 | BK-1 | A round trip per adapter (local, s3, sftp, webdav) against a test container: back up, list, verify, restore |
 | BK-2 | An encrypted archive is unreadable without the key; with a rotated key, the old archive stays readable |
 | BK-3 | An incremental chain over 10 runs including deletions reproduces the source state exactly |
-| BK-4 | An archive from an older schema version imports correctly (golden archives in the repository, one per major version) |
+| BK-4 | An archive from an older schema version imports correctly (golden archives in the repository, one per format version) |
 | BK-5 | A restore triggers no automation, sends no webhooks or emails, and restores no tokens |
 | BK-6 | The deletion journal prevents deleted objects from returning |
 | BK-7 | Process death during a backup and during a restore: resumption without duplicates |
 | BK-8 | Retention deletes according to the generation plan, `min_keep` is never undercut, and other files at the target stay untouched |
 | BK-9 | A target configuration pointing at an internal address is blocked by `GuardedClient` unless explicitly released |
 | BK-10 | Cross-tenant: tenant A cannot list, verify, or restore an archive belonging to B |
-| BK-11 | The trial restore (P-14): a scheduled `FULL` run with `trial_restore` on reads its own archive back and the run carries the report; an archive damaged between the write and the trial fails the run with `backup.trial_restore_failed` and the member; a schedule made before the field keeps it off |
+| BK-11 | The trial restore: a scheduled `FULL` run with `trial_restore` on reads its own archive back and the run carries the report; an archive damaged between the write and the trial fails the run with `backup.trial_restore_failed` and the member; a schedule made before the field keeps it off |
 
 ---
 
@@ -637,8 +546,15 @@ encryption, target, manifest, listing, restore.
 
 | # | Point | Needed by |
 |---|---|---|
-| B-1 | Whether `rclone` goes into the image (size, and its GPL-3.0 licence — check distribution alongside Apache-2.0) | `0.5.0` |
-| B-2 | ~~Whether system backups (PITR) are orchestrated by Hubtask or left to the operator~~ — **left to the operator** ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md), H-10). An application cannot back up the database it has to be running to reach, and it is least able to precisely when it is most needed. In production that operator is CloudNativePG: continuous WAL archiving from the `Cluster` resource the chart renders ([`k8s/templates/cnpg-cluster.yaml`](../../k8s/templates/cnpg-cluster.yaml), `database.enabled`), with the platform's volume snapshots as a second net for what is not a database. So the `INSTANCE` restore scope stays refused — which is what the code has been doing all along — and Hubtask keeps the tenant-scoped archive backups this document describes, because those are a different promise to a different party | Closed (H-10) |
-| B-3 | ~~Retention protection against ransomware (recommend object lock as mandatory?)~~ — **required** for the system backup target, **recommended** for a tenant's own (ADR-0046, H-10), with the two conditions without which it is theatre. The credential that writes backups must not be able to delete them or shorten their retention: a lock a compromised writer can lift protects against accidents only, which is not what the threat is. And the lock retention **equals** P-5's 35 days: longer and the generation plan's own cleanup fails against the lock, shorter and the promise in [data-protection.md](./data-protection.md) §12 is not kept by the storage that has to keep it. A tenant enabling it on its own target owes itself the same arithmetic, which is why the recommendation carries the numbers rather than the word | Closed (H-10) |
-| B-4 | ~~The scope of the trial restore in the default schedule~~ — settled in P-14 (`0.9.0`): an `INSPECT` restore of every `FULL` archive, in the run's own job, with the report kept on the run and a failure failing the run (§5). Not a `NEW_TENANT` stand-up per run — that is the quarterly drill's, and a nightly copy of every workspace would be a cost nobody asked for — and not an incremental's own chain, which its next full covers | Closed (P-14) |
-| B-5 | ~~What a restore owes connected devices. It writes rows without change log entries, so a device that was offline through one keeps a cursor that is still valid and will never be told what changed (E-06, [offline-sync.md](./offline-sync.md) §8).~~ — **the per-tenant marker** (N-11): the workspace carries `sync_epoch`, every cursor the stream and the pull mint carries the epoch it was minted under inside its signed payload, and a restore into an existing workspace — `REPLACE_TENANT`, `MERGE` and `SELECTIVE` alike — advances the epoch as it succeeds, in the transaction that records the success. A cursor from an older epoch answers `sync.cursor_too_old`, the same answer as a cursor past the offline window because it is the same situation, and the device resynchronises from scratch through the initial synchronisation ([offline-sync.md](./offline-sync.md) §3.1), which hands it the restored rows. A dry run advances nothing, and neither does a restore into a new workspace: no device holds its cursor yet. A change log entry per restored row was the other candidate and is not needed: a restore is rare, and a walk is what a device that missed one has to do anyway | Closed (N-11) |
+| B-1 | Whether `rclone` goes into the image (size, and its GPL-3.0 licence alongside Apache-2.0) | Before an `rclone` adapter |
+| B-6 | `NEW_TENANT` is the installation operator's, and the web app does not offer it, but `StartRestore` accepts it from any workspace member holding `STRUCTURE` (`core/application/service/backup/Restore.go`). Either the API moves it behind `admin:tenants` (and the tenant-level drill of §10 with it) or the rule changes | Before `1.0.0` |
+
+**Object lock (B-3).** Required for the system backup target, recommended for a tenant's own. The
+credential that writes backups must not be able to delete them or shorten their retention. For the
+system backup the lock retention **equals** 35 days: longer and the plan's own cleanup fails against
+the lock, shorter and [data-protection.md](./data-protection.md) §5 is not kept by the storage. A
+tenant enabling it owes itself the same arithmetic.
+
+Closed points cited elsewhere: B-2 (system backups are left to the operator) is §1 and §8.5; B-3 is
+the paragraph above; B-4 (the trial restore is an `INSPECT` of every `FULL` archive) is §5; B-5 (what
+a restore owes connected devices: the `sync_epoch`) is §8.3 step 6.
