@@ -778,7 +778,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0056 | `golang.org/x/text` and `golang.org/x/net/idna` as direct dependencies, confined to adapters | accepted |
 | 0057 | The SDKs: which packages, under which licence, extracted or not | accepted |
 | 0058 | The connector packages: generated, dependency-free here, typed there | accepted |
-| 0059 | Licensing phases and Licensing Start | proposed |
+| 0059 | Licensing phases and Licensing Start | superseded |
 | 0060 | The check: a rule's references resolved before they fail | accepted |
 | 0061 | Page anatomy: one navigation, the shell wave, and status as a surface | accepted |
 | 0062 | The pinned tools are cached as binaries, and a stamp says what a cache holds | accepted |
@@ -799,6 +799,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0077 | Nobody is locked out: amendments to the withdrawal of an offered provider | accepted |
 | 0078 | The ways back in: a second proof for a provider, a fallback for every cause, and an operator's lever | accepted |
 | 0079 | A draft is checked locally; CI runs when a pull request is ready | accepted |
+| 0080 | Hubtask is Apache-2.0 | accepted |
 
 ---
 

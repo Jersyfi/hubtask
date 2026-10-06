@@ -1,7 +1,8 @@
 # ADR-0013 — BSL 1.1 with a conversion to Apache-2.0
 
 **Status:** superseded · **Date:** 2026-08-16 · **Supersedes:** the proposed draft of 2026-08-14 ·
-**Superseded by:** [ADR-0059](./ADR-0059-licensing-phases-and-licensing-start.md) on 2026-09-17
+**Superseded by:** [ADR-0059](./ADR-0059-licensing-phases-and-licensing-start.md) on 2026-09-17, and by
+[ADR-0080](./ADR-0080-hubtask-is-apache-2-0.md) on 2026-10-07 — Hubtask is Apache-2.0
 
 > The revisit before `1.0.0` that the last paragraph of *Consequences* asks for has happened: it is
 > ADR-0059. The context, the options and the reasoning below are kept as they were written; what

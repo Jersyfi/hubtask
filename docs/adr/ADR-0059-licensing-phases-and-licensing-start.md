@@ -1,6 +1,7 @@
 # ADR-0059 — Licensing phases and Licensing Start
 
-**Status:** proposed · **Date:** 2026-09-17 · **Supersedes:** [ADR-0013](./ADR-0013-licensing.md)
+**Status:** superseded · **Date:** 2026-09-17 · **Supersedes:** [ADR-0013](./ADR-0013-licensing.md) ·
+**Superseded by:** [ADR-0080](./ADR-0080-hubtask-is-apache-2-0.md) on 2026-10-07 — Hubtask is Apache-2.0, and Licensing Start will not come
 
 > The decisions in this record are made and are in force for Phase 1 from the day it was merged:
 > `LICENSE` carries the interim grant from §2. What the status waits on is one event — the
