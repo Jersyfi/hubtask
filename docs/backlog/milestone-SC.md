@@ -476,6 +476,12 @@ request still answers byte for byte the same for every address. Outside the fall
 **Acceptance:** a test that a provider-only account in a fallback workspace sets a password and signs
 in, and that the same account outside the fallback gets the provider mail; the reset's checks hold.
 
+*Widened on 2026-10-06* ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §4, the owner's E5): the
+first-password link opens wherever the password is open and no provider the account is connected to
+lets it in - under the fallback, under the operator's opening, and where the workspace keeps the
+password on but the account's provider ended. A new reset link spends the earlier unspent ones, and so
+does a change of the password or the address by any other way (UC-ID-04 check 2).
+
 ---
 
 ## SC-26 — An offered provider's count is counted, not kept **[L]**
@@ -564,6 +570,108 @@ new one (ADR-0003). The migration's number is taken from `origin/main` right bef
 
 **Acceptance:** the column and the function are gone from a migrated database and from
 `db/schema.sql`; `make generate` produces no diff; `make verify` and the integration suite are green.
+
+---
+
+## SC-31 — The password opens whenever no way in works **[L]**
+
+*Depends on: SC-24, and lands with it.* · issue #1138 · [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §2
+
+**Use cases:** UC-ID-12 (6), UC-ID-04, UC-INS-11 (5)
+
+The fallback of ADR-0076 §4 answers every cause: wherever the methods a workspace's rule resolves to
+leave the password out and no provider is switched on there, the password opens for every account that
+holds one - an installation default or lock without the password, a rescue lock lifted, a restore or an
+import, two administrators racing, a workspace provisioned under such a default. Each use is recorded
+with its cause; a door reads the fallback once.
+
+**Acceptance:** a service test per cause and for the fallback ending once a way is switched on; an
+integration test under an installation default without the password, with the real resolver.
+
+---
+
+## SC-32 — An invited account is activated only with a second proof **[L]**
+
+*Depends on: SC-31; SC-24 lands with it.* · issue #1139 · [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1, §5
+
+**Use cases:** UC-ID-10 (4), UC-ID-07 (5)
+
+A provider activates or connects an invited account only if it is authoritative for the address, or
+the person arrives through the invitation's own link - the invitation bound to the provider flow on the
+server, single use, expiring, not spent by an arrival that fails. Under *Only people invited here* the
+link admits a provider that is not authoritative, for that account only; the provider's verified
+address must equal the invited one. A link made earlier without that proof activates nothing.
+"Authoritative" is read as ADR-0078 §5 says (the domain-ownership claim must be `true`; Google for its
+consumer domains or a matching hosted domain; any other issuer not). A refused provider sign-in is
+recorded in a transaction of its own, so the refusal is not rolled back with it.
+
+**Acceptance:** under the permissive mode an arrival without the link is refused and links nothing; with
+the link it is accepted; a lapsed, spent or foreign invitation is one refusal; the authority table per
+claim shape; a PostgreSQL test that a refusal's trail entry is stored.
+
+---
+
+## SC-33 — A workspace without the password connects its provider by mail **[L]**
+
+*Depends on: SC-32.* · issue #1140 · [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1
+
+**Use cases:** UC-ID-04 (8), UC-ID-10 (1, 6), UC-ID-12 (6)
+
+In a workspace that switched the password off, *Forgot your password?* mails an account that holds a
+password but is connected to no provider switched on there - or holds only an identity at an offer that
+ended - a link to connect the workspace's provider. The link and a fresh sign-in at the provider
+together are the account's proof at the LINK step; an armed second factor is still asked; no password
+is stored; the provider's verified address must equal the account's. Before the password is switched
+off, the switch says how many people have never signed in through a provider.
+
+**Acceptance:** both cases connect and sign in; an armed factor is still asked; a mismatched address
+or a sign-in that is not fresh connects nothing and leaves the link unspent; a link is spent once; the
+switch's count excludes connected, invited and service accounts.
+
+---
+
+## SC-34 — An operator opens the password for one workspace **[L]**
+
+*Depends on: SC-31.* · issue #1141 · [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §3
+
+**Use cases:** UC-INS-11, UC-ID-12 (6)
+
+For a provider that is switched on but broken, an operator opens the password for one named workspace -
+24 hours by default, at most seven days - with the requester and the reason recorded in the workspace's
+trail and the installation's journal; the workspace's administrators are notified when it opens and when
+it closes. It is the fallback with the cause `OPERATOR`; it reads and changes nothing of the workspace's
+content. From the installation's screen and from `hubctl`.
+
+**Acceptance:** scope, operator register and step-up; the opening ends on its own; both trails; the
+notices; it overrides the workspace's switch and a lock; it can be closed early.
+
+---
+
+## SC-36 — A person is told when a way into their account changes **[L]**
+
+*Depends on: SC-33, SC-34.* · issue #1145 · [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6
+
+**Use cases:** UC-ID-04, UC-ID-10
+
+A password set or changed through a reset, a provider connected or disconnected, and an operator's
+opening of the password are told to the person by mail as well as recorded.
+
+**Acceptance:** each change sends its notice to the account's address; none carries a secret.
+
+---
+
+## SC-37 — Connect a provider from a signed-in session **[L]**
+
+*Depends on: SC-33.* · issue #1146 · [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1
+
+**Use cases:** UC-ID-10
+
+A person who is signed in connects a provider from their settings, with their own proof and second
+factor - the way for an identity whose address differs from the account's (a guest, a changed address),
+which the first, unauthenticated arrival never connects.
+
+**Acceptance:** a differently addressed identity is connected only from a signed-in session with the
+account's proof; it is found afterwards by issuer and subject.
 
 ---
 

@@ -1,6 +1,6 @@
 # ADR-0071 — Who a sign-in provider admits: the directory, not the text of an address
 
-**Status:** accepted · **Date:** 2026-09-29 · **Accepted:** 2026-09-30
+**Status:** accepted (amended by [ADR-0078](./ADR-0078-the-ways-back-in.md): the addendum's E2, §1's authoritative address) · **Date:** 2026-09-29 · **Accepted:** 2026-09-30
 
 ## Context
 

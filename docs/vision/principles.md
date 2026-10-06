@@ -1,6 +1,6 @@
 # Product principles
 
-Fifteen principles every use case is measured against. They are about what a **person** meets,
+Sixteen principles every use case is measured against. They are about what a **person** meets,
 not about how the code is layered — the engineering rules are in [`CLAUDE.md`](../../CLAUDE.md)
 and the ADRs, and several principles here are the reason those rules exist.
 
@@ -207,6 +207,22 @@ and lets any platform sit in front of it.
 
 **Broken when** a feature needs a price, a contract term or a call to a licence server to decide
 what Hubtask does.
+
+### P-16: Nobody is locked out
+
+**Rule.** No decision of the platform or of a level above a person — a withdrawn provider, a
+switched-off method, a tightened rule, a restore, an outage — takes away *whether* that person can
+reach Hubtask and their data. It may change *how* they sign in. Where a door would leave somebody
+with no way in, a way stays open or comes back, and the person is told.
+
+**Why.** A person's work lives in Hubtask; losing the way in is losing the work, whoever caused it.
+The owner set the rule on 2026-10-03 ([ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) §4,
+[ADR-0078](../adr/ADR-0078-the-ways-back-in.md)).
+
+**Broken when** any state of an account that a change can produce — a kind of account, a kind of
+workspace, a deployment — is left with no way in that works, and nobody told the person what to do.
+Its limits, where P-02 wins because no proof is left: a lost second factor with lost recovery codes,
+which an administrator answers.
 
 ---
 
