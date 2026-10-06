@@ -523,13 +523,30 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 // but is not authoritative for. Authority is what stands in for a proof where there is none - a new
 // account, an invitation activated without its link - so where the person brings one, the provider
 // need not vouch for the mailbox. The caller has checked that the arriving address is the account's
-// own, and nothing is created through this. Under `DOMAINS` it widens nothing: the directory or
-// domain list is the workspace's statement of who comes in through this provider.
+// own, and nothing is created through this. Under `DOMAINS` it widens nothing for an existing
+// account: the directory or domain list is the workspace's statement of who comes in through this
+// provider. The invitation's link is the one exception, `MayAdmitInvitation`.
 func (p IdentityProvider) MayAdmitWithProof(arriving Arriving) bool {
 	if p.MayAdmit(arriving) {
 		return true
 	}
 	return p.Provisioning == ProvisionInvitedOnly &&
+		arriving.EmailVerified && emailDomain(arriving.Email) != ""
+}
+
+// MayAdmitInvitation answers whether this provider may bring in the one invited account a sign-in
+// started from - the invitation's own link, bound to the flow (ADR-0078 §1).
+//
+// Everything `MayAdmitWithProof` admits, and under `DOMAINS` an address outside the directory or
+// domain list too. The invitation is an administrator's explicit choice of this person, so the list
+// does not overrule it - and it widens nothing beyond the invitation itself: the caller has checked
+// that the verified address is the invited account's, and the link proves that one account only.
+// An unverified address is never admitted, and a mode this build does not know admits nobody.
+func (p IdentityProvider) MayAdmitInvitation(arriving Arriving) bool {
+	if p.MayAdmitWithProof(arriving) {
+		return true
+	}
+	return p.Provisioning == ProvisionDomains &&
 		arriving.EmailVerified && emailDomain(arriving.Email) != ""
 }
 

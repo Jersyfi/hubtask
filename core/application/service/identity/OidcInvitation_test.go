@@ -317,3 +317,60 @@ func TestAnInvitationsFlowDoesNotSignInSomebodyElse(t *testing.T) {
 	}
 	assertStillInvited(t, f, invitation)
 }
+
+// Under *Only these domains/directories* the invitation's own link admits the invited address even
+// outside the list - the invitation is the administrator's explicit choice of this person - and
+// widens nothing beyond it: the plain arrival stays refused, the link admits nobody but the invited
+// address, and an existing member outside the list is not brought to the LINK step.
+func TestUnderDomainsTheLinkAdmitsTheInvitedAddressOutsideTheList(t *testing.T) {
+	outsideTheList := func(t *testing.T) (*oidcFixture, secret.Secret) {
+		t.Helper()
+		f, invitation := invitedFixture(t, domain.ProvisionDomains)
+		f.store.rows[0].AllowedEmailDomains = []string{"elsewhere.org"}
+		return f, invitation
+	}
+
+	t.Run("through the link", func(t *testing.T) {
+		f, invitation := outsideTheList(t)
+		result, err := complete(t, f, startInvited(t, f, invitation))
+		if err != nil {
+			t.Fatalf("the invited address outside the list answered %v", err)
+		}
+		if pairOf(result).Session.AccountID != invitedAda().ID ||
+			f.accounts.byID[invitedAda().ID].Status != domain.AccountActive {
+			t.Error("the arrival through the link did not activate the invited account")
+		}
+	})
+	t.Run("without the link", func(t *testing.T) {
+		f, invitation := outsideTheList(t)
+		f.relying.identity.AddressAuthoritative = true
+		_, err := complete(t, f, start(t, f))
+		if detailOf(err) != "identity_provider.not_admitted" {
+			t.Fatalf("the plain arrival outside the list answered %v", err)
+		}
+		assertStillInvited(t, f, invitation)
+	})
+	t.Run("somebody else through the link", func(t *testing.T) {
+		f, invitation := outsideTheList(t)
+		f.relying.identity.Email = "eve@example.org"
+		f.relying.identity.Subject = "provider-subject-eve"
+		_, err := complete(t, f, startInvited(t, f, invitation))
+		if detailOf(err) != "identity_provider.invitation_address_differs" {
+			t.Fatalf("another address through the link answered %v", err)
+		}
+		assertStillInvited(t, f, invitation)
+	})
+	t.Run("an existing member outside the list", func(t *testing.T) {
+		f := newOidcFixture(t, now, ownerAccount)
+		f.session.withAccount("bert@example.org", "correct horse battery")
+		f.store.rows[0].Provisioning = domain.ProvisionDomains
+		f.store.rows[0].AllowedEmailDomains = []string{"elsewhere.org"}
+		f.relying.identity = provider.Identity{
+			Subject: "a-subject", Email: "bert@example.org", EmailVerified: true, DisplayName: "Bert",
+		}
+		result, err := complete(t, f, start(t, f))
+		if detailOf(err) != "identity_provider.not_admitted" || result.Challenge != nil {
+			t.Fatalf("a member outside the list answered (%+v, %v), want a refusal", result, err)
+		}
+	})
+}

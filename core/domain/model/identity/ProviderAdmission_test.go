@@ -216,6 +216,18 @@ func TestTheInvitationLinkAdmitsOnlyWhatInvitedOnlyNeeds(t *testing.T) {
 		t.Fatalf("configuring: %v", err)
 	}
 	if domains.MayAdmitWithProof(verified) {
-		t.Error("the invitation's link widened a DOMAINS list")
+		t.Error("an existing account's own proof widened a DOMAINS list")
+	}
+
+	// The invitation's own link is the administrator's explicit choice of one person, and the list
+	// does not overrule it - for a verified address only.
+	if !domains.MayAdmitInvitation(verified) {
+		t.Error("the invitation's link did not admit the invited address outside the DOMAINS list")
+	}
+	if domains.MayAdmitInvitation(unverified) {
+		t.Error("the invitation's link admitted an address the provider did not verify")
+	}
+	if !invitedOnly.MayAdmitInvitation(verified) || invitedOnly.MayAdmitInvitation(unverified) {
+		t.Error("the invitation's link reads INVITED_ONLY differently from MayAdmitWithProof")
 	}
 }

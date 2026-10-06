@@ -564,7 +564,8 @@ func (w OidcWriter) notAdmitted(
 // account is activated and connected, or nothing happens and the invitation stays as it was.
 //
 // The link is the second proof, so under INVITED_ONLY the provider need not be authoritative for
-// the address - for this account only. What it does not relax is the address: the provider's
+// the address, and under DOMAINS the invited address need not be on the list - for this account
+// only (MayAdmitInvitation). What it does not relax is the address: the provider's
 // verified address has to be the invited one. A person who signed in there as somebody else is told
 // so, and their invitation is still waiting for them.
 func (w OidcWriter) arriveInvited(
@@ -581,7 +582,7 @@ func (w OidcWriter) arriveInvited(
 		w.Session.failure(ctx, FailureRedemption)
 		return domain.Account{}, redemptionRefused()
 	}
-	if !configured.MayAdmitWithProof(admissionOf(arriving)) {
+	if !configured.MayAdmitInvitation(admissionOf(arriving)) {
 		return domain.Account{}, turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_admitted"))
 	}
 	if !w.sameAddress(arriving.Email, invited.Email) {

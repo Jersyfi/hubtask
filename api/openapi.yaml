@@ -3841,8 +3841,9 @@ paths:
 
         An **invited** account is activated and connected only with a second proof (ADR-0078 §1):
         the sign-in started from the invitation's own link (`invitation_token` at the start), or
-        the provider is authoritative for the address. The provider's verified address must equal
-        the invited one either way. Without the proof nothing is connected or activated and the
+        the provider is authoritative for the address. Through the link the invited address is
+        admitted even outside a domains or directories list. The provider's verified address must
+        equal the invited one either way. Without the proof nothing is connected or activated and the
         answer is `identity_provider.invitation_needs_link`; a different address is
         `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted
         meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the
@@ -8654,8 +8655,9 @@ components:
             invitation of this workspace, its account still invited - and **not spent**: the flow
             remembers which account it invites, and only an arrival that succeeds accepts it. It
             is the second proof that lets a provider activate the invited account even where the
-            provider is not authoritative for the address, and only for that account; the
-            provider's verified address must still equal the invited one. An unknown, expired,
+            provider is not authoritative for the address, or the address is outside a domains or
+            directories list - only for that account; the provider's verified address must still
+            equal the invited one. An unknown, expired,
             spent or foreign token is refused with `auth.redemption_failed`, the one sentence the
             invitation's other half answers. The token never travels to the provider.
 
