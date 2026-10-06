@@ -3778,6 +3778,12 @@ type AccountSummaryKind string
 // AccountSummaryStatus defines model for AccountSummary.Status.
 type AccountSummaryStatus string
 
+// AccountsWithoutProvider How many active people of the workspace no provider switched on there signs in (ADR-0078 §1). A number, never a list.
+type AccountsWithoutProvider struct {
+	// Count The active people - service accounts and invitations aside - without an identity at any provider that is a way in here now.
+	Count int `json:"count"`
+}
+
 // ActivityEntry One step of an entry's history. Append-only: nothing edits one, and what removes one is the deletion of the entry it belongs to.
 type ActivityEntry struct {
 	// Actor Who did it. The label is not here: the account is one request away and this record is deleted with its entry, so there is nothing for a copy of somebody's name to outlive.
@@ -10611,6 +10617,9 @@ type ServerInterface interface {
 	// UpdateWorkspace Change how the workspace is set up
 	// (PATCH /tenant)
 	UpdateWorkspace(w http.ResponseWriter, r *http.Request, params UpdateWorkspaceParams)
+	// CountAccountsWithoutProvider How many people here no provider switched on here signs in
+	// (GET /tenant/accounts-without-provider)
+	CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request)
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
@@ -20143,6 +20152,20 @@ func (siw *ServerInterfaceWrapper) UpdateWorkspace(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// CountAccountsWithoutProvider operation middleware
+func (siw *ServerInterfaceWrapper) CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CountAccountsWithoutProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTrash operation middleware
 func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Request) {
 
@@ -20823,6 +20846,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant", wrapper.ReadWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant", wrapper.UpdateWorkspace)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureFirstIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-providers", wrapper.ListIdentityProviders)

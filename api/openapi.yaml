@@ -4573,6 +4573,34 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /tenant/accounts-without-provider:
+    get:
+      tags: [auth]
+      operationId: countAccountsWithoutProvider
+      summary: How many people here no provider switched on here signs in
+      description: >
+        The number the password switch says before the password is switched off (ADR-0078 §1,
+        UC-ID-12): the active people of this workspace who hold no identity at any provider that is
+        a way in here now - the workspace's own switched on, the installation's taken and not past
+        a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in
+        with a token, so neither is counted. Where the password goes off, each of them connects a
+        provider through *Forgot your password?* - or, holding a password, at the provider's first
+        arrival with it.
+
+        A number, never a list: the screen needs how many, not who.
+
+        Needs the permission that manages structure, or the auditor's read-only configuration
+        permission, as the list of providers does.
+      responses:
+        "200":
+          description: The count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountsWithoutProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /identity-provider:
     get:
       tags: [auth]
@@ -8657,6 +8685,18 @@ components:
           description: >
             Present exactly when a recovery code completed this sign-in: how many remain. Zero is
             the number to act on - re-enrol before the authenticator is needed again.
+
+    AccountsWithoutProvider:
+      type: object
+      description: >
+        How many active people of the workspace no provider switched on there signs in
+        (ADR-0078 §1). A number, never a list.
+      required: [count]
+      properties:
+        count:
+          type: integer
+          minimum: 0
+          description: The active people - service accounts and invitations aside - without an identity at any provider that is a way in here now.
 
     OidcStart:
       type: object

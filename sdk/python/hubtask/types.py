@@ -168,6 +168,10 @@ class SessionTokens(TypedDict, total=False):
     session: Required["Session"]
     recovery_codes_remaining: int | None
 
+class AccountsWithoutProvider(TypedDict, total=False):
+    """How many active people of the workspace no provider switched on there signs in (ADR-0078 §1). A number, never a list."""
+    count: Required[int]
+
 class OidcStart(TypedDict, total=False):
     """What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely."""
     provider_id: str | None

@@ -3784,6 +3784,12 @@ type AccountSummaryKind string
 // AccountSummaryStatus defines model for AccountSummary.Status.
 type AccountSummaryStatus string
 
+// AccountsWithoutProvider How many active people of the workspace no provider switched on there signs in (ADR-0078 §1). A number, never a list.
+type AccountsWithoutProvider struct {
+	// Count The active people - service accounts and invitations aside - without an identity at any provider that is a way in here now.
+	Count int `json:"count"`
+}
+
 // ActivityEntry One step of an entry's history. Append-only: nothing edits one, and what removes one is the deletion of the entry it belongs to.
 type ActivityEntry struct {
 	// Actor Who did it. The label is not here: the account is one request away and this record is deleted with its entry, so there is nothing for a copy of somebody's name to outlive.
@@ -13411,6 +13417,15 @@ type ClientInterface interface {
 	// Corresponds with PATCH /tenant (the `UpdateWorkspace` operationId).
 	UpdateWorkspaceWithApplicationMergePatchPlusJSONBody(ctx context.Context, params *UpdateWorkspaceParams, body UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CountAccountsWithoutProvider How many people here no provider switched on here signs in
+	//
+	// The number the password switch says before the password is switched off (ADR-0078 §1, UC-ID-12): the active people of this workspace who hold no identity at any provider that is a way in here now - the workspace's own switched on, the installation's taken and not past a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in with a token, so neither is counted. Where the password goes off, each of them connects a provider through *Forgot your password?* - or, holding a password, at the provider's first arrival with it.
+	// A number, never a list: the screen needs how many, not who.
+	// Needs the permission that manages structure, or the auditor's read-only configuration permission, as the list of providers does.
+	//
+	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
+	CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListTrash What is in the trash
 	//
 	// One entry per deletion, newest first - not one per deleted row. A hub with two hundred entries under it went into the trash as one act and comes back as one act, so what is listed is the root of each deletion: the thing somebody deleted. The batch beside it is what took the rest, and restoring the root brings all of it back.
@@ -20834,6 +20849,25 @@ func (c *Client) UpdateWorkspaceWithBody(ctx context.Context, params *UpdateWork
 // Corresponds with PATCH /tenant (the `UpdateWorkspace` operationId).
 func (c *Client) UpdateWorkspaceWithApplicationMergePatchPlusJSONBody(ctx context.Context, params *UpdateWorkspaceParams, body UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateWorkspaceRequestWithApplicationMergePatchPlusJSONBody(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CountAccountsWithoutProvider How many people here no provider switched on here signs in
+//
+// The number the password switch says before the password is switched off (ADR-0078 §1, UC-ID-12): the active people of this workspace who hold no identity at any provider that is a way in here now - the workspace's own switched on, the installation's taken and not past a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in with a token, so neither is counted. Where the password goes off, each of them connects a provider through *Forgot your password?* - or, holding a password, at the provider's first arrival with it.
+// A number, never a list: the screen needs how many, not who.
+// Needs the permission that manages structure, or the auditor's read-only configuration permission, as the list of providers does.
+//
+// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
+func (c *Client) CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCountAccountsWithoutProviderRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -33825,6 +33859,33 @@ func NewUpdateWorkspaceRequestWithBody(server string, params *UpdateWorkspacePar
 	return req, nil
 }
 
+// NewCountAccountsWithoutProviderRequest constructs an http.Request for the CountAccountsWithoutProvider method
+func NewCountAccountsWithoutProviderRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/accounts-without-provider")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListTrashRequest constructs an http.Request for the ListTrash method
 func NewListTrashRequest(server string, params *ListTrashParams) (*http.Request, error) {
 	var err error
@@ -38240,6 +38301,17 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /tenant (the `UpdateWorkspace` operationId).
 	UpdateWorkspaceWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, params *UpdateWorkspaceParams, body UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateWorkspaceResult, error)
+
+	// CountAccountsWithoutProviderWithResponse How many people here no provider switched on here signs in
+	//
+	// The number the password switch says before the password is switched off (ADR-0078 §1, UC-ID-12): the active people of this workspace who hold no identity at any provider that is a way in here now - the workspace's own switched on, the installation's taken and not past a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in with a token, so neither is counted. Where the password goes off, each of them connects a provider through *Forgot your password?* - or, holding a password, at the provider's first arrival with it.
+	// A number, never a list: the screen needs how many, not who.
+	// Needs the permission that manages structure, or the auditor's read-only configuration permission, as the list of providers does.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
+	CountAccountsWithoutProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CountAccountsWithoutProviderResult, error)
 
 	// ListTrashWithResponse What is in the trash
 	//
@@ -51392,6 +51464,54 @@ func (r UpdateWorkspaceResult) ContentType() string {
 	return ""
 }
 
+type CountAccountsWithoutProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AccountsWithoutProvider
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CountAccountsWithoutProviderResult) GetJSON200() *AccountsWithoutProvider {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CountAccountsWithoutProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CountAccountsWithoutProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CountAccountsWithoutProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CountAccountsWithoutProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CountAccountsWithoutProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListTrashResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -58023,6 +58143,23 @@ func (c *ClientWithResponses) UpdateWorkspaceWithApplicationMergePatchPlusJSONBo
 		return nil, err
 	}
 	return ParseUpdateWorkspaceResult(rsp)
+}
+
+// CountAccountsWithoutProviderWithResponse How many people here no provider switched on here signs in
+//
+// The number the password switch says before the password is switched off (ADR-0078 §1, UC-ID-12): the active people of this workspace who hold no identity at any provider that is a way in here now - the workspace's own switched on, the installation's taken and not past a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in with a token, so neither is counted. Where the password goes off, each of them connects a provider through *Forgot your password?* - or, holding a password, at the provider's first arrival with it.
+// A number, never a list: the screen needs how many, not who.
+// Needs the permission that manages structure, or the auditor's read-only configuration permission, as the list of providers does.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
+func (c *ClientWithResponses) CountAccountsWithoutProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CountAccountsWithoutProviderResult, error) {
+	rsp, err := c.CountAccountsWithoutProvider(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCountAccountsWithoutProviderResult(rsp)
 }
 
 // ListTrashWithResponse What is in the trash
@@ -67627,6 +67764,39 @@ func ParseUpdateWorkspaceResult(rsp *http.Response) (*UpdateWorkspaceResult, err
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Workspace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCountAccountsWithoutProviderResult parses an HTTP response from a CountAccountsWithoutProviderWithResponse call
+func ParseCountAccountsWithoutProviderResult(rsp *http.Response) (*CountAccountsWithoutProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CountAccountsWithoutProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AccountsWithoutProvider
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

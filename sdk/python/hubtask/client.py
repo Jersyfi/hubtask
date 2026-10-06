@@ -719,6 +719,10 @@ class Client:
         """Change how the workspace is set up"""
         return self._call("PATCH", "/tenant", {}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/merge-patch+json", "json")
 
+    def count_accounts_without_provider(self) -> "AccountsWithoutProvider":
+        """How many people here no provider switched on here signs in"""
+        return self._call("GET", "/tenant/accounts-without-provider", {}, None, {}, None, "none", None, "json")
+
     def read_identity_provider(self) -> "IdentityProvider":
         """The workspace's first identity provider"""
         return self._call("GET", "/identity-provider", {}, None, {}, None, "none", None, "json")

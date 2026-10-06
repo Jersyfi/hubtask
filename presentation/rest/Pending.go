@@ -1046,6 +1046,10 @@ func (pending) ListIdentityProviders(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+func (pending) CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) CreateIdentityProvider(w http.ResponseWriter, r *http.Request, _ openapi.CreateIdentityProviderParams) {
 	notAvailable(w, r)
 }
