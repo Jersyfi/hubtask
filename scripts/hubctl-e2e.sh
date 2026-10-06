@@ -1243,7 +1243,11 @@ $RUNTIME rm -f "$AI_STUB" > /dev/null 2>&1 || true
 $RUNTIME run -d --name "$AI_STUB" --network "${PROJECT}_default" \
 	-v "$WORK_DIR/ai-stub.conf:/etc/nginx/conf.d/default.conf:ro" \
 	nginx:alpine > /dev/null
-trap '$RUNTIME rm -f "$AI_STUB" > /dev/null 2>&1 || true' EXIT
+# The stub's removal is added to the cleanup, never put in its place: an EXIT trap replaces the one
+# before it, and this one used to - so the stack and the work directory with the session's generated
+# credentials outlived every run, and a local `gate-compose` after it found port 18081 taken. The
+# status is handed on so that `cleanup` still sees a failure and prints the server's last words.
+trap 'status=$?; $RUNTIME rm -f "$AI_STUB" > /dev/null 2>&1 || true; (exit "$status"); cleanup' EXIT
 
 # The provider, set through the client. `--allow-processing` is its own flag because consent is its
 # own decision (J-02): configuring a provider and agreeing to send this workspace's content to it
@@ -1381,7 +1385,7 @@ expect_contains "the prompt" "$rendered" "resource_link"
 
 # The stub has done its work; the multi-mode stack below brings up its own everything.
 $RUNTIME rm -f "$AI_STUB" > /dev/null 2>&1 || true
-trap - EXIT
+trap cleanup EXIT
 fi
 
 # ============ The milestone's proof (H-16) ============
