@@ -20,8 +20,10 @@
 name: Claude architecture review
 
 on:
+  # Once, when the pull request is opened ready or leaves draft: the notice never changes, so a
+  # push had nothing to add to it (ADR-0078).
   pull_request:
-    types: [opened, synchronize, ready_for_review]
+    types: [opened, ready_for_review]
 
 permissions:
   contents: read
@@ -46,8 +48,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          # The marker is what makes the comment sticky: one comment per pull request, rewritten on
-          # every push, rather than a new one each time somebody pushes a fixup.
+          # The marker is what makes the comment sticky: one comment per pull request, rewritten
+          # when the pull request leaves draft again, rather than a new one each time.
           MARKER='<!-- hubtask:architecture-review -->'
 
           cat > comment.md <<'COMMENT'
