@@ -92,6 +92,9 @@ type StartOidcSignInCommand struct {
 	LoginHint    string
 	TenantSlug   string
 	TenantHeader string
+	// InvitationToken is the redemption token of the invitation this sign-in accepts, when it
+	// began on the invitation card (ADR-0078 §1). Empty for every other sign-in.
+	InvitationToken secret.Secret
 }
 
 // OidcAuthorization is the answer: where to go, and the handle to come back with.
@@ -118,6 +121,13 @@ func (h StartOidcSignIn) Execute(
 		return OidcAuthorization{}, err
 	}
 
+	// Checked before the provider is asked, so an invitation that cannot be redeemed is told on the
+	// card rather than after a round trip to somebody else's site.
+	invited, err := w.invitationOf(ctx, scope, cmd.InvitationToken)
+	if err != nil {
+		return OidcAuthorization{}, err
+	}
+
 	state, verifier, nonce, err := w.draw(tenantID)
 	if err != nil {
 		return OidcAuthorization{}, err
@@ -126,7 +136,7 @@ func (h StartOidcSignIn) Execute(
 	now := w.Session.Clock.Now()
 	flow, err := domain.NewOidcFlow(domain.NewOidcFlowInput{
 		ID: w.Session.IDs.NewID(), TenantID: tenantID, ProviderID: configured.ID,
-		Nonce: nonce, Verifier: verifier, Now: now,
+		Nonce: nonce, Verifier: verifier, Now: now, InvitedAccountID: invited,
 	})
 	if err != nil {
 		return OidcAuthorization{}, err
@@ -153,6 +163,49 @@ func (h StartOidcSignIn) Execute(
 	return OidcAuthorization{
 		URL: url, State: secret.New(state.Secret()), ExpiresAt: flow.ExpiresAt,
 	}, nil
+}
+
+// invitationOf reads the invitation a sign-in starts from and answers the account it invites, or
+// zero where the sign-in carries none (ADR-0078 §1).
+//
+// Checked and **not spent**: what the flow keeps is which account the invitation names, and only an
+// arrival that succeeds accepts it. Unknown, expired, already accepted and another workspace's are
+// one refusal, the redemption's own - which addresses hold an open invitation is not for a probe to
+// learn, here any more than at the password's door.
+func (w OidcWriter) invitationOf(
+	ctx context.Context, scope persistence.Scope, presented secret.Secret,
+) (shared.ID, error) {
+	if presented.IsEmpty() {
+		return "", nil
+	}
+	token, err := domain.ParseRedemptionToken(presented.Reveal())
+	if err != nil || token.TenantID() != scope.TenantID {
+		w.Session.failure(ctx, FailureRedemption)
+		return "", redemptionRefused()
+	}
+	var invited shared.ID
+	err = w.Session.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		found, err := w.Session.Accounts.FindByRedemptionToken(ctx, token)
+		if err != nil {
+			if errors.Is(err, shared.ErrNotFound) {
+				w.Session.failure(ctx, FailureRedemption)
+				return redemptionRefused()
+			}
+			return err
+		}
+		if !found.ExpiresAt.After(w.Session.Clock.Now()) || found.Account.Status != domain.AccountInvited {
+			w.Session.failure(ctx, FailureRedemption)
+			return redemptionRefused()
+		}
+		// The workspace's standing (H-06), as the redemption asks it: an invitation into a
+		// suspended workspace waits the suspension out.
+		if err := found.TenantStatus.Verify(); err != nil {
+			return err
+		}
+		invited = found.Account.ID
+		return nil
+	})
+	return invited, err
 }
 
 // CompleteOidcSignIn is the second half: the code becomes a session.
@@ -755,6 +808,10 @@ func (h StartOidcSignIn) Descriptor() usecase.Descriptor {
 				Description: "The subdomain the request arrived under, in multi mode."},
 			{Name: "tenant_header", Kind: usecase.KindString,
 				Description: "The X-Hubtask-Tenant header, when sent."},
+			{Name: "invitation_token", Kind: usecase.KindString,
+				Description: "The redemption token of the invitation this sign-in accepts. Checked, not " +
+					"spent: the flow remembers the invited account, and only an arrival that succeeds " +
+					"accepts the invitation."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: OidcSignInStartedAction, TargetType: identityProviderTarget,
@@ -775,10 +832,11 @@ func (h StartOidcSignIn) invoke(
 		return nil, err
 	}
 	authorization, err := h.Execute(ctx, StartOidcSignInCommand{
-		ProviderID:   providerID,
-		LoginHint:    in.String("login_hint"),
-		TenantSlug:   in.String("tenant_slug"),
-		TenantHeader: in.String("tenant_header"),
+		ProviderID:      providerID,
+		LoginHint:       in.String("login_hint"),
+		TenantSlug:      in.String("tenant_slug"),
+		TenantHeader:    in.String("tenant_header"),
+		InvitationToken: secret.New(in.String("invitation_token")),
 	})
 	if err != nil {
 		return nil, err

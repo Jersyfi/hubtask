@@ -6206,6 +6206,9 @@ type OidcCallback struct {
 
 // OidcStart What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely.
 type OidcStart struct {
+	// InvitationToken The redemption token of the invitation this sign-in accepts, when the person chose the provider on the invitation card (ADR-0078 §1). It is checked here - a standing invitation of this workspace, its account still invited - and **not spent**: the flow remembers which account it invites, and only an arrival that succeeds accepts it. It is the second proof that lets a provider activate the invited account even where the provider is not authoritative for the address, and only for that account; the provider's verified address must still equal the invited one. An unknown, expired, spent or foreign token is refused with `auth.redemption_failed`, the one sentence the invitation's other half answers. The token never travels to the provider.
+	InvitationToken *string `json:"invitation_token,omitempty"`
+
 	// LoginHint An address to pass the provider as `login_hint`, so somebody who typed it here does not type it again. A hint and nothing more - it never decides which account is signed in, which is the ID token's `sub` and only that.
 	LoginHint *string `json:"login_hint,omitempty"`
 
@@ -10595,6 +10598,7 @@ type ClientInterface interface {
 	// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
+	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10606,6 +10610,7 @@ type ClientInterface interface {
 	// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
+	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -14856,6 +14861,7 @@ func (c *Client) CompleteOidcSignIn(ctx context.Context, body CompleteOidcSignIn
 // The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
+// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 //
 // Takes any type of body and a specified content type.
 //
@@ -14877,6 +14883,7 @@ func (c *Client) StartOidcSignInWithBody(ctx context.Context, contentType string
 // The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
+// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -35085,6 +35092,7 @@ type ClientWithResponsesInterface interface {
 	// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
+	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35096,6 +35104,7 @@ type ClientWithResponsesInterface interface {
 	// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
+	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -52961,6 +52970,7 @@ func (c *ClientWithResponses) CompleteOidcSignInWithResponse(ctx context.Context
 // The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
+// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -52978,6 +52988,7 @@ func (c *ClientWithResponses) StartOidcSignInWithBodyWithResponse(ctx context.Co
 // The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
 // Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
+// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
