@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -60,13 +61,27 @@ const (
 	PasswordClosedExpired = "EXPIRED"
 )
 
+// OpeningNotices tells a workspace's administrators about an opening of its password (ADR-0078 §3):
+// when it opens, with its end, and when it closes, with how. Called inside the transaction that
+// opened or closed it, so the act and its notices commit together.
+type OpeningNotices interface {
+	PasswordOpened(ctx context.Context, tenantID shared.ID, until time.Time) error
+	PasswordClosed(ctx context.Context, tenantID shared.ID, ended string) error
+}
+
 // PasswordOpeningWriter is what opening and closing share.
 type PasswordOpeningWriter struct {
 	// Instance is the scope and the register (ADR-0070 §1), checked as for every instance act.
-	Instance   InstanceWriter
-	Tenants    adminrepo.Tenants
-	Journal    adminrepo.Journal
-	Audit      audit.Sink
+	Instance InstanceWriter
+	Tenants  adminrepo.Tenants
+	Journal  adminrepo.Journal
+	Audit    audit.Sink
+	// Jobs seeds the job that records the end once the time has passed - in the workspace's own
+	// write, because nothing may enumerate workspaces to find openings that ended.
+	Jobs JobQueue
+	// Notices tells the workspace's administrators. Nil tells nobody, which is the shape of a test
+	// about something else, never of the server (cmd/server wires it).
+	Notices    OpeningNotices
 	StepUp     stepup.Verifier
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -156,6 +171,21 @@ func (h OpenTenantPassword) Execute(
 		}); err != nil {
 			return err
 		}
+		// The end, recorded when it comes. One job per workspace: a second opening moves a waiting
+		// job no later, and the job comes back while the opening it finds is still running.
+		if w.Jobs != nil {
+			if _, err := w.Jobs.Enqueue(ctx, queue.Request{
+				Kind: queue.KindPasswordOpeningEnd, TenantID: cmd.TenantID,
+				DedupeKey: cmd.TenantID.String(), RunAt: opening.Until,
+			}); err != nil {
+				return err
+			}
+		}
+		if w.Notices != nil {
+			if err := w.Notices.PasswordOpened(ctx, cmd.TenantID, opening.Until); err != nil {
+				return err
+			}
+		}
 
 		record.PasswordOpening = opening
 		opened = record
@@ -220,11 +250,60 @@ func (w PasswordOpeningWriter) close(
 	}); err != nil {
 		return false, err
 	}
-	return true, w.Journal.Record(ctx, adminrepo.InstanceEvent{
+	if err := w.Journal.Record(ctx, adminrepo.InstanceEvent{
 		ID: w.IDs.NewID(), OccurredAt: now, Action: journalPasswordClosed,
 		TenantID: record.ID, TenantSlug: record.Slug, ActorLabel: actor.AccountName,
 		Details: map[string]any{"until": until, "ended": ended},
-	})
+	}); err != nil {
+		return false, err
+	}
+	if w.Notices != nil {
+		if err := w.Notices.PasswordClosed(ctx, record.ID, ended); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+// EndPasswordOpening records the end of an opening whose time has passed (KindPasswordOpeningEnd).
+//
+// The password closed at that moment whatever this does: the end is honoured where the opening is
+// read. What is left is what a person can see - the trail entry, the journal entry, the notices -
+// written here, in the workspace's own transaction, once.
+type EndPasswordOpening struct{ Writer PasswordOpeningWriter }
+
+// Execute ends what is due and answers how long until it should look again: zero where nothing is
+// left to wait for - the opening ended now, or was closed before, or never was.
+func (h EndPasswordOpening) Execute(ctx context.Context, tenantID shared.ID) (time.Duration, error) {
+	w := h.Writer
+	var again time.Duration
+	err := w.UnitOfWork.Within(ctx, persistence.Scope{TenantID: tenantID},
+		func(ctx context.Context) error {
+			record, err := w.Tenants.Find(ctx)
+			if errors.Is(err, shared.ErrNotFound) {
+				// The workspace went while the job waited; there is nobody left to tell.
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			now := w.Clock.Now()
+			opening := record.PasswordOpening
+			switch {
+			case opening.Until.IsZero():
+				// Closed early, and the close was recorded then.
+				return nil
+			case opening.InForce(now):
+				// A later opening replaced the one this job was seeded for.
+				again = opening.Until.Sub(now)
+				return nil
+			}
+			_, err = w.close(ctx, record, appshared.ActorContext{
+				Kind: appshared.ActorSystem, TenantID: tenantID, AccountName: "the installation",
+			}, now, PasswordClosedExpired)
+			return err
+		})
+	return again, err
 }
 
 // CloseTenantPassword ends an opening before its time.

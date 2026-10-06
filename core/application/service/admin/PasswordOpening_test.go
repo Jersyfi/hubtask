@@ -4,6 +4,7 @@
 package admin
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
@@ -30,6 +32,21 @@ type openingFixture struct {
 	audit   *auditSink
 	stepUp  *stepUpFake
 	work    *unitOfWork
+	jobs    *jobsFake
+	notices *noticesFake
+}
+
+// noticesFake records what the administrators were to be told.
+type noticesFake struct{ told []string }
+
+func (n *noticesFake) PasswordOpened(_ context.Context, tenantID shared.ID, until time.Time) error {
+	n.told = append(n.told, "opened "+tenantID.String()+" "+until.Format(time.RFC3339))
+	return nil
+}
+
+func (n *noticesFake) PasswordClosed(_ context.Context, tenantID shared.ID, ended string) error {
+	n.told = append(n.told, "closed "+tenantID.String()+" "+ended)
+	return nil
 }
 
 const openingProof = "hbt_sup_opening"
@@ -42,9 +59,11 @@ func newOpeningFixture(register *registerStore) *openingFixture {
 		}},
 		journal: &journalStore{}, audit: &auditSink{},
 		stepUp: &stepUpFake{expect: openingProof}, work: &unitOfWork{},
+		jobs: &jobsFake{}, notices: &noticesFake{},
 	}
 	f.writer = PasswordOpeningWriter{
 		Instance: instance, Tenants: f.tenants, Journal: f.journal, Audit: f.audit,
+		Jobs: f.jobs, Notices: f.notices,
 		StepUp: f.stepUp, UnitOfWork: f.work, Clock: clock.Fixed(now), IDs: &ids{},
 		Text: text.Composing{},
 	}
@@ -283,4 +302,92 @@ func TestTheOpeningIsReachableThroughTheRegistry(t *testing.T) {
 func changedTo(entry audit.Entry, field string) any {
 	change, _ := entry.Changes[field].(map[string]any)
 	return change["to"]
+}
+
+// The administrators are told when it opens, with its end, and when it closes, with how; and the
+// opening's own write seeds the job that records its end - per workspace, at that end.
+func TestAnOpeningSeedsItsEndAndTellsTheAdministrators(t *testing.T) {
+	f := newOpeningFixture(newRegister(operatorID))
+	opened, err := f.open(t, operator(), 24, openingProof)
+	if err != nil {
+		t.Fatalf("opening: %v", err)
+	}
+	until := opened.PasswordOpening.Until
+	if len(f.jobs.requests) != 1 {
+		t.Fatalf("%d jobs, want the one that records the end", len(f.jobs.requests))
+	}
+	job := f.jobs.requests[0]
+	if job.Kind != queue.KindPasswordOpeningEnd || job.TenantID != lifecycleTenant ||
+		job.DedupeKey != lifecycleTenant.String() || !job.RunAt.Equal(until) {
+		t.Errorf("the end job is %+v", job)
+	}
+	if want := "opened " + lifecycleTenant.String() + " " + until.Format(time.RFC3339); len(f.notices.told) != 1 || f.notices.told[0] != want {
+		t.Errorf("the administrators were told %v, want %q", f.notices.told, want)
+	}
+
+	if _, err := (CloseTenantPassword{Writer: f.writer}).Execute(t.Context(), operator(), lifecycleTenant); err != nil {
+		t.Fatalf("closing: %v", err)
+	}
+	if want := "closed " + lifecycleTenant.String() + " " + PasswordClosedByOperator; len(f.notices.told) != 2 || f.notices.told[1] != want {
+		t.Errorf("the administrators were told %v, want %q last", f.notices.told, want)
+	}
+}
+
+func TestTheEndOfAnOpeningIsRecordedWhenItsTimeHasPassed(t *testing.T) {
+	f := newOpeningFixture(newRegister(operatorID))
+	f.tenants.record.PasswordOpening = domain.PasswordOpening{
+		Until: now.Add(-time.Minute), Requester: "TICKET-4711", Reason: "down",
+	}
+
+	again, err := EndPasswordOpening{Writer: f.writer}.Execute(t.Context(), lifecycleTenant)
+	if err != nil || again != 0 {
+		t.Fatalf("ending answered (%v, %v)", again, err)
+	}
+	if !f.tenants.record.PasswordOpening.Until.IsZero() {
+		t.Error("the row still holds the opening")
+	}
+	// Due by now, never "any": an opening that runs on must survive the close.
+	if len(f.tenants.closes) != 1 || !f.tenants.closes[0].Equal(now) {
+		t.Errorf("closed with due %v, want the moment it ran", f.tenants.closes)
+	}
+	entry := f.audit.entries[0]
+	if entry.Action != TenantPasswordClosedAction || entry.ActorKind != appshared.ActorSystem ||
+		changedTo(entry, "ended") != PasswordClosedExpired {
+		t.Errorf("trail entry %+v", entry)
+	}
+	if recorded := f.journal.entries[0]; recorded.Action != journalPasswordClosed ||
+		recorded.Details["ended"] != PasswordClosedExpired {
+		t.Errorf("journal entry %+v", recorded)
+	}
+	if want := "closed " + lifecycleTenant.String() + " " + PasswordClosedExpired; len(f.notices.told) != 1 || f.notices.told[0] != want {
+		t.Errorf("the administrators were told %v", f.notices.told)
+	}
+}
+
+func TestTheEndJobComesBackForAnOpeningStillRunningAndLeavesAClosedOne(t *testing.T) {
+	f := newOpeningFixture(newRegister(operatorID))
+	f.tenants.record.PasswordOpening = domain.PasswordOpening{
+		Until: now.Add(3 * time.Hour), Requester: "TICKET-4712", Reason: "still down",
+	}
+	again, err := EndPasswordOpening{Writer: f.writer}.Execute(t.Context(), lifecycleTenant)
+	if err != nil || again != 3*time.Hour {
+		t.Fatalf("a running opening answered (%v, %v), want to come back in three hours", again, err)
+	}
+	if len(f.audit.entries) != 0 || len(f.notices.told) != 0 || f.tenants.record.PasswordOpening.Until.IsZero() {
+		t.Error("a running opening was ended")
+	}
+
+	// Closed early, the close was recorded then: nothing is left for the job.
+	f.tenants.record.PasswordOpening = domain.PasswordOpening{}
+	if again, err := (EndPasswordOpening{Writer: f.writer}).Execute(t.Context(), lifecycleTenant); err != nil || again != 0 {
+		t.Errorf("a closed opening answered (%v, %v)", again, err)
+	}
+	// The workspace went while the job waited.
+	f.tenants.findErr = shared.ErrNotFound
+	if again, err := (EndPasswordOpening{Writer: f.writer}).Execute(t.Context(), lifecycleTenant); err != nil || again != 0 {
+		t.Errorf("a workspace that went answered (%v, %v)", again, err)
+	}
+	if len(f.audit.entries) != 0 || len(f.notices.told) != 0 {
+		t.Error("nothing to end recorded something")
+	}
 }

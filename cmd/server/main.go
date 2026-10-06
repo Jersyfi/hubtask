@@ -1205,6 +1205,12 @@ func run() error {
 	passwordOpeningWriter := adminservice.PasswordOpeningWriter{
 		Instance: instanceWriter, Tenants: postgres.NewAdminTenantRepository(),
 		Journal: postgres.NewInstanceJournal(cursors), Audit: auditSink,
+		// The end seeded by the opening's own write, and the administrators told in the same
+		// transaction - who they are is the role matrix's answer at that moment.
+		Jobs: jobs,
+		Notices: notification.RecordPasswordOpening{
+			Memberships: postgres.NewMembershipRepository(), Jobs: jobs,
+		},
 		StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
@@ -2472,6 +2478,18 @@ func run() error {
 			BaseURL:        cfg.BaseURL,
 		},
 	}
+	// An operator's opening of the password (SC-34): its notices to the administrators, and the job
+	// that records its end once the time has passed.
+	passwordOpeningMessage := worker.PasswordOpeningMessage{
+		Send: notification.SendPasswordOpening{
+			Accounts: accounts, Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Mail: mailSender, Renderer: renderer, UnitOfWork: unitOfWork,
+			FallbackLocale: cfg.Locale.DefaultLocale, BaseURL: cfg.BaseURL,
+		},
+	}
+	passwordOpeningEnd := worker.PasswordOpeningEnd{
+		End: adminservice.EndPasswordOpening{Writer: passwordOpeningWriter},
+	}
 	notificationDelivery := worker.NotificationDelivery{
 		Delivery: notification.DeliverNotification{
 			Notifications: notifications, Preferences: notificationPreferences,
@@ -2769,6 +2787,8 @@ func run() error {
 		queueport.KindMediaReconcile:        mediaReconciliation,
 		queueport.KindInvitationEmail:       invitationMessage,
 		queueport.KindPasswordResetEmail:    passwordResetMessage,
+		queueport.KindPasswordOpeningEmail:  passwordOpeningMessage,
+		queueport.KindPasswordOpeningEnd:    passwordOpeningEnd,
 		queueport.KindAiSuggest:             worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{

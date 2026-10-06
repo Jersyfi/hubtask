@@ -14,6 +14,7 @@ import (
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/notification"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -351,4 +352,92 @@ func TestTheOpeningsStatementsStayInTheirWorkspace(t *testing.T) {
 		}
 		return err
 	})
+}
+
+// The end, once its time has passed, against PostgreSQL: the job the opening seeded runs in the
+// workspace's own transaction - the runner's, here the test's - clears the row, writes the trail and
+// the journal, and queues the notice for the workspace's administrator, whom the real role matrix
+// names. Only a real transaction shows that every one of those writes has one to go into.
+func TestTheEndOfAnOpeningIsRecordedInTheWorkspacesTransaction(t *testing.T) {
+	ctx := context.Background()
+	sessionFixtures(ctx, t)
+	session, _, uow := realWriter(ctx, t)
+	admin := adminPool(ctx, t)
+
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO tenant (id, slug, display_name) VALUES ($1, 'operator-opening', 'Operator Opening')
+		ON CONFLICT (id) DO UPDATE SET status = 'ACTIVE'`, openingTenant.String()); err != nil {
+		t.Fatalf("seeding the workspace: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO account (id, tenant_id, kind, email, display_name, status)
+		VALUES ($1, $2, 'USER', 'opening@example.org', 'Opening', 'ACTIVE')
+		ON CONFLICT (id) DO NOTHING`, openingAccount.String(), openingTenant.String()); err != nil {
+		t.Fatalf("seeding the administrator: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
+		VALUES ('01936f2a-7c1e-7000-8000-0000000034d1', $1, $2, 'TENANT', 'OWNER')
+		ON CONFLICT (id) DO NOTHING`, openingTenant.String(), openingAccount.String()); err != nil {
+		t.Fatalf("seeding the membership: %v", err)
+	}
+	// An opening whose time ran out a minute ago, as the row holds it until the job comes.
+	if _, err := admin.Exec(ctx, `
+		UPDATE tenant SET password_opened_until = now() - interval '1 minute',
+		  password_opened_requester = 'TICKET-4713', password_opened_reason = 'down'
+		WHERE id = $1`, openingTenant.String()); err != nil {
+		t.Fatalf("seeding the opening: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = admin.Exec(context.Background(), `
+			UPDATE tenant SET password_opened_until = NULL, password_opened_requester = NULL,
+			  password_opened_reason = NULL WHERE id = $1`, openingTenant.String())
+		_, _ = admin.Exec(context.Background(), `DELETE FROM job WHERE tenant_id = $1 AND kind = $2`,
+			openingTenant.String(), "notification.password_opening")
+	})
+
+	jobs := postgres.NewQueue(session.IDs, clockadapter.System{})
+	writer := adminservice.PasswordOpeningWriter{
+		Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(pageCursors()),
+		Audit: postgres.NewAuditSink(generator{t}), Jobs: jobs,
+		Notices: notification.RecordPasswordOpening{
+			Memberships: postgres.NewMembershipRepository(), Jobs: jobs,
+		},
+		UnitOfWork: uow, Clock: clockadapter.System{}, IDs: session.IDs,
+	}
+	var again time.Duration
+	inTenant(t, uow, openingTenant, func(ctx context.Context) error {
+		waited, err := adminservice.EndPasswordOpening{Writer: writer}.Execute(ctx, openingTenant)
+		again = waited
+		return err
+	})
+	if again != 0 {
+		t.Errorf("an opening past its end asked to come back in %v", again)
+	}
+
+	counted := func(query string, args ...any) int {
+		t.Helper()
+		var n int
+		if err := admin.QueryRow(ctx, query, args...).Scan(&n); err != nil {
+			t.Fatalf("counting: %v", err)
+		}
+		return n
+	}
+	if counted(`SELECT count(*) FROM tenant WHERE id = $1 AND password_opened_until IS NULL
+		AND password_opened_requester IS NULL`, openingTenant.String()) != 1 {
+		t.Error("the row still holds the ended opening")
+	}
+	if counted(`SELECT count(*) FROM audit_log WHERE tenant_id = $1 AND action = 'tenant.password_closed'
+		AND actor_type = 'SYSTEM' AND changes -> 'ended' ->> 'to' = 'EXPIRED'`, openingTenant.String()) == 0 {
+		t.Error("the end is not in the workspace's trail")
+	}
+	if counted(`SELECT count(*) FROM instance_event WHERE tenant_id = $1 AND action = 'tenant.password_closed'
+		AND details ->> 'ended' = 'EXPIRED'`, openingTenant.String()) == 0 {
+		t.Error("the end is not in the installation's journal")
+	}
+	if counted(`SELECT count(*) FROM job WHERE tenant_id = $1 AND kind = 'notification.password_opening'
+		AND payload ->> 'account_id' = $2 AND payload ->> 'event' = 'CLOSED'`,
+		openingTenant.String(), openingAccount.String()) != 1 {
+		t.Error("the workspace's administrator was not queued the notice of the end")
+	}
 }
