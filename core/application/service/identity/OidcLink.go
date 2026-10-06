@@ -40,6 +40,11 @@ type CompleteLinkCommand struct {
 // account already holds a password, and the provider is connected to it only once that password -
 // and the account's second factor, if it has one - has been proven.
 //
+// It does not ask whether the password is a way in here. A workspace that switched the password off
+// closed the sign-in by password, not the account's own proof that it is the person, and a member
+// who still knows it connects the workspace's provider with it (ADR-0078 §1). The mailbox is the
+// proof for one who does not (connectByMail).
+//
 // The answer is a pair when the account has no second factor, and otherwise the ordinary TOTP
 // challenge with the link still carried, so the connection happens at the end of the second
 // factor's step and not a moment before.
@@ -264,7 +269,8 @@ func (h CompleteLink) Descriptor() usecase.Descriptor {
 			"address whose account already holds a password, and it is connected to that " +
 			"account only once the password is proven here - and, where the account has a " +
 			"second factor, the answer is the ordinary TOTP challenge and the connection " +
-			"happens when that step completes. Wrong passwords count against the account.",
+			"happens when that step completes. Wrong passwords count against the account. The " +
+			"password is a proof here even where the workspace switched it off as a way in.",
 		SideEffects: "Consumes the pending credential; then either connects the provider " +
 			"identity, opens a session and writes audit entries, or hands on to the second " +
 			"factor's step with the connection still pending.",

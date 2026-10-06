@@ -10800,6 +10800,7 @@ type ClientInterface interface {
 	//
 	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10810,6 +10811,7 @@ type ClientInterface interface {
 	//
 	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -15261,6 +15263,7 @@ func (c *Client) ElevateSession(ctx context.Context, params *ElevateSessionParam
 //
 // The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes any type of body and a specified content type.
 //
@@ -15281,6 +15284,7 @@ func (c *Client) CompleteLinkWithBody(ctx context.Context, contentType string, b
 //
 // The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes a body of the `application/json` content type.
 //
@@ -35320,6 +35324,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35330,6 +35335,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -53320,6 +53326,7 @@ func (c *ClientWithResponses) ElevateSessionWithResponse(ctx context.Context, pa
 //
 // The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53336,6 +53343,7 @@ func (c *ClientWithResponses) CompleteLinkWithBodyWithResponse(ctx context.Conte
 //
 // The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

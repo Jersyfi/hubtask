@@ -3109,6 +3109,13 @@ paths:
         With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is
         connected when `/auth/sessions:verify` completes - never before the account's whole proof.
         A wrong password counts against the account like any other, and is refused as a sign-in is.
+
+        **The password is a proof here even where the workspace switched it off as a way in**
+        (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof
+        that it is the person: a member who still knows the password connects the workspace's
+        provider with it, once. Where the password is off, the other proof is the mailbox - the link
+        *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at
+        `/auth/oidc:start`).
       requestBody:
         required: true
         content:

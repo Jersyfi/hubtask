@@ -375,3 +375,35 @@ func TestUnderInvitedOnlyANonAuthoritativeProviderStillRefusesTheRest(t *testing
 		}
 	})
 }
+
+// A workspace that switched the password off closed the sign-in by password, not the account's proof
+// that it is the person (ADR-0078 §1): the LINK step still takes the password - and the armed factor
+// after it - and connects the provider. Nothing else of the password door opens on the way.
+func TestTheLinkStepTakesThePasswordWhereThePasswordIsOff(t *testing.T) {
+	for name, armed := range map[string]bool{"without a factor": false, "with a factor": true} {
+		t.Run(name, func(t *testing.T) {
+			f := linkFixture(t, armed)
+			f.writer.Session.Rule = shutDoor{}
+			result, err := arrive(t, f)
+			if err != nil || result.Challenge == nil || result.Challenge.Methods[0] != methodLink {
+				t.Fatalf("arriving: (%+v, %v), want the LINK step", result, err)
+			}
+
+			next, err := CompleteLink{Writer: f.writer}.Execute(t.Context(), CompleteLinkCommand{
+				PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
+			})
+			if err != nil {
+				t.Fatalf("the password was refused where the password is off: %v", err)
+			}
+			if armed {
+				if next.Pair != nil || next.Challenge == nil || next.Challenge.Methods[0] != methodTotp {
+					t.Fatalf("the password answered %+v, want the second factor's step", next)
+				}
+				return
+			}
+			if next.Pair == nil || len(f.external.links) != 1 {
+				t.Errorf("the password answered %+v with links %v, want the provider connected", next, f.external.links)
+			}
+		})
+	}
+}
