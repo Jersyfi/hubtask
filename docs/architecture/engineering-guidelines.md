@@ -127,10 +127,10 @@ A change to `api/openapi.yaml` carries its client fix in the same pull request:
 leave the client lane red.
 
 ### 3.16 Use cases met
-Every check of every use case the task names holds, with a test or a walk as evidence; the use
-case's `state:`, `checked_by:` and *Today* say so; `/usecase-check` over the branch finds nothing
-open; and the pull request's *Use cases* section reports each check
-([`docs/usecases/README.md`](../usecases/README.md)).
+Every check the task carries — the ones in its `**Use cases:**` line — holds, with a test or a walk
+as evidence; the use case's `state:`, `checked_by:` and *Today* say so; the checklist in
+[`docs/usecases/README.md`](../usecases/README.md#checking-work-against-its-use-cases) over the
+branch finds nothing open; and the pull request's *Use cases* section reports each check.
 
 ### 3.17 Design values only from tokens
 No colour, spacing, radius or duration value is written outside
