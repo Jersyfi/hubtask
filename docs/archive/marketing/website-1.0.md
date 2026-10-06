@@ -26,7 +26,7 @@ Ten content pages plus the two legal ones. The order is the priority order of th
 | `/security/` | Isolation, the trail, data protection, the gates | 3, 2 | Every claim links to the mechanism |
 | `/developers/` | REST, MCP, CLI, events, SDKs, sync | 4 | The API is the product, and the agent runs on your box |
 | `/self-hosting/` | Requirements, support matrix, backup, operations | 1, 2 | PostgreSQL, and that is the list |
-| `/licence/` | Apache-2.0, the name, contributions, funding | 1, 2 | Open source, free for any use; the name stays ours ([ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md)) |
+| `/licence/` | Apache-2.0, the name, contributions, funding | 1, 2 | Open source, free for any use; the name stays ours ([ADR-0080](../../adr/ADR-0080-hubtask-is-apache-2-0.md)) |
 | `/roadmap/` | The milestones, and the working method | 4, 3 | Why the guarantees elsewhere are checkable |
 | `/download/` | Server, clients, CLI | 1, 2 | Nothing to sign up for |
 | `/accessibility/` | The statement the EAA expects | 3 | Operable by keyboard, or it is a defect |
@@ -147,7 +147,7 @@ is closed, so `AI_SUMMARIZE` is served), and the multilingual paragraph, which d
 message-code mechanism rather than the localisation surface `0.8.0` will add.
 
 Added at the same time: a **“Where this stands”** note on `/` and `/download/`, giving the maturity
-stage [ADR-0035](../adr/ADR-0035-one-product-version.md) puts in place of a second version number —
+stage [ADR-0035](../../adr/ADR-0035-one-product-version.md) puts in place of a second version number —
 the server complete through `0.7`, the browser interface at preview, the installed applications
 being built.
 
@@ -156,16 +156,16 @@ being built.
 The convergence milestone is where these become true and the sentences above are rewritten forward
 again: the desktop and mobile clients with their signed installers and store listings, full offline
 operation, the localisation surface, and the formal accessibility statement. That is also the
-milestone [`roadmap.md`](../roadmap.md) already assigns the website's 1.0 content to, so this list
+milestone [`roadmap.md`](../../roadmap.md) already assigns the website's 1.0 content to, so this list
 is a checklist for a task that exists rather than a new one.
 
 Checked again after `0.9.0` (P-17): three of the list's items are now *built and waiting on a
 publication* rather than absent. `hubctl sync-conformance` exists and runs in the e2e session
 (`0.8.5`, N-13). The three SDKs exist under `sdk/` and `packages/api-client`, each with an example
 that runs against the product, but none is published to a registry and their licence waits on
-[ADR-0057](../adr/ADR-0057-sdk-licence-and-extraction.md). The n8n node and the Zapier app exist
+[ADR-0057](../../adr/ADR-0057-sdk-licence-and-extraction.md). The n8n node and the Zapier app exist
 under `packages/` and are complete by test, but neither is on its marketplace
-([ADR-0058](../adr/ADR-0058-connector-packages.md)). The site may say "exists, not yet published"
+([ADR-0058](../../adr/ADR-0058-connector-packages.md)). The site may say "exists, not yet published"
 for each; it may not say "available" until the publication has happened.
 
 ### 5.3 Checked, and true today
@@ -183,7 +183,7 @@ service level objectives; the support matrix rows; and every statement on `/lice
 
 No price, no paid edition, no load-test figures (they stay internal by decision), no comparison
 table naming a competitor, and no maintenance or support commitment (`licensing-editions.md`). Since
-[ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md) the site says “open source”: it is Apache-2.0.
+[ADR-0080](../../adr/ADR-0080-hubtask-is-apache-2-0.md) the site says “open source”: it is Apache-2.0.
 
 ---
 
@@ -193,7 +193,7 @@ table naming a competitor, and no maintenance or support commitment (`licensing-
    workbench's three-nested-planes placeholder in the masthead, the footer and the favicon. That is
    the right placeholder — it is the only drawn record of the idea — but a launch is the moment it
    stops being one.
-2. **Which mailbox.** The site uses `info@hubtask.eu` everywhere. [`TRADEMARK.md`](../../TRADEMARK.md)
+2. **Which mailbox.** The site uses `info@hubtask.eu` everywhere. [`TRADEMARK.md`](../../../TRADEMARK.md)
    names `licensing@hubtask.eu` for requests about the name. Either create that mailbox, or amend
    the document.
 3. **The colour mode does not persist across a navigation.** CSS cannot write storage, and the site

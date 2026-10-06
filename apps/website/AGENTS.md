@@ -28,6 +28,21 @@ it into `dist/`, and `.github/workflows/website.yml` publishes that on a push to
   case's `state:` and *Today*, not against the backlog; when a use case moves, the chip moves with it.
 * **No `.go` file** (rule 14).
 
+## What the site may claim
+
+* **Only what is true today.** A sentence that is not true of what is built is cut, or moved into
+  the future tense, before the page it sits on goes live — merging to `main` publishes it.
+* **Built is not available.** Something that exists in the repository and has not been published
+  (an SDK not on its registry, a connector not on its marketplace, a client without a signed
+  installer) is described as existing and not yet published, never as available.
+* **What comes with convergence is said in the future tense** until `0.9.5` makes it true: the
+  desktop and mobile clients with their installers and store listings, full offline operation,
+  the formal accessibility statement ([`docs/roadmap.md`](../../docs/roadmap.md)).
+* **Deliberately absent:** a price or a paid edition, load-test figures (they stay internal), a
+  comparison table naming a competitor, and any maintenance or support commitment.
+* A count that grows (the use cases the registry serves) is rounded down, so the claim stays true
+  as the number moves.
+
 ## How to check a change
 
 ```bash

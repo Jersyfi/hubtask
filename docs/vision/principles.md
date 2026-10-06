@@ -125,7 +125,7 @@ a request a documented tool cannot produce.
 workspace without touching the database. Nothing phones home, nothing loads from a foreign origin,
 no licence key switches anything off, and every piece of your data can be exported.
 
-**Why.** The sovereign individual is the first audience ([market analysis](../marketing/market-analysis.md)
+**Why.** The sovereign individual is the first audience ([market analysis](../archive/marketing/market-analysis.md)
 §3.1), and "will this still be mine in five years?" is their question.
 
 **Broken when** an installation step needs a database shell, a feature needs an outside service

@@ -2,7 +2,7 @@
 
 Status: **draft for the owner's decision** · Written 2026-09-09 · Horizon: the `1.0.0` launch
 
-> This is the brief [`roadmap.md`](../roadmap.md) § "The website" has been waiting for. That section
+> This is the brief [`roadmap.md`](../../roadmap.md) § "The website" has been waiting for. That section
 > names five things as "open, and awaited from the owner" — positioning and messaging, the page
 > structure, how much of the roadmap is shown, what may be promised about editions and price, and
 > the launch moment. This document answers the first four and leaves the fifth alone.
@@ -37,7 +37,7 @@ with it as though it were.**
 What survives the comparison is *where* the agent runs. Every incumbent server is a hosted OAuth
 endpoint: the agent reaches the vendor's cloud, and the content of the tasks goes with it. Hubtask's
 MCP server is a presentation adapter inside the installation
-([`ai-first.md`](../architecture/ai-first.md) §1.1) — an agent on your own machine talking to your
+([`ai-first.md`](../../architecture/ai-first.md) §1.1) — an agent on your own machine talking to your
 own box, holding a scope-limited credential, audited as `actor.type = AI_AGENT`, and refused
 everything the same credential would be refused over REST. That is the sentence, and it is about
 sovereignty rather than about protocol support.
@@ -107,10 +107,10 @@ built.
 Three deliberate exclusions, because a position is defined as much by what it refuses:
 
 * **Not "the open source Asana".** It invites a comparison on integrations and seats, both of which
-  Hubtask loses today. (Since [ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md) the licence half
+  Hubtask loses today. (Since [ADR-0080](../../adr/ADR-0080-hubtask-is-apache-2-0.md) the licence half
   of the phrase is true; the comparison half is still the wrong one.)
 * **Not "AI-powered".** AI is optional, switchable off, and the product with it switched off is the
-  whole product ([`ai-first.md`](../architecture/ai-first.md) §2). A site that leads with AI would be
+  whole product ([`ai-first.md`](../../architecture/ai-first.md) §2). A site that leads with AI would be
   advertising the one part a buyer may decide never to turn on.
 * **Not "privacy-focused" as the headline.** Every self-hosted tool says that; it has stopped
   carrying information. Say the specific thing instead — the trail verifies, the restore is drilled,
@@ -130,7 +130,7 @@ is what makes audience 2 *choose* Hubtask over a cheaper neighbour. Audience 4 i
 it. The site is built in that order.
 
 **Every deployment is spoken to** (decided by the owner on 2026-10-01): the four audiences carry
-the seven shapes of [`docs/vision/deployments.md`](../vision/deployments.md) — audience 1 is D1 and
+the seven shapes of [`docs/vision/deployments.md`](../../vision/deployments.md) — audience 1 is D1 and
 D2, audience 2 is D5, D6 and D7, audience 3 is D3, D4 and the customers of D6, and audience 4 cuts
 across all of them. `/use-cases/` gives each shape its own anchor. **Everything the project builds
 or has decided to build is named on the site**, because what is not named is lost to the reader:
@@ -146,7 +146,7 @@ and a proof — and the proof is the thing no competitor's homepage carries.
 
 | # | Pillar | The claim | The mechanism behind it |
 |---|---|---|---|
-| 1 | **Five levels, one shape** | A model that holds "buy milk" and a client's release plan without becoming two products | One generalised `WorkItem` with capability profiles; a new level is configuration, not a migration ([`domain-model.md`](../architecture/domain-model.md) §2) |
+| 1 | **Five levels, one shape** | A model that holds "buy milk" and a client's release plan without becoming two products | One generalised `WorkItem` with capability profiles; a new level is configuration, not a migration ([`domain-model.md`](../../architecture/domain-model.md) §2) |
 | 2 | **The API is the product** | Every capability exists once and is reachable from every door | One use case registry behind REST, MCP and automation; a parity check fails the build when the three disagree |
 | 3 | **Agents on your own machine** | An agent can do whatever your role allows, and nothing more — without your tasks leaving the box | MCP as a presentation adapter, scoped credentials, `actor.type = AI_AGENT` in the trail |
 | 4 | **Provably yours** | Backups that have been restored, a trail that verifies, deletion that announces itself | The restore drill in CI; the audit hash chain and `:verify`; retention preview, grace period and legal hold |
@@ -169,20 +169,20 @@ justify keeping.
 
 ## 5. Licence and monetisation — what the site may say
 
-> Rewritten on 2026-10-07 for [ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md). The version of
+> Rewritten on 2026-10-07 for [ADR-0080](../../adr/ADR-0080-hubtask-is-apache-2-0.md). The version of
 > this section written for the BSL 1.1 model — Licensing Start, the commercial grant, "never say
 > open source" — is superseded with it.
 
 **The licence is decided, and there is no money to blur it with.** Hubtask is open source under the
 Apache License 2.0: any use, commercial included, with the full feature set and no licence key. It
-is the text in [`LICENSE`](../../LICENSE), and it is the single most persuasive thing on the site
+is the text in [`LICENSE`](../../../LICENSE), and it is the single most persuasive thing on the site
 for audience 1 — because it is the answer to "what if this project is abandoned or sold": anyone
-may carry it on, only not under the name ([`TRADEMARK.md`](../../TRADEMARK.md)).
+may carry it on, only not under the name ([`TRADEMARK.md`](../../../TRADEMARK.md)).
 
 **What the site says:** "open source", "Apache-2.0", "free for any use", and that the work is funded
 by donations that buy nothing in return. **What the site must never say:** a price, a paid edition,
 a support period, a deadline or a maintenance commitment — the project is provided as is
-([`licensing-editions.md`](../architecture/licensing-editions.md)).
+([`licensing-editions.md`](../../architecture/licensing-editions.md)).
 
 ---
 
@@ -191,7 +191,7 @@ a support period, a deadline or a maintenance commitment — the project is prov
 No newsletter, no waiting list, no early-access form, no analytics, no cookies, no embedded video,
 no font from a foreign domain, no script at all. Partly this is inherited discipline — each of those
 would need a data-catalogue entry with a legal basis and a deletion path
-([`data-protection.md`](../architecture/data-protection.md)). But it is also the argument: a product
+([`data-protection.md`](../../architecture/data-protection.md)). But it is also the argument: a product
 whose pitch is "your data stays yours" cannot open with a consent banner. **The website is the first
 demonstration of the product's claim**, and the cheapest one to get right.
 
@@ -215,8 +215,8 @@ wanted, it is a decision with a data-catalogue entry attached, not a form somebo
 
 ## 8. What this document does not decide
 
-The launch moment, the trademark filing ([`roadmap.md`](../roadmap.md) `1.0.0` prerequisite 7), the
-wordmark — [`design-system.md`](../design/design-system.md) §9 still lists it as unfinished, and the
+The launch moment, the trademark filing ([`roadmap.md`](../../roadmap.md) `1.0.0` prerequisite 7), the
+wordmark — [`design-system.md`](../../design/design-system.md) §9 still lists it as unfinished, and the
 website currently uses the three-nested-planes placeholder from the workbench — and whether
 hubtask.eu ever carries a page in German beyond the two legal ones. Each is the owner's, and each is
 cheaper to decide once there is a site to look at.
