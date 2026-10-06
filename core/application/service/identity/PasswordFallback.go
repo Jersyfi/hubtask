@@ -31,8 +31,8 @@ import (
 // SC-06) refuse what they can see; this is the net under all of them, so nothing else has to be
 // perfect - no row lock for the race, no job on the day an offer ends. It is read wherever the ways
 // in are resolved, and it ends the moment an administrator switches on a way in, which is what the
-// screen asks them to do. An account without a password gains nothing from the sign-in: there is
-// nothing to sign in with (ADR-0077 §3 is its way back).
+// screen asks them to do. An account without a password is let back in through its mailbox: the
+// reset mails it a link to set one (ADR-0077 §3, MintResetToken).
 
 // PasswordFallbackAction is a password sign-in that the fallback let through, in the workspace's
 // own trail (ADR-0076 §4, "the workspace's trail records it").

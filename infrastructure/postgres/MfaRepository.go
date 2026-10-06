@@ -426,6 +426,30 @@ func (r MfaRepository) FindByToken(
 	}, nil
 }
 
+func (r MfaRepository) Supersede(
+	ctx context.Context, accountID shared.ID, purpose identity.PendingPurpose, at time.Time,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return 0, err
+	}
+	spent, err := queries.SupersedePending(ctx, sqlc.SupersedePendingParams{
+		Now:       pgtype.Timestamptz{Time: at, Valid: true},
+		AccountID: id,
+		Purpose:   string(purpose),
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("superseding the pending credentials: %w", err))
+	}
+	return int(spent), nil
+}
+
 func (r MfaRepository) Consume(
 	ctx context.Context, credentialID shared.ID, at time.Time,
 ) (bool, error) {

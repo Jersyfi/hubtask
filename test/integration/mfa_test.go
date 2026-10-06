@@ -199,6 +199,56 @@ func TestAPendingCredentialIsBoundToItsTenantAndDiesOnce(t *testing.T) {
 	})
 }
 
+// Gate SG-3: Supersede spends this account's unspent credentials of one purpose, in its own tenant
+// only - a second reset link replaces the first (UC-ID-04 check 2).
+func TestSupersedingSpendsOnlyThisAccountsOpenCredentialsOfThePurpose(t *testing.T) {
+	ctx := context.Background()
+	sessionFixtures(ctx, t)
+	mfa, uow := mfaStores(ctx, t)
+	now := time.Now().UTC()
+
+	insert := func(id string, secret byte, purpose identity.PendingPurpose) identity.PendingCredential {
+		t.Helper()
+		presented, err := identity.NewPendingToken(tenantA, sessionSecretOf(secret))
+		if err != nil {
+			t.Fatalf("minting: %v", err)
+		}
+		credential := identity.PendingCredential{
+			ID: shared.MustParseID(id), TenantID: tenantA, AccountID: sessionAccountA, Purpose: purpose,
+			CreatedAt: now, ExpiresAt: now.Add(identity.ResetLifetime),
+		}
+		inTenant(t, uow, tenantA, func(ctx context.Context) error {
+			return mfa.Insert(ctx, credential, presented)
+		})
+		return credential
+	}
+	older := insert("01936f2a-7c1e-7000-8000-0000000000f8", 0xD2, identity.PendingReset)
+	other := insert("01936f2a-7c1e-7000-8000-0000000000f9", 0xD3, identity.PendingTotp)
+
+	// From another workspace nothing of tenant A's is spent.
+	inTenant(t, uow, tenantB, func(ctx context.Context) error {
+		if spent, err := mfa.Supersede(ctx, sessionAccountA, identity.PendingReset, now); err != nil || spent != 0 {
+			t.Errorf("another tenant superseded %d credentials (%v)", spent, err)
+		}
+		return nil
+	})
+
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		spent, err := mfa.Supersede(ctx, sessionAccountA, identity.PendingReset, now)
+		if err != nil || spent < 1 {
+			t.Fatalf("superseding spent %d (%v), want the open reset link", spent, err)
+		}
+		if consumed, err := mfa.Consume(ctx, older.ID, now); err != nil || consumed {
+			t.Errorf("the superseded link could still be spent (%v, %v)", consumed, err)
+		}
+		// Another purpose of the same account is untouched.
+		if consumed, err := mfa.Consume(ctx, other.ID, now); err != nil || !consumed {
+			t.Errorf("a credential of another purpose was spent by the reset (%v, %v)", consumed, err)
+		}
+		return nil
+	})
+}
+
 // Gate SG-3: RequireAdminTotp reads the running transaction's tenant and no other.
 func TestTheEnforcementSwitchIsPerTenant(t *testing.T) {
 	ctx := context.Background()

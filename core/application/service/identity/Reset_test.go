@@ -194,3 +194,63 @@ func TestARefusedPasswordLeavesTheLinkUnspent(t *testing.T) {
 		t.Fatalf("the link was spent by the refusal: %v", err)
 	}
 }
+
+// UC-ID-04 check 2: a second request replaces the first link instead of adding one - whichever mail
+// the person opens, only the newest works, and the older one is refused as any spent link is.
+func TestASecondResetLinkReplacesTheFirst(t *testing.T) {
+	fixture := newResetFixture(now)
+	// Two draws, two different tokens - a fixed source would mint the same link twice.
+	fixture.writer.Session.Entropy = &countingEntropy{}
+	mint := MintResetToken{Writer: fixture.writer}
+
+	first, err := mint.MintResetToken(t.Context(), tenant, account)
+	if err != nil {
+		t.Fatalf("minting the first link: %v", err)
+	}
+	second, err := mint.MintResetToken(t.Context(), tenant, account)
+	if err != nil {
+		t.Fatalf("minting the second link: %v", err)
+	}
+	if first.Token.Reveal() == second.Token.Reveal() {
+		t.Fatal("the two links are the same token - the test proves nothing")
+	}
+
+	_, err = ResetPassword{Writer: fixture.writer}.Execute(t.Context(), ResetPasswordCommand{
+		Token: first.Token, Password: secret.New("a brand new passphrase"),
+	})
+	if detailOf(err) != "auth.reset_failed" {
+		t.Fatalf("the replaced link answered %v, want auth.reset_failed", err)
+	}
+	if _, err := (ResetPassword{Writer: fixture.writer}).Execute(t.Context(), ResetPasswordCommand{
+		Token: second.Token, Password: secret.New("a brand new passphrase"),
+	}); err != nil {
+		t.Fatalf("the newest link was refused: %v", err)
+	}
+}
+
+// A password set any other way spends the reset links mailed before it (ADR-0078 §4): a link from
+// last week must not replace the password the person chose today.
+func TestAPasswordChangeSpendsTheResetLinksBeforeIt(t *testing.T) {
+	fixture := newResetFixture(now)
+	link, err := MintResetToken{Writer: fixture.writer}.MintResetToken(t.Context(), tenant, account)
+	if err != nil || link.Token.IsEmpty() {
+		t.Fatalf("minting: %+v (%v)", link, err)
+	}
+	held := fixture.accounts.rows[account]
+	rules, err := fixture.writer.ResolveFor(t.Context(), tenant)
+	if err != nil {
+		t.Fatalf("resolving the rules: %v", err)
+	}
+	if err := fixture.writer.Write(t.Context(), PasswordCandidate{
+		TenantID: tenant, Account: held, Password: secret.New("the one chosen today"), Rules: rules,
+	}, "", false); err != nil {
+		t.Fatalf("changing the password: %v", err)
+	}
+
+	_, err = ResetPassword{Writer: fixture.writer}.Execute(t.Context(), ResetPasswordCommand{
+		Token: link.Token, Password: secret.New("a brand new passphrase"),
+	})
+	if detailOf(err) != "auth.reset_failed" {
+		t.Fatalf("a link mailed before the change answered %v, want auth.reset_failed", err)
+	}
+}

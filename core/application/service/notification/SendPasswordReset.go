@@ -36,6 +36,10 @@ const (
 	// "you do not sign in with a password here" is the sentence they actually need.
 	subjectPasswordResetProvider = "email.password_reset_provider.subject"
 	bodyPasswordResetProvider    = "email.password_reset_provider.body"
+	// The variant for a provider-only account whose workspace lost its last provider (ADR-0077 §3):
+	// there is no provider left to point to, so the link sets a first password.
+	subjectPasswordSet = "email.password_set.subject"
+	bodyPasswordSet    = "email.password_set.body"
 )
 
 // ResetMinter is the identity service's seam. It answers the plaintext token, the address, and
@@ -49,8 +53,10 @@ type ResetMinter interface {
 type ResetLink struct {
 	Token       secret.Secret
 	HasPassword bool
-	Address     string
-	Locale      string
+	// First is a link to set a first password, under ADR-0077 §3's fallback.
+	First   bool
+	Address string
+	Locale  string
 }
 
 // SendPasswordReset is the job handler.
@@ -85,11 +91,17 @@ func (s SendPasswordReset) Execute(ctx context.Context, tenantID, accountID shar
 		return err
 	}
 
-	subjectCode, bodyCode := subjectPasswordReset, bodyPasswordReset
 	params := map[string]string{}
-	if !link.HasPassword {
+	var subjectCode, bodyCode string
+	switch {
+	case link.First:
+		subjectCode, bodyCode = subjectPasswordSet, bodyPasswordSet
+	case link.HasPassword:
+		subjectCode, bodyCode = subjectPasswordReset, bodyPasswordReset
+	default:
 		subjectCode, bodyCode = subjectPasswordResetProvider, bodyPasswordResetProvider
-	} else {
+	}
+	if link.First || link.HasPassword {
 		// In the fragment rather than the query, the invitation's reasoning: a proxy or a server
 		// log between the mail client and the interface never sees what follows the hash.
 		base := strings.TrimSuffix(s.BaseURL, "/")

@@ -306,6 +306,13 @@ func (w PasswordWriter) Write(
 		if !written {
 			return shared.ErrNotFound.WithDetail("accounts.not_found")
 		}
+		// A reset link mailed before this password was set would replace it again: every unspent one
+		// dies with the change, however the password changed (ADR-0078 §4).
+		if w.Pending != nil {
+			if _, err := w.Pending.Supersede(ctx, account.ID, domain.PendingReset, now); err != nil {
+				return err
+			}
+		}
 
 		if endOtherSessions {
 			if err := w.endOthers(ctx, account.ID, keepSessionID, now); err != nil {
