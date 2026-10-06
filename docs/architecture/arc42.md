@@ -797,6 +797,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0075 | A step-up proves the account with whatever it holds | accepted |
 | 0076 | Withdrawing an offered sign-in provider: a count, a notice, and a way back in | accepted |
 | 0077 | Nobody is locked out: amendments to the withdrawal of an offered provider | accepted |
+| 0078 | A draft is checked locally; CI runs when a pull request is ready | accepted |
 
 ---
 
