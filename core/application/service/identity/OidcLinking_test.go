@@ -4,9 +4,9 @@
 package identity
 
 import (
-	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -177,18 +177,63 @@ func TestConnectingAnAccountWithOnlyAPasswordTakesThePassword(t *testing.T) {
 func TestAnAccountThatSignsInElsewhereIsNotConnectedHere(t *testing.T) {
 	f := newOidcFixture(t, now, ownerAccount)
 	f.store.rows[0].Provisioning = domain.ProvisionAny
-	f.external.bySubject[linkKey(shared.ID("01936f2a-7c1e-7000-8000-0000000000b9"), "elsewhere")] = ownerAccount
+	elsewhere := configureFixtureProvider(t, f, shared.ID("01936f2a-7c1e-7000-8000-0000000000b9"),
+		tenant, "https://login.elsewhere.example", now)
+	f.external.bySubject[linkKey(elsewhere.ID, "elsewhere")] = ownerAccount
 	f.relying.identity = provider.Identity{
 		Subject: "a-new-subject", Email: "bert@example.org", EmailVerified: true,
 		AddressAuthoritative: true, DisplayName: "Bert",
 	}
 
-	_, err := arrive(t, f)
-	if !errors.Is(err, shared.ErrForbidden) {
-		t.Fatalf("the arrival answered %v, want a refusal", err)
+	// Two providers switched on here, so the card names the one it starts.
+	started, err := StartOidcSignIn{Writer: f.writer}.Execute(t.Context(),
+		StartOidcSignInCommand{ProviderID: f.provider.ID})
+	if err != nil {
+		t.Fatalf("starting: %v", err)
+	}
+	_, err = CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(),
+		CompleteOidcSignInCommand{Code: "x", State: started.State})
+	if detailOf(err) != "identity_provider.link_needs_own_way_in" {
+		t.Fatalf("the arrival answered %v, want the sentence naming the other provider", err)
 	}
 	if len(f.external.links) != 0 {
 		t.Errorf("an account with another provider was linked on this one's word: %v", f.external.links)
+	}
+}
+
+// An account whose only way in has gone - its one identity at an offer that ended, or a second factor
+// with no password and no provider that lets it in - holds a credential nothing on this card proves,
+// and no provider's word stands in for it, an authoritative one's neither. The sentence points at the
+// mailbox, where *Forgot your password?* mails the way back (ADR-0078 §1, §4).
+func TestAnAccountWhoseWayInEndedIsPointedAtItsMailbox(t *testing.T) {
+	cases := map[string]func(t *testing.T, f *oidcFixture){
+		"an identity only at an ended offer": func(t *testing.T, f *oidcFixture) {
+			ended := offeredUntil(now.Add(-time.Hour))
+			f.store.rows = append(f.store.rows, ended)
+			f.external.bySubject[linkKey(ended.ID, "at-the-platform")] = ownerAccount
+		},
+		"a second factor and nothing else": func(t *testing.T, f *oidcFixture) {
+			enrolled(t, f.session)
+		},
+	}
+	for name, arrange := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := newOidcFixture(t, now, ownerAccount)
+			f.store.rows[0].Provisioning = domain.ProvisionAny
+			arrange(t, f)
+			f.relying.identity = provider.Identity{
+				Subject: "a-new-subject", Email: "bert@example.org", EmailVerified: true,
+				AddressAuthoritative: true, DisplayName: "Bert",
+			}
+
+			_, err := arrive(t, f)
+			if detailOf(err) != "identity_provider.link_needs_mailbox" {
+				t.Fatalf("the arrival answered %v, want the sentence pointing at the mailbox", err)
+			}
+			if len(f.external.links) != 0 {
+				t.Errorf("the provider's word connected %v", f.external.links)
+			}
+		})
 	}
 }
 

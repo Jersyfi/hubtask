@@ -522,6 +522,8 @@ func (w OidcWriter) settleAccount(
 					return nil
 				case proofElsewhere:
 					return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in"))
+				case proofMailbox:
+					return turnedAway(linkNeedsMailbox())
 				}
 
 				// An invitation nobody redeemed is accepted here only with a second proof: this
@@ -974,9 +976,14 @@ const (
 	// proofPassword: the account has a password, and the card asks for it (and for the second
 	// factor, if one is armed) before connecting.
 	proofPassword
-	// proofElsewhere: no password, but a second factor or another provider's identity. Neither can
-	// be proven on this card, so the arrival is refused and pointed at the way in the account has.
+	// proofElsewhere: no password, but an identity at another provider that is a way in here. It
+	// cannot be proven on this card, so the arrival is refused and pointed at that provider.
 	proofElsewhere
+	// proofMailbox: no password and no provider that lets the account in here, but a credential all
+	// the same - a second factor, or an identity at an offer that ended or a provider switched off.
+	// Nothing on this card proves it and no provider's word stands in for it: the arrival is refused
+	// and pointed at the mailbox, whose link sets a password or connects a provider (ADR-0078 §1, §4).
+	proofMailbox
 )
 
 // proofOwed reads what the account holds, in the transaction the arrival already opened.
@@ -989,27 +996,39 @@ func (w OidcWriter) proofOwed(ctx context.Context, existing domain.Account) (lin
 		return proofPassword, nil
 	}
 
+	armed := false
 	if w.Session.Enrollments != nil {
 		enrollment, err := w.Session.Enrollments.Find(ctx, existing.ID)
 		if err != nil && !errors.Is(err, shared.ErrNotFound) {
 			return proofNone, err
 		}
-		if err == nil && !enrollment.ConfirmedAt.IsZero() {
-			return proofElsewhere, nil
-		}
+		armed = err == nil && !enrollment.ConfirmedAt.IsZero()
 	}
 	// An invited account's provider identities were connected on a provider's word alone, before
 	// any second proof: they are not a credential, and activating the account drops them
 	// (ADR-0078 §1).
 	if existing.Status == domain.AccountInvited {
+		if armed {
+			return proofElsewhere, nil
+		}
 		return proofNone, nil
+	}
+	// The way in the account has is the provider that lets it in here - if one does.
+	if w.Providers != nil {
+		_, reaches, err := w.connectsHere().connectedHere(ctx, existing.ID, w.Session.Clock.Now())
+		if err != nil {
+			return proofNone, err
+		}
+		if reaches {
+			return proofElsewhere, nil
+		}
 	}
 	held, err := w.External.HasIdentity(ctx, existing.ID)
 	if err != nil {
 		return proofNone, err
 	}
-	if held {
-		return proofElsewhere, nil
+	if armed || held {
+		return proofMailbox, nil
 	}
 	return proofNone, nil
 }

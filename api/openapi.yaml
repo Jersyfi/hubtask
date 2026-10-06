@@ -3841,8 +3841,11 @@ paths:
         An existing account that already holds a password is **not** linked on the provider's
         word: the answer is `202` with the single method `LINK`, and the account's password is
         presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but
-        another provider or a second factor cannot give that proof here and is refused with
-        `identity_provider.link_needs_own_way_in`.
+        another provider that lets it in here cannot give that proof here and is refused with
+        `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an
+        offer that ended or a provider switched off, or a second factor and nothing else - is
+        refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your
+        password?*.
 
         An **invited** account is activated and connected only with a second proof (ADR-0078 §1):
         the sign-in started from the invitation's own link (`invitation_token` at the start), or
