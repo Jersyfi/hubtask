@@ -65,8 +65,12 @@ person falls back to recovery codes or a local recovery (see *Where it ends*).
 Check 8 was added with the owner's approval on 2026-10-06 ([ADR-0078](../../adr/ADR-0078-the-ways-back-in.md)
 §1), and **holds since SC-33** ([#1140](https://github.com/Jersyfi/hubtask/issues/1140)); checks 1–7
 hold as before. In a workspace that switched the password off (SC-24, UC-ID-12) - and does not have it
-open as the fallback - *Forgot your password?* mails an active person whom no provider switched on
-there lets in a link that **connects** the workspace's provider: one who holds a password but was
+open as the fallback - the sign-in card has no password and so no *Forgot your password?*; it offers
+**"Get a sign-in link by mail"** under the providers instead, which sends the same request
+(`where the password is off, the card offers a sign-in link by mail and sends the request`,
+`signin.test.mjs`; where the password is on, the card keeps its own link and draws no second one).
+That request mails an active person whom no provider switched on there lets in a link that
+**connects** the workspace's provider: one who holds a password but was
 never connected, one whose only identity is at an offer that ended, and one who holds no credential at
 all (`TestAnAccountNoProviderLetsInIsMailedAConnectLinkWhereThePasswordIsOff`). An account connected to
 a provider that works there gets the mail that points to it
@@ -80,7 +84,18 @@ against PostgreSQL). It opens a card with the workspace's providers
 (`a connect link opens a card that starts the provider with the link, not a password`); the link and a
 fresh sign-in at the provider connect it and sign the person in, the second factor still asked
 (checks 4 and 5 on this path, `OidcConnect_test.go`, UC-ID-10). No password is set. A reset link mailed
-before the switch is refused afterwards.
+before the switch is refused afterwards. The card, the mail and the provider's return are walked
+against a stubbed API and the service and PostgreSQL tests; no walk against a live installation and
+provider has been made yet (SC-15).
+
+What check 8 does not reach, said so that nobody reads more into it: an account whose address no
+provider switched on here vouches for - a personal address, an address on another domain than the
+organisation's directory - is mailed the link but cannot use it, because the provider's verified
+address has to be the account's (UC-ID-10, ADR-0078 §1). Once the password is off such an account has
+no way in; the password switch's count warns the administrator before it goes off (UC-ID-12), and
+connecting a differently addressed identity from a signed-in session is SC-37
+([#1146](https://github.com/Jersyfi/hubtask/issues/1146)), not built yet. The owner decides this
+limit.
 
 Since SC-25 the places where the provider mail had nothing to point to are closed
 ([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §3, §4): an account without a password that no

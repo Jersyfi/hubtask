@@ -624,7 +624,9 @@ SC-32's `identity_provider.link_needs_mailbox` has its way back where the passwo
 connect the workspace's provider. The link and a fresh sign-in at the provider together are the
 account's proof at the LINK step; an armed second factor is still asked; no password is stored; the
 provider's verified address must equal the account's. The LINK step keeps accepting the password as a
-proof where the password is off as a way in. Before the password is switched off, the switch says how
+proof where the password is off as a way in. Under *Only these domains/directories* the list decides who
+comes in new, not whether an existing member may connect with its own proof (decided 2026-10-06). Where
+the password is off, the sign-in card offers the link as "Get a sign-in link by mail". Before the password is switched off, the switch says how
 many people have never signed in through a provider.
 
 **Acceptance:** all three cases connect and sign in; an armed factor is still asked; a mismatched
