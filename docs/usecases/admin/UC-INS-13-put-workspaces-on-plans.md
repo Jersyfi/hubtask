@@ -51,4 +51,5 @@ upgrading.
 * Check 2: not met — there are no plans whose values could change.
 * Check 3: not met — no screen says "Set by your plan" or "Not included in your plan".
 * Check 4: not met — there is no downgrade.
+* Check 5: not met — there are no plans, so nothing yet guards these features against one.
 * Check 6: not met — there is no plan change to record.
