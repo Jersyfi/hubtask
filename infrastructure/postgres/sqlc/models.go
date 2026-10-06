@@ -572,6 +572,7 @@ type AuthPending struct {
 	ConsumedAt     pgtype.Timestamptz
 	LinkProviderID pgtype.UUID
 	LinkSubject    *string
+	LinkProof      *string
 }
 
 type AutoAssignPolicy struct {
@@ -1116,6 +1117,7 @@ type OidcFlow struct {
 	ProviderID       pgtype.UUID
 	SessionID        pgtype.UUID
 	InvitedAccountID pgtype.UUID
+	PendingID        pgtype.UUID
 }
 
 type Operator struct {

@@ -178,6 +178,15 @@ func (s *pendingStore) FindByToken(_ context.Context, token domain.Token) (repos
 	return lookup, nil
 }
 
+func (s *pendingStore) FindByID(_ context.Context, credentialID shared.ID) (repository.PendingLookup, error) {
+	for _, lookup := range s.rows {
+		if lookup.Credential.ID == credentialID {
+			return lookup, nil
+		}
+	}
+	return repository.PendingLookup{}, shared.ErrNotFound.WithDetail("auth.mfa_challenge_failed")
+}
+
 func (s *pendingStore) Consume(_ context.Context, credentialID shared.ID, at time.Time) (bool, error) {
 	for key, lookup := range s.rows {
 		if lookup.Credential.ID == credentialID {

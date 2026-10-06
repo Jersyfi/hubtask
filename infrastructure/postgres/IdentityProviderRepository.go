@@ -385,9 +385,14 @@ func (r OidcFlowRepository) Insert(
 	if err != nil {
 		return err
 	}
+	pending, err := optionalUUID(flow.PendingID)
+	if err != nil {
+		return err
+	}
 	if err := queries.InsertOidcFlow(ctx, sqlc.InsertOidcFlowParams{
 		SessionID:        session,
 		InvitedAccountID: invited,
+		PendingID:        pending,
 		ID:               id,
 		ProviderID:       provider,
 		StateHash:        r.stateHasher.Hash(presented.Secret()),
@@ -441,9 +446,15 @@ func (r OidcFlowRepository) Consume(
 	if err != nil {
 		return identity.OidcFlow{}, false, err
 	}
+	// The same for the CONNECT link a sign-in started from (ADR-0078 §1).
+	pendingID, err := optionalID(row.PendingID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
 	return identity.OidcFlow{
 		ID: id, TenantID: presented.TenantID(), ProviderID: providerID,
 		Nonce: row.Nonce, Verifier: row.CodeVerifier, InvitedAccountID: invitedAccountID,
+		PendingID: pendingID,
 	}, true, nil
 }
 

@@ -301,6 +301,11 @@ type PendingCredentials interface {
 	// shared.ErrNotFound.
 	FindByToken(ctx context.Context, token identity.Token) (PendingLookup, error)
 
+	// FindByID answers the credential a provider flow remembered by its identifier - the CONNECT
+	// link it started from (ADR-0078 §1) - in the transaction's workspace, or an error wrapping
+	// shared.ErrNotFound.
+	FindByID(ctx context.Context, credentialID shared.ID) (PendingLookup, error)
+
 	// Consume marks the credential used, atomically: false means somebody was here first.
 	Consume(ctx context.Context, credentialID shared.ID, at time.Time) (bool, error)
 

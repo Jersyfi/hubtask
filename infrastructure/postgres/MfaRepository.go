@@ -353,6 +353,9 @@ func (r MfaRepository) Insert(
 			return err
 		}
 		params.LinkSubject = nullableString(link.Subject)
+		// What proved the account (migration 0117); empty is the password, as the previous binary
+		// wrote it.
+		params.LinkProof = nullableString(string(link.Proof))
 	}
 	if err := queries.InsertPendingCredential(ctx, params); err != nil {
 		return shared.ErrUnavailable.
@@ -379,6 +382,41 @@ func (r MfaRepository) FindByToken(
 			WithCause(fmt.Errorf("reading the pending credential: %w", err))
 	}
 
+	return pendingLookupOf(row, token.TenantID())
+}
+
+// FindByID answers the credential a provider flow remembered (ADR-0078 §1): the CONNECT link it
+// started from. Row level security keeps it to the transaction's workspace, so another
+// workspace's identifier answers ErrNotFound as an unknown one does.
+func (r MfaRepository) FindByID(
+	ctx context.Context, credentialID shared.ID,
+) (repository.PendingLookup, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.PendingLookup{}, err
+	}
+	scope, ok := scopeFromContext(ctx)
+	if !ok {
+		return repository.PendingLookup{}, shared.ErrInternal.WithDetail("postgres.no_transaction_in_context")
+	}
+	id, err := uuidOf(credentialID)
+	if err != nil {
+		return repository.PendingLookup{}, err
+	}
+	row, err := queries.FindPendingByID(ctx, id)
+	if err != nil {
+		if IsNoRows(err) {
+			return repository.PendingLookup{}, shared.ErrNotFound.WithDetail("auth.mfa_challenge_failed")
+		}
+		return repository.PendingLookup{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the pending credential: %w", err))
+	}
+	return pendingLookupOf(sqlc.FindPendingByHashRow(row), scope.TenantID)
+}
+
+// pendingLookupOf maps one pending row and its account, however it was found.
+func pendingLookupOf(row sqlc.FindPendingByHashRow, tenantID shared.ID) (repository.PendingLookup, error) {
 	credentialID, err := idFrom(row.ID)
 	if err != nil {
 		return repository.PendingLookup{}, err
@@ -394,13 +432,16 @@ func (r MfaRepository) FindByToken(
 		if err != nil {
 			return repository.PendingLookup{}, err
 		}
-		link = &identity.LinkIntent{ProviderID: providerID, Subject: stringFrom(row.LinkSubject)}
+		link = &identity.LinkIntent{
+			ProviderID: providerID, Subject: stringFrom(row.LinkSubject),
+			Proof: identity.LinkProof(stringFrom(row.LinkProof)),
+		}
 	}
 
 	return repository.PendingLookup{
 		Credential: identity.PendingCredential{
 			ID:         credentialID,
-			TenantID:   token.TenantID(),
+			TenantID:   tenantID,
 			AccountID:  accountID,
 			Purpose:    identity.PendingPurpose(row.Purpose),
 			UserAgent:  stringFrom(row.UserAgent),
@@ -412,7 +453,7 @@ func (r MfaRepository) FindByToken(
 		},
 		Account: identity.Account{
 			ID:          accountID,
-			TenantID:    token.TenantID(),
+			TenantID:    tenantID,
 			Kind:        identity.AccountKind(row.AccountKind),
 			DisplayName: row.AccountDisplayName,
 			Status:      identity.AccountStatus(row.AccountStatus),

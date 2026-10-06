@@ -59,7 +59,7 @@ WHERE state_hash = $2
   AND session_id IS NULL
   AND consumed_at IS NULL
   AND expires_at > $1
-RETURNING id, provider_id, code_verifier, nonce, invited_account_id
+RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id
 `
 
 type ConsumeOidcFlowParams struct {
@@ -73,6 +73,7 @@ type ConsumeOidcFlowRow struct {
 	CodeVerifier     string
 	Nonce            string
 	InvitedAccountID pgtype.UUID
+	PendingID        pgtype.UUID
 }
 
 // Judged and burned in one statement, ConsumeOauthCode's discipline: unexpired and unconsumed,
@@ -87,6 +88,7 @@ func (q *Queries) ConsumeOidcFlow(ctx context.Context, arg ConsumeOidcFlowParams
 		&i.CodeVerifier,
 		&i.Nonce,
 		&i.InvitedAccountID,
+		&i.PendingID,
 	)
 	return i, err
 }
@@ -450,11 +452,11 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 const insertOidcFlow = `-- name: InsertOidcFlow :exec
 INSERT INTO oidc_flow
   (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id,
-   invited_account_id)
+   invited_account_id, pending_id)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6, $7,
-  $8, $9
+  $8, $9, $10
 )
 `
 
@@ -468,11 +470,13 @@ type InsertOidcFlowParams struct {
 	ExpiresAt        pgtype.Timestamptz
 	SessionID        pgtype.UUID
 	InvitedAccountID pgtype.UUID
+	PendingID        pgtype.UUID
 }
 
 // A NULL session is a sign-in flow; a session is the step-up at the provider it belongs to
 // (ADR-0075 §2). An invited account is the invitation a sign-in started from (ADR-0078 §1) - and the
-// foreign key on (tenant, account) is what keeps it this workspace's.
+// foreign key on (tenant, account) is what keeps it this workspace's. A pending credential is the
+// CONNECT link a sign-in started from (ADR-0078 §1, SC-33), kept this workspace's the same way.
 func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) error {
 	_, err := q.db.Exec(ctx, insertOidcFlow,
 		arg.ID,
@@ -484,6 +488,7 @@ func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) 
 		arg.ExpiresAt,
 		arg.SessionID,
 		arg.InvitedAccountID,
+		arg.PendingID,
 	)
 	return err
 }
