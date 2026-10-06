@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [i18n-l10n.md](../architecture/i18n-l10n.md) §1, §3, [api-guidelines.md](../architecture/api-guidelines.md) §6
+
 ## Context
 The application "must be capable of supporting every language". The frontend scope is open, and
 several clients are expected (web, mobile, CLI, agents). History entries, error messages, and

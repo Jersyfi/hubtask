@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-13
 
+**Rule lives in:** [i18n-l10n.md](../architecture/i18n-l10n.md) §3
+
 ## Context
 
 [i18n-l10n.md](../architecture/i18n-l10n.md) §3 has said since the first day that the translation

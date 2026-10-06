@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-13
 
+**Rule lives in:** [i18n-l10n.md](../architecture/i18n-l10n.md) §2, §3, §5, §6, §7
+
 ## Context
 
 [i18n-l10n.md](../architecture/i18n-l10n.md) names two packages by their import path: §2
