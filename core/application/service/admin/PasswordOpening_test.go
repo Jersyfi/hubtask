@@ -397,3 +397,49 @@ func TestTheEndJobComesBackForAnOpeningStillRunningAndLeavesAClosedOne(t *testin
 		t.Error("nothing to end recorded something")
 	}
 }
+
+// An opening written between the end job's read and its close: the close finds nothing due, and the
+// job comes back at the new opening's end instead of finishing - that opening's own job collapsed into
+// this running one, and without it nobody would record its end or tell the administrators.
+func TestTheEndJobComesBackForAnOpeningMadeWhileItRan(t *testing.T) {
+	f := newOpeningFixture(newRegister(operatorID))
+	f.tenants.record.PasswordOpening = domain.PasswordOpening{
+		Until: now.Add(-time.Minute), Requester: "TICKET-4711", Reason: "down",
+	}
+	f.tenants.racing = &domain.PasswordOpening{
+		Until: now.Add(5 * time.Hour), Requester: "TICKET-4714", Reason: "down again",
+	}
+
+	again, err := EndPasswordOpening{Writer: f.writer}.Execute(t.Context(), lifecycleTenant)
+	if err != nil {
+		t.Fatalf("ending: %v", err)
+	}
+	if again != 5*time.Hour {
+		t.Errorf("the job answered %v, want to come back at the new opening's end", again)
+	}
+	if len(f.audit.entries) != 0 || len(f.journal.entries) != 0 || len(f.notices.told) != 0 {
+		t.Error("an opening that still runs was recorded as ended")
+	}
+}
+
+// Closing an opening whose time has passed but whose end the job has not recorded yet: it ended at
+// its time, and that is what the trail, the journal and the mail say - not an early close.
+func TestClosingAnOpeningPastItsEndRecordsItAsExpired(t *testing.T) {
+	f := newOpeningFixture(newRegister(operatorID))
+	f.tenants.record.PasswordOpening = domain.PasswordOpening{
+		Until: now.Add(-time.Hour), Requester: "TICKET-4711", Reason: "down",
+	}
+
+	if _, err := (CloseTenantPassword{Writer: f.writer}).Execute(t.Context(), operator(), lifecycleTenant); err != nil {
+		t.Fatalf("closing: %v", err)
+	}
+	if entry := f.audit.entries[0]; changedTo(entry, "ended") != PasswordClosedExpired {
+		t.Errorf("trail entry %+v", entry)
+	}
+	if recorded := f.journal.entries[0]; recorded.Details["ended"] != PasswordClosedExpired {
+		t.Errorf("journal entry %+v", recorded)
+	}
+	if want := "closed " + lifecycleTenant.String() + " " + PasswordClosedExpired; len(f.notices.told) != 1 || f.notices.told[0] != want {
+		t.Errorf("the administrators were told %v", f.notices.told)
+	}
+}

@@ -303,12 +303,35 @@ func (h EndPasswordOpening) Execute(ctx context.Context, tenantID shared.ID) (ti
 				again = opening.Until.Sub(now)
 				return nil
 			}
-			_, err = w.close(ctx, record, appshared.ActorContext{
+			closed, err := w.close(ctx, record, appshared.ActorContext{
 				Kind: appshared.ActorSystem, TenantID: tenantID, AccountName: "the installation",
 			}, now, PasswordClosedExpired)
+			if err != nil || closed {
+				return err
+			}
+			// Nothing was due when the statement ran: an operator opened the password again between
+			// the read and the close. That opening's own job collapsed into this running one, so this
+			// one comes back at its end - or nobody would record it and tell the administrators.
+			again, err = h.standingFor(ctx, now)
 			return err
 		})
 	return again, err
+}
+
+// standingFor reads the row again and answers how long the opening found there still runs; zero
+// where none does.
+func (h EndPasswordOpening) standingFor(ctx context.Context, now time.Time) (time.Duration, error) {
+	record, err := h.Writer.Tenants.Find(ctx)
+	if errors.Is(err, shared.ErrNotFound) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	if !record.PasswordOpening.InForce(now) {
+		return 0, nil
+	}
+	return record.PasswordOpening.Until.Sub(now), nil
 }
 
 // CloseTenantPassword ends an opening before its time.
@@ -333,8 +356,14 @@ func (h CloseTenantPassword) Execute(
 		if err != nil {
 			return err
 		}
-		if !record.PasswordOpening.Until.IsZero() {
-			if _, err := w.close(ctx, record, actor, time.Time{}, PasswordClosedByOperator); err != nil {
+		if opening := record.PasswordOpening; !opening.Until.IsZero() {
+			// An opening whose time has passed ended then, not now: the row only still holds it
+			// because the job that records the end has not run yet. Recorded as what happened.
+			ended := PasswordClosedByOperator
+			if !opening.InForce(w.Clock.Now()) {
+				ended = PasswordClosedExpired
+			}
+			if _, err := w.close(ctx, record, actor, time.Time{}, ended); err != nil {
 				return err
 			}
 		}
