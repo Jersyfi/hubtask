@@ -791,6 +791,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0078 | The ways back in: a second proof for a provider, a fallback for every cause, and an operator's lever | accepted |
 | 0079 | A draft is checked locally; CI runs when a pull request is ready | accepted |
 | 0080 | Hubtask is Apache-2.0 | accepted |
+| 0081 | How work on Hubtask is organised | accepted |
 
 ---
 
