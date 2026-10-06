@@ -6,7 +6,7 @@ locations, retention, and deletion path. The basis for the record of processing 
 
 * **Version:** 0.5.0 · **As of:** 2026-08-31 · **Maintenance:** by pull request, so changes are traceable
 * **Concept:** [../architecture/data-protection.md](../architecture/data-protection.md)
-* **Consistency check:** gate PG-7 (`test/privacy/PG7_catalogue_test.go`, run by `make gate-privacy-full` in every pull request's data job and in the nightly) compares this record against a migrated database schema; a table with personal content that is missing here fails the build. It runs since E-11 — before that the sentence was a promise.
+* **Consistency check:** gate PG-7 (`test/privacy/PG7_catalogue_test.go`, run by `make gate-privacy-full` in every pull request's data job and in the nightly) compares this record against a migrated database schema; a table with personal content that is missing here fails the build.
 
 > This document describes the software. It is **not** an operator's record of processing activities
 > and **not** legal advice — legal bases and recipients depend on the specific installation. The
@@ -19,9 +19,7 @@ locations, retention, and deletion path. The basis for the record of processing 
 
 **Classification:** `NON_PERSONAL` · `PERSONAL_BASIC` · `PERSONAL_CONTENT` ·
 `PERSONAL_TECHNICAL` · `SPECIAL_CATEGORY_RISK` · `SECRET` — the six classes of the concept
-([data-protection.md](../architecture/data-protection.md) §3), which are `shared.DataClass` in code
-since E-11. This legend listed five until then; the missing one was `SPECIAL_CATEGORY_RISK`, which
-is exactly the class a record of processing activities must not be missing.
+([data-protection.md](../architecture/data-protection.md) §3), which are `shared.DataClass` in code.
 
 The trail's masking vocabulary — `OPEN`, `SENSITIVE`, `SECRET` — is **not** a fourth set of classes.
 It is derived from these six by `audit.MaskingFor` ([audit.md](../architecture/audit.md) §4).
@@ -108,7 +106,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Automation rules (conditions, actions) | `automation_rule` | `NON_PERSONAL` (references to people possible) + `SECRET` (an `HTTP_REQUEST` action's header secret, sealed through E-02 inside the actions document and masked in every API response - G-09); `findings` and `checked_at` (ADR-0060) carry paths, message codes and identifiers of the workspace's own objects, nothing personal | Automation | Until deleted | `CASCADE` |
 | Rule runs (input as a reference, result) | `rule_run` | `PERSONAL_TECHNICAL` | Debugging, transparency | 30 days | `RETENTION` |
 | Webhook subscriptions (target URL, secret) | `webhook_subscription` | `SECRET` (the secret) + `NON_PERSONAL` | Integration | Until deleted | `CASCADE` |
-| Delivery logs (status, truncated body) | `webhook_delivery` | `PERSONAL_TECHNICAL` | Proof of delivery | 30 days | `RETENTION` |
+| Delivery logs (status, truncated body) | `webhook_delivery` | `PERSONAL_TECHNICAL` | Proof of delivery | 30 days — not enforced yet: nothing removes a delivery before its subscription or the workspace goes ([data-retention.md](../architecture/data-retention.md) §3) | `RETENTION` |
 | Domain events (references, metadata) | `outbox_event` | `PERSONAL_TECHNICAL` | Integration | 7 days after delivery | `RETENTION` |
 | Change log (state deltas incl. field snapshots) | `change_log` | `PERSONAL_CONTENT` (the payload mirrors the row) | Offline synchronisation | The maximum offline window, 90 days by default (offline-sync.md §7) — the `SYNC_LOG` retention kind; a month falls as a partition once its every row has aged out for everybody | `RETENTION` (a purge before it elapses would let a device recreate deleted objects) |
 | Calendar feeds (token, scope) | `calendar_feed` | `SECRET` + `PERSONAL_CONTENT` (titles in the ICS) | Calendar integration | Until revoked | `CASCADE` |
@@ -130,7 +128,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 
 | Data category | Location | Classification | Purpose | Retention | Deletion path |
 |---|---|---|---|---|---|
-| Audit trail (metadata, masked diffs, truncated IP) | `audit_log` | `PERSONAL_TECHNICAL` | Evidence, security | **400 days** (audit.md §9, A-1); a tenant under its own obligation may configure another | `IMMUTABLE` (retention only) |
+| Audit trail (metadata, masked diffs, truncated IP) | `audit_log` | `PERSONAL_TECHNICAL` | Evidence, security | **400 days** (audit.md §1); a tenant under its own obligation may configure another. Not enforced yet: no `audit_log` partition is dropped today ([data-retention.md](../architecture/data-retention.md) §3) | `IMMUTABLE` (retention only) |
 | Data subject requests (kind, deadline, assignee, reason, the subject's account or address) | `data_subject_request` | `PERSONAL_BASIC` | Fulfilling data subject rights | 3 years (evidentiary interest, P-1 to be settled) | `RETENTION` |
 | Consents and withdrawals (purpose, when granted, when taken back, by whom) | `consent_record` | `PERSONAL_TECHNICAL` (a reference and two moments, no content) | Showing which optional processing was lawful when (Art. 7(1)) | With the account; a withdrawal is recorded rather than deleted | `CASCADE` |
 | Audit pseudonyms (an actor identifier and a label with no meaning outside the workspace) | `audit_pseudonym` | `PERSONAL_TECHNICAL` (a reference; it holds no name) | Answering an erased actor's entries without a name, where the trail itself cannot be edited (audit.md §6) | With the audit period | `IMMUTABLE` (append-only for the reason the trail is) |
@@ -142,11 +140,10 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Instance values (a default or a lock for every workspace, and which operator last set it) | `instance_setting` | `PERSONAL_TECHNICAL` (`updated_by` is an operator's account reference; the values are configuration) | Deciding once for every workspace (ADR-0070 §3) | Until the value is written again | `ANONYMIZE` in effect: `updated_by` is a bare identifier that names nobody once that account is gone, and the next write replaces it |
 | Idempotency keys | `idempotency_key` | `PERSONAL_TECHNICAL` | Protection against double processing | 24 hours | `RETENTION` |
 | Usage figures (aggregates) | `usage_record` | `NON_PERSONAL` | Billing (opt-in) | 3 years when enabled | `RETENTION` |
-| Export archives | Object storage | `PERSONAL_CONTENT` | Access, portability | 7 days, then automatic deletion | `RETENTION` |
 | Operational logs | stdout / the operator's aggregator | `PERSONAL_TECHNICAL` | Debugging | 7–30 days (the operator) | The operator |
 | Metrics | Prometheus | `NON_PERSONAL` | Operations | The operator | The operator |
 | Traces | The OTel backend | `PERSONAL_TECHNICAL` (masked) | Debugging | 7 days recommended | The operator |
-| Backups | The operator's infrastructure | Every class | Recoverability | **35 days** for the system backups and the point-in-time window (P-5, `data-protection.md` §12); a tenant's own archive backups keep what that tenant's plan says | Expiry of the cycle |
+| Backups | The operator's infrastructure | Every class | Recoverability | **35 days** for the system backups and the point-in-time window (`data-protection.md` §5); a tenant's own archive backups keep what that tenant's plan says | Expiry of the cycle |
 | Backup targets (kind, configuration, encrypted credentials) | `backup_target` | `SECRET` (the credentials) + `NON_PERSONAL` | Where a backup goes (ADR-0019) | Until deleted | `CASCADE` |
 | Backup and restore runs (status, manifest, sizes, who asked) | `backup_schedule`, `backup_run`, `restore_run` | `PERSONAL_TECHNICAL` (the actor references) | Evidence that a backup happened and a restore was approved | With the archive's retention | `RETENTION` |
 | Import runs (the kind, the hub, the file's identifier, who asked and in which zone and language, the report and the refused row numbers) | `import_run` | `PERSONAL_TECHNICAL` (the actor reference) | Evidence that an import happened and what it did (P-08); never the file's content, which is a media object deleted when the job ends | With the workspace; the rows an import wrote are ordinary rows with their own paths | `CASCADE` (the workspace's deletion) |
