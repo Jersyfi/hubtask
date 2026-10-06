@@ -57,7 +57,7 @@ Seven decisions taken while cutting, beyond what the ADR holds:
    capabilities and the two date rows (#916), the auto-assign without a policy (#917), the
    editor's border (#918). They were fixed as findings against `main` on 2026-09-22, in the shape
    the ADR proposes and no further, and each task below says which part is already done. What they
-   measured is in [`evidence/F10-2026-09-22.md`](../../evidence/F10-2026-09-22.md).
+   measured is in [`evidence/F10-2026-09-22.md`](../evidence/F10-2026-09-22.md).
 2. **`SideNav` is one component with two drawings, never two components.** The rail is a prop,
    the flyout is the same tree in a `Popover`, and a second tree is the failure this is guarded
    against — as it was in F9.

@@ -450,7 +450,7 @@ RTO a restore drill measures. The rules of measurement:
 * **A number names the run that produced it; a number no run produced is written *not measured*,
   never estimated.**
 
-The sources: **RT-6's overload run** ([RT-6-2026-09-02.md](../evidence/RT-6-2026-09-02.md)) on a
+The sources: **RT-6's overload run** ([RT-6-2026-09-02.md](../archive/evidence/RT-6-2026-09-02.md)) on a
 development machine over 5 000 items in 10 tenants, one process serving every role; **the nightly
 baseline** ([`test/load/baselines/steady-state.json`](../../test/load/baselines/steady-state.json)),
 the same machine and dataset at a held 200 req/s; and **the release tier's procedure**

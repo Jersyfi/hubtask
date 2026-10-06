@@ -53,7 +53,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		ShutdownGraceSeconds: getInt("HUBTASK_SHUTDOWN_GRACE_SECONDS", 30),
 		// Longer than it usually needs to be, because the cost of being wrong is asymmetric: a
 		// few seconds of a slower shutdown against requests refused during every rollout (RT-8,
-		// docs/evidence/RT-8-2026-08-21.md).
+		// docs/archive/evidence/RT-8-2026-08-21.md).
 		ShutdownDeregisterSeconds: getInt("HUBTASK_SHUTDOWN_DEREGISTER_SECONDS", 15),
 
 		Database: env.DatabaseConfig{

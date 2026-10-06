@@ -3081,7 +3081,7 @@ func run() error {
 	// How long that wait has to be is the load balancer's property, not this process's, which is
 	// why it is configuration rather than a constant. It was two seconds, and RT-8 found what two
 	// seconds buys: an ingress still holding the endpoint, and two requests answered with 502
-	// during a rollout that was otherwise clean (docs/evidence/RT-8-2026-08-21.md).
+	// during a rollout that was otherwise clean (docs/archive/evidence/RT-8-2026-08-21.md).
 	registry.MarkClosing()
 
 	// The streams are asked to end at the same moment, and before the deregistration wait rather

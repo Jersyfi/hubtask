@@ -7,3 +7,6 @@ Mostly the reliability tests. Not only: a dogfooding pass is a run whose result 
 `R-08-*.md` is one — a route walked in the application, so the next walk can be compared with it.
 
 The catalogue and the cadence each one is expected at are in [observability-reliability.md §12](../architecture/observability-reliability.md).
+
+Older runs are history in [`docs/archive/evidence/`](../archive/evidence/). The newest coverage
+report stays here, because `make gate-docs` holds the catalogue to it.

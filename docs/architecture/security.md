@@ -173,7 +173,7 @@ The master key stays in the environment: a KMS or a vault would defend nothing a
 could not also reach, and the ring is not in the database a dump yields
 ([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md), which also names the trigger for
 revisiting it). The procedure below is drilled
-([evidence](../evidence/S-2-2026-09-04.md), [completion](../evidence/S-2-2026-09-06.md)).
+([evidence](../archive/evidence/S-2-2026-09-04.md), [completion](../archive/evidence/S-2-2026-09-06.md)).
 
 `HUBTASK_ENCRYPTION_KEYS` is a ring, current first, and every predecessor in it stays readable.
 That is what makes a rotation a configuration change: nothing is rewritten at the moment the key

@@ -84,15 +84,15 @@ type SuggestDuplicates struct {
 // A number somebody has to choose, and one chosen by a session is one nobody can defend later - so
 // it is configuration (`HUBTASK_AI_DUPLICATE_THRESHOLD`) and this is only its default.
 //
-// **Measured, not argued for**: docs/evidence/K-04-2026-09-11.md, against a 295-entry corpus in two
-// languages on the two Ollama embedding models the product stores, with the floor chosen on one
-// half of the corpus and reported on the other. What it found: a same-language paraphrase sits
-// around 0.85-0.89, not above 0.95 as this comment used to claim - that is where a copy with one
-// word changed sits. At 0.9 the product found a third of the paraphrases, mostly those copies. At
-// 0.85 it found between half and four fifths, and showed a false candidate to four entries in a
-// hundred - every one of them a near-miss a person can reasonably be asked about (the kitchen tap
-// and the bathroom tap, the cat's vaccination and the dog's). Below 0.825 the false candidates
-// climb faster than the found ones.
+// **Measured, not argued for**: docs/archive/evidence/K-04-2026-09-11.md, against a 295-entry
+// corpus in two languages on the two Ollama embedding models the product stores, with the floor
+// chosen on one half of the corpus and reported on the other. What it found: a same-language
+// paraphrase sits around 0.85-0.89, not above 0.95 as this comment used to claim - that is where a
+// copy with one word changed sits. At 0.9 the product found a third of the paraphrases, mostly
+// those copies. At 0.85 it found between half and four fifths, and showed a false candidate to four
+// entries in a hundred - every one of them a near-miss a person can reasonably be asked about (the
+// kitchen tap and the bathroom tap, the cat's vaccination and the dog's). Below 0.825 the false
+// candidates climb faster than the found ones.
 //
 // The reasoning K-04 wrote stands and is what keeps the number here rather than lower: the cost of
 // the two mistakes is not symmetric. A duplicate that is not proposed is a duplicate somebody finds

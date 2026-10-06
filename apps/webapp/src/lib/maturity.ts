@@ -23,7 +23,7 @@ export type MaturityStage = 'experimental' | 'preview' | 'stable';
  * ADR-0035 §2 draws the line at a promise: `experimental` says nothing here is a commitment,
  * `preview` says what is shown is meant to stay and is usable for real work, with the gaps against
  * the capability matrix expected and listed. A day's work was done in this application against
- * this repository's own backlog and written down in `docs/evidence/R-08-2026-09-04.md`: a
+ * this repository's own backlog and written down in `docs/archive/evidence/R-08-2026-09-04.md`: a
  * collection for a milestone, its tasks, one broken into work packages and an activity, labelled,
  * ordered, completed, archived, found by a word in its notes, and its history read.
  *
