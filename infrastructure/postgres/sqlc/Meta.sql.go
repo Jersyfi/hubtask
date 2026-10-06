@@ -13,27 +13,33 @@ import (
 
 const findWorkspace = `-- name: FindWorkspace :one
 SELECT id, slug, display_name, status, default_locale, default_time_zone,
-       settings, created_at, updated_at, version
+       settings, created_at, updated_at, version,
+       password_opened_until, password_opened_requester, password_opened_reason
 FROM tenant
 WHERE id = current_tenant_id() AND deleted_at IS NULL
 `
 
 type FindWorkspaceRow struct {
-	ID              pgtype.UUID
-	Slug            string
-	DisplayName     string
-	Status          TenantStatus
-	DefaultLocale   string
-	DefaultTimeZone string
-	Settings        []byte
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
-	Version         int32
+	ID                      pgtype.UUID
+	Slug                    string
+	DisplayName             string
+	Status                  TenantStatus
+	DefaultLocale           string
+	DefaultTimeZone         string
+	Settings                []byte
+	CreatedAt               pgtype.Timestamptz
+	UpdatedAt               pgtype.Timestamptz
+	Version                 int32
+	PasswordOpenedUntil     pgtype.Timestamptz
+	PasswordOpenedRequester *string
+	PasswordOpenedReason    *string
 }
 
 // The tenant's own row, read from inside the tenant (F4-01). No tenant parameter: row level
 // security has already bound the transaction to exactly one, which is what makes another
 // workspace invisible rather than forbidden (ADR-0010).
+// The operator's opening of the password rides along (SC-34): it is read wherever the ways in are,
+// and honoured against the clock by the reader.
 func (q *Queries) FindWorkspace(ctx context.Context) (FindWorkspaceRow, error) {
 	row := q.db.QueryRow(ctx, findWorkspace)
 	var i FindWorkspaceRow
@@ -48,6 +54,9 @@ func (q *Queries) FindWorkspace(ctx context.Context) (FindWorkspaceRow, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.PasswordOpenedUntil,
+		&i.PasswordOpenedRequester,
+		&i.PasswordOpenedReason,
 	)
 	return i, err
 }

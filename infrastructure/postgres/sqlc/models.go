@@ -1396,20 +1396,23 @@ type Template struct {
 }
 
 type Tenant struct {
-	ID              pgtype.UUID
-	Slug            string
-	DisplayName     string
-	Status          TenantStatus
-	DefaultLocale   string
-	DefaultTimeZone string
-	Settings        []byte
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
-	DeletedAt       pgtype.Timestamptz
-	Version         int32
-	PurgeAfter      pgtype.Timestamptz
-	SyncEpoch       int64
-	PlanID          pgtype.UUID
+	ID                      pgtype.UUID
+	Slug                    string
+	DisplayName             string
+	Status                  TenantStatus
+	DefaultLocale           string
+	DefaultTimeZone         string
+	Settings                []byte
+	CreatedAt               pgtype.Timestamptz
+	UpdatedAt               pgtype.Timestamptz
+	DeletedAt               pgtype.Timestamptz
+	Version                 int32
+	PurgeAfter              pgtype.Timestamptz
+	SyncEpoch               int64
+	PlanID                  pgtype.UUID
+	PasswordOpenedUntil     pgtype.Timestamptz
+	PasswordOpenedRequester *string
+	PasswordOpenedReason    *string
 }
 
 type TenantHost struct {
