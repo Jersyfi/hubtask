@@ -610,7 +610,11 @@ jobs:
       contents: read
       pull-requests: read
     steps:
+      # The whole history: the readiness rule reads the branch's own commits - the tasks they carry,
+      # and whether each record was ready before the first code commit (tools/checkpr/readiness.go).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -620,7 +624,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
         run: gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.body // ""' > "${RUNNER_TEMP}/description.md"
-      - run: make gate-pr BODY="${RUNNER_TEMP}/description.md"
+      - run: make gate-pr BODY="${RUNNER_TEMP}/description.md" BASE="${BASE}" HEAD_REF="${HEAD_SHA}" OPENED="${OPENED}"
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          OPENED: ${{ github.event.pull_request.created_at }}
 
   # ---------------------------------------------------------------------------
   # The JavaScript half: the two clients and the two packages they share.

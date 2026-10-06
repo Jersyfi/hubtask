@@ -162,7 +162,7 @@ func checkADRRuleLines(root string) []string {
 		if !adrFile.MatchString(e.Name()) {
 			continue
 		}
-		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name())) //nolint:gosec // G304: an ADR file listed from docs/adr
 		if err != nil {
 			problems = append(problems, fmt.Sprintf("docs/adr/%s: %v", e.Name(), err))
 			continue

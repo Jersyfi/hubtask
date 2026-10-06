@@ -269,7 +269,7 @@ func checkDescription(ctx context.Context, body, fetched, logPath string) (strin
 		}
 		body = fetched
 	}
-	return runStep(ctx, step{name: "the description (gate-pr)", command: "make gate-pr BODY=" + strconv.Quote(body)}, logPath)
+	return runStep(ctx, step{name: "the description (gate-pr)", command: "make gate-pr BASE=origin/main BODY=" + strconv.Quote(body)}, logPath)
 }
 
 func dockerAnswers(ctx context.Context) bool {

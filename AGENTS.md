@@ -77,7 +77,7 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 | 9 | SQL only parameterised, through sqlc; no byte from a request becomes SQL text. The query DSL's one exception is bounded in `api-guidelines.md`. | `[partial: gate-quick; open: string building the linters miss]` |
 | 10 | No user content (titles, notes, comments) in logs, metrics, traces or audit entries. | `[partial: gate-privacy; open: user content in a free-text field]` |
 | 11 | `api/openapi.yaml` is the source: change it first, then `make generate`, then implement. Never hand-edit generated code. | `[partial: gate-quick; open: the order of the work]` |
-| 12 | Migrations are forward-only and safe for rolling updates (expand/contract). A merged migration never changes. | `[partial: gate-integration; open: an edit to a merged migration]` |
+| 12 | Migrations are forward-only and safe for rolling updates (expand/contract). A merged migration never changes. | `[gate: gate-pr]` |
 | 13 | English everywhere: documents, code, identifiers, comments, commits. | `[unchecked: no tool judges language reliably]` |
 | 14 | `core/` knows nothing about a frontend; no `.go` file under `apps/` or `packages/`. | `[gate: gate-architecture]` |
 | 15 | No colour, spacing, radius or duration value outside `packages/design-system/tokens/tokens.json`; the generated `LabelTokens.go` is never hand-edited. | `[gate: ci:node]` |
@@ -87,7 +87,7 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 - A task starts with its readiness record (`docs/backlog/ready/TEMPLATE.md`) as the branch's first
   commit, attacked by a reviewer who did not write it; code follows only once it says `ready` or
   `waiting on the owner`, and the pull request leaves draft only when it says `ready`.
-  `[unchecked: not yet gated]`
+  `[partial: gate-pr; open: the quality of the record and of the review]`
 - A pull request starts as a draft and leaves draft only after `make verify-pr` passed for the
   pushed `HEAD`. `[partial: ci:ci-required; open: a skipped local run — CI fails instead]`
 - A pull request description is a copy of `.github/PULL_REQUEST_TEMPLATE.md` with every section; it
