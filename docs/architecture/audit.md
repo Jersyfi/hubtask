@@ -285,10 +285,12 @@ survive its own subject.
 
 The evidence for such acts lives in `instance_event`: the installation's own journal, one row per
 control-plane act (`tenant.provisioned`, `tenant.suspended`, `tenant.resumed`,
-`tenant.deletion_requested`, `tenant.hard_deleted`). A row carries identifiers, the slug, the
-acting operator's label, moments and counts — for a hard delete, how many rows, media objects and
-bytes, outbox events, queued jobs and trail entries went — and never content. Three properties
-distinguish it from the trail:
+`tenant.deletion_requested`, `tenant.hard_deleted`, and an operator's opening of the password,
+`tenant.password_opened` and `tenant.password_closed`, ADR-0078 §3). A row carries identifiers,
+the slug, the acting operator's label, moments and counts — for a hard delete, how many rows, media
+objects and bytes, outbox events, queued jobs and trail entries went; for an opening of the
+password, its end and the requester and reason the operator entered, which ADR-0078 §3 asks to be
+recorded in both places — and never content. Three properties distinguish it from the trail:
 
 * **It belongs to no tenant.** The table has no row-level-security policy — deliberately, the job
   table's precedent: a policy comparing against `current_tenant_id()` would make the rows

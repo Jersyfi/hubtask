@@ -6,8 +6,8 @@ actors: [PE-operator, PE-admin]
 deployments: [D5, D6]
 serves: [P-02, P-05, P-06, P-07]
 state: partial
-tasks: [SI-10, SI-17, SC-01, SC-20, SC-26, SC-27, SC-31]
-checked_by: [core/application/service/admin/InstanceProvider_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, core/application/service/identity/IdentityProviderWithdrawal_test.go, test/integration/provider_withdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordFallback_test.go, test/integration/password_fallback_test.go]
+tasks: [SI-10, SI-17, SC-01, SC-20, SC-26, SC-27, SC-31, SC-34]
+checked_by: [core/application/service/admin/InstanceProvider_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, core/application/service/identity/IdentityProviderWithdrawal_test.go, test/integration/provider_withdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordFallback_test.go, test/integration/password_fallback_test.go, core/application/service/admin/PasswordOpening_test.go, core/application/service/identity/OperatorOpening_test.go, test/integration/password_opening_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs]
 ---
 
 # Offer sign-in providers to every workspace
@@ -76,3 +76,16 @@ installation puts it on everywhere and removes the switch.
   `TestAnInstallationDefaultWithoutThePasswordOpensItAsTheFallback`). A lock on the ways to sign in
   decides the methods only; it does not switch the installation's provider on in a workspace, which
   check 4 describes, and SC-31 does not change that.
+* **No check changes with SC-34**, which adds the installation's lever beside them. Since SC-34 ([#1141](https://github.com/Jersyfi/hubtask/issues/1141),
+  [ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §3) the installation has a lever for the case the
+  fallback cannot see - a provider that is switched on but broken: an operator opens the password for
+  one named workspace, 24 hours unless said otherwise and at most seven days, behind the scope, the
+  operator register and a step-up, with who asked and why. Every account there that holds a password
+  signs in with it, whatever the workspace's switch and any installation lock say; the opening ends on
+  its own at its time, read where the ways in are, and can be closed early. Both acts are in the
+  workspace's trail and the installation's journal, and the workspace's administrators are mailed when
+  it opens and when it closes (`PasswordOpening_test.go` in the control plane, `OperatorOpening_test.go`
+  over the door, the card and the sign-in; against PostgreSQL with the real resolver, the end job in the
+  workspace's own transaction and both statements kept to their workspace,
+  `test/integration/password_opening_test.go`; the installation's screen walked against a stubbed API,
+  `instanceworkspaces.test.mjs`; `hubctl admin tenant open-password|close-password`).
