@@ -19,7 +19,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The agent's guardrails as a gate (J-14, ai-first.md §1.3).
+// The agent's guardrails as a gate (ai-first.md §1.3).
 //
 // It is here rather than only beside the code because what it protects is a *surface*: the claim is
 // not "this function refuses" but "there is no destructive use case an agent can reach without the

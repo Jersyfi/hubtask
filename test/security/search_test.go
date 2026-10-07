@@ -13,8 +13,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
-// The acceptance sentence of C-08 that is about security rather than about language: no result is
-// ever an entry the actor may not read.
+// UC-WRK-18 check 5, the one about security rather than about language: no result is ever an entry
+// the actor may not read.
 //
 // A search is the one read that is not anchored to a place in the workspace, so what keeps an
 // unreadable title out of the answer is the narrowing and nothing else - there is no scope check
@@ -62,7 +62,7 @@ func visible(t *testing.T, held []identity.Membership) []bool {
 
 // Every role in the matrix carries READ where it is granted, so every role finds the entries of the
 // collection it holds - and this is the positive half. The negative halves are the two tests below,
-// and they are the ones the acceptance criterion is about.
+// and they are the ones UC-WRK-18 check 5 is about.
 func TestASearchAnswersEveryRoleTheEntriesItsRoleReaches(t *testing.T) {
 	for _, role := range []identity.Role{
 		identity.RoleOwner, identity.RoleAdmin, identity.RoleMember,

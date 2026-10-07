@@ -283,9 +283,9 @@ func portOf(t *testing.T, rawURL string) string {
 	return strings.TrimSuffix(p, "/")
 }
 
-// A webhook target is an egress channel exactly as a backup target is, and G-03's acceptance asks
-// for the test to say so by name: a subscription pointed at the metadata service or at a private
-// range is refused by the guard, and the private range is released only by explicit configuration.
+// A webhook target is an egress channel exactly as a backup target is (UC-INT-01 check 3): a
+// subscription pointed at the metadata service or at a private range is refused by the guard, and
+// the private range is released only by explicit configuration.
 //
 // The two halves are deliberately different. The metadata address is unreachable in every
 // configuration this product offers, because no self-hoster's LAN contains it and one GET against

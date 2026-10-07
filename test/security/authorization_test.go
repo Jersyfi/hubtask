@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// The negative suite of C-04, one case per role rather than one per use case.
+// The negative authorization suite, one case per role rather than one per use case.
 //
 // It runs against the decision point itself, which is where it belongs: fifteen use cases ask this
 // one question, so asking it once per use case would be fifteen copies of the same assertion - and
@@ -75,7 +75,7 @@ func TestTheNarrowingsPerRole(t *testing.T) {
 		{identity.RoleOwner, permitted, permitted, permitted, permitted, permitted, permitted},
 		{identity.RoleAdmin, permitted, permitted, permitted, permitted, permitted, permitted},
 		{identity.RoleMember, permitted, permitted, permitted, permitted, permitted, permitted},
-		// The row C-04 exists for: writes only on what is theirs, and creating is a write on
+		// The row this suite exists for: writes only on what is theirs, and creating is a write on
 		// something that will be.
 		{identity.RoleContributor, permitted, permitted, permitted, forbidden, permitted, forbidden},
 		{identity.RoleViewer, permitted, forbidden, forbidden, forbidden, forbidden, forbidden},
@@ -101,8 +101,8 @@ func TestTheNarrowingsPerRole(t *testing.T) {
 	}
 }
 
-// The acceptance criterion read literally: an entry that was not shared is not refused but absent,
-// and absent in the words a genuinely missing entry produces (T-04).
+// UC-WRK-22 check 5 read literally: an entry that was not shared is not refused but absent, and
+// absent in the words a genuinely missing entry produces (T-04).
 func TestAnEntryNothingGrantsAccessToIsInvisible(t *testing.T) {
 	// A share on one entry, asked about the entry beside it. This is the guest of the role matrix:
 	// the membership is at ITEM scope, which is what sharing an entry is.
@@ -169,7 +169,7 @@ func assertAnswer(
 
 	// Every refusal is recorded, whichever of the two answers the client got: "who tried to reach
 	// what" is the question the trail exists for, and hiding the entry from the client is not
-	// hiding the attempt from an auditor (audit.md §4, B-02).
+	// hiding the attempt from an auditor (audit.md §4).
 	if len(trail.entries) != 1 || trail.entries[0].Outcome != audit.OutcomeDenied {
 		t.Errorf("%s: the refusal was not recorded: %+v", what, trail.entries)
 	}
