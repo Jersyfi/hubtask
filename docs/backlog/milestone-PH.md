@@ -26,6 +26,9 @@ Each measured against the deployments `D1`–`D7`:
 3. **Managed accounts** without a mail address ([ADR-0074](../adr/ADR-0074-managed-accounts.md)).
 4. **Only the workspace can name the legal basis `NOT_OFFERED` needs**, so the installation's and the
    plan's lock can hold a workspace at `OFFERED` only (PH-03).
+5. **The extension's audit action is `dsr.extended`**, not `privacy.request_extended`: every action
+   of the privacy context is `dsr.*`, and `privacy.*` names its message codes (2026-10-07, the
+   owner, E11).
 
 ---
 
@@ -55,7 +58,7 @@ completes the rest; the integration suite green.
 
 `data_subject_request` gains the extended date, the reason (`COMPLEXITY`, `NUMBER_OF_REQUESTS`) and
 the date the person was informed; one extension, at most three months after receipt, before the
-original deadline; the watch and the register read the extended date; `privacy.request_extended`.
+original deadline; the watch and the register read the extended date; `dsr.extended` (decision 5).
 Every door: web app, API, `hubctl dsr extend`, MCP.
 
 **Acceptance:** tests for the bounds (twice, too late, too long, no reason, no informed date); the
