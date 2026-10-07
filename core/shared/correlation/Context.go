@@ -9,8 +9,8 @@
 // the metrics read them, and presentation must not import infrastructure
 // (project-structure.md §2).
 //
-// Only identifiers belong here. The actor and the permissions get their own typed wrapper with
-// A-06; a context value is not a place to keep an authorisation decision (ADR-0005).
+// Only identifiers belong here. The actor and the permissions have their own typed wrapper; a
+// context value is not a place to keep an authorisation decision (ADR-0005).
 package correlation
 
 import "context"
@@ -73,9 +73,9 @@ func ComponentFrom(ctx context.Context) string {
 	return component
 }
 
-// ContextWithAPIClient carries the OAuth client a request acts under (H-05): an identifier of a
-// registered app, which is what "audited with the client as a first-class actor attribute"
-// means. An identifier like the other two, never content - which is why it belongs here.
+// ContextWithAPIClient carries the OAuth client a request acts under (identity.md §15.3): an
+// identifier of a registered app, which is what "audited with the client as a first-class actor
+// attribute" means. An identifier like the other two, never content - which is why it belongs here.
 func ContextWithAPIClient(ctx context.Context, clientID string) context.Context {
 	return context.WithValue(ctx, apiClientKey, clientID)
 }
