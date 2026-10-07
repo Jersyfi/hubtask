@@ -49,38 +49,38 @@ const (
 	ItemUnassigned    Verb = "item.unassigned"
 	ItemMemberAdded   Verb = "item.member_added"
 	ItemMemberRemoved Verb = "item.member_removed"
-	// The attachment pair (C-06). A set beside the entry rather than a field on it, so the two
-	// directions are two verbs - which is also what the addition and the removal of a label are,
-	// and for the same reason: a history that said "changed" would not say what a person did.
+	// The attachment pair. A set beside the entry rather than a field on it, so the two directions
+	// are two verbs - which is also what the addition and the removal of a label are, and for the
+	// same reason: a history that said "changed" would not say what a person did.
 	ItemAttachmentAdded   Verb = "item.attachment_added"
 	ItemAttachmentRemoved Verb = "item.attachment_removed"
-	// ItemCustomFieldSet is one custom field written on an entry (C-07). Its own verb rather than
+	// ItemCustomFieldSet is one custom field written on an entry. Its own verb rather than
 	// `item.updated`, for the reason the cover pair has one: a history that rendered filling in a
 	// field and renaming an entry as the same sentence would be a history nobody reads twice. One
 	// verb for setting and clearing, because the change set carries both sides and "cleared" is a
 	// value moving to nothing rather than a different act.
 	ItemCustomFieldSet Verb = "item.custom_field_set"
-	// The cover pair (C-06). Their own verbs rather than `item.updated`, because a history that
-	// rendered choosing a picture and renaming an entry as the same sentence would be a history
-	// nobody reads twice - and because two use cases sharing a verb is exactly what the gate
-	// forbids. The event is an `item.updated` all the same: the cover is a scalar on the row and
-	// the event catalogue names no cover event (domain-model.md §4).
+	// The cover pair. Their own verbs rather than `item.updated`, because a history that rendered
+	// choosing a picture and renaming an entry as the same sentence would be a history nobody reads
+	// twice - and because two use cases sharing a verb is exactly what the gate forbids. The event
+	// is an `item.updated` all the same: the cover is a scalar on the row and the event catalogue
+	// names no cover event (domain-model.md §4).
 	ItemCoverSet     Verb = "item.cover_set"
 	ItemCoverCleared Verb = "item.cover_cleared"
-	// The due date pair (D-01). Their own verbs rather than `item.updated`, for the reason the
-	// cover pair has them: a history that rendered moving a deadline and renaming an entry as the
-	// same sentence would be a history nobody reads twice - and two use cases sharing a verb is
-	// what the gate forbids. One verb covers setting and moving, because the change set carries
-	// both sides and a move is a value moving rather than a different act; clearing is its own
-	// verb the way unassigning is, because "the deadline is gone" is a different sentence from
-	// "the deadline moved". The event is `item.due_changed` for all of it (domain-model.md §4).
+	// The due date pair. Their own verbs rather than `item.updated`, for the reason the cover pair
+	// has them: a history that rendered moving a deadline and renaming an entry as the same
+	// sentence would be a history nobody reads twice - and two use cases sharing a verb is what the
+	// gate forbids. One verb covers setting and moving, because the change set carries both sides
+	// and a move is a value moving rather than a different act; clearing is its own verb the way
+	// unassigning is, because "the deadline is gone" is a different sentence from "the deadline
+	// moved". The event is `item.due_changed` for all of it (domain-model.md §4).
 	ItemDueSet     Verb = "item.due_set"
 	ItemDueCleared Verb = "item.due_cleared"
-	// ItemCommented is the one comment verb (C-03). An edit and a deletion do not write history:
-	// the comment carries its own edited_at and its tombstone, and the thread is where both are
-	// read - a history entry beside them would describe the same fact in a second place.
+	// ItemCommented is the one comment verb. An edit and a deletion do not write history: the
+	// comment carries its own edited_at and its tombstone, and the thread is where both are read -
+	// a history entry beside them would describe the same fact in a second place.
 	ItemCommented Verb = "item.commented"
-	// ItemDuplicated is the first step of a copy's history (C-11). Its own verb rather than
+	// ItemDuplicated is the first step of a copy's history. Its own verb rather than
 	// `item.created`, because the two are different things to read - "somebody copied this from
 	// somewhere" is what a person needs in order to understand an entry that arrived with a
 	// history-less past - and because two use cases sharing a verb is what the gate forbids. The
@@ -88,28 +88,27 @@ const (
 	// into being, and a consumer that reacts to new entries has to react to this one
 	// (domain-model.md §4).
 	ItemDuplicated Verb = "item.duplicated"
-	// The series verbs (D-04). Three rather than one, because they are three different sentences
-	// to the person reading the history: this entry repeats now, what it repeats by has changed,
-	// it stops repeating. The change set is compact for all three - what the rule *is* belongs to
-	// the rule, and a history that restated it would be a second copy going stale beside it.
+	// The series verbs. Three rather than one, because they are three different sentences to the
+	// person reading the history: this entry repeats now, what it repeats by has changed, it stops
+	// repeating. The change set is compact for all three - what the rule *is* belongs to the rule,
+	// and a history that restated it would be a second copy going stale beside it.
 	//
-	// Nothing here is written when an occurrence is created: that entry has a history of its own
-	// (D-05), and the series' verbs are about the template.
+	// Nothing here is written when an occurrence is created: that entry has a history of its own,
+	// and the series' verbs are about the template.
 	ItemRecurrenceSet     Verb = "item.recurrence_set"
 	ItemRecurrenceChanged Verb = "item.recurrence_changed"
 	ItemRecurrenceRemoved Verb = "item.recurrence_removed"
 	// ItemRecurrenceSkipped is the fourth series verb, and the only one about an occurrence rather
-	// than about the rule: somebody said "not this time" (D-05). It is on the template's history,
-	// because the occurrence it refers to is the one that never existed.
+	// than about the rule: somebody said "not this time". It is on the template's history, because
+	// the occurrence it refers to is the one that never existed.
 	ItemRecurrenceSkipped Verb = "item.recurrence_skipped"
-	// The merge pair (N-06, offline-sync.md §4.2, §5). ItemMerged marks a merge in which a
-	// free-text field lost and its displaced version was filed as a comment - the history is
-	// where a person finds out that two versions collided and where the loser went.
-	// ItemChangeLost is a change with meaning - a completion, a reopen - that a device made and
-	// a later change outvoted: never silently discarded, but a visible step saying somebody
-	// tried, with the device and the reading. Neither is a use case's verb: both are written by
-	// the push on top of the use case it performed, which is why the gate reports rather than
-	// refuses them.
+	// The merge pair (offline-sync.md §4.2, §5). ItemMerged marks a merge in which a free-text
+	// field lost and its displaced version was filed as a comment - the history is where a person
+	// finds out that two versions collided and where the loser went. ItemChangeLost is a change
+	// with meaning - a completion, a reopen - that a device made and a later change outvoted: never
+	// silently discarded, but a visible step saying somebody tried, with the device and the
+	// reading. Neither is a use case's verb: both are written by the push on top of the use case it
+	// performed, which is why the gate reports rather than refuses them.
 	ItemMerged     Verb = "item.merged"
 	ItemChangeLost Verb = "item.change_lost"
 )

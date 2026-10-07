@@ -79,8 +79,7 @@ func TestARuleIsWrittenSwitchedOff(t *testing.T) {
 	}
 }
 
-// The flip G-05 wrote this test for. It refused a non-empty condition while there was no language;
-// with G-06 the aggregate keeps it, and whether the text is an expression is the compiler's
+// A condition is kept by the aggregate, and whether the text is an expression is the compiler's
 // question - asked in the application layer, because core/domain may not hold an evaluator.
 func TestAConditionIsKeptAndLeftForTheCompiler(t *testing.T) {
 	in := validInput()
@@ -586,7 +585,7 @@ func TestARuleNeedsAnAccountToRunAs(t *testing.T) {
 	}
 }
 
-// The name is stored in normal form C (i18n-l10n.md §5, M-07), like every label a person types.
+// The name is stored in normal form C (i18n-l10n.md §5), like every label a person types.
 func TestARuleNameIsStoredInNormalFormC(t *testing.T) {
 	in := validInput()
 	in.Name = "U\u0308berfa\u0308llige Freigaben eskalieren"

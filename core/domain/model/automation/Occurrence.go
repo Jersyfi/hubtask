@@ -9,12 +9,12 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// Occurrence is one moment a RELATIVE_DATE rule owes one entry (G-08, automation.md §1.1).
+// Occurrence is one moment a RELATIVE_DATE rule owes one entry (automation.md §1.1).
 //
-// D-02's shape rather than a new one: a reminder is "this entry, this moment, this person", and
-// this is the same fact with a rule in place of the person. What makes it worth storing at all is
-// that the anchor moves - a due date pushed by a day moves every rule that measures from it, and a
-// system that recomputed at firing time would have to look at every entry to find out.
+// A reminder's shape rather than a new one: a reminder is "this entry, this moment, this person",
+// and this is the same fact with a rule in place of the person. What makes it worth storing at all
+// is that the anchor moves - a due date pushed by a day moves every rule that measures from it, and
+// a system that recomputed at firing time would have to look at every entry to find out.
 type Occurrence struct {
 	ID       shared.ID
 	TenantID shared.ID

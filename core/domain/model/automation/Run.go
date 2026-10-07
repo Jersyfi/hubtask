@@ -30,10 +30,10 @@ const (
 	// RunRunning is a run in flight - or one whose process died. The engine writes it when the run
 	// starts, so a row left in it is a crash rather than a state anything reaches deliberately.
 	RunRunning RunStatus = "RUNNING"
-	// RunWaiting is a run parked on a WAIT action (G-09). Its results so far are written and a
-	// scheduled job holds the resume point - no worker is held while the delay passes. Its own
-	// status rather than RUNNING, because a row left in RUNNING is how a crash is recognised, and
-	// a run deliberately waiting a day must not read as one.
+	// RunWaiting is a run parked on a WAIT action (automation.md §2.0). Its results so far are
+	// written and a scheduled job holds the resume point - no worker is held while the delay
+	// passes. Its own status rather than RUNNING, because a row left in RUNNING is how a crash is
+	// recognised, and a run deliberately waiting a day must not read as one.
 	RunWaiting RunStatus = "WAITING"
 	// RunSucceeded is a run that acted. Its actions may not all have worked: `on_error: CONTINUE`
 	// finishes a run whose second action was refused, and the per-action results say so.
@@ -137,9 +137,9 @@ type Run struct {
 	// measured from one entry's due date. Zero where the event carries the subject, which is where
 	// a reader should look for it.
 	SubjectID shared.ID
-	// Occasion is what made this run one occurrence: the idempotency key's middle third (G-09).
-	// Kept on the row so a replay can complete a half-finished run around the keys its actions
-	// claimed. Empty on rows written before it was stored.
+	// Occasion is what made this run one occurrence: the idempotency key's middle third
+	// (automation.md §2.0). Kept on the row so a replay can complete a half-finished run around the
+	// keys its actions claimed. Empty on rows written before it was stored.
 	Occasion         string
 	Status           RunStatus
 	ConditionResults []ConditionResult
