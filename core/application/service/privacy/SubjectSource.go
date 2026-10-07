@@ -23,7 +23,7 @@ import (
 //
 // This map **is** the export's completeness, and it is written out rather than derived for the same
 // reason the role matrix is: derivation would be shorter and wrong. It is reconciled against the
-// data catalogue by the privacy gates (E-11's PG-3), which is what stops it drifting as tables are
+// data catalogue by the privacy gate PG-3, which is what stops it drifting as tables are
 // added - and a table that is not here contributes nothing, which is the safe direction for the
 // workspace and the unsafe one for the export, so the gate matters.
 var subjectColumns = map[string][]string{

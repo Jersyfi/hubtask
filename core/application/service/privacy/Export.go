@@ -29,7 +29,7 @@ import (
 //
 // It is **not a new format**. `backup-restore.md` §9 settled that: an export is a Hubtask archive,
 // "so an export is therefore simultaneously a restorable backup, without a second format coming
-// into existence". So this writes the archive of E-04, through the writer of E-05, with one thing
+// into existence". So this writes the backup archive, through the backup's writer, with one thing
 // changed - the source hands over the person's rows rather than the tenant's.
 
 const (
