@@ -22,9 +22,9 @@ import (
 // is made of - a sender, a subject, a text and some attachments.
 //
 // It is the durable half of the mail intake and it is transport-independent on purpose. What
-// arrives in 0.5.0 is a bridge posting the message to a token-protected URL; what AM-1 leaves open
-// is IMAP polling, and an IMAP client would produce the same bytes for the same function. That is
-// the port cut: a second transport is a second producer, never a second parser.
+// arrives is a bridge posting the message to a token-protected URL (ADR-0040); any other transport
+// would produce the same bytes for the same function. That is the port cut: a second transport is
+// a second producer, never a second parser.
 //
 // It is also the one boundary in this system that eats bytes nobody wrote for it, so every rule
 // here is a refusal rather than a repair:

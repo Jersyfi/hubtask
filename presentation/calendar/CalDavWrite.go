@@ -102,7 +102,7 @@ func (c *Controller) put(w http.ResponseWriter, r *http.Request, actor appshared
 		// holding the identifier: a todo the client completed leaves a view of open entries,
 		// and one it sent back without a DUE is no longer a moment. The client still holds the
 		// address and PUTs to it, and what it means is an edit of that entry - so the decision
-		// is the entry's, not the view's (issue 720). Only an identifier nothing holds is a
+		// is the entry's, not the view's. Only an identifier nothing holds is a
 		// creation.
 		outside, found, err := c.outsideTheView(r.Context(), actor, calendar, target.member)
 		if err != nil {

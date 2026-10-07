@@ -60,7 +60,7 @@ const WellKnown = "/.well-known/caldav"
 // caller. RFC 6764 has the client ask unauthenticated and follow the redirect before it presents
 // anything, so the address is public (rest.PublicRoutes) - it discloses nothing, since the tree
 // it points at still asks - and it takes Basic beside the bearer like the tree does, for the
-// client that sends its credential from the first request on (issue 719).
+// client that sends its credential from the first request on.
 func Discovery() http.Handler {
 	return http.RedirectHandler(Prefix, http.StatusMovedPermanently)
 }

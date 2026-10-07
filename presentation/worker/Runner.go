@@ -89,7 +89,7 @@ type Runner struct {
 	// error's SQLSTATE and the constraint it broke, never its message, which quotes the row.
 	// Injected, because the cause is an adapter's error type and this layer knows no adapter;
 	// nil logs the code alone, which is what the rule-10-safe line always carried. What it buys
-	// is the difference between "postgres.query_failed" and knowing which statement (issue 692).
+	// is the difference between "postgres.query_failed" and knowing which statement.
 	Diagnose func(error) []slog.Attr
 }
 

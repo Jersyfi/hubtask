@@ -289,7 +289,7 @@ func TestAnEntryLivesAtTheUIDItsClientChose(t *testing.T) {
 // A todo the client completed leaves a view of open entries, and one sent back without a DUE is
 // no longer a moment the calendar shows; the client keeps the address and PUTs to it again. The
 // decision is the entry's, not the view's: an identifier an entry holds is an update, never a
-// creation (issue 720).
+// creation.
 func TestAPutToAnEntryOutsideTheViewIsAnUpdate(t *testing.T) {
 	c, rec := writable()
 	me := accountID.String()
@@ -332,7 +332,7 @@ func TestAPutToAnEntryOutsideTheViewIsAnUpdate(t *testing.T) {
 }
 
 // A creation under a UID the workspace holds - two clients racing to the same address, or one
-// the reader could not see - is 409, the shape a taken identifier gives a push (issue 720) and
+// the reader could not see - is 409, the shape a taken identifier gives a push and
 // never a dependency failure.
 func TestACreationMeetingATakenUIDIs409(t *testing.T) {
 	c, rec := writable()

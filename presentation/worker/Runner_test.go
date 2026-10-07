@@ -631,7 +631,7 @@ func waitForClaims(t *testing.T, jobs *queueDouble, count int) {
 }
 
 // A failure's cause is handed to the diagnosis, and what it answers reaches the log line beside
-// the code - which is how a `postgres.query_failed` comes to name its constraint (issue 692). The
+// the code - which is how a `postgres.query_failed` comes to name its constraint. The
 // handler-missing failure has no cause and asks nothing.
 func TestAFailureIsDiagnosedForTheLogLine(t *testing.T) {
 	jobs := newQueue()
