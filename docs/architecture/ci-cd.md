@@ -47,7 +47,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `licences` | `make gate-licenses`: no copyleft Go dependency, and `THIRD-PARTY-LICENSES.md` current. Behind no filter | Licences |
 | `quick` | `make gate-quick` (gofmt, `golangci-lint` including `gosec` and `depguard`, `go vet`, `make generate` without a diff) and `make gate-sdk` (the generated Python SDK parses) | Format, lint, generation |
 | `build` | `make build` for linux/amd64 and linux/arm64 | Buildability |
-| `unit` | `make gate-unit`: the Go tests with `-race`, coverage `core/domain` ≥ 85 % and `core/application` ≥ 75 % | Unit |
+| `unit` | `make gate-unit`: the Go tests with `-race`, the gates' own tests under `tools/` among them, coverage `core/domain` ≥ 85 % and `core/application` ≥ 75 % | Unit |
 | `architecture` | `make gate-architecture`: layer rules, the `go` ban outside `SafeGo`, mandatory authorisation, use case parity across REST, MCP and automation, observability completeness (RT-12), audit declarations (SG-13), the translation gate, and `actionlint` over the workflows | Structure |
 | `resilience` | `make gate-resilience`: RT-1…RT-5, RT-7, RT-10, RT-12 (§3.2) | Reliability |
 | `observability` | `make gate-observability`: `promtool check rules` and `promtool test rules` over the four rule files, and the runbook/alert/dashboard checks in `test/observability` | Alerts and runbooks |

@@ -395,10 +395,14 @@ gate-quick:
 # regression guard's arithmetic are ordinary code, and a guard that has stopped working must turn
 # a pull request red rather than pass a nightly quietly. The runs themselves are behind the `load`
 # tag and stay in gate-load.
+#
+# tools is here because its programs are gates themselves (checkdocs, checkpr, verifypr): a gate
+# whose own tests run nowhere stops biting without anybody noticing, and its tests are what show it
+# still turns red on the violation it exists for.
 .PHONY: gate-unit
 gate-unit: export CGO_ENABLED = 1
 gate-unit:
-	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/... ./test/load/... ./test/e2e/...,-race -covermode=atomic -coverprofile=coverage.out)
+	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/... ./test/load/... ./test/e2e/... ./tools/...,-race -covermode=atomic -coverprofile=coverage.out)
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/domain/... MIN=85
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/application/... MIN=75
 
