@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // An action's settings, built from what the manifest declares for its kind (F8-04, decision 2).
+  // An action's settings, built from what the manifest declares for its kind (automation.md §1.5).
   //
   // The manifest's `action_fields` is the use case's own declaration - the same the MCP tool
   // schema is derived from - so a field is rendered by its kind: an identifier whose name the
@@ -24,9 +24,9 @@
     readonly required: boolean;
     readonly enum?: readonly string[];
     readonly description?: string;
-    /** False for the caller's plumbing a rule never sets (F8-15): hidden here. */
+    /** False for the caller's plumbing a rule never sets: hidden here. */
     readonly rule?: boolean;
-    /** `date-time` for an RFC 3339 instant (F8-15): drawn as a date and time. */
+    /** `date-time` for an RFC 3339 instant: drawn as a date and time. */
     readonly format?: string;
   }
 
@@ -52,7 +52,7 @@
   const set = (name: string, value: unknown): void => onchange({ ...params, [name]: value });
 
   /**
-   * What the form shows (decision 21): not the caller's plumbing, and not a field the run
+   * What the form shows (automation.md §1.5): not the caller's plumbing, and not a field the run
    * supplies unless the rule set it itself - those are said in one line under the form.
    */
   const shown = $derived(fields.filter((field) => field.rule !== false && !(SUPPLIED.has(field.name) && params[field.name] === undefined)));

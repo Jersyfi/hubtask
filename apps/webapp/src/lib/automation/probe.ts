@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * A run drawn onto the canvas (F8-06, `milestone-F8.md` decisions 5 and 9): what a dry run or a
+ * A run drawn onto the canvas (automation.md §1.5): what a dry run or a
  * recorded run says about each card, in the order the run visits them, and the health a rule has
  * from its last runs. Pure, so that the arithmetic and the order are held by tests.
  */
@@ -126,7 +126,7 @@ export function framesOfRun(actions: readonly Step[], run: Run): { frames: Frame
 export type Health = 'works' | 'sometimes' | 'failing' | 'off' | 'attention' | 'broken' | 'unknown';
 
 /**
- * The client's arithmetic over the last page of runs (decision 5): off beats everything but a
+ * The client's arithmetic over the last page of runs (automation.md §1.5): off beats everything but a
  * finding; a BROKEN finding is broken and an ATTENTION one needs attention; then the failures
  * among the runs - none is works, more than half is failing, any is sometimes; and a rule with
  * no run yet is unknown rather than pretended healthy.

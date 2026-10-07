@@ -1,19 +1,19 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The rule drawn as a path (F8-04, `milestone-F8.md` decision 1).
+  // The rule drawn as a path (automation.md §1.5).
   //
   // **The canvas is a vertical flow, in this order and no other:** the trigger card; the gate,
   // one block holding every condition; the chain of steps, each a card, with `BRANCH` drawn as a
   // fork into *then* and *otherwise* that rejoins, `WAIT` as a pause with its duration written on
   // the line below it, and `STOP` as a terminus that draws no line onward. Every gap between two
   // cards is exactly one line with one insertion point in its middle. What bounds the rule rather
-  // than travelling it - the guardrails - is the head's chip and the *Rule* tab (decision 24).
+  // than travelling it - the guardrails - is the head's chip and the *Rule* tab (automation.md §1.5).
   //
   // **It draws, it does not decide.** A click selects into the inspector, a `+` inserts, the
   // tools remove or fold; every change goes back through a callback and the parent holds the
   // draft. The connectors are elements rather than pseudo-elements so that a later step can light
-  // them as a run travels down (F8-06).
+  // them as a run travels down.
   //
   // **A branch's arms are equal in height**, so that both tails reach the join; an arm that ends
   // in a stop draws no tail, because the run does not continue from there.
@@ -52,7 +52,7 @@
     onnudge: (path: string, direction: -1 | 1) => void;
     onaddrung: (path: string) => void;
     onremoverung: (path: string) => void;
-    /** The drag in flight (F8-05, decision 7), and where it may land. */
+    /** The drag in flight (automation.md §1.5), and where it may land. */
     drag?: Drag;
     ondragchange: (drag: Drag | undefined) => void;
     ondrop: (list: string, index: number, drag: Drag) => void;
@@ -63,7 +63,7 @@
     segmented: boolean;
     armChoice: ReadonlyMap<string, 'then' | 'else'>;
     onpickarm: (path: string, arm: 'then' | 'else') => void;
-    /** A run drawn onto the canvas (F8-06): what each card says, by its key; cards not in it fade once `dimUnvisited`. */
+    /** A run drawn onto the canvas: what each card says, by its key; cards not in it fade once `dimUnvisited`. */
     verdicts?: ReadonlyMap<string, Verdict>;
     dimUnvisited?: boolean;
   }
@@ -110,7 +110,7 @@
   }
 </script>
 
-<!-- The background of the canvas deselects (decision 26): a click that reached no card, and
+<!-- The background of the canvas deselects (automation.md §1.5): a click that reached no card, and
      Escape while the focus is anywhere on the canvas. Both leave the panel with nothing to show
      in *Details*, which is the view's to answer. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -192,13 +192,13 @@
     <span class="ghead">
       <span class="mark condition-mark"><Icon name="funnel" size="sm" /></span>
       <span class="title">{t('app.flow.card_only_when')}</span>
-      <!-- Nothing to say where there is one condition: one is the most there can be (decision 30).
+      <!-- Nothing to say where there is one condition: one is the most there can be (automation.md §1.5).
            A stored rule from before may carry several, and then how they join is worth saying. -->
       {#if draft.conditions.length !== 1}
         <span class="hint">{draft.conditions.length > 1 ? t('app.flow.card_only_when_all') : t('app.flow.card_only_when_none')}</span>
       {/if}
     </span>
-    <!-- One condition is the gate itself (decision 30): it is not a second thing to click, and
+    <!-- One condition is the gate itself (automation.md §1.5): it is not a second thing to click, and
          the click goes through to the gate, whose panel is where it is edited. Only a stored rule
          with several keeps them apart, one card each. -->
     {#each draft.conditions as expr, index (index)}
@@ -236,7 +236,7 @@
         {#if verdict}<span class="verdict" class:yes={verdict.state === 'yes'} class:no={verdict.state === 'no'}><Icon name={verdict.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(verdict)}</span>{/if}
       </div>
     {/each}
-    <!-- One condition, and it can hold everything (decision 30): a condition is a tree of
+    <!-- One condition, and it can hold everything (automation.md §1.5): a condition is a tree of
          sentences under *all of* / *any of* / *none of*, so a second one beside it would be a
          second way to write the same *and*. The way in is offered while there is none. -->
     {#if draft.conditions.length === 0}
@@ -257,7 +257,7 @@
 
   <RuleCanvasList {summaries} {usage} steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {onremoverung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
 
-  <!-- The run ends where the chain ends (decision 19): the end mark, unless the chain already
+  <!-- The run ends where the chain ends (automation.md §1.5): the end mark, unless the chain already
        ended on every path above - where the list drew its own, or where a stored rule's steps
        after the end are drawn as never reached. -->
   {#if !endsRun(draft.actions) && unreachableFrom(draft.actions) === -1}
@@ -275,7 +275,7 @@
      alone carries the signature colour, because it is where the run comes from. */
   .card {
     position: relative;
-    /* The width is the border box (decision 25): under the project's content-box default a card
+    /* The width is the border box (design-system.md §6): under the project's content-box default a card
        at `100%` stood its padding and border wider than the column, and the scroll container cut
        the selection ring off in the canvas's own gutter. */
     box-sizing: border-box;
@@ -300,7 +300,7 @@
 
   .card.selected, .gate.selected, .condition.selected { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--sp-025); }
 
-  /* While a piece is lifted (decision 7): what may take it is ringed and labelled, what may not fades. */
+  /* While a piece is lifted (automation.md §1.5): what may take it is ringed and labelled, what may not fades. */
   .card.target, .gate.target { outline: var(--bw-ring) dashed var(--accent-primary); outline-offset: var(--sp-050); }
 
   .card.over, .gate.over { background: var(--accent-primary-subtle); }

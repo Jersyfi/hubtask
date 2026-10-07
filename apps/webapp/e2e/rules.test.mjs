@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The rule editor, driven the way a person drives it (F8-05): a card moved by drag and by keyboard
+// The rule editor, driven the way a person drives it: a card moved by drag and by keyboard
 // and the stored order asserted on the write that leaves; a trigger let go on a gap refused with
 // its sentence; and the phone-width layout, where the details come to the canvas as a sheet and a
 // branch shows one arm at a time. Chromium only: the browser's own drag and drop is what the
@@ -38,7 +38,7 @@ const RULE = {
   actions: [
     { kind: 'ADD_LABEL', params: { label_id: LABELS[1].id } },
     {
-      // The arms inside params: what the kind takes, and where the domain reads them (issue 853).
+      // The arms inside params: what the kind takes, and where the domain reads them.
       kind: 'BRANCH',
       params: {
         condition: 'has(item.due_at)',
@@ -173,7 +173,7 @@ function stubFor(written, tested = TEST_HELD) {
 const served = await serve(DIST);
 test.after(() => served.close());
 
-/** The panel's Blocks tab, opened: where every block is dragged or clicked from (decision 17). */
+/** The panel's Blocks tab, opened: where every block is dragged or clicked from (automation.md §1.5). */
 async function openBlocks(page) {
   await page.locator('aside.inspector').getByRole('tab', { name: 'Blocks' }).click();
   const blocks = page.locator('aside.inspector [data-blocks]');
@@ -234,7 +234,7 @@ test('chromium: the guardrails are the head\'s chip and the Rule tab, and nowher
   const written = [];
   const page = await open(browser, written, { width: 1400, height: 900 });
 
-  // The canvas draws the run's path and nothing that is not on it (decision 24).
+  // The canvas draws the run's path and nothing that is not on it (automation.md §1.5).
   assert.equal(await page.locator('[data-canvas] [data-card="guardrails"]').count(), 0, 'no guardrails card on the canvas');
 
   // The chip says what the card said, and leads to the one place they are set.
@@ -253,7 +253,7 @@ test('chromium: at the narrowest width beside the panel a selected card keeps it
   t.after(() => browser.close());
   const written = [];
   // Just above the expanded breakpoint: the canvas and the panel side by side with the least
-  // room between them, which is where a content-box card overhung its column (decision 25).
+  // room between them, which is where a content-box card overhung its column (design-system.md §6).
   const page = await open(browser, written, { width: 960, height: 1000 });
   await page.locator('[data-card="0"]').click();
 
@@ -267,7 +267,7 @@ test('chromium: at the narrowest width beside the panel a selected card keeps it
   assert.ok(room.start >= 4 && room.end >= 4, `the ring has room on both sides: ${JSON.stringify(room)}`);
   assert.equal(room.clipped, false, 'nothing overflows the canvas sideways');
 
-  // The background deselects (decision 26): the panel leaves Details for Blocks, because what one
+  // The background deselects (automation.md §1.5): the panel leaves Details for Blocks, because what one
   // does after letting a card go is add another.
   const selected = () => page.locator('aside.inspector [role="tablist"][aria-label="Panel"] [role="tab"][aria-selected="true"]').textContent();
   assert.equal(await selected(), 'Details');
@@ -311,10 +311,9 @@ test('chromium: a deep link into the editor reads each resource once, and only w
   await page.waitForFunction(() => document.querySelector('[data-canvas]') !== null);
   await page.waitForTimeout(1500);
 
-  // Issue 818: the boot read every subscription twice - once on subscribing, once when the
-  // snapshot ended - and the editor opened every picker's store at once; 32 requests met the
-  // credential's burst of 20. Now each GET once, and the labels, buckets, groups, templates and
-  // webhooks only when a field of the rule names their kind.
+  // Each GET once, and the labels, buckets, groups, templates and webhooks only when a field of
+  // the rule names their kind: reading every subscription twice and every picker's store at once
+  // meets the credential's burst on one screen.
   const gets = seen.filter((line) => line.startsWith('GET ') && !line.endsWith('/stream'));
   assert.deepEqual(gets.filter((line, index) => gets.indexOf(line) !== index), [], 'no resource read twice on open');
   for (const path of ['/labels', '/buckets', '/templates', '/groups', '/integrations/webhooks']) {
@@ -322,9 +321,9 @@ test('chromium: a deep link into the editor reads each resource once, and only w
   }
   assert.ok(gets.length <= 12, `${gets.length} reads on open: ${gets.join(', ')}`);
 
-  // And the canvas meets the content region rather than standing in its padding: the editor drew
-  // a slab of one colour on a page of another, which read as a border no other screen has
-  // (issue 918). Its start is the navigation's end and its end is the window's.
+  // And the canvas meets the content region rather than standing in its padding: standing in it
+  // draws a slab of one colour on a page of another, which reads as a border no other screen has.
+  // Its start is the navigation's end and its end is the window's.
   const edges = await page.evaluate(() => {
     const editor = document.querySelector('main .editor')?.getBoundingClientRect();
     const nav = document.querySelector('aside.sidenav')?.getBoundingClientRect();
@@ -354,7 +353,7 @@ test('chromium: a card moves by drag into a branch below it, arms and all', asyn
   const cards = async () => page.locator('[data-canvas] [data-card]').evaluateAll((els) => els.map((el) => el.getAttribute('data-card')));
 
   // The label, above the branch, into the branch's else arm: the arm's path is one shorter
-  // once the label is out, which is what the gap has to know to light (the final check of F8-20).
+  // once the label is out, which is what the gap has to know to light.
   const dt = await page.evaluateHandle(() => new DataTransfer());
   await page.dispatchEvent('[data-card="0"]', 'dragstart', { dataTransfer: dt });
   assert.equal(await page.locator('.gap[data-list="1/else"][data-index="2"]').count(), 0, 'after the end: no gap at all');
@@ -382,7 +381,7 @@ test('chromium: every building block carries its icon, and a kind outside the gr
   t.after(() => browser.close());
   const page = await open(browser, [], { width: 1400, height: 900 });
 
-  // The Blocks tab of the panel (decision 17): an icon in every item; the curated groups on the
+  // The Blocks tab of the panel (automation.md §1.5): an icon in every item; the curated groups on the
   // first sub-tab, every served kind on the second - nothing hidden.
   const blocks = await openBlocks(page);
   const items = blocks.locator('.item');
@@ -472,7 +471,7 @@ test('chromium: a condition is composed as a tree in the gate and in a branch, a
   await inspector.locator('[data-group="2"] select.mode').selectOption('none');
   await inspector.locator('[data-sentence="2/0"] select').nth(0).selectOption('archived');
   assert.equal(await inspector.locator('code.compiled').textContent(), "item.type == 'TASK' || item.completed == true || (!(item.archived == true))");
-  // On the canvas: the sentences in words, the modes as chips, the group marked (F8-18).
+  // On the canvas: the sentences in words, the modes as chips, the group marked.
   const shown = page.locator('[data-card="conditions/0"] .words');
   assert.equal(await shown.locator('.w').allTextContents().then((texts) => texts.join(' | ')), "the entry's type is TASK | completion yes | archived yes");
   assert.equal(await shown.locator('.chip').allTextContents().then((chips) => chips.join(',')), 'or,or,none of');
@@ -504,8 +503,8 @@ test('chromium: the gate is edited as one thing, a group is offered from the fir
   const page = await open(browser, written, { width: 1400, height: 1200 });
   const inspector = page.locator('aside.inspector');
 
-  // The gate holds the condition, and so does its panel (decision 28). One condition is all
-  // there is to offer: it can say anything the gate can ask (decision 30), so nothing adds a
+  // The gate holds the condition, and so does its panel (automation.md §1.5). One condition is all
+  // there is to offer: it can say anything the gate can ask (automation.md §1.5), so nothing adds a
   // second beside it.
   // The gate's own heading: a click on a condition inside it selects that one alone.
   await page.locator('[data-card="gate"] .ghead').click();
@@ -561,7 +560,7 @@ test('chromium: a trigger let go on a gap is refused with its sentence, and the 
   const page = await open(browser, [], { width: 1400, height: 900 });
 
   // While the piece is lifted: the hint on its own line, whole; the trigger card's strip inside
-  // the card; the gap's pill readable on one line (F8-12).
+  // the card; the gap's pill readable on one line.
   await openBlocks(page);
   const dt = await page.evaluateHandle(() => new DataTransfer());
   await page.dispatchEvent('[data-blocks] [data-block="T:SCHEDULE"]', 'dragstart', { dataTransfer: dt });
@@ -704,7 +703,7 @@ test('chromium: the panel ends where the region ends, and the Runs as warning le
   await inspector.getByRole('tab', { name: 'Rule' }).click();
 
   // One screen: the page itself does not scroll, and the panel ends inside the window rather
-  // than below it (decision 31).
+  // than below it (design-system.md §11.1).
   const room = await page.evaluate(() => {
     const panel = document.querySelector('aside.inspector');
     return {
@@ -866,11 +865,11 @@ test('chromium: the list checks the rules when it opens and says what the check 
   await page.getByText('Broken', { exact: true }).waitFor();
   await page.getByText('The account it runs as: The account the rule runs as holds no role at the rule\'s scope; every step on an entry would find nothing.').waitFor();
   await page.getByText('Works', { exact: true }).waitFor();
-  // The last run under the word (F8-21): the rule that ran says when and how, the other says never.
+  // The last run under the word: the rule that ran says when and how, the other says never.
   assert.match(await page.locator('article', { hasText: RULE.name }).textContent(), /Last run.*Succeeded/);
   assert.match(await page.locator('article', { hasText: STALE.name }).textContent(), /Last run\s*never/);
 
-  // On the shell (issue 880): one heading, from the PageHeader; the check's banner among its
+  // On the shell: one heading, from the PageHeader; the check's banner among its
   // notices; *Write a rule* the primary action, which opens the editor at its address.
   assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
   assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Automation');
@@ -884,7 +883,7 @@ test('chromium: the list checks the rules when it opens and says what the check 
   await page.locator('[data-card="2"] .flag').waitFor();
   assert.match(await page.locator('[data-card="2"] .flag').textContent(), /no action ADD_ATTACHMENT_FROM_URL/);
   assert.match(await page.locator('[data-card="0"] .flag').textContent(), /no longer exists/);
-  // The two findings of F8-19: the missing parameter at its step, the roleless runner at the pill.
+  // The two findings of automation.md §2.3: the missing parameter at its step, the roleless runner at the pill.
   assert.match(await page.locator('[data-card="3"] .flag').textContent(), /needs body/);
   assert.match(await page.locator('.chip-flag').textContent(), /holds no role/, 'the sentence is there for a screen reader');
   assert.match(await page.locator('.chip.flagged').getAttribute('title'), /holds no role/, 'and on hover');
@@ -907,7 +906,7 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   await page.locator('[data-strip]').waitFor();
   await page.waitForFunction(() => document.querySelector('[data-strip] dd')?.textContent === '3');
   assert.ok(written.some((body) => body.runs?.rule_id === RULE.id), 'the listing was asked for the rule');
-  // On the shell (issue 880): one heading, from the PageHeader.
+  // On the shell: one heading, from the PageHeader.
   assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
   assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'What the rules did');
 
@@ -919,7 +918,7 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   assert.ok(windowed, 'the listing was asked for the window');
   assert.ok(windowed.runs.to > windowed.runs.from, `to ${windowed.runs.to} after from ${windowed.runs.from}`);
   assert.equal(await page.locator('[data-strip] .stat').count(), 5);
-  // The hour's standing and the link to Limits (F8-21).
+  // The hour's standing and the link to Limits.
   await page.locator('[data-hourly]').waitFor();
   assert.match(await page.locator('[data-hourly]').textContent(), /This hour: 34 of 500 runs/);
   assert.equal(await page.locator('[data-hourly] a').getAttribute('href'), '/administration/quotas');

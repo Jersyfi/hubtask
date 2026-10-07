@@ -153,7 +153,7 @@ test('inserting, removing and moving keep the chain a copy, and a branch never e
 });
 
 // *End the run* belongs at the end of an arm, once, and nothing follows a step that ends the run
-// on every path (decision 19): it does not move up, nothing moves or is inserted below it, the
+// on every path (automation.md §1.5): it does not move up, nothing moves or is inserted below it, the
 // chain itself takes none - its end ends the run anyway - and a gap is asked before anything lands.
 test('End the run stays the last step of an arm, and the chain takes none', () => {
   const { actions } = fromRule(STORED);
@@ -173,7 +173,7 @@ test('End the run stays the last step of an arm, and the chain takes none', () =
   assert.equal(unreachableFrom([newStep('STOP'), newStep('WAIT'), newStep('WAIT')]), 1, 'what follows a stored end');
 });
 
-// A branch whose every arm ends the run ends it too (decision 19): nothing may follow it, what a
+// A branch whose every arm ends the run ends it too (automation.md §1.5): nothing may follow it, what a
 // stored rule holds after it is never reached, and the rule holds through a ladder's rungs.
 test('a branch ending on every path ends the list', () => {
   const stop = (): Step => newStep('STOP');
@@ -194,7 +194,7 @@ test('a branch ending on every path ends the list', () => {
   assert.equal(endsAllPaths(openLadder), false);
 });
 
-// A rung is an else arm whose only step is a branch (decision 19): adding one puts a fresh branch
+// A rung is an else arm whose only step is a branch (automation.md §1.5): adding one puts a fresh branch
 // there and moves what the arm held into the new rung's else, the reader takes the shape back
 // apart, and a plain branch is a ladder of one.
 test('an else-if is a rung under the ladder', () => {
@@ -215,7 +215,7 @@ test('an else-if is a rung under the ladder', () => {
   assert.equal(isRung(actions[1]), false, 'an else with two steps is no rung');
 });
 
-// A rung removed hands its otherwise to the rung above (decision 28), which is what + Else if
+// A rung removed hands its otherwise to the rung above (automation.md §1.5), which is what + Else if
 // took from it; its own then goes with the condition that decided those steps.
 test('a rung is removed and the ladder closes over it', () => {
   const { actions } = fromRule(STORED);
@@ -250,7 +250,7 @@ test('a sentence compiles to the expression the server stores, and reads back fr
     [{ subject: 'completed', op: 'no' }, 'item.completed == false'],
     [{ subject: 'due', op: 'lacks' }, '!has(item.due_at)'],
     [{ subject: 'parent', op: 'has' }, 'has(item.parent_id)'],
-    // A label, by its identifier, over the set the run reads beside the entry (issue 807).
+    // A label, by its identifier, over the set the run reads beside the entry.
     [{ subject: 'label', op: 'on', a: 'l-1' }, "item.labels.exists(l, l == 'l-1')"],
     [{ subject: 'label', op: 'not_on', a: 'l-1' }, "!item.labels.exists(l, l == 'l-1')"],
     [{ subject: 'assignee', op: 'is', a: 'acc-1' }, "item.assignee_id == 'acc-1'"],
@@ -259,7 +259,7 @@ test('a sentence compiles to the expression the server stores, and reads back fr
     [{ subject: 'actor', op: 'is', a: 'acc-2' }, "actor.id == 'acc-2'"],
     [{ subject: 'hour', op: 'between', a: '8', b: '18' }, 'now.getHours() >= 8 && now.getHours() < 18'],
     [{ subject: 'field', op: 'is', a: 'priority', b: "O'Neil" }, "item.custom_fields['priority'] == 'O\\'Neil'"],
-    // The subjects and operators of decision 15.
+    // The subjects and operators of automation.md §1.5.
     // Case-insensitive, as an RE2 match with the value escaped: "permit" means "Permit" too.
     [{ subject: 'title', op: 'contains', a: 'permit' }, "item.title.matches('(?i)permit')"],
     [{ subject: 'title', op: 'not_contains', a: 'draft' }, "!item.title.matches('(?i)draft')"],
@@ -285,7 +285,7 @@ test('a sentence compiles to the expression the server stores, and reads back fr
   assert.equal(readSentence("item.type == 'TASK' || item.completed"), undefined);
 });
 
-// A condition as a tree (decision 15): all / any / none over sentences and groups, compiled with
+// A condition as a tree (automation.md §1.5): all / any / none over sentences and groups, compiled with
 // parentheses and read back by the same grammar; a shape the composer did not write stays an
 // expression, and a sentence alone is unchanged.
 test('a tree of conditions compiles with parentheses and reads back the same', () => {

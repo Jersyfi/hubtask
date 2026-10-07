@@ -1,13 +1,13 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The rules (G-05, `automation.md` §1), as a list; each opens the editor that draws it (F8-04).
+  // The rules (`automation.md` §1), as a list; each opens the editor that draws it.
   //
   // **The form is gone.** What a rule does is written on a canvas at `/administration/rules/{id}`
   // and `/administration/rules/new`; this screen is the way in, and the two switches somebody
   // pressing them from the list expects.
   //
-  // **The check runs when this screen opens** (ADR-0060, F8-07): every rule's references resolved
+  // **The check runs when this screen opens** (ADR-0060): every rule's references resolved
   // against what exists now, the findings written on the rules and shown here - the banner with
   // the count, the health word and the first finding on each card. That is what makes "after an
   // update, the rules that need attention are shown" true without anything enumerating tenants:
@@ -15,12 +15,12 @@
   //
   // **The health here is the findings' and the switch's, not the runs'.** A page of runs per card
   // would be a request per rule on every open; the rule's own screen reads its runs and says the
-  // finer word (F8-06).
+  // finer word.
   //
   // **Every list is read rather than compiled in**, and **nothing is pre-empted**: the server
   // refuses and this renders it, as before.
   //
-  // **On the shell (ADR-0061, issue 880)** the page sits under a `PageHeader` like every other:
+  // **On the shell (ADR-0061)** the page sits under a `PageHeader` like every other:
   // *Write a rule* is its one primary action, the check's findings and a refusal are its notice
   // lines, and on a phone the title is the bar's. The editor keeps its address - it is a screen
   // of its own - and the primary navigates there the way the frame navigates.
@@ -78,7 +78,7 @@
   });
 
   const words = { t, has: (code: string) => messages.has(code) };
-  /** When the rule last ran and how it ended (F8-21), or that it never did. */
+  /** When the rule last ran and how it ended, or that it never did. */
   function lastRunWords(rule: { last_run?: { at: string; status: string } | null }): string {
     const last = rule.last_run;
     if (!last) return t('app.rules.never_ran');

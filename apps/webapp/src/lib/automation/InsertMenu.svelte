@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The `+` in a gap of the chain (F8-04, decision 1): every kind the manifest serves, the common
+  // The `+` in a gap of the chain (automation.md §1.5): every kind the manifest serves, the common
   // ones grouped and everything else after them, with a search, in a popover anchored to the gap.
   //
   // The three flow kinds are named here rather than read from the manifest, which is not a
@@ -23,12 +23,12 @@
     /** Where the chosen kind goes: the list and the index the gap sits at. */
     list: string;
     index: number;
-    /** The whole chain, which decides what this gap may take (decision 19). */
+    /** The whole chain, which decides what this gap may take (automation.md §1.5). */
     actions: readonly Step[];
     onpick: (list: string, index: number, kind: string) => void;
     /** A label above the slot, such as "a day later" under a WAIT. */
     caption?: string;
-    /** What is being dragged, while something is (F8-05): decides whether this gap is a target. */
+    /** What is being dragged, while something is: decides whether this gap is a target. */
     drag?: Drag;
     /** A piece let go on this gap. */
     ondrop?: (list: string, index: number, drag: Drag) => void;
@@ -56,7 +56,7 @@
 
   let isOpen = $state(false);
 
-  /** The same list as the panel's, filtered to what this gap takes (decision 17). */
+  /** The same list as the panel's, filtered to what this gap takes (automation.md §1.5). */
   const allowed = (kind: string): boolean => canPlace(actions, list, index, kind);
 
   function pick(kind: string): void {
@@ -125,7 +125,7 @@
 
   .slot:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
-  /* While a piece is lifted (decision 7): a gap that may take it widens into a labelled target,
+  /* While a piece is lifted (automation.md §1.5): a gap that may take it widens into a labelled target,
      one that may not fades and refuses; the one under the pointer fills. */
   /* Sized by its words, not by its wrapper: the popover's anchor shrinks to fit, so a percentage
      of it was a circle with two lines of text in it. */

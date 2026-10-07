@@ -2,7 +2,7 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // A condition's tree in words, read-only: the sentences plain, the modes as small chips, a
-  // nested group in brackets (F8-18, decision 18). The gate and a branch draw it alike; the panel
+  // nested group in brackets (automation.md §1.5). The gate and a branch draw it alike; the panel
   // edits it. An expression the composer did not write is said as "the expression holds", with
   // the expression under it, so nothing is hidden.
 

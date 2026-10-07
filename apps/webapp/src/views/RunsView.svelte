@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // What the rules did, what one would do, and how a failed run is finished (G-07).
+  // What the rules did, what one would do, and how a failed run is finished.
   //
   // **This is where the seven statuses earn their distinctness.** `SKIPPED` names *which* condition
   // stopped the run — the contract puts the condition results in the rule's own order precisely so
@@ -33,7 +33,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
-  // On the shell (ADR-0061, issue 880): the page's head is a `PageHeader`, the title the bar's on
+  // On the shell (ADR-0061): the page's head is a `PageHeader`, the title the bar's on
   // a phone. The filters stay beside the list they narrow, under its own heading and above the
   // counting strip, rather than in the head's second row: a row there would sit above the dry
   // run, which they do not filter.
@@ -43,7 +43,7 @@
   const STALE_AFTER_MS = 15 * 60 * 1000;
 
   /**
-   * The rule's own screen links here prefiltered (F8-06): `?rule_id=` in the address is the
+   * The rule's own screen links here prefiltered: `?rule_id=` in the address is the
    * filter's first value. Read once, at the open - the address is where the link put it, not a
    * store this screen writes back into.
    */
@@ -51,7 +51,7 @@
   let ruleFilter = $state(asked.get('rule_id') ?? '');
   let statusFilter = $state('');
   let triggerFilter = $state('');
-  /* The window (F8-02): `from` inclusive, `to` exclusive, on the run's own moment. */
+  /* The window: `from` inclusive, `to` exclusive, on the run's own moment. */
   let from = $state('');
   let to = $state('');
   let opened = $state<string | undefined>(undefined);
@@ -72,7 +72,7 @@
   });
 
   $effect(() => untrack(() => rules.open()));
-  // The hour's standing against automation_runs_per_hour (F8-21, decision 23): one line under
+  // The hour's standing against automation_runs_per_hour (automation.md §1.5): one line under
   // the strip and the link to Limits, from the same answer the Limits page reads. A reader the
   // quotas refuse sees no line - the standing is theirs to see or not, not this page's.
   $effect(() => untrack(() => quotas.open()));
@@ -91,7 +91,7 @@
   const statuses = ['RUNNING', 'WAITING', 'SUCCEEDED', 'SKIPPED', 'FAILED', 'ABORTED_LOOP', 'THROTTLED'];
   const triggers = $derived(manifest.value?.automation?.triggers ?? []);
 
-  /** The strip over the page (F8-07): what the filter shows, counted - not the workspace's totals. */
+  /** The strip over the page: what the filter shows, counted - not the workspace's totals. */
   const counts = $derived({
     runs: listed.length,
     succeeded: listed.filter((run) => run.status === 'SUCCEEDED').length,

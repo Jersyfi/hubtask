@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The rule's runs, in short (F8-06, decision 5): the health word with its reason, the last runs
+  // The rule's runs, in short (automation.md §1.5): the health word with its reason, the last runs
   // as a row of bars and as rows, the link to the runs page prefiltered on this rule. A run row
   // draws its recorded path onto the canvas; the whole record is the runs page's.
 

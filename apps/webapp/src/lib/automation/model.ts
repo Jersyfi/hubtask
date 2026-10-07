@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The rule as the editor holds it (F8-04, `milestone-F8.md` decisions 1, 3, 4).
+ * The rule as the editor holds it (automation.md §1.5).
  *
  * Pure: no store, no rune, no sentence. What is here is the shape of a draft, the paths that
  * address one step of it, the edits that keep the paths honest, the compile and read-back of the
@@ -73,7 +73,7 @@ export function emptyDraft(eventType = ''): Draft {
  * A branch's arms live inside its `params` - `then` and `else` are what the kind *takes*, beside
  * `condition` - which is where the domain reads them and where a finding's path points
  * (`/actions/2/params/then/0/kind`). The canvas keeps them as `Step.then` / `Step.else` for its
- * own paths, and this is the one place the two shapes meet (issue 853).
+ * own paths, and this is the one place the two shapes meet.
  */
 function armFrom(params: Record<string, unknown> | undefined, arm: 'then' | 'else'): RuleAction[] {
   const rows = params?.[arm];
@@ -290,7 +290,7 @@ export function moveStep(actions: readonly Step[], from: Path, list: string, ind
 /**
  * A list's path once the step at `from` is lifted out: a list inside a branch that follows the
  * lifted step in the same parent moves up one - `1/else` is `0/else` once `0` is gone. Without
- * this a card could never be moved into a branch below it (the final check of F8-20).
+ * this a card could never be moved into a branch below it.
  */
 export function shiftedList(list: string, from: Path): string {
   const source = parentOf(from);
@@ -311,14 +311,14 @@ export function nudge(actions: readonly Step[], path: Path, direction: -1 | 1): 
   const target = index + direction;
   if (target < 0 || target >= siblings.length) return clone(actions);
   const step = siblings[index];
-  // What ends the run stays the terminus (decision 19): it does not move up past a step, and no
+  // What ends the run stays the terminus (automation.md §1.5): it does not move up past a step, and no
   // step moves down past it.
   if (endsAllPaths(step) || endsAllPaths(siblings[target])) return clone(actions);
   return moveStep(actions, path, list, direction > 0 ? target + 1 : target) ?? clone(actions);
 }
 
 /**
- * Whether every path through a step ends the run (decision 19): *End the run* does; a branch does
+ * Whether every path through a step ends the run (automation.md §1.5): *End the run* does; a branch does
  * when each of its arms does - every rung of a ladder and the else. Nothing may follow such a
  * step in its list, and the canvas draws the list's end right there.
  */
@@ -333,7 +333,7 @@ export function endsAllPaths(step: Step | undefined): boolean {
 export const endsRun = (list: readonly Step[]): boolean => list.length > 0 && endsAllPaths(list[list.length - 1]);
 
 /**
- * Whether a step of `kind` may take the gap at `index` of `list` (decision 19): *End the run*
+ * Whether a step of `kind` may take the gap at `index` of `list` (automation.md §1.5): *End the run*
  * only as the last step of an arm, once - the chain's end ends the run anyway - and nothing
  * after a step that ends the run on every path, because the run would never reach it and the
  * canvas cannot draw "never" honestly. A list the chain does not have takes nothing.
@@ -355,7 +355,7 @@ export function unreachableFrom(steps: readonly Step[]): number {
 
 /* ---------- The ladder: if / else if / else ---------- */
 
-/** A rung: an else arm whose only step is a branch (decision 19). The reader and the canvas know the shape alike. */
+/** A rung: an else arm whose only step is a branch (automation.md §1.5). The reader and the canvas know the shape alike. */
 export const isRung = (step: Step | undefined): boolean => step?.kind === 'BRANCH' && (step.else?.length ?? 0) === 1 && step.else?.[0]?.kind === 'BRANCH';
 
 /**
@@ -375,7 +375,7 @@ export function rungsOf(step: Step, path: Path): { step: Step; path: Path }[] {
 }
 
 /**
- * The chain with an *else if* added under the ladder at `path` (decision 19): a fresh branch
+ * The chain with an *else if* added under the ladder at `path` (automation.md §1.5): a fresh branch
  * becomes the sole step of the last rung's else arm, and whatever that arm held becomes the new
  * rung's else - the steps keep their place as the last resort, and the engine runs the shape
  * today. Unchanged where `path` is not a branch.
@@ -390,7 +390,7 @@ export function addRung(actions: readonly Step[], path: Path): Step[] {
 }
 
 /**
- * The chain with one rung of a ladder removed (decision 28): the rung's *otherwise* is handed to
+ * The chain with one rung of a ladder removed (automation.md §1.5): the rung's *otherwise* is handed to
  * the rung above, exactly as *+ Else if* took it, so the ladder closes rather than losing the
  * last resort. The rung's own *then* goes with it - those steps were what its condition decided,
  * and no other rung means them. Removing the ladder's first rung is removing the branch itself,
@@ -409,7 +409,7 @@ export function removeRung(actions: readonly Step[], path: Path): Step[] {
 /**
  * A fresh step of a kind, with a branch's two empty arms. A branch starts with the composer's own
  * first sentence compiled, so the card and the panel say the same thing from the first moment
- * and a branch saved untouched carries a condition the server accepts (F8-18).
+ * and a branch saved untouched carries a condition the server accepts.
  */
 export function newStep(kind: string): Step {
   return kind === 'BRANCH' ? { kind, params: { condition: compileSentence(defaultSentence()) }, then: [], else: [] } : { kind, params: {} };
@@ -432,7 +432,7 @@ export function nameSeed(draft: Draft): NameSeed {
   return { trigger: draft.trigger, kinds: kinds.slice(0, 2), more: kinds.length > 2 };
 }
 
-/** A name equal to what the rule generates for itself counts as automatic and follows every edit (decision 4). */
+/** A name equal to what the rule generates for itself counts as automatic and follows every edit (automation.md §1.5). */
 export const isAutomatic = (name: string, generated: string): boolean => name.trim() === '' || name.trim() === generated;
 
 /* ---------- The condition composer ---------- */
@@ -440,10 +440,10 @@ export const isAutomatic = (name: string, generated: string): boolean => name.tr
 /**
  * A condition as a sentence: a bounded set of subjects with the operators each takes. Compiled
  * to the CEL the server stores, and read back from it by matching the shapes this compiles to -
- * an expression the composer did not write is shown as an expression (decision 3).
+ * an expression the composer did not write is shown as an expression (automation.md §1.5).
  *
  * The subjects are the fields the run's `item` document carries (`condition.ItemDocument`), the
- * labels beside it (`item.labels`, read with the entry since issue 807), the actor, and the hour
+ * labels beside it (`item.labels`, read with the entry), the actor, and the hour
  * of `now`.
  */
 export type Subject =
@@ -581,13 +581,13 @@ export function readSentence(expr: string): Sentence | undefined {
 /** A sentence's first shape, for a new condition. */
 export const defaultSentence = (): Sentence => ({ subject: 'type', op: 'is', a: 'TASK' });
 
-/* ---------- The tree (decision 15) ---------- */
+/* ---------- The tree (automation.md §1.5) ---------- */
 
 /**
  * A condition as a tree: sentences under *all of*, *any of* or *none of*, nested as deep as the
  * writer likes. Compiled to CEL with parentheses and read back by the same grammar - top-level
  * `||` first, then `&&`, a leading `!(…)` for *none*, a pair of parentheses around a group - and
- * anything else stays an expression, as decision 3 says. A group is one `expr` on the server;
+ * anything else stays an expression, as automation.md §1.5 says. A group is one `expr` on the server;
  * nothing there changes.
  */
 export type GroupMode = 'all' | 'any' | 'none';

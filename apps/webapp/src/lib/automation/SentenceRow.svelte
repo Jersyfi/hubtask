@@ -2,7 +2,7 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // One sentence of a condition: a subject, the operator it takes, and the value where there is
-  // one (decision 3). The row is what the tree composer repeats; it knows nothing of the tree.
+  // one (automation.md §1.5). The row is what the tree composer repeats; it knows nothing of the tree.
 
   import { Input, Select } from '@hubtask/design-system/components';
 

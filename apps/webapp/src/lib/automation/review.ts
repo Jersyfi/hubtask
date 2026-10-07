@@ -2,8 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * What is missing from the draft, said before the probe is pressed (F8-26, `milestone-F8.md`
- * decision 29).
+ * What is missing from the draft, said before the probe is pressed (automation.md §1.5).
  *
  * ADR-0060's check runs on a *stored* rule against what exists in the workspace - a label that was
  * deleted, an action kind a later version no longer serves - and it cannot speak about the draft
@@ -33,11 +32,11 @@ export interface Note {
   readonly params?: Record<string, string | number>;
 }
 
-/** A field of an action kind, as the manifest declares it (F8-01, F8-15). */
+/** A field of an action kind, as the manifest declares it. */
 export interface ReviewField {
   readonly name: string;
   readonly required: boolean;
-  /** False for the caller's plumbing, which a rule never carries (F8-15). */
+  /** False for the caller's plumbing, which a rule never carries. */
   readonly rule?: boolean;
 }
 

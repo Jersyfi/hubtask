@@ -1,8 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A condition composed as a tree of sentences and stored as CEL (F8-04 decision 3, F8-13
-  // decision 15).
+  // A condition composed as a tree of sentences and stored as CEL (automation.md §1.5).
   //
   // The composer offers a bounded set of subjects with the operators each takes; sentences stand
   // alone or under *all of* / *any of* / *none of*, nested as deep as the writer likes; the whole
@@ -38,8 +37,8 @@
   const editingRaw = $derived(expert || foreign);
 
   /**
-   * The root is always drawn as a group, whatever the expression is (decision 28). A lone
-   * sentence used to offer only *Add another sentence*, so a group became possible only once a
+   * The root is always drawn as a group, whatever the expression is (automation.md §1.5). A lone
+   * sentence would offer only *Add another sentence*, so a group would become possible only once a
    * second sentence existed and the reader could not say *any of* from the start; a group of one
    * compiles to the sentence itself, so nothing about the stored expression changes.
    */
