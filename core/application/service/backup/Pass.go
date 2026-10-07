@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/recurrence"
 )
 
-// SchedulePass turns the schedules whose moment has come into backup jobs (E-05).
+// SchedulePass turns the schedules whose moment has come into backup jobs.
 //
 // One pass per scope, and the scope is what the caller opens it under: a tenant's poller runs it
 // for that tenant, and the leader runs it for the instance-wide schedules that belong to no tenant.

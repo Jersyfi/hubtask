@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/crypto"
 )
 
-// The seam the audit export writes through (E-09). What is under test is that a caller who needs
+// The seam the audit export writes through. What is under test is that a caller who needs
 // somewhere to put bytes gets a store and never a credential, and that a target nobody may write
 // to is refused here rather than at the target.
 

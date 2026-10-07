@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/stepup"
 )
 
-// The listing at the target (E-06, backup-restore.md §8.1). What it is judged by is what it does
+// The listing at the target (backup-restore.md §8.1). What it is judged by is what it does
 // *not* read: no run row, no schedule, nothing in the database beyond the target's own row and its
 // credential - because the day this matters is the day the database is a fresh empty one.
 

@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// The restore itself (E-06, backup-restore.md §8.3): what it writes, what it deliberately does not
+// The restore itself (backup-restore.md §8.3): what it writes, what it deliberately does not
 // write, and what a dry run costs. Every case here is a round trip - the archive is written by the
 // performer of E-05 and read back by the applier - because an archive nobody wrote is an archive
 // whose format the test agrees with rather than the writer.
@@ -157,7 +157,7 @@ func (i *importStore) Write(
 		return false, nil
 	}
 	// The one foreign key the database would enforce immediately and this map otherwise would
-	// not: a work item's parent must be there (#693).
+	// not: a work item's parent must be there.
 	if table == "work_item" {
 		if parent, named := data["parent_id"].(string); named && parent != "" {
 			if _, held := i.tables[table][parent]; !held {
@@ -222,7 +222,7 @@ type applyHarness struct {
 	prefix   string
 }
 
-// epochDouble counts how often the workspace's synchronisation epoch was advanced (N-11).
+// epochDouble counts how often the workspace's synchronisation epoch was advanced.
 type epochDouble struct{ advanced int }
 
 func (e *epochDouble) Advance(context.Context) (int64, error) {
@@ -459,7 +459,7 @@ func TestACollisionIsSettledByTheRuleTheRestoreWasGiven(t *testing.T) {
 	}
 }
 
-// The name the copy is called, and the calendar address it does not take over (#790).
+// The name the copy is called, and the calendar address it does not take over.
 //
 // `mint` gave the copy an identity and changed nothing else, so it arrived under the living
 // collection's name and met `container_name_uq`; and it kept the calendar UID the client that made
@@ -754,7 +754,7 @@ func TestReplaceTenantEmptiesTheTenantFirst(t *testing.T) {
 	}
 }
 
-// B-5 (backup-restore.md §12, N-11): a restore into an existing workspace advances its
+// B-5 (backup-restore.md §12): a restore into an existing workspace advances its
 // synchronisation epoch as it succeeds - REPLACE_TENANT and the selective kinds alike - so that
 // every cursor minted before is refused and the devices resynchronise by themselves. A dry run
 // advances nothing, and neither does a restore into a new workspace.
@@ -831,7 +831,7 @@ func TestADestructiveModeWithNoSafetyCopyIsRefused(t *testing.T) {
 
 // BK-10 at the dry run and at the execution, not only at the listing. The manifest is compared
 // against the tenant that asked - the archive's owner - so a run row in tenant B pointing at A's
-// archive path on a shared target is refused whatever mode it names, NEW_TENANT included (#206).
+// archive path on a shared target is refused whatever mode it names, NEW_TENANT included.
 func TestAnArchiveOfAnotherTenantIsRefusedAtTheRestore(t *testing.T) {
 	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000ff")
 	for name, change := range map[string]func(*domain.Restore){
@@ -858,7 +858,7 @@ func TestAnArchiveOfAnotherTenantIsRefusedAtTheRestore(t *testing.T) {
 	}
 }
 
-// An abandoned restore is closed rather than left holding the one-restore-per-tenant lock (#207):
+// An abandoned restore is closed rather than left holding the one-restore-per-tenant lock:
 // the queue gave up on the job, nobody else will ever close the row, and InProgress would refuse
 // every later restore while it stood.
 func TestAnAbandonedRestoreIsClosedUnderItsOwnCode(t *testing.T) {
@@ -903,7 +903,7 @@ func TestAnInstanceRestoreIsRefused(t *testing.T) {
 var mintedTenant = shared.MustParseID("0192f000-0000-7000-8000-0000000000ee")
 
 // The mode backup-restore.md §10 recommends for a trial restore: the archive is the asker's own,
-// and the rows land in the workspace that was minted for them (#206). Before the fix the precheck
+// and the rows land in the workspace that was minted for them. Before the fix the precheck
 // compared the manifest against that minted workspace and could never match.
 //
 // The identity rule is the substance: the source rows still live in this installation and every
@@ -1123,7 +1123,7 @@ func TestARestoredReminderWhoseMomentHasGoneIsMarkedLapsed(t *testing.T) {
 	}
 }
 
-// A child exported before its parent lands after it (#693): the export orders rows by when they
+// A child exported before its parent lands after it: the export orders rows by when they
 // changed, a parent edited after its child comes second, and a NEW_TENANT copy - which writes
 // every row - failed on the foreign key. The store above enforces that key; the applier defers.
 func childBeforeParentRows(export *rows) {

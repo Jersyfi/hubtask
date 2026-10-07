@@ -33,7 +33,7 @@ type SafetyBackup interface {
 	Perform(ctx context.Context, in PerformInput) (domain.Run, error)
 }
 
-// Applier performs one restore, end to end (E-06, backup-restore.md §8.3).
+// Applier performs one restore, end to end (backup-restore.md §8.3).
 //
 // The procedure of §8.3 is a checklist and this follows it in order: pre-check, dry run with a
 // report, the confirmation and the step-up (which the use case has already refused without), the
@@ -53,7 +53,7 @@ type Applier struct {
 	// to write it to refuses the destructive mode rather than proceeding without the copy.
 	Safety     SafetyBackup
 	UnitOfWork persistence.UnitOfWork
-	// Epochs is the workspace's synchronisation epoch (N-11, backup-restore.md §12 B-5): a
+	// Epochs is the workspace's synchronisation epoch (backup-restore.md §12 B-5): a
 	// restore into an existing workspace advances it as it succeeds, in the same transaction, so
 	// that every cursor minted before is refused and the devices resynchronise by themselves -
 	// the rows a restore wrote are in no change log entry. A restore into a new workspace advances
@@ -198,7 +198,7 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 		// NEW_TENANT copies a workspace whose rows still live in this installation, and every
 		// identity in the schema is a global one - so the copy derives a new identity for every
 		// row and follows the references, the way DUPLICATE does for a collision. Without this the
-		// first insert collides with the source (#206).
+		// first insert collides with the source.
 		remapAll: ready.restore.Mode == domain.RestoreNewTenant,
 	}
 
@@ -429,7 +429,7 @@ func (a Applier) succeed(
 	})
 }
 
-// Abandon closes a restore whose job the queue has given up on (#207).
+// Abandon closes a restore whose job the queue has given up on.
 //
 // The open row - PENDING or RUNNING - holds the one-restore-per-tenant lock: InProgress refuses
 // every later restore while it stands, and the worker that would have closed it is not coming
@@ -607,7 +607,7 @@ type state struct {
 	// written, so that a row whose parent is in an earlier batch is told so without a query.
 	landed map[string]map[string]bool
 	// deferred is what could not be written yet because its parent in the same table is neither
-	// in the target nor written so far - a child the export ordered before its parent (#693). By
+	// in the target nor written so far - a child the export ordered before its parent. By
 	// entity name, in the order staged, each with the position it was read at.
 	deferred map[string][]staged
 }
@@ -836,7 +836,7 @@ func (s *state) stage(ctx context.Context, entity archive.Entity, record archive
 }
 
 // settleDeferred writes what the entity's stream left behind: the children that arrived before
-// their parents (#693). In rounds, because a chain of three levels may need three; a round that
+// their parents. In rounds, because a chain of three levels may need three; a round that
 // settles nothing is a parent that is in neither the archive nor the target, and what points at
 // it is withheld the way a row pointing at a journalled deletion is.
 func (s *state) settleDeferred(ctx context.Context, entity archive.Entity) error {
@@ -1113,7 +1113,7 @@ func (s *state) write(ctx context.Context, item staged) error {
 	if err != nil {
 		return err
 	}
-	// A child whose parent is not there yet waits for it (#693): the export orders rows by when
+	// A child whose parent is not there yet waits for it: the export orders rows by when
 	// they changed, and a parent edited after its child - or a tree imported in one instant -
 	// arrives after it. Deferred rather than written, because the foreign key is immediate and
 	// a batch that fails is a restore that fails.
@@ -1225,7 +1225,7 @@ func (s *state) mint(entity archive.Entity, data map[string]any, originalID stri
 //
 // mint gives the copy an identity, and for four milestones that was all it gave it - so a
 // duplicated collection arrived under the living one's name, met `container_name_uq` and landed
-// nothing (#790). The identity is not the only uniqueness in the schema, and the entity declares
+// nothing. The identity is not the only uniqueness in the schema, and the entity declares
 // the rest (archive.Entity.Unique) rather than the applier knowing three tables by name.
 //
 // Here rather than in mint, because mint is also NEW_TENANT's: every one of these indexes is per

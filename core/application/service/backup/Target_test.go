@@ -391,7 +391,7 @@ func TestATenantMayNotConfigureATargetUnlessTheOperatorSaysSo(t *testing.T) {
 }
 
 // An installation with no encryption key refuses to store a credential rather than writing one in
-// the clear (E-02).
+// the clear.
 func TestATargetWithACredentialNeedsAKeyToSealItWith(t *testing.T) {
 	h := newHarness()
 	h.encryptor.noKey = true

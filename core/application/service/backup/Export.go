@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/storage"
 )
 
-// ExportSource is the tenant, as the archive writer reads it (E-05).
+// ExportSource is the tenant, as the archive writer reads it.
 //
 // It is the one place the two vocabularies meet: the repository answers in table names because
 // that is what the schema and the deletion markers are written in, and the archive asks in entity
@@ -72,7 +72,7 @@ func (s ExportSource) Records(
 // blobOf answers the medium a row refers to, if it refers to one at all.
 //
 // Only `media_object` does, and only when the upload finished: a PENDING row is one whose bytes
-// were never read back and judged (C-06), and one with no recorded checksum has no content address
+// were never read back and judged, and one with no recorded checksum has no content address
 // for the archive to store it under. Both keep their row and lose their bytes, which is the honest
 // outcome - a restore then knows the attachment existed and that its content is gone, rather than
 // finding a reference to a file nothing wrote.
@@ -126,7 +126,7 @@ func (m ExportMedia) Open(ctx context.Context, digest string) (io.ReadCloser, er
 		if errors.Is(err, shared.ErrNotFound) {
 			// The row says the bytes are there and the bucket says they are not. That is worth
 			// stopping the run for rather than skipping: an archive missing an attachment nobody
-			// noticed is one whose restore is a surprise, and the reconciliation job (C-06) is
+			// noticed is one whose restore is a surprise, and the reconciliation job is
 			// what fixes the row.
 			return nil, shared.ErrNotFound.WithDetail(archive.CodeMediaMissing).
 				WithParams(map[string]string{"sha256": digest}).WithCause(err)
@@ -137,7 +137,7 @@ func (m ExportMedia) Open(ctx context.Context, digest string) (io.ReadCloser, er
 }
 
 // redactedFields is what a row loses when its archive is handed outwards rather than kept as a
-// backup (H-07, tenant-export.md §9). A backup legitimately keeps these columns - it is encrypted
+// backup (tenant-export.md §9). A backup legitimately keeps these columns - it is encrypted
 // at the operator's own target and a restore is expected to keep sign-ins working. An export is
 // not: it leaves unencrypted, for a receiver who must never hold a credential of this
 // installation, however hashed.
