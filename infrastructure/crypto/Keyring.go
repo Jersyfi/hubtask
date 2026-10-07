@@ -3,7 +3,7 @@
 
 // Package crypto is the adapter behind core/port/crypto: AES-256-GCM envelope encryption over a
 // keyring the environment supplies, and Argon2id where a key has to come from a passphrase
-// (backup-restore.md §4, security.md §3).
+// (backup-restore.md §4, security.md §8).
 //
 // It is the only package in this system that names a cipher. Everything inwards of it sees the
 // port, which is what makes open point S-2 - where the master key lives once somebody else
