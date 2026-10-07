@@ -23,7 +23,7 @@ import (
 //
 // What differs between the acts is only where the proof travels, and that is the caller's one
 // line: `X-Hubtask-Step-Up` for the operations that take a header, and the request field for the
-// restore, which has carried one since 0.4.5.
+// restore.
 
 // envStepUp carries a proof that was minted elsewhere.
 //
