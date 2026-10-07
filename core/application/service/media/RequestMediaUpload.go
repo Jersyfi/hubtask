@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package media is the upload life of a file: staged, carried to storage by somebody other than
-// this server, confirmed, and eventually reclaimed (C-06, arc42 §8.4).
+// this server, confirmed, and eventually reclaimed (arc42 §8.4).
 //
 // The three steps exist because the server does not carry the bytes. A client asks where to put
 // them, puts them there, and says it is done; only then does the record become usable. What that
@@ -67,7 +67,7 @@ const (
 // against the entry, and both refuse an object the actor did not upload. Asking here instead would
 // mean asking at the tenant scope, which refuses everybody whose membership sits on a hub or a
 // collection - most of a real installation - for an act that grants nothing.
-// StorageQuota is the §4 media ceiling, asked before an object is staged (H-08).
+// StorageQuota is the §4 media ceiling, asked before an object is staged.
 type StorageQuota interface {
 	MediaBytes(ctx context.Context, tenant string, adding int64) error
 }
@@ -86,7 +86,7 @@ type RequestMediaUpload struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Config     env.Config
-	// Text brings the file name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the file name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -133,7 +133,7 @@ func (h RequestMediaUpload) Execute(
 	}
 
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		// The storage ceiling (H-08, multi-tenancy.md §4), against the declared size: the
+		// The storage ceiling (multi-tenancy.md §4), against the declared size: the
 		// confirmation measures the true one, and a lie is caught there. Nil skips - fixtures
 		// predate the wall; the composition root always wires it.
 		if h.Quota != nil {

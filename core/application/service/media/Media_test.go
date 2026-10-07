@@ -772,7 +772,7 @@ func TestTheContentRoutePassesTheGuardsRefusalOn(t *testing.T) {
 }
 
 // storageQuotaFake refuses when told to - the resolution is the quota engine's; this package
-// owes that the wall holds the staging door (H-08).
+// owes that the wall holds the staging door.
 type storageQuotaFake struct{ refused error }
 
 func (q storageQuotaFake) MediaBytes(context.Context, string, int64) error { return q.refused }
