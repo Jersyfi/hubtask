@@ -132,7 +132,7 @@ func TestOnlyAReadyObjectOfTheRightUsageJoins(t *testing.T) {
 
 // A file name is the text most likely to arrive decomposed at all - one file system writes names
 // that way and a browser hands them on as they are - and it is stored in normal form C
-// (i18n-l10n.md §5, M-07), so that "Gru\u0308\u00dfe.pdf" and "Gr\u00fc\u00dfe.pdf" are one name.
+// (i18n-l10n.md §5), so that "Gru\u0308\u00dfe.pdf" and "Gr\u00fc\u00dfe.pdf" are one name.
 func TestAFileNameIsStoredInNormalFormC(t *testing.T) {
 	in := staging()
 	in.FileName = "Jahresu\u0308bersicht.pdf"

@@ -112,8 +112,8 @@ func TestAnAttachmentAloneIsEnough(t *testing.T) {
 	}
 }
 
-// The acceptance criterion: conversion settles the entry with its target, and a second conversion
-// of the same entry is refused rather than producing a second item.
+// Conversion settles the entry with its target, and a second conversion of the same entry is
+// refused rather than producing a second item.
 func TestConversionSettlesOnceAndOnlyOnce(t *testing.T) {
 	entry, err := jumble.NewEntry(validInput())
 	if err != nil {
