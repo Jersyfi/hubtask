@@ -17,17 +17,16 @@ import (
 )
 
 // RecordRetentionWarning tells the people who can stop it that a rule is about to act
-// (data-retention.md §6, R-1 answered in G-12).
+// (data-retention.md §6).
 //
-// The notification path C-09 built rather than a channel of its own: the preference is honoured,
+// The ordinary notification path rather than a channel of its own: the preference is honoured,
 // the record is deduplicated on the entry, and the send is a job like every other. What is
 // different is only what caused it - not somebody's action and no domain event, but a retention
 // pass concluding that an object's period has run out.
 //
 // # Why it carries no event
 //
-// `event_id` is null, which the column has allowed since C-09 "for the invitation, which is not an
-// event". A marking is the third of those: it is a decision the engine made about a row, and there
+// `event_id` is null, which the column allows "for the invitation, which is not an event". A marking is the third of those: it is a decision the engine made about a row, and there
 // is no envelope that says so. What makes it happen once is the marking itself - an entry is
 // marked once and the phase that marks it does not see it again.
 //

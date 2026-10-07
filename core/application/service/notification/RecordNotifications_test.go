@@ -91,7 +91,7 @@ func TestTheConsumerWantsOnlyWhatConcernsSomebody(t *testing.T) {
 		event.ItemAssigned, event.ItemMemberAdded, event.CommentCreated,
 	} {
 		if !subscriber.Wants(wanted) {
-			t.Errorf("%s is not wanted, and it is what this milestone tells people about", wanted)
+			t.Errorf("%s is not wanted, and it is what these notifications tell people about", wanted)
 		}
 	}
 	for _, ignored := range []event.Type{

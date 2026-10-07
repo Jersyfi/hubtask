@@ -506,7 +506,7 @@ func (r subscriptionReader) Find(_ context.Context, id shared.ID) (integrationre
 	return stored, nil
 }
 
-// A message about a rule (issue 814) is rendered in the rule's own words with the rule's name
+// A message about a rule is rendered in the rule's own words with the rule's name
 // as its title and a link to the rule's screen; the entry is never asked for. A rule that is gone
 // leaves the withheld sentence, as an entry that is gone does.
 func TestAMessageAboutARuleNamesTheRuleAndLinksToIt(t *testing.T) {

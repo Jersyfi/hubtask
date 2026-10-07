@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// The advance warning of data-retention.md §6 (R-1, answered in G-12): the people who can stop a
+// The advance warning of data-retention.md §6: the people who can stop a
 // retention rule are told before it acts.
 
 // administratorStore answers who administers, and records what it was asked about - the path is

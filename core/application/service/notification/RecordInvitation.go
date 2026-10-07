@@ -15,12 +15,11 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// RecordInvitation turns the invitation job B-02 has been queueing into a message.
+// RecordInvitation turns the queued invitation job into a message.
 //
-// B-02 wrote the queue call and left the other end unbuilt on purpose: an invitation has to be
-// queued in the transaction that creates the account, so that the seat and the message exist
-// together or neither does, and the delivery had nowhere to go until there was a mail port. This
-// is that other end - and it is deliberately not a second delivery path. The job writes a record
+// An invitation is queued in the transaction that creates the account, so that the seat and the
+// message exist together or neither does. This is the other end of that queue - and it is
+// deliberately not a second delivery path. The job writes a record
 // and queues the same `notification.deliver` job every other notification uses, so there is one
 // place that renders an email and one place that sends it.
 //
