@@ -48,7 +48,10 @@
      through the registry, not Handler.Invoke; a real transaction, not the fake unit of work; not as
      a superuser where RLS matters; the stored shape, not the value written; a mechanism that exists
      (does the package have the kind of test you name?). Edge rows (month ends, zones, empty lists).
-     Then the steps, inside out, one commit each, each one building. -->
+     Then the steps, inside out, one commit each, each one building. A step that adds a use case
+     lands it end to end - domain, use case, descriptor, registration, catalogue, REST handler and
+     their tests in one commit - because the parity test fails a descriptor missing from any of
+     them. -->
 
 ## 5. Review
 

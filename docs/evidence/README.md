@@ -40,6 +40,13 @@ a real server, because the fixture agrees with whatever the client sends.
    pass it through an override file.
 4. Sign in through the page or `POST /auth/sessions`. A personal access token is refused by the
    snapshot and the stream, so a walk on one never fills the local copy.
+5. End the onboarding tour (`PATCH /accounts/{id}/preferences` with `onboarding_completed_at`), or it
+   covers the first screen of every fresh account.
+
+One server per database: two both run the worker, and a job landing on the one whose local storage
+lacks the bytes fails with `media.object_missing`. Stop the old server before starting a rebuilt
+one — it keeps the port, the new one dies on `ops: bind`, and the page still answers from the old
+binary.
 
 **Scripting a walk.** Playwright lives in `apps/webapp/node_modules`, with the three engines. A
 probe is a temporary file under `apps/webapp/e2e/` that is deleted afterwards.
@@ -50,6 +57,10 @@ probe is a temporary file under `apps/webapp/e2e/` that is deleted afterwards.
 - One browser context per width, signed in per context: a credential holds a capped number of open
   streams, and closed contexts' streams linger, so `/stream` answers 503 to the thirtieth.
 - Attach request listeners before `page.goto`, or the first burst is not counted.
+- After signing in, wait for `nav[aria-label="Workspace"]`, not `header`: the header is drawn signed
+  out too, and a `goto` before the session has landed throws it away.
+- A faithful "before" screenshot is the current build with the old declaration or markup injected
+  (read the element's scoped class first), measured rather than eyeballed.
 - Measure a size before describing it, in a test or in prose: read `getBoundingClientRect`, not the
   screenshot.
 - Two one-time codes in one 30-second window: the second is refused as a replay. Wait for the next

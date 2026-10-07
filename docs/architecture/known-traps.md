@@ -14,7 +14,7 @@ fixes its first instance.
 |---|---|---|
 | **A write outside `UnitOfWork.Within`** passes every service test — the fake runs any callback — and answers 500 (`postgres.no_transaction_in_context`) against PostgreSQL. | audit entries, repository calls added after the main transaction | an integration test that drives the path against the database |
 | **A write on a refusal path is rolled back with the refusal.** A failure counter, a lockout or an audit entry written inside the transaction that then returns the error is never stored. | sign-in, second factor, step-up, any "count the failure and refuse" | write it in its own transaction, detached from the request's cancellation |
-| **A nested scope may not switch tenant.** `InstallationScope()` inside a tenant transaction is refused (`postgres.tenant_switch_in_transaction`); a swallowed error looks like a policy decision. | helpers that open their own scope | use the ambient context inside somebody else's transaction |
+| **A nested scope may not switch tenant.** `InstallationScope()` inside a tenant transaction is refused (`postgres.tenant_switch_in_transaction`); a swallowed error looks like a policy decision. | helpers that open their own scope | use the ambient context inside somebody else's transaction; a table without row level security and a `SECURITY DEFINER` function read under any scope; log an error before swallowing it on purpose |
 | **Writer copies miss a late field.** `SessionWriter` is a value; copies taken in `cmd/server/main.go` before a field is assigned never learn it. | any field set on a writer after others copied it | set it in the literal; a wiring test in `cmd/server` |
 | **A port can be written and never called.** It compiles and is documented; nothing calls it. | ports added "for later" | a test that drives the use case, not the port |
 | **A read-then-write without a lock** loses an update when two requests interleave. | switches, counters, removals guarded by a count | check in the statement that writes (conditional `UPDATE`/`DELETE`), or lock the row |
@@ -38,8 +38,8 @@ fixes its first instance.
 | **A superuser hides migration defects.** Test environments migrate as one; a migration that needs one fails on an operator's database. | `CREATE EXTENSION`, `CREATE ROLE`, policies | run it as the migrator role; document what an operator grants |
 | **`SECURITY DEFINER` functions bypass row level security** as their owner. | functions reading across workspaces | answer only what the caller may know (a number, never a list); guard the scope inside |
 | **A row mapper that drops `tenant_id`** reads fine and breaks whatever rebuilds the aggregate from the row. | repository mappers | select the tenant; a round-trip test |
-| **Migration and ADR numbers taken by unmerged branches collide.** | new migrations, new ADRs | take the number from all remote branches right before writing the file |
-| **`CONCURRENTLY` cannot run in a `DO` block**, and `CREATE EXTENSION` needs a superuser. | conditional migrations | separate the conditional part; document the grant |
+| **Migration and ADR numbers taken by unmerged branches collide.** A migration collision turns several container jobs red at once, and only the Go jobs print `goose: duplicate version`; two ADRs collide on the index rows of `docs/adr/README.md` and `arc42.md` §9 too. | new migrations, new ADRs | take the number from all remote branches right before writing the file, and again before leaving draft; on a collision `main` keeps the number — the branch renumbers (a migration only if it was never applied anywhere, with no commit left holding two files at one version) and rewrites every reference |
+| **`CONCURRENTLY` cannot run in a `DO` block**, and `CREATE EXTENSION` needs a superuser. | conditional migrations | separate the conditional part; document the grant. An index on a table the same block just created is built without `CONCURRENTLY` (nobody reads it yet — say so in a comment); a migration without the right to create an extension treats `insufficient_privilege` as absence. A bare `exit 1` from `gate-compose` or `gate-e2e`: read `compose logs migrate` |
 | **Rank keys need byte order** (`COLLATE "C"`); a glibc collation interleaves them, and CI's musl image hides it. | `order_key` queries | state the collation in the query |
 | **`id <> $moving_id` with an empty id** empties the level or answers 500. | rank-neighbour queries | never pass an empty id |
 | **The audit hash covers the stored shape**, not the one the caller built. | audit entries, renames | read back, then hash; never rewrite a stored row |
@@ -56,6 +56,8 @@ fixes its first instance.
 | **The design-system gates read comments**: a tag name or a pixel value in a comment fails them, and `#359` in a front-end comment is a colour to the literal lint. | Svelte and TS comments | no markup, values or hashed issue numbers in comments |
 | **The Docker `ui` stage copies little**; an import reaching out of `apps/webapp` fails only in the image. | relative imports | import through packages |
 | **`locales/*.json` is grouped, not sorted**; a re-dump buries the change. | adding message codes | insert by hand next to the neighbours |
+| **A global class rule restyles every scoped class of that name.** Svelte scopes a component's own selectors only, and `.panel` or `.fields` mean different things in different views. | `apps/webapp/src/app.css` | element selectors only in `app.css`; a screen's rules stay in the screen |
+| **Splitting a screen or removing a wrapper breaks what pointed into it**: a tour anchor (`data-tour`) points at nothing, message codes lose their use, a field layout sized for the old wrapper stretches. | refactoring screens | grep for `data-tour` and the codes the old screen rendered; look at every field layout at full width |
 | **A count needs the plural form**: `{count, plural, one {…} other {…}}` — "1 workspaces" is a bug. | any message with a number | use the plural form; both renderers parse it |
 
 ## Tests, gates and tooling
@@ -72,13 +74,19 @@ fixes its first instance.
 | **A hand-kept list goes stale**: a dependency list in a Makefile or a workflow drifts from what the build really reads. | derive it, or test it against the source |
 | **A green local run proves nothing about a pull**: a cached image hides a registry that stopped serving it. | pull fresh in CI before trusting a container gate |
 | **In zsh, `$ID:complete` is a parameter modifier**, not a path; the request goes to the wrong route and answers 405. | brace it: `${ID}:complete` |
+| **A message code runs the Go lane**: `locales/**` is in CI's `go` filter because the binary embeds the catalogue, so a client-only pull request adding a code runs every Go gate — and waits for a red `gate-security` on `main` to be fixed. | expect the Go gates; fix an open advisory first (take the named version, `make licenses`) |
+| **`grep -q` after a pipe under `set -o pipefail` reports a match as a failure**: `grep` exits on the first match and the writer dies of SIGPIPE. | match a variable or a here-string |
+| **A local composite action hides its pins**: the pin check scans only `.github/workflows`. | no third-party `uses:` under `.github/actions/` until the scan covers it |
+| **A red CodeQL check shows no detail**, and `make verify` cannot see it (gosec carries other queries). The alert belongs to `refs/pull/<n>/merge` and may sit in a file the pull request only touched — or one alert open on `main` already. CodeQL is not a required check. | read it with `gh api "repos/<owner>/<repo>/code-scanning/alerts?ref=refs/pull/<n>/merge"`; bind a bound to one variable, guard it, allocate from it, and drop the now unneeded `//nolint:gosec` |
+| **`Closes #n` closes one issue per bare line**; inside a code span it closes nothing, and `gate-pr` checks only that one bare line exists. | one bare `Closes #n` line per issue; confirm each issue's state after the merge |
 | **A premise in a task can be wrong** — "nothing does X" while the code has done it for months. | check every claim against the code (readiness record §1) |
 | **A proposal can promise a lever that does not exist.** | check every capability a proposal names against the code before it reaches the owner |
 
 ## Flaky tests
 
 One red on a diff that does not touch the area: re-run the job once before reading code. Two in a
-row is a real failure.
+row is a real failure — except `make tools`: when the failing step in every red job is `make tools`
+and the error names a `sum.golang.org` tile, re-run up to three times, then call it an outage.
 
 | Test | Symptom |
 |---|---|
@@ -87,3 +95,4 @@ row is a real failure.
 | `TestTheSessionSweepStaysInsideTheTenantAndTakesOnlyTheOver` | wall-clock sensitive in the shared integration database |
 | hubctl e2e, AI-stub section | "no suggestion arrived within 90s" while the stub image is still being pulled |
 | engines, Firefox | `cursor` `undefined` on the first assertion; green on re-run |
+| a Testcontainers gate run locally | `address already in use` on a random high port: another worktree's container on the shared Docker daemon took it — re-run the gate alone. A fixed port (18081, 19091) is a real collision |

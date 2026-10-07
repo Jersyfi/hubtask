@@ -152,7 +152,9 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 
 **Resuming:** compare `git log --oneline main..HEAD` with the steps in the record, run
 `make verify`, continue with the first missing step. Work in your own worktree when another session
-uses the checkout.
+uses the checkout. **Stopping mid-task:** push every commit, make the record's steps match what the
+branch holds, and name the next step in a comment on the draft pull request — the next session starts
+from git and the pull request, never from a conversation.
 
 ### Reading
 
