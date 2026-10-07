@@ -112,9 +112,9 @@ func (h Hierarchy) IsRoot(itemType work.ItemType) bool { return h.roots[itemType
 
 // Place validates a placement and derives it. A nil parent means directly under the collection.
 //
-// Every refusal is explicit and none is silent - which is the acceptance criterion of B-03 and
-// the rule of ADR-0006: a client that asked for something impossible learns which of the three
-// reasons it was, because each has a different fix.
+// Every refusal is explicit and none is silent - which is the rule of ADR-0006: a client that asked
+// for something impossible learns which of the three reasons it was, because each has a different
+// fix.
 func (h Hierarchy) Place(parent *work.WorkItem, childType work.ItemType) (Placement, error) {
 	child, err := h.Profile(childType)
 	if err != nil {

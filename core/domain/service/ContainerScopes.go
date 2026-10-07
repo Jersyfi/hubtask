@@ -13,9 +13,9 @@ import (
 //
 // Here rather than in an application package because it is a rule about what a container *is*
 // rather than about what a use case does with it - and because it now has two readers. The write
-// path has resolved it since B-04 and the change stream resolves it per record (C-10); two copies
-// of a permission path is the kind of duplicate that stays right until the day a third scope level
-// arrives, and then is wrong in exactly one of them.
+// path resolves it and the change stream resolves it per record; two copies of a permission path is
+// the kind of duplicate that stays right until the day a third scope level arrives, and then is
+// wrong in exactly one of them.
 func ContainerScopes(container work.Container) []identity.Scope {
 	path := []identity.Scope{identity.TenantScope()}
 	if !container.ParentID.IsZero() {

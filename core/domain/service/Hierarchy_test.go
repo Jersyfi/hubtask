@@ -57,8 +57,8 @@ func packageItem() *work.WorkItem {
 		taskItem().ChildPath(hierarchyPackage), 2)
 }
 
-// The acceptance criterion of B-03, read forwards: the three permitted placements all succeed,
-// and each lands at the depth and on the path the level implies.
+// The placement rule read forwards: the three permitted placements all succeed, and each lands at
+// the depth and on the path the level implies.
 func TestTheThreePermittedPlacementsSucceed(t *testing.T) {
 	h := hierarchyOf(t, systemProfiles())
 
@@ -110,9 +110,9 @@ func TestTheThreePermittedPlacementsSucceed(t *testing.T) {
 	}
 }
 
-// The acceptance criterion read backwards: every forbidden placement is refused, and each with
-// the code that says which of the reasons it was. Never silently ignored, and never the same
-// answer for three different problems - the fix differs per reason.
+// The placement rule read backwards: every forbidden placement is refused, and each with the code
+// that says which of the reasons it was. Never silently ignored, and never the same answer for
+// three different problems - the fix differs per reason.
 func TestEveryForbiddenPlacementIsRefusedWithItsOwnReason(t *testing.T) {
 	h := hierarchyOf(t, systemProfiles())
 

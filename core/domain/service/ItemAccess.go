@@ -38,9 +38,9 @@ func ItemActions() []ItemAction { return itemActions[:] }
 
 // ItemAccess is how far a role reaches into one entry.
 //
-// It is deliberately not a boolean: "assigned only" is the whole point of C-04, and a decision
-// that came back yes or no would have to be asked twice - once for the role and once for the
-// qualifier - which is how the qualifier came to be forgotten in the first place.
+// It is deliberately not a boolean: "assigned only" (domain-model.md §3.2) is a qualifier, and a
+// decision that came back yes or no would have to be asked twice - once for the role and once for
+// the qualifier - which is how the qualifier came to be forgotten in the first place.
 type ItemAccess string
 
 const (
@@ -64,9 +64,9 @@ const (
 //
 // A contributor creates unqualified and changes only what is assigned to them. That is not an
 // exception carved out beside "assigned only" but what keeps it true at every moment: the entry a
-// contributor creates is assigned to its creator, so the create is a write on an entry of their
-// own (the decision on issue #84). Enforcing that half is the application layer's, because a
-// domain rule cannot reach the assignment it has not been given.
+// contributor creates is assigned to its creator, so the create is a write on an entry of their own
+// (domain-model.md §3.2). Enforcing that half is the application layer's, because a domain rule
+// cannot reach the assignment it has not been given.
 var roleItemAccess = map[identity.Role]map[ItemAction]ItemAccess{
 	identity.RoleOwner: {
 		ItemRead: AccessAll, ItemCreate: AccessAll, ItemChange: AccessAll, ItemComment: AccessAll,

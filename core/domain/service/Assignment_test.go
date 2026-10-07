@@ -31,8 +31,7 @@ func eligible(accounts ...shared.ID) service.AssignmentSelection {
 	}
 }
 
-// The acceptance criterion of C-02: every strategy as a table, with an injected random source and
-// no infrastructure in it.
+// Every strategy as a table, with an injected random source and no infrastructure in it.
 func TestEveryStrategyPicksDeterministically(t *testing.T) {
 	cases := []struct {
 		name      string

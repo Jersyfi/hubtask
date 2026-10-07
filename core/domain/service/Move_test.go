@@ -55,8 +55,8 @@ func moveHierarchy(t *testing.T) service.Hierarchy {
 	return hierarchy
 }
 
-// The acceptance criterion, and the invariant that must be impossible rather than forbidden: an item cannot
-// move under anything inside its own subtree.
+// The invariant that must be impossible rather than forbidden: an item cannot move under anything
+// inside its own subtree.
 func TestMovingIntoOwnSubtreeIsRefused(t *testing.T) {
 	task, pack, activity := moveTree()
 	hierarchy := moveHierarchy(t)
