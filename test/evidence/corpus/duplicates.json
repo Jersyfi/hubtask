@@ -1,5 +1,5 @@
 {
- "$comment": "The corpus for measuring suggestion.DefaultDuplicateFloor (#532). Author-written and labelled before any similarity was computed; the labels are the groups and the roles, and the pair classes are derived from them by the harness in test/evidence. Titles and notes are content and may be in any language the product indexes; every field name, role and group name is English (rule 13).",
+ "$comment": "The corpus for measuring suggestion.DefaultDuplicateFloor. Author-written and labelled before any similarity was computed; the labels are the groups and the roles, and the pair classes are derived from them by the harness in test/evidence. Titles and notes are content and may be in any language the product indexes; every field name, role and group name is English (rule 13).",
  "roles": {
   "anchor": "the reference piece of work in its group",
   "duplicate": "the same work, paraphrased, in the anchor's language",

@@ -3,10 +3,10 @@
 
 // Command mint draws a personal access token and prints it beside the hash the database stores.
 //
-// It exists because there is no endpoint that issues one yet: PATs are administered from milestone
-// 0.6 (roadmap.md), and until then a token comes into being by being written into access_token.
-// The end-to-end session needs one, and the two halves - the credential and its hash - have to
-// come from the same construction the server verifies with, or the session would prove that a
+// It exists because the first token has to exist before the API can issue one: a script that
+// starts from an empty installation writes this bootstrap credential into access_token and mints
+// its working token through the API with it. The two halves - the credential and its hash - have
+// to come from the same construction the server verifies with, or the session would prove that a
 // token hashed one way matches a token hashed the same way and nothing else.
 //
 // So this is deliberately thin: it draws the entropy, builds the token through the domain's own
