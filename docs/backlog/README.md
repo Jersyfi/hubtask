@@ -81,7 +81,7 @@ What is built, in a few sentences.
 
 What a milestone delivers is fixed at release; its tasks are not.
 
-- **Tasks move.** A session may add, split or merge tasks, as long as every task carries checks from
+- **Tasks move.** A worker may add, split or merge tasks, as long as every task carries checks from
   `Delivers` (`make gate-docs` refuses one that does not). A new task gets the next free number, a
   GitHub issue in the milestone, and the same treatment as every other task.
 - **A finding that blocks a `Delivers` check belongs to the milestone** — fixed in the task that
