@@ -16,7 +16,7 @@ FROM work_item
 WHERE search_configuration IS DISTINCT FROM hubtask_search_recipe(content_language)
 `
 
-// The search's own bookkeeping (M-09, ADR-0034, ADR-0066): which rows were built by a recipe this
+// The search's own bookkeeping (ADR-0034, ADR-0066): which rows were built by a recipe this
 // installation has moved on from - because the configuration changed under it, or because the
 // recipe did.
 // The rows whose stored recipe differs from what hubtask_search_recipe() answers today, or that

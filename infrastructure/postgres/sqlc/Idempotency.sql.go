@@ -66,7 +66,7 @@ type ReleaseIdempotencyKeyParams struct {
 	Endpoint string
 }
 
-// A reservation whose work failed, let go (G-09). Without this, a failed action's claim would
+// A reservation whose work failed, let go. Without this, a failed action's claim would
 // survive the run that recorded the failure - and a replay of that run would find the key taken
 // and "complete" the action without ever performing it.
 func (q *Queries) ReleaseIdempotencyKey(ctx context.Context, arg ReleaseIdempotencyKeyParams) error {

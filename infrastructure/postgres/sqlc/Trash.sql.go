@@ -154,7 +154,7 @@ DELETE FROM field_clock
 WHERE tenant_id = current_tenant_id() AND entity_id = ANY($1::uuid[])
 `
 
-// The merge's bookkeeping goes with the entity it is about (N-05): a purged entry's clocks would
+// The merge's bookkeeping goes with the entity it is about: a purged entry's clocks would
 // otherwise decide a merge over an identifier that a tombstone refuses anyway.
 func (q *Queries) PurgeFieldClocks(ctx context.Context, ids []pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, purgeFieldClocks, ids)
@@ -311,7 +311,7 @@ type SetWorkItemArchivedParams struct {
 }
 
 // The trash and the archive: the statements that move rows between the two lifecycle stamps, and
-// the ones that read and finally remove what is in the trash (B-10).
+// the ones that read and finally remove what is in the trash.
 //
 // Their own file rather than more of Work.sql, because they are one subject with one invariant
 // running through all of them - the batch identifier every row of one deletion shares (I-C2) - and

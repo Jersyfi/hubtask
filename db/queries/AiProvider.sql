@@ -1,4 +1,4 @@
--- The workspace's AI provider (J-02).
+-- The workspace's AI provider.
 --
 -- Every statement here runs inside the transaction wrapper that sets `app.tenant_id`, so the
 -- policy underneath answers "which workspace" - `current_tenant_id()` is written on insert rather

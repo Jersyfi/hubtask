@@ -85,9 +85,9 @@ SELECT count(*) FROM (
 -- The other half of the outbox's sweep: the record of who has already consumed what
 -- (core/port/eventbus.RetentionWindow).
 --
--- event_consumption_gc_idx has existed since phase 0 and nothing ever collected against it. The
--- table is the outbox's twin - one row per event per consumer - so leaving it unswept would have
--- made the sweep of the events themselves a half measure.
+-- The table is the outbox's twin - one row per event per consumer - so leaving it unswept would
+-- make the sweep of the events themselves a half measure; event_consumption_gc_idx is what the
+-- sweep reads.
 --
 -- The same period as the events, deliberately: a record whose event has been swept can say nothing
 -- about an event nobody can deliver again. Two periods that could drift apart would give one of
@@ -111,7 +111,7 @@ FROM outbox_event
 WHERE id = sqlc.arg('id');
 
 -- name: PollOutboxEvents :many
--- The pull half of the stream (G-04, automation.md §3.2): one type, oldest first, from a position.
+-- The pull half of the stream (automation.md §3.2): one type, oldest first, from a position.
 --
 -- Three predicates and each is a boundary the endpoint has to draw.
 --

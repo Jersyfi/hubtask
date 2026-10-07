@@ -125,7 +125,7 @@ type InsertImportRunParams struct {
 	Language    *string
 }
 
-// The import from another system (P-08, backup-restore.md §9). Every statement is bounded by the
+// The import from another system (backup-restore.md §9). Every statement is bounded by the
 // transaction's tenant (SET LOCAL app.tenant_id) and the row level security on import_run.
 // The run row, written in the transaction that accepts the import. PENDING: the job has not
 // started, and a caller polling `result_url` sees that rather than a 404.

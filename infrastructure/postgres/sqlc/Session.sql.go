@@ -464,7 +464,7 @@ SELECT password_hash FROM account
 WHERE id = $1 AND deleted_at IS NULL
 `
 
-// For the operations that demand the password afresh of somebody already signed in (H-02):
+// For the operations that demand the password afresh of somebody already signed in:
 // disabling the second factor is the attack a stolen session would try, and a live session is
 // deliberately not enough there.
 func (q *Queries) FindPasswordHash(ctx context.Context, id pgtype.UUID) (*string, error) {
@@ -583,7 +583,7 @@ type FindPendingByIDRow struct {
 }
 
 // FindPendingByHash for a credential the server itself remembered rather than one a caller
-// presented: the CONNECT link a provider flow carries (ADR-0078 §1, SC-33). The flow kept the
+// presented: the CONNECT link a provider flow carries (ADR-0078 §1). The flow kept the
 // credential's identifier, never its token. Row level security keeps it to the workspace the
 // transaction is bound to.
 func (q *Queries) FindPendingByID(ctx context.Context, id pgtype.UUID) (FindPendingByIDRow, error) {
@@ -832,7 +832,7 @@ type InsertPendingCredentialParams struct {
 	LinkProof      *string
 }
 
-// ====================== The pending credential (H-02) ======================
+// ====================== The pending credential ======================
 func (q *Queries) InsertPendingCredential(ctx context.Context, arg InsertPendingCredentialParams) error {
 	_, err := q.db.Exec(ctx, insertPendingCredential,
 		arg.ID,
@@ -939,7 +939,7 @@ type InsertSessionParams struct {
 }
 
 // ============================== Sessions ==============================
-// grant_id and scopes are H-05's leash: set for a session an OAuth exchange issued, NULL for a
+// grant_id and scopes are the OAuth grant's leash: set for a session an OAuth exchange issued, NULL for a
 // person's own.
 func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) error {
 	_, err := q.db.Exec(ctx, insertSession,
@@ -1002,7 +1002,7 @@ type RecordStepUpParams struct {
 	AccountID pgtype.UUID
 }
 
-// ============================ The step-up (H-03) ============================
+// ============================ The step-up ============================
 // The proof lands on the caller's own session, replacing whatever stood: a fresh proof is the
 // newest answer to "is this still you", and two live proofs would be two coverings.
 func (q *Queries) RecordStepUp(ctx context.Context, arg RecordStepUpParams) (int64, error) {
@@ -1058,14 +1058,14 @@ const resolveTenant = `-- name: ResolveTenant :one
 SELECT resolve_tenant($1)::uuid AS tenant_id
 `
 
-// The sign-in surface (H-01, security.md §5): sessions, refresh rotation, the attempt ledger and
+// The sign-in surface (security.md §5): sessions, refresh rotation, the attempt ledger and
 // the invitation redeemed.
 //
 // The tenant is never a parameter in this file: row level security bounds every statement to the
 // tenant of the running transaction, which is what makes a session of another workspace invisible
 // rather than forbidden (ADR-0010, multi-tenancy.md §2). The one exception is ResolveTenant,
 // which exists because sign-in needs a tenant before it can open a bounded transaction at all
-// (0.6.0 decision 3) - it answers one identifier or none, through the SECURITY DEFINER function
+// (multi-tenancy.md §3) - it answers one identifier or none, through the SECURITY DEFINER function
 // migration 0063 pins down, and never a listing.
 func (q *Queries) ResolveTenant(ctx context.Context, slug *string) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, resolveTenant, slug)
@@ -1329,7 +1329,7 @@ type SessionsForAccountRow struct {
 }
 
 // One's own unrevoked, unexpired sessions, newest first. The ended and the run-out are absent here;
-// the workspace's bounds are judged by the application with the method authentication uses (SC-19),
+// the workspace's bounds are judged by the application with the method authentication uses,
 // which is why the rotation cutoff rides along, off the row FindSessionForAuth reads it from.
 //
 // The provider's name is joined under the reader's own row policy (migration 0111): one this tenant
@@ -1419,7 +1419,7 @@ type StartMfaReplacementParams struct {
 	AccountID   pgtype.UUID
 }
 
-// The new secret beside the armed one (SC-17): only an armed enrolment takes a replacement - an
+// The new secret beside the armed one: only an armed enrolment takes a replacement - an
 // unconfirmed one is replaced by enrolling again - and a replacement begun earlier is overwritten,
 // the latest start being the one the person is looking at.
 func (q *Queries) StartMfaReplacement(ctx context.Context, arg StartMfaReplacementParams) (int64, error) {
@@ -1584,7 +1584,7 @@ type UpsertMfaEnrollmentParams struct {
 	Now         pgtype.Timestamptz
 }
 
-// ============================ The second factor (H-02) ============================
+// ============================ The second factor ============================
 // A fresh enrolment, or the replacement of an unconfirmed one. An armed enrolment matches
 // nothing - zero rows is the "disable first, with the password" refusal - so a stolen session
 // cannot quietly swap the secret out from under the real authenticator.

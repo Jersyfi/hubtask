@@ -77,7 +77,7 @@ type InstanceCensusRow struct {
 	AccountsTotal             int64
 }
 
-// The installation at a glance (SI-17): counts, states and limits, never rows. Through the function
+// The installation at a glance: counts, states and limits, never rows. Through the function
 // rather than against the tables: `account` is behind row level security and FORCE, so the
 // application role cannot count across workspaces at all - and narrow by construction is what makes
 // that exception acceptable (migration 0105).

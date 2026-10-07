@@ -358,7 +358,7 @@ type DueAutomationRulesRow struct {
 	CheckedAt        pgtype.Timestamptz
 }
 
-// The SCHEDULE trigger (G-08, decision 5 of milestone-0.5.0). The same three statements
+// The SCHEDULE trigger (automation.md §1.1). The same three statements
 // `backup_schedule` has, and deliberately: this installation has one schedule engine, and a second
 // shape for reading a due moment would be a second engine in everything but name.
 // What one pass claims: this tenant's rules whose moment has come, oldest first.
@@ -607,7 +607,7 @@ type FinishRuleRunParams struct {
 }
 
 // The one statement that ends a run, whichever way it ended - and the one that parks it on a
-// WAIT, where finished_at stays NULL because the run is not over (G-09).
+// WAIT, where finished_at stays NULL because the run is not over.
 func (q *Queries) FinishRuleRun(ctx context.Context, arg FinishRuleRunParams) error {
 	_, err := q.db.Exec(ctx, finishRuleRun,
 		arg.Status,
@@ -679,7 +679,7 @@ type InsertAutomationRuleParams struct {
 	NextRunAt  pgtype.Timestamptz
 }
 
-// The automation rules (G-05, automation.md §1). The table has carried the whole model since
+// The automation rules (automation.md §1). The table has carried the whole model since
 // 0001_init; these are the statements that finally write to it.
 //
 // The tenant is never a parameter: row level security bounds every statement to the tenant of the
@@ -740,7 +740,7 @@ type InsertRuleRunParams struct {
 	CausationDepth   int32
 }
 
-// The run log (G-07, automation.md §2). What a rule did, why it did not, and what each action
+// The run log (automation.md §2). What a rule did, why it did not, and what each action
 // answered - the record §2 promises is retrievable and filterable.
 // Written when the run starts, in the RUNNING state, before any condition is evaluated.
 //
@@ -795,7 +795,7 @@ type LatestRuleRunsRow struct {
 	StartedAt pgtype.Timestamptz
 }
 
-// The most recent run of each named rule (F8-21): what the list says under the rule's word
+// The most recent run of each named rule: what the list says under the rule's word
 // without a page of runs per card. One statement for a page of rules, on the rule index; DISTINCT
 // ON with the index's own order keeps the first row per rule the newest.
 func (q *Queries) LatestRuleRuns(ctx context.Context, ruleIds []pgtype.UUID) ([]LatestRuleRunsRow, error) {
@@ -954,7 +954,7 @@ type ListRuleRunsRow struct {
 // Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the order runs happened
 // in. The five filters are nullable arguments rather than thirty-two statements, because a second
 // statement differing in one predicate is a second place for a predicate to be forgotten. The
-// window (F8-02) is on started_at - the run's own moment rather than the event's - half-open, as
+// window is on started_at - the run's own moment rather than the event's - half-open, as
 // the audit trail's is.
 func (q *Queries) ListRuleRuns(ctx context.Context, arg ListRuleRunsParams) ([]ListRuleRunsRow, error) {
 	rows, err := q.db.Query(ctx, listRuleRuns,
@@ -1292,7 +1292,8 @@ type SetAutomationRuleInboundTokenParams struct {
 	ID        pgtype.UUID
 }
 
-// The INBOUND_WEBHOOK trigger's address (G-08, D-08's credential discipline).
+// The INBOUND_WEBHOOK trigger's address: hashed, answered once, revoked by rotating
+// (automation.md §1.1).
 // Mints or rotates the address. One statement, so the old hash and the new one never coexist:
 // rotating *is* revoking, and a window in which both open the same rule would be the one thing
 // "revocable by rotating" must not mean.
@@ -1452,7 +1453,7 @@ type UpsertRuleOccurrenceParams struct {
 	FireAt pgtype.Timestamptz
 }
 
-// The RELATIVE_DATE trigger's occurrences (G-08, automation.md §1.1). D-02's shape: a row per
+// The RELATIVE_DATE trigger's occurrences (automation.md §1.1). The reminder's shape: a row per
 // (rule, entry) saying when this rule owes that entry a run, moved when the anchor moves and gone
 // when the anchor is cleared.
 // Writes or moves the moment one rule owes for one entry.

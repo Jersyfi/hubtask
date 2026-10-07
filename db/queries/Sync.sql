@@ -36,7 +36,7 @@ LIMIT sqlc.arg('batch');
 -- that has not started, and the first change it is told about is the first change there is.
 SELECT coalesce(max(seq), 0)::bigint FROM change_log WHERE tenant_id = current_tenant_id();
 
--- The devices (N-03, offline-sync.md §6, §10).
+-- The devices (offline-sync.md §6, §10).
 
 -- name: TouchDevice :one
 -- Registration and every contact after it in one statement. The insert is the registration; the
@@ -120,7 +120,7 @@ SELECT count(*) FROM (
     AND coalesce(stale.last_seen_at, stale.created_at) < sqlc.arg('cutoff')
   LIMIT sqlc.arg('ceiling')
 ) AS due;
--- The initial synchronisation (N-02, offline-sync.md §3.1): the current state, one kind at a
+-- The initial synchronisation (offline-sync.md §3.1): the current state, one kind at a
 -- time, in pages by identifier. Each statement is its kind's Find with the identifier as the page
 -- key and the live rows only - the trash and the deleted are tombstones in the log, not state.
 -- The column lists mirror the Find statements on purpose, so that the row mappers are shared and
@@ -235,7 +235,7 @@ WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > sqlc.arg('
 ORDER BY id
 LIMIT sqlc.arg('batch');
 
--- The operation log (N-04, offline-sync.md §3.2): what a push did with each op_id, kept for the
+-- The operation log (offline-sync.md §3.2): what a push did with each op_id, kept for the
 -- offline window so that a repeated push takes effect exactly once.
 
 -- name: FindSyncOp :one
@@ -252,7 +252,7 @@ VALUES (current_tenant_id(), sqlc.arg('op_id'), sqlc.narg('device_id'), sqlc.arg
 ON CONFLICT (tenant_id, op_id) DO NOTHING;
 
 -- name: DeleteAgedSyncOps :execrows
--- The SYNC_LOG data kind's sweep of the operation log (N-09, data-retention.md §3): an operation
+-- The SYNC_LOG data kind's sweep of the operation log (data-retention.md §3): an operation
 -- past the offline window has answered every repeat it will ever see - a device silent longer
 -- than the window resynchronises from scratch. Batched through a subquery, oldest first,
 -- DeleteStaleDevices' shape; the primary key is what the subquery hands back.
@@ -300,7 +300,7 @@ SELECT EXISTS (
   WHERE tenant_id = current_tenant_id() AND entity = sqlc.arg('entity') AND entity_id = sqlc.arg('entity_id')
 )::boolean AS held;
 
--- The clock per field (N-05, offline-sync.md §4.2): the reading of the write that landed, which a
+-- The clock per field (offline-sync.md §4.2): the reading of the write that landed, which a
 -- push's reading is compared against per field.
 
 -- name: StampFieldClock :exec
@@ -318,7 +318,7 @@ FROM field_clock
 WHERE tenant_id = current_tenant_id() AND entity = sqlc.arg('entity') AND entity_id = sqlc.arg('entity_id');
 
 -- name: CurrentSyncEpoch :one
--- The workspace's synchronisation epoch (N-11, backup-restore.md §12 B-5): what every cursor is
+-- The workspace's synchronisation epoch (backup-restore.md §12 B-5): what every cursor is
 -- minted under, and what a cursor is judged against.
 SELECT sync_epoch FROM tenant WHERE id = current_tenant_id();
 

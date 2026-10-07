@@ -1,11 +1,11 @@
--- The sign-in surface (H-01, security.md §5): sessions, refresh rotation, the attempt ledger and
+-- The sign-in surface (security.md §5): sessions, refresh rotation, the attempt ledger and
 -- the invitation redeemed.
 --
 -- The tenant is never a parameter in this file: row level security bounds every statement to the
 -- tenant of the running transaction, which is what makes a session of another workspace invisible
 -- rather than forbidden (ADR-0010, multi-tenancy.md §2). The one exception is ResolveTenant,
 -- which exists because sign-in needs a tenant before it can open a bounded transaction at all
--- (0.6.0 decision 3) - it answers one identifier or none, through the SECURITY DEFINER function
+-- (multi-tenancy.md §3) - it answers one identifier or none, through the SECURITY DEFINER function
 -- migration 0063 pins down, and never a listing.
 
 -- name: ResolveTenant :one
@@ -28,7 +28,7 @@ WHERE lower(a.email) = lower(sqlc.arg('email')) AND a.deleted_at IS NULL;
 -- ============================== Sessions ==============================
 
 -- name: InsertSession :exec
--- grant_id and scopes are H-05's leash: set for a session an OAuth exchange issued, NULL for a
+-- grant_id and scopes are the OAuth grant's leash: set for a session an OAuth exchange issued, NULL for a
 -- person's own.
 INSERT INTO session
   (id, tenant_id, account_id, created_at, user_agent, ip_class, expires_at, grant_id, scopes,
@@ -72,7 +72,7 @@ WHERE s.id = sqlc.arg('id') AND a.deleted_at IS NULL;
 
 -- name: SessionsForAccount :many
 -- One's own unrevoked, unexpired sessions, newest first. The ended and the run-out are absent here;
--- the workspace's bounds are judged by the application with the method authentication uses (SC-19),
+-- the workspace's bounds are judged by the application with the method authentication uses,
 -- which is why the rotation cutoff rides along, off the row FindSessionForAuth reads it from.
 --
 -- The provider's name is joined under the reader's own row policy (migration 0111): one this tenant
@@ -270,7 +270,7 @@ SELECT count(*) FROM (
   LIMIT sqlc.arg('ceiling')
 ) AS due;
 
--- ============================ The second factor (H-02) ============================
+-- ============================ The second factor ============================
 
 -- name: UpsertMfaEnrollment :execrows
 -- A fresh enrolment, or the replacement of an unconfirmed one. An armed enrolment matches
@@ -297,7 +297,7 @@ FROM account_mfa
 WHERE account_id = sqlc.arg('account_id');
 
 -- name: StartMfaReplacement :execrows
--- The new secret beside the armed one (SC-17): only an armed enrolment takes a replacement - an
+-- The new secret beside the armed one: only an armed enrolment takes a replacement - an
 -- unconfirmed one is replaced by enrolling again - and a replacement begun earlier is overwritten,
 -- the latest start being the one the person is looking at.
 UPDATE account_mfa SET
@@ -371,7 +371,7 @@ WHERE account_id = sqlc.arg('account_id')
 SELECT count(*) FROM account_recovery_code
 WHERE account_id = sqlc.arg('account_id') AND used_at IS NULL;
 
--- ====================== The pending credential (H-02) ======================
+-- ====================== The pending credential ======================
 
 -- name: InsertPendingCredential :exec
 INSERT INTO auth_pending
@@ -403,7 +403,7 @@ WHERE p.token_hash = sqlc.arg('token_hash') AND a.deleted_at IS NULL;
 
 -- name: FindPendingByID :one
 -- FindPendingByHash for a credential the server itself remembered rather than one a caller
--- presented: the CONNECT link a provider flow carries (ADR-0078 §1, SC-33). The flow kept the
+-- presented: the CONNECT link a provider flow carries (ADR-0078 §1). The flow kept the
 -- credential's identifier, never its token. Row level security keeps it to the workspace the
 -- transaction is bound to.
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
@@ -449,13 +449,13 @@ WHERE id IN (
 SELECT settings FROM tenant WHERE id = current_tenant_id();
 
 -- name: FindPasswordHash :one
--- For the operations that demand the password afresh of somebody already signed in (H-02):
+-- For the operations that demand the password afresh of somebody already signed in:
 -- disabling the second factor is the attack a stolen session would try, and a live session is
 -- deliberately not enough there.
 SELECT password_hash FROM account
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
--- ============================ The step-up (H-03) ============================
+-- ============================ The step-up ============================
 
 -- name: RecordStepUp :execrows
 -- The proof lands on the caller's own session, replacing whatever stood: a fresh proof is the

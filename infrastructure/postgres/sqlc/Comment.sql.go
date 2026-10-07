@@ -67,13 +67,13 @@ type InsertCommentParams struct {
 	SystemParams    []byte
 }
 
-// The discussion beside the entries (C-03, domain-model.md §3.5).
+// The discussion beside the entries (domain-model.md §3.5).
 //
 // The tenant is never a parameter here: it comes from the transaction's own context through
 // current_tenant_id(), which is the same value row level security compares against (ADR-0010).
 //
 // The body arrives in Unicode normal form C, for the reason a container's name does
-// (InsertContainer, M-07): the constructor brings it there, and normalize() stays on the insert
+// (InsertContainer): the constructor brings it there, and normalize() stays on the insert
 // and the edit as the row's own guarantee for a writer that reaches it without the constructor.
 func (q *Queries) InsertComment(ctx context.Context, arg InsertCommentParams) error {
 	_, err := q.db.Exec(ctx, insertComment,
@@ -206,7 +206,7 @@ type SetCommentDeletedParams struct {
 	ExpectedVersion int32
 }
 
-// The tombstone: text gone, identity and timestamps kept (C-03's acceptance). edited_at survives
+// The tombstone: text gone, identity and timestamps kept. edited_at survives
 // deliberately - that the words had been rewritten is part of the thread's history, what they
 // were is not.
 func (q *Queries) SetCommentDeleted(ctx context.Context, arg SetCommentDeletedParams) (int64, error) {

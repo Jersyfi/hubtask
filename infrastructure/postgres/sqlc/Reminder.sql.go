@@ -36,7 +36,7 @@ type DeleteReminderParams struct {
 }
 
 // A hard delete of one row: a reminder is created and deleted whole, and what somebody deleted is
-// gone rather than kept as a tombstone with a state (D-02). The change log carries the deletion to
+// gone rather than kept as a tombstone with a state. The change log carries the deletion to
 // offline clients, which is where a tombstone belongs (offline-sync.md §7).
 func (q *Queries) DeleteReminder(ctx context.Context, arg DeleteReminderParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteReminder, arg.ID, arg.ExpectedVersion)
@@ -108,7 +108,7 @@ type InsertReminderParams struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
-// The reminders beside the entries (D-02, domain-model.md §3.5).
+// The reminders beside the entries (domain-model.md §3.5).
 //
 // The tenant is never a parameter here: it comes from the transaction's own context through
 // current_tenant_id(), which is the same value row level security compares against (ADR-0010).
@@ -227,7 +227,7 @@ type ListPendingRemindersOfItemRow struct {
 
 // What a moved due date has to recompute: the entry's reminders that are still waiting. A reminder
 // that has fired or was cancelled is not in it - neither is given a new future by a date changing
-// (D-02) - and which of the remaining ones actually move is the domain's question, because only it
+// - and which of the remaining ones actually move is the domain's question, because only it
 // can read an offset spec.
 func (q *Queries) ListPendingRemindersOfItem(ctx context.Context, itemID pgtype.UUID) ([]ListPendingRemindersOfItemRow, error) {
 	rows, err := q.db.Query(ctx, listPendingRemindersOfItem, itemID)
@@ -285,7 +285,7 @@ type ListRemindersOfItemRow struct {
 
 // One entry's reminders, oldest first, and all of them: the number a single entry may carry is
 // bounded where reminders are written, which is what makes this list answerable in one page rather
-// than through a cursor (D-02). The order is (created_at, id) for the reason every list in this
+// than through a cursor. The order is (created_at, id) for the reason every list in this
 // schema takes the pair: two rows written in the same millisecond are one timestamp. Served by
 // reminder_item_idx, whose columns are this ORDER BY.
 func (q *Queries) ListRemindersOfItem(ctx context.Context, itemID pgtype.UUID) ([]ListRemindersOfItemRow, error) {
@@ -327,7 +327,7 @@ WHERE state = 'PENDING' AND fire_at IS NOT NULL
 `
 
 // When this tenant next owes something. NULL when it owes nothing, which is what lets the job
-// finish rather than idle forever - the next write re-seeds it (D-03).
+// finish rather than idle forever - the next write re-seeds it.
 func (q *Queries) NextReminderMoment(ctx context.Context) (pgtype.Timestamptz, error) {
 	row := q.db.QueryRow(ctx, nextReminderMoment)
 	var next_at pgtype.Timestamptz

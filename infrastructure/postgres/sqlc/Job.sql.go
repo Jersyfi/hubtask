@@ -105,7 +105,7 @@ type ClaimJobsRow struct {
 // The claim. Two kinds of row are claimable: one that is due, and one whose lease has run out -
 // the second is a job whose worker died, and picking it up again is the whole reason a lease has
 // an end.
-// Per-tenant round-robin at claim time (H-08, multi-tenancy.md §4): each workspace's due jobs
+// Per-tenant round-robin at claim time (multi-tenancy.md §4): each workspace's due jobs
 // are ranked among themselves, and the batch takes everybody's first before anybody's second -
 // one tenant's storm cannot monopolise the workers, and both keep making progress. Priority and
 // age still order within a rank, so nothing changes whenever only one tenant is due. NULL
@@ -350,7 +350,7 @@ type HoldJobParams struct {
 	Lease pgtype.Timestamptz
 }
 
-// The row lock a pass takes on its own job, held until the caller's transaction ends (D-03).
+// The row lock a pass takes on its own job, held until the caller's transaction ends.
 //
 // SELECT ... FOR UPDATE rather than an UPDATE: nothing about the row changes, and what is wanted
 // is only that a concurrent Enqueue on this dedupe key waits for the pass rather than finding the
@@ -486,7 +486,7 @@ type SetJobProgressParams struct {
 	Lease    pgtype.Timestamptz
 }
 
-// How far along a long job is, written by the handler as it goes (E-05, migration 0032).
+// How far along a long job is, written by the handler as it goes (migration 0032).
 //
 // Fenced on the lease like every other statement a handler runs: a worker that fell so far behind
 // that somebody else took the job over must not keep writing a fraction of work it is no longer

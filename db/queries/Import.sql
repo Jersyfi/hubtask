@@ -1,4 +1,4 @@
--- The import from another system (P-08, backup-restore.md §9). Every statement is bounded by the
+-- The import from another system (backup-restore.md §9). Every statement is bounded by the
 -- transaction's tenant (SET LOCAL app.tenant_id) and the row level security on import_run.
 
 -- name: InsertImportRun :exec

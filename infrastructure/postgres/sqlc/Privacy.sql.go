@@ -97,7 +97,7 @@ WHERE tenant_id = current_tenant_id() AND run_as = $1
 // RESTRICT`, and deliberately so (ADR-0024): a rule that acts as somebody must not quietly start
 // acting as nobody. So an erasure that would leave such a rule behind is refused with a reason
 // rather than attempted and failed on a foreign key - PG-2 found the second, which reached the
-// caller as a dependency error and told them nothing (E-11).
+// caller as a dependency error and told them nothing.
 func (q *Queries) AutomationsRunningAs(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, automationsRunningAs, accountID)
 	var count int64
@@ -262,8 +262,8 @@ WHERE tenant_id = current_tenant_id()
 //
 // `jumble_entry` is matched by address rather than by account, because that is all an inbound mail
 // carries. The catalogue's path for it is `RETENTION` - 90 days - and an erasure that left the
-// person's own address and text sitting there for those 90 days would be an erasure in name (E-11,
-// PG-2).
+// person's own address and text sitting there for those 90 days would be an erasure in name
+// (PG-2).
 func (q *Queries) DiscardIntakeOf(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, discardIntakeOf, accountID)
 	if err != nil {
@@ -408,7 +408,7 @@ type InsertDataSubjectRequestParams struct {
 	Notes            *string
 }
 
-// Data subject rights (E-10, data-protection.md §4). The tables have stood since `0001_init`;
+// Data subject rights (data-protection.md §4). The tables have stood since `0001_init`;
 // these are the first statements over them.
 //
 // The tenant is never a parameter. It comes from the transaction's own context through

@@ -92,7 +92,7 @@ const currentSyncEpoch = `-- name: CurrentSyncEpoch :one
 SELECT sync_epoch FROM tenant WHERE id = current_tenant_id()
 `
 
-// The workspace's synchronisation epoch (N-11, backup-restore.md §12 B-5): what every cursor is
+// The workspace's synchronisation epoch (backup-restore.md §12 B-5): what every cursor is
 // minted under, and what a cursor is judged against.
 func (q *Queries) CurrentSyncEpoch(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, currentSyncEpoch)
@@ -116,7 +116,7 @@ type DeleteAgedSyncOpsParams struct {
 	Batch  int32
 }
 
-// The SYNC_LOG data kind's sweep of the operation log (N-09, data-retention.md §3): an operation
+// The SYNC_LOG data kind's sweep of the operation log (data-retention.md §3): an operation
 // past the offline window has answered every repeat it will ever see - a device silent longer
 // than the window resynchronises from scratch. Batched through a subquery, oldest first,
 // DeleteStaleDevices' shape; the primary key is what the subquery hands back.
@@ -273,7 +273,7 @@ type FindSyncOpRow struct {
 	Response  []byte
 }
 
-// The operation log (N-04, offline-sync.md §3.2): what a push did with each op_id, kept for the
+// The operation log (offline-sync.md §3.2): what a push did with each op_id, kept for the
 // offline window so that a repeated push takes effect exactly once.
 func (q *Queries) FindSyncOp(ctx context.Context, opID pgtype.UUID) (FindSyncOpRow, error) {
 	row := q.db.QueryRow(ctx, findSyncOp, opID)
@@ -756,7 +756,7 @@ type SnapshotContainersRow struct {
 	Version              int32
 }
 
-// The initial synchronisation (N-02, offline-sync.md §3.1): the current state, one kind at a
+// The initial synchronisation (offline-sync.md §3.1): the current state, one kind at a
 // time, in pages by identifier. Each statement is its kind's Find with the identifier as the page
 // key and the live rows only - the trash and the deleted are tombstones in the log, not state.
 // The column lists mirror the Find statements on purpose, so that the row mappers are shared and
@@ -1248,7 +1248,7 @@ type StampFieldClockParams struct {
 	Hlc      string
 }
 
-// The clock per field (N-05, offline-sync.md §4.2): the reading of the write that landed, which a
+// The clock per field (offline-sync.md §4.2): the reading of the write that landed, which a
 // push's reading is compared against per field.
 // The reading of the write that landed replaces what stood: the writer decided, and the row
 // records the decision. A guard that kept an older row would let a device outvote an edit made
@@ -1309,7 +1309,7 @@ type TouchDeviceRow struct {
 	CredentialID pgtype.UUID
 }
 
-// The devices (N-03, offline-sync.md §6, §10).
+// The devices (offline-sync.md §6, §10).
 // Registration and every contact after it in one statement. The insert is the registration; the
 // update is the contact, and it is refused - no row comes back - when the identifier belongs to
 // another account or the device was forgotten, which the adapter then tells apart. What the

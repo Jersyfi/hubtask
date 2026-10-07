@@ -1,4 +1,4 @@
--- The rule model of data-retention.md §2 and the two phases that execute it (E-07).
+-- The rule model of data-retention.md §2 and the two phases that execute it.
 --
 -- Row level security supplies the tenant condition none of these statements writes (ADR-0010).
 --
@@ -27,7 +27,7 @@ INSERT INTO retention_rule (
 --
 -- The tenant is selected rather than left to row level security to imply, because the aggregate
 -- carries it: a correction rebuilds the rule from the row that was read, and `NewRule` refuses one
--- whose tenant is zero (F4-18).
+-- whose tenant is zero.
 SELECT id, tenant_id, scope_kind, scope_id, data_kind, condition, retain_days, action,
        then_after_days, then_action, grace_days, notify, justification, enabled,
        export_target_id, created_by, created_at, updated_at, version
@@ -260,7 +260,7 @@ WHERE w.deleted_at IS NOT NULL
        OR (sqlc.arg('scope_kind')::text = 'HUB' AND c.parent_id = sqlc.arg('scope_id')::uuid)
        OR (sqlc.arg('scope_kind')::text = 'COLLECTION' AND w.collection_id = sqlc.arg('scope_id')::uuid));
 
--- The lifecycle F4-02 added: a rule that deletes data has to be correctable and withdrawable.
+-- The lifecycle: a rule that deletes data has to be correctable and withdrawable.
 
 -- name: UpdateRetentionRule :execrows
 -- Everything a rule may change, guarded on the row version. The kind and the scope are not among

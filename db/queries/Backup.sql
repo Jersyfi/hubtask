@@ -1,11 +1,11 @@
--- The backup targets (E-03, backup-restore.md §2).
+-- The backup targets (backup-restore.md §2).
 --
 -- backup_target is behind row level security like every other tenant table, so no statement here
 -- carries a tenant condition: the policy applies one no query can forget (ADR-0010). What it means
 -- for a target with tenant_id IS NULL - the instance-wide shape 0001_init has always allowed - is
--- that nothing in this milestone can see one, because the policy compares against a tenant and an
--- instance-wide row has none. That is deliberate rather than an oversight: instance administration
--- has no surface on this API yet, and the targets a tenant creates are the tenant's.
+-- that nothing here can see one, because the policy compares against a tenant and an
+-- instance-wide row has none. That is deliberate rather than an oversight: the targets a tenant
+-- creates are the tenant's.
 --
 -- The credential is read by exactly one statement, and it is named for it. Every other statement
 -- selects the columns a caller may see, so a credential cannot reach a response because somebody
@@ -82,7 +82,7 @@ SELECT
 FROM backup_target
 WHERE enabled;
 
--- ─────────────────────────── The schedules and the runs (E-05) ───────────────────────────
+-- ─────────────────────────── The schedules and the runs ───────────────────────────
 --
 -- backup_schedule and backup_run are both behind row level security, so no statement here carries
 -- a tenant condition - with one exception that is named where it appears: the instance-wide
@@ -121,7 +121,7 @@ WHERE id = sqlc.arg('id');
 -- `next_run_at` is a stored decision rather than a rule expanded on the spot: expanding an RRULE
 -- costs a library call per schedule, and a poller that did it on every wake-up would do it for
 -- every schedule that is not due. The value is written by the pass that last ran, which is the same
--- shape D-03's reminders use.
+-- shape the reminders use.
 -- name: DueBackupSchedules :many
 SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
        include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version,
@@ -229,7 +229,7 @@ FROM backup_run
 WHERE status = 'SUCCEEDED'
 GROUP BY target_id;
 
--- The lifecycle F4-02 added: a schedule that can be changed and removed, and a target that can be
+-- The lifecycle: a schedule that can be changed and removed, and a target that can be
 -- removed once nothing points at it.
 
 -- name: UpdateBackupSchedule :execrows

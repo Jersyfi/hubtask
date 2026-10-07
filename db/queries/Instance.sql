@@ -59,7 +59,7 @@ SELECT add_operator(sqlc.arg('account_id'), sqlc.narg('added_by'));
 SELECT drop_operator(sqlc.arg('account_id'));
 
 -- name: InstanceCensus :one
--- The installation at a glance (SI-17): counts, states and limits, never rows. Through the function
+-- The installation at a glance: counts, states and limits, never rows. Through the function
 -- rather than against the tables: `account` is behind row level security and FORCE, so the
 -- application role cannot count across workspaces at all - and narrow by construction is what makes
 -- that exception acceptable (migration 0105).

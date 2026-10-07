@@ -1,4 +1,4 @@
--- The jumble (G-10, domain-model.md §2): entries arrive, are decided about exactly once, and the
+-- The jumble (domain-model.md §2): entries arrive, are decided about exactly once, and the
 -- dismissed ones age out by retention rule.
 --
 -- The tenant is never a parameter: row level security bounds every statement to the tenant of the
@@ -29,7 +29,7 @@ WHERE id = sqlc.arg('id');
 -- that is not redundancy: the projection carries it, and the *events* a settlement announces are
 -- built from the projection. Without it every conversion refused as `events.envelope_incomplete` -
 -- an entry with no tenant cannot be the subject of an event - which meant converting a jumble entry
--- never worked at all, through a rule or through the API (found by J-16's end-to-end session).
+-- never worked at all, through a rule or through the API.
 SELECT id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status,
        target_item_id, received_at, processed_at
 FROM jumble_entry
@@ -52,7 +52,7 @@ WHERE id = sqlc.arg('id') AND status = 'NEW';
 
 -- name: SetJumbleIntakeToken :exec
 -- Minting and rotating are one statement: the upsert replaces the hash, so the old token and the
--- new one never both open the intake (G-10).
+-- new one never both open the intake.
 INSERT INTO jumble_intake (tenant_id, token_hash, rotated_at)
 VALUES (current_tenant_id(), sqlc.arg('token_hash'), sqlc.arg('rotated_at'))
 ON CONFLICT (tenant_id) DO UPDATE

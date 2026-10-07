@@ -1,4 +1,4 @@
--- The statements a restore reads and records itself through (E-06, backup-restore.md §7, §8).
+-- The statements a restore reads and records itself through (backup-restore.md §7, §8).
 --
 -- Row level security supplies the tenant condition none of these statements writes (ADR-0010),
 -- which is BK-10 at the layer where it cannot be forgotten: a restore into another tenant's

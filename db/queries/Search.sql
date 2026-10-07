@@ -1,4 +1,4 @@
--- The search's own bookkeeping (M-09, ADR-0034, ADR-0066): which rows were built by a recipe this
+-- The search's own bookkeeping (ADR-0034, ADR-0066): which rows were built by a recipe this
 -- installation has moved on from - because the configuration changed under it, or because the
 -- recipe did.
 

@@ -1,9 +1,9 @@
--- The control plane (H-06, multi-tenancy.md §5): provisioning, suspension, the deletion request
+-- The control plane (multi-tenancy.md §5): provisioning, suspension, the deletion request
 -- and the hard delete after the grace.
 --
 -- Two departures from the query files around this one, both deliberate. The listing goes through
 -- the SECURITY DEFINER enumerator migration 0067 pins down - the one legitimate place tenants are
--- enumerated (0.6.0 decision 6). And the statements on the tenant row itself still say
+-- enumerated (multi-tenancy.md §2.1). And the statements on the tenant row itself still say
 -- current_tenant_id(): the control plane opens an ordinary bounded transaction per tenant it
 -- touches, so even here no statement can reach a row its transaction was not opened for.
 
@@ -38,7 +38,7 @@ FROM tenant
 WHERE id = current_tenant_id() AND deleted_at IS NULL;
 
 -- name: OpenTenantPassword :execrows
--- An operator opens the password for this one workspace (ADR-0078 §3, SC-34). A second opening
+-- An operator opens the password for this one workspace (ADR-0078 §3). A second opening
 -- replaces the first - the operator's latest word on how long, who asked and why. Only an active
 -- workspace opens: a suspended one refuses its people before any password is asked for, and a
 -- leaving one is shut out for good.
@@ -153,7 +153,7 @@ WHERE tenant_id = sqlc.arg('tenant_id')
 ORDER BY occurred_at, id;
 
 -- name: PageInstanceJournal :many
--- The journal as the dashboard reads it (SI-17): newest first, one page at a time, keyed on the
+-- The journal as the dashboard reads it: newest first, one page at a time, keyed on the
 -- moment and the identifier together - the same keyset every other listing here walks, because two
 -- entries can share a moment and an offset would then skip or repeat one.
 --
@@ -201,7 +201,7 @@ DELETE FROM retention_rule;
 DELETE FROM idempotency_key;
 
 -- name: CountLiveTenantExports :one
--- The §4 concurrency quota's question (H-07). The job table has no policy, so the tenant is the
+-- The §4 concurrency quota's question. The job table has no policy, so the tenant is the
 -- transaction's own, written as an explicit predicate - DeleteTenantJobs' precedent.
 SELECT count(*) FROM job
 WHERE tenant_id = current_tenant_id()

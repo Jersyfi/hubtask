@@ -1,4 +1,4 @@
--- Webhook subscriptions and their deliveries (G-03, automation.md §3.1).
+-- Webhook subscriptions and their deliveries (automation.md §3.1).
 --
 -- The tenant is never a parameter: row level security bounds every statement to the tenant of the
 -- running transaction, which is what makes another workspace's subscription invisible rather than
@@ -6,7 +6,7 @@
 --
 -- The sealed secrets travel as a ciphertext and a key identifier together. A sealed value is a
 -- pair - the envelope opens under whichever master key sealed it - and an installation that has
--- rotated its keyring holds several (E-02).
+-- rotated its keyring holds several.
 
 -- name: InsertWebhookSubscription :exec
 INSERT INTO webhook_subscription (
@@ -22,7 +22,7 @@ VALUES (
 -- name: FindWebhookSubscription :one
 -- The tenant travels with the aggregate rather than being left to row level security to imply: an
 -- audit entry is written under the subscription's tenant, and a subscription read back without one
--- is a subscription no auditable operation can be performed on (F4-15).
+-- is a subscription no auditable operation can be performed on.
 SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
@@ -121,7 +121,7 @@ VALUES (
 );
 
 -- name: FindPendingDeliveryOfPush :one
--- The delivery of one push the fan-out collapses onto (N-10, offline-sync.md §8): the same
+-- The delivery of one push the fan-out collapses onto (offline-sync.md §8): the same
 -- subscription, push, subject and type, still pending. FOR UPDATE, because two events of the push
 -- dispatched in one round both ask, and both must land on the one row.
 SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
@@ -143,7 +143,7 @@ WHERE id = sqlc.arg('id') AND status = 'PENDING';
 -- name: FindWebhookDelivery :one
 -- The tenant is selected rather than left to row level security to imply, because the aggregate
 -- carries it: a retry and a replay both build the next attempt from the row that was read, and a
--- delivery read back without its tenant is one neither of them can construct (F4-15).
+-- delivery read back without its tenant is one neither of them can construct.
 SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
        next_attempt_at, created_at, push_id, subject, event_type
 FROM webhook_delivery

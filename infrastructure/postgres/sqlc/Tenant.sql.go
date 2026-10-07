@@ -29,7 +29,7 @@ type InsertTenantHostParams struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
-// A host a workspace answers at (SI-12). `current_tenant_id()` rather than an argument, as every
+// A host a workspace answers at. `current_tenant_id()` rather than an argument, as every
 // tenant-scoped insert here: the workspace is the transaction's, not the caller's to name.
 func (q *Queries) InsertTenantHost(ctx context.Context, arg InsertTenantHostParams) error {
 	_, err := q.db.Exec(ctx, insertTenantHost,
