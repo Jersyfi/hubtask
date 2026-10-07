@@ -9,6 +9,7 @@
     "dev": "vite",
     "build": "vite build && node build/check-csp.js",
     "preview": "vite preview",
+    "preview:fixture": "node e2e/preview.mjs",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
     "lint": "node ../../packages/design-system/build/lint-no-literals.js && node ../../packages/design-system/build/lint-direction.js",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",

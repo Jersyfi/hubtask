@@ -12,7 +12,11 @@ in [`AGENTS.md`](./AGENTS.md); what each screen draws is
 pnpm --filter @hubtask/webapp build    # vite build, then build/check-csp.js
 pnpm --filter @hubtask/webapp test
 make run ROLES=api                     # the server that embeds and serves the build
+pnpm --filter @hubtask/webapp preview:fixture   # the build over the walks' fixture, any sign-in works
 ```
+
+The fixture preview is how a change is shown before it merges; what it cannot show, and how to walk
+against a real server, is in [`docs/evidence/README.md`](../../docs/evidence/README.md#how-to-walk).
 
 ## How it is put together
 

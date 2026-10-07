@@ -119,7 +119,8 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 - The owner works through coding sessions only: sets the direction, decides, looks at results. The
   session does the rest — development, administration, releases. `[owner]`
 - User-interface changes are shown in the running app and refined on the same draft pull request
-  until the owner is content; owner feedback on a task in progress is part of that task. `[owner]`
+  until the owner is content; owner feedback on a task in progress is part of that task. How to
+  show it: `docs/evidence/README.md`, "How to walk". `[owner]`
 - When the owner works out a concept, the session applies the cut checklist of
   `docs/backlog/README.md` and says what is still open before the concept lands. `[owner]`
 - Each new task starts in a fresh session, unless the owner asks for a series. `[unchecked: a
