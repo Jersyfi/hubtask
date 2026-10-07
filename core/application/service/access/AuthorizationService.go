@@ -36,7 +36,7 @@ type Request struct {
 	// Permission is what is being asked for.
 	Permission service.Permission
 	// Alternative is a second permission that satisfies the request on its own, and empty where
-	// there is none (A-4, G-12).
+	// there is none (A-4).
 	//
 	// It exists for the configuration *reads* and for nothing else. Their first permission is the
 	// writing one somebody who administers the workspace holds; the second is the read-only one an
@@ -63,7 +63,7 @@ type Request struct {
 }
 
 // ItemSubject is what the per-entry half of the role matrix needs in order to be applied: the
-// entry, what the request does to it, and whose it is (domain-model.md §3.2, C-04).
+// entry, what the request does to it, and whose it is (domain-model.md §3.2).
 //
 // The use case fills it in; the use case does not decide from it. It has already read the entry -
 // the path to it is what the check is about - so naming it here costs nothing, while reading it
