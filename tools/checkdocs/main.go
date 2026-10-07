@@ -31,8 +31,8 @@
 //   - The support matrix and the workflows agree in both directions, so that support can neither
 //     be claimed without a job nor removed by deleting one (see matrix.go).
 //   - The use cases cite personas, deployments and principles that exist, carry the sections that
-//     make them checkable, agree with their index, and every UC-… cited anywhere exists
-//     (see usecases.go).
+//     make them checkable, agree with their index, and every UC-… and use case check cited
+//     anywhere exists (see usecases.go).
 //   - Every task of a milestone carries checks its `Delivers` line names, and a closed milestone
 //     has no Delivers check a use case still lists as unmet (see milestones.go).
 package main

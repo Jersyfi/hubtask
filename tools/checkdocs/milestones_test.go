@@ -42,7 +42,7 @@ func TestMilestoneDelivers(t *testing.T) {
 		{"a whole use case Delivers names only partly", strings.Replace(milestoneSample, "UC-PRV-01 (9)\n", "UC-PRV-01\n", 1), "carries UC-PRV-01 (1, 11)", nil},
 		{"a task without checks", strings.Replace(milestoneSample, "UC-PRV-01 (9)\n", "none - tooling\n", 1), "XX-01 carries no check from Delivers", nil},
 		{"a task without the line", strings.Replace(milestoneSample, "**Use cases:** UC-PRV-01 (9)\n", "", 1), "XX-01 names no use cases", nil},
-		{"a check the use case does not have", strings.Replace(milestoneSample, "UC-PRV-01 (9)\n", "UC-PRV-01 (9, 12)\n", 1), "UC-PRV-01 check 12, which UC-PRV-01 does not have", nil},
+		{"a check the use case does not have", strings.Replace(milestoneSample, "UC-PRV-01 (9)\n", "UC-PRV-01 (9, 12)\n", 1), "UC-PRV-01 " + "check 12, which UC-PRV-01 does not have", nil},
 		{"a range in Delivers", strings.Replace(milestoneSample, "(9, 10), UC-LIF-06\n", "(9–10), UC-LIF-06\n", 1), "", nil},
 		{"closed with a check still unmet", closed, "still lists check 10 as not met",
 			func(k map[string]ucChecks) { k["UC-PRV-01"].unmet[10] = true }},

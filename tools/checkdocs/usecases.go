@@ -24,7 +24,8 @@ import (
 //     with one line per check not met, which is gone once it is built;
 //   - the index lists every use case with the state the file declares, because the index is what a
 //     reader skims and a state that drifted there is a promise nobody is keeping;
-//   - every UC-… cited anywhere in the repository exists; what a milestone delivers is in
+//   - every UC-… cited anywhere in the repository exists, and so does every check cited by its
+//     number (UC-ID-12/4, "UC-ID-12 check 4"); what a milestone delivers is in
 //     milestones.go.
 //
 // The front matter is a deliberately flat subset of YAML - `key: value` and `key: [a, b]` - read by
@@ -104,7 +105,7 @@ func checkUseCases(root string) []string {
 	}
 
 	problems = append(problems, checkUseCaseIndex(root, cases)...)
-	problems = append(problems, checkUseCaseReferences(root, seen)...)
+	problems = append(problems, checkUseCaseReferences(root, seen, useCaseChecks(cases))...)
 	problems = append(problems, checkMilestones(root, cases)...)
 	return problems
 }
@@ -346,11 +347,16 @@ func checkUseCaseIndex(root string, cases []useCase) []string {
 	return problems
 }
 
+// ucCheckReference is a citation of one check: `UC-ID-12/4`, or `UC-ID-12 check 4`.
+var ucCheckReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3})(?:/(\d+)\b|:?,? check (\d+)\b)`)
+
 // checkUseCaseReferences makes sure a UC-… cited anywhere resolves, the way checkADRReferences does
 // for decisions: a task, a pull request template or a code comment pointing at a use case that does
-// not exist is a requirement that looks recorded and is not.
-func checkUseCaseReferences(root string, known map[string]string) []string {
+// not exist is a requirement that looks recorded and is not. A check cited by its number exists
+// under the use case's How to check, for the same reason.
+func checkUseCaseReferences(root string, known map[string]string, checks map[string]ucChecks) []string {
 	cited := map[string][]string{}
+	missingChecks := map[string][]string{}
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -361,9 +367,7 @@ func checkUseCaseReferences(root string, known map[string]string) []string {
 			}
 			return nil
 		}
-		switch filepath.Ext(entry.Name()) {
-		case ".go", ".md", ".yaml", ".yml", ".ts", ".svelte":
-		default:
+		if !citesADRs(entry.Name()) {
 			return nil
 		}
 		content, readErr := os.ReadFile(path) //nolint:gosec // G304: walking this repository is the job
@@ -373,6 +377,14 @@ func checkUseCaseReferences(root string, known map[string]string) []string {
 		relative, _ := filepath.Rel(root, path)
 		for _, id := range ucReference.FindAllString(string(content), -1) {
 			cited[id] = append(cited[id], relative)
+		}
+		for _, m := range ucCheckReference.FindAllStringSubmatch(string(content), -1) {
+			number := m[2] + m[3]
+			uc, ok := checks[m[1]]
+			if n, _ := strconv.Atoi(number); ok && !uc.checks[n] {
+				key := m[1] + " check " + number
+				missingChecks[key] = append(missingChecks[key], relative)
+			}
 		}
 		return nil
 	})
@@ -386,6 +398,10 @@ func checkUseCaseReferences(root string, known map[string]string) []string {
 		}
 		sort.Strings(files)
 		problems = append(problems, fmt.Sprintf("%s is cited in %s and does not exist", id, strings.Join(unique(files), ", ")))
+	}
+	for check, files := range missingChecks {
+		sort.Strings(files)
+		problems = append(problems, fmt.Sprintf("%s is cited in %s and that use case has no such check", check, strings.Join(unique(files), ", ")))
 	}
 	return problems
 }
