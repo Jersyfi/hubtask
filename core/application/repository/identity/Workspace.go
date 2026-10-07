@@ -33,8 +33,8 @@ type Workspaces interface {
 //
 // Two methods, because there are two things anybody does with the table today: a workspace gets its
 // canonical row when it is provisioned, and a reader is told which hosts it answers at. What is
-// deliberately absent is the resolution - nothing finds a workspace *by* host yet, because a request
-// is still resolved from the slug, and adding the lookup is the milestone that adds custom domains.
+// deliberately absent is the resolution - nothing finds a workspace *by* host, because a request is
+// resolved from the slug (multi-tenancy.md §3).
 type TenantHosts interface {
 	// Insert writes one. The workspace is the transaction's, so the host is all that is passed.
 	Insert(ctx context.Context, host identity.TenantHost) error

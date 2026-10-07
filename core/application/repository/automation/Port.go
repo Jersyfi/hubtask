@@ -145,8 +145,7 @@ type Runs interface {
 	CountSince(ctx context.Context, ruleID shared.ID, since time.Time) (int, error)
 }
 
-// Failures is the consecutive-failure counter the table has carried since phase 0
-// (automation.md §2).
+// Failures is the table's consecutive-failure counter (automation.md §2).
 //
 // Its own interface rather than three more methods on Rules, because the writer that manages rules
 // and the engine that runs them are different callers with different rights - and a use case that
