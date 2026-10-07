@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package importer is an import from another system (P-08, backup-restore.md §9): a file
-// somebody exported elsewhere, converted into the records a backup archive holds and applied
-// through the restore. The run is the import's own record; the report it carries is the
-// restore's, because the applying is the restore's.
+// Package importer is an import from another system (backup-restore.md §9): a file somebody
+// exported elsewhere, converted into the records a backup archive holds and applied through the
+// restore. The run is the import's own record; the report it carries is the restore's, because the
+// applying is the restore's.
 package importer
 
 import (
@@ -112,7 +112,7 @@ const (
 	CodeMappingUnknown   = "imports.mapping_unknown"
 	CodeEncodingInvalid  = "imports.encoding_invalid"
 	// CodeCollectionExists is a collection the file would create colliding, by name, with one the
-	// hub already holds (issue 766). A refusal recorded on the run rather than a retried database
-	// error: the next attempt would meet the same name.
+	// hub already holds. A refusal recorded on the run rather than a retried database error: the
+	// next attempt would meet the same name.
 	CodeCollectionExists = "imports.collection_exists"
 )

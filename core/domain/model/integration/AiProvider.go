@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// AiProvider is the workspace's configuration for the outbound AI port (J-02, ADR-0012).
+// AiProvider is the workspace's configuration for the outbound AI port (ADR-0012).
 //
 // It lives beside the webhook subscription rather than in a package of its own, and the reason is
 // ai-first.md's own first paragraph: "AI in the domain model" is what this project decided against.
@@ -22,7 +22,7 @@ import (
 //
 // The sealed key is deliberately not a field. A configuration a service can hold in a struct is one
 // a service can log, and the one caller that needs the plaintext asks the repository for it by name
-// (E-02's discipline, the identity provider's client secret).
+// (security.md §8, the discipline the identity provider's client secret follows).
 type AiProvider struct {
 	TenantID        shared.ID
 	Kind            AiProviderKind

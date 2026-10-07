@@ -117,8 +117,8 @@ func TestAnEventTypeThisBuildDoesNotEmitIsRefusedByName(t *testing.T) {
 	}
 }
 
-// E-08's ACCOUNT lesson: a field accepted and silently not honoured is worse than one that is not
-// offered, because the caller has been told their instruction was understood.
+// A field accepted and silently not honoured is worse than one that is not offered, because the
+// caller has been told their instruction was understood.
 func TestTheFilterIsRefusedRatherThanStoredAndIgnored(t *testing.T) {
 	in := validSubscription()
 	in.Filter = `event.type == "de.hubtask.work.item.created.v1"`
