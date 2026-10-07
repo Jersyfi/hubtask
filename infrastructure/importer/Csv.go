@@ -118,7 +118,7 @@ func (CSV) Convert(_ context.Context, source service.Source) (service.Result, er
 
 		collectionName := cell("collection")
 		if collectionName == "" {
-			// The file's own name, where one is known (issue 766): two files are two collections.
+			// The file's own name, where one is known: two files are two collections.
 			// The builder's "Imported" stands where neither the row nor the file names one.
 			collectionName = source.Name
 		}
