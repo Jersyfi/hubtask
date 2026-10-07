@@ -8,6 +8,8 @@ body:
       value: |
         Before opening this, search docs/vision, docs/architecture, docs/usecases, the milestones'
         "Decisions" and closed `decision` issues. An answered question is cited, not asked again.
+        One question per issue. During the build, ask only when the code refutes a decision, and name
+        that new fact.
   - type: textarea
     id: about
     attributes:
@@ -16,16 +18,31 @@ body:
     validations:
       required: true
   - type: textarea
+    id: problem
+    attributes:
+      label: The problem, and why it is not decided without you
+      description: What goes wrong or stays open, with a concrete example from a person's view, and which item of the owner's list it touches.
+    validations:
+      required: true
+  - type: textarea
     id: proposal
     attributes:
       label: Proposal
-      description: What you propose, and what it means in each deployment D1–D7 where it differs.
+      description: What you propose; its effect on users, administrators and operators (operation, cost, migration, risk); why it fits the vision and the use cases; walked through the deployments D1–D7.
     validations:
       required: true
   - type: textarea
     id: alternatives
     attributes:
       label: Alternatives and why not
+      description: The serious alternatives only.
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: What you need from the owner
+      description: One question, answerable with yes, an option, or one sentence.
     validations:
       required: true
   - type: textarea
