@@ -1,7 +1,7 @@
 # Documentation
 
-One place per kind of knowledge, as [`AGENTS.md`](../AGENTS.md) § "Where knowledge lives" sets it
-out. Write it there; elsewhere, link to it.
+One place per kind of knowledge ([`AGENTS.md`](../AGENTS.md) § "Where knowledge lives"), and this
+table names it. Write it there; elsewhere, link to it.
 
 | Directory | What it holds | Who writes it |
 |---|---|---|
