@@ -129,7 +129,7 @@ func (c *containers) SetRank(_ context.Context, container domain.Container, expe
 	return c.write("rank", container, expected)
 }
 
-// The trash side (B-10). The cascade is worked out from what is stored rather than configured, so
+// The trash side. The cascade is worked out from what is stored rather than configured, so
 // that a test which puts two collections in a hub gets two collections back without having to say
 // so twice - and so that the double cannot silently disagree with the fixture it was built from.
 func (c *containers) TrashSubtree(
@@ -279,7 +279,7 @@ type unitOfWork struct {
 	rolledBack bool
 	// writes and reads count the two kinds separately. The read side must never open a write
 	// transaction - a read may be served by a replica, and one that asked for a writable transaction
-	// would pin every list in the product to the primary (multi-tenancy.md §7, B-04). A fake that
+	// would pin every list in the product to the primary (multi-tenancy.md §7). A fake that
 	// could not tell the two apart could not say so.
 	writes int
 	reads  int
@@ -297,7 +297,7 @@ func (u *unitOfWork) WithinReadOnly(ctx context.Context, s persistence.Scope, fn
 
 // inTransaction marks a context the double handed to a transaction's body, so that a sink can
 // refuse an append made outside one - the real store does (`postgres.no_transaction_in_context`),
-// and a double that did not is how AiTranslate's audit entry came to be written bare (#703).
+// and a double that did not is how AiTranslate's audit entry came to be written bare.
 type inTransaction struct{}
 
 func (u *unitOfWork) run(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
@@ -314,7 +314,7 @@ type authorizer struct {
 	requests []access.Request
 	// onlyOwn is what the create path is told about the role the actor holds: false is every role
 	// that writes unqualified, which is the ordinary case a test does not have to say anything
-	// about (C-04).
+	// about.
 	onlyOwn bool
 	// shares are the entries a list is narrowed to, empty for an actor who reaches the whole
 	// container.
@@ -327,7 +327,7 @@ func (a *authorizer) Authorize(_ context.Context, _ appshared.ActorContext, requ
 }
 
 // reach is what ReachInto answers: the whole container unless a test says the actor holds only
-// individual shares inside it (C-04).
+// individual shares inside it.
 func (a *authorizer) ReachInto(
 	_ context.Context, _ appshared.ActorContext, request access.Request, _ shared.ID,
 ) (access.Reach, error) {
@@ -549,7 +549,7 @@ func TestCreatingACollectionUnderItsHub(t *testing.T) {
 		t.Errorf("order key %q does not sort after its sibling", container.OrderKey)
 	}
 	// Filed under itself, like a hub: a reader wanting the hub's subtree resolves the parent, and
-	// a grant on the collection alone is on the path of the collection, not of the hub (#623).
+	// a grant on the collection alone is on the path of the collection, not of the hub.
 	if change := h.changes.recorded[0]; change.ContainerID != container.ID {
 		t.Errorf("the change filters on %s rather than on the collection itself", change.ContainerID)
 	}

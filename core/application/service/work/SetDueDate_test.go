@@ -424,7 +424,7 @@ func TestTheDueDateChannelsReachTheSameCommand(t *testing.T) {
 
 // A due date that moves takes the entry's relative reminders with it, in the same transaction: a
 // job doing it afterwards would leave a window in which the row says one thing and the schedule
-// another, and that window is exactly when a reminder would fire (D-02).
+// another, and that window is exactly when a reminder would fire.
 func TestMovingTheDueDateReschedulesTheRelativeReminders(t *testing.T) {
 	h := newDueDateHarness(t, dueDateProfiles())
 	item := h.withItem(domain.ItemTask)
@@ -470,7 +470,7 @@ func TestMovingTheDueDateReschedulesTheRelativeReminders(t *testing.T) {
 		t.Errorf("it now fires at %v rather than an hour before the new date", moved.FireAt)
 	}
 	// And the schedule follows the date: a wake-up still pointing at the old moment would fire it
-	// late (D-03). The moment asked for is the earliest of what this write made due - here the
+	// late. The moment asked for is the earliest of what this write made due - here the
 	// lead before the deadline, which comes before the reminder does.
 	if len(h.jobs.enqueued) != 1 {
 		t.Fatalf("the wake-ups asked for are %+v", h.jobs.enqueued)

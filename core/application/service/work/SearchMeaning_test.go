@@ -37,7 +37,7 @@ func TestAQueryIsEmbeddedWhereEverythingIsInPlace(t *testing.T) {
 		t.Fatalf("the query embedded to %v", vector)
 	}
 	// The configured name, which is what the rows carry - the vector is compared with those rows
-	// and no others (#568).
+	// and no others.
 	if model != "embed-3" {
 		t.Errorf("the vector was named %q, want the configured model", model)
 	}

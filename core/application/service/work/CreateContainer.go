@@ -87,7 +87,7 @@ type CreateContainer struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
-	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -220,7 +220,7 @@ func (h CreateContainer) recordChange(
 		// The visibility filter a pull applies: the container itself. A reader that wants the hub's
 		// subtree resolves the parent from the container it loads for the permission check anyway,
 		// and a grant on a collection alone is on the path of the collection and not of its hub
-		// (#623, core/application/repository/sync/Port.go).
+		// (core/application/repository/sync/Port.go).
 		ContainerID: container.ID,
 		ActorID:     actor.AccountID,
 		HLC:         h.HLC.Next(),

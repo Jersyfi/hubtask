@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// What a copy carries, what it leaves behind, and what it says about the difference (C-11).
+// What a copy carries, what it leaves behind, and what it says about the difference.
 
 var (
 	copiedTaskID       = shared.MustParseID("0192f000-0000-7000-8000-0000000c1101")
@@ -258,7 +258,7 @@ func TestACopyCarriesTheLabelsTheMembersAndTheFiles(t *testing.T) {
 		t.Errorf("the copy carries the files %v", files)
 	}
 	// The bytes are shared rather than copied: the counter is what says how many entries point at
-	// them (C-06).
+	// them.
 	if h.media.deltas[attachedFileID] != 1 {
 		t.Errorf("the file's reference count moved by %d", h.media.deltas[attachedFileID])
 	}
@@ -390,7 +390,7 @@ func TestACopyIntoAnotherCollectionReportsWhatItCouldNotResolve(t *testing.T) {
 	// definition of its own - so the value travels and the two references do not.
 	h.withField(farCollectionID, "priority")
 	// And the colleague cannot see the destination, so neither the assignment nor the membership
-	// travels: an entry is only ever on somebody who can see it (C-01).
+	// travels: an entry is only ever on somebody who can see it.
 	h.visibility.reachable[colleagueAccountID] = false
 
 	result, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{
@@ -599,7 +599,7 @@ func TestACopyAsksToReadTheSourceAndToWriteTheDestination(t *testing.T) {
 }
 
 // A role that writes only what is assigned to it copies onto itself: the entries the copy produces
-// would otherwise be out of its reach the moment they existed (C-04), which is the decision the
+// would otherwise be out of its reach the moment they existed, which is the decision the
 // create path takes for the same reason.
 func TestACopyByAnAssignedOnlyRoleLandsOnTheActor(t *testing.T) {
 	h := newDuplicateHarness(t)

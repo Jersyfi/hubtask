@@ -26,7 +26,7 @@ type EmbeddingQueue interface {
 }
 
 // SeedEmbedding asks for a workspace's vectors to be brought up to date when one of its entries
-// changes (J-10).
+// changes.
 //
 // It is a *seed*, not the work: what it writes is one job saying "this workspace owes embeddings",
 // deduplicated per tenant, and the pass behind that job works out which entries actually owe one.

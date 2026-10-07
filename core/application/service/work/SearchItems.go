@@ -27,11 +27,11 @@ const (
 	// searchTarget is what an audit entry about a search names. Its own target type rather than
 	// the entry's, for the reason the trash has one: a search is one view over everything, and a
 	// refused search is a refusal of the view rather than of any entry in it - there is no single
-	// entry to name, which is what the batch question is (ReadTrash, C-04).
+	// entry to name, which is what the batch question is (ReadTrash).
 	searchTarget = "search"
 )
 
-// SearchItems answers "where is this" (C-08).
+// SearchItems answers "where is this".
 //
 // The one read of this product that is not anchored to a place in the workspace. A query is
 // anchored because an unanchored one is a question authorisation cannot answer in one step
@@ -50,7 +50,7 @@ type SearchItems struct {
 	Anchored   Anchored
 	Reader     Reader
 	UnitOfWork persistence.UnitOfWork
-	// Meaning is the semantic half (J-10, ADR-0050). Optional at every level - no store, no
+	// Meaning is the semantic half (ADR-0050). Optional at every level - no store, no
 	// provider, no consent, or a provider that does not answer - and every one of those is a
 	// lexical search rather than a failure.
 	Meaning QueryMeaning
@@ -69,7 +69,7 @@ type QueryMeaning interface {
 	// Of embeds the query and names the model that did. An empty vector and a nil error is
 	// "search lexically", which is the answer for every reason a provider might not be reachable
 	// - a search must not fail because somebody else's machine is slow. The model travels because
-	// the vector is compared only with rows of the same model (#568).
+	// the vector is compared only with rows of the same model.
 	Of(ctx context.Context, actor appshared.ActorContext, words string) (vector []float32, model string, err error)
 }
 
@@ -84,7 +84,7 @@ type SearchItemsQuery struct {
 	IncludeTrashed  bool
 	Cursor          string
 	Size            int
-	// Mode is AUTO or LEXICAL, and empty is AUTO (J-10).
+	// Mode is AUTO or LEXICAL, and empty is AUTO.
 	Mode string
 	// Filter and Sort are the raw request, parsed here with the query's own parsers - one grammar,
 	// two readers (ADR-0064). Nil is no narrowing and no ordering asked for.
@@ -201,7 +201,7 @@ type scopeReach struct {
 //   - A collection: how far the actor reaches into it, exactly as the plain level list asks
 //     (ListWorkItems.Execute). A role on the collection answers for every entry in it; somebody who
 //     holds none may still hold memberships on entries inside it, and their search is those
-//     entries (C-04).
+//     entries.
 //   - A hub: the client named it, so a refusal is a refusal rather than an empty page, exactly as
 //     the query language answers (QueryItems.Execute). A role at the hub or above covers
 //     everything in it, so nothing is left to narrow.
@@ -263,7 +263,7 @@ func (h SearchItems) reach(
 // One question for the whole page, asked of each row's own path. The path ends on the entry rather
 // than on its collection, which is what makes an entry shared with the actor individually visible
 // here: a membership held anywhere along the path counts, and "shared items only" is a membership
-// at ITEM scope (domain-model.md §3.2, C-04).
+// at ITEM scope (domain-model.md §3.2).
 //
 // The page's own cursor is left alone, for the reason the trash leaves it alone: it is a boundary
 // in the *scanned* set, not in the filtered one. A client sees shorter pages and walks on until

@@ -30,7 +30,7 @@ const (
 	ViewExportedAction audit.Action = "view.exported"
 )
 
-// ExportView renders a saved view's result whole (D-08).
+// ExportView renders a saved view's result whole.
 //
 // The rows are selected here and rendered by whichever channel asked: a wire format is an
 // adapter's business (project-structure.md §3), and the backend composes no document text of its
@@ -187,7 +187,7 @@ func (h ExportView) walk(
 	spec, err := specOf(usecase.Input(saved.Query))
 	if err != nil {
 		// A stored query that no longer parses is a broken bookmark. It answers the grammar's own
-		// code, which is what a client needs in order to say which field is the problem (D-07).
+		// code, which is what a client needs in order to say which field is the problem.
 		return nil, false, err
 	}
 	// The grouping a client draws with is not an export's business: a file is rows, and a query

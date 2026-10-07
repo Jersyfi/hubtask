@@ -301,7 +301,7 @@ func TestAMalformedIdentifierIsRefusedAtTheCatalogueBoundary(t *testing.T) {
 
 // `expand=labels`: absent unless asked for, and an empty array when the entry carries none. The
 // difference matters - a client that could not tell "no labels" from "I did not ask" would render
-// an entry without its chips and have no way to know why (B-09).
+// an entry without its chips and have no way to know why.
 func TestExpandingTheLabelsOfOneEntry(t *testing.T) {
 	store, containerStore := readFixture()
 	carried := newItemLabels()

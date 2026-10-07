@@ -84,7 +84,7 @@ func (r *recurrences) Delete(
 	return nil
 }
 
-// The materialisation's half of the store (D-05). The watermark is modelled with its
+// The materialisation's half of the store. The watermark is modelled with its
 // compare-and-set, because that is the whole exactly-once argument for an occurrence: a pass that
 // read a stale watermark writes nothing.
 func (r *recurrences) ClaimToMaterialize(
@@ -523,7 +523,7 @@ func TestTheReadAnswersTheSeriesOrThatThereIsNone(t *testing.T) {
 }
 
 // The skip is the bookkeeping moving past one moment: nothing is created, nothing that exists is
-// touched, and twice means two - which is what "skip the next one" means said twice (D-05).
+// touched, and twice means two - which is what "skip the next one" means said twice.
 func TestSkippingMovesTheSeriesPastOneOccurrence(t *testing.T) {
 	h := newRecurrenceHarness(t)
 	h.withItem(domain.ItemTask, seriesDate(t))

@@ -467,7 +467,7 @@ func TestACrossCollectionMoveAsksAboutBothCollections(t *testing.T) {
 }
 
 // A board belongs to a collection, so only the entries directly in it have a place on one. A work
-// package is refused by the capability rather than by a placeholder (B-09, domain-model.md §2).
+// package is refused by the capability rather than by a placeholder (domain-model.md §2).
 func TestAWorkPackageHasNoPlaceOnABoard(t *testing.T) {
 	h := newPlacementHarness()
 	handler := MoveWorkItem{Placement: h.writer}
@@ -696,7 +696,7 @@ func TestAMoveRecordsWhatChangedUnderTheMoveVerb(t *testing.T) {
 }
 
 // A device computes its rank itself, between the neighbours it holds, and the server takes it as
-// it is once the domain's own rule has judged it (offline-sync.md §4.2, N-05). Naming a sibling
+// it is once the domain's own rule has judged it (offline-sync.md §4.2). Naming a sibling
 // as well is a contradiction, and a key the scheme does not produce is refused as input.
 func TestACallerComputedRankIsTakenAsItIsOnceJudged(t *testing.T) {
 	h := newPlacementHarness()

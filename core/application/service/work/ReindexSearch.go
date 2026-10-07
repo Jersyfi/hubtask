@@ -36,7 +36,7 @@ const workspaceTarget = "workspace"
 const workspaceManage = "workspace:manage"
 
 // ReindexSearch brings a workspace's search documents current with the configurations its
-// PostgreSQL has (M-09, ADR-0034).
+// PostgreSQL has (ADR-0034).
 //
 // ADR-0034 left one case open: an installation that *gains* a text search configuration after
 // the entries were written - an upgrade, or an operator installing one - keeps searching those
@@ -161,7 +161,7 @@ func (h ReindexSearch) invoke(
 // transaction, and a decision about whether to come straight back.
 //
 // Not a use case and not in the catalogue: nobody asks for a batch, they ask for the index to be
-// current (ReindexSearch). The shape is the embedding pass's (J-10) - a batch, then the outcome
+// current (ReindexSearch). The shape is the embedding pass's - a batch, then the outcome
 // says whether there is more - with no provider anywhere near it: the rewrite is one statement
 // over rows this PostgreSQL holds.
 type RebuildSearchIndex struct {

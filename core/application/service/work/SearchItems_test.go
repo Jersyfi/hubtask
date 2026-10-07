@@ -253,7 +253,7 @@ func TestASearchOpensNoWriteTransaction(t *testing.T) {
 	}
 }
 
-// The mode is the caller's one control over the second half (J-10). LEXICAL asks no provider at
+// The mode is the caller's one control over the second half. LEXICAL asks no provider at
 // all, which is what a caller in a loop - an automation, an import, a type-ahead - wants, and AUTO
 // is what everybody else gets without saying anything.
 func TestTheSearchModeDecidesWhetherAProviderIsAsked(t *testing.T) {

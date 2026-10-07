@@ -32,7 +32,7 @@ const (
 	TemplateInstantiatedAction audit.Action = "template.instantiated"
 )
 
-// InstantiateTemplate stamps a template out into a collection (D-06).
+// InstantiateTemplate stamps a template out into a collection.
 //
 // A sibling of C-11's duplicate rather than the same machinery: there is no source tree to read -
 // the shape is a document - but everything else is the same shape of problem, and the answers are
@@ -46,7 +46,7 @@ type InstantiateTemplate struct {
 	Items       repository.Items
 	ItemMembers repository.ItemMembers
 	// Visibility answers whether a node's fixed assignee can see the collection the tree lands in.
-	// The same question an assignment asks (C-01), asked here because a template written last year
+	// The same question an assignment asks, asked here because a template written last year
 	// may name somebody who has left.
 	Visibility Visibility
 	Events     outbox.Events
@@ -126,7 +126,7 @@ func (h InstantiateTemplate) Execute(
 
 	var result InstantiationResult
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		// The items ceiling (H-08), DuplicateWorkItem's stance: asked once, and a tree may land
+		// The items ceiling, DuplicateWorkItem's stance: asked once, and a tree may land
 		// its nodes past the wall by their number - the next create is refused.
 		if h.Quota != nil {
 			if err := h.Quota.Items(ctx, actor.TenantID.String(), 1); err != nil {

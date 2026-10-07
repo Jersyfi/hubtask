@@ -214,7 +214,7 @@ func TestAddingAMemberWritesTheSetTheEventTheChangeAndTheEntry(t *testing.T) {
 			t.Error("the change carries no clock reading")
 		}
 		if change.ContainerID != collectionID {
-			t.Errorf("the change is filed under %s, want the collection (#623)", change.ContainerID)
+			t.Errorf("the change is filed under %s, want the collection", change.ContainerID)
 		}
 	})
 

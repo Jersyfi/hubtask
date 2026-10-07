@@ -62,7 +62,7 @@ type RecurrenceWriter struct {
 	Activity ActivityJournal
 	// Jobs is where the series asks to be materialised. The write that made something owed seeds
 	// it, because nothing may enumerate tenants (multi-tenancy.md §2.1) - the same shape the
-	// reminder's wake-up has (D-05).
+	// reminder's wake-up has.
 	Jobs       queue.Queue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -253,7 +253,7 @@ func (w RecurrenceWriter) change(
 
 // scheduleMaterialisation asks for the tenant's series to be looked at, in the transaction that
 // wrote one. The dedupe key is the tenant, so a person setting five rules leaves one job, and the
-// pass decides what is actually owed (D-05).
+// pass decides what is actually owed.
 //
 // A nil queue is a build without one, which the composition root does not produce and a test may:
 // nothing to schedule is better than a panic on the write path.
@@ -838,7 +838,7 @@ const SkipOccurrenceName = "SkipOccurrence"
 // matches on it (audit.md §2).
 const RecurrenceSkippedAction audit.Action = "recurrence.occurrence_skipped"
 
-// SkipOccurrence moves a series past its next unmade occurrence (D-05).
+// SkipOccurrence moves a series past its next unmade occurrence.
 //
 // The one user-facing half of the materialisation, and the shape of it is what the bookkeeping
 // already is: the watermark says how far the series has been dealt with, so skipping is moving it

@@ -169,7 +169,7 @@ func TestAScheduledSeriesFillsItsWindow(t *testing.T) {
 
 	// Both pointers, on every copy. The rule identifier alone is what the template carries too,
 	// so an occurrence that had only that could not reach the entry it repeats from - and
-	// `GET /items/{id}/recurrence` answers 404 for an occurrence by design (issue #428).
+	// `GET /items/{id}/recurrence` answers 404 for an occurrence by design.
 	if len(h.recurrences.attached) != 3 {
 		t.Fatalf("%d occurrences were pointed at their series", len(h.recurrences.attached))
 	}

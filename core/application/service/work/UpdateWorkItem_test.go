@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// UpdateWorkItem (B-05). The item is a work package, so that both fields under test are live: its
+// UpdateWorkItem. The item is a work package, so that both fields under test are live: its
 // profile carries NOTES, and the activity beside it does not - which is the gate the task is named
 // after.
 
@@ -601,7 +601,7 @@ func TestTheDescriptorDeclaresWhatTheGatesRead(t *testing.T) {
 	}
 }
 
-// The board an entry sits on, through the update (B-09). Empty is not "leave it alone": it takes
+// The board an entry sits on, through the update. Empty is not "leave it alone": it takes
 // the entry off the board, which is the same distinction the text fields keep.
 func TestUpdatingTheColumnAnEntrySitsIn(t *testing.T) {
 	h := newUpdateHarness()

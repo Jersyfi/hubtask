@@ -59,7 +59,7 @@ type CommentWriter struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
-	// Text brings the body to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the body to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -75,7 +75,7 @@ type AddCommentCommand struct {
 	ID     shared.ID
 	ItemID shared.ID
 	// SystemCode and SystemParams make the comment one the server files on the author's behalf
-	// (N-06, offline-sync.md §5). Not declared as inputs: nobody asks for a system comment over a
+	// (offline-sync.md §5). Not declared as inputs: nobody asks for a system comment over a
 	// channel, and FileDisplaced is the one caller.
 	SystemCode   string
 	SystemParams map[string]string
@@ -195,7 +195,7 @@ func (h AddComment) Execute(
 		if err := w.recordAudit(ctx, comment, actor, CommentCreatedAction, now); err != nil {
 			return err
 		}
-		// The one comment verb of the item's history (C-03). An edit and a deletion write none:
+		// The one comment verb of the item's history. An edit and a deletion write none:
 		// the comment carries its own stamps, and the thread is where both are read.
 		if err := w.Activity.record(ctx, actor, item, activity.ItemCommented,
 			activity.ChangeSet(historyForm(profile), activity.Field{
@@ -353,7 +353,7 @@ func commentOutput(comment domain.Comment) usecase.Output {
 }
 
 // FileDisplaced files the version of a free-text field that lost a merge as a system comment on
-// the entry, in the merging person's name (N-06, offline-sync.md §5): the body is the text that
+// the entry, in the merging person's name (offline-sync.md §5): the body is the text that
 // lost, the heading is `sync.displaced_version` with the field, the device and the reading. The
 // same write as any comment - the same permission, the same event, the same change log entry -
 // so a device that may not comment on the entry is told so, and the push answers the conflict

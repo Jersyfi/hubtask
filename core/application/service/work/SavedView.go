@@ -61,7 +61,7 @@ type CreateSavedView struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Text brings the name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -516,8 +516,7 @@ func (h CreateSavedView) Descriptor() usecase.Descriptor {
 				Name: "sharing", Kind: usecase.KindString,
 				// PUBLIC_LINK is in the set the contract declares, so that the domain's refusal
 				// by name is the answer a caller gets. Leaving it out made the registry refuse it
-				// first, with a generic code, and `views.public_link_not_available` unreachable
-				// (issue #427).
+				// first, with a generic code, and `views.public_link_not_available` unreachable.
 				Enum: []string{"PRIVATE", "SCOPE", "PUBLIC_LINK"},
 				Description: "Who sees the view. Omitted is PRIVATE. SCOPE at creation asks the " +
 					"same STRUCTURE permission :share does. PUBLIC_LINK is refused by name.",

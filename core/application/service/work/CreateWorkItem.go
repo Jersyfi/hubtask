@@ -77,7 +77,7 @@ type CreateWorkItemCommand struct {
 	Notes        string
 	// BucketID is the column of the collection's board the entry starts in, empty for none.
 	BucketID shared.ID
-	// AssigneeID creates the entry already on somebody (C-02): the same checks and the same
+	// AssigneeID creates the entry already on somebody: the same checks and the same
 	// records as :assign, in the same transaction as the creation. Empty for nobody.
 	AssigneeID shared.ID
 	// AutoAssign asks the collection's assignment policy to hand the new entry out, explicitly -
@@ -89,13 +89,13 @@ type CreateWorkItemCommand struct {
 	// indexed under, which is the whole of why it is worth carrying (ADR-0034).
 	ContentLanguage string
 	// StartAt is when the work begins, nil for no start - the create's own field, a plain
-	// attribute beside the notes (D-01).
+	// attribute beside the notes.
 	StartAt *time.Time
 	// CalendarUID is the UID a calendar client chose for the entry it is making, and empty for
-	// every other creation (P-07, issue #721). The tree answers the entry at that address from
+	// every other creation (P-07). The tree answers the entry at that address from
 	// then on; nothing else reads it, and nothing ever changes it.
 	CalendarUID string
-	// Due creates the entry already carrying a due date (D-01): the same validation and the same
+	// Due creates the entry already carrying a due date: the same validation and the same
 	// records as PUT /items/{id}/due, in the same transaction as the creation - the way an
 	// explicit assignee reuses the :assign machinery. Nil for none.
 	Due *domain.DueDate
@@ -134,7 +134,7 @@ type CreateWorkItemCommand struct {
 // What is new here is that the rules are data. Which type may sit under which, and how deep, come
 // from the capability profiles through the hierarchy service (ADR-0006) - so this file, like that
 // one, names none of the three levels.
-// ItemQuota is the §4 items ceiling, asked before an entry is created (H-08). The slice the
+// ItemQuota is the §4 items ceiling, asked before an entry is created. The slice the
 // work package needs of quota.Guard.
 type ItemQuota interface {
 	Items(ctx context.Context, tenant string, adding int64) error
@@ -162,7 +162,7 @@ type CreateWorkItem struct {
 	// written, with the same guards and the same four records as :assign.
 	AutoAssign AutoAssignWorkItem
 	// DueDates is the writer the declared due fields dispatch into, reused whole for the same
-	// reason (D-01).
+	// reason.
 	DueDates DueDateWriter
 	// Labels and Members are the writers the two set fields dispatch into (issue 878), reused
 	// whole: a label put on at creation is the same OR-set element, the same events and the same
@@ -178,7 +178,7 @@ type CreateWorkItem struct {
 	// force for the entry's collection, and that resolution is the thing that may not be
 	// duplicated.
 	CustomFields SetCustomField
-	// Text brings the title and the notes to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the title and the notes to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -239,7 +239,7 @@ func (h CreateWorkItem) Execute(
 	var created domain.WorkItem
 	var outcome *AutoAssignOutcome
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		// The items ceiling (H-08, multi-tenancy.md §4), inside the transaction so the count and
+		// The items ceiling (multi-tenancy.md §4), inside the transaction so the count and
 		// the write see the same database. Nil skips: fixtures predate the wall, and the
 		// composition root always wires it.
 		if h.Quota != nil {
@@ -297,7 +297,7 @@ func (h CreateWorkItem) Execute(
 			}
 		}
 		if cmd.Due != nil {
-			// And its due date, through the writer that owns the trio (D-01): the same reasoning
+			// And its due date, through the writer that owns the trio: the same reasoning
 			// as the assignment above - the scheduler reacts to item.due_changed, not to every
 			// create - and the same records whichever door a due date arrives through. A type
 			// whose profile does not carry DUE_DATE refuses here, and the refusal takes the
@@ -436,7 +436,7 @@ func (h CreateWorkItem) assignmentPlan(
 
 	if !cmd.AssigneeID.IsZero() {
 		// The person named must be able to see what they are being given - the check that makes
-		// an assignment mean anything, asked here exactly as :assign asks it (C-01).
+		// an assignment mean anything, asked here exactly as :assign asks it.
 		if err := ensureAccountCanSee(
 			ctx, h.AutoAssign.Assignment.Visibility, actor, cmd.AssigneeID, collection,
 		); err != nil {
@@ -451,8 +451,8 @@ func (h CreateWorkItem) assignmentPlan(
 			return nil, autoAssignUnavailableError()
 		}
 	} else if policy == nil || !policy.Enabled {
-		// No explicit ask and no policy that applies itself: the two ways a policy is reached
-		// (C-02), and neither is this create.
+		// No explicit ask and no policy that applies itself: the two ways a policy is reached,
+		// and neither is this create.
 		return nil, nil
 	}
 
@@ -833,7 +833,7 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 		"title":         item.Title,
 		// Read off the item rather than written out as three nulls. A create never produces a
 		// completed item, and the read side returns this same projection for one that is
-		// (B-07) - a completion that reported itself open would be a lie a client acts on.
+		// - a completion that reported itself open would be a lie a client acts on.
 		"completion": map[string]any{
 			"is_completed": item.Completion.IsCompleted,
 			"completed_at": timeOrNil(item.Completion.CompletedAt),
@@ -844,18 +844,18 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 		"bucket_id": idOrNil(item.BucketID),
 		// The same, for the same reason: null for an entry nobody is on. The member list is not
 		// here - it is a set beside the row, read through its own endpoint, exactly as the labels
-		// are (C-01).
+		// are.
 		"assignee_id": idOrNil(item.AssigneeID),
 		// Always present, as null for an entry with none, for the reason the bucket is: a field
 		// that appeared only once somebody had chosen a picture is one a client cannot read
-		// unconditionally (C-06).
+		// unconditionally.
 		"cover": coverOutput(item.Cover),
 		// Always present, as an empty object for an entry carrying none: a client renders a form
 		// from the definitions and reads the values from here, and null would make it special-case
-		// the ordinary case (C-07).
+		// the ordinary case.
 		"custom_fields": customFieldsOutput(item.CustomFields),
 		"order_key":     item.OrderKey,
-		// The schedule, always present and null for an entry that has none (D-01). The flag rides
+		// The schedule, always present and null for an entry that has none. The flag rides
 		// along even then: a client renders "all day or not" unconditionally, and the stored
 		// default is false.
 		"start_at":      timeOrNil(item.StartAt),
@@ -864,10 +864,10 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 		"due_time_zone": dueZoneOrNil(item.Due),
 		// Always present, as null for an entry whose language nobody stated: a client's language
 		// picker reads it back to show what the entry is indexed under, and a missing key would
-		// read as "this server does not know about languages" (C-08).
+		// read as "this server does not know about languages".
 		"content_language": stringOrNil(item.ContentLanguage),
 		// Always present, as null for an entry no calendar client made: the address the tree
-		// answers the entry at, where a client chose one (P-07, issue #721).
+		// answers the entry at, where a client chose one (P-07).
 		"calendar_uid": stringOrNil(item.CalendarUID),
 		"archived_at":  timeOrNil(item.ArchivedAt),
 		"deleted_at":   timeOrNil(item.DeletedAt),
@@ -883,18 +883,18 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 		out["notes"] = item.Notes
 	}
 	if !item.OriginJumbleID.IsZero() {
-		// Provenance (G-10): which jumble entry this item came from. Present only where it is
+		// Provenance: which jumble entry this item came from. Present only where it is
 		// true, because most items were never in the jumble at all.
 		out["origin_jumble_id"] = item.OriginJumbleID.String()
 	}
 	if !item.RecurrenceRuleID.IsZero() {
-		// Which series the entry belongs to (D-04) - the template and every occurrence alike, so
+		// Which series the entry belongs to - the template and every occurrence alike, so
 		// it says that a series is involved and not which end.
 		out["recurrence_rule_id"] = item.RecurrenceRuleID.String()
 	}
 	if !item.RecurrenceSourceID.IsZero() {
 		// Which end: only an occurrence carries the entry it was copied from, so a row can mark
-		// the two differently and an occurrence can link up to its template (issue #428).
+		// the two differently and an occurrence can link up to its template.
 		out["recurrence_source_id"] = item.RecurrenceSourceID.String()
 	}
 	if item.Retention != nil {
@@ -1195,7 +1195,7 @@ func customFieldsOutput(values map[string]any) map[string]any {
 // and a client puts the message under the control that sent it (api-guidelines.md §3). Anything
 // that is not a validation error passes through as it is.
 // customFieldsOf reads the values document the catalogue only checked the shape of. What each
-// value may be is the definition's question, and the definition is data a tenant wrote (C-07).
+// value may be is the definition's question, and the definition is data a tenant wrote.
 func customFieldsOf(in usecase.Input) (map[string]any, error) {
 	raw, sent := in["custom_fields"]
 	if !sent || raw == nil {

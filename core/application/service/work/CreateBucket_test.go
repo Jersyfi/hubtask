@@ -290,7 +290,7 @@ func TestCreatingABucketWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 			t.Errorf("the change describes something else: %+v", change)
 		}
 		if change.ContainerID != collectionID {
-			t.Errorf("the change is filed under %s, want the collection (#623)", change.ContainerID)
+			t.Errorf("the change is filed under %s, want the collection", change.ContainerID)
 		}
 		if change.HLC.IsZero() {
 			t.Error("the change carries no clock reading, so nothing can merge it")

@@ -188,7 +188,7 @@ func TestRenamingWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 	}
 	// The hub above it, so a device subscribed to the hub sees the change.
 	// Under itself, not under its hub: a grant on the collection alone is on the path of the
-	// collection and not of the hub (#623).
+	// collection and not of the hub.
 	if h.changes.recorded[0].ContainerID != shoppingID {
 		t.Errorf("the change is filed under %s, want the collection itself", h.changes.recorded[0].ContainerID)
 	}
@@ -411,7 +411,7 @@ func TestAnAbsentPolicyKeyFallsBackToTheDefault(t *testing.T) {
 }
 
 // The auto_assign key of the document lives in its own row, and the store writes both sides
-// inside one transaction (C-02): the JSONB key for the completion policy, the policy row for the
+// inside one transaction: the JSONB key for the completion policy, the policy row for the
 // assignment.
 func TestConfiguringAutoAssignWritesTheRowBesideTheDocument(t *testing.T) {
 	h := newContainerHarness()

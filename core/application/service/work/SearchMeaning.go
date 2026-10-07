@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// SearchMeaning embeds what somebody typed, where that is possible at all (J-10, ADR-0050).
+// SearchMeaning embeds what somebody typed, where that is possible at all (ADR-0050).
 //
 // **Its whole design is the answer to "and if it is not".** Semantic search is optional four times
 // over - the extension may be absent, the workspace may have configured no provider, it may have
@@ -79,7 +79,7 @@ func (m SearchMeaning) Of(
 		return nil, "", nil
 	}
 	if capabilities.EmbeddingDimensions > repository.EmbeddingWidth {
-		// A model this process knows the index cannot hold (#569): lexical without a call, rather
+		// A model this process knows the index cannot hold: lexical without a call, rather
 		// than a query embedded, paid for and thrown away. Known from what the embedding pass
 		// learned - the search asks no question of its own, because a request path is no place
 		// for a metadata call.

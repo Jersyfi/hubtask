@@ -207,7 +207,7 @@ func TestDeletingALabelRecordsATombstone(t *testing.T) {
 		t.Errorf("the change is not a tombstone: %+v", change)
 	}
 	if change.ContainerID != collectionID {
-		t.Errorf("the change is filed under %s, want the collection (#623)", change.ContainerID)
+		t.Errorf("the change is filed under %s, want the collection", change.ContainerID)
 	}
 
 	// A deletion stamp is a timestamp this server produced, and "when did this label go" is

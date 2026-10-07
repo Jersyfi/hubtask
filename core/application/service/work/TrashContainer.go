@@ -274,7 +274,7 @@ func (w ContainerWriter) recordTrashChanges(
 	covered := append([]shared.ID{container.ID}, cascade.Collections...)
 	for _, id := range covered {
 		// The visibility filter a pull applies: each container itself, the root and every
-		// collection the cascade covered alike (#623, core/application/repository/sync/Port.go).
+		// collection the cascade covered alike (core/application/repository/sync/Port.go).
 		err := w.Changes.Record(ctx, changelog.Change{
 			TenantID:    container.TenantID,
 			Entity:      containerTarget,

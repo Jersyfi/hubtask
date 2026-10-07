@@ -29,10 +29,10 @@ type OccurrenceSignals interface {
 }
 
 // MaterializeOccurrences turns the series of one tenant into the entries their rolling windows owe
-// (D-05, arc42 §6.3).
+// (arc42 §6.3).
 //
 // Internal, and deliberately absent from the catalogue in domain-model.md §5 for the reason
-// ReconcileMedia and FireReminders are absent from it (C-06, D-03): the catalogue is what a person,
+// ReconcileMedia and FireReminders are absent from it: the catalogue is what a person,
 // an agent or a rule can ask for, and "materialise everybody's series now" is not something
 // anybody should be able to ask for. The way to influence what a series produces is the rule, and
 // the way to skip one occurrence is SkipOccurrence.
@@ -282,7 +282,7 @@ func (h MaterializeOccurrences) nextMoment(
 	if err != nil || len(moments) == 0 {
 		// A rule that answers nothing here answers nothing later either: the series has run out,
 		// or its text stopped being readable, and neither is a reason to keep waking up. The
-		// refusal itself is not swallowed - a broken rule is refused at the write (D-04), and a
+		// refusal itself is not swallowed - a broken rule is refused at the write, and a
 		// pass that met one has already failed above.
 		return nil
 	}
@@ -330,7 +330,7 @@ func (h MaterializeOccurrences) createOccurrence(
 	// The pointers are written through the statement that owns the columns: the copy deliberately
 	// carries neither, and this is the one copy that belongs to a series (db/queries/Work.sql).
 	// Both, because the rule identifier is on the template too - the source is what lets an
-	// occurrence reach the entry it repeats from (issue #428).
+	// occurrence reach the entry it repeats from.
 	if err := h.Recurrences.AttachOccurrence(ctx, result.Item.ID, rule.ID, source.ID); err != nil {
 		return err
 	}

@@ -48,7 +48,7 @@ func TranslationAnswerKeys() map[string][]string {
 // refusal (ai.unavailable), which is the port's discipline applied to a read.
 const defaultTranslateTimeout = 8 * time.Second
 
-// AiTranslate reads one entry in another language (ai-first.md §2's translation row, M-11).
+// AiTranslate reads one entry in another language (ai-first.md §2's translation row).
 //
 // A read, not a record: the row says "display only, not persisted" and i18n-l10n.md §7 says user
 // content is never translated in place. So there is no AiSuggestion, no acceptance and nothing
@@ -63,7 +63,7 @@ type AiTranslate struct {
 	Audit     audit.Sink
 	// UnitOfWork opens the transaction the audit entry is written in. The asking use cases
 	// record theirs inside one; this one recorded it outside and met
-	// `postgres.no_transaction_in_context` the first time a person asked (#703).
+	// `postgres.no_transaction_in_context` the first time a person asked.
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	// Timeout bounds the provider call. Zero takes the default above.

@@ -61,7 +61,7 @@ type CompletionWriter struct {
 	// Jobs is where an ON_COMPLETION series asks for its next occurrence. The completion is what
 	// seeds it, which is SY-8's server half: creation is bound to the status transition rather
 	// than to the event, so two devices completing the same entry produce one transition and one
-	// follow-up (D-05, offline-sync.md §8).
+	// follow-up (offline-sync.md §8).
 	Jobs       queue.Queue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -393,7 +393,7 @@ func (w CompletionWriter) recordChange(
 	// field" is written down): the event carries the whole entry for its subscribers, but an
 	// entry in the log repeating the untouched fields would let a stale title win a merge it was
 	// never part of. `completion` is the field, under its own clock, and it is what a device's
-	// `completed` merges against (N-06).
+	// `completed` merges against.
 	return w.Changes.Record(ctx, changelog.Change{
 		TenantID:    item.TenantID,
 		Entity:      itemTarget,

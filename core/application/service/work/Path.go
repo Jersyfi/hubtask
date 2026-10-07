@@ -22,7 +22,7 @@ import (
 // in a passing test of the common case - a tenant-wide membership authorises everything either way - and only
 // a member scoped to exactly one container notices.
 //
-// The rule itself moved to the domain when the change stream gained a second reader of it (C-10). This stays
+// The rule itself moved to the domain when the change stream gained a second reader of it. This stays
 // as the name the write path has always called it by.
 func containerPath(container domain.Container) []identity.Scope {
 	return service.ContainerScopes(container)

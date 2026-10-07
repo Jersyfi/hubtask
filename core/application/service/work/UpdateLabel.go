@@ -52,7 +52,7 @@ type LabelWriter struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
-	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -271,7 +271,7 @@ func (w LabelWriter) recordChanges(
 ) error {
 	// The visibility filter a pull applies: the label's own collection, for the reason every
 	// change to an entry names the entry's - a grant on the collection alone must be on the path
-	// of the container the record names, or the stream withholds it (#623).
+	// of the container the record names, or the stream withholds it.
 	containerID := label.CollectionID
 
 	if change.operation == changelog.Delete {

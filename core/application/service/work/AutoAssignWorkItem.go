@@ -45,7 +45,7 @@ type AutoAssignWorkItem struct {
 	Groups     identityrepo.Groups
 	// Accounts answers which candidates are under a restriction of processing. Art. 18 is a
 	// technical state, and an automatic decision about somebody is exactly the processing it
-	// stops (data-protection.md §4, E-10) - so the pool is narrowed here rather than the draw
+	// stops (data-protection.md §4) - so the pool is narrowed here rather than the draw
 	// being allowed to land on them.
 	Accounts identityrepo.Accounts
 	Random   clock.RandomSource

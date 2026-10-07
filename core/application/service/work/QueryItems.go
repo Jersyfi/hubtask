@@ -25,7 +25,7 @@ import (
 const QueryItemsName = "QueryItems"
 
 // QueryItems answers the query language: one filter over one anchored scope, sorted, paged, and
-// optionally grouped into the columns a board draws (api-guidelines.md §3, B-12).
+// optionally grouped into the columns a board draws (api-guidelines.md §3).
 //
 // It lives in this package rather than in a `view` one of its own, although the catalogue groups it
 // with the saved views. What it reads is work items, and it answers them through this package's
@@ -48,7 +48,7 @@ type QueryItems struct {
 // query that cannot be resolved is one nobody should read a row for. The anchor is then read and
 // the permission asked about it - once, for the whole result, exactly as ListWorkItems asks about
 // the collection it was given: the client named the scope, so a refusal is a refusal rather than an
-// empty page - and somebody who holds only individual shares inside it queries those (C-04). Only
+// empty page - and somebody who holds only individual shares inside it queries those. Only
 // then does the compiled statement run.
 func (h QueryItems) Execute(
 	ctx context.Context, actor appshared.ActorContext, spec view.Spec,

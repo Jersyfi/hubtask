@@ -51,7 +51,7 @@ func (a *accountShelf) UpdatePreferences(context.Context, identity.Account, time
 }
 
 // Restricted answers from the shelf's own statuses, so that a test can put somebody under a
-// restriction of processing by storing them that way (E-10).
+// restriction of processing by storing them that way.
 func (a *accountShelf) Restricted(
 	_ context.Context, accountIDs []shared.ID,
 ) (map[shared.ID]bool, error) {

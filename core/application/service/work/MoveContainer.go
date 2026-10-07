@@ -39,7 +39,7 @@ const (
 type MoveContainer struct {
 	Writer ContainerWriter
 	// Revocations tells the devices of whoever read the collection through the hub it left, and
-	// cannot read it where it now sits, that they lost it (N-08).
+	// cannot read it where it now sits, that they lost it.
 	Revocations MoveRevoker
 }
 
@@ -172,7 +172,7 @@ func (h MoveContainer) write(
 		return domain.Container{}, err
 	}
 	// Whoever read the collection through the hub it left is asked whether they still read it
-	// here, and told when they do not (N-08). After the placement is written, so that the question
+	// here, and told when they do not. After the placement is written, so that the question
 	// is put to the tree as it now stands.
 	loss, err := h.Revocations.AfterContainerMoved(ctx, before, after)
 	if err != nil {

@@ -42,7 +42,7 @@ type items struct {
 	searched []repository.ItemSearch
 	queryErr error
 	// queryPages is the answer sequence a caller that pages gets, one per call, and it wins over
-	// result while it lasts. The export is the only caller that walks (D-08); everything else
+	// result while it lasts. The export is the only caller that walks; everything else
 	// asks once and reads result.
 	queryPages []repository.ItemQueryResult
 	// hits is what Search answers with, and searchedText is every request it was handed (C-08's
@@ -80,23 +80,23 @@ type items struct {
 	dropped     []domain.DroppedReference
 	moveErr     error
 	subtreeSize int
-	// The trash side (B-10): what each call was asked to do, and the stamps it left on `stored`.
+	// The trash side: what each call was asked to do, and the stamps it left on `stored`.
 	// Both are needed - one proves the use case passed the batch and the version it read, the other
 	// is what a second pass over the same item reads, which is what makes an idempotence test mean
 	// anything.
 	trashed  []repository.ItemTrash
 	restored []repository.ItemTrash
 	trashErr error
-	// The assignment side (C-01): every call to SetAssignee, so that a test can say which version
+	// The assignment side: every call to SetAssignee, so that a test can say which version
 	// the write was made against as well as what it wrote.
 	assignments []attributeWrite
-	// The cover side (C-06), same shape.
+	// The cover side, same shape.
 	covers []attributeWrite
-	// The custom field side (C-07), same shape again.
+	// The custom field side, same shape again.
 	customFields []attributeWrite
-	// The due date side (D-01), same shape again.
+	// The due date side, same shape again.
 	dueDates []attributeWrite
-	// The copy side (C-11): every call to InsertCopy, and the failure a test asks the subtree read
+	// The copy side: every call to InsertCopy, and the failure a test asks the subtree read
 	// for.
 	copies     []repository.Copy
 	subtreeErr error
@@ -303,7 +303,7 @@ func (i *items) SetAttributes(_ context.Context, item domain.WorkItem, expectedV
 	}
 	i.attributes = append(i.attributes, attributeWrite{item: item, expectedVersion: expectedVersion})
 	// Stored with the version the statement behind it produces, as SetArchived models it: the due
-	// write of the same patch goes against the version this write left (D-01).
+	// write of the same patch goes against the version this write left.
 	written := item
 	written.Version = expectedVersion + 1
 	i.stored[item.ID] = written
@@ -428,7 +428,7 @@ func (i *items) Insert(_ context.Context, item domain.WorkItem) error {
 // Subtree answers what the real statement answers: everything stored whose path begins with the
 // entry's, the entry itself and the trashed rows left out, parents before children. Sorted by
 // depth and then by rank, because a map iterates in no order and the copy depends on meeting a
-// parent before its children (C-11).
+// parent before its children.
 func (i *items) Subtree(_ context.Context, item domain.WorkItem, limit int) ([]domain.WorkItem, error) {
 	if i.subtreeErr != nil {
 		return nil, i.subtreeErr
@@ -1213,7 +1213,7 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 			t.Errorf("%s is not declared", owned)
 		}
 	}
-	// Every member of WorkItemCreate is now declared and written (issue 896, F10-17). What is
+	// Every member of WorkItemCreate is now declared and written (issue 896). What is
 	// checked from here on is the other direction: a name the contract does *not* promise is
 	// still refused rather than accepted and dropped, which is what kept the three honest while
 	// they waited.
@@ -1495,7 +1495,7 @@ func TestAnEntryStatesNoLanguageWhenTheCreatorHasNoLocale(t *testing.T) {
 
 // The address a calendar client chose reaches the entry through the catalogue - the tree performs
 // the create through it like every other channel - and comes back in the projection, null for an
-// entry nobody addressed (P-07, issue #721).
+// entry nobody addressed (P-07).
 func TestACalendarUIDReachesTheEntryAndItsProjection(t *testing.T) {
 	h := newItemHarness()
 	descriptor := h.handler.Descriptor()
@@ -1530,7 +1530,7 @@ func TestACalendarUIDReachesTheEntryAndItsProjection(t *testing.T) {
 }
 
 // itemQuotaFake refuses when told to - the resolution itself is the quota engine's, tested
-// there; what this package owes is that the wall holds the door (H-08).
+// there; what this package owes is that the wall holds the door.
 type itemQuotaFake struct{ refused error }
 
 func (q itemQuotaFake) Items(context.Context, string, int64) error { return q.refused }

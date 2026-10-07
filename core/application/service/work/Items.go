@@ -43,7 +43,7 @@ func findItem(ctx context.Context, items repository.Items, id shared.ID) (domain
 // readItemScope reads the entry a request is about together with the collection it lives in,
 // read-only and outside any write transaction, because the permission check needs both first: the
 // collection for the path a membership is resolved along, and the entry for the assignee the
-// narrowing is measured against (C-04).
+// narrowing is measured against.
 //
 // One helper rather than the copy each writer held. Those copies read the entry and threw it away,
 // which was harmless while nothing about the entry decided anything - and stopped being harmless
@@ -76,7 +76,7 @@ func readItemScope(
 }
 
 // changing, commenting and reading name what a request does to an entry, for the one decision
-// point that applies the matrix's qualifiers to it (access.ItemSubject, C-04).
+// point that applies the matrix's qualifiers to it (access.ItemSubject).
 //
 // Three constructors rather than a literal at every call site, because the assignee is the field
 // that is easy to leave out and impossible to notice missing: an omitted one reads as "this entry

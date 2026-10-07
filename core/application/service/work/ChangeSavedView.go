@@ -46,7 +46,7 @@ type SavedViewWriter struct {
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
-	// Text brings the name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -56,7 +56,7 @@ type UpdateSavedView struct {
 }
 
 // DeleteSavedView removes a view. A calendar feed that served it keeps its token and serves
-// nothing, saying why - the reference nulls rather than cascading (migration 0005, D-08).
+// nothing, saying why - the reference nulls rather than cascading (migration 0005).
 type DeleteSavedView struct {
 	Writer SavedViewWriter
 }
@@ -418,7 +418,7 @@ func (h ShareSavedView) Descriptor() usecase.Descriptor {
 			{
 				Name: "sharing", Kind: usecase.KindString, Required: true,
 				// PUBLIC_LINK is declared here for the reason it is declared on creation: the
-				// value the contract offers has to reach the rule written for it (issue #427).
+				// value the contract offers has to reach the rule written for it.
 				Enum:        []string{"PRIVATE", "SCOPE", "PUBLIC_LINK"},
 				Description: "Who sees the view. PUBLIC_LINK is refused by name.",
 			},

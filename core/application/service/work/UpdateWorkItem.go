@@ -61,9 +61,9 @@ type UpdateWorkItem struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
-	// DueDates is the writer the patch dispatches the due trio into (D-01).
+	// DueDates is the writer the patch dispatches the due trio into.
 	DueDates DueDateWriter
-	// Text brings a changed title or notes to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings a changed title or notes to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -471,7 +471,7 @@ func (h UpdateWorkItem) invoke(
 	}
 	// The due trio travels as the raw patch: which members were sent and what each said. The
 	// target is only decidable against the stored trio, which the use case reads inside its
-	// transaction (D-01).
+	// transaction.
 	patch := domain.DuePatch{}
 	if raw := in.OptionalString("due_at"); raw != nil {
 		patch.AtPresent = true

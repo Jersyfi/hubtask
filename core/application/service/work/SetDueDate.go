@@ -41,7 +41,7 @@ const (
 // One dependency set held by both use cases, for the reason AssignmentWriter is one: the two
 // operations are the same walk in opposite directions - the same guards, the same four records -
 // and the only thing that differs is whether a date arrives or leaves. It is also the writer the
-// create and update paths dispatch into (D-01): the contract has carried the three due fields on
+// create and update paths dispatch into: the contract has carried the three due fields on
 // their schemas since 0.1.0, and serving them through a second implementation would be a second
 // answer to what a due date means.
 type DueDateWriter struct {
@@ -50,10 +50,10 @@ type DueDateWriter struct {
 	Profiles   metarepo.CapabilityProfiles
 	// Reminders is here because a due date that moves takes the relative reminders with it: the
 	// reminder lives on the same entry, so its moment is recomputed in the same transaction rather
-	// than by a job that would leave the two disagreeing until it ran (D-02).
+	// than by a job that would leave the two disagreeing until it ran.
 	Reminders repository.Reminders
 	// Jobs is where the tenant's next wake-up is asked for, in the transaction that moved the
-	// date: a reminder that came forward with it needs the schedule to come forward too (D-03).
+	// date: a reminder that came forward with it needs the schedule to come forward too.
 	Jobs       queue.Queue
 	Authorizer Authorizer
 	Events     outbox.Events
@@ -282,14 +282,14 @@ func (w DueDateWriter) rescheduleReminders(ctx context.Context, item domain.Work
 
 	// The wake-up follows the reminders and the date itself, in the same transaction: a date
 	// pulled forward moves its reminders with it, and a schedule still pointing at the old moment
-	// would fire them late (D-03). A date pushed back needs nothing - a wake-up that is too early
+	// would fire them late. A date pushed back needs nothing - a wake-up that is too early
 	// finds nothing due and reschedules itself.
 	moments := append([]*time.Time{&earliest}, dueMoments(item.Due)...)
 	return scheduleReminderFire(ctx, w.Jobs, item.TenantID, earliestMoment(moments...))
 }
 
 // dueMoments is what a due date owes the scheduler beyond its reminders: the moment it comes
-// within the lead, and the moment it passes. Both are announced once (D-03), and the entry's own
+// within the lead, and the moment it passes. Both are announced once, and the entry's own
 // stamps were just cleared by the write, so both are ahead again whatever was announced before.
 func dueMoments(due *domain.DueDate) []*time.Time {
 	if due == nil {
