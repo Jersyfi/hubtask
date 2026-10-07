@@ -66,10 +66,9 @@ help:
 
 # ------------------------------------------------------------------- Utilities
 
-# go_test runs the tests of a package set - but only once that set exists. The milestone builds
-# every gate up front and fills them in task by task (docs/archive/backlog/milestone-0.1.0.md);
-# a gate for an empty directory must say so rather than fail, and must start biting the moment
-# the first package appears.
+# go_test runs the tests of a package set - but only once that set exists. A gate for an empty
+# directory must say so rather than fail, and must start biting the moment the first package
+# appears.
 # $(1) = build tags, $(2) = package patterns, $(3) = extra go test flags
 define go_test
 	@pkgs="$$($(GO) list -tags='$(1)' $(2) 2>/dev/null)"; \
@@ -235,21 +234,21 @@ generate:
 	$(call require_tool,sqlc)
 	$(TOOLS_DIR)/sqlc -f db/sqlc.yaml generate
 	@# The same document as JSON, for the renderers and generators that ship no YAML parser
-	@# (P-01): the website's reference and the SDK generators read it, and it is committed so
+	@# - the website's reference and the SDK generators read it, and it is committed so
 	@# that a Node lane without Go can build against it (project-structure.md §6).
 	$(GO) run ./tools/openapijson api/openapi.yaml api/openapi.json
-	@# The deprecated request fields, announced by the REST adapter (SC-28).
+	@# The deprecated request fields, announced by the REST adapter (versioning-release.md §5).
 	$(GO) run ./tools/deprecations api/openapi.yaml presentation/rest/Deprecations.gen.go
 	@$(MAKE) --no-print-directory sdk-go
 	@$(MAKE) --no-print-directory sdk
 
-## sdk-go: Regenerate the Go SDK from api/openapi.yaml (P-02, ADR-0057)
+## sdk-go: Regenerate the Go SDK from api/openapi.yaml (ADR-0057)
 .PHONY: sdk-go
 sdk-go:
 	$(call require_tool,oapi-codegen)
 	$(TOOLS_DIR)/oapi-codegen --config sdk/go/oapi-codegen.yaml api/openapi.yaml
 
-## sdk: Regenerate the TypeScript and the Python SDK from api/openapi.yaml (P-03, ADR-0057)
+## sdk: Regenerate the TypeScript and the Python SDK from api/openapi.yaml (ADR-0057)
 # Both committed: the TypeScript client into sdk/typescript/src as a generated file, the Python
 # package under sdk/python. Neither needs Node or Python to be generated, which is what keeps
 # `make generate` a Go-only step (project-structure.md §2.1). The types the TypeScript client is
@@ -303,10 +302,10 @@ workbench-build:
 # no reason to be in it (ADR-0028). This produces a directory of static files; where that directory
 # is deployed is not decided here.
 #
-# `<package>...` is "this package and everything it consumes", in dependency order. The list used
-# to be written out here - design system, then website - and that is how this target came to be
-# red for a week (#982): P-01 gave the site a build-time import of `@hubtask/api-client`, whose
-# `dist/` is a build output, and nothing here built it. It passed on a developer's machine, where
+# `<package>...` is "this package and everything it consumes", in dependency order. A list
+# written out here - design system, then website - misses the day the site gains a build-time
+# import such as `@hubtask/api-client`, whose `dist/` is a build output nothing here would
+# build. It would pass on a developer's machine, where
 # an earlier `pnpm -r build` had left that directory behind, and failed in every fresh checkout,
 # which is every run of the Website workflow. A list that has to be maintained by hand to stay
 # true is a list that goes stale; package.json already knows the answer, so pnpm is asked for it.
@@ -325,8 +324,7 @@ api-client:
 	$(PNPM) --filter @hubtask/api-client build
 
 ## build: Build the server, the migrator and the CLI
-# cmd/migrate arrives with A-03 and cmd/hubctl later; until then their directories are empty and
-# there is nothing to build there.
+# A command whose directory is empty has nothing to build there.
 .PHONY: build
 build:
 	@for pair in server:hubtask-server migrate:hubtask-migrate hubctl:hubctl; do \
@@ -389,7 +387,7 @@ gate-quick:
 # label cardinality, log redaction, the tenant wrapper. Anything needing a container lives behind
 # the `integration` build tag in test/integration and stays out of this target.
 #
-# cmd joined the list with hubctl (B-13). A composition root has little to test, but a CLI is not
+# cmd is in the list for hubctl. A composition root has little to test, but a CLI is not
 # one: its flags, its exit codes and the sentences it prints are the contract a script depends on,
 # and the end-to-end session only reaches them once the whole stack is up.
 #
@@ -436,7 +434,7 @@ coverage-check:
 # looked at sdk/python was tools/sdkgen's own test, and that compares strings - it cannot see a
 # file that does not parse. A parameter named `from` or `class`, an f-string quoting collision, a
 # branch of the generator no fixture exercises: each of them ships a package that fails on import,
-# to an audience that is other people (ADR-0057) (#943).
+# to an audience that is other people (ADR-0057).
 #
 # The bytecode goes to a scratch directory rather than into __pycache__ beside the source, because
 # a gate that leaves files in the work tree is a gate that makes the next one fail.
@@ -737,7 +735,7 @@ gate-chart:
 	@# And once with a tag of nothing but digits, read rather than discarded. `--set` infers a
 	@# type, so such a tag arrives as a number and a `%s` renders it as `%!s(int64=...)` - a
 	@# reference Kubernetes refuses with InvalidImageName. The two renders above would not have
-	@# noticed: they check that templating succeeds, and templating does succeed (#247).
+	@# noticed: they check that templating succeeds, and templating does succeed.
 	@output="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
 		--set existingSecret=hubtask-secrets --set image.tag=20260831)"; \
 		if printf '%s' "$$output" | grep -q '%!'; then \
@@ -778,7 +776,7 @@ gate-e2e: docker-build
 # The client's half of the offline synchronisation's conformance: `hubctl sync-conformance` (a
 # section of gate-e2e) asks what the server owes a client, this asks whether the first-party
 # engine keeps offline-sync.md §9 against a real server. Its own stack, because the end-to-end
-# session spends the rate limiter's burst in its last sections (F6-08). Needs Node and pnpm.
+# session spends the rate limiter's burst in its last sections. Needs Node and pnpm.
 .PHONY: gate-engine-conformance
 gate-engine-conformance: docker-build
 	scripts/sync-engine-conformance.sh $(VERSION)
@@ -791,7 +789,7 @@ gate-observability:
 	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules-tenant.yaml
 	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules-provider.yaml
 	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules-pitr.yaml
-	@# The synthetic firing tests (H-12): every alert's condition driven from crafted series, and
+	@# The synthetic firing tests: every alert's condition driven from crafted series, and
 	@# the burn pair's multiwindow shape proved in both directions.
 	$(TOOLS_DIR)/promtool test rules deploy/observability/alerts/tests/selfhosting.test.yaml \
 		deploy/observability/alerts/tests/tenant.test.yaml \
@@ -822,7 +820,7 @@ gate-kind: docker-build
 	$(call require_tool,helm)
 	scripts/kind-smoke.sh $(VERSION)
 
-## locales: How complete each translation is, per family (M-03, ADR-0055)
+## locales: How complete each translation is, per family (ADR-0055)
 .PHONY: locales
 locales:
 	$(GO) run ./tools/locales
