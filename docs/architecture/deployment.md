@@ -114,15 +114,16 @@ It releases an image and a chart; **it deploys nothing** — production pulls wh
 | Host | One Hetzner vServer, 4 vCPU / 8 GB / 75 GB, Ubuntu 26.04 LTS, amd64 |
 | Kubernetes | k3s, single node; Traefik, the ingress k3s ships |
 | TLS | cert-manager with Let's Encrypt, `HTTP-01`, one certificate per host |
-| Database | PostgreSQL in the cluster, on a local volume — the environment is rebuildable, not precious |
+| Database | In production's shape: CloudNativePG with one instance, the WAL archive to an object-store bucket and the restore drill as a CronJob — smaller in size, same in shape ([ADR-0082](../adr/ADR-0082-integration-in-production-shape.md)). Decided, not built: PostgreSQL runs as a StatefulSet on a local volume today (#1197) |
 | Mail | A catcher in the namespace, over STARTTLS behind a CA the cluster issued to itself: production's path, and nothing leaves the node |
 | Host names | `<service>.<environment>.hubtask.eu` (`api.integration.hubtask.eu`); a workspace is a subdomain of it. A wildcard record covers the environment |
 | Deploy | `deploy.yml`: builds `:main-<sha>`, signs it under its own identity, verifies it, then `helm upgrade` without `--atomic` — a failed rollout leaves the previous pods serving and the failed Job's logs readable |
 | Monitoring | Prometheus and Alertmanager in the cluster ([observability-reliability.md](./observability-reliability.md) §13.1) |
 
 The operations port is never routed. A single node proves the chart, the migration hook and the
-rolling update; it rehearses no node failure, and the database shares a disk with the workload —
-neither may be carried into production.
+rolling update, and the database's shape proves the operator's path, the roles, the migration as a
+non-superuser and the restore before production meets them; it rehearses no node failure, and the
+database shares a disk with the workload — neither may be carried into production.
 
 ### 3.2 Where `production` runs
 

@@ -92,8 +92,10 @@ gate to a Makefile target or a `ci.yml` job. The other sections explain. A direc
 - The owner is asked only about items in § "What you do not decide yourself", after searching, as a
   `decision` issue in its form — at the cut or the task's start; during the build only when the
   code refutes a decision, naming the new fact. `[owner]`
-- An answer lands on `main` the same day, where it governs, in its own small documentation pull
-  request — one per batch, never on a task branch — that closes the issues. `[owner]`
+- An answer is recorded at once as a comment on its `decision` issue — the answer in the owner's
+  words or as the option chosen, the date, and where it will be written — and lands on `main` the
+  same day, where it governs, in its own small documentation pull request — one per batch, never on
+  a task branch — that closes the issues. `[owner]`
 - No pull request is stacked on a task `waiting on the owner`. `[unchecked: not yet gated]`
 - A use case's *Goal*, *How to check* and *Where it ends*, and anything in `docs/vision/`, change
   only by the owner's decision; the description names each such change in a use case as

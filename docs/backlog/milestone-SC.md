@@ -46,10 +46,14 @@ What deliberately is **not** in this milestone:
    workspace for a limited time; "authoritative for the address" is read as ADR-0078 §5 says.
 8. **SC-36 and SC-37 wait for the next cut.** SC-36 (#1145) and SC-37 (#1146) build what
    ADR-0078 §6 and §1 decided, and no check of the use cases they name describes it; they wait for
-   the next cut rather than widening this milestone; the checks they need are asked in #1172.
+   the next cut rather than widening this milestone. Their checks are UC-ID-04 check 9, UC-ID-05
+   check 6 and UC-ID-10 check 8 (the owner, 2026-10-07, #1172); an operator's opening keeps telling
+   the administrators only.
 9. **Providers are offered best effort** (the owner, 2026-10-03). No real identity-provider account
    is available to the project, so provider features are built and tested up to the provider, and
    the evidence says what was not walked. Not a statement for the website.
+10. **An installation lock mandates only an invite-only provider** (the owner, 2026-10-07, #1174):
+    identity.md §18. SC-38 builds it and carries UC-INS-11 check 4, which is in `Delivers`.
 
 ---
 
@@ -403,7 +407,7 @@ test.
 
 *Depends on: SC-16.* · issue #1117
 
-**Use cases:** UC-ID-02 (5), UC-ID-05
+**Use cases:** UC-ID-02 (5), UC-ID-05 (1–5)
 
 A wrong code at a second-factor door is meant to advance the attempt ledger (T-02), so that repeated
 guesses meet the lockout curve. Every second-factor door records the failure inside the transaction
@@ -570,7 +574,7 @@ new one (ADR-0003). The migration's number is taken from `origin/main` right bef
 
 *Depends on: SC-24, and lands with it.* · issue #1138 · [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §2
 
-**Use cases:** UC-ID-12 (6), UC-ID-04, UC-INS-11 (5)
+**Use cases:** UC-ID-12 (6), UC-ID-04 (1–8), UC-INS-11 (5)
 
 The fallback of ADR-0076 §4 answers every cause: wherever the methods a workspace's rule resolves to
 leave the password out and no provider is switched on there, the password opens for every account that
@@ -642,6 +646,22 @@ content. From the installation's screen and from `hubctl`.
 
 **Acceptance:** scope, operator register and step-up; the opening ends on its own; both trails; the
 notices; it overrides the workspace's switch and a lock; it can be closed early.
+
+---
+
+## SC-38 — An installation lock turns an invite-only offered provider on everywhere
+
+*Depends on: SC-31.* · issue #1194 · Decision 10
+
+**Use cases:** UC-INS-11 (4)
+
+Locking the installation's ways to sign in turns each offered provider admitted as *Only people
+invited here* on in every workspace and removes the workspace's switch for it; a provider admitted by
+domain or to anyone stays each workspace's switch, and the installation's screen says which applies
+(identity.md §18).
+
+**Acceptance:** check 4 through the registry and a walk of both screens; where the mandated provider
+is on, the password fallback does not open.
 
 ---
 

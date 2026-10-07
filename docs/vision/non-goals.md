@@ -16,7 +16,7 @@ missing one of these; a session about to build one of them should stop and ask.
 | `NG-security-questions` | ask for password hints or security questions | They are guessable and unrecoverable | Recovery codes |
 | `NG-ai-required` | make any feature depend on AI | [P-14](./principles.md#p-14-ai-is-optional-and-nobody-consents-in-anothers-place) | AI suggests; people decide |
 | `NG-ai-consent-by-default` | let a plan, an operator or a default consent to AI processing for a workspace | [P-14](./principles.md#p-14-ai-is-optional-and-nobody-consents-in-anothers-place) | The workspace consents itself; a provider may only *offer* a model |
-| `NG-page-numbers` | show page numbers or a pager | The owner's product rule (2026-09-27): lists scroll and load on | Continuous lists, search, filters |
+| `NG-page-numbers` | show page numbers or a pager | The owner's product rule (2026-09-27): lists load on when the reader asks; no pager, no page numbers | Continuous lists, search, filters |
 | `NG-regex-rules` | accept administrator-written regular expressions for password rules | A regex is a denial-of-service vector and its refusal has no sentence that names the fix | The eighteen named switches of [ADR-0068](../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md) |
 | `NG-saml-before-1` | speak SAML or SCIM before 1.0 | OpenID Connect covers every directory named so far ([security.md](../architecture/security.md) §15) | OIDC with directory admission ([ADR-0071](../adr/ADR-0071-provider-admission.md)) |
 | `NG-second-app` | ship a second frontend for operators or administrators | One frame, one catalogue, one bundle ([ADR-0070](../adr/ADR-0070-the-instance-layer.md) §5) | Route areas of the same web app |

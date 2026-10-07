@@ -5,7 +5,7 @@ context: identity
 actors: [PE-person, PE-member, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13, P-16]
-state: built
+state: partial
 tasks: [SC-25, SC-24, SI-04, SI-15, SC-03, SC-31, SC-33]
 checked_by: [core/application/service/identity/Reset_test.go, core/application/service/identity/FallbackReset_test.go, apps/webapp/e2e/signin.test.mjs, core/application/service/identity/PasswordSwitch_test.go, core/application/service/identity/ConnectMail_test.go, core/application/service/identity/OidcConnect_test.go, core/application/service/notification/SendPasswordReset_test.go, test/integration/connect_by_mail_test.go]
 ---
@@ -49,6 +49,9 @@ person falls back to recovery codes or a local recovery (see *Where it ends*).
 8. Where the workspace has switched the password off, the mail carries a link that connects the
    workspace's provider instead of one that sets a password; an account connected to a provider that
    works there gets the mail that points to it.
+9. When a password is set through a reset, or a provider is connected to or disconnected from the
+   account, the person is told by mail what changed and how to undo it, and the change is audited;
+   without a mail server it is only audited.
 
 ## Where it ends
 
@@ -59,3 +62,7 @@ person falls back to recovery codes or a local recovery (see *Where it ends*).
 * No security questions, no hints, no SMS.
 * A household without a mail server is not served by this use case; that is a separate use case
   for local recovery.
+
+## Today
+
+* Check 9: not met — no mail tells the person a way in changed, tracked in #1145.

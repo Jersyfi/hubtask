@@ -50,7 +50,7 @@ before saving a new one. At the end of the month the lead exports the view as CS
 
 ## Where it ends
 
-* No page numbers — lists scroll and load on ([NG-page-numbers](../../vision/non-goals.md)).
+* No page numbers — lists load on when the reader asks ([NG-page-numbers](../../vision/non-goals.md)).
 * No public link to a view: `PUBLIC_LINK` is declared in the contract and refused by this version
   (`core/domain/model/view/SavedView.go`).
 * No choosing which fields a list row shows in the web app; `visible_fields` is stored for clients

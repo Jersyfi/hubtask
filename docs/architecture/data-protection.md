@@ -69,10 +69,16 @@ Compliance** context, not manual support processes.
 | No automated individual decision-making (Art. 22) | — | AI results are only **suggestions** with provenance; automatic assignment has no legal effect, is overridable at any time and traceable in the audit |
 
 **The case** is the `data_subject_request` table with a state machine
-(`RECEIVED → IN_PROGRESS → COMPLETED | REJECTED`), the statutory deadline (30 days by default), an
+(`RECEIVED → IN_PROGRESS → COMPLETED | REJECTED`), the statutory deadline, an
 assignee, a reason on rejection, and a deadline alert (`A-19`) — without one the right is missed in
 practice. Rules:
 
+* **The deadline is one calendar month from the day of receipt** (Art. 12(3); Reg. 1182/71 Art. 3):
+  the day of receipt does not count, a month ending on a shorter month's last day is clamped, the
+  deadline ends at the end of that day in the workspace's time zone, and it is never moved to the
+  next working day, so the shown date is never later than the law's. Recording names the day of
+  receipt; a case whose deadline has passed is recorded and shown overdue. Decided, not built: a
+  case gets thirty days from when it is recorded today (#1196).
 * **Moving a case to `IN_PROGRESS` starts the work**; the job completes the case. An erasure needs
   its mode and an export its target first; a case that cannot be carried out is refused at that
   step, not by a running job.

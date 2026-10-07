@@ -23,7 +23,7 @@ answer, and is warned before the deadline passes, so the right is not violated b
 A former club member writes to the club asking for everything the club holds about them. The club's
 administrator opens *Data subject requests* in the administration area, records the case — which
 right, who it is about (an account or, for somebody without one, an address), a note — and sees its
-deadline: thirty days from today. The register lists open cases soonest deadline first, and marks
+deadline: one month from the day the request arrived. The register lists open cases soonest deadline first, and marks
 those owed soon and those overdue. The administrator starts the case, which runs the work; when the
 work is done the case closes itself. A case that cannot be answered is refused with a reason, which
 is kept. In `D4`–`D6` the installation's monitoring raises an alert when a case nears its deadline,
@@ -35,8 +35,9 @@ so it does not depend on somebody opening the screen.
    restriction, objection, rectification), a subject (an account or an address) and an optional
    note, in the web app, through the API, with `hubctl dsr create` and through MCP; without a
    subject it is refused with `privacy.subject_required`.
-2. A case without a stated deadline gets thirty days; a deadline in the past is refused with
-   `privacy.deadline_in_past`.
+2. A case records the day the request was received (today unless stated, never later) and, without a
+   stated deadline, gets one calendar month from that day, ending at the end of the day in the
+   workspace's time zone; a case whose deadline has already passed is recorded and shown overdue.
 3. A case moves only *received → in progress → completed* or to *rejected*; any other move is
    refused with `privacy.transition_refused`, and a rejection without a reason with
    `privacy.rejection_reason_required`.
@@ -71,6 +72,7 @@ See [data-protection.md](../../architecture/data-protection.md) §4.
 
 ## Today
 
+* Check 2: not met — a case gets thirty days from when it is recorded, and a passed deadline is refused, tracked in #1196.
 * Check 5: not met in the web app — the register marks a case *owed soon* from two days before its deadline, the deadline watch from seven.
 * Check 6: not met in the web app — the record form has no deadline field.
 * Check 9: not met — a case cannot be extended, tracked in #1087.

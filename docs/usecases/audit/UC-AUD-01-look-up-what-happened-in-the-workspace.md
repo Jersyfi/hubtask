@@ -48,7 +48,7 @@ workspace's trail is the workspace's.
 6. Reading the trail adds no entry; the screen says so in words.
 7. A period whose end is before its start is refused with `audit.period_invalid`; an unknown
    outcome with `audit.outcome_invalid`.
-8. The list continues as the reader scrolls; there are no page numbers.
+8. The list continues when the reader asks for more; there are no page numbers.
 
 ## Where it ends
 
