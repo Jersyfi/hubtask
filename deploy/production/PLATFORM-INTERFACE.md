@@ -130,8 +130,8 @@ recovery proof failed is something to look at, not a release that should not hav
 
 No host name, bucket, endpoint, quota number, label value, Secret name, IP address or credential of
 the production environment. No measured RPO or RTO, and no drill evidence: those are recorded
-internally, and a threshold or a figure in a public repository is that figure published (decision 7
-of [milestone 0.6.0](../../docs/archive/backlog/milestone-0.6.0.md)).
+internally, and a threshold or a figure in a public repository is that figure published
+([observability-reliability.md](../../docs/architecture/observability-reliability.md) §13.2).
 
 No kubeconfig, token or cluster endpoint reaches GitHub Actions, and no workflow deploys to
 production. If anything in this repository ever appears to need one, that is the finding — not the

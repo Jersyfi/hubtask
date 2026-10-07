@@ -14,14 +14,16 @@
 //     leaves a link that lands at the top of a long page, which reads as "the section is gone".
 //   - Every ADR is in the index, and every index entry has a file. An ADR nobody indexed is one
 //     nobody finds; an index entry without a file is a decision that looks recorded and is not.
-//   - Every ADR-xxxx named anywhere in the repository exists. Code cites ADR numbers in comments,
-//     and a typo there points a reader at nothing.
-//   - arc42 §9 lists every ADR the index lists, with the same status. It repeats the decision list,
-//     and a repetition nobody checks drifts - this one stood three decisions behind.
+//   - Every ADR-xxxx named anywhere in the repository exists, in every kind of file the code
+//     citations are read in. Code cites ADR numbers in comments, and a typo there points a reader
+//     at nothing.
 //   - Every statement of the Go version agrees with go.mod. It is repeated in thirty places
 //     across eight files, and a base image bumped on its own would have the release built by a
 //     compiler no gate ever ran.
-//   - Every rule in AGENTS.md says what checks it, and a gate it names exists (agents.go).
+//   - Every rule in AGENTS.md, and in a directory's own AGENTS.md, says what checks it, and a gate
+//     or CI job it names exists; outside the rule lists the root file explains rather than commands;
+//     the headings older text cites keep their words, the rules their numbers, the loop its steps
+//     (agents.go).
 //   - Every ADR says where its rule lives now, because an ADR is the record of why and the
 //     current rule is in a subject document (agents.go).
 //   - Code cites what keeps resolving: every "file.md §N" exists, and no comment cites a task, an
@@ -30,8 +32,10 @@
 //   - The support matrix and the workflows agree in both directions, so that support can neither
 //     be claimed without a job nor removed by deleting one (see matrix.go).
 //   - The use cases cite personas, deployments and principles that exist, carry the sections that
-//     make them checkable, agree with their index, and every UC-… cited anywhere exists
-//     (see usecases.go).
+//     make them checkable, agree with their index, and every UC-… and use case check cited
+//     anywhere exists (see usecases.go).
+//   - Every task of a milestone carries checks its `Delivers` line names, and a closed milestone
+//     has no Delivers check a use case still lists as unmet (see milestones.go).
 package main
 
 import (
@@ -60,7 +64,6 @@ func main() {
 	problems = append(problems, checkLinks(root, docs)...)
 	problems = append(problems, checkADRIndex(root)...)
 	problems = append(problems, checkADRReferences(root)...)
-	problems = append(problems, checkArc42ADRTable(root)...)
 	problems = append(problems, checkGoVersion(root)...)
 	problems = append(problems, checkSupportMatrix(root)...)
 	problems = append(problems, checkCoverageReport(root)...)
@@ -244,9 +247,7 @@ func checkADRReferences(root string) []string {
 			}
 			return nil
 		}
-		switch filepath.Ext(entry.Name()) {
-		case ".go", ".md", ".sql", ".yaml", ".yml", ".tpl":
-		default:
+		if !citesADRs(entry.Name()) {
 			return nil
 		}
 		content, readErr := os.ReadFile(path) //nolint:gosec // G304: walking this repository is the job
@@ -272,6 +273,13 @@ func checkADRReferences(root string) []string {
 		problems = append(problems, fmt.Sprintf("ADR-%s is cited in %s and does not exist", number, strings.Join(unique(files), ", ")))
 	}
 	return problems
+}
+
+// citesADRs is whether a file is read for ADR numbers: every document, and every kind of file the
+// code citations are read in (citations.go).
+func citesADRs(name string) bool {
+	ext := filepath.Ext(name)
+	return codeExtensions[ext] || ext == ".tpl" || filepath.Base(name) == "Makefile" || filepath.Base(name) == "Dockerfile"
 }
 
 // markdownFiles collects every document, repository-relative.

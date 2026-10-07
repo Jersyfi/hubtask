@@ -26,8 +26,8 @@ packages/  sdk/  design-system, api-client, sync-engine, connectors; generated c
 ```
 
 Dependencies point inwards: `cmd → presentation, infrastructure → core`;
-`core/application → core/domain, core/port`; `apps/* → packages/*`; never `apps/* → apps/*` or
-`packages/* → apps/*`.
+`core/application → core/domain, core/port`; `apps/* → packages/*`. No edge runs `apps/* → apps/*`
+or `packages/* → apps/*` (`build/lint-workspace-map.mjs`).
 
 **Before you change a file under `core/`, `presentation/`, `apps/webapp/`, `apps/website/`,
 `packages/design-system/`, `packages/api-client/`, `packages/sync-engine/` or `docs/usecases/`,
@@ -47,10 +47,10 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 
 | # | Rule | Checked by |
 |---|---|---|
-| 1 | `core/domain` and `core/port` import no third-party library and nothing from `infrastructure/` or `presentation/`. Dependencies point inwards. | `[gate: gate-architecture]` |
-| 2 | Authorisation happens only in the application layer — never in an adapter or a repository. | `[partial: gate-security; open: an adapter deciding a permission itself]` |
+| 1 | `core/domain` and `core/port` import no third-party library and nothing from `infrastructure/` or `presentation/`. Dependencies point inwards. | `[gate: gate-architecture, gate-quick]` |
+| 2 | Authorisation happens only in the application layer — never in an adapter or a repository. | `[partial: gate-security, gate-architecture; open: an adapter deciding a permission by other means]` |
 | 3 | Every database query runs through the transaction wrapper that sets `SET LOCAL app.tenant_id`; never `pgxpool` directly. | `[gate: gate-architecture]` |
-| 4 | No `time.Now()`, `math/rand` or UUID generation in `core/domain` or `core/application` — only the `Clock`, `RandomSource` and `IDGenerator` ports. | `[gate: gate-architecture]` |
+| 4 | No `time.Now()`, `math/rand` or UUID generation in `core/domain` or `core/application` — only the `Clock`, `RandomSource` and `IDGenerator` ports. | `[partial: gate-architecture, gate-quick; open: UUID generation and crypto/rand in core/application, an aliased import]` |
 | 5 | No bare goroutines; concurrency only through `core/shared/concurrency.SafeGo`. | `[gate: gate-architecture]` |
 | 6 | Every outbound HTTP call goes through `infrastructure/httpclient.GuardedClient`. | `[gate: gate-architecture]` |
 | 7 | No call without a timeout or a context deadline. | `[partial: gate-quick; open: a context without a deadline further up]` |
@@ -58,23 +58,30 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 | 9 | SQL only parameterised, through sqlc; no byte from a request becomes SQL text. The query DSL's one exception is bounded in `api-guidelines.md`. | `[partial: gate-quick; open: string building the linters miss]` |
 | 10 | No user content (titles, notes, comments) in logs, metrics, traces or audit entries. | `[partial: gate-privacy; open: user content in a free-text field]` |
 | 11 | `api/openapi.yaml` is the source: change it first, then `make generate`, then implement. Never hand-edit generated code. | `[partial: gate-quick; open: the order of the work]` |
-| 12 | Migrations are forward-only and safe for rolling updates (expand/contract). A merged migration never changes. | `[gate: gate-pr]` |
+| 12 | Migrations are forward-only and safe for rolling updates (expand/contract). A merged migration never changes. | `[partial: gate-pr; open: whether a migration is safe for rolling updates]` |
 | 13 | English everywhere: documents, code, identifiers, comments, commits. | `[unchecked: no tool judges language reliably]` |
-| 14 | `core/` knows nothing about a frontend; no `.go` file under `apps/` or `packages/`. | `[gate: gate-architecture]` |
-| 15 | No colour, spacing, radius or duration value outside `packages/design-system/tokens/tokens.json`; the generated `LabelTokens.go` is never hand-edited. | `[gate: ci:node]` |
+| 14 | `core/` knows nothing about a frontend; no `.go` file under `apps/` or `packages/`. | `[partial: gate-architecture, gate-quick; open: frontend knowledge without an import]` |
+| 15 | No colour, spacing, radius or duration value outside `packages/design-system/tokens/tokens.json`; the generated `LabelTokens.go` is never hand-edited. | `[partial: ci:node, ci:tokens-drift; open: named colours, numbers in script, a value outside apps/ and packages/]` |
 
 ## Working rules
+
+The rules of this file are the items of four lists: the table above, this list with its
+subsection "Steps and commits", "Working with the owner" and "Code comments". Each names what checks it — `[gate: …]`, `[partial: …; open: …]`,
+`[owner]` or `[unchecked: why]` — and `make gate-docs` holds every item to a tag and every named
+gate to a Makefile target or a `ci.yml` job. The other sections explain. A directory's own
+`AGENTS.md` keeps its rules under "What must not happen here", tagged the same way.
 
 - A task starts with its readiness record (`docs/backlog/ready/TEMPLATE.md`) as the branch's first
   commit, attacked by a reviewer who did not write it; code follows only once it says `ready` or
   `waiting on the owner`, and the pull request leaves draft only when it says `ready`.
-  `[partial: gate-pr; open: the quality of the record and of the review]`
+  `[partial: gate-pr; open: the quality of the record and of the review, a record rewritten into the
+  history before the code]`
 - A pull request starts as a draft and leaves draft only after `make verify-pr` passed for the
   pushed `HEAD`. `[partial: ci:ci-required; open: a skipped local run — CI fails instead]`
 - A pull request description is a copy of `.github/PULL_REQUEST_TEMPLATE.md` with every section; it
   closes its issue (`Closes #n`) or says `No issue:` and why. `[gate: gate-pr]`
-- A task of a released milestone carries only checks from the milestone's `Delivers`.
-  `[unchecked: not yet gated]`
+- A task of a released milestone carries only checks from the milestone's `Delivers`, and a
+  milestone closes only when its use cases list none of those checks as unmet. `[gate: gate-docs]`
 - One concern per commit; each commit builds, carries a Conventional Commit title and a
   `Task: <ID>` trailer, and keeps its tests beside the code. History is rewritten only while the
   pull request is a draft. `[unchecked: what one concern is, is judgement; CI checks the head]`
@@ -89,7 +96,9 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
   request — one per batch, never on a task branch — that closes the issues. `[owner]`
 - No pull request is stacked on a task `waiting on the owner`. `[unchecked: not yet gated]`
 - A use case's *Goal*, *How to check* and *Where it ends*, and anything in `docs/vision/`, change
-  only by the owner's decision. `[owner]`
+  only by the owner's decision; the description names each such change in a use case as
+  `correction` or `decision #<issue>`. `[partial: gate-pr; open: whether the owner decided, and
+  docs/vision/]`
 - A rule lives in its subject document; an ADR records why and names that place. Numbered sections
   of subject documents are never renumbered. `[partial: gate-docs; open: a renumbered section]`
 - No file named `CLAUDE.md`, `CLAUDE.local.md` or `AGENTS.override.md` is committed — it would hide
@@ -197,7 +206,7 @@ list. A follow-up needs a new fact.
 | A translation in `locales/` | `make gate-architecture`; `make locales` for completeness |
 | Anything in `apps/` or `packages/` | `pnpm -r build && pnpm -r lint && pnpm -r typecheck && pnpm -r test` |
 | `deploy/docker/` | `make gate-compose` |
-| A pull request description | `make gate-pr BODY=<file>` |
+| A pull request description and title | `make gate-pr BODY=<file> TITLE="<title>"` |
 
 `go build ./...`, `go test ./...` and `make generate` work without Node.js.
 
@@ -213,8 +222,8 @@ refuses Claude Code a `gh pr create` without `--draft` and a `gh pr ready` befor
   never what the next line does, history or plans. `[unchecked: judgement]`
 - Cite only stable references: `rule 10`, `P-05`, `UC-ID-12/4`, an existing identifier (`SG-3`,
   `RT-12`, `T-07`), `security.md §9`, an ADR for the reasoning — never a task ID, an issue or pull
-  request number, or an instruction file. `[partial: gate-docs; open: single-letter task ids, which
-  collide with alert and principle ids]`
+  request number, or an instruction file. `[partial: gate-docs; open: tasks lettered A, C or P,
+  which share their letter with alert, constraint and principle ids]`
 - Text an API client or an end user reads (`api/openapi.yaml`, metric help) holds no internal
   reference; operator dashboards may link the operating documents. `[partial: gate-docs; open:
   metric help]`

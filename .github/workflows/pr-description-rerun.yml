@@ -1,7 +1,7 @@
 name: Pull request description (edited)
 
-# When a pull request's description is edited, the `Pull request description` job of its latest
-# CI run is judged again - so fixing a description is enough to turn `CI required` green, and
+# When a pull request's description or title is edited, the `Pull request description` job of its
+# latest CI run is judged again - so fixing a description is enough to turn `CI required` green, and
 # nobody has to know to press "Re-run".
 #
 # Only that job and the one that sums it up, `CI required`, are re-run, and only when the latest run
@@ -22,7 +22,7 @@ jobs:
   rerun:
     name: Judge the edited description again
     # Not on a draft: its description is unfinished by design, and its CI run judged nothing (ADR-0079).
-    if: github.event.pull_request.user.type != 'Bot' && !github.event.pull_request.draft && github.event.changes.body != null
+    if: github.event.pull_request.user.login != 'dependabot[bot]' && !github.event.pull_request.draft && (github.event.changes.body != null || github.event.changes.title != null)
     runs-on: ubuntu-latest
     permissions:
       actions: write

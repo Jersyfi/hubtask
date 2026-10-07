@@ -575,7 +575,7 @@ jobs:
     # Behind no filter at all, like `secrets` and `licences`. It takes seconds and it is the only
     # thing standing behind three claims that a filter could skip: checkdocs reconciles the Go
     # version across go.mod, the workflows and the Dockerfile, reconciles the support matrix with
-    # the nightly's jobs, and resolves ADR citations in `.go`, `.md`, `.sql`, `.yaml` and `.tpl`
+    # the nightly's jobs, and resolves ADR citations in every kind of source file and document
     # alike. Behind a filter, a change confined to `db/` or `deploy/` would skip the gate that
     # reads it. A job this cheap has no business having a filter to get wrong.
     runs-on: ubuntu-latest
@@ -592,16 +592,18 @@ jobs:
   pr-description:
     name: Pull request description
     # The description against the template: every section present and filled, n/a where one does
-    # not apply, the issue it closes or why there is none, the use cases that exist
-    # (tools/checkpr). Sessions wrote descriptions from scratch with `gh pr create --body`, which
+    # not apply, the issue it closes or why there is none, the use cases that exist, and the title
+    # a Conventional Commit (tools/checkpr). Sessions wrote descriptions from scratch with `gh pr create --body`, which
     # never shows the template, and dropped the sections they judged irrelevant - "Does this need
     # an ADR?" among them, on a change to a gate (2026-09-30).
     #
-    # Pull requests only, and never a bot's: Dependabot writes its own description and nobody
-    # reviews it against this template. The description is read from the API rather than from the
+    # Pull requests only, and never Dependabot's: it writes its own description, nobody reviews it
+    # against this template, and a version bump settles nothing. Named by login, not by account
+    # type: any other bot - a tool that steers the work under a GitHub App identity - is held to
+    # the readiness record, the migration and use case rules like a person. The description is read from the API rather than from the
     # event, so re-running this job - which `pr-description-rerun.yml` does when the description
     # is edited - judges the description as it stands now, not as it was when the run began.
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && github.event.pull_request.user.type != 'Bot'
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -616,12 +618,18 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - name: The description, as it stands now
+      # The title too: it becomes the squash commit's title, from which release.yml writes the
+      # changelog. Read like the description, so that an edited title is judged as it stands.
+      - name: The description and the title, as they stand now
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
-        run: gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.body // ""' > "${RUNNER_TEMP}/description.md"
-      - run: make gate-pr BODY="${RUNNER_TEMP}/description.md" BASE="${BASE}" HEAD_REF="${HEAD_SHA}" OPENED="${OPENED}"
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.body // ""' > "${RUNNER_TEMP}/description.md"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.title' > "${RUNNER_TEMP}/title.txt"
+      # TITLE travels in the environment rather than on make's command line, where a `$` in it
+      # would be expanded by make.
+      - run: TITLE="$(cat "${RUNNER_TEMP}/title.txt")" make gate-pr BODY="${RUNNER_TEMP}/description.md" BASE="${BASE}" HEAD_REF="${HEAD_SHA}" OPENED="${OPENED}"
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}

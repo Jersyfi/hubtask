@@ -269,6 +269,17 @@ func checkDescription(ctx context.Context, body, fetched, logPath string) (strin
 		}
 		body = fetched
 	}
+	// The title is checked when it can be had: TITLE from the caller, or the pull request's own. A
+	// branch without a pull request yet has no title, and CI checks it once there is one.
+	if os.Getenv("TITLE") == "" {
+		lookupCtx, cancel := context.WithTimeout(ctx, gitTimeout)
+		defer cancel()
+		if out, err := exec.CommandContext(lookupCtx, "gh", "pr", "view", "--json", "title", "--jq", ".title").Output(); err == nil {
+			if err := os.Setenv("TITLE", strings.TrimSpace(string(out))); err != nil {
+				return "", err
+			}
+		}
+	}
 	return runStep(ctx, step{name: "the description (gate-pr)", command: "make gate-pr BASE=origin/main BODY=" + strconv.Quote(body)}, logPath)
 }
 

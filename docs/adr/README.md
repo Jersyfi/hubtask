@@ -10,13 +10,14 @@ read that section for what holds today ([ADR-0081](./ADR-0081-how-work-is-organi
 - Not edited once accepted, apart from its status line, its `Rule lives in` line and a link whose
   target moved. No amendments: a change is a new ADR plus the change in the subject document, in
   the same pull request, and the new one says what it supersedes. A few older ADRs carry amendments
-  from before this rule. No gate holds this; the review does.
+  from before this rule. `make gate-pr` refuses any other change to an ADR that is no longer
+  proposed.
 - Take the number from all remote branches right before writing the file, not from this folder:
   unmerged branches hold numbers too.
 - An ADR accepted before anything implements it gets a task in a milestone, in the pull request that
   accepts it, and an open point in its subject document; a decision no task owns stays unbuilt.
 - Every new ADR is named to the owner. When the code that implements a proposed ADR merges, the
-  same pull request moves it to `accepted` here, in its header and in arc42 §9.
+  same pull request moves it to `accepted` here and in its header.
 
 Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 

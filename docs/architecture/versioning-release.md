@@ -64,7 +64,9 @@ BREAKING CHANGE: /tasks has been replaced by /items
 
 Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`. The
 scope names the area (`work`, `identity`, `automation`, `api`, `webapp`, `architecture`, …). It is
-a convention; no CI job lints it.
+checked for the pull request's title, which becomes the squash commit's: the `pr-description` job
+runs `make gate-pr` with it ([ci-cd.md](./ci-cd.md) §3.1), for pull requests opened from
+2026-10-08 on. The commits on a branch follow it by convention; no job reads them.
 
 **Branching:** trunk-based. `main` is always releasable. Work happens on short-lived branches,
 reaches `main` through a pull request, and is squash-merged with a Conventional Commit title. For

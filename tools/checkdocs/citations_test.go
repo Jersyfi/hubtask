@@ -27,10 +27,18 @@ func TestCitations(t *testing.T) {
 		{"a milestone file", "core/x.go", "// milestone-F8.md decision 5", "a milestone's decisions"},
 		{"an instruction file", "core/x.go", "// rule 7 of AGENTS.md", "cite the rule"},
 		{"a rule by number", "core/x.go", "// (rule 7, ADR-0016)", ""},
+		{"an issue in TypeScript", "apps/webapp/src/x.ts", "// see #1119", "issue or pull request"},
+		{"an issue in Svelte", "apps/webapp/src/X.svelte", "<!-- (#1119) -->", "issue or pull request"},
+		{"a colour in a style block", "apps/webapp/src/X.svelte", "    color: #359;", ""},
+		{"a colour as an attribute", "apps/webapp/src/X.svelte", `<path fill="#000" />`, ""},
+		{"a colour as a JSON value", "packages/design-system/tokens/tokens.json", `"ink": "#1234",`, ""},
+		{"a task with a single letter", "core/x.go", "// measured in G-02", "cites the task G-02"},
+		{"an alert, a threat, a principle", "core/x.go", "// A-14, T-07, P-05, C-03, R-09", ""},
+		{"a single letter that is no task", "core/x.go", "// option B-99", ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := strings.Join(citationProblems(c.file, c.line, sections), "\n")
+			got := strings.Join(citationProblems(c.file, c.line, sections, map[string]bool{"G-02": true}), "\n")
 			if c.want == "" && got != "" {
 				t.Fatalf("want nothing, got %s", got)
 			}
@@ -38,6 +46,35 @@ func TestCitations(t *testing.T) {
 				t.Fatalf("want %q, got %q", c.want, got)
 			}
 		})
+	}
+}
+
+func TestCitationScope(t *testing.T) {
+	for file, want := range map[string]bool{
+		"core/x.go":                      true,
+		"api/events/item.created.json":   true,
+		"packages/sync-engine/README.md": true,
+		"deploy/observability/runbooks/RB-A14-misconfiguration.md": true,
+		"scripts/verify-tenant-export.py":                          true,
+		"presentation/webui/dist/index.html":                       true,
+		"apps/website/src/site.css":                                true,
+		"README.md":                                                false,
+		"CONTRIBUTING.md":                                          false,
+		"docs/architecture/security.md":                            false,
+		".github/PULL_REQUEST_TEMPLATE.md":                         false,
+		"core/AGENTS.md":                                           false,
+		"locales/en.json":                                          false,
+		"api/openapi.json":                                         false,
+	} {
+		if got := citationScope(file); got != want {
+			t.Errorf("%s: in scope %v, want %v", file, got, want)
+		}
+	}
+	if p := citationProblems("packages/x/README.md", "The rules are in [AGENTS.md](./AGENTS.md).", nil, nil); len(p) != 0 {
+		t.Errorf("a README pointing to its AGENTS.md was refused: %v", p)
+	}
+	if p := citationProblems("deploy/x/README.md", "Found in issue #310.", nil, nil); len(p) == 0 {
+		t.Error("an issue number in a code document passed")
 	}
 }
 

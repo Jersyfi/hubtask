@@ -25,7 +25,7 @@ Therefore:
 |---|---|---|
 | `ci.yml` | A pull request once it is ready — opened ready, leaving draft, or pushed to while ready; a push to `main` | The pull request gates (§3) |
 | `codeql.yml` | A pull request once it is ready, a push to `main`, weekly schedule | Static security analysis. It reports new alerts in the code a pull request changed. It is not part of `CI required` and not a required check, but a red CodeQL is a finding to fix, not to suppress |
-| `pr-description-rerun.yml` | A pull request's description is edited | Re-runs the failed jobs of the latest `ci.yml` run, so a fixed description turns `CI required` green (§3.1) |
+| `pr-description-rerun.yml` | A pull request's description or title is edited | Re-runs the failed jobs of the latest `ci.yml` run, so a fixed description turns `CI required` green (§3.1) |
 | `nightly.yml` | Schedule (overnight) | Long runs (§9): fuzzing, load and resilience (`deep`); the support matrix cells (`matrix-*`, [support-matrix.md](./support-matrix.md)); the point-in-time recovery drill against a real operator and object store (`make gate-pitr`); the vulnerability scan of the published image; the action pins (`make gate-action-pins`). The arm64 matrix job also runs `make gate-privacy-full` and `make gate-selftest` on the other architecture. A failure files an issue (§9) |
 | `release.yml` | Tag `v*` | After the `production` environment's approval: the gates again, the multi-arch image, SBOM, signature, provenance, the Helm chart, the GitHub release ([deployment.md](./deployment.md) §7) |
 | `deploy.yml` | Push to `main`, manual dispatch | Builds and signs the per-commit image, verifies the signature, and runs `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
@@ -47,7 +47,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `licences` | `make gate-licenses`: no copyleft Go dependency, and `THIRD-PARTY-LICENSES.md` current. Behind no filter | Licences |
 | `quick` | `make gate-quick` (gofmt, `golangci-lint` including `gosec` and `depguard`, `go vet`, `make generate` without a diff) and `make gate-sdk` (the generated Python SDK parses) | Format, lint, generation |
 | `build` | `make build` for linux/amd64 and linux/arm64 | Buildability |
-| `unit` | `make gate-unit`: the Go tests with `-race`, coverage `core/domain` ≥ 85 % and `core/application` ≥ 75 % | Unit |
+| `unit` | `make gate-unit`: the Go tests with `-race`, the gates' own tests under `tools/` among them, coverage `core/domain` ≥ 85 % and `core/application` ≥ 75 % | Unit |
 | `architecture` | `make gate-architecture`: layer rules, the `go` ban outside `SafeGo`, mandatory authorisation, use case parity across REST, MCP and automation, observability completeness (RT-12), audit declarations (SG-13), the translation gate, and `actionlint` over the workflows | Structure |
 | `resilience` | `make gate-resilience`: RT-1…RT-5, RT-7, RT-10, RT-12 (§3.2) | Reliability |
 | `observability` | `make gate-observability`: `promtool check rules` and `promtool test rules` over the four rule files, and the runbook/alert/dashboard checks in `test/observability` | Alerts and runbooks |
@@ -60,7 +60,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `security` | `make gate-security` (`govulncheck` and the suites under `test/security`: cross-tenant, RLS, SSRF, uploads, authorisation, redaction) and `make gate-privacy` (PG-1, PG-3…PG-6, PG-8) | SG and PG gates |
 | `data` | `make gate-data` (retention RE-1…RE-9, backup round trip BK-1 for every target, sync SY-1…SY-12, audit) and `make gate-privacy-full` (PG-2 and PG-7 against a migrated database) | Data guarantees |
 | `docs` | `make gate-docs` (§3.1). Behind no filter | Documentation |
-| `pr-description` | `make gate-pr` over the description read from the API. Not for a bot's pull request (§3.1) | The description |
+| `pr-description` | `make gate-pr` over the description and the title read from the API. Not for Dependabot's pull requests (§3.1) | The description |
 | `node` | Per workspace package, when it or something it consumes changed: the workspace map lint, then build, lint, typecheck and test; for the website also `make website` before any build | Clients and packages |
 | `engines` | The built web application in Chromium, Firefox and WebKit through Playwright, pinned ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), asserting [ADR-0044](../adr/ADR-0044-browser-support-row.md)'s feature table in each (`pnpm --filter @hubtask/webapp test:engines`). The one job that runs a browser | The browser row of the support matrix |
 | `tokens-drift` | `make tokens`; the committed `LabelTokens.go` must not change | Design tokens |
@@ -70,10 +70,9 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 `quick` is the prerequisite of every Go job; a skipped `quick` skips them all. The Go jobs after it
 run in parallel.
 
-**Contract gate.** `make gate-contract` runs in exactly one place: the last step of `integration`.
-There is no separate `contract` job, and `make verify` does not run it. It needs no database —
-`go test -tags contract ./test/contract/...` runs it locally in seconds — so run it after any change
-to `api/openapi.yaml`, to `presentation/rest`, or to a route's authentication.
+**Contract gate.** In CI, `make gate-contract` runs in one place: the last step of `integration`.
+There is no separate `contract` job. It needs no database and runs in seconds, so `make verify`
+runs it as well.
 
 **Not built.** The OpenAPI diff against the last tag, which [versioning-release.md](./versioning-release.md)
 §6 lists as the compatibility check, does not exist yet. Nothing fails a breaking change to the
@@ -122,17 +121,25 @@ on the branch that gets released.
 stylesheet or a README included, so `secrets`, `dependencies` and `licences` never filter. `docs`
 takes seconds and reads files every filter could skip: `checkdocs` reconciles the Go version across
 `go.mod`, the workflows, the Dockerfile, the support matrix and the README; reconciles the support
-matrix with the nightly's jobs; resolves ADR citations in `.go`, `.md`, `.sql`, `.yaml` and `.tpl`;
+matrix with the nightly's jobs; resolves ADR citations in every kind of source file and document;
 checks links and anchors; and holds the newest `docs/evidence/COVERAGE-<date>.md` to
 `catalogue.Descriptors()` — one row per use case the catalogue serves, none for one it does not
 serve, and no omission "nobody built it" without an issue number.
 
-**`pr-description` reads the description, not the tree.** On every pull request that is not a bot's,
+**`pr-description` reads the description, not the tree.** On every pull request that is not Dependabot's,
 `tools/checkpr` holds the description to `.github/PULL_REQUEST_TEMPLATE.md`: every section present,
 in order, filled or marked n/a; `Closes #n` at the start of a line or `No issue: <why>`; use cases
-that exist; one ADR answer ticked and named; every Definition of Done item ticked or n/a; no
-placeholder left in Impact. It reads the description from the API, so a re-run judges it as it
-stands. `make gate-pr BODY=<file>` runs it locally. `gh pr create --body` never shows the template;
+that exist; one ADR answer ticked and named; the template's Definition of Done items, none deleted
+or reworded, each ticked or n/a; no placeholder left in Impact; and the title a Conventional
+Commit. With the branch's history it also holds: a readiness record ready before the first commit
+outside `docs/` and at the head, for a branch that carries a task, names a use case or changes the
+contract, a migration, a query, a dependency, an ADR or what a use case promises (otherwise
+`Readiness: n/a — <why>`); no merged migration changed; no use case deleted and no ID reused; a
+change to a use case's Goal, How to check or Where it ends named `correction` or `decision #<n>`;
+and no settled ADR changed beyond its status line, its `Rule lives in` line and link targets. The
+rules added after the readiness rule hold pull requests opened from 2026-10-08 on, as it does. It
+reads the description and the title from the API, so a re-run judges them as they stand.
+`make gate-pr BODY=<file> TITLE="<title>"` runs it locally, `BASE=origin/main` with the history. `gh pr create --body` never shows the template;
 start from a copy of it.
 
 **The filters name trees, and `test/architecture` checks that they name all of them.** Every

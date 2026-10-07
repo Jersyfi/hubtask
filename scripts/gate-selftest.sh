@@ -532,10 +532,12 @@ expect_docs_failure "a link to a heading that is not there" \
 
 [a section that moved](./architecture/arc42.md#a-heading-nobody-wrote)'
 
+# The number is split in two quotes: written whole, it would be a citation in this script, which
+# the gate reads too.
 expect_docs_failure "a citation of an ADR nobody wrote" \
 '# Probe
 
-The reasoning is in ADR-0099.'
+The reasoning is in ADR-''0999.'
 
 header "The chart (make gate-chart)"
 
@@ -695,52 +697,60 @@ expect_event_schema_failure "an extension attribute that is no longer emitted" "
       | .properties.anextensionnobodyemits = {"type": "string"}' "$CONTAINER_SCHEMA")"
 fi
 
-header "The decision list in arc42 §9 (make gate-docs)"
+header "Milestones and use cases (make gate-docs)"
 
-# arc42 §9 repeats what docs/adr/README.md owns, and a repetition nobody checks drifts - this one
-# stood three decisions behind before the check existed. Both directions are shown to bite: a
-# decision the index has and §9 does not, and a status the two disagree about.
-ARC42="docs/architecture/arc42.md"
-
+# A milestone delivers what its Delivers line names, and a task grows only inside it; a built use
+# case has nothing left in Today. Both are shown to bite on the real files.
+# A use case no milestone delivers, and a milestone with a Delivers line: the probe's task asks the
+# milestone for a check it does not deliver. Neither is named, so the probe does not rot.
+DELIVERS=$(grep -h '^\*\*Delivers:\*\*' docs/backlog/milestone-*.md)
+PROBE_UC=""
+for f in docs/usecases/*/UC-*.md; do
+	id=$(basename "$f" | cut -d- -f1-3)
+	if ! printf '%s\n' "$DELIVERS" | grep -q "$id ("; then
+		PROBE_UC=$id
+		break
+	fi
+done
+# Loops rather than `grep | head`: under pipefail, head closing the pipe kills grep with SIGPIPE.
+MILESTONE=""
+for f in docs/backlog/milestone-*.md; do
+	if grep -q '^\*\*Delivers:\*\*' "$f"; then
+		MILESTONE=$f
+		break
+	fi
+done
 CHECKS=$((CHECKS + 1))
-cp "$ARC42" "$ARC42.selftest-backup"
-# Drop the last ADR row of the table, whichever it is - the probe must not name a number, or it
-# rots the next time an ADR is written.
-LAST_ADR_ROW=$(grep -n '^| [0-9]\{4\} |' "$ARC42" | tail -1 | cut -d: -f1)
-sed -i.tmp "${LAST_ADR_ROW}d" "$ARC42" && rm -f "$ARC42.tmp"
-if make --no-print-directory gate-docs >/dev/null 2>&1; then
-	printf '  FAILED  %-44s make gate-docs stayed green\n' "an ADR missing from arc42 §9"
-	FAILURES=$((FAILURES + 1))
-else
-	printf '  ok      %-44s caught by make gate-docs\n' "an ADR missing from arc42 §9"
-fi
-mv "$ARC42.selftest-backup" "$ARC42"
-
-CHECKS=$((CHECKS + 1))
-cp "$ARC42" "$ARC42.selftest-backup"
-LAST_ADR_ROW=$(grep -n '^| [0-9]\{4\} |' "$ARC42" | tail -1 | cut -d: -f1)
-# Whatever status that row carries, write a different one. Naming the status it was expected to
-# have was the same mistake as naming the ADR number, one column to the right: ADR-0039 landed as
-# `proposed`, the substitution matched nothing, gate-docs stayed correctly green, and the probe
-# reported the gate as broken.
-CURRENT_STATUS=$(sed -n "${LAST_ADR_ROW}p" "$ARC42" | sed -E 's/.*\| *([a-z]+) *\|[[:space:]]*$/\1/')
-DIFFERENT_STATUS=superseded
-[ "$CURRENT_STATUS" = "superseded" ] && DIFFERENT_STATUS=accepted
-sed -i.tmp "${LAST_ADR_ROW}s/| $CURRENT_STATUS |/| $DIFFERENT_STATUS |/" "$ARC42" && rm -f "$ARC42.tmp"
-if cmp -s "$ARC42" "$ARC42.selftest-backup"; then
-	# The probe changed nothing, so whatever gate-docs answers next is about the unmodified file.
-	# Reported as the probe's own failure rather than left to look like the gate's: a self-test
-	# that cannot inject its violation is the one thing it must never call "caught".
-	printf '  FAILED  %-44s the probe changed nothing (status %s)\n' \
-		"a status arc42 and the index disagree on" "$CURRENT_STATUS"
+cp "$MILESTONE" "$MILESTONE.selftest-backup"
+printf '\n## ZZ-99 — A probe task\n\n**Use cases:** %s (1)\n' "$PROBE_UC" >>"$MILESTONE"
+if [ -z "$PROBE_UC" ] || [ -z "$MILESTONE" ]; then
+	printf '  FAILED  %-44s the probe found no use case outside every Delivers\n' "a task carrying a check outside Delivers"
 	FAILURES=$((FAILURES + 1))
 elif make --no-print-directory gate-docs >/dev/null 2>&1; then
-	printf '  FAILED  %-44s make gate-docs stayed green\n' "a status arc42 and the index disagree on"
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "a task carrying a check outside Delivers"
 	FAILURES=$((FAILURES + 1))
 else
-	printf '  ok      %-44s caught by make gate-docs\n' "a status arc42 and the index disagree on"
+	printf '  ok      %-44s caught by make gate-docs\n' "a task carrying a check outside Delivers"
 fi
-mv "$ARC42.selftest-backup" "$ARC42"
+mv "$MILESTONE.selftest-backup" "$MILESTONE"
+
+CHECKS=$((CHECKS + 1))
+BUILT=""
+for f in docs/usecases/*/UC-*.md; do
+	if grep -q '^state: built' "$f"; then
+		BUILT=$f
+		break
+	fi
+done
+cp "$BUILT" "$BUILT.selftest-backup"
+printf '\n## Today\n\n* Check 1: not met — a probe\n' >>"$BUILT"
+if make --no-print-directory gate-docs >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "a built use case with a Today line"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-docs\n' "a built use case with a Today line"
+fi
+mv "$BUILT.selftest-backup" "$BUILT"
 
 header "Observability artefacts (make gate-observability)"
 

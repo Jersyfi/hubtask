@@ -343,14 +343,18 @@ run:
 # ---------------------------------------------------------------------- Gates
 
 ## verify: The fast gates, without containers - the first half of make verify-pr
+# gate-contract is here although CI runs it after the integration tests: it needs no database - the
+# router and the handlers run in-process against the specification - and a contract that drifted
+# is the kind of defect that is cheapest found while working.
 .PHONY: verify
-verify: gate-quick gate-unit gate-architecture gate-security gate-privacy gate-chart gate-licenses gate-docs gate-observability gate-sdk
+verify: gate-quick gate-unit gate-architecture gate-security gate-privacy gate-chart gate-licenses gate-docs gate-observability gate-sdk gate-contract
 	@echo "All locally runnable gates are green."
 
 ## verify-pr: The pull request check, locally - make verify, then every gate CI runs for this branch (ADR-0079)
 # A draft is checked in the session that writes it, and CI runs when the pull request is ready. This
 # selects the gates by the same filters ci.yml does (tools/cilocal), runs the container gates one
-# session at a time, checks the description (BODY=<file>, or read with gh), and on success leaves
+# session at a time, checks the description (BODY=<file>, or read with gh) and the title (TITLE,
+# or read with gh when there is a pull request), and on success leaves
 # the stamp the Claude Code hook asks for before `gh pr ready`.
 .PHONY: verify-pr
 verify-pr:
@@ -395,10 +399,14 @@ gate-quick:
 # regression guard's arithmetic are ordinary code, and a guard that has stopped working must turn
 # a pull request red rather than pass a nightly quietly. The runs themselves are behind the `load`
 # tag and stay in gate-load.
+#
+# tools is here because its programs are gates themselves (checkdocs, checkpr, verifypr): a gate
+# whose own tests run nowhere stops biting without anybody noticing, and its tests are what show it
+# still turns red on the violation it exists for.
 .PHONY: gate-unit
 gate-unit: export CGO_ENABLED = 1
 gate-unit:
-	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/... ./test/load/... ./test/e2e/...,-race -covermode=atomic -coverprofile=coverage.out)
+	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/... ./test/load/... ./test/e2e/... ./tools/...,-race -covermode=atomic -coverprofile=coverage.out)
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/domain/... MIN=85
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/application/... MIN=75
 
@@ -498,10 +506,13 @@ gate-security:
 gate-privacy:
 	$(call go_test,,./test/privacy/...,)
 
-## gate-pr: The pull request description against the template (BODY=<file>, or stdin); BASE=<ref> also reads the branch's history
+## gate-pr: The pull request description against the template (BODY=<file>, or stdin); TITLE=<title> checks the title; BASE=<ref> also reads the branch's history
+# The title is read by the shell from the environment rather than pasted into the recipe, where its
+# quotes would be the shell's. Given on make's command line, a `$` in it is make's and is written
+# `$$`; given in the environment (TITLE="…" make gate-pr), it is taken as it is.
 .PHONY: gate-pr
 gate-pr:
-	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),) $(if $(BASE),-base $(BASE),) $(if $(HEAD_REF),-head $(HEAD_REF),) $(if $(OPENED),-opened $(OPENED),)
+	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),) $(if $(TITLE),-title "$$TITLE",) $(if $(BASE),-base $(BASE),) $(if $(HEAD_REF),-head $(HEAD_REF),) $(if $(OPENED),-opened $(OPENED),)
 
 ## gate-privacy-full: PG-2 and PG-7 against a real PostgreSQL (every pull request, and the nightly on arm64)
 .PHONY: gate-privacy-full

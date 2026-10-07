@@ -28,7 +28,7 @@ import (
 //   - Exactly one answer to "Does this need an ADR?" is ticked, and a ticked answer that asks
 //     "Which one" names it.
 //   - Every Definition of Done item is ticked or says n/a: the template's rule is to mark, not to
-//     delete.
+//     delete - and the items are the template's own, none deleted or reworded (dod.go).
 //   - Impact's four lines no longer carry the template's placeholders.
 
 var (

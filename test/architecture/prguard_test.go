@@ -106,14 +106,17 @@ func TestTheGuardRefusesWhatADraftMayNotSkip(t *testing.T) {
 func runGuard(t *testing.T, script, dir, command string) (bool, string) {
 	t.Helper()
 
-	payload, err := json.Marshal(map[string]any{"tool_name": "Bash", "tool_input": map[string]string{"command": command}})
+	// The hook is started elsewhere and told the worker's directory, as Claude Code does for a
+	// session in its own worktree: the stamp and HEAD it judges are the named checkout's.
+	payload, err := json.Marshal(map[string]any{"tool_name": "Bash", "cwd": dir, "tool_input": map[string]string{"command": command}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "bash", script)
-	cmd.Dir = dir
+	cmd.Dir = t.TempDir()
+	cmd.Env = withoutGitVariables()
 	cmd.Stdin = strings.NewReader(string(payload))
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
@@ -138,6 +141,7 @@ func gitIn(t *testing.T, dir string, args ...string) string {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
+	cmd.Env = withoutGitVariables()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
@@ -150,4 +154,17 @@ func writeStamp(t *testing.T, path, commit string) {
 	if err := os.WriteFile(path, []byte(commit+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// withoutGitVariables is the caller's environment without GIT_*: under a git hook or `git rebase
+// --exec`, GIT_DIR names the real repository, and a scratch `git init --bare` would turn it bare
+// (known-traps.md, "Tests, gates and tooling").
+func withoutGitVariables() []string {
+	var env []string
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, "GIT_") {
+			env = append(env, kv)
+		}
+	}
+	return env
 }

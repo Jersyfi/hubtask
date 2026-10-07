@@ -25,8 +25,8 @@ a values key with an empty default, named in the interface note and set on the o
 chart that renders without one of them refuses rather than guessing, which is what makes an empty
 key a question instead of a wrong answer nobody checked.
 
-The same rule covers what a drill measures. The RPO and RTO it records are internal (decision 7 of
-[milestone 0.6.0](../../docs/archive/backlog/milestone-0.6.0.md)): the drill writes them to a location the
+The same rule covers what a drill measures. The RPO and RTO it records are internal
+([observability-reliability.md](../../docs/architecture/observability-reliability.md) §13.2): the drill writes them to a location the
 operator names, and what reaches this repository is the mechanism and a pass/fail trail.
 
 ## What is ours and what is not

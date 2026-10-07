@@ -84,7 +84,7 @@ type SuggestDuplicates struct {
 // A number somebody has to choose, and one chosen by a session is one nobody can defend later - so
 // it is configuration (`HUBTASK_AI_DUPLICATE_THRESHOLD`) and this is only its default.
 //
-// **Measured, not argued for**: docs/archive/evidence/K-04-2026-09-11.md, against a 295-entry corpus
+// **Measured, not argued for** (the evidence `ai-first.md` §2 links), against a 295-entry corpus
 // in two languages on the two Ollama embedding models the product stores, with the floor chosen on one
 // half of the corpus and reported on the other. What it found: a same-language paraphrase sits
 // around 0.85-0.89, not above 0.95 - that is where a copy with one word changed sits. At 0.9 the

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -19,11 +20,13 @@ import (
 //   - every use case cites personas, deployments and principles that exist in docs/vision, so a
 //     reviewer following `serves: [P-06]` lands on the principle it names;
 //   - every use case carries the three sections that make it checkable - Goal, How to check (with
-//     at least one numbered check) and Where it ends - and a Today section while it is not built;
+//     at least one numbered check) and Where it ends - and, while it is not built, a Today section
+//     with one line per check not met, which is gone once it is built;
 //   - the index lists every use case with the state the file declares, because the index is what a
 //     reader skims and a state that drifted there is a promise nobody is keeping;
-//   - every UC-… cited anywhere in the repository exists, and a milestone that names use cases for
-//     one task names them for all of them.
+//   - every UC-… cited anywhere in the repository exists, and so does every check cited by its
+//     number (UC-ID-12/4, "UC-ID-12 check 4"); what a milestone delivers is in
+//     milestones.go.
 //
 // The front matter is a deliberately flat subset of YAML - `key: value` and `key: [a, b]` - read by
 // hand here rather than through a YAML library, because a dependency is a supply-chain decision
@@ -102,8 +105,8 @@ func checkUseCases(root string) []string {
 	}
 
 	problems = append(problems, checkUseCaseIndex(root, cases)...)
-	problems = append(problems, checkUseCaseReferences(root, seen)...)
-	problems = append(problems, checkMilestoneUseCases(root)...)
+	problems = append(problems, checkUseCaseReferences(root, seen, useCaseChecks(cases))...)
+	problems = append(problems, checkMilestones(root, cases)...)
 	return problems
 }
 
@@ -250,10 +253,49 @@ func checkUseCase(root string, uc useCase, personas, deployments, principles map
 	if checks, ok := sections["How to check"]; ok && !numbered.MatchString(checks) {
 		add("## How to check has no numbered check")
 	}
-	if state == "specified" || state == "partial" {
-		if _, ok := sections["Today"]; !ok {
-			add("a %s use case says in ## Today what is not met yet", state)
+	today, hasToday := sections["Today"]
+	switch {
+	case (state == "specified" || state == "partial") && !hasToday:
+		add("a %s use case says in ## Today what is not met yet", state)
+	case (state == "built" || state == "verified") && hasToday:
+		add("a %s use case has no ## Today - every check is met, so nothing is left to list", state)
+	}
+	if hasToday {
+		problems = append(problems, todayProblems(uc.path, today, numberedChecks(sections["How to check"]))...)
+	}
+	return problems
+}
+
+// todayProblems holds a Today section to what it is for: one line per check not met yet, naming
+// the check, and nothing else - a Today that narrates is a second description of the use case that
+// drifts from the first.
+func todayProblems(path, today string, checks map[int]bool) []string {
+	var problems []string
+	listed := map[int]bool{}
+	for _, line := range strings.Split(today, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
 		}
+		m := todayLine.FindStringSubmatch(line)
+		if m == nil {
+			short := strings.TrimSpace(line)
+			if len(short) > 60 {
+				short = short[:60] + "…"
+			}
+			problems = append(problems, fmt.Sprintf("%s: ## Today has %q - each line is \"* Check n: not met — …\" for one check", path, short))
+			continue
+		}
+		n, _ := strconv.Atoi(m[1])
+		switch {
+		case !checks[n]:
+			problems = append(problems, fmt.Sprintf("%s: ## Today lists check %d, which ## How to check does not have", path, n))
+		case listed[n]:
+			problems = append(problems, fmt.Sprintf("%s: ## Today lists check %d twice - one line per check", path, n))
+		}
+		listed[n] = true
+	}
+	if len(listed) == 0 {
+		problems = append(problems, fmt.Sprintf("%s: ## Today names no check - it lists each check not met yet, one line each", path))
 	}
 	return problems
 }
@@ -305,11 +347,16 @@ func checkUseCaseIndex(root string, cases []useCase) []string {
 	return problems
 }
 
+// ucCheckReference is a citation of one check: `UC-ID-12/4`, or `UC-ID-12 check 4`.
+var ucCheckReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3})(?:/(\d+)\b|:?,? check (\d+)\b)`)
+
 // checkUseCaseReferences makes sure a UC-… cited anywhere resolves, the way checkADRReferences does
 // for decisions: a task, a pull request template or a code comment pointing at a use case that does
-// not exist is a requirement that looks recorded and is not.
-func checkUseCaseReferences(root string, known map[string]string) []string {
+// not exist is a requirement that looks recorded and is not. A check cited by its number exists
+// under the use case's How to check, for the same reason.
+func checkUseCaseReferences(root string, known map[string]string, checks map[string]ucChecks) []string {
 	cited := map[string][]string{}
+	missingChecks := map[string][]string{}
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -320,9 +367,7 @@ func checkUseCaseReferences(root string, known map[string]string) []string {
 			}
 			return nil
 		}
-		switch filepath.Ext(entry.Name()) {
-		case ".go", ".md", ".yaml", ".yml", ".ts", ".svelte":
-		default:
+		if !citesADRs(entry.Name()) {
 			return nil
 		}
 		content, readErr := os.ReadFile(path) //nolint:gosec // G304: walking this repository is the job
@@ -332,6 +377,14 @@ func checkUseCaseReferences(root string, known map[string]string) []string {
 		relative, _ := filepath.Rel(root, path)
 		for _, id := range ucReference.FindAllString(string(content), -1) {
 			cited[id] = append(cited[id], relative)
+		}
+		for _, m := range ucCheckReference.FindAllStringSubmatch(string(content), -1) {
+			number := m[2] + m[3]
+			uc, ok := checks[m[1]]
+			if n, _ := strconv.Atoi(number); ok && !uc.checks[n] {
+				key := m[1] + " check " + number
+				missingChecks[key] = append(missingChecks[key], relative)
+			}
 		}
 		return nil
 	})
@@ -346,36 +399,24 @@ func checkUseCaseReferences(root string, known map[string]string) []string {
 		sort.Strings(files)
 		problems = append(problems, fmt.Sprintf("%s is cited in %s and does not exist", id, strings.Join(unique(files), ", ")))
 	}
+	for check, files := range missingChecks {
+		sort.Strings(files)
+		problems = append(problems, fmt.Sprintf("%s is cited in %s and that use case has no such check", check, strings.Join(unique(files), ", ")))
+	}
 	return problems
 }
 
-// checkMilestoneUseCases holds a milestone to its own choice: one that names the use cases a task
-// serves names them for every task, because a task without the line is the one a session builds on
-// its own reading.
-func checkMilestoneUseCases(root string) []string {
-	files, err := filepath.Glob(filepath.Join(root, "docs", "backlog", "milestone-*.md"))
-	if err != nil {
-		return []string{fmt.Sprintf("listing the backlog: %v", err)}
+// todayLine is one line of a Today section: "* Check 4: not met — …".
+var todayLine = regexp.MustCompile(`(?m)^\*\s+Check (\d+)\b`)
+
+// todayChecks are the checks a Today section lists as not met.
+func todayChecks(text string) map[int]bool {
+	out := map[int]bool{}
+	for _, m := range todayLine.FindAllStringSubmatch(text, -1) {
+		n, _ := strconv.Atoi(m[1])
+		out[n] = true
 	}
-	var problems []string
-	for _, file := range files {
-		relative, _ := filepath.Rel(root, file)
-		content := read(root, relative)
-		if !strings.Contains(content, "**Use cases:**") {
-			continue
-		}
-		headings := taskHeading.FindAllStringSubmatchIndex(content, -1)
-		for i, at := range headings {
-			end := len(content)
-			if i+1 < len(headings) {
-				end = headings[i+1][0]
-			}
-			if !strings.Contains(content[at[0]:end], "**Use cases:**") {
-				problems = append(problems, fmt.Sprintf("%s: %s names no use cases, and the milestone names them for its other tasks", relative, content[at[2]:at[3]]))
-			}
-		}
-	}
-	return problems
+	return out
 }
 
 func setOf(matches [][]string) map[string]bool {

@@ -9,47 +9,53 @@ The product UI in the browser, embedded into the binary and wrapped by the shell
 * **No SvelteKit, and nothing the content security policy refuses.** Svelte 5 as a plain Vite
   single-page application. The policy permits neither `'unsafe-inline'` nor `'unsafe-eval'`, so the
   built bundle holds no inline script or style; `pnpm build` runs `build/check-csp.js` and fails
-  on one.
+  on one. `[partial: ci:node, gate-unit; open: a SvelteKit dependency, eval in the bundle]`
 * **No platform-specific code outside `src/lib/platform/`**, and no runtime sniffing: a shell's
-  build selects its implementation.
+  build selects its implementation. `[owner]`
 * **No colour, spacing, radius or duration written here** (rule 15). In CSS it is `var(--…)`; in
   script it is `tokens` from `@hubtask/design-system`, which yields a custom-property reference.
   `values.light`/`values.dark` are for what a custom property cannot reach — a canvas, an exported
   image — because a literal colour is wrong in the other theme.
+  `[partial: ci:node; open: named colours, numbers in script, the ignore marker]`
 * **No second owner of a document attribute.** The theme (`lib/theme.ts`), reduced motion
   (`lib/motion.ts`) and the language (`App.svelte`) are each applied in exactly one place. A
   component never reads or sets them; a second module that set one would be a second answer to
-  "which theme" or "which locale".
+  "which theme" or "which locale". `[owner]`
 * **No device choice in the account, and no account choice in the device.** The theme, reduced
   motion and how a screen is laid out (a sheet's size) belong to this browser and live in
   `localStorage` — never in the replica, which is the account's copy and is deleted at sign-out.
   Language, time zone, week start, celebrations and the tour's completion are the account's.
+  `[partial: ci:node; open: a device preference written to the replica]`
 * **No sentence in a component.** A component calls `t('code', params)`; the application's own
   strings are `app.*` codes in `locales/en.json`. No second catalogue: `src/lib/i18n/catalogue.ts`
   is the one reader of that file. A failure becomes words in `lib/problem.ts` only — a component
-  that read `error.code` itself would be a second place a sentence could appear.
+  that read `error.code` itself would be a second place a sentence could appear. `[owner]`
 * **No `fetch`, no IndexedDB, no `EventSource`.** Every request goes through
-  `@hubtask/sync-engine` (see its `AGENTS.md`); this app supplies paths, not transport.
+  `@hubtask/sync-engine` (see its `AGENTS.md`); this app supplies paths, not transport. `[owner]`
 * **No hand-written API type** — they come from `@hubtask/api-client`; change the contract (rule
-  11).
+  11). `[owner]`
 * **Nothing hard-coded that `/meta/capabilities` answers.** It is read at boot and on every change
   of actor, never once per page. A type or role the manifest does not declare is refused, never
   permitted, and before the manifest arrives nothing is shown as available.
+  `[partial: ci:node, ci:engines; open: types, roles and features beyond AI]`
 * **No control drawn for a capability that is refused outright.** It is absent, not disabled. A
   refusal the reader might otherwise have had — a permission, a setting, a degraded feature — is
   drawn through `CapabilityGate` with its reason, never hidden silently.
+  `[partial: ci:node; open: capabilities other than AI, the reason CapabilityGate gives]`
 * **No page numbers.** The API answers a page and an opaque cursor; a longer list arrives through
   `LoadMore`. No client-side pager either, not even over a list that arrived whole — a long list is
-  sorted or narrowed.
+  sorted or narrowed. `[owner]`
 * **No credential out of its place** ([`identity.md`](../../docs/architecture/identity.md) §14.4).
   Never in a URL, a log, a message or the DOM beyond its field; one that arrives in the address is
   removed from history before the first request leaves. No shape check of a token — the security
   scheme accepts three kinds and a pattern would refuse two. The refresh exchange happens in
-  `lib/data/engine.ts` only, never in a store: two exchanges at once sign somebody out.
+  `lib/data/engine.ts` only, never in a store: two exchanges at once sign somebody out. `[owner]`
 * **No request to a foreign origin** (`connect-src 'self'`); fonts ship in the bundle.
+  `[partial: gate-unit; open: the source is not scanned, a foreign request shows only at run time]`
 * **No router library** — `src/lib/router.ts`, real paths, never `#/`. Any new dependency is a
-  proposal, not a commit.
+  proposal, not a commit. `[owner]`
 * **No import from `apps/website`**, and **no `.go` file** (rule 14).
+  `[gate: ci:node, gate-architecture]`
 
 ## How to check a change
 
