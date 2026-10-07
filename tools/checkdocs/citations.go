@@ -165,7 +165,7 @@ func citationProblems(file, text string, sections map[string]*docSections, tasks
 				break
 			}
 		}
-		if m := issueCitation.FindString(line); m != "" && !strings.HasSuffix(file, ".svelte") && !strings.HasSuffix(file, ".ts") {
+		if m := issueIn(line); m != "" {
 			problems = append(problems, fmt.Sprintf("%s: cites an issue or pull request (%s) - the reason, not the ticket", where, strings.TrimSpace(m)))
 		}
 		if m := milestoneFile.FindString(line); m != "" {
@@ -178,6 +178,23 @@ func citationProblems(file, text string, sections map[string]*docSections, tasks
 		}
 	}
 	return problems
+}
+
+// issueIn finds an issue or pull request number in a line. `#359` is also a colour, which a
+// stylesheet, a Svelte style block or tokens.json writes as a value - after a colon, an equals sign
+// or a quote - and an issue citation never stands there, so a match in that place is skipped.
+func issueIn(line string) string {
+	for _, at := range issueCitation.FindAllStringIndex(line, -1) {
+		match := line[at[0]:at[1]]
+		if i := strings.Index(match, "#"); i >= 0 {
+			before := strings.TrimRight(line[:at[0]+i], " \t")
+			if before != "" && strings.ContainsAny(before[len(before)-1:], ":=\"'") {
+				continue
+			}
+		}
+		return match
+	}
+	return ""
 }
 
 // publicTextProblems holds the API description - rendered on the website and into the SDKs - to
