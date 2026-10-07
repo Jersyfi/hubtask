@@ -107,7 +107,7 @@ func (g Guard) ExportJobs(ctx context.Context, tenant string) error {
 }
 
 // AiTokens reports whether the workspace's daily AI budget still has room, and meters what a call
-// cost (J-15).
+// cost.
 //
 // Two calls rather than one, and in that order: `AiTokens` before the provider is asked, `MeterAi`
 // after it answers. A budget cannot be reserved up front because nobody knows what a call will

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package quota turns multi-tenancy.md §4's table into enforcement (H-08): per-tenant limits
+// Package quota turns multi-tenancy.md §4's table into enforcement: per-tenant limits
 // from `tenant.settings.quotas` with the mode's defaults, one resolution, one refusal shape.
 //
 // The refusal split the backlog fixes: a *rate* is a 429 with Retry-After, because waiting
@@ -28,7 +28,7 @@ const (
 	AutomationRunsPerHour = "automation_runs_per_hour"
 	WebhookTargets        = "webhook_targets"
 	ExportJobs            = "export_jobs"
-	// AiTokensPerDay is what a workspace may spend on AI in a day (J-15), counted in the tokens
+	// AiTokensPerDay is what a workspace may spend on AI in a day, counted in the tokens
 	// every provider reports - the one unit that means the same thing across OpenAI-compatible
 	// endpoints and a local Ollama, which is why `ai.Usage` carries it.
 	//

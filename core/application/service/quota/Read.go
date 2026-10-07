@@ -53,7 +53,7 @@ func (s Standing) Ratio() *float64 {
 	return &ratio
 }
 
-// ReadQuotas answers the workspace's own quota standing (H-08): every §4 limit as it applies
+// ReadQuotas answers the workspace's own quota standing: every §4 limit as it applies
 // here. A quota is workspace configuration, so the auditor's read-only configuration permission
 // opens it too (G-12's pair).
 type ReadQuotas struct {
@@ -126,7 +126,7 @@ func Standings(
 			return usage.AutomationRunsSince(ctx, now.Add(-time.Hour))
 		},
 		// The day's spend so far, from the ledger - which is the only record of it, because a
-		// token has no row (J-15). The same instant the guard measures against, so what an
+		// token has no row. The same instant the guard measures against, so what an
 		// operator reads here is what the wall is comparing.
 		AiTokensPerDay: func(ctx context.Context) (int64, error) {
 			return usage.MeteredSince(ctx, AiTokensPerDay, startOfDay(now))
