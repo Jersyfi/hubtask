@@ -25,7 +25,7 @@ Therefore:
 |---|---|---|
 | `ci.yml` | A pull request once it is ready — opened ready, leaving draft, or pushed to while ready; a push to `main` | The pull request gates (§3) |
 | `codeql.yml` | A pull request once it is ready, a push to `main`, weekly schedule | Static security analysis. It reports new alerts in the code a pull request changed. It is not part of `CI required` and not a required check, but a red CodeQL is a finding to fix, not to suppress |
-| `pr-description-rerun.yml` | A pull request's description is edited | Re-runs the failed jobs of the latest `ci.yml` run, so a fixed description turns `CI required` green (§3.1) |
+| `pr-description-rerun.yml` | A pull request's description or title is edited | Re-runs the failed jobs of the latest `ci.yml` run, so a fixed description turns `CI required` green (§3.1) |
 | `nightly.yml` | Schedule (overnight) | Long runs (§9): fuzzing, load and resilience (`deep`); the support matrix cells (`matrix-*`, [support-matrix.md](./support-matrix.md)); the point-in-time recovery drill against a real operator and object store (`make gate-pitr`); the vulnerability scan of the published image; the action pins (`make gate-action-pins`). The arm64 matrix job also runs `make gate-privacy-full` and `make gate-selftest` on the other architecture. A failure files an issue (§9) |
 | `release.yml` | Tag `v*` | After the `production` environment's approval: the gates again, the multi-arch image, SBOM, signature, provenance, the Helm chart, the GitHub release ([deployment.md](./deployment.md) §7) |
 | `deploy.yml` | Push to `main`, manual dispatch | Builds and signs the per-commit image, verifies the signature, and runs `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
@@ -129,9 +129,17 @@ serve, and no omission "nobody built it" without an issue number.
 **`pr-description` reads the description, not the tree.** On every pull request that is not Dependabot's,
 `tools/checkpr` holds the description to `.github/PULL_REQUEST_TEMPLATE.md`: every section present,
 in order, filled or marked n/a; `Closes #n` at the start of a line or `No issue: <why>`; use cases
-that exist; one ADR answer ticked and named; every Definition of Done item ticked or n/a; no
-placeholder left in Impact. It reads the description from the API, so a re-run judges it as it
-stands. `make gate-pr BODY=<file>` runs it locally. `gh pr create --body` never shows the template;
+that exist; one ADR answer ticked and named; the template's Definition of Done items, none deleted
+or reworded, each ticked or n/a; no placeholder left in Impact; and the title a Conventional
+Commit. With the branch's history it also holds: a readiness record ready before the first commit
+outside `docs/` and at the head, for a branch that carries a task, names a use case or changes the
+contract, a migration, a query, a dependency, an ADR or what a use case promises (otherwise
+`Readiness: n/a — <why>`); no merged migration changed; no use case deleted and no ID reused; a
+change to a use case's Goal, How to check or Where it ends named `correction` or `decision #<n>`;
+and no settled ADR changed beyond its status line, its `Rule lives in` line and link targets. The
+rules added after the readiness rule hold pull requests opened from 2026-10-08 on, as it does. It
+reads the description and the title from the API, so a re-run judges them as they stand.
+`make gate-pr BODY=<file> TITLE="<title>"` runs it locally, `BASE=origin/main` with the history. `gh pr create --body` never shows the template;
 start from a copy of it.
 
 **The filters name trees, and `test/architecture` checks that they name all of them.** Every

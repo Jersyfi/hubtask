@@ -47,10 +47,10 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 
 | # | Rule | Checked by |
 |---|---|---|
-| 1 | `core/domain` and `core/port` import no third-party library and nothing from `infrastructure/` or `presentation/`. Dependencies point inwards. | `[gate: gate-architecture]` |
-| 2 | Authorisation happens only in the application layer — never in an adapter or a repository. | `[partial: gate-security; open: an adapter deciding a permission itself]` |
+| 1 | `core/domain` and `core/port` import no third-party library and nothing from `infrastructure/` or `presentation/`. Dependencies point inwards. | `[gate: gate-architecture, gate-quick]` |
+| 2 | Authorisation happens only in the application layer — never in an adapter or a repository. | `[partial: gate-security, gate-architecture; open: an adapter deciding a permission by other means]` |
 | 3 | Every database query runs through the transaction wrapper that sets `SET LOCAL app.tenant_id`; never `pgxpool` directly. | `[gate: gate-architecture]` |
-| 4 | No `time.Now()`, `math/rand` or UUID generation in `core/domain` or `core/application` — only the `Clock`, `RandomSource` and `IDGenerator` ports. | `[gate: gate-architecture]` |
+| 4 | No `time.Now()`, `math/rand` or UUID generation in `core/domain` or `core/application` — only the `Clock`, `RandomSource` and `IDGenerator` ports. | `[partial: gate-architecture, gate-quick; open: UUID generation and crypto/rand in core/application, an aliased import]` |
 | 5 | No bare goroutines; concurrency only through `core/shared/concurrency.SafeGo`. | `[gate: gate-architecture]` |
 | 6 | Every outbound HTTP call goes through `infrastructure/httpclient.GuardedClient`. | `[gate: gate-architecture]` |
 | 7 | No call without a timeout or a context deadline. | `[partial: gate-quick; open: a context without a deadline further up]` |
@@ -58,10 +58,10 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 | 9 | SQL only parameterised, through sqlc; no byte from a request becomes SQL text. The query DSL's one exception is bounded in `api-guidelines.md`. | `[partial: gate-quick; open: string building the linters miss]` |
 | 10 | No user content (titles, notes, comments) in logs, metrics, traces or audit entries. | `[partial: gate-privacy; open: user content in a free-text field]` |
 | 11 | `api/openapi.yaml` is the source: change it first, then `make generate`, then implement. Never hand-edit generated code. | `[partial: gate-quick; open: the order of the work]` |
-| 12 | Migrations are forward-only and safe for rolling updates (expand/contract). A merged migration never changes. | `[gate: gate-pr]` |
+| 12 | Migrations are forward-only and safe for rolling updates (expand/contract). A merged migration never changes. | `[partial: gate-pr; open: whether a migration is safe for rolling updates]` |
 | 13 | English everywhere: documents, code, identifiers, comments, commits. | `[unchecked: no tool judges language reliably]` |
-| 14 | `core/` knows nothing about a frontend; no `.go` file under `apps/` or `packages/`. | `[gate: gate-architecture]` |
-| 15 | No colour, spacing, radius or duration value outside `packages/design-system/tokens/tokens.json`; the generated `LabelTokens.go` is never hand-edited. | `[gate: ci:node]` |
+| 14 | `core/` knows nothing about a frontend; no `.go` file under `apps/` or `packages/`. | `[partial: gate-architecture, gate-quick; open: frontend knowledge without an import]` |
+| 15 | No colour, spacing, radius or duration value outside `packages/design-system/tokens/tokens.json`; the generated `LabelTokens.go` is never hand-edited. | `[partial: ci:node, ci:tokens-drift; open: named colours, numbers in script, a value outside apps/ and packages/]` |
 
 ## Working rules
 
@@ -74,7 +74,8 @@ gate to a Makefile target or a `ci.yml` job. The other sections explain. A direc
 - A task starts with its readiness record (`docs/backlog/ready/TEMPLATE.md`) as the branch's first
   commit, attacked by a reviewer who did not write it; code follows only once it says `ready` or
   `waiting on the owner`, and the pull request leaves draft only when it says `ready`.
-  `[partial: gate-pr; open: the quality of the record and of the review]`
+  `[partial: gate-pr; open: the quality of the record and of the review, a record rewritten into the
+  history before the code]`
 - A pull request starts as a draft and leaves draft only after `make verify-pr` passed for the
   pushed `HEAD`. `[partial: ci:ci-required; open: a skipped local run — CI fails instead]`
 - A pull request description is a copy of `.github/PULL_REQUEST_TEMPLATE.md` with every section; it
