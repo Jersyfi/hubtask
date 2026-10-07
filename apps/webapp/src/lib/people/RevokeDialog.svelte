@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The question before a role is revoked (issue 778).
+  // The question before a role is revoked.
   //
   // Every other irreversible act on a screen confirms in a dialog - a trash, a token withdrawn,
   // a device forgotten - and a role revoked from a list row did not: a single keystroke on a

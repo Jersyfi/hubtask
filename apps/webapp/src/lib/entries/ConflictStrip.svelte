@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The entry's own word about a conflict on its notes (F6-06, offline-sync.md §5): a banner
+  // The entry's own word about a conflict on its notes (offline-sync.md §5): a banner
   // that says somebody else changed them while this device was away, and opens the resolver -
   // the same resolver the frame's list opens, over the same conflict record. Nothing without a
   // conflict, which is almost always.

@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A collection's policies: how it works, as opposed to what it is called (issue 773).
+  // A collection's policies: how it works, as opposed to what it is called.
   //
   // Two keys today, both the contract's: whether a child's completion rolls up into its parent,
   // and how what is created here is handed out. The values on offer come from the manifest -

@@ -15,9 +15,7 @@
   //
   // **`OWNER` is on, and the step-up it needs is asked for when the server asks for it.** Granting
   // or revoking it is a privileged action needing a fresh re-authentication (`security.md` §5).
-  // F3-07 shipped the control switched off because this client could not produce one; F4-04 built
-  // the prompt, so the control is switched on here — one task earlier than F4-09 planned it,
-  // because a mechanism with no caller is a mechanism nobody has proved.
+  // The frame renders the prompt, so the control is switched on here.
   //
   // Nothing is predicted. The client does not decide which roles are privileged: it makes the
   // request, and `stepUp.around` turns the server's `auth.step_up_required` into a prompt and the
@@ -84,7 +82,7 @@
     if (isOpen) people.openScope(scope);
   });
 
-  /** The row a revoke is being confirmed for (issue 778); the dialog is open while there is one. */
+  /** The row a revoke is being confirmed for; the dialog is open while there is one. */
   let revoking = $state<Holder | undefined>(undefined);
   const revokingOwnership = $derived(
     revoking ? ownershipOf(holders, revoking.membershipId, actor.account?.id, (id) => people.membersOf(id)) : 'other',
@@ -150,7 +148,7 @@
               <Badge tone="neutral">{t('app.people.inherited')}</Badge>
             {/if}
 
-            <!-- Asks first (issue 778): a single keystroke on a focused control must not end
+            <!-- Asks first: a single keystroke on a focused control must not end
                  somebody's access. -->
             <Button
               size="sm"

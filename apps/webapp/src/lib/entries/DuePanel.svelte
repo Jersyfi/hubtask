@@ -6,7 +6,7 @@
   // **Two controls, because the model has two shapes.** A due date is three fields written
   // together and cleared together — "none of them means anything alone" — and has a writer of its
   // own. A start is one instant with nothing qualifying it, and is a plain scalar on the patch.
-  // That is D-01's decision, and a panel that treated them alike would be flattening it.
+  // A panel that treated them alike would be flattening that difference.
   //
   // **The zone travels with the date.** It defaults to the reader's account zone, and an entry set
   // in another one says so: the control draws the note, and the sentence is this file's, because a

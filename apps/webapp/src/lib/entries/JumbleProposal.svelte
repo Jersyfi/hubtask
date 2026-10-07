@@ -1,12 +1,12 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // What AI proposed an arrival should become, in the card's slot (F5-03).
+  // What AI proposed an arrival should become, in the card's slot.
   //
-  // The half F4-12 left absent on purpose. `:suggest` answers `202` with no body, like every AI
+  // The AI half of the jumble card. `:suggest` answers `202` with no body, like every AI
   // ask, so the proposal is followed through the listing (`suggestions.askJumble`); once it
   // stands, this renders it as an `AISuggestion` - a title, notes, a date, and the subtasks the
-  // material implied (J-06, K-01). **Accepting is `:accept` with the collection the person
+  // material implied. **Accepting is `:accept` with the collection the person
   // chooses**: a model does not choose a destination (`Producing.go`'s filter, restated here by
   // the picker being required), and the acceptance is what converts the entry with the proposed
   // fields and grows the subtasks under what the conversion made - `:convert` alone would create

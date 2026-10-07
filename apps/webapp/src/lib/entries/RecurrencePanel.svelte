@@ -11,7 +11,7 @@
   // **Only a `TASK` carries a series**, and the matrix says why: a series applies to the whole
   // subtree. A work package and an activity get the gate with the server's own code.
   //
-  // **Setting and changing are the same call.** `PUT` is one document (D-04), because a rule is one
+  // **Setting and changing are the same call.** `PUT` is one document, because a rule is one
   // thing an entry either carries or does not.
   //
   // **Removing it leaves every occurrence standing**, and the dialog says so before anybody
@@ -47,7 +47,7 @@
   const capability = $derived(supports(item.type, 'RECURRENCE'));
 
   // Followed by id and by rule id: the store asks the server only for a row that says it has a
-  // series (issue 882), and a series set from this panel changes the row a moment after the write.
+  // series, and a series set from this panel changes the row a moment after the write.
   $effect(() => {
     const row = { id: item.id, recurrence_rule_id: item.recurrence_rule_id };
     return untrack(() => series.open(row));

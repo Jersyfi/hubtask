@@ -68,7 +68,7 @@
   }
 </script>
 
-<!-- `data-tour`: where the tour points for "the same entries, two ways" (F6-14). -->
+<!-- `data-tour`: where the tour points for "the same entries, two ways". -->
 <div class="layout-switch" data-tour="layouts">
   <ViewSwitcher label={t('app.view.label')} {views} {selected} onselect={choose} />
   {#if isList(layout) && hasBothLists}

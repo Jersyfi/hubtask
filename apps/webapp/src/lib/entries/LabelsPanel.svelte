@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The labels on one entry, from its own page (F9-08): what the list's row does behind its
+  // The labels on one entry, from its own page: what the list's row does behind its
   // "Labels" control, as a panel a details row opens. The same set - a label belongs to the
   // collection (I-W3) - and the same write, `labels.setOnItem`; nothing about a label is decided
   // here. Offered only for a type whose profile has LABELS, with the reason where it has not

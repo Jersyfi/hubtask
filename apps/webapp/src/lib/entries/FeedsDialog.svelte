@@ -51,7 +51,7 @@
   let copied = $state(false);
 
   /**
-   * The same feed as a CalDAV calendar (P-06, F6-11): the address carries no credential, so it
+   * The same feed as a CalDAV calendar: the address carries no credential, so it
    * is shown beside every feed rather than once. The origin is this one's, because the API and
    * the interface come from one origin (ADR-0028).
    */

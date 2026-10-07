@@ -14,15 +14,15 @@
   // rightly — the type has been claimed and not yet read.
   //
   // **The image is drawn from the download URL the server answers for a READY object.** That is
-  // the one path the sniffed inline allowlist has already judged (C-05). Nothing here draws from a
+  // the one path the sniffed inline allowlist has already judged. Nothing here draws from a
   // blob the browser was handed, which would be this client rendering bytes nobody looked at.
   //
   // A cancelled upload leaves a staging behind and this says so. The reconciliation job takes it;
   // deleting it here would be guessing at whether the bytes ever arrived.
   //
   // **Both kinds, because the contract has two and only one was reachable.** `CoverInput` takes a
-  // colour token or a media identifier, `WorkItemCard` has drawn both since F9, and no client
-  // could ever set the colour: this panel offered an upload and nothing else. ADR-0063 decision 9
+  // colour token or a media identifier, `WorkItemCard` draws both, so this panel offers the colour
+  // as well as an upload. ADR-0063 decision 9
   // makes the row the place a cover is decided, and a place that offers one of two kinds is not
   // that. The ten are the design system's, the same ten a label chooses from - a colour that is
   // measured against both themes rather than picked off a wheel.

@@ -23,8 +23,8 @@
   // gesture and the form cannot disagree about what a start or a due date is. The single-pointer
   // and keyboard alternative SC 2.5.7 asks for is that form: every row opens its entry.
   //
-  // **The week starts on the account's day.** `week_start` has been on the account document since
-  // F1 and this is what it has been for; a week that always began on Monday would be a week this
+  // **The week starts on the account's day.** `week_start` is on the account document, and this is
+  // what it is for; a week that always began on Monday would be a week this
   // client had decided on.
   //
   // Dates are placed in the **reader's** zone. An entry's due date carries its own, and reading a
@@ -59,7 +59,7 @@
 
   const zone = $derived(actor.zone);
   const today = $derived(todayIn(zone));
-  // The account's day, else the manifest's for the locale, else the locale's own (F5-09).
+  // The account's day, else the manifest's for the locale, else the locale's own.
   const weekStart = $derived(firstWeekdayOf(actor.weekStart, messages.locale, manifest.supportedLocales));
 
   let scale = $state<Scale>('week');
@@ -175,7 +175,7 @@
    * What a drag landed on, written as dates.
    *
    * The two writers are `DuePanel`'s: a due date is three fields written together and a start is a
-   * plain scalar on the patch (D-01). A drag that moved both sends both, one after the other,
+   * plain scalar on the patch. A drag that moved both sends both, one after the other,
    * because they are two operations in the contract and a client that batched them would be
    * inventing a third.
    */

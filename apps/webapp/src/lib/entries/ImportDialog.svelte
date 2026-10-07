@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // Import… on a hub: four steps in one dialog (F6-09, decision 15).
+  // Import… on a hub: four steps in one dialog (design-system.md §11.8).
   //
   // **The kind, the file, the mapping, the run.** The kinds are the contract's enum, each with
   // one sentence saying what file it takes and where the source exports it. The file goes through
@@ -11,14 +11,14 @@
   // `POST /imports`, the job followed the way every job is, and the report rendered by the
   // restore's own component - an import lands through the restore and reports in its shape.
   //
-  // **A second import of the same file is the no-op P-08 promised**, and the dialog says so in the
+  // **A second import of the same file is a no-op**, and the dialog says so in the
   // report - "left as they are" - rather than warning beforehand: it cannot know, and the server
   // creates nothing the second time.
   //
   // **A kind this build refuses answers by name** (`imports.kind_unsupported`) and that answer is
   // what the dialog shows; the manifest declares no import capability and nothing is hidden here.
   //
-  // **Each step is announced** (F5-11): the heading changes and the announcer says it, so a reader
+  // **Each step is announced**: the heading changes and the announcer says it, so a reader
   // who is not looking hears where they are.
 
   import { Button, Dialog, Inline, ProgressBar, Radio, Select, Stack, UploadField } from '@hubtask/design-system/components';

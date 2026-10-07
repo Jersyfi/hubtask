@@ -14,7 +14,7 @@
   // they read.
   //
   // **A body is plain text with its whitespace kept.** Rendering Markdown is a dependency and
-  // therefore a proposal rather than a commit, and the notes F2-09 built are shown the same way.
+  // therefore a proposal rather than a commit, and the notes are shown the same way.
 
   import { untrack } from 'svelte';
 
