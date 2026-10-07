@@ -57,6 +57,11 @@ func TestHistoryRules(t *testing.T) {
 		{"a contract change that says n/a", "Readiness: n/a — the description of a field only", branchFacts{known: true, opened: after, changed: []string{"api/openapi.yaml"}}, nil, ""},
 		{"a use case named without a task", "## Use cases\n\n- UC-PRV-01: check 9 — met", branchFacts{known: true, opened: after}, nil, "it names a use case"},
 		{"a documentation change needs nothing", "", branchFacts{known: true, opened: after, changed: []string{"docs/architecture/ci-cd.md"}}, nil, ""},
+		{"an ADR without a task", "", branchFacts{known: true, opened: after, changed: []string{"docs/adr/ADR-0081-x.md", "docs/adr/README.md"}}, nil, "needs settling first (it changes docs/adr/ADR-0081-x.md)"},
+		{"the ADR index alone needs nothing", "", branchFacts{known: true, opened: after, changed: []string{"docs/adr/README.md"}}, nil, ""},
+		{"a use case's promise changed without a task", "", branchFacts{known: true, opened: after, changed: []string{"docs/usecases/work/UC-WRK-01-x.md"},
+			ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md", added: true}}}, nil, "needs settling first (it changes what UC-WRK-01 promises)"},
+		{"a use case's state moved needs nothing", "", branchFacts{known: true, opened: after, changed: []string{"docs/usecases/work/UC-WRK-01-x.md"}}, nil, ""},
 		{"opened before the rule", "", branchFacts{known: true, opened: before, tasks: []string{"PH-02"}}, nil, ""},
 		{"a merged migration changed", "", branchFacts{known: true, opened: before, altered: []change{{"M", "db/migrations/0001_init.sql"}}}, nil, "is a merged migration"},
 		{"a merged migration changed by an ADR", "Changes a merged migration: ADR-0052", branchFacts{known: true, opened: before, altered: []change{{"M", "db/migrations/0001_init.sql"}}}, nil, ""},
@@ -68,7 +73,7 @@ func TestHistoryRules(t *testing.T) {
 			branchFacts{known: true, opened: after, ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md"}}}, nil, ""},
 		{"the word on another use case's line", "Readiness: n/a — x\n\n## Use cases\n\n- UC-WRK-01: check 1 — met\n- UC-WRK-02: correction\n",
 			branchFacts{known: true, opened: after, ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md"}}}, nil, "of UC-WRK-01"},
-		{"a new use case needs no correction", "", branchFacts{known: true, opened: after, ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md", added: true}}}, nil, ""},
+		{"a new use case needs no correction", "Readiness: n/a — the owner asked for it", branchFacts{known: true, opened: after, ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md", added: true}}}, nil, ""},
 		{"a use case's checks changed before the rule", "", branchFacts{known: true, opened: before, ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md"}}}, nil, ""},
 	}
 	for _, c := range cases {

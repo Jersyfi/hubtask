@@ -13,10 +13,11 @@ import (
 // The rules that read the branch's history (ADR-0081, AGENTS.md "Working rules"):
 //
 //   - A task is settled before its code. A branch that carries a task (a `Task:` trailer), names a
-//     use case, or changes the contract, a migration, the queries or a dependency has a readiness
-//     record, docs/backlog/ready/<TASK>.md. It said `ready` or `waiting on the owner` before the
-//     first commit outside docs/, and it says `ready`, with no open decision box, when the pull
-//     request leaves draft. A change without a task says `Readiness: n/a — <why>` instead.
+//     use case, or changes the contract, a migration, the queries, a dependency, an ADR or what a
+//     use case promises has a readiness record, docs/backlog/ready/<TASK>.md. It said `ready` or
+//     `waiting on the owner` before the first commit outside docs/, and it says `ready`, with no
+//     open decision box, when the pull request leaves draft. A change without a task says
+//     `Readiness: n/a — <why>` instead.
 //   - A merged migration never changes (rule 12) unless the description names the ADR that
 //     allows it: `Changes a merged migration: ADR-nnnn`.
 //   - A use case is never deleted; one that no longer applies is retired, its ID kept.
@@ -60,7 +61,11 @@ var (
 )
 
 // weighty are the paths that change what the product promises or depends on: a change there is
-// work that needs settling even without a task.
+// work that needs settling even without a task. An ADR is a decision taken. A use case counts
+// through facts.ucText rather than here: only its Goal, How to check and Where it ends say what is
+// promised, while state:, checked_by: and Today record what was built and are moved by the work
+// itself, so a pull request that only records progress is not held to a record. db/queries/ is
+// here beside the migrations because a query is the other half of the data model's contract.
 func weighty(path string) bool {
 	switch {
 	case path == "api/openapi.yaml", path == "go.mod", path == "pnpm-lock.yaml":
@@ -68,6 +73,8 @@ func weighty(path string) bool {
 	case strings.HasPrefix(path, "db/migrations/"), strings.HasPrefix(path, "db/queries/"):
 		return true
 	case strings.HasSuffix(path, "/package.json") || path == "package.json":
+		return true
+	case strings.HasPrefix(path, "docs/adr/ADR-"):
 		return true
 	}
 	return false
@@ -104,6 +111,8 @@ func readinessProblems(body string, facts branchFacts, read func(string) ([]byte
 		reason = "it carries " + strings.Join(facts.tasks, ", ")
 	case useCaseID.MatchString(sectionText(body, "Use cases")):
 		reason = "it names a use case"
+	case len(facts.ucText) > 0:
+		reason = "it changes what " + facts.ucText[0].id + " promises"
 	default:
 		for _, path := range facts.changed {
 			if weighty(path) {

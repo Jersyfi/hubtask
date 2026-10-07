@@ -131,8 +131,9 @@ once (§ "While a milestone runs").
 
 ## Contributions from outside
 
-- **A bug fix** is a pull request that closes the bug's issue or says `No issue:`; it needs no
-  readiness record unless it touches the contract, a migration or a use case.
+- **A bug fix** is a pull request that closes the bug's issue or says `No issue:`; it has no
+  readiness record. Where it touches the contract, a migration or a query, a dependency, an ADR or
+  what a use case promises, it says `Readiness: n/a — <why>` instead (`make gate-pr`).
 - **A feature** starts as an issue (feature form). It enters the product through a cut, like every
   other piece of work.
 - **People working closely on a part of Hubtask** with their own tools take a milestone of their
