@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# Synthetic firing tests for the self-hosting alert set (H-12): every rule is driven to fire at
+# Synthetic firing tests for the self-hosting alert set: every rule is driven to fire at
 # least once from crafted series, so a threshold typo or a label rename fails the gate rather
 # than an operator. Run by `make gate-observability` through `promtool test rules`.
 rule_files:

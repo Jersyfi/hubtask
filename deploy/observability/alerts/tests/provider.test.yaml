@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# Synthetic firing tests for the provider set (H-12): every alert, including both burn-rate
+# Synthetic firing tests for the provider set: every alert, including both burn-rate
 # shapes, driven to fire from crafted series. The burn tests also prove the multiwindow
 # construction - the same long-window burn with a quiet short window must NOT fire.
 rule_files:

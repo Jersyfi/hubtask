@@ -139,7 +139,7 @@ log "the application's mail server"
 
 # The catcher the application sends through, behind a certificate authority of the cluster's own
 # (smtp.yaml). Not the monitoring namespace's catcher: that one is Alertmanager's, and a reminder
-# in the mailbox the alert check reads would be exactly the noise #310 was about. The pod waits
+# in the mailbox the alert check reads would be noise in the operator's alerts. The pod waits
 # for cert-manager to issue its certificate before it can start, which is what the timeout is for.
 kubectl apply -f "${HERE}/smtp.yaml"
 kubectl -n "$NAMESPACE" rollout status deployment/smtp --timeout=180s

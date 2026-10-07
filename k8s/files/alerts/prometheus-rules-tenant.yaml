@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# The multi-tenant operator's additions (observability-reliability.md §10, H-08).
+# The multi-tenant operator's additions (observability-reliability.md §10).
 #
 # A separate file, deliberately: the self-hosting set next door is pinned to the rule "doing
 # nothing loses data", and a capacity-planning signal does not meet it - a workspace approaching
@@ -14,7 +14,7 @@ groups:
   - name: hubtask-tenant
     rules:
       - alert: HubtaskTenantQuotaApproaching
-        # A-18. The gauge is used/limit per quota, recorded at every enforcement check (H-08);
+        # A-18. The gauge is used/limit per quota, recorded at every enforcement check;
         # 90% for a quarter hour is a workspace that will hit the wall on a normal afternoon,
         # early enough that raising the ceiling is a decision rather than an incident. Without
         # the tenant label the series says "somebody stands at 90%" - which is the alarm - and

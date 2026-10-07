@@ -30,11 +30,11 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 COPY apps apps
 COPY packages packages
 # The contract, for the generated client, and the message catalogue, which the client renders from
-# (i18n-l10n.md §3, F1-07). Both live outside apps/ and packages/ because the Go binary needs them
+# (i18n-l10n.md §3). Both live outside apps/ and packages/ because the Go binary needs them
 # too - and both are inputs to this stage rather than to the Go one, so the webapp build resolves
 # `../../../../../locales/en.json` here exactly as it does in a checkout. Nothing else of the Go
 # tree is needed, and copying less is what keeps this stage from rebuilding when the backend
-# changes. The JSON document and the event schemas travel with the YAML since P-01: the api-client
+# changes. The JSON document and the event schemas travel with the YAML: the api-client
 # build ships them in its dist/ for the website's reference, and refuses to build without them.
 COPY api/openapi.yaml api/openapi.json api/
 COPY api/events api/events
@@ -101,8 +101,8 @@ COPY --from=build /src/THIRD-PARTY-LICENSES.md /licenses/THIRD-PARTY-LICENSES.md
 COPY --from=build /src/third-party/licenses /licenses/third-party
 # The media and backup directories, owned by the runtime user. A named volume mounted over a
 # path that is absent from the image is created root-owned, and the nonroot process cannot write
-# into it - the media path of the reference stack was dead until C-13's session, its first
-# consumer, noticed. Numeric ids because distroless resolves no names at COPY time.
+# into it, and the media path of the reference stack would be dead. Numeric ids because
+# distroless resolves no names at COPY time.
 COPY --from=build --chown=65532:65532 /out/state/ /var/lib/hubtask/
 
 USER nonroot:nonroot

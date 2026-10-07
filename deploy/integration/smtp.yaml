@@ -1,8 +1,8 @@
-# The mail server the application sends through, for the integration environment (#310).
+# The mail server the application sends through, for the integration environment.
 #
 # This is the second mail catcher on the node and it is not the first one's twin: `mailpit` in
 # `monitoring` is where Alertmanager tells the operator what fires, and this one is where Hubtask
-# mails its users - invitations, reminders, the notifications C-09 built. The two paths have
+# mails its users - invitations, reminders, notifications. The two paths have
 # nothing in common but the protocol, and one catcher for both would put a reminder into the
 # mailbox the daily alert check reads. So: two catchers, two namespaces, two mailboxes.
 #
