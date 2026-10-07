@@ -39,7 +39,7 @@ type RestController struct {
 	// operation falls back to the pending answer rather than panicking.
 	Capabilities CapabilityReader
 
-	// HealthReport answers /api/v1/meta/health (K-06, #507). A typed field rather than a call
+	// HealthReport answers /api/v1/meta/health. A typed field rather than a call
 	// through the catalogue, although the use case is registered in it: the wire format of this
 	// report is hand-written and validated against the schema by a contract test, and it
 	// distinguishes "no latency measured" from "zero milliseconds" with a pointer. Carrying it
@@ -54,7 +54,7 @@ type RestController struct {
 
 	// MediaContent and MediaTokens serve the two content routes, which are not catalogue entries:
 	// they take a stream and answer a stream, which is neither what MCP nor what an automation
-	// rule could do with them (C-06, core/application/service/media.MediaContent).
+	// rule could do with them (core/application/service/media.MediaContent).
 	MediaContent MediaContentService
 	MediaTokens  MediaTokenValidator
 	// Clock judges an expiring capability. The one place this layer needs the time, and a port
@@ -63,40 +63,40 @@ type RestController struct {
 
 	// BaseURL is this installation's public address, and the only thing this controller composes
 	// rather than maps: a calendar feed is handed to a client as a URL to subscribe to, and a URL
-	// is a fact about the installation rather than about the domain (D-08). Empty answers a
+	// is a fact about the installation rather than about the domain. Empty answers a
 	// relative address, which is what a client that just called this server can still use.
 	BaseURL string
 
 	// BaseHost is the installation's own host name, for reading a tenant subdomain off a
-	// multi-mode sign-in request (H-01, multi-tenancy.md §3). Empty means no subdomain is ever
+	// multi-mode sign-in request (multi-tenancy.md §3). Empty means no subdomain is ever
 	// read, which is single mode's and localhost's answer.
 	BaseHost string
 
 	// CalendarFeeds serves the public .ics route, which is not a catalogue entry either: it
 	// answers a credential nobody in this system holds, and there is nothing for MCP or an
-	// automation rule to call (D-08). Nil leaves the route answering the pending 404.
+	// automation rule to call. Nil leaves the route answering the pending 404.
 	CalendarFeeds CalendarFeedReader
 
 	// InboundRuns serves the public inbound-webhook route, which is not a catalogue entry either:
 	// it answers a credential nobody in this system holds, and there is nothing for MCP or an
-	// automation rule to call (G-08). Nil leaves the route answering the pending 404.
+	// automation rule to call. Nil leaves the route answering the pending 404.
 	InboundRuns InboundRunStarter
 
-	// JumbleIntake serves the jumble's public webhook door, for the same reasons (G-10).
+	// JumbleIntake serves the jumble's public webhook door, for the same reasons.
 	JumbleIntake JumbleIntakeDeliverer
 
-	// MailIntake serves the mail door beside it (G-11): the same credential, and a body that is
+	// MailIntake serves the mail door beside it: the same credential, and a body that is
 	// the message itself rather than a shape somebody had to agree on.
 	MailIntake MailDeliverer
 
 	// Stream serves `GET /stream`, which is not a catalogue entry either: it is a connection being
 	// held rather than an operation being invoked, so there is nothing for MCP or an automation
-	// rule to call (C-10). Nil leaves the route answering the pending 404, which is what an
+	// rule to call. Nil leaves the route answering the pending 404, which is what an
 	// installation built without it should say.
 	Stream *StreamController
 
 	// Sync serves `POST /sync:pull`, which is not a catalogue entry for the stream's reason: a
-	// pull is the stream served in pages (N-01). Nil leaves the route answering the pending 404.
+	// pull is the stream served in pages. Nil leaves the route answering the pending 404.
 	Sync *SyncController
 }
 
@@ -110,7 +110,7 @@ func (c *RestController) SyncPull(w http.ResponseWriter, r *http.Request) {
 	c.Sync.SyncPull(w, r)
 }
 
-// SyncSnapshot streams the initial synchronisation (SY-C), delegated for the same reason.
+// SyncSnapshot streams the initial synchronisation, delegated for the same reason.
 func (c *RestController) SyncSnapshot(w http.ResponseWriter, r *http.Request) {
 	if c.Sync == nil {
 		c.pending.SyncSnapshot(w, r)
@@ -119,7 +119,7 @@ func (c *RestController) SyncSnapshot(w http.ResponseWriter, r *http.Request) {
 	c.Sync.SyncSnapshot(w, r)
 }
 
-// SyncPush applies a device's queue (N-04), delegated for the same reason.
+// SyncPush applies a device's queue, delegated for the same reason.
 func (c *RestController) SyncPush(w http.ResponseWriter, r *http.Request) {
 	if c.Sync == nil || c.Sync.Push == nil {
 		c.pending.SyncPush(w, r)

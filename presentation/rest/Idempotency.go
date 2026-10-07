@@ -32,7 +32,7 @@ const ReplayedHeader = "Idempotent-Replayed"
 // bound anybody chose.
 //
 // One mebibyte because of the largest answer the contract lets a route produce: a bulk of five
-// hundred operations, each result carrying the entry it wrote (C-11, api-guidelines.md §5). At the
+// hundred operations, each result carrying the entry it wrote (api-guidelines.md §5). At the
 // previous 256 KiB such an answer went unstored, and a client repeating a request it had lost the
 // answer to would have been given the status with an empty body - safe, since the repeat still does
 // not apply anything twice, but not the identical answer the guarantee promises.

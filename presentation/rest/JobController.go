@@ -17,7 +17,7 @@ const (
 
 // GetJob answers GET /jobs/{jobId}.
 //
-// The resource a `202 Accepted` has been pointing at since A-06. Nothing here decides what a
+// The resource a `202 Accepted` points at. Nothing here decides what a
 // caller may see: the use case asks that question, and a job in another tenant reaches this
 // method as the same not-found the catalogue answers for one that never existed.
 func (c *RestController) GetJob(w http.ResponseWriter, r *http.Request, jobID openapi.JobId) {

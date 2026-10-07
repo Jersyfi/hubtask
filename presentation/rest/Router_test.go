@@ -205,10 +205,8 @@ func TestTheControllerRegistersTheSpecificationsRoutes(t *testing.T) {
 // Until a use case lands, an operation the specification declares answers 404 rather than a
 // panic or an empty 200.
 //
-// The example used to move as the milestone did - /backup-targets until E-03, the device list
-// until N-03 - because it had to be an operation with no use case and no path parameter. The pull
-// is served by a controller field rather than through the catalogue, and a bare controller leaves
-// it to the pending set, so this probe no longer has to move.
+// The probe is the pull: it is served by a controller field rather than through the catalogue, so
+// a bare controller leaves it to the pending set whatever else is served.
 func TestAPendingOperationAnswersAProblem(t *testing.T) {
 	response := httptest.NewRecorder()
 	NewRestController().Routes().ServeHTTP(response,

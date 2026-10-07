@@ -13,10 +13,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// The wire format of GET /meta/health, schema HealthReport in api/openapi.yaml. Hand-written for
-// now; from A-06 onwards these types are generated from the specification and this file goes
-// (ADR-0004). The contract test compares the response against the schema either way, so the two
-// cannot drift silently.
+// The wire format of GET /meta/health, schema HealthReport in api/openapi.yaml. Hand-written; the
+// contract test compares the response against the schema (ADR-0004), so the two cannot drift
+// silently.
 //
 // Everything optional is a pointer: the schema distinguishes "no latency measured" from "zero
 // milliseconds", and a status page reading 0 ms for a dependency that was never reached would
@@ -141,13 +140,12 @@ func healthReportJSON(report health.Report) healthReport {
 	return out
 }
 
-// HealthReportReader is the slice of the use case this controller needs (K-06).
+// HealthReportReader is the slice of the use case this controller needs.
 type HealthReportReader interface {
 	Execute(context.Context, appshared.ActorContext) (health.Report, error)
 }
 
-// GetHealthReport answers GET /api/v1/meta/health, the door the contract has declared since A-06
-// and `Pending.go` answered `404` to until K-06 (#507).
+// GetHealthReport answers GET /api/v1/meta/health.
 //
 // It answers `200` even when the status is `down`, which the internal listener deliberately does
 // not: the contract says in its own description that "the HTTP status describes whether the

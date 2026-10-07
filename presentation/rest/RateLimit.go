@@ -231,7 +231,7 @@ func CredentialBucket(anonymousPerMinute, tokenPerMinute, burst int) func(*http.
 // behind one address may hold several subscriptions, and one client polling hard must not shed
 // another person's calendar. It sits beside the credential bucket rather than instead of it - a
 // caller trying tokens is still an anonymous stranger to that one, which is what bounds the
-// guessing, while this bounds the polling (D-08, security.md §4 T-21).
+// guessing, while this bounds the polling (security.md §4 T-21).
 //
 // The token is fingerprinted for the reason a bearer credential is: the map ends up in a heap
 // dump, and a heap dump with live feed URLs in it is a second incident on top of the first.
@@ -273,7 +273,7 @@ func AuthBucket(perMinute, burst int) func(*http.Request) Bucket {
 // isAuthRoute matches the public credential routes by their literal paths. A string operation on
 // paths this layer owns, feedTokenInPath's reasoning.
 //
-// The relying-party pair joined them with H-04, and :start earns its place twice over: it is
+// The relying-party pair belongs with them, and :start earns its place twice over: it is
 // anonymous, and it writes a flow row and dials the provider's discovery endpoint, so an
 // unbounded caller would be minting server state and outbound calls at once.
 func isAuthRoute(r *http.Request) bool {
@@ -330,7 +330,7 @@ func ClientAddress(r *http.Request) string {
 	return host
 }
 
-// OverrideBucket is the per-workspace request-rate ceiling of H-08 (multi-tenancy.md §4), a
+// OverrideBucket is the per-workspace request-rate ceiling (multi-tenancy.md §4), a
 // level of its own after authentication: it engages only for a workspace that configured one,
 // keyed per credential like the credential level - a workspace's ceiling is "per token", not a
 // shared pool. A workspace without an override answers the empty bucket and the level does not

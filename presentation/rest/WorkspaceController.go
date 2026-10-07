@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The workspace's own configuration (F4-01).
+// The workspace's own configuration.
 const (
 	readWorkspaceUseCase   = "ReadWorkspace"
 	updateWorkspaceUseCase = "UpdateWorkspace"

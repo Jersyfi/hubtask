@@ -135,13 +135,13 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		textLanguages = []string{}
 	}
 
-	// The set a saved view's layout is validated against (D-07): stored, echoed, never consulted.
+	// The set a saved view's layout is validated against: stored, echoed, never consulted.
 	viewLayouts := make([]string, 0, len(source.ViewLayouts))
 	for _, layout := range source.ViewLayouts {
 		viewLayouts = append(viewLayouts, string(layout))
 	}
 
-	// The two closed sets a collection's policies are validated against (issue 773), always
+	// The two closed sets a collection's policies are validated against, always
 	// arrays for the reason the layouts are: a form that read nothing here would offer values of
 	// its own.
 	completionPolicies := make([]openapi.CompletionPolicy, 0, len(source.CompletionPolicies))
@@ -153,7 +153,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		autoAssignStrategies = append(autoAssignStrategies, openapi.AutoAssignStrategy(strategy))
 	}
 
-	// Every type this build emits, and therefore every type a subscription may name (F4-15). An
+	// Every type this build emits, and therefore every type a subscription may name. An
 	// array rather than absent, for the same reason: a client that read nothing here would offer
 	// a picker of its own, and the server refuses a type it does not emit.
 	eventTypes := make([]string, 0, len(source.EventTypes))
@@ -161,7 +161,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		eventTypes = append(eventTypes, string(eventType))
 	}
 
-	// What starts a rule and what a rule may do (issue 542). Both always arrays, for the reason
+	// What starts a rule and what a rule may do. Both always arrays, for the reason
 	// the event types are: a client that read nothing here would offer a picker of its own, and
 	// the server refuses a kind it does not serve.
 	triggers := make([]string, 0, len(source.AutomationTriggers))
@@ -172,7 +172,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 	if automationActions == nil {
 		automationActions = []string{}
 	}
-	// And what each action declares (F8-01): one entry per kind, always, with an empty array
+	// And what each action declares: one entry per kind, always, with an empty array
 	// for a kind that takes nothing - a form built from this has to be able to tell "no fields"
 	// from "not answered".
 	actionFields := make(map[string][]openapi.AutomationActionField, len(source.AutomationActionFields))
@@ -193,7 +193,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 				entry.Description = &description
 			}
 			// The caller's plumbing says `rule: false`, and only that: absent means true, so a
-			// form reads one flag rather than two shapes of the same answer (F8-15).
+			// form reads one flag rather than two shapes of the same answer.
 			if field.CallerOnly {
 				rule := false
 				entry.Rule = &rule
@@ -206,7 +206,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		}
 		actionFields[kind] = fields
 	}
-	// And the one sentence per kind (F8-15): always an object, empty on a build wired without
+	// And the one sentence per kind: always an object, empty on a build wired without
 	// the catalogue, so that a client reads one shape.
 	actionSummaries := make(map[string]string, len(source.AutomationActionSummaries))
 	for kind, summary := range source.AutomationActionSummaries {
@@ -221,7 +221,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 
 	// The catalogue of §3, with what this build can do to each. `actions` is always an array,
 	// including the empty one: a kind nothing removes is named here on purpose, and an absent key
-	// would be indistinguishable from a kind that does not exist (F4-18).
+	// would be indistinguishable from a kind that does not exist.
 	dataKinds := make([]openapi.RetentionDataKind, 0, len(source.RetentionDataKinds))
 	for _, kind := range source.RetentionDataKinds {
 		name := string(kind.Name)
@@ -258,7 +258,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		tokenScopes = []string{}
 	}
 
-	// One row per catalogue present, in the order the renderer serves them (M-05). Always an
+	// One row per catalogue present, in the order the renderer serves them. Always an
 	// array: the source language alone is the least an installation answers, and absent would
 	// read as "this server knows no languages", which a client's picker would render as nothing.
 	supportedLocales := make([]struct {
@@ -287,7 +287,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 	features := source.Features
 
 	// The four links, absent rather than empty where the installation set none: a private
-	// installation owes nobody an imprint, and the mapping says so from one place (SI-12).
+	// installation owes nobody an imprint, and the mapping says so from one place.
 	legal := legalLinksResponse(source.Legal)
 
 	// Whether this caller may reach the level above the workspaces. Always present, never omitted:
@@ -359,7 +359,7 @@ func writeJSON(w http.ResponseWriter, r *http.Request, status int, body any) {
 //
 // Nil where the installation set none, and each field absent where that one is unset: a private
 // installation owes nobody an imprint, and a footer given four links pointing nowhere is worse than
-// a footer given none (SI-12, data-protection.md §6).
+// a footer given none (data-protection.md §6).
 func legalLinksResponse(links identity.LegalLinks) *openapi.LegalLinks {
 	answer := openapi.LegalLinks{}
 	held := false

@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The automation rules (G-05). The controller holds no rules of its own: who may write one, what it
+// The automation rules. The controller holds no rules of its own: who may write one, what it
 // may be made to do and whose account it may act as are all decided inwards of here (ADR-0005).
 // What this layer does is map a body to an input and an answer to a document - and it maps the
 // nested shapes whole, because a trigger's fields belong to its kind and flattening them would let
@@ -322,7 +322,7 @@ func ruleResponse(out usecase.Output) openapi.AutomationRule {
 		rule.Throttle = &throttle
 	}
 	// The two moments this installation worked out for the rule rather than read from its
-	// definition (G-08). Absent where they mean nothing, which is what a null says.
+	// definition. Absent where they mean nothing, which is what a null says.
 	if at, present := out["next_run_at"].(time.Time); present {
 		rule.NextRunAt = &at
 	}
@@ -457,7 +457,7 @@ func textField(document map[string]any, name string) string {
 	return text
 }
 
-// The run log (G-07). What a rule did, why it did not, and what each action answered.
+// The run log. What a rule did, why it did not, and what each action answered.
 
 const (
 	listRuleRunsUseCase = "ListRuleRuns"

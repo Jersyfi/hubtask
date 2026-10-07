@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// Data subject rights over REST (E-10). What this layer owes is the fields reaching the catalogue
+// Data subject rights over REST. What this layer owes is the fields reaching the catalogue
 // under the names the descriptor declares, and the case coming back in the contract's shape.
 
 func caseOutput() usecase.Output {

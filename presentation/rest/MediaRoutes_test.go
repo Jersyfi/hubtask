@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The routes C-06 adds beside the three-step upload: the record, its removal, the cover, and the
+// The media routes beside the three-step upload: the record, its removal, the cover, and the
 // attachments. What each of these tests is about is the mapping - the catalogue's projection into
 // the contract's schema - because that is the layer where a field quietly goes missing.
 

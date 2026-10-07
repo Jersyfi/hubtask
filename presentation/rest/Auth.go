@@ -28,7 +28,7 @@ var PublicRoutes = map[string]bool{
 	http.MethodGet + " " + APIBasePath + "/meta/capabilities": true,
 	// Sign-in, refresh and redemption are how a credential is obtained, so there is none to
 	// demand yet: the password, the refresh token and the redemption token travel in the body and
-	// are the whole of what authenticates the call (H-01, security.md §5). Each route verifies
+	// are the whole of what authenticates the call (security.md §5). Each route verifies
 	// its own credential; the auth rate-limit bucket stands in front of all three.
 	http.MethodPost + " " + APIBasePath + "/auth/sessions":           true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:refresh":   true,
@@ -52,50 +52,50 @@ var PublicRoutes = map[string]bool{
 	// change step interrupted (ADR-0068 §7). A proof is still demanded - the route refuses without
 	// one, because otherwise it is an oracle for blocklists and histories.
 	http.MethodPost + " " + APIBasePath + "/auth/password:check": true,
-	// The second step and the enrolment routes are public for the same reason (H-02): the
+	// The second step and the enrolment routes are public for the same reason: the
 	// pending credential in the body is the whole of what authenticates an enforcement flow,
 	// and a signed-in caller's bearer is verified exactly as on any public route.
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:verify":  true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:link":    true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":  true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:confirm": true,
-	// The relying-party flow is public for the same reason again (H-04): a person signing in
+	// The relying-party flow is public for the same reason again: a person signing in
 	// through their company's provider has no credential here yet, and the flow's own handle -
 	// the single-use `state`, minted by :start and spent at :callback - is the whole of what
 	// authenticates the second call. The auth bucket stands in front of both.
 	http.MethodPost + " " + APIBasePath + "/auth/oidc:start":    true,
 	http.MethodPost + " " + APIBasePath + "/auth/oidc:callback": true,
-	// The token endpoint is public the way sign-in is (H-05): the single-use code, the PKCE
+	// The token endpoint is public the way sign-in is: the single-use code, the PKCE
 	// verifier and - for a confidential client - the secret travel in the body and are the
 	// whole of what authenticates the exchange.
 	http.MethodPost + " " + APIBasePath + "/oauth/token": true,
 	// The content routes carry their credential in the URL: a signed, expiring token minted by
 	// requestMediaUpload and getMedia, validated by the route itself - the same trust model as a
 	// presigned object-storage URL, which is what these stand in for on a local-storage
-	// installation (C-06, T-11).
+	// installation (T-11).
 	http.MethodPut + " " + APIBasePath + "/media/{mediaId}:content": true,
 	http.MethodGet + " " + APIBasePath + "/media/{mediaId}:content": true,
 	// The calendar feed carries its credential in the URL for the same reason and with the same
 	// trust model, and for one more: a calendar client is not a browser and has nowhere to put a
 	// bearer header. The token is the whole of the authorisation, and the route validates it
-	// itself (D-08, security.md §4 T-21).
+	// itself (security.md §4 T-21).
 	http.MethodGet + " " + APIBasePath + "/calendar/{token}.ics": true,
 	// The inbound webhook carries its credential in the URL for the same reasons, and it
 	// authenticates the *rule* rather than a person: there is no account behind the token, so
 	// there is nothing for this middleware to resolve. The route validates it itself, and what
-	// the run may then do is its `run_as` account's business (G-08, automation.md §1.1).
+	// the run may then do is its `run_as` account's business (automation.md §1.1).
 	http.MethodPost + " " + APIBasePath + "/automation/inbound/{token}": true,
 	// The jumble's intake carries its credential in the URL with the same trust model, and it
 	// authenticates the *tenant* rather than a person: there is no account behind the token, and
-	// the entry it stores records no actor (G-10).
+	// the entry it stores records no actor.
 	http.MethodPost + " " + APIBasePath + "/jumble/inbound/{token}": true,
-	// The mail door, on the same credential and the same trust model (G-11). What arrives here is
+	// The mail door, on the same credential and the same trust model. What arrives here is
 	// a message somebody else's bridge forwarded, and the token is the whole of what says it may.
 	http.MethodPost + " " + APIBasePath + "/jumble/mail/{token}": true,
 	// The CalDAV discovery address is outside the contract - it is the mount's own path, as
 	// Mounted labels it - and public because RFC 6764 §5 has a client ask it before it has
 	// presented anything: the answer is a redirect into the tree, which asks for the credential
-	// itself (issue 719). The contract test cannot see this entry and does not need to.
+	// itself. The contract test cannot see this entry and does not need to.
 	calendar.WellKnown: true,
 }
 
@@ -103,7 +103,7 @@ var PublicRoutes = map[string]bool{
 const bearerScheme = "bearer"
 
 // basicScheme is accepted on BasicRoutes only: a CalDAV client sends the credential it was
-// configured with as a Basic password and has nowhere to put a bearer (P-06). The password is
+// configured with as a Basic password and has nowhere to put a bearer. The password is
 // the token - a personal access token, revocable where a password is not - and the user name is
 // whatever the client shows; it is read and discarded.
 const basicScheme = "basic"
@@ -209,7 +209,7 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// installation, never user content (rule 10).
 	ctx = correlation.ContextWithTenant(ctx, actor.TenantID.String())
 	if !actor.APIClient.IsZero() {
-		// The app behind the credential (H-05): every audit entry of the request records it.
+		// The app behind the credential: every audit entry of the request records it.
 		ctx = correlation.ContextWithAPIClient(ctx, actor.APIClient.String())
 	}
 

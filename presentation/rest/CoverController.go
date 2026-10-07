@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// How a card presents itself (C-06). A sub-resource rather than a field of the merge patch, for
+// How a card presents itself. A sub-resource rather than a field of the merge patch, for
 // the reason the assignee is an action route: it is one decision about one field, and writing it
 // through the patch would spend a rename's version on choosing a colour.
 

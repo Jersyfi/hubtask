@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The files an entry carries (C-06). A sub-resource rather than a field of the entry, because it is
+// The files an entry carries. A sub-resource rather than a field of the entry, because it is
 // a set: it merges as an OR-set, it lives beside the row, and neither direction spends the entry's
 // version. The same split the label and member controllers draw, and for the same reason
 // (offline-sync.md §4.2).

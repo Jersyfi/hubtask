@@ -117,7 +117,7 @@ func TestAnUnknownErrorLeaksNothingIntoTheResponse(t *testing.T) {
 // An internal error may have been raised deep inside an adapter. Whatever it attached as
 // parameters was written for a log, so it does not go out.
 // A 503 keeps both, and that is the difference between an unavailable dependency and an internal
-// error (#500).
+// error.
 //
 // A refusal a client cannot act on is a refusal that reads as a fault. "AI is switched off in this
 // workspace" and "this server cannot take another live connection" are two different things to do

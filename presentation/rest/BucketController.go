@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The columns of a collection's board (B-09). The handlers hold no rules: the permission check, the
+// The columns of a collection's board. The handlers hold no rules: the permission check, the
 // uniqueness of the name, the rank the column lands at and the four records a write owes all happen
 // in the application layer, once, whichever channel the call came through (ADR-0005, arc42 §4).
 

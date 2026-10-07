@@ -21,7 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
-// The initial synchronisation as one response (SY-C, P-12): what `:pull` with no cursor answers
+// The initial synchronisation as one response: what `:pull` with no cursor answers
 // in pages, written as newline-delimited JSON while it is read, the cursor last.
 //
 // It is a long-lived response like the stream and is bounded the way the stream is: admitted by

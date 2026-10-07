@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The credentials (G-01). The controller holds no rules: whose tokens somebody may mint, list or
+// The credentials. The controller holds no rules: whose tokens somebody may mint, list or
 // revoke is decided inwards of here, like every other authorisation (ADR-0005). What this layer
 // does is map a request to an input and an answer to a document - and, once, carry a plaintext
 // from the mint to the response without letting it touch anything else on the way.

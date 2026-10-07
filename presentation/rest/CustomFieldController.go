@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The vocabulary a workspace adds to its entries (C-07). A top-level resource rather than a
+// The vocabulary a workspace adds to its entries. A top-level resource rather than a
 // sub-resource of a collection, because a definition has two scopes: one collection's, or the
 // whole workspace's, and a path that named a collection could not express the second.
 

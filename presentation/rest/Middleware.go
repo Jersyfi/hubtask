@@ -40,7 +40,7 @@ const componentREST = "rest"
 const maxRequestIDLength = 64
 
 // Router is what the observability middleware needs beyond serving: the route template, known
-// before dispatch. *http.ServeMux satisfies it, and so will the generated router from A-06.
+// before dispatch. *http.ServeMux satisfies it.
 type Router interface {
 	http.Handler
 	// Handler resolves a request to its handler and the pattern that matched, without serving.

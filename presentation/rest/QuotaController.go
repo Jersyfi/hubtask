@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// The quota surface's use case names (H-08).
+// The quota surface's use case names.
 const (
 	readQuotasUseCase         = "ReadQuotas"
 	updateTenantQuotasUseCase = "UpdateTenantQuotas"

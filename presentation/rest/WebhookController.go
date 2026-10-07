@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The webhook subscriptions (G-03). The controller holds no rules: who may subscribe an external
+// The webhook subscriptions. The controller holds no rules: who may subscribe an external
 // system to this workspace's events is decided inwards of here, like every other authorisation
 // (ADR-0005). What this layer does is map a request to an input and an answer to a document - and,
 // twice, carry a signing secret from the use case to the response without letting it touch
@@ -309,7 +309,7 @@ func deliveryResponse(out usecase.Output) openapi.WebhookDelivery {
 	return delivery
 }
 
-// The polling trigger (G-04). Its own operation rather than a variant of the subscription routes:
+// The polling trigger. Its own operation rather than a variant of the subscription routes:
 // the two are one stream and two transports, and this is the transport that carries no state.
 const pollTriggerEventsUseCase = "PollTriggerEvents"
 

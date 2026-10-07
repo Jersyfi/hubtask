@@ -37,15 +37,15 @@ type SyncSignals interface {
 	PullRecords(ctx context.Context, count int)
 }
 
-// SyncController serves `POST /sync:pull` (N-01). Not a catalogue entry, for the stream's reason:
+// SyncController serves `POST /sync:pull`. Not a catalogue entry, for the stream's reason:
 // a pull is a connection served in pages rather than an action a rule or an agent could invoke.
 type SyncController struct {
 	Pull    Puller
 	Signals SyncSignals
-	// Push serves `POST /sync:push` (N-04). Nil leaves the route answering the pending 404.
+	// Push serves `POST /sync:push`. Nil leaves the route answering the pending 404.
 	Push        Pusher
 	PushSignals PushSignals
-	// Registry admits a snapshot's connection beside the streams' (SY-C, P-12), and StreamSignals
+	// Registry admits a snapshot's connection beside the streams', and StreamSignals
 	// counts it with them. Nil leaves `POST /sync:snapshot` answering not wired.
 	Registry      *stream.Registry
 	StreamSignals StreamSignals
@@ -170,7 +170,7 @@ const (
 	forgetSyncDeviceUseCase = "ForgetSyncDevice"
 )
 
-// ListSyncDevices answers GET /sync/devices (N-03). Written out rather than through the identity
+// ListSyncDevices answers GET /sync/devices. Written out rather than through the identity
 // helper, for the reason ListSessions is.
 func (c *RestController) ListSyncDevices(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
@@ -231,7 +231,7 @@ type PushSignals interface {
 	PushResult(ctx context.Context, result string)
 }
 
-// SyncPush applies a device's queue (N-04).
+// SyncPush applies a device's queue.
 func (c SyncController) SyncPush(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
 

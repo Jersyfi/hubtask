@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The container lifecycle over REST (B-06). What this layer owes is the merge patch on the rename -
+// The container lifecycle over REST. What this layer owes is the merge patch on the rename -
 // which members the client actually sent, null told apart from absent - and the replacement
 // semantics on the policies. Everything else is the application layer's.
 

@@ -287,7 +287,7 @@ func TestTheCredentialIsNotItsOwnBucketKey(t *testing.T) {
 	}
 }
 
-// The workspace's own per-token ceiling (H-08): it engages only where one is configured, keys
+// The workspace's own per-token ceiling: it engages only where one is configured, keys
 // per credential, and a workspace without one leaves the level inert.
 func TestTheOverrideBucketEngagesOnlyWhereConfigured(t *testing.T) {
 	bucket := OverrideBucket(5)
@@ -332,8 +332,8 @@ func TestTheOverrideBucketEngagesOnlyWhereConfigured(t *testing.T) {
 	}
 }
 
-// An agent token spends the same budget as any other, and spends it at the same endpoint (J-14,
-// ai-first.md §1.3: "rate limits and quotas apply to agents just like to any other token").
+// An agent token spends the same budget as any other, and spends it at the same endpoint
+// (ai-first.md §1.3: "rate limits and quotas apply to agents just like to any other token").
 //
 // Proved rather than assumed, and proved as *sharing a bucket* rather than as "both are limited":
 // two budgets would let one credential do twice as much by putting half its traffic through /mcp,

@@ -265,7 +265,7 @@ func TestAnEmptyPageCarriesAnEmptyArray(t *testing.T) {
 
 // A relation this installation does not serve is refused rather than ignored: a client that asked
 // for children and got an item without them cannot tell that from an item that has none. `labels`
-// is served since B-09; the rest wait for the use cases that own them.
+// is served; the rest are not.
 func TestAnUnsupportedExpandIsRefusedRatherThanIgnored(t *testing.T) {
 	registry := &catalogue{out: readItem()}
 

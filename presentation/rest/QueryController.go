@@ -18,7 +18,7 @@ import (
 
 const queryItemsUseCase = "QueryItems"
 
-// QueryItems answers POST /items:query (B-12).
+// QueryItems answers POST /items:query.
 //
 // A POST that reads: the query is a document rather than a set of parameters, and a URL long
 // enough to carry a filter tree is a URL a proxy truncates. Nothing is written, and the same

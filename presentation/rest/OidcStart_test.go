@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 )
 
-// A sign-in begun on the invitation card carries the invitation (ADR-0078 §1, SC-32): the body's
+// A sign-in begun on the invitation card carries the invitation (ADR-0078 §1): the body's
 // token reaches the use case under the name its descriptor declares, and a sign-in without one sends
 // nothing - an empty token is not an invitation.
 func TestTheInvitationTokenReachesTheStart(t *testing.T) {
@@ -52,7 +52,7 @@ func TestTheInvitationTokenReachesTheStart(t *testing.T) {
 }
 
 // A sign-in begun on the connect card carries the link a workspace without the password mailed
-// (ADR-0078 §1, SC-33), under the name the descriptor declares; an empty token is no link.
+// (ADR-0078 §1), under the name the descriptor declares; an empty token is no link.
 func TestTheConnectTokenReachesTheStart(t *testing.T) {
 	cases := []struct {
 		name string

@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The use case names of the OAuth2 provider (H-05).
+// The use case names of the OAuth2 provider.
 const (
 	registerOauthClientUseCase  = "RegisterOauthClient"
 	listOauthClientsUseCase     = "ListOauthClients"

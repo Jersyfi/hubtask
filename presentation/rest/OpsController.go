@@ -68,8 +68,8 @@ func (c OpsController) Routes() http.Handler {
 
 	// The deep self-diagnosis, unauthenticated, on the internal port.
 	//
-	// The authenticated door the document puts at /api/v1/meta/health exists since K-06 and is
-	// the one a client uses; this copy stays because a status page and a support session read the
+	// The authenticated door the document puts at /api/v1/meta/health is the one a client
+	// uses; this copy stays because a status page and a support session read the
 	// report from inside the cluster holding no token, and the port is not public either way.
 	//
 	// The two answer differently on purpose. This one answers 503 when the status is down, so a

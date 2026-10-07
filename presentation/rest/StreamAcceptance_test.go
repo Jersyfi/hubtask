@@ -21,7 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
-// The two acceptance criteria of C-10 that are measurements rather than assertions.
+// The two properties of the change stream that are measurements rather than assertions.
 
 // countingStream records how often the log was read, which is the number the idle-cost measurement
 // is about.

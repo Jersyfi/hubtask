@@ -92,7 +92,7 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 	if len(body.QueryFields) != len(view.Fields()) {
 		t.Fatalf("%d fields published, %d in the grammar", len(body.QueryFields), len(view.Fields()))
 	}
-	// The layout set the saved views validate against (D-07): published verbatim, so a client
+	// The layout set the saved views validate against: published verbatim, so a client
 	// knows the spellings this installation stores.
 	if len(body.ViewLayouts) != len(view.Layouts()) {
 		t.Fatalf("%d layouts published, %d declared", len(body.ViewLayouts), len(view.Layouts()))
@@ -102,7 +102,7 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 			t.Errorf("layout %d is %q, want %q", index, body.ViewLayouts[index], layout)
 		}
 	}
-	// The two closed sets a collection's policies are validated against (issue 773), published
+	// The two closed sets a collection's policies are validated against, published
 	// verbatim and in the domain's order: a policies form is built from them.
 	if len(body.CompletionPolicies) != len(work.CompletionPolicies()) {
 		t.Fatalf("%d completion policies published, %d defined", len(body.CompletionPolicies), len(work.CompletionPolicies()))
@@ -121,7 +121,7 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 		}
 	}
 	// Every type this build emits, published verbatim, because a subscription may name exactly
-	// these and the server refuses the rest (F4-15). A client that offered a list of its own would
+	// these and the server refuses the rest. A client that offered a list of its own would
 	// offer a choice refused at the end.
 	if len(body.EventTypes) != len(event.Types()) {
 		t.Fatalf("%d event types published, %d emitted", len(body.EventTypes), len(event.Types()))
@@ -134,7 +134,7 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 
 	// The catalogue of `data-retention.md` §3, published verbatim - including the kinds nothing
 	// sweeps yet, whose empty `actions` is the fact that separates them from a kind that does not
-	// exist. A client builds its rule editor from this (F4-18).
+	// exist. A client builds its rule editor from this.
 	if len(body.RetentionDataKinds) != len(lifecycle.Catalogue()) {
 		t.Fatalf(
 			"%d data kinds published, %d in the catalogue",
@@ -190,7 +190,7 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 		t.Error("the labels are missing from the manifest")
 	}
 	// A client builds its filter editor from this list, so a field a use case now writes and the
-	// manifest does not name is a field nobody can filter on (C-01).
+	// manifest does not name is a field nobody can filter on.
 	for _, field := range []string{view.FieldAssigneeID, view.FieldMembers} {
 		if !published[field] {
 			t.Errorf("%s is missing from the manifest", field)
@@ -329,7 +329,7 @@ func TestAnUnwiredUseCaseIsAnInternalError(t *testing.T) {
 
 // The language picker a client draws for `content_language` is this list, so it travels as an
 // array even when the installation can index nothing: absent would read as "this server does not
-// know about languages", which is a different statement and one a client acts on (C-08).
+// know about languages", which is a different statement and one a client acts on.
 func TestTheManifestPublishesTheLanguagesThatCanBeIndexed(t *testing.T) {
 	for _, test := range []struct {
 		name  string
@@ -401,7 +401,7 @@ func TestTheManifestPublishesTheNotificationCategories(t *testing.T) {
 	}
 }
 
-// The language picker in the account preferences is this list (F1-08 draws it, M-05 fills it):
+// The language picker in the account preferences is this list:
 // one entry per catalogue present, with the three facts a client needs before it has rendered
 // anything, in the schema's own vocabulary.
 func TestTheManifestPublishesTheSupportedLocales(t *testing.T) {
@@ -436,7 +436,7 @@ func TestTheManifestPublishesTheSupportedLocales(t *testing.T) {
 	}
 }
 
-// A rule editor builds an action's form from the manifest (F8-01): every kind the manifest names
+// A rule editor builds an action's form from the manifest: every kind the manifest names
 // carries its declared fields - an empty array for a kind that takes none, never an absent key -
 // and a field is published as the use case declared it, enum and requirement included.
 func TestTheManifestPublishesEachActionsFields(t *testing.T) {
@@ -496,7 +496,7 @@ func TestTheManifestPublishesEachActionsFields(t *testing.T) {
 		t.Errorf("the enum field is published as %+v", assign[1])
 	}
 	// The caller's plumbing says rule: false and nothing else says rule at all; a date says its
-	// format (F8-15).
+	// format.
 	if len(assign) == 4 {
 		if assign[0].Rule != nil || assign[1].Rule != nil {
 			t.Errorf("a rule's field carries a rule flag: %+v", assign[:2])

@@ -21,7 +21,7 @@ const (
 	reindexSearchUseCase = "ReindexSearch"
 )
 
-// SearchItems answers POST /search (C-08).
+// SearchItems answers POST /search.
 //
 // A POST that reads, exactly as the query is: the request is a document, and a URL long enough to
 // carry a search phrase and a scope is a URL a proxy truncates. Nothing is written and the same
@@ -120,7 +120,7 @@ func searchModeField(mode *openapi.SearchMode) any {
 	return string(*mode)
 }
 
-// ReindexSearch answers POST /search:reindex (M-09): the job to watch, and how many rows it
+// ReindexSearch answers POST /search:reindex: the job to watch, and how many rows it
 // will rewrite.
 func (c *RestController) ReindexSearch(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())

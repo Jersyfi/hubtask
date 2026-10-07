@@ -12,9 +12,9 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// When an entry is due (D-01). A sub-resource beside the cover's, and additionally the writer the
-// merge patch dispatches into: the contract has carried the three due fields on the create and
-// update schemas since 0.1.0, so both doors serve them - through the one use case pair, so a due
+// When an entry is due. A sub-resource beside the cover's, and additionally the writer the
+// merge patch dispatches into: the contract carries the three due fields on the create and
+// update schemas, so both doors serve them - through the one use case pair, so a due
 // date means the same thing whichever way it arrived.
 
 const (

@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The relying party's configuration use cases (H-04, SI-10).
+// The relying party's configuration use cases.
 const (
 	readIdentityProviderUseCase           = "ReadIdentityProvider"
 	configureFirstIdentityProviderUseCase = "ConfigureFirstIdentityProvider"
@@ -447,7 +447,7 @@ func identityProviderPresetResponse(out usecase.Output) openapi.IdentityProvider
 	return answer
 }
 
-// The relying-party flow's use cases (H-04).
+// The relying-party flow's use cases.
 const (
 	startOidcSignInUseCase    = "StartOidcSignIn"
 	completeOidcSignInUseCase = "CompleteOidcSignIn"

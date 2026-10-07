@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// Copying an entry (C-11). Nothing here holds a rule: what a copy carries, what the destination can
+// Copying an entry. Nothing here holds a rule: what a copy carries, what the destination can
 // resolve and what it therefore reports back are decided in the application layer, once, whichever
 // channel the call came through (ADR-0005, arc42 §4).
 

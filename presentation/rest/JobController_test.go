@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The job resource over REST (E-01). What this layer owes is the explicit nulls and, above all,
+// The job resource over REST. What this layer owes is the explicit nulls and, above all,
 // what it does *not* write: the response schema is narrow, and a field the queue keeps must not
 // reach a client because a use case happened to answer it.
 

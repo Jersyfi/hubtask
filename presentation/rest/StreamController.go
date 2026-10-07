@@ -70,7 +70,7 @@ type Changes interface {
 	Encode(position syncservice.Position) string
 }
 
-// StreamController serves `GET /stream` as server-sent events (C-10).
+// StreamController serves `GET /stream` as server-sent events.
 //
 // The handler is the connection: it runs for as long as the stream lives, and it ends by returning
 // - which is what lets the HTTP server's own drain wait for it. Nothing here starts a goroutine,
@@ -134,7 +134,7 @@ func (c StreamController) admit(
 	// The key is `presentation/stream`'s rather than this package's, and that is not tidiness: the
 	// per-credential cap only means anything if this stream and the agent's key a credential the
 	// same way, or a client could double its allowance by opening half its connections at the
-	// other endpoint (J-13).
+	// other endpoint.
 	return c.Registry.Admit(stream.Credential(r), actor.TenantID.String())
 }
 

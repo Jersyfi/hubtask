@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The audit surface (E-09, audit.md §5). No rules here: who may read what is decided in the
+// The audit surface (audit.md §5). No rules here: who may read what is decided in the
 // application layer, and a refusal is recorded there - an adapter that narrowed the filter itself
 // would be an adapter deciding a permission (ADR-0005).
 
@@ -29,7 +29,7 @@ const (
 // ListAuditEntries answers GET /audit.
 //
 // The page is spelled `items` and `next_cursor` here rather than the `data`/`page` shape every
-// other list uses, because that is what the contract has declared for this path since phase 0.
+// other list uses, because that is what the contract declares for this path.
 // The catalogue answers the ordinary shape and this is the one place it is renamed; renaming it in
 // the contract instead would break whatever already reads it.
 func (c *RestController) ListAuditEntries(
@@ -117,7 +117,7 @@ func (c *RestController) VerifyAuditChain(w http.ResponseWriter, r *http.Request
 	writeJSON(w, r, http.StatusOK, answer)
 }
 
-// ConfigureAuditAnchoring answers PUT /audit/anchoring (P-13).
+// ConfigureAuditAnchoring answers PUT /audit/anchoring.
 func (c *RestController) ConfigureAuditAnchoring(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.UseCases == nil {
@@ -192,7 +192,7 @@ type auditVerification struct {
 	Gaps           []int64    `json:"gaps"`
 	GapCount       int        `json:"gap_count"`
 	SealedUntil    *time.Time `json:"sealed_until"`
-	// The anchor half (P-13): explicit nulls, for the same reason `sealed_until` is one.
+	// The anchor half: explicit nulls, for the same reason `sealed_until` is one.
 	AnchoringConfigured bool       `json:"anchoring_configured"`
 	AnchoredUntil       *time.Time `json:"anchored_until"`
 	AnchorSeq           *int64     `json:"anchor_seq"`

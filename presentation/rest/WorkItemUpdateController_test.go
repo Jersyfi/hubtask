@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// PATCH /items/{itemId} (B-05). What this layer owes is the merge patch: which members the client
+// PATCH /items/{itemId}. What this layer owes is the merge patch: which members the client
 // actually sent, and null told apart from absent. Everything else is the application layer's.
 
 func updatedItem() usecase.Output {
