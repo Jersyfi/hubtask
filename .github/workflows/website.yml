@@ -4,7 +4,7 @@
 name: Website
 
 # hubtask.eu is served from the domain owner's IONOS webspace, and this is the workflow that puts
-# it there (open point CI-4, F1-12): build the prerendered site, prove it is plain static files,
+# it there (ci-cd.md §10): build the prerendered site, prove it is plain static files,
 # and mirror dist/ over SFTP. Only main deploys - a pull request's build is checked by CI's
 # Workspace job, and publishing is not a review tool.
 #
@@ -110,11 +110,10 @@ jobs:
     permissions:
       contents: read
       issues: write
-    # This job exists because of how #982 was found: by somebody reading `main`'s run list for an
-    # unrelated reason, seven days and forty-five red runs after the first failure. Nothing here
-    # gates a pull request - by design, publishing is not a review tool - so a failure lands on a
-    # workflow nobody watches, and the website silently stops being published while every check
-    # anybody looks at stays green. The nightly learned this first; the same mechanism, one job.
+    # Nothing here gates a pull request - by design, publishing is not a review tool - so a
+    # failure lands on a workflow nobody watches, and the website silently stops being published
+    # while every check anybody looks at stays green. The same mechanism as the nightly's, one
+    # job.
     steps:
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -123,7 +122,7 @@ jobs:
             const title = 'Website: hubtask.eu is not being published';
 
             // The outcome is read, and anything that is not an outcome stops the job: a reporter
-            // whose failure mode is silence has to say so rather than pass (nightly.yml, #937).
+            // whose failure mode is silence has to say so rather than pass (nightly.yml).
             const OUTCOMES = ['success', 'failure', 'cancelled', 'skipped'];
             const publish = ${{ toJSON(needs.publish) }};
             const result = publish?.result;

@@ -68,7 +68,7 @@ jobs:
         #
         # No SBOM and no provenance. Those belong to what people install — release.yml attaches
         # both to every published version. This image exists for one cluster and one commit, and
-        # since CI-3 (P-15) it is signed all the same: the signature is what the verification
+        # it is signed all the same: the signature is what the verification
         # below and the cluster's image policy check, and an unsigned image is one neither lets in.
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
