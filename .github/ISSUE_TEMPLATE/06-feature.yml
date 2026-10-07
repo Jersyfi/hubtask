@@ -1,0 +1,37 @@
+name: Feature
+description: Something Hubtask should let a person do. It enters the product through a milestone cut, like every other piece of work.
+title: "[Feature] "
+labels: ["finding"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A feature becomes work when a milestone is cut (docs/backlog/README.md): the cut takes it in
+        as use cases and tasks, or closes it with a reason. An open question or a loose idea fits
+        the discussions better.
+  - type: textarea
+    id: person
+    attributes:
+      label: Who wants to do what
+      description: The person, what they want to do, and what they would see when it works.
+      placeholder: "A parent with a managed child account wants to …"
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What happens today
+      description: How it goes now, or the workaround.
+    validations:
+      required: true
+  - type: input
+    id: usecases
+    attributes:
+      label: Related use cases
+      description: Any existing use case this extends (docs/usecases/README.md, the index), if you know one.
+      placeholder: "UC-ID-16"
+  - type: textarea
+    id: deployments
+    attributes:
+      label: Where it matters
+      description: The installations it matters for, if not all — one person, a household, a small team, a company, a provider (docs/vision/deployments.md, D1–D7).
