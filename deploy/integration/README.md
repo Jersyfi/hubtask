@@ -153,13 +153,17 @@ kill %1
 
 ## What is not here, and why
 
+Decided, not built ([ADR-0082](../../docs/adr/ADR-0082-integration-in-production-shape.md)):
+the database moves to production's shape — CloudNativePG with one instance, a WAL archive and a
+restore drill — which retires the first and third points below.
+
 * **No backup.** Nothing in this environment is anybody's data, and a restore drill against a
   throwaway database would prove nothing about production's. RT-9 belongs to a real target
   ([backup-restore.md](../../docs/architecture/backup-restore.md)).
 * **No high availability.** One node, one database pod. The environment answers questions about the
   chart, the migration hook and the rollout — none of which needs a second node.
 * **No production hardening of PostgreSQL.** It is a container with a local volume and
-  `sslmode=disable` inside the cluster. Production is D-1 and D-2, and both are open on purpose.
+  `sslmode=disable` inside the cluster. Production runs CloudNativePG ([ADR-0046](../../docs/adr/ADR-0046-production-on-a-platform-namespace.md)).
 * **No egress.** The application's allowlist names one host, the e2e walk's webhook target, and
   it never resolves (`values.yaml`). The list exists because production runs with one (T-07) and
   an empty list means "anywhere public"; it is short because nothing here has anywhere to go. A
