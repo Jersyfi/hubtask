@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The item history against the real database (B-11): the order a page comes back in, the walk over
+// The item history against the real database: the order a page comes back in, the walk over
 // several pages, the cross-tenant negative for both halves of the port (gate SG-3), and the cascade
 // that is the deletion path the data catalogue declares.
 

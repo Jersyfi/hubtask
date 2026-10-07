@@ -19,10 +19,10 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// ADR-0076 (SC-20) with ADR-0077 §1 (SC-26): an offered provider answers the number of workspaces that
-// switched it on - counted from their own switches where the installation reads it, so it is true
-// after every write to them, and a workspace reads none - and the date its offer ends. Gate SG-3:
-// only the installation's scope sets a withdrawal.
+// ADR-0076 with ADR-0077 §1: an offered provider answers the number of workspaces that switched it
+// on - counted from their own switches where the installation reads it, so it is true after every
+// write to them, and a workspace reads none - and the date its offer ends. Gate SG-3: only the
+// installation's scope sets a withdrawal.
 
 var withdrawnRow = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd31")
 
@@ -52,7 +52,7 @@ func TestAnOfferedProvidersCountIsCountedAndItsWithdrawalIsTheInstallations(t *t
 		t.Fatalf("offering it: %v", err)
 	}
 
-	// The count is counted where it is read (ADR-0077 §1, SC-26): from the workspaces' own switches,
+	// The count is counted where it is read (ADR-0077 §1): from the workspaces' own switches,
 	// so every write that changes them - a switch, a deletion for good, a restore or an import that
 	// writes the settings whole - leaves it true. Two workspaces of this test's own.
 	countA := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000026a1")
@@ -106,7 +106,7 @@ func TestAnOfferedProvidersCountIsCountedAndItsWithdrawalIsTheInstallations(t *t
 			t.Errorf("a workspace calling the function directly counts %d", direct)
 		}
 	})
-	// Waiting to be deleted, and still restorable within its grace (H-06): it still uses it.
+	// Waiting to be deleted, and still restorable within its grace: it still uses it.
 	if _, err := admin.Exec(ctx, `
 		UPDATE tenant SET status = 'PENDING_DELETION', purge_after = now() + interval '30 days'
 		WHERE id = $1`, countB.String()); err != nil {
@@ -168,7 +168,7 @@ func TestAnOfferedProvidersCountIsCountedAndItsWithdrawalIsTheInstallations(t *t
 		t.Fatalf("installation scope: %v", err)
 	}
 
-	// ADR-0077 §2 (SC-27): the statement that deletes asks itself whether the offer still stands and
+	// ADR-0077 §2: the statement that deletes asks itself whether the offer still stands and
 	// a workspace uses it, whatever the caller looked at before. Offered and used, it stays.
 	switchOn(countA, true)
 	remove := func() bool {

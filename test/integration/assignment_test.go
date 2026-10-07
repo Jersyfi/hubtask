@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// Who an entry is on, against a real database (C-01): the column an assignment writes under its
+// Who an entry is on, against a real database: the column an assignment writes under its
 // optimistic lock, the OR-set tags a member merge reads, and a cross-tenant negative for every
 // method (gate SG-3).
 

@@ -362,7 +362,7 @@ func onlyClaimOf(t *testing.T, jobs []queue.Job, kind queue.Kind) queue.Job {
 	return found[0]
 }
 
-// The fairness of H-08 (multi-tenancy.md §4): two tenants due at once share the batch - the
+// Fairness (multi-tenancy.md §4): two tenants due at once share the batch - the
 // claim takes everybody's first job before anybody's second, so a storm from one workspace
 // cannot monopolise the workers and both make progress.
 func TestAFloodingTenantDoesNotMonopoliseTheClaim(t *testing.T) {

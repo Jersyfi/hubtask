@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The AI provider's surface against the real boundary (J-02). Gate SG-3: one workspace's provider,
+// The AI provider's surface against the real boundary. Gate SG-3: one workspace's provider,
 // its sealed key and its consent are invisible and unusable next door - and the six repository
 // methods are covered here rather than five, because a method a cross-tenant test never calls is a
 // method the boundary has never been asked about.

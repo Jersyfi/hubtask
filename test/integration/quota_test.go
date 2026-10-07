@@ -17,9 +17,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The quota surface of H-08, against the real boundary. Gate SG-3: the overrides, the live
-// counts and the billing ledger are all bounded by the transaction they run in - one tenant's
-// walls and tallies are invisible next door.
+// The quota surface (multi-tenancy.md §4), against the real boundary. Gate SG-3: the overrides,
+// the live counts and the billing ledger are all bounded by the transaction they run in - one
+// tenant's walls and tallies are invisible next door.
 
 var (
 	quotaTenantA = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb01")
@@ -85,7 +85,7 @@ func TestTheWallsAndTheTalliesAreBoundedByTheirTenant(t *testing.T) {
 		if err != nil || overrides.Items == nil || *overrides.Items != 123 {
 			t.Fatalf("A's wall did not come back: (%+v, %v)", overrides, err)
 		}
-		// The write reached only the quotas key: H-02's switch survives beside it.
+		// The write reached only the quotas key: the other settings survive beside it.
 		return nil
 	})
 
@@ -144,7 +144,7 @@ func TestTheWallsAndTheTalliesAreBoundedByTheirTenant(t *testing.T) {
 		t.Errorf("B's ledger holds %d rows (%v)", foreign, err)
 	}
 
-	// And the settings write preserved its neighbours: the H-02 switch still reads.
+	// And the settings write preserved its neighbours: the document still reads.
 	var settings string
 	if err := adminPool(ctx, t).QueryRow(ctx,
 		`SELECT settings::text FROM tenant WHERE id = $1`, quotaTenantA.String(),
@@ -156,7 +156,7 @@ func TestTheWallsAndTheTalliesAreBoundedByTheirTenant(t *testing.T) {
 	}
 }
 
-// The AI budget's own boundary (J-15). It is the one quota measured from `usage_record`, so it is
+// The AI budget's own boundary. It is the one quota measured from `usage_record`, so it is
 // the one whose count could cross a workspace if row level security were not carrying the sum -
 // and a budget that counted the installation's spending would refuse the wrong workspace.
 func TestOneWorkspacesAiSpendingIsNotAnothers(t *testing.T) {

@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The control plane of H-06, against the real boundary. Gate SG-3: the admin surface joins the
+// The tenant control plane, against the real boundary. Gate SG-3: the admin surface joins the
 // cross-tenant suite - every statement it runs is bounded by the transaction it was opened for,
 // and the hard delete leaves nothing countable while the tenant beside it keeps everything.
 
@@ -311,8 +311,8 @@ func (i *entropyIDs) NewID() shared.ID {
 
 var _ clock.Clock = systemClock{}
 
-// Sanity: suspension rides with the credential reads (H-06 §3) - the row the middleware judges
-// carries the standing this surface writes.
+// Sanity: suspension rides with the credential reads (multi-tenancy.md §5) - the row the
+// middleware judges carries the standing this surface writes.
 func TestSuspensionRidesWithTheCredentialRead(t *testing.T) {
 	ctx := context.Background()
 	sessionFixtures(ctx, t)

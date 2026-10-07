@@ -23,7 +23,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The firing pass against a real database (D-03): the guarded transition under concurrency, the
+// The firing pass against a real database: the guarded transition under concurrency, the
 // delay that SLO-5 is written about, and the announcements that happen once per deadline.
 
 // reminderTold records what the pass handed to the Notification context.
@@ -48,7 +48,8 @@ func (r *reminderTold) count() int {
 }
 
 // everybodyCanSee is the visibility question as this suite answers it: the reach of a named
-// recipient is C-01's business and is tested there, and what is under test here is the firing.
+// recipient is the visibility rule's business and is tested there; what is under test here is the
+// firing.
 type everybodyCanSee struct{}
 
 func (everybodyCanSee) CanSee(
@@ -57,7 +58,7 @@ func (everybodyCanSee) CanSee(
 	return true, nil
 }
 
-// announcements collects what the pass published, since the outbox itself is C-05's evidence.
+// announcements collects what the pass published, since the outbox itself is tested on its own.
 type announcementLog struct {
 	mu       sync.Mutex
 	appended []event.Envelope

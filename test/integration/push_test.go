@@ -24,7 +24,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The push against a real database and the real catalogue (N-04): a creation lands through
+// The push against a real database and the real catalogue: a creation lands through
 // CreateWorkItem exactly as an online one does, a duplicate push takes effect exactly once
 // (SY-7), and a device three hours out is bounded (SY-2).
 
@@ -293,9 +293,9 @@ func TestTwoDevicesChangingDifferentFieldsBothSurvive(t *testing.T) {
 	}
 }
 
-// mergeCatalogueFor is the catalogue N-06's kinds perform through: the read, the update, the
-// completion pair and the move, over the real adapters - and the writers the push files a
-// displaced version and a step of the history through.
+// mergeCatalogueFor is the catalogue the pushed mutation kinds perform through: the read, the
+// update, the completion pair and the move, over the real adapters - and the writers the push
+// files a displaced version and a step of the history through.
 func mergeCatalogueFor(ctx context.Context, t *testing.T) (*usecase.Registry, work.AddComment, work.ActivityJournal) {
 	t.Helper()
 
