@@ -96,7 +96,7 @@ type NotificationHistory interface {
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
-// DispatchedEvents is the slice of the outbox this run removes through (G-02, ADR-0007's second
+// DispatchedEvents is the slice of the outbox this run removes through (ADR-0007's second
 // countermeasure). The same two methods as the notification history, and deliberately the same
 // shape: the engine treats a third kind exactly as it treats the second.
 //
@@ -126,15 +126,15 @@ type ExpiredSessions interface {
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
-// ExpiredDevices is the slice of the device repository this run removes through (N-03,
-// offline-sync.md §6): the session's two methods, and the same shape on purpose.
+// ExpiredDevices is the slice of the device repository this run removes through
+// (offline-sync.md §6): the session's two methods, and the same shape on purpose.
 type ExpiredDevices interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
-// ExpiredSyncLog is the slice of the synchronisation's log this run removes through (N-09,
-// offline-sync.md §7): the operation log rows and the tombstones past the window, in one pass
+// ExpiredSyncLog is the slice of the synchronisation's log this run removes through
+// (offline-sync.md §7): the operation log rows and the tombstones past the window, in one pass
 // per batch, the device's two methods and the same shape on purpose.
 type ExpiredSyncLog interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
@@ -422,8 +422,8 @@ func (h RunRetention) sweepSessions(ctx context.Context, started time.Time) (Out
 	return outcome, nil
 }
 
-// sweepDevices removes one batch of synchronising devices silent past their period (N-03,
-// data-retention.md §3, offline-sync.md §6), revoking the session each last synchronised under
+// sweepDevices removes one batch of synchronising devices silent past their period
+// (data-retention.md §3, offline-sync.md §6), revoking the session each last synchronised under
 // first - the adapter does both in one pass.
 //
 // No tombstone window, no legal hold and no audit entry, on sweepSessions' reasoning: a device
@@ -472,8 +472,8 @@ func (h RunRetention) sweepDevices(ctx context.Context, started time.Time) (Outc
 	return outcome, nil
 }
 
-// sweepSyncLog removes one batch of the synchronisation's records past the offline window (N-09,
-// offline-sync.md §7, data-retention.md §4 point 5): operation log rows, whose repeats a device
+// sweepSyncLog removes one batch of the synchronisation's records past the offline window
+// (offline-sync.md §7, data-retention.md §4 point 5): operation log rows, whose repeats a device
 // silent that long will never send because it resynchronises from scratch, and tombstones, which
 // have told every device that could still be told.
 //
@@ -651,8 +651,7 @@ func (h RunRetention) sweepHistory(ctx context.Context, started time.Time) (Outc
 
 // sweepInbox removes one batch of expired jumble entries (data-retention.md §3).
 //
-// The kind D-06 predicted, arriving one milestone later with the feature it is about. Ninety days
-// from the arrival, and what is due is what was never converted: an entry that became a work item
+// Ninety days from the arrival, and what is due is what was never converted: an entry that became a work item
 // is that item's provenance and stays, which is why no status reaches this method as a parameter.
 //
 // No marking phase, no tombstone window and no audit entry, on sweepHistory's reasoning. Nobody

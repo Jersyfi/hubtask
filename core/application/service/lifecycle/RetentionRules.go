@@ -231,8 +231,7 @@ func (r Rules) ceilingFor(
 //
 // The second consumer of the expression port, and the reason it is a port rather than a helper
 // private to the rule engine: two engines read one language, and a check written twice would be two
-// dialects. E-07 refused a condition outright because there was nothing that could evaluate one -
-// this is what replaced the refusal, and RE's tests flip rather than disappear.
+// dialects.
 func (r Rules) checkCondition(text string) error {
 	if strings.TrimSpace(text) == "" {
 		return nil

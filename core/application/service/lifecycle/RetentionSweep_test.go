@@ -437,8 +437,7 @@ func TestAKindWithNoRuleIsNotRead(t *testing.T) {
 
 // The second consumer of the expression port, and the reason it is a port: the retention
 // sweep reads the same language the automation rules do, through the same interface, with the same
-// limits. E-07 refused a condition outright because nothing could evaluate one; these are what
-// replaced that refusal.
+// limits.
 
 // conditions is the expression port as this package sees it. A fake rather than the CEL adapter,
 // because core/application may not import one (ADR-0001) - what these tests are about is that the
@@ -642,7 +641,7 @@ func TestAConditionedRuleIsRefusedWhenNoEngineIsWired(t *testing.T) {
 	}
 }
 
-// §6's advance warning, which R-1 left refused until G-12: the people the rule names are told when
+// The advance warning of data-retention.md §6: the people the rule names are told when
 // the entry is marked, and the message is about the entry that was marked.
 func TestTheAdvanceWarningGoesOutWithTheMarking(t *testing.T) {
 	h := newSweepHarness()

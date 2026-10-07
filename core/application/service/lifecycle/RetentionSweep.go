@@ -482,8 +482,8 @@ func (s Sweeper) remove(
 
 // blocked is data-retention.md §4, in its order, against one object.
 //
-// The restriction of §4.2 has no source yet - E-10 builds the data subject request - and its place
-// in the order is here so that the task which fills it does not also have to decide where it sits.
+// Only the legal hold is consulted: the restriction of processing (§4 item 2) has no source this
+// sweep reads. Its place in the order is here, after the hold.
 
 // matchesCondition answers whether this rule's condition holds for this entry.
 //

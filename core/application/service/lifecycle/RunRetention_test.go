@@ -194,7 +194,7 @@ func (s *inboxStore) DeleteExpired(_ context.Context, cutoff time.Time, batch in
 
 type runStore struct {
 	started []shared.ID
-	// kinds is what each run was opened for. Recorded since G-02, because a third kind means
+	// kinds is what each run was opened for. Recorded because more than one kind means
 	// "the log says the pass happened" is no longer the same statement as "the log says which
 	// pass happened".
 	kinds     []domain.DataKind
@@ -714,9 +714,8 @@ func TestTheConsumptionRecordsAreSweptWithTheirEvents(t *testing.T) {
 	}
 }
 
-// The JUMBLE_ENTRY class data-retention.md §3 has been promising since phase 0, arriving with the
-// inbox it is about (the closed-set change D-06 predicted): ninety days from the arrival,
-// swept by the same job that empties the trash.
+// The JUMBLE_ENTRY class of data-retention.md §3: ninety days from the arrival, swept by the same
+// job that empties the trash.
 func TestAPassSweepsTheJumbleAtNinetyDays(t *testing.T) {
 	h := newRunHarness()
 	h.inbox.rows = []inboxRow{
