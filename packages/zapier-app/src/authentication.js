@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// OAuth2 authorization code with PKCE against the installation's own provider (H-05,
-// api-guidelines.md §11) - what the marketplace requires, and what 0.6.0 built for it.
+// OAuth2 authorization code with PKCE against the installation's own provider
+// (api-guidelines.md §7) - what the marketplace requires.
 //
 // The client is registered with `POST /oauth/clients` by the workspace that installs the app,
 // with Zapier's redirect URI, and its identifier and secret are the app's environment

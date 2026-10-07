@@ -89,7 +89,7 @@ class HubtaskTrigger {
     // `application/cloudevents+json` (ADR-0007), which n8n's body parser does not read - it
     // reads `application/json` and the form types, and leaves `body` empty for anything else -
     // so the item is parsed here from the raw body, and the signature is verified over the same
-    // bytes it was computed over (issue 723).
+    // bytes it was computed over.
     const raw = await rawBodyOf(request);
     const signature = this.getHeaderData()['x-hubtask-signature'];
     if (data.secret) {

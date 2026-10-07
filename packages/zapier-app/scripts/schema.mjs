@@ -37,7 +37,7 @@ function checkEntry(entry, path, kind, problems) {
   if (kind === 'trigger') {
     // The platform's D021: a trigger's description begins "Triggers when ". A publishing task
     // rather than a push error, so it would surface at the owner's `zapier validate` and not
-    // before; held here so that it surfaces at `pnpm test` (issue 722).
+    // before; held here so that it surfaces at `pnpm test`.
     expect(typeof entry.display?.description === 'string' && entry.display.description.startsWith('Triggers when '), `${path}.display.description`, 'does not begin "Triggers when " (D021)', problems);
     expect(operation.type === 'hook' || operation.type === 'polling', `${path}.operation.type`, 'neither hook nor polling', problems);
     if (operation.type === 'hook') {
@@ -61,7 +61,7 @@ export function appProblems(app) {
   for (const name of ['authorizeUrl', 'getAccessToken', 'refreshAccessToken']) {
     expect(oauth[name] !== undefined, `app.authentication.oauth2Config.${name}`, 'missing', problems);
   }
-  expect(oauth.enablePkce === true, 'app.authentication.oauth2Config.enablePkce', 'PKCE is required (api-guidelines.md §11)', problems);
+  expect(oauth.enablePkce === true, 'app.authentication.oauth2Config.enablePkce', 'PKCE is required (api-guidelines.md §7)', problems);
   expect(typeof app.authentication?.test === 'object' || typeof app.authentication?.test === 'function', 'app.authentication.test', 'missing', problems);
   for (const [kind, plural] of [['trigger', 'triggers'], ['create', 'creates'], ['search', 'searches']]) {
     expect(typeof app[plural] === 'object' && app[plural] !== null, `app.${plural}`, 'missing', problems);

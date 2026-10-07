@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Generates the n8n node from the contract (P-04, ADR-0058).
+// Generates the n8n node from the contract (ADR-0058).
 //
 // n8n's declarative style is a description with routing rather than code per operation: a
 // resource per tag, an operation per operationId with its method and path, a property per

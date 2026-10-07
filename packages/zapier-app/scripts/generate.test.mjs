@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The app against the contract it is generated from (P-05): every event type a trigger, every
+// The app against the contract it is generated from: every event type a trigger, every
 // create and search present with a sample, the definition in the shape the platform loads, and
 // the generated code doing what the contract expects when driven with a fake `z`.
 
