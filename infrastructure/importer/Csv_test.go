@@ -56,7 +56,7 @@ func TestACsvBecomesOneCollectionWithItsTree(t *testing.T) {
 	if collection["type"] != "COLLECTION" || collection["parent_id"] != hub.String() || collection["name"] != "Imported" {
 		t.Errorf("collection = %v", collection)
 	}
-	// Named after the file where one is known (issue 766): two files are two collections.
+	// Named after the file where one is known: two files are two collections.
 	named := source(t, sample, nil)
 	named.Name = "errands"
 	fromFile, err := CSV{}.Convert(context.Background(), named)

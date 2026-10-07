@@ -25,7 +25,7 @@ const (
 )
 
 // The audit codes of the second factor's lifecycle. Arming and disarming a factor are the class
-// of event a review looks for (audit.md §2, security.md §5).
+// of event a review looks for (audit.md §4, identity.md §8).
 const (
 	MfaEnrollmentStartedAction audit.Action = "auth.mfa_enrollment_started"
 	MfaEnabledAction           audit.Action = "auth.mfa_enabled"
@@ -127,7 +127,7 @@ type EnrollTotpCommand struct {
 	PendingToken secret.Secret
 }
 
-// EnrollTotp begins the enrolment (H-02): mints the secret, seals it, mints the codes, and
+// EnrollTotp begins the enrolment: mints the secret, seals it, mints the codes, and
 // answers all of it for the only time. Nothing is armed yet.
 type EnrollTotp struct{ Writer SessionWriter }
 
@@ -222,7 +222,7 @@ type ConfirmedEnrollment struct {
 	Pair *SessionPair
 }
 
-// ConfirmTotp arms the enrolment (H-02): the caller proves the authenticator holds the secret.
+// ConfirmTotp arms the enrolment: the caller proves the authenticator holds the secret.
 type ConfirmTotp struct{ Writer SessionWriter }
 
 // Execute confirms. For the enforcement flow the confirmation also opens the session - both
@@ -323,7 +323,7 @@ type DisableTotpCommand struct {
 	Password secret.Secret
 }
 
-// DisableTotp removes the factor (H-02): the one case where "recently signed in" is not enough,
+// DisableTotp removes the factor: the one case where "recently signed in" is not enough,
 // because a stolen session removing the second factor is the attack.
 type DisableTotp struct{ Writer SessionWriter }
 
@@ -405,7 +405,7 @@ func (w SessionWriter) proveByPassword(
 	}
 	// The hash is read in one transaction and verified outside it, sign-in's reasoning: Argon2id
 	// is deliberately slow, and a connection held through it would let a burst drain the pool.
-	// A password guess like any other (SC-22): it meets the lock first, and a wrong one is counted
+	// A password guess like any other: it meets the lock first, and a wrong one is counted
 	// on the step-up's subject - this proof is the step-up's predecessor.
 	subject := stepUpSubject(actor.AccountID)
 	var stored secret.Secret
@@ -564,7 +564,7 @@ func (h DisableTotp) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: DisableTotpName,
 		Summary: "Removes the second factor and burns the remaining recovery codes. It demands " +
-			"a step-up like every privileged action (ADR-0075) - a live session is deliberately not " +
+			"a step-up like every privileged action - a live session is deliberately not " +
 			"enough, because a stolen session removing the factor is the attack the factor exists " +
 			"against. Where the workspace's rule requires the factor of this person it cannot be " +
 			"disabled at all.",
@@ -579,7 +579,7 @@ func (h DisableTotp) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "password", Kind: usecase.KindString,
-				Description: "Deprecated (ADR-0075 §3): the proof this operation took before the " +
+				Description: "Deprecated: the proof this operation took before the " +
 					"step-up. Still checked when sent without a step-up token, for one release.",
 			},
 		},

@@ -46,15 +46,14 @@ type Object struct {
 	DeletedAt *time.Time
 }
 
-// Usage is what the object was staged for. The schema also reserves EXPORT; it arrives with the
-// milestone that owns it.
+// Usage is what the object was staged for. The schema also reserves EXPORT, which nothing stages.
 type Usage string
 
 const (
 	UsageCover      Usage = "COVER"
 	UsageAttachment Usage = "ATTACHMENT"
-	// UsageImport is a file for POST /imports (P-08): it attaches to nothing, covers nothing,
-	// and is deleted when the import's job ends.
+	// UsageImport is a file for POST /imports: it attaches to nothing, covers nothing, and is
+	// deleted when the import's job ends.
 	UsageImport Usage = "IMPORT"
 )
 
@@ -99,9 +98,9 @@ type NewObjectInput struct {
 	CreatedBy shared.ID
 	Now       time.Time
 
-	// Text brings the file name to normal form C before it is bounded and stored (i18n-l10n.md
-	// §5, M-07). A file name is the text most likely to arrive decomposed at all: one file
-	// system writes names that way, and a browser hands them on as they are.
+	// Text brings the file name to normal form C before it is bounded and stored (i18n-l10n.md §5).
+	// A file name is the text most likely to arrive decomposed at all: one file system writes names
+	// that way, and a browser hands them on as they are.
 	Text text.Normalizer
 }
 
@@ -112,9 +111,9 @@ type NewObjectInput struct {
 // and a listing of one prefix is one tenant's objects, nobody else's.
 //
 // A function rather than a line inside NewPendingObject because a restore has to mint the same key
-// again for a row it writes back (E-06): an archive carries the key the medium had where it was
-// taken, and a restore into another tenant that kept it would put two tenants' rows on one object -
-// where deleting either one takes the other's bytes with it.
+// again for a row it writes back (backup-restore.md §8.3): an archive carries the key the medium
+// had where it was taken, and a restore into another tenant that kept it would put two tenants'
+// rows on one object - where deleting either one takes the other's bytes with it.
 func StorageKeyFor(tenantID, id shared.ID) string {
 	return "media/" + tenantID.String() + "/" + id.String()
 }

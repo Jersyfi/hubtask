@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The container screen on the page head (F9-07, ADR-0061 decision 4): what the toolbar held is
+// The container screen on the page head (ADR-0061 decision 4): what the toolbar held is
 // in the menu with its focus return, the primary action opens the form the list owns, the
 // switcher is the head's second row with the list toggle, the filter is a panel or a drawer by
 // width, and the board on a phone is one column with a strip. Chromium only, as the shell walk.
@@ -24,8 +24,8 @@ test.after(() => served.close());
 /** The items of a menu by their labels alone, without the reasons beside them. */
 const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => item.querySelector('.label')?.textContent.trim().replace(/…$/, '') ?? ''));
 
-/** Backlog decision 5's order: act, set up, trash. */
-// "Select entries" first: it is the way into the selection mode, which is a mode now and no longer
+/** The page menu's order (design-system.md §11.8): act, set up, trash. */
+// "Select entries" first: it is the way into the selection mode, which is a mode and not
 // a column on every row (ADR-0063 decision 8). A hub does not have it — it holds collections, and
 // nothing acts on those in bulk.
 const MENU = ['Select entries', 'Rename', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Labels', 'Custom fields', 'Saved views', 'Templates', 'Policies', 'People', 'Move to the trash'];
@@ -223,9 +223,9 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
 });
 
 test('chromium: 768 px — the board scrolls inside itself and does not widen the page', async (t) => {
-  // Issue 874: a card's hidden checkbox input is absolutely positioned, and an absolute box inside
-  // an unpositioned scroller overflows the scroller's ancestor - the page grew by four hundred
-  // pixels on a tablet. The board is positioned now; this holds the page to its viewport.
+  // A card's hidden checkbox input is absolutely positioned, and an absolute box inside an
+  // unpositioned scroller overflows the scroller's ancestor - the page grows by four hundred
+  // pixels on a tablet. The board is positioned; this holds the page to its viewport.
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close, unstubbed } = await openCollection(browser, 768);

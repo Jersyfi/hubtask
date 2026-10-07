@@ -1,14 +1,13 @@
 # Support Matrix
 
 What Hubtask is supported on, and — for every row — **the CI job that proves it**. The last column
-is not documentation of the pipeline; it is the reason the row is allowed to exist. A gate
-(`make gate-docs`) reconciles this table with the workflows in both directions: a row without a
-job fails the build, and a matrix job without a row fails it too. Support can therefore neither be
-claimed without evidence nor removed quietly — by anybody, including a pull request from outside.
+is the reason the row is allowed to exist. `make gate-docs` reconciles this table with the workflows
+in both directions: a row naming a job that does not exist fails the build, and so does a
+`matrix-*` job that no row names or that the nightly's reporting job does not wait on. Support can
+therefore neither be claimed without evidence nor removed quietly.
 
-* **Version:** 0.2.0 · **Decided:** 2026-08-18 · **Scope decision:** the server is a container,
-  and only a container.
-* **Concept:** [ADR-0014](../adr/ADR-0014-single-image-multi-role.md), [deployment.md](./deployment.md)
+* **Scope:** the server is a container, and only a container
+  ([ADR-0014](../adr/ADR-0014-single-image-multi-role.md), [deployment.md](./deployment.md)).
 
 ---
 
@@ -20,10 +19,10 @@ claimed without evidence nor removed quietly — by anybody, including a pull re
 | `best effort` | Expected to work, not proven by a job. A defect there is an ordinary bug — reported, fixed when it can be, never a release blocker. |
 | `unsupported` | Not intended. A defect there is closed with a pointer to this table. |
 
-The distinction that shapes the whole table: **the server ships as a container** (ADR-0014). The
-host operating system underneath is therefore almost irrelevant — a person on macOS or Windows runs
-the same Linux container through Docker Desktop. What actually varies, and what is therefore what
-gets tested, is the **container runtime**, the **CPU architecture**, and the **PostgreSQL major**.
+**The server ships as a container.** The host operating system underneath is therefore almost
+irrelevant — macOS and Windows run the same Linux container through Docker Desktop. What varies,
+and what is tested, is the **container runtime**, the **CPU architecture** and the **PostgreSQL
+major**.
 
 ---
 
@@ -33,7 +32,7 @@ gets tested, is the **container runtime**, the **CPU architecture**, and the **P
 |---|---|---|---|
 | Docker (Compose) | linux/amd64 | `supported` | `ci.yml:compose` |
 | Docker (Compose) | linux/arm64 | `supported` | `nightly.yml:matrix-arm64` |
-| Podman (Compose) | linux/amd64 | `supported` | `nightly.yml:matrix-podman` — the Podman engine, with the image built by `podman build` and the stack driven by Compose v2 against Podman's Docker-compatible socket, which is the path `podman compose` takes. **`podman-compose` 1.0.6, the Python reimplementation Debian and Ubuntu package, does not run this stack**: it starts each container with `podman start <name>`, and Podman refuses to resolve a dependency graph containing the migration container once that has exited, so the application container is created and never started. That is a limitation of that tool and not of the artefact — the half that *was* ours is fixed, and `ci.yml:compose` proves it on every pull request by starting the stack in the wrong order on purpose |
+| Podman (Compose) | linux/amd64 | `supported` | `nightly.yml:matrix-podman` — the Podman engine, the image built by `podman build`, the stack driven by Compose v2 against Podman's Docker-compatible socket, which is the path `podman compose` takes. **`podman-compose` 1.0.6**, the Python reimplementation Debian and Ubuntu package, **does not run this stack**: it starts each container with `podman start <name>`, and Podman refuses to resolve a dependency graph containing the migration container once that has exited. That is a limitation of the tool, not of the artefact; `ci.yml:compose` starts the stack in the wrong order on purpose to prove the artefact's half |
 | Kubernetes ≥ 1.28 | linux/amd64 | `supported` | `nightly.yml:matrix-kind` |
 | Kubernetes ≥ 1.28 | linux/arm64 | `best effort` | — the image is multi-arch and the chart is architecture-agnostic; no ARM cluster runs in CI |
 | Docker Desktop | macOS, Windows | `best effort` | — the same Linux container; the runtime differences are Docker's, not ours |
@@ -45,18 +44,17 @@ gets tested, is the **container runtime**, the **CPU architecture**, and the **P
 |---|---|---|---|
 | PostgreSQL | 16 | `supported` | `ci.yml:integration` |
 | PostgreSQL | 17 | `supported` | `nightly.yml:matrix-postgres` |
-| PostgreSQL **with pgvector** (semantic search) | 16, 17 | `supported` | `ci.yml:integration`, which runs `pgvector/pgvector:pg16` since [ADR-0050](../adr/ADR-0050-pgvector-as-a-capability.md), and `nightly.yml:matrix-postgres`, which runs `pgvector/pgvector:pg17` — the 17 half of this row had no evidence at all until then, because that job composed a plain `postgres:17-alpine` and failed before it reached anything (#939). The extension is **detected, not demanded**: an installation without it migrates, runs, and searches lexically, and `/meta/capabilities` answers `semantic_search: false`. That path has its own test — `TestTheMigrationsApplyWithoutPgvector` starts a plain `postgres:16-alpine` and migrates it — because every other gate runs a database that has the extension |
-| PostgreSQL **built with ICU** (names sort the same everywhere) | 16, 17 | `supported` | `ci.yml:integration` — `TestNamesSortUnderTheICURootCollation` proves migration `0080` copied `und-x-icu` into `hubtask_name`. Every image in this table has ICU, and so do the managed services above; a build without it is **not unsupported**: the migration falls back to the database's own locale, names still sort, only in that locale's order, and `/meta/capabilities` answers `natural_ordering: false`. The fallback branch is proved on the same database (`TestTheFallbackCollationIsTheDatabasesOwnLocale`), because no image in the matrix lacks ICU |
-| PostgreSQL | ≤ 15 | `unsupported` | — the schema uses what 16 offers; nothing checks 15, so nothing may claim it. The hard floor is 15, which added `ON DELETE SET NULL (column)`; the tenant-scoped foreign keys need it ([ADR-0024](../adr/ADR-0024-tenant-scoped-foreign-keys.md)) |
-| PostgreSQL without a superuser (a managed service) | 16, 17 | `supported` | `ci.yml:integration` — the migrations applied by an owner with `CREATEROLE` and no superuser, and the tenant boundary asserted afterwards ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)). The operator creates the two roles and owns the database with `hubtask_migrator`; [multi-tenancy.md §2.1](./multi-tenancy.md) says how |
+| PostgreSQL **with pgvector** (semantic search) | 16, 17 | `supported` | `ci.yml:integration` runs `pgvector/pgvector:pg16`, `nightly.yml:matrix-postgres` runs `pgvector/pgvector:pg17`. The extension is **detected, not demanded** ([ADR-0050](../adr/ADR-0050-pgvector-as-a-capability.md)): without it an installation migrates, runs and searches lexically, and `/meta/capabilities` answers `semantic_search: false`. `TestTheMigrationsApplyWithoutPgvector` proves that path on a plain `postgres:16-alpine` |
+| PostgreSQL **built with ICU** (names sort the same everywhere) | 16, 17 | `supported` | `ci.yml:integration` — `TestNamesSortUnderTheICURootCollation` proves migration `0080` copied `und-x-icu` into `hubtask_name`. Every image in this table has ICU, and so do the managed services. A build without it is **not unsupported**: the migration falls back to the database's own locale, names sort in that locale's order, and `/meta/capabilities` answers `natural_ordering: false`; `TestTheFallbackCollationIsTheDatabasesOwnLocale` proves the fallback |
+| PostgreSQL | ≤ 15 | `unsupported` | — the schema uses what 16 offers, and nothing checks 15. The hard floor is 15, which added `ON DELETE SET NULL (column)`; the tenant-scoped foreign keys need it ([ADR-0024](../adr/ADR-0024-tenant-scoped-foreign-keys.md)) |
+| PostgreSQL without a superuser (a managed service) | 16, 17 | `supported` | `ci.yml:integration` — the migrations applied by an owner with `CREATEROLE` and no superuser, and the tenant boundary asserted afterwards ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)). The operator creates the two roles and owns the database with `hubtask_migrator`; [multi-tenancy.md](./multi-tenancy.md) §2.1 says how |
 | Go (building from source) | 1.27 | `supported` | `ci.yml:quick` and every other job |
 
 ## 4. `hubctl` (the CLI)
 
-It is the one artefact that runs **natively** on a user's machine rather than in a container, so
-its matrix is about operating systems in a way the server's is not. What a job here proves is not
-that the binary compiles — cross-compilation does that for every platform on every release — but
-that the binary a platform produces *starts* on it.
+The one artefact that runs **natively** on a user's machine rather than in a container, so its
+matrix is about operating systems. A job here proves that the binary a platform produces *starts*
+on it; cross-compilation already proves that it links, for every platform on every release.
 
 | Platform | Architecture | Status | Proven by |
 |---|---|---|---|
@@ -64,15 +62,26 @@ that the binary a platform produces *starts* on it.
 | Linux | arm64 | `supported` | `nightly.yml:matrix-hubctl` |
 | macOS | arm64 (Apple silicon) | `supported` | `nightly.yml:matrix-hubctl` |
 | Windows | amd64 | `supported` | `nightly.yml:matrix-hubctl` |
-| macOS | amd64 (Intel) | `best effort` | — cross-compiled and published; GitHub's Intel macOS runners are on their way out, and a row may not rest on a runner that is being withdrawn |
-| Windows | arm64 | `best effort` | — cross-compiled and published; no ARM Windows runner exists on the free tier this project builds on |
+| macOS | amd64 (Intel) | `best effort` | — cross-compiled and published; GitHub's Intel macOS runners are being withdrawn, and a row may not rest on a runner that is going away |
+| Windows | arm64 | `best effort` | — cross-compiled and published; no ARM Windows runner exists on the free tier |
 
-The Linux amd64 row points at `ci.yml:e2e` rather than at a nightly job on purpose: that job runs
-the whole end-to-end session through the binary against the reference stack, which is a stronger
-claim than a smoke test and it runs on every pull request. The rows are unchanged by J-16 and the
-claim behind them grew: the session now also configures an AI provider, receives and accepts a
-suggestion, searches both ways, and speaks MCP to `/mcp` from outside the process — the same job,
-proving more.
+The Linux amd64 row points at the pull request's end-to-end job on purpose: it runs the whole
+session through the binary against the reference stack — sign-in, the hierarchy, AI suggestions
+against a stub provider, search, MCP from outside the process — on every pull request, which is a
+stronger claim than a nightly smoke test.
+
+### 4.1 The SDKs
+
+The SDKs are generated from `api/openapi.yaml` and carry no runtime dependency of their own beyond
+the one their language needs to speak HTTP.
+
+| SDK | Runtime | Status | Proven by |
+|---|---|---|---|
+| Go (`sdk/go`) | the Go of §3 | `supported` | `ci.yml:integration` — the contract tests drive the generated client against the in-process server |
+| Python (`sdk/python`) | the runner image's `python3` (3.12 on `ubuntu-latest`) | `supported` | `ci.yml:integration` — the contract tests drive the SDK's example against the in-process server; `ci.yml:quick` proves the generated package parses |
+| Python (`sdk/python`) | 3.11 | `best effort` | — **the SDK requires Python 3.11 or later** (`requires-python = ">=3.11"`); no job runs 3.11 itself |
+| Python | ≤ 3.10 | `unsupported` | — below the package's declared floor |
+| TypeScript (`sdk/typescript`) | a runtime with `fetch` | `best effort` | — the generator and its output are tested in the workspace job; no job runs the client against a server |
 
 ---
 
@@ -85,31 +94,39 @@ whatever browser the reader has. Which browsers that is, is
 
 | Engine | Versions | Status | Proven by |
 |---|---|---|---|
-| Chromium (Chrome, Edge) | current and previous major | `supported` | `engines` job in `ci.yml`: Playwright's Chromium at the pinned package version, the built bundle loaded and ADR-0044's feature table asserted (F6-02) |
+| Chromium (Chrome, Edge) | current and previous major | `supported` | `engines` job in `ci.yml`: Playwright's Chromium at the pinned package version, the built bundle loaded and ADR-0044's feature table asserted |
 | Gecko (Firefox) | current and previous major | `supported` | `engines` job: Playwright's Firefox, the same assertions |
-| WebKit (Safari) | current and previous major | `supported` | `engines` job: Playwright's **WebKit build**, the same assertions. That is the engine and not Safari — a Linux build of WebKit, without Safari's shell, its settings or its release cadence — so what the job proves is that the client runs in the engine Safari is made of, at roughly Safari's current version |
+| WebKit (Safari) | current and previous major | `supported` | `engines` job: Playwright's **WebKit build**, the same assertions. That is the engine and not Safari — a Linux build of WebKit, without Safari's shell, settings or release cadence — so the job proves that the client runs in the engine Safari is made of, at roughly Safari's current version |
 | Anything older | — | `unsupported` | — the client uses `<dialog>`, `inert` and `:has()`, and none of the three has a fallback |
 
-**What `supported` stands on here.** §1 defines it as "a CI job runs the software on it", and the
-`engines` job is that job ([ADR-0048](../adr/ADR-0048-browser-job-driver.md), built in F6-02): the
-bundle that ships, served the way the binary serves it, loaded in the three engines, with each fact
-the client is built on asserted in each — not a journey. It gates through `CI required`, which is
-what makes a job count (`ci-cd.md` §3.2). The versions the job runs are the ones Playwright's
-pinned release bundles, which track the current major; the previous major is not run and stays on
-the row on the strength of the features being years old in every engine.
+**What `supported` stands on here.** The `engines` job ([ADR-0048](../adr/ADR-0048-browser-job-driver.md))
+loads the bundle that ships, served the way the binary serves it, in the three engines, and asserts
+each fact the client is built on in each — it is not a journey. It gates through `CI required`,
+which is what makes a job count ([ci-cd.md](./ci-cd.md) §3.2). The versions it runs are the ones
+Playwright's pinned release bundles, which track the current major; the previous major is not run
+and stays on the row because the features are years old in every engine.
 
-What the client needs is small and unexotic — `<dialog>`, `inert`, `:has()`, `popover`, logical
-properties, CSS Anchor Positioning — and the job asks each engine for each. The fallback
-[ADR-0039](../adr/ADR-0039-overlay-positioning.md) kept for the last of them is gone with this
-row: unreachable by any engine on it, and proven so by the job rather than assumed.
+What the client needs is small: `<dialog>`, `inert`, `:has()`, `popover`, logical properties and
+CSS Anchor Positioning. The job asks each engine for each, and none of them has a fallback.
 
 ## 6. Maintaining this table
 
-1. A new row needs a job **in the same pull request**. The gate refuses the row otherwise, which is
-   the point: a claim and its evidence land together or not at all.
+1. A new row needs a job **in the same pull request**. The gate refuses the row otherwise: a claim
+   and its evidence land together or not at all.
 2. Removing support is deleting the row *and* the job. Deleting only the job turns the build red —
    support does not lapse by neglect.
 3. `best effort` and `unsupported` rows have no job and carry a dash plus the reason. The reason is
-   what a bug reporter reads, so it says why rather than merely no.
-4. A failing nightly matrix job files an issue automatically (`claude:task`), so a platform that
-   broke does not stay broken until somebody happens to look.
+   what a bug reporter reads, so it says why.
+4. A failing nightly matrix job files an issue automatically (label `finding`), so a
+   platform that broke does not stay broken until somebody looks ([ci-cd.md](./ci-cd.md) §9).
+
+## 7. The installed clients
+
+The installable clients are **Tauri 2 shells** for Windows, macOS, Linux, iOS and Android, wrapping
+the one web codebase ([ADR-0031](../adr/ADR-0031-tauri-app-shell.md)). There is exactly one install
+path per platform — the shell. The web app is a browser application only: no manifest-based
+install, no install prompt, no service-worker install. The installed clients carry the offline
+promise; the browser holds a best-effort copy ([offline-sync.md](./offline-sync.md) §1).
+
+No shell exists yet, so no row claims one. A shell's row arrives with the job that starts it on its
+platform, under §6's rule 1.

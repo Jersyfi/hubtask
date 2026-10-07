@@ -27,7 +27,7 @@ WHERE tenant_id IS NULL
 ORDER BY type;
 
 -- name: ListTextLanguages :many
--- The languages this installation can index, as BCP 47 tags (C-08, ADR-0034).
+-- The languages this installation can index, as BCP 47 tags (ADR-0034).
 --
 -- Read from the database rather than listed in Go, because it is the database that decides: the
 -- mapping lives in `hubtask_text_languages()`, which joins the tags this product knows against the
@@ -37,7 +37,7 @@ ORDER BY type;
 SELECT l.tag::text FROM hubtask_text_languages() AS l(tag, configuration);
 
 -- name: SemanticSearchAvailable :one
--- Whether this installation has somewhere to keep meaning (J-09, ADR-0050).
+-- Whether this installation has somewhere to keep meaning (ADR-0050).
 --
 -- The *table's* existence rather than the extension's, and the difference matters: an installation
 -- where somebody installed pgvector after the migrations ran has the extension and no store, which
@@ -45,11 +45,11 @@ SELECT l.tag::text FROM hubtask_text_languages() AS l(tag, configuration);
 --
 -- The store is half of the answer and this query is deliberately only that half. Searching by
 -- meaning also needs a provider that embeds, which is a workspace's configuration rather than an
--- installation's schema, and the two are joined where both are known - in the manifest (issue 502).
+-- installation's schema, and the two are joined where both are known - in the manifest.
 SELECT (to_regclass('public.item_embedding') IS NOT NULL)::boolean AS available;
 
 -- name: NaturalOrderingAvailable :one
--- Whether names sort under the ICU root collation here (M-08, i18n-l10n.md §5).
+-- Whether names sort under the ICU root collation here (i18n-l10n.md §5).
 --
 -- Migration 0080 defines `hubtask_name` from `und-x-icu` where this PostgreSQL was built with ICU
 -- and from the database's own libc locale where it was not; the queries say `COLLATE hubtask_name`
@@ -61,10 +61,10 @@ SELECT EXISTS (
 )::boolean AS available;
 
 -- name: FindWorkspace :one
--- The tenant's own row, read from inside the tenant (F4-01). No tenant parameter: row level
+-- The tenant's own row, read from inside the tenant. No tenant parameter: row level
 -- security has already bound the transaction to exactly one, which is what makes another
 -- workspace invisible rather than forbidden (ADR-0010).
--- The operator's opening of the password rides along (SC-34): it is read wherever the ways in are,
+-- The operator's opening of the password rides along: it is read wherever the ways in are,
 -- and honoured against the clock by the reader.
 SELECT id, slug, display_name, status, default_locale, default_time_zone,
        settings, created_at, updated_at, version,

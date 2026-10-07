@@ -114,7 +114,7 @@ func NewContainerUnarchived(id shared.ID, container work.Container, actor Actor,
 //
 // One builder rather than one per event. Copies of this map would drift in the way that matters
 // least to whoever changes one and most to a subscriber reading them all - which is why the created
-// event, which used to build its own, reads this one too.
+// event reads this one too.
 //
 // `effective_archived` is here because a subscriber cannot derive it: a collection is read-only when
 // its hub is archived, and nothing in its own row says so. `archived_at` says which of the two it

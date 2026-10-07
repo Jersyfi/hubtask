@@ -65,10 +65,9 @@ func TestSetElementIsPresent(t *testing.T) {
 	}
 }
 
-// The acceptance criterion of B-09, and the reason labels are an OR-set rather than an array under
-// last writer wins: two devices working offline converge on the union of what they added, minus the
-// removals that genuinely undo an addition. Neither device's change disappears because the other
-// one happened to write later.
+// The reason labels are an OR-set rather than an array under last writer wins: two devices working
+// offline converge on the union of what they added, minus the removals that genuinely undo an
+// addition. Neither device's change disappears because the other one happened to write later.
 func TestTwoOfflineDevicesConvergeOnTheUnionMinusTheRemovals(t *testing.T) {
 	// Both devices start from the same state: the item carries "blocked".
 	starting := []work.SetElement{{ElementID: blocked, AddedAt: tag(t, "server", 0)}}

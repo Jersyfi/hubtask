@@ -17,8 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// SuggestFromJumbleEntryName is the catalogue name, as domain-model.md §5 has written it under
-// Jumble since G-10 with "(AI, optional)" beside it.
+// SuggestFromJumbleEntryName is the catalogue name, as core/application/catalogue names it.
 const SuggestFromJumbleEntryName = "SuggestFromJumbleEntry"
 
 // EntrySuggestionAskedAction records that somebody asked. Worth a trail entry on its own: it is
@@ -45,13 +44,13 @@ type Jobs interface {
 	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
 }
 
-// SuggestFromJumbleEntry asks the workspace's provider what one entry should become (J-06).
+// SuggestFromJumbleEntry asks the workspace's provider what one entry should become.
 //
 // It queues and answers; it does not wait. An AI call reaches somebody else's machine, and
 // ai-first.md §2 puts every one of them on a job for that reason - what a caller gets back is
 // "asked", and the proposal appears under /suggestions when the provider has answered.
 //
-// Nothing is created and nothing is changed. That is not a limitation of this task: it is what
+// Nothing is created and nothing is changed. That is not a limitation: it is what
 // ADR-0012 means by "AI results are always suggestions", and it is why asking twice is allowed -
 // two proposals are two records somebody dismisses one of, where two *conversions* would be two
 // items somebody has to delete.

@@ -37,7 +37,7 @@ const MAX_PAGES = 10;
 
 const PAGE_SIZE = 50;
 
-/** How much of the search to use (J-10): words and, where the installation has it, meaning; or words only. */
+/** How much of the search to use: words and, where the installation has it, meaning; or words only. */
 export type SearchMode = 'AUTO' | 'LEXICAL';
 
 export interface SearchAsked {
@@ -82,7 +82,7 @@ class Search {
    * The words the app bar handed over, waiting for the screen they were handed to.
    *
    * In memory rather than in the address: the address carries the *narrowing* and never the words
-   * (ADR-0063 decision 4 as corrected, issue 997). What makes them survive a reload is not this —
+   * (ADR-0063 decision 4 as corrected). What makes them survive a reload is not this —
    * it is the handle below.
    */
   #handedOver = $state<string | undefined>(undefined);

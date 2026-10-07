@@ -45,5 +45,5 @@ invitation link* instead, to hand over by any messenger.
 
 ## Today
 
-* **Check 5 fails:** the invitation is only ever mailed; a household without a mail server cannot
-  invite anybody except by provisioning through the control plane.
+* Check 2: not met in the web app — the invitation always grants its role on the whole workspace; a hub, collection or task scope is reachable only through the API, tracked in #1079.
+* Check 5: not met — the invitation is only ever mailed; without a mail server nobody can be invited except by provisioning through the control plane, tracked in #1069.

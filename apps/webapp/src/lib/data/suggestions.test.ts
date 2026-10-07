@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// What a screen works out about a suggestion, and how an ask is followed - the half of F5-02 a
+// What a screen works out about a suggestion, and how an ask is followed - the half a
 // test can assert without a browser. The follow runs against a real `SyncEngine` over a fake
 // transport, because the thing worth asserting is the reads it makes and when it stops.
 
@@ -195,7 +195,7 @@ test('DUPLICATES is links and nothing to accept', () => {
   assert.equal(acceptCodeOf(shape), undefined);
 });
 
-test('a TEMPLATE is a named draft with its root type and its tree, parent before children (F6-10)', () => {
+test('a TEMPLATE is a named draft with its root type and its tree, parent before children', () => {
   const shape = shapeOf(
     suggestion({
       kind: 'TEMPLATE',
@@ -227,7 +227,7 @@ test('a TEMPLATE is a named draft with its root type and its tree, parent before
   );
   assert.equal(headingCodeOf(shape), 'app.suggestions.kind_template');
   assert.equal(acceptCodeOf(shape), 'app.suggestions.accept_template');
-  // A row written before the count existed says nothing was dropped (issue 767).
+  // A row written before the count existed says nothing was dropped.
   assert.equal(shape.dropped, 0);
   const narrowed = shapeOf(
     suggestion({ kind: 'TEMPLATE', payload: { name: 'Onboarding', root_type: 'TASK', nodes: [] }, dropped_nodes: 3 }),

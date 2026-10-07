@@ -1,6 +1,6 @@
 
 -- name: InsertTenantHost :exec
--- A host a workspace answers at (SI-12). `current_tenant_id()` rather than an argument, as every
+-- A host a workspace answers at. `current_tenant_id()` rather than an argument, as every
 -- tenant-scoped insert here: the workspace is the transaction's, not the caller's to name.
 INSERT INTO tenant_host
   (tenant_id, host, state, verification, verified_at, is_canonical, created_at)

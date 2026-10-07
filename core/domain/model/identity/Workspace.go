@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// Workspace is a tenant as the people inside it see it (F4-01).
+// Workspace is a tenant as the people inside it see it.
 //
 // `Tenant` is deliberately what the installation provisions; this is that plus what the workspace
 // has configured since. The two are separate types rather than one grown type because the readers
@@ -35,22 +35,23 @@ type Workspace struct {
 // this type carries is the keys this build knows, and the ones it does not are neither read here
 // nor lost on a write.
 type WorkspaceSettings struct {
-	// RequireAdminTotp demands a second factor of the OWNER and ADMIN role holders
-	// (security.md §5, H-02). The sign-in path has read it since 0.6.0.
+	// RequireAdminTotp demands a second factor of the OWNER and ADMIN role holders (security.md §5,
+	// identity.md §8).
 	RequireAdminTotp bool
-	// AuditAnchorTargetID names the workspace's backup target the audit chain's end is
-	// exported to once a day (audit.md §3, A-2, P-13). Zero is anchoring switched off.
+	// AuditAnchorTargetID names the workspace's backup target the audit chain's end is exported to
+	// once a day (audit.md §3). Zero is anchoring switched off.
 	AuditAnchorTargetID shared.ID
 	// SignIn is what this workspace decided about signing in (ADR-0068 §2): a patch, because a
 	// switch it never touched is the level above's rather than a zero of its own.
 	SignIn PolicyPatch
 	// Legal is what this workspace set for its own sign-in footer. Empty where the instance's
-	// stand, which is what a B2C installation locks and a B2B one leaves open (SI-12).
+	// stand, which is what a B2C installation locks and a B2B one leaves open (identity.md §18).
 	Legal LegalLinks
-	// OfferedProviders are the installation's providers this workspace switched **on** (SI-10).
+	// OfferedProviders are the installation's providers this workspace switched **on** (identity.md
+	// §10.2).
 	//
 	// A list of the ones taken rather than of the ones refused, and that is the whole decision: an
-	// installation's provider is "für alle Arbeitsbereiche angeboten, nirgends an" - offering it is
+	// installation's provider is "offered to every workspace, switched on in none" - offering it is
 	// the installation's, taking it is the workspace's. A list of refusals would mean a provider
 	// the installation adds tomorrow is on everywhere tonight.
 	OfferedProviders []shared.ID
@@ -130,7 +131,7 @@ type FieldChange struct {
 // form back would otherwise write an audit entry saying nothing happened, every time. An empty
 // change list is what the caller uses to skip the write altogether.
 //
-// The normaliser is for the display name, which is stored in normal form C (M-07).
+// The normaliser is for the display name, which is stored in normal form C (i18n-l10n.md §5).
 func (w Workspace) With(change WorkspaceChange, form text.Normalizer) (Workspace, []FieldChange, error) {
 	changed := w
 	moved := map[string]FieldChange{}

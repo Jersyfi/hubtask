@@ -38,7 +38,7 @@ func (c ChangeLog) Record(ctx context.Context, change changelog.Change) error {
 	}
 	// A push applying a field records it under the device's reading rather than the writer's:
 	// the clock a second device compares against has to be the clock that decided the merge
-	// (appshared.ContextWithReadings, N-05).
+	// (appshared.ContextWithReadings).
 	if change.Field != "" {
 		if reading, found := appshared.ReadingFrom(ctx, change.Field); found {
 			change.HLC = reading
@@ -106,7 +106,7 @@ func (c ChangeLog) Record(ctx context.Context, change changelog.Change) error {
 		return nil
 	}
 	// The server's clock for the field, in the same transaction as the entry: the reading of the
-	// write that landed, which a push compares its own against (N-05, offline-sync.md §4.2).
+	// write that landed, which a push compares its own against (offline-sync.md §4.2).
 	if err := queries.StampFieldClock(ctx, sqlc.StampFieldClockParams{
 		Entity: change.Entity, EntityID: entityID, Field: change.Field, Hlc: change.HLC.String(),
 	}); err != nil {

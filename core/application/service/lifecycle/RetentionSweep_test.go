@@ -19,7 +19,7 @@ import (
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
 )
 
-// The engine of data-retention.md §5 (E-07): two phases, the safeguards in their order, and the
+// The engine of data-retention.md §5: two phases, the safeguards in their order, and the
 // chain whose second stage counts from what the first one did.
 
 // exportSpy is the archive a rule writes before it removes anything.
@@ -246,7 +246,7 @@ func TestAnAnnouncementNeverActs(t *testing.T) {
 // §4.6: a parent whose children are staying is kept back and goes on the pass after the last of
 // them.
 //
-// Whatever their period, which is what R-2 decided (G-12): the question asked of the repository is
+// Whatever their period, which is what R-2 decided: the question asked of the repository is
 // "how many below this one are not going in this pass", not "which of them outlive it". A child
 // with a shorter period that is still here is a child something is holding - a hold, a `:retain`,
 // a restriction - and taking its parent would leave it an orphan by policy rather than by
@@ -399,7 +399,7 @@ func TestARuleWithNoChainNeverAsksTheSecondQuestion(t *testing.T) {
 }
 
 // Phase two trashes as well as archives, and one act is one batch identifier - which is what makes
-// one act one restore (F-09).
+// one act one restore.
 func TestATrashStageMovesTheEntryIntoTheTrash(t *testing.T) {
 	h := newSweepHarness()
 	rule := h.ruleIn(t, func(in *domain.NewRuleInput) { in.Action = domain.ActionTrash })
@@ -435,10 +435,9 @@ func TestAKindWithNoRuleIsNotRead(t *testing.T) {
 	}
 }
 
-// The second consumer of the expression port, and the reason it is a port (G-06): the retention
+// The second consumer of the expression port, and the reason it is a port: the retention
 // sweep reads the same language the automation rules do, through the same interface, with the same
-// limits. E-07 refused a condition outright because nothing could evaluate one; these are what
-// replaced that refusal.
+// limits.
 
 // conditions is the expression port as this package sees it. A fake rather than the CEL adapter,
 // because core/application may not import one (ADR-0001) - what these tests are about is that the
@@ -642,7 +641,7 @@ func TestAConditionedRuleIsRefusedWhenNoEngineIsWired(t *testing.T) {
 	}
 }
 
-// §6's advance warning, which R-1 left refused until G-12: the people the rule names are told when
+// The advance warning of data-retention.md §6: the people the rule names are told when
 // the entry is marked, and the message is about the entry that was marked.
 func TestTheAdvanceWarningGoesOutWithTheMarking(t *testing.T) {
 	h := newSweepHarness()

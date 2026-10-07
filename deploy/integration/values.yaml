@@ -58,14 +58,14 @@ migration:
   # The owner runs the migrations; the application never gets this DSN (multi-tenancy.md §2.1).
   dsnSecretKey: db-dsn-owner
   # And the migrator grants hubtask_app its login, so the credential is the operator's rather
-  # than the migration's (A-11).
+  # than the migration's (deployment.md §2.1).
   appPasswordSecretKey: db-app-password
 
 ingress:
   enabled: true
   className: traefik
   host: api.integration.hubtask.eu
-  # The workspace R-08's walk signs in to. In multi-tenant operation a workspace is reached by its
+  # The workspace a walk of this environment signs in to. In multi-tenant operation a workspace is reached by its
   # own subdomain, so the bare host above answers no workspace at all - it is the installation's
   # name, not anybody's. A wildcard entry is not an option here: cert-manager issues over HTTP-01,
   # which cannot do wildcards, so each name is named. The DNS record for `*.api.integration` already

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * A collection's policies, both ways across the wire (issue 773).
+ * A collection's policies, both ways across the wire.
  *
  * **The document is replaced whole.** `PUT /containers/{id}/policies` takes the whole document
  * and a key that is not sent falls back to its default - MANUAL for the completion policy, no

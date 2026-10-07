@@ -14,8 +14,8 @@
   //
   // Icon and colour are deliberately absent. `containers.create` takes both, and offering them
   // needs an icon picker and a colour picker - two components, and
-  // `packages/design-system/CLAUDE.md` is explicit that no component arrives there as a side
-  // effect of other work. They are a follow-up with a design system task in front of them.
+  // the design system grows in the order of design-system.md §4, never as a side effect of other
+  // work, so this dialog offers neither.
 
   import { Button, Dialog, Input, Stack, Textarea } from '@hubtask/design-system/components';
 

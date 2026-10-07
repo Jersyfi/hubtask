@@ -61,7 +61,7 @@ type CalendarFeedWriter struct {
 	Entropy clock.Entropy
 }
 
-// CreateCalendarFeed mints a feed over one saved view and answers its token, once (D-08).
+// CreateCalendarFeed mints a feed over one saved view and answers its token, once.
 type CreateCalendarFeed struct{ Writer CalendarFeedWriter }
 
 // MintedFeed is what a minting answers: the feed as it will be listed, and the credential that

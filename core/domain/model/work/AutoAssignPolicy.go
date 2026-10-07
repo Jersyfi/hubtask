@@ -20,18 +20,17 @@ import (
 type AutoAssignPolicy struct {
 	ID       shared.ID
 	TenantID shared.ID
-	// ScopeType and ScopeID are where the policy applies. The schema also allows HUB, for the
-	// milestone that gives hubs policies; C-02 writes and resolves COLLECTION only, because
-	// UpdateContainerPolicies - the one writer of policy documents - refuses a hub today.
+	// ScopeType and ScopeID are where the policy applies. The schema also allows HUB; only
+	// COLLECTION is written and resolved, because UpdateContainerPolicies - the one writer of
+	// policy documents - refuses a hub.
 	ScopeType  AutoAssignScope
 	ScopeID    shared.ID
 	Strategy   AutoAssignStrategy
 	Candidates []AutoAssignCandidate
 	State      AutoAssignState
-	// Enabled is the difference between the two ways a policy is reached (C-02): an enabled
-	// policy applies itself to everything created in the collection, a disabled one waits to be
-	// asked for with `auto_assign` on the create path. Removing the policy is deleting the row,
-	// not disabling it.
+	// Enabled is the difference between the two ways a policy is reached: an enabled policy applies
+	// itself to everything created in the collection, a disabled one waits to be asked for with
+	// `auto_assign` on the create path. Removing the policy is deleting the row, not disabling it.
 	Enabled bool
 	Version int
 }

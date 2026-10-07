@@ -40,8 +40,8 @@ export function violations(html) {
 /**
  * The same question for a stylesheet: a data: URI in CSS is loaded under the directive of what
  * it is - and only `img-src` says data:. A font or anything else inlined by the bundler's byte
- * threshold arrives as a blocked resource and an empty glyph at runtime; W-08 found exactly
- * that in the browser console before this check existed.
+ * threshold arrives as a blocked resource and an empty glyph at runtime, and nothing but the
+ * browser console says so.
  */
 export function stylesheetViolations(css) {
   const found = [];

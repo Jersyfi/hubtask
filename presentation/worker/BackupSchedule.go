@@ -14,7 +14,7 @@ import (
 )
 
 // BackupScheduling is one tenant's wake-up: what does this tenant owe now, and when is the next
-// moment it owes anything (E-05, backup-restore.md §5).
+// moment it owes anything (backup-restore.md §5).
 //
 // The same shape as the reminders' and the recurrence materialisation's, and for the same reason:
 // nothing in this system may enumerate tenants, so a scheduler cannot create one job per tenant
@@ -45,7 +45,7 @@ func (h BackupScheduling) Run(ctx context.Context, job queue.Job) (queue.Result,
 		return queue.Result{}, shared.ErrInternal.WithDetail("backup.schedule_pass_without_tenant")
 	}
 
-	// The row lock this pass takes on its own job, for the reason D-03's reminders take one: the
+	// The row lock this pass takes on its own job, for the reason the reminders take one: the
 	// pass decides when it next runs from the data, and a write committing between that read and
 	// the reschedule would find the row RUNNING - where the queue's conflict clause cannot pull a
 	// wake-up forward - and its schedule would wait for a wake-up nobody scheduled.

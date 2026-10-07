@@ -27,7 +27,7 @@ type Bus interface {
 	Publish(ctx context.Context, tenantID shared.ID, eventType string, payload []byte) error
 }
 
-// Publication is the `bus.publish` job: read the event, render it, put it on the bus (H-14).
+// Publication is the `bus.publish` job: read the event, render it, put it on the bus.
 //
 // It is a job rather than a step of the dispatch because a subscriber may not call the outside
 // world inside the dispatcher's transaction (core/port/eventbus). What it buys beyond that is the

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-30 · **Accepted:** 2026-09-30
 
+**Rule lives in:** [ai-first.md](../architecture/ai-first.md) §2 (models the installation offers — decided, not yet built)
+
 ## Context
 
 An AI provider exists **per workspace** today ([ADR-0049](./ADR-0049-ai-provider-surface.md)): a

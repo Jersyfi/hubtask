@@ -14,9 +14,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 )
 
-// The acceptance criterion of B-11, in the shape the parity gate has: every mutating
-// work-management use case in the catalogue either writes a step of an item's history or is on an
-// explicit exemption list with a reason.
+// In the shape the parity gate has: every mutating work-management use case in the catalogue
+// either writes a step of an item's history or is on an explicit exemption list with a reason.
 //
 // It is a declaration check rather than a behaviour check, and deliberately so. Whether a use case
 // that declares a verb actually writes the entry is proved where the writing is - by the service

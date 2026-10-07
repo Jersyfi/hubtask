@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// SyncOpLog is the operation log's two statements (N-04): what a push did with each op_id, kept
+// SyncOpLog is the operation log's two statements: what a push did with each op_id, kept
 // for the offline window. Both run inside the caller's transaction (rule 3).
 type SyncOpLog struct{}
 
@@ -129,8 +129,8 @@ func (TombstoneRepository) Holds(ctx context.Context, entity string, id shared.I
 	return held, nil
 }
 
-// SyncLogSweeper removes the synchronisation's records past the offline window (N-09,
-// data-retention.md §3, the SYNC_LOG kind): operation log rows and tombstones, one batch of each
+// SyncLogSweeper removes the synchronisation's records past the offline window
+// (data-retention.md §3, the SYNC_LOG kind): operation log rows and tombstones, one batch of each
 // per pass, the device sweep's shape. The change log is not its business - its months fall as
 // partitions (drop_stream_partition).
 type SyncLogSweeper struct{}
@@ -196,7 +196,7 @@ func (SyncLogSweeper) CountExpired(ctx context.Context, cutoff time.Time, ceilin
 	return int(ops + stones), nil
 }
 
-// EpochRepository is the workspace's synchronisation epoch (N-11), a column of the tenant row.
+// EpochRepository is the workspace's synchronisation epoch, a column of the tenant row.
 type EpochRepository struct{}
 
 func NewEpochRepository() EpochRepository { return EpochRepository{} }

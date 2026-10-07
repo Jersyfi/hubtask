@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The read side of the containers and the items (B-04). Four handlers, no rules: each reads the
+// The read side of the containers and the items. Four handlers, no rules: each reads the
 // request, calls one catalogue entry, and maps the result - the permission check, the projection and
 // the paging all happen in the application layer, once, for every channel (ADR-0005, arc42 §4).
 
@@ -93,8 +93,8 @@ func (c *RestController) GetWorkItem(
 // expansionsOf reads the relations a client asked for and reports which of them this installation
 // serves.
 //
-// `labels` is served since B-09. Everything else the contract's example names - children, the
-// assignee, the cover - belongs to use cases that have not landed, and is refused by name rather
+// `labels` is served. Everything else the contract's example names - children, the
+// assignee, the cover - is not, and is refused by name rather
 // than ignored: a client that asked for children and received an entry without them cannot tell
 // that from an entry that has none, and would render an empty tree (api-guidelines.md §6).
 //

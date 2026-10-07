@@ -83,7 +83,7 @@ func rotator(rule domain.Rule) (RotateInboundTrigger, *addresses, *authorizer, *
 }
 
 // The token is answered once, carries its own prefix, and names the tenant it belongs to - the
-// three things D-08 established and this credential inherits.
+// three things automation.md §1.1 asks of this credential.
 func TestMintingAnAddressAnswersTheTokenOnce(t *testing.T) {
 	handler, open, _, sink := rotator(inboundRule())
 
@@ -248,7 +248,7 @@ func TestAnAddressStartsItsOwnRuleAndNoOther(t *testing.T) {
 }
 
 // Every refusal is the same one. Distinguishing them would answer questions for whoever is trying
-// tokens (T-21, the discipline D-08 established).
+// tokens (T-21).
 func TestEveryReasonNotToServeAnsersTheSameWay(t *testing.T) {
 	handler, open, _, _ := rotator(inboundRule())
 	minted, err := handler.Execute(context.Background(), presser(), ruleID)

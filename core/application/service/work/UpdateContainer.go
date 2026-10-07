@@ -65,7 +65,7 @@ type ContainerWriter struct {
 	// Queue is where a deletion asks for the tenant's cleanup to be scheduled. Only TrashContainer
 	// uses it; the reasoning is at LifecycleWriter.Queue.
 	Queue queue.Queue
-	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -327,7 +327,7 @@ func (w ContainerWriter) recordChanges(
 			// The visibility filter a pull applies: the container itself. A reader that wants the hub's
 			// subtree resolves the parent from the container it loads for the permission check anyway,
 			// and a grant on a collection alone is on the path of the collection and not of its hub
-			// (#623, core/application/repository/sync/Port.go).
+			// (core/application/repository/sync/Port.go).
 			ContainerID: container.ID,
 			ActorID:     actor.AccountID,
 			HLC:         w.HLC.Next(),
@@ -489,8 +489,8 @@ func (h RenameContainer) Descriptor() usecase.Descriptor {
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "a container is not an item, and the history is an item's: `ActivityEntry` is " +
-				"keyed on `itemId` (domain-model.md §3.5) and `/items/{id}/activity` is its only " +
-				"reader. A container's own history has nowhere to be read from yet.",
+				"keyed on `itemId` and `/items/{id}/activity` is its only reader. A container's " +
+				"own history has nowhere to be read from.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
@@ -579,8 +579,8 @@ func (h UpdateContainerPolicies) Descriptor() usecase.Descriptor {
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "a container is not an item, and the history is an item's: `ActivityEntry` is " +
-				"keyed on `itemId` (domain-model.md §3.5) and `/items/{id}/activity` is its only " +
-				"reader. A container's own history has nowhere to be read from yet.",
+				"keyed on `itemId` and `/items/{id}/activity` is its only reader. A container's " +
+				"own history has nowhere to be read from.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

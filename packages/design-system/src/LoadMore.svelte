@@ -2,13 +2,13 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The next page, and **no page numbers** - the API has none, so no component may imply them
-  // (apps/webapp/CLAUDE.md). There is no `page`, no `total pages`, and no way for a caller to ask
-  // for the fourth one.
+  // (design-system.md §4, Wave 2). There is no `page`, no `total pages`, and no way for a caller
+  // to ask for the fourth one.
   //
   // It is a control a person presses rather than an infinite scroll, and that is an accessibility
   // decision rather than a taste. A list that loads on scroll has **no end** for a keyboard or a
   // screen reader to reach: whatever follows it - a footer, the next region - recedes every time
-  // the reader gets close. F2-03 built `loadMore` to append for the same reason this is a button:
+  // the reader gets close. The engine's `loadMore` appends for the same reason this is a button:
   // what the reader already had must still be there afterwards.
   //
   // What arrived is **announced**. Pressing a button and being told nothing is the case where a

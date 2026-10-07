@@ -2,6 +2,8 @@
 
 **Status:** accepted (decision 4 amended by [ADR-0066](./ADR-0066-search-is-one-question.md)) · **Date:** 2026-09-22 · **Accepted:** 2026-09-22 · **Supersedes parts of ADR-0061**
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §11
+
 ## Context
 
 [ADR-0061](./ADR-0061-page-anatomy-and-the-shell.md) gave the product a page anatomy: one list of
@@ -403,7 +405,7 @@ No view branches on the input. Both rules live in `viewport.svelte.ts` and in th
 
 | Work package | Target |
 |---|---|
-| The tasks of the milestone | [`backlog/milestone-F10.md`](../backlog/milestone-F10.md) |
+| The tasks of the milestone | [`backlog/milestone-F10.md`](../archive/backlog/milestone-F10.md) |
 | `design-system.md` §4 and §6 | with the tasks that build them |
 
 ## Notes

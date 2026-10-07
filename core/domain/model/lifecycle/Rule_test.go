@@ -153,12 +153,11 @@ func TestWhatARuleCannotMean(t *testing.T) {
 }
 
 // §4.4: exceeding the upper bound is allowed and costs a justification, which then reaches the
-// audit. The trash is the one kind with a bound today.
-// §4.4 makes the upper bound the operator's - "where the operator has set a maximum period" - so it
-// is handed in rather than read off the kind, and no kind carries one by default.
-// The E-07 refusal, flipped rather than deleted. It refused a condition outright because nothing
-// could evaluate one; with G-06 the aggregate keeps it, and whether the text is an expression is
-// asked by the compiler in the application layer - core/domain may not hold an evaluator.
+// audit. The trash is the one kind with a bound today. §4.4 makes the upper bound the operator's -
+// "where the operator has set a maximum period" - so it is handed in rather than read off the kind,
+// and no kind carries one by default. A condition is kept by the aggregate, and whether the text is
+// an expression is asked by the compiler in the application layer - core/domain may not hold an
+// evaluator.
 func TestAConditionIsKeptForTheCompiler(t *testing.T) {
 	in := ruleInput(func(*domain.NewRuleInput) {})
 	in.Condition = "  item.completed_at != null  "
@@ -385,9 +384,9 @@ func TestTheCatalogueNamesEveryKindTheDocumentDoes(t *testing.T) {
 	}
 }
 
-// The refusal that flipped (R-1, G-12): a rule that asks to warn somebody is stored and honoured
-// rather than refused, now that there is a category to write the warning under and a way to
-// resolve who "the collection's administrators" are.
+// A rule that asks to warn somebody is stored and honoured (data-retention.md §6): there is a
+// category to write the warning under and a way to resolve who "the collection's administrators"
+// are.
 //
 // The bound it was refused *with* stays: a warning after the act is still a condolence, and the
 // case above proves it.
@@ -428,7 +427,7 @@ func TestAWarningWithNoNumberTakesTheDocumentedDefault(t *testing.T) {
 }
 
 // The justification - the one field of a rule a person writes in sentences - is stored in normal
-// form C (i18n-l10n.md §5, M-07).
+// form C (i18n-l10n.md §5).
 func TestAJustificationIsStoredInNormalFormC(t *testing.T) {
 	rule, err := domain.NewRule(ruleInput(func(in *domain.NewRuleInput) {
 		in.Justification = "Aufbewahrung wegen laufender Pru\u0308fung"

@@ -79,7 +79,7 @@ func TestADueEventAboutNothingMovingIsRefused(t *testing.T) {
 	}
 }
 
-// The two announcements the scheduler makes (D-03). One shape for both, so that a consumer reads
+// The two announcements the scheduler makes. One shape for both, so that a consumer reads
 // them with one piece of code: what tells them apart is the type and the threshold.
 func TestTheSchedulingAnnouncementsCarryTheDeadlineAndItsThreshold(t *testing.T) {
 	due := occurred.Add(24 * time.Hour)

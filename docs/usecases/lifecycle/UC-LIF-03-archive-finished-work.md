@@ -51,8 +51,5 @@ workspace wrote says so.
 
 ## Today
 
-* **Check 5 fails.** The *Archive* place lists hubs and collections only
-  (`apps/webapp/src/views/ArchiveView.svelte`); a single archived task is not listed there, because
-  there is no workspace-wide query for archived entries.
-* **Check 6 fails for `hubctl`.** It has no archive or unarchive command, only
-  `--include-archived` on listings.
+* Check 5: not met — the *Archive* place lists hubs and collections only; an archived task is not listed, because there is no workspace-wide query for archived entries.
+* Check 6: not met for `hubctl` — it has no archive or unarchive command, only `--include-archived` on listings.

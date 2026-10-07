@@ -12,7 +12,7 @@
 
 {#if mode === 'frame'}
   <Stack gap="200">
-    <!-- The two the frame needs (F1-10). Both are this component with content: ADR-0035 §2's
+    <!-- The two the frame needs. Both are this component with content: ADR-0035 §2's
          maturity banner, dismissible for the session, and §4's HealthBanner, which comes back
          while the degradation lasts. -->
     {#if !dismissed}

@@ -96,7 +96,7 @@ class Audit {
 
   /**
    * Names the backup target the chain's end is anchored to once a day, or `null` to switch
-   * anchoring off (issue 774, audit.md §3). The workspace is re-read, because that is where the
+   * anchoring off (audit.md §3). The workspace is re-read, because that is where the
    * target is read back from.
    */
   async configureAnchoring(targetId: string | null): Promise<void> {

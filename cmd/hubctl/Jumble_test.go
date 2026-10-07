@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// The inbox as a person meets it (G-13), and the two decisions this client makes about it: a
+// The inbox as a person meets it, and the two decisions this client makes about it: a
 // listing shows the subject and not the body, and a dismissal says what it is - a state rather
 // than a deletion.
 

@@ -257,7 +257,7 @@ func (h *releasingHandler) Release(_ context.Context, job queue.Job) {
 }
 
 // A handler holding a lock beyond the job row is asked to let it go exactly when the queue gives
-// up - at the dead letter, and not on an attempt that will be retried (#207). A run row left
+// up - at the dead letter, and not on an attempt that will be retried. A run row left
 // RUNNING by a dead job would hold its target's lock for ever.
 func TestADeadLetteredJobReleasesWhatItHolds(t *testing.T) {
 	failing := func(context.Context, queue.Job) (queue.Result, error) {
@@ -576,7 +576,7 @@ func TestADetachedFailureStillGoesBackToTheQueue(t *testing.T) {
 	}
 }
 
-// The doorbell (G-02, ADR-0007). A poll interval far longer than the test's patience, so that a
+// The doorbell (ADR-0007). A poll interval far longer than the test's patience, so that a
 // round happening at all can only be the notification's doing.
 func TestANotificationWakesTheLoopBeforeThePollInterval(t *testing.T) {
 	jobs := newQueue()
@@ -631,7 +631,7 @@ func waitForClaims(t *testing.T, jobs *queueDouble, count int) {
 }
 
 // A failure's cause is handed to the diagnosis, and what it answers reaches the log line beside
-// the code - which is how a `postgres.query_failed` comes to name its constraint (issue 692). The
+// the code - which is how a `postgres.query_failed` comes to name its constraint. The
 // handler-missing failure has no cause and asks nothing.
 func TestAFailureIsDiagnosedForTheLogLine(t *testing.T) {
 	jobs := newQueue()

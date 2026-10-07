@@ -45,7 +45,7 @@ jobs:
       # RT-6 and the storm bring up their own installation - a container, the real binary and a
       # seeded dataset - so they need no service beside them. The hardware is named because the
       # regression guard compares only against a baseline recorded on the same kind of machine:
-      # comparing across iron measures the iron (H-11, decision 7).
+      # comparing across iron measures the iron (observability-reliability.md §13.2).
       #
       # The dataset is the scaled one. Two million rows is the per-release capacity ramp's figure,
       # seeded by scripts/seed-load-dataset.sh against a real stack on named hardware; carrying
@@ -82,16 +82,13 @@ jobs:
       - run: make gate-integration
       # PG-2 and PG-7: the deletion test across every storage location, and the schema reconciled
       # against the data catalogue. ADR-0018 calls the first "the expensive one with the highest
-      # protective value" and puts it here rather than on every pull request (E-11).
+      # protective value" and puts it here rather than on every pull request.
       - run: make gate-privacy-full
       # And the proof that those two bite - on this architecture.
       #
-      # The reason written here used to be that `gate-selftest` skips its container-backed probes
-      # "where there is no PostgreSQL, which is every pull request". That was never true: the
-      # script asks `docker info`, every runner has Docker, and the probes run through
-      # Testcontainers - a pull request's selftest ends with "0 skipped" and always has (#944).
-      # What this step is actually for is the arm64 runner underneath it, which is the one thing
-      # the pull request cannot give it.
+      # Not for the container-backed probes: the script asks `docker info`, every runner has
+      # Docker, and a pull request's selftest runs them too. What this step is for is the arm64
+      # runner underneath it, which is the one thing the pull request cannot give it.
       - run: make gate-selftest
       - run: make gate-compose
 
@@ -102,11 +99,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # A major, not an image. The entry used to be `17-alpine` and the image was composed as
-        # `postgres:${{ matrix.postgres }}` - a plain build with no pgvector, so every run of this
-        # job died on `db/schema.sql does not apply: extension "vector" is not available`, every
-        # night since 2026-09-09 (#939). The row of the table that claims PostgreSQL 17, and the
-        # half of the pgvector row that claims 17, were resting on it.
+        # A major, not an image. An entry like `17-alpine` composed as
+        # `postgres:${{ matrix.postgres }}` is a plain build with no pgvector, and the job dies on
+        # `db/schema.sql does not apply: extension "vector" is not available` - while the support
+        # matrix's PostgreSQL row and pgvector row rest on this job.
         #
         # The image family is named here, once, so that a matrix entry chooses a version and
         # cannot choose a build. `test/dbtest` refuses a database without the extension outright,
@@ -233,7 +229,7 @@ jobs:
       # RT-9 against a real operator and a real object store. Nightly rather than per pull request
       # for the reason gate-kind is: it needs a cluster, and it installs an operator and restores a
       # database inside it. What it proves is the path; what it measures is the runner, so no
-      # figure it produces is recorded (decision 7 of milestone 0.6.0).
+      # figure it produces is recorded (observability-reliability.md §13.2).
       - uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
         with:
           cluster_name: hubtask
@@ -342,12 +338,11 @@ jobs:
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
             // `needs` is a map of job id to `{ result, outputs }`, so the outcome is `.result` and
-            // not the entry itself. Reading the entry as a string is what this job did between
-            // 2026-09-03 and 2026-09-22: every comparison against 'failure' and 'success' was
-            // false, nothing was filed, nothing was closed, and the job went green while three
-            // nightly jobs were red every night (#937).
+            // not the entry itself. Read as a string, every comparison against 'failure' and
+            // 'success' is false, nothing is filed, nothing is closed, and the job goes green while
+            // nightly jobs are red.
             //
-            // So the outcome is now read, and anything that is not an outcome stops the job. That
+            // So the outcome is read, and anything that is not an outcome stops the job. That
             // is the whole lesson: this job's failure mode is silence, and a reporter that cannot
             // report has to say so rather than pass. If GitHub ever changes the shape of `needs`
             // again, the nightly turns red on the reporter instead of quietly forgetting its job.
@@ -409,7 +404,7 @@ jobs:
                   }
                 } else {
                   await github.rest.issues.create({
-                    ...context.repo, title, body, labels: ['task', 'claude:task'],
+                    ...context.repo, title, body, labels: ['finding'],
                   });
                 }
                 continue;
@@ -425,7 +420,7 @@ jobs:
               if (!issue || issue.state === 'closed') {
                 continue;
               }
-              if (!issue.labels.some((label) => (label.name ?? label) === 'claude:task')) {
+              if (!issue.labels.some((label) => ['finding', 'claude:task'].includes(label.name ?? label))) {
                 continue;
               }
 

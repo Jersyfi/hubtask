@@ -19,15 +19,15 @@ import (
 type SessionCredential struct {
 	Session identity.Session
 	Account identity.Account
-	// ClientID is the OAuth client behind a grant session (H-05), zero for a person's own.
+	// ClientID is the OAuth client behind a grant session, zero for a person's own.
 	ClientID shared.ID
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
-	// TenantSlug and TenantStatus ride with every credential read, Credential's reason (H-06).
+	// TenantSlug and TenantStatus ride with every credential read, Credential's reason.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
-	// TokenRatePerMinute is the workspace's own request-rate ceiling (H-08), Credential's
+	// TokenRatePerMinute is the workspace's own request-rate ceiling, Credential's
 	// reason. 0 means the installation's default applies.
 	TokenRatePerMinute int64
 	// RotationFrom is the workspace's rotation cutoff (ADR-0068 §3), read off the tenant row this
@@ -39,7 +39,7 @@ type SessionCredential struct {
 // AccountSessions is what the session list reads: the account's sessions the store still holds, and
 // the workspace's rotation cutoff beside them. The cutoff travels with the rows because judging them
 // needs it - a session opened before it is over (ADR-0068 §3) - and the list judges with the same
-// method authentication does (SC-19).
+// method authentication does.
 type AccountSessions struct {
 	Sessions     []identity.Session
 	RotationFrom time.Time
@@ -54,7 +54,7 @@ type RefreshCredential struct {
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
-	// TenantSlug and TenantStatus ride with every credential read, Credential's reason (H-06).
+	// TenantSlug and TenantStatus ride with every credential read, Credential's reason.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
 }
@@ -71,7 +71,7 @@ type SignInAccount struct {
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
-	// TenantSlug and TenantStatus ride with every credential read, Credential's reason (H-06).
+	// TenantSlug and TenantStatus ride with every credential read, Credential's reason.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
 }
@@ -85,7 +85,7 @@ type RedemptionAccount struct {
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
-	// TenantSlug and TenantStatus ride with every credential read, Credential's reason (H-06).
+	// TenantSlug and TenantStatus ride with every credential read, Credential's reason.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
 }
@@ -178,7 +178,7 @@ type SignInAccounts interface {
 
 	// PasswordHashOf answers one account's stored hash, for the operations that demand the
 	// password afresh of somebody already signed in - disabling the second factor is the first
-	// (H-02, security.md §5). Empty for an account that signs in some other way.
+	// (identity.md §16). Empty for an account that signs in some other way.
 	PasswordHashOf(ctx context.Context, accountID shared.ID) (secret.Secret, error)
 }
 
@@ -201,16 +201,16 @@ type AuthAttempts interface {
 	Clear(ctx context.Context, subject string) error
 }
 
-// TenantDirectory answers decision 3's question: which tenant is signing in, before any
-// credential exists to say so. One identifier or none, never a listing - the implementation is
-// the narrow SECURITY DEFINER path migration 0063 pins down.
+// TenantDirectory answers tenant resolution's question (multi-tenancy.md §3): which tenant is
+// signing in, before any credential exists to say so. One identifier or none, never a listing - the
+// implementation is the narrow SECURITY DEFINER path migration 0063 pins down.
 type TenantDirectory interface {
 	// Resolve maps a slug to its tenant. The empty slug answers the single-mode installation's
 	// only row. No match is an error wrapping shared.ErrNotFound.
 	Resolve(ctx context.Context, slug string) (shared.ID, error)
 }
 
-// MfaEnrollment is the stored second factor (H-02): the sealed secret and what arms it. The
+// MfaEnrollment is the stored second factor: the sealed secret and what arms it. The
 // secret travels sealed - opening it is the application layer's act, through the Encryptor,
 // because verification needs the plaintext and storage never does.
 type MfaEnrollment struct {
@@ -220,7 +220,7 @@ type MfaEnrollment struct {
 	ConfirmedAt time.Time
 	// LastStep is the highest accepted RFC 6238 step - the replay refusal's floor.
 	LastStep int64
-	// Replacement is a new secret waiting beside the armed one to be confirmed (SC-17), nil where
+	// Replacement is a new secret waiting beside the armed one to be confirmed, nil where
 	// there is none. It protects nobody until the swap.
 	Replacement *crypto.Sealed
 	// ReplacementSession is the session that began it, the only one that may confirm it.
@@ -249,7 +249,7 @@ type MfaEnrollments interface {
 	// Disable removes the enrolment whole. False means there was none.
 	Disable(ctx context.Context, accountID shared.ID) (bool, error)
 
-	// StartReplacement puts a new secret beside an armed one (SC-17), replacing a replacement begun
+	// StartReplacement puts a new secret beside an armed one, replacing a replacement begun
 	// earlier. False means no factor is armed - there is nothing to replace.
 	StartReplacement(
 		ctx context.Context, accountID shared.ID, sealed crypto.Sealed,
@@ -287,7 +287,7 @@ type PendingLookup struct {
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
-	// TenantSlug and TenantStatus ride with every credential read, Credential's reason (H-06).
+	// TenantSlug and TenantStatus ride with every credential read, Credential's reason.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
 }
@@ -314,15 +314,15 @@ type PendingCredentials interface {
 	Supersede(ctx context.Context, accountID shared.ID, purpose identity.PendingPurpose, at time.Time) (int, error)
 }
 
-// TenantPolicy answers the tenant's security switches (H-02). A narrow reader rather than the
+// TenantPolicy answers the tenant's security switches. A narrow reader rather than the
 // settings document, so the application layer never parses a shape the adapter owns.
 type TenantPolicy interface {
 	// RequireAdminTotp reports whether this tenant demands TOTP of OWNER and ADMIN role holders
-	// (security.md §5). An absent switch is false: enforcement is a decision, never a default.
+	// (identity.md §8). An absent switch is false: enforcement is a decision, never a default.
 	RequireAdminTotp(ctx context.Context) (bool, error)
 }
 
-// StepUps maintains the proof a privileged action demands (H-03). The presented token travels
+// StepUps maintains the proof a privileged action demands. The presented token travels
 // whole and is hashed in the adapter, the pepper's home.
 type StepUps interface {
 	// Record lands a fresh proof on the caller's own live session, replacing whatever stood.
@@ -349,7 +349,7 @@ type GrantListing struct {
 	LastUsedAt time.Time
 }
 
-// OauthClients is the registry of third-party apps (H-05). The presented secret travels whole
+// OauthClients is the registry of third-party apps. The presented secret travels whole
 // and is hashed in the adapter, the pepper's home.
 type OauthClients interface {
 	// Insert writes a registration. The presented secret is the zero token for a public client.
@@ -410,7 +410,7 @@ type MfaSealings interface {
 	// means the row changed in between and this rewrap is stale; the next pass reads it again.
 	Rewrap(ctx context.Context, accountID shared.ID, sealed crypto.Sealed, expectedKeyID string) (bool, error)
 
-	// ReplacementsSealedNotUnder answers the waiting replacements (SC-17) whose wrapping names a key
+	// ReplacementsSealedNotUnder answers the waiting replacements whose wrapping names a key
 	// other than keyID, as enrolments whose Secret is the replacement's.
 	ReplacementsSealedNotUnder(ctx context.Context, keyID string) ([]MfaEnrollment, error)
 

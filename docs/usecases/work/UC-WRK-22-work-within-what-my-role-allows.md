@@ -59,13 +59,7 @@ not exist.
 
 ## Today
 
-* **Checks 1, 2 and 3 fail in the web app.** The entry page gates its controls on the entry being
-  archived and on the type's capabilities, never on the role
-  (`apps/webapp/src/views/ItemView.svelte:552`); `mayChange` exists and has no caller
-  (`apps/webapp/src/lib/data/capability.svelte.ts:53`). A viewer sees every control and meets the
-  server's refusal as a sentence after pressing it.
-* **Check 4 fails in part.** Custom fields, policies, templates and views ask the role; *Create
-  hub*, *Create collection*, the board's columns and the labels dialog do not (see
-  [UC-WRK-01](./UC-WRK-01-organise-my-work-into-hubs-and-collections.md),
-  [UC-WRK-05](./UC-WRK-05-run-a-collection-as-a-board.md),
-  [UC-WRK-09](./UC-WRK-09-make-work-recognisable-at-a-glance.md)).
+* Check 1: not met in the web app — the entry page gates its controls on archiving and the type's capabilities, never on the role, so a viewer sees every control and meets the server's refusal after pressing it, tracked in #1080.
+* Check 2: not met in the web app — the entry page never asks the role, so a contributor sees the same controls on every entry, tracked in #1080.
+* Check 3: not met in the web app — the entry page never asks the role, so a guest sees the controls that change the entry, tracked in #1080.
+* Check 4: not met in part — *Create hub*, *Create collection*, the board's columns and the labels dialog are offered without asking the role (UC-WRK-01, UC-WRK-05, UC-WRK-09), tracked in #1080.

@@ -147,10 +147,12 @@ func TestTheRepositoryLicenceIsApache(t *testing.T) {
 
 // buslHistory are the tracked paths that may still name the Business Source License's SPDX
 // identifier, because they are records of what was: the ADRs (immutable once accepted, and
-// ADR-0013 and ADR-0059 are the decisions ADR-0080 replaced), the backlog's task texts, and the
-// evidence files written at the time. This file is in the list because it names what it looks for.
+// ADR-0013 and ADR-0059 are the decisions ADR-0080 replaced), the backlog's task texts, the
+// archive of closed milestones and old run records, and the evidence files written at the time.
+// This file is in the list because it names what it looks for.
 var buslHistory = []string{
 	"docs/adr/",
+	"docs/archive/",
 	"docs/backlog/",
 	"docs/evidence/",
 	"test/architecture/licence_test.go",

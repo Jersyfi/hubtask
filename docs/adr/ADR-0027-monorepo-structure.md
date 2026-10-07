@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-22
 
+**Rule lives in:** [project-structure.md](../architecture/project-structure.md) §1, §2.1
+
 ## Context
 
 Until now this repository has held one deployable thing: the Go binary and everything that

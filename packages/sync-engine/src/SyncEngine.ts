@@ -3,12 +3,11 @@
 
 // The seam every component reads through, and the subscription API a framework binds to.
 //
-// F1's engine was online-only: a call went straight to the Transport, with no queue, no local
-// store and no hybrid logical clock. F6-03 put the replica behind it - the store, the device, the
-// clock, the initial synchronisation and the delta, the stream applied to the copy - and nothing
-// a component sees changed: it subscribes to a resource and is told about every state it can be
-// in, and it never learns that a Transport or a Storage exists. Without a store attached the
-// engine is still what F1 shipped. The queue is F6-05's.
+// Behind it sit the replica - the store, the device, the clock, the initial synchronisation and
+// the delta, the stream applied to the copy - and the queue, and a component sees none of them: it
+// subscribes to a resource and is told about every state it can be in, and it never learns that a
+// Transport or a Storage exists. Without a store attached the engine is online-only: a call goes
+// straight to the Transport.
 //
 // No Svelte, and nothing framework-shaped. The subscription is a function that takes a listener
 // and returns an unsubscribe - the smallest thing runes, signals or a React hook can all wrap, and
@@ -70,7 +69,7 @@ export type ResourceState<T> =
       readonly at: number;
       /**
        * Where the data came from: the server, or the replica while the server could not be
-       * reached (F6-04). Two values rather than an optional that means two things - a screen
+       * reached. Two values rather than an optional that means two things - a screen
        * marks a replica state as of the store's last synchronisation, and a write against a
        * replica state has no `etag` to state. The first server answer after a reconnect replaces
        * a replica state.
@@ -146,7 +145,7 @@ export interface MutateOptions {
   /** The version the caller read. A stale one is refused rather than silently overwriting. */
   readonly ifMatch?: string;
   /**
-   * The proof a privileged action demanded (H-03), consumed by the one action it is presented to.
+   * The proof a privileged action demanded (identity.md §16), consumed by the one action it is presented to.
    *
    * Per call and never held: a second privileged action needs a second proof, and an engine that
    * kept one would be an engine quietly answering the second demand with the first answer.
@@ -165,8 +164,8 @@ export interface MutateOptions {
    * `/containers/{id}` alike; the document half of a query key is not matched against, because a
    * write does not know which questions it changed the answer to.
    *
-   * Two marks make a name precise where a prefix is too wide (issue 877 - a retitled entry
-   * re-read its comments, reminders, attachments and series, none of which had moved):
+   * Two marks make a name precise where a prefix is too wide - a retitled entry must not re-read
+   * its comments, reminders, attachments and series, none of which moved:
    * a trailing `$` names the path itself and not what hangs under it - `/items/{id}$` is the
    * entry's document, with or without a query string, and not `/items/{id}/comments` - and `*`
    * stands for one segment, so a star in place of the id under `/items/` names every thread a
@@ -207,12 +206,11 @@ export interface ListenOptions {
    * change: what the caller is being told is whether the connection is *working*, and a
    * deployment closing a stream that is straight back up never stopped working.
    *
-   * It exists because the alternative is what the client did instead, and what it did was wrong:
-   * it turned "reconnecting" into "live" **when the first record arrived**. A record arriving
-   * proves the stream delivers; it is not the definition of being connected, so an open and idle
-   * stream - the normal state of a workspace nobody else is writing in - read *Reconnecting…* for
-   * as long as nobody changed anything (issue 1017). Only this loop knows the connection's state,
-   * and now it can say so.
+   * The alternative - turning "reconnecting" into "live" **when the first record arrives** - is
+   * wrong. A record arriving proves the stream delivers; it is not the definition of being
+   * connected, so an open and idle stream - the normal state of a workspace nobody else is writing
+   * in - would read *Reconnecting…* for as long as nobody changed anything. Only this loop knows
+   * the connection's state, so this loop says it.
    */
   readonly onConnection?: (isOpen: boolean) => void;
   /**
@@ -240,8 +238,8 @@ export interface SyncEngineOptions {
   /**
    * How the bearer is obtained, asked for per call rather than held.
    *
-   * A function rather than a string, and that is the whole point: the token is the platform seam's
-   * (F1-11), it is refreshed behind this package's back, and a copy taken at construction is a
+   * A function rather than a string, and that is the whole point: the token is the platform seam's,
+   * it is refreshed behind this package's back, and a copy taken at construction is a
    * copy that keeps working after a sign-out.
    */
   readonly token?: () => string | undefined;
@@ -256,7 +254,7 @@ export interface SyncEngineOptions {
    */
   readonly onUnauthorized?: () => void;
   /**
-   * How a read is answered from the replica while the server cannot be reached (F6-04).
+   * How a read is answered from the replica while the server cannot be reached.
    *
    * The application's, like `pathsFor`: the engine does not learn which path is a list of what.
    * Handed the request and the store, it answers the document the path would have answered - the
@@ -266,7 +264,7 @@ export interface SyncEngineOptions {
    */
   readonly storeFor?: (request: ResourceRequest, storage: Storage) => Promise<unknown>;
   /**
-   * What a write becomes when it has to be queued (F6-05): the mutation `:push` takes, without its
+   * What a write becomes when it has to be queued: the mutation `:push` takes, without its
    * clocks, or nothing for a write that cannot be made offline - which is then performed directly
    * as before, and fails in front of the person if the server cannot be reached. The
    * application's, like `pathsFor`: it knows that `PATCH /items/{id}` is an `ITEM_PATCH` and the
@@ -280,7 +278,7 @@ export interface SyncEngineOptions {
     helpers: { readonly storage: Storage; readonly mintId: () => string },
   ) => Promise<QueuedWrite | undefined>;
   /**
-   * Called when a request meets a `401`, to exchange the refresh token for the next pair (F4-03).
+   * Called when a request meets a `401`, to exchange the refresh token for the next pair.
    *
    * `true` means a new credential is held and the request is retried **once**; `false` means the
    * session is over and `onUnauthorized` follows. The exchange itself is the application's - this
@@ -313,7 +311,7 @@ export class SyncEngine {
   readonly #mutationFor: SyncEngineOptions['mutationFor'];
   /** The queue, once a store is attached. */
   #queue: Queue | undefined;
-  /** Whether the last call reached the server: decision 5's other half. */
+  /** Whether the last call reached the server: the other half of offline-sync.md §1's write rule. */
   #reachable = true;
   /** The push in flight, so that a second trigger joins it rather than racing it. */
   #pushing: Promise<void> | undefined;
@@ -323,7 +321,7 @@ export class SyncEngine {
 
   /** The exchange in flight, so that concurrent refusals share one rather than racing. */
   #renewal: Promise<boolean> | undefined;
-  /** The replica, once a store is attached. Absent means online-only: F1's engine, unchanged. */
+  /** The replica, once a store is attached. Absent means online-only. */
   #replica: Replica | undefined;
   #device: DeviceIdentity | undefined;
   #hlc: HybridClock | undefined;
@@ -333,7 +331,7 @@ export class SyncEngine {
     this.#clock = options.clock ?? systemClock;
     this.#token = options.token ?? (() => undefined);
     this.#onUnauthorized = options.onUnauthorized ?? (() => {});
-    // No refresher is the shape F1 shipped: a `401` ends the session at once, which is what a
+    // No refresher: a `401` ends the session at once, which is what a
     // client holding a credential somebody typed can honestly do.
     this.#onRefresh = options.onRefresh ?? (async () => false);
     this.#storeFor = options.storeFor;
@@ -384,7 +382,7 @@ export class SyncEngine {
   }
 
   /**
-   * attach gives the engine its store: the replica, the device, the clock (F6-03).
+   * attach gives the engine its store: the replica, the device, the clock.
    *
    * Called once the account is known, because the store is one database per API origin and
    * account (ADR-0033 §4) and the engine does not learn what an account is - the application
@@ -405,7 +403,7 @@ export class SyncEngine {
     this.#queue = new Queue(replica);
     await this.#publishQueue();
     // A screen that asked before the store was attached and could not reach the server is
-    // asked again, now that the copy can answer it (F6-04): a tab reloading offline subscribes
+    // asked again, now that the copy can answer it: a tab reloading offline subscribes
     // to its tree before it knows which account's store to open.
     for (const entry of this.#resources.values()) {
       if (entry.state.status === 'failed' && unreachable(entry.state.error) && entry.listeners.size > 0) {
@@ -481,9 +479,9 @@ export class SyncEngine {
   /**
    * mutate performs a write and returns what the server answered.
    *
-   * Nothing is queued and nothing is applied optimistically: F2 is still online-only, so a write
-   * either succeeds or fails in front of the person who made it. Rolling one back would be a guess
-   * about a `:push` that does not exist; the queue arrives in F6 with the protocol it implements.
+   * Direct while nothing is queued and the last call reached the server; queued otherwise, where
+   * the application says how a write is queued (offline-sync.md §1). A write that cannot be queued
+   * either succeeds or fails in front of the person who made it.
    *
    * `idempotencyKey` is passed through rather than minted here, because it belongs to the
    * *intent* - a retry of the same intent is the same key, and only the caller knows where one
@@ -496,7 +494,7 @@ export class SyncEngine {
     body: unknown,
     options: MutateOptions = {},
   ): Promise<T> {
-    // Decision 5: direct while the queue is empty and the last call reached the server, queued
+    // offline-sync.md §1: direct while the queue is empty and the last call reached the server, queued
     // otherwise - and a direct write that fails to reach the server is queued too, where the
     // application knows how. Order is what decides it: a write made behind a queued one has to
     // arrive behind it, so once anything is queued everything queueable is.
@@ -596,7 +594,7 @@ export class SyncEngine {
       } catch (cause) {
         const error = cause instanceof TransportError ? cause : undefined;
         if (error?.detailCode === 'sync.device_revoked') {
-          // This device was forgotten (N-03): nothing it holds may be pushed under its name, and
+          // This device was forgotten: nothing it holds may be pushed under its name, and
           // a copy it synchronised under it is not a copy the server will resume. The copy goes
           // and the next attach mints a new device; what the queue held is kept as refused,
           // under the code, for the person to look at (§9.5) - it was theirs, and a forgotten
@@ -842,7 +840,7 @@ export class SyncEngine {
           if (event.id) cursor = event.id;
           const record = recordOf(event.data);
           if (record) {
-            // Applied to the replica before anything is re-read (F6-03): the store is what a
+            // Applied to the replica before anything is re-read: the store is what a
             // screen reads while offline, and a record it has not been given is a change it
             // shows nobody. The cursor advances in the store on the frame, not on the record.
             await this.#replica?.apply(record);
@@ -917,7 +915,7 @@ export class SyncEngine {
   /**
    * The delta since the held cursor, page by page until the server says there is no more - or
    * the initial synchronisation where the store holds no cursor. What the loop runs on start and
-   * on every reconnect, and what a push runs after itself (F6-05). Answers the cursor the store
+   * on every reconnect, and what a push runs after itself. Answers the cursor the store
    * now holds.
    */
   async catchUp(options: Pick<ListenOptions, 'pathsFor' | 'onRecord' | 'connectTimeoutMs' | 'idleTimeoutMs'>): Promise<string | undefined> {
@@ -948,7 +946,7 @@ export class SyncEngine {
    *
    * What follows the synchronisation is `#recover`, not an invalidation of everything: the reads
    * a screen made from the server while the snapshot ran are as fresh as the snapshot, and
-   * reading every one of them again doubled a first page load (issue 877). What the copy
+   * reading every one of them again would double a first page load. What the copy
    * answered meanwhile, and what could not be answered at all, is read again.
    */
   async #initial(
@@ -1074,10 +1072,9 @@ export class SyncEngine {
   /**
    * Reads the entry - once at a time. An ask that arrives while a read is on its way does not
    * start a second one: it marks the entry stale and joins the read in flight, and when that one
-   * lands, one more read follows for everything that arrived meanwhile (issue 877). A write
-   * answers, its stream records land a moment later, and each names the same paths; before this,
-   * every one of them was a request of its own, and a title saved once was an entry read three
-   * times. The follow-up is not skipped, because the read in flight may have been served before
+   * lands, one more read follows for everything that arrived meanwhile. A write answers, its
+   * stream records land a moment later, and each names the same paths; were every one of them a
+   * request of its own, a title saved once would be an entry read three times. The follow-up is not skipped, because the read in flight may have been served before
    * the change was committed - what is skipped is the second and third of the same question.
    * The promise answered is the follow-up's, so `refresh` resolves on a read that began after it
    * was called.
@@ -1100,7 +1097,7 @@ export class SyncEngine {
   }
 
   async #read<T>(request: ResourceRequest, entry: ResourceEntry<T>): Promise<void> {
-    // A screen that holds data keeps it while the next answer is on its way (F5-11). Publishing
+    // A screen that holds data keeps it while the next answer is on its way. Publishing
     // `loading` over a `ready` state tore every list down to its skeleton after every write - and
     // took the keyboard's focus to `body` with it, so a reorder by menu cost the reader the whole
     // tab order back to the row. Only the first read, and a retry after a failure, show `loading`;
@@ -1128,7 +1125,7 @@ export class SyncEngine {
         ? cause
         : new TransportError('malformed', { cause });
       // A read that did not reach the server is answered from the replica where one is attached
-      // and can answer it (F6-04): `ready` as of the store's last synchronisation, with no etag.
+      // and can answer it: `ready` as of the store's last synchronisation, with no etag.
       // A refusal the server answered is the server's answer and is never replaced by the copy.
       if (unreachable(error)) {
         const copy = await this.#fromReplica<T>(request);
@@ -1176,7 +1173,7 @@ export class SyncEngine {
    * read from the server again: what the loop runs once the server answered after a reconnect,
    * so a replica state is replaced by the first server answer rather than retried on every
    * render - and a read that failed while the server was away is not left failed until the tab
-   * reloads (issue 881: the account, read once at start, stayed "You" after every reconnect).
+   * reloads - the account, read once at start, would stay "You" after every reconnect.
    *
    * A failure the server *answered* - a 403, a 404 - is the server's answer and stays: retrying
    * it would be asking for a better one. Only what could plausibly succeed now is asked again.

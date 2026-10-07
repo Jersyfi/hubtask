@@ -127,22 +127,22 @@ func NewMetrics(cfg env.Config) (*Metrics, error) {
 	return m, nil
 }
 
-// restoreDrillRecord is the gauge A-20 has waited for since 0.4.5: when a restore drill last
-// passed, as a Unix timestamp (backup-restore.md §10).
+// restoreDrillRecord is the gauge alert A-20 reads: when a restore drill last passed, as a Unix
+// timestamp (backup-restore.md §10).
 //
 // The process does not run the drill and has no way to know; the drill writes one integer into a
 // record, and the record reaches the process as a file - a ConfigMap mounted into the pod, or a
 // file a script wrote beside a Compose stack. Reading it at scrape time rather than at start is
 // what makes a drill that passed an hour ago visible without a restart, and an absent or
-// unreadable file leaves the series absent rather than reporting 1970 (ADR-0046, amended
-// 2026-09-07: the alternatives - a sidecar, a pushgateway, an API call - and why not).
+// unreadable file leaves the series absent rather than reporting 1970 (ADR-0046: the
+// alternatives - a sidecar, a pushgateway, an API call - and why not).
 func (m *Metrics) restoreDrillRecord(meter metric.Meter, path string) error {
 	if path == "" {
 		return nil
 	}
 	gauge, err := meter.Int64ObservableGauge(
 		namespace+"_restore_drill_last_success_timestamp_seconds",
-		metric.WithDescription("When a restore drill last proved the system backup restores, as a Unix timestamp. A-20."),
+		metric.WithDescription("When a restore drill last proved the system backup restores, as a Unix timestamp."),
 		metric.WithUnit("s"),
 	)
 	if err != nil {
@@ -227,21 +227,21 @@ func (m *Metrics) instruments(meter metric.Meter) error {
 		namespace+"_config_invalid_total",
 		metric.WithDescription("Configuration the process flagged at startup, by key. A hard "+
 			"rejection stops the process before the exporter exists - what this carries are the "+
-			"tolerated misconfigurations /meta/health warns about, as a series A-14 can watch."),
+			"tolerated misconfigurations /meta/health warns about, as a series an alert can watch."),
 	); err != nil {
 		return fmt.Errorf("config counter: %w", err)
 	}
 	if m.poolConnections, err = meter.Int64Gauge(
 		namespace+"_db_pool_connections",
 		metric.WithDescription("Connections per pool by state: in_use, idle, and the configured "+
-			"max, which is what turns the first two into a utilisation (A-11)."),
+			"max, which is what turns the first two into a utilisation."),
 	); err != nil {
 		return fmt.Errorf("pool gauge: %w", err)
 	}
 	if m.migrationVersion, err = meter.Int64Gauge(
 		namespace+"_migration_version",
 		metric.WithDescription("The migration this build embeds. Differing values across the "+
-			"cluster mean a rollout in progress; differing for long means a stuck one (A-13)."),
+			"cluster mean a rollout in progress; differing for long means a stuck one."),
 	); err != nil {
 		return fmt.Errorf("migration gauge: %w", err)
 	}
@@ -317,13 +317,13 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	}
 	if m.quotaUsageRatio, err = meter.Float64Gauge(
 		namespace+"_tenant_quota_usage_ratio",
-		metric.WithDescription("How close a workspace stands to one of its §4 ceilings: used/limit, by quota. What A-18 watches."),
+		metric.WithDescription("How close a workspace stands to one of its quota ceilings: used/limit, by quota."),
 	); err != nil {
 		return fmt.Errorf("quota usage gauge: %w", err)
 	}
 	if m.outboxLag, err = meter.Float64Histogram(
 		namespace+"_outbox_lag_seconds",
-		metric.WithDescription("Age of an event when it reached its consumers. SLO-4."),
+		metric.WithDescription("Age of an event when it reached its consumers. The objective is a P99 under thirty seconds."),
 		metric.WithUnit("s"),
 		// The target is a P99 under thirty seconds, so the buckets are dense below it and coarse
 		// above: past a minute the question is no longer how late but why.
@@ -355,35 +355,35 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	}
 	if m.authFailures, err = meter.Int64Counter(
 		namespace+"_auth_failures_total",
-		metric.WithDescription("Refused sign-in and refresh attempts, by reason. refresh_reused is A-15's second half: a rotated refresh token presented again means two holders of one credential."),
+		metric.WithDescription("Refused sign-in and refresh attempts, by reason. refresh_reused is the alarming one: a rotated refresh token presented again means two holders of one credential."),
 	); err != nil {
 		return fmt.Errorf("auth failure counter: %w", err)
 	}
 	if m.ruleRuns, err = meter.Int64Counter(
 		namespace+"_rule_runs_total",
-		metric.WithDescription("Ended automation runs by result and trigger kind. SLO-7's share "+
-			"of runs without an internal error divides failed by everything."),
+		metric.WithDescription("Ended automation runs by result and trigger kind. The share of runs "+
+			"without an internal error divides failed by everything."),
 	); err != nil {
 		return fmt.Errorf("rule run counter: %w", err)
 	}
 	if m.ruleDisabled, err = meter.Int64Counter(
 		namespace+"_rule_disabled_total",
-		metric.WithDescription("Rules that switched themselves off, by reason. What A-16 "+
-			"watches: the loop and error protection becoming visible."),
+		metric.WithDescription("Rules that switched themselves off, by reason: the loop and error "+
+			"protection becoming visible."),
 	); err != nil {
 		return fmt.Errorf("rule disabled counter: %w", err)
 	}
 	if m.webhookDeliveries, err = meter.Int64Counter(
 		namespace+"_webhook_deliveries_total",
 		metric.WithDescription("Settled webhook attempts by result (ok/retry/dead) and answer "+
-			"class. SLO-6 excludes the 4xx class - the recipient's fault, not this system's."),
+			"class. The delivery objective excludes the 4xx class - the recipient's fault, not this system's."),
 	); err != nil {
 		return fmt.Errorf("webhook delivery counter: %w", err)
 	}
 	if m.busPublications, err = meter.Int64Counter(
 		namespace+"_bus_publications_total",
 		metric.WithDescription("Events put on the optional message bus, and the ones that were "+
-			"not, by outcome (H-14, ADR-0042). The event type is a label and the subject is not: "+
+			"not, by outcome. The event type is a label and the subject is not: "+
 			"a subject carries a tenant identifier."),
 	); err != nil {
 		return fmt.Errorf("bus publication counter: %w", err)
@@ -391,7 +391,7 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	if m.secretReseals, err = meter.Int64Counter(
 		namespace+"_secret_reseals_total",
 		metric.WithDescription("Sealed values a re-seal moved under the current master key, or "+
-			"left where they were, by store and outcome (ADR-0045). The key identifier is "+
+			"left where they were, by store and outcome. The key identifier is "+
 			"deliberately not a label: it is the operator's to read from /admin/encryption."),
 	); err != nil {
 		return fmt.Errorf("secret reseal counter: %w", err)
@@ -415,7 +415,7 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	return m.streamInstruments(meter)
 }
 
-// streamInstruments are what the change stream publishes (C-10).
+// streamInstruments are what the change stream publishes.
 //
 // No tenant and no account on any of them. A series per workspace is the cardinality problem
 // §3.2 is about, and on a gauge of open connections it would additionally say who is online -
@@ -489,19 +489,19 @@ func (m *Metrics) StreamRecords(ctx context.Context, count int) {
 }
 
 // PushResult counts one mutation a push answered, by the contract's result - a closed set of
-// four (N-04). What a device pushed and how much of it the server took is the one number that
+// four. What a device pushed and how much of it the server took is the one number that
 // says whether offline work is landing.
 func (m *Metrics) PushResult(ctx context.Context, result string) {
 	m.pushResults.Add(ctx, 1, metric.WithAttributes(attribute.String("result", result)))
 }
 
-// PullRecords counts what a pull handed out (N-01). Beside the stream's counter rather than folded
+// PullRecords counts what a pull handed out. Beside the stream's counter rather than folded
 // into it: the two together say whether devices keep up with the log, and apart, by which door.
 func (m *Metrics) PullRecords(ctx context.Context, count int) {
 	m.pullRecords.Add(ctx, int64(count))
 }
 
-// notificationInstruments are what the notification path publishes (C-09).
+// notificationInstruments are what the notification path publishes.
 //
 // The labels are the closed sets the notification domain defines - the category, the channel, the
 // state and the suppression reasons - so nothing unbounded can reach a label from here
@@ -594,7 +594,7 @@ func (m *Metrics) NotificationFailed(ctx context.Context, category, channel, rea
 	))
 }
 
-// ReminderFired records how late one reminder was against the moment it promised (SLO-5, D-03).
+// ReminderFired records how late one reminder was against the moment it promised (SLO-5).
 //
 // The delay rather than the send: a reminder that left on time and then waited an hour for a mail
 // server is a different failure, and the notification metrics already measure that one. What this
@@ -606,7 +606,7 @@ func (m *Metrics) ReminderFired(ctx context.Context, channel string, delaySecond
 }
 
 // OccurrenceMaterialized records how late an occurrence was created against the moment it is for
-// (D-05, the lag ADR-0008 promised).
+// (the lag ADR-0008 promised).
 //
 // The mode is the label because the two answer different questions: an ON_SCHEDULE series that is
 // behind is a scheduler problem, while an ON_COMPLETION one is behind only for as long as nobody
@@ -617,8 +617,7 @@ func (m *Metrics) OccurrenceMaterialized(ctx context.Context, mode string, lagSe
 	))
 }
 
-// mediaInstruments are the two numbers the media reclamation publishes (C-06,
-// data-protection.md §5).
+// mediaInstruments are the two numbers the media reclamation publishes (data-protection.md §5).
 //
 // Counters and no labels at all: the question is "is unreferenced storage actually being reclaimed,
 // and is anything failing to be", and neither half of it is per anything. A label naming the object
@@ -785,7 +784,7 @@ func (m *Metrics) UseCase(ctx context.Context, useCase, result string, tenant st
 	m.useCaseTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
-// QuotaUsage records how close one workspace stands to one of its ceilings (H-08). The label is
+// QuotaUsage records how close one workspace stands to one of its ceilings. The label is
 // the quota - a bounded set of six - and the tenant joins it only when the operator enabled the
 // tenant label (§3.2): without it the series carries the last workspace's number per quota,
 // which is still the alarm A-18 needs ("somebody stands at 90%"), just not the who.
@@ -828,7 +827,7 @@ func (m *Metrics) CircuitBreakerState(ctx context.Context, dependency string, le
 	m.breakerState.Record(ctx, level, metric.WithAttributes(attribute.String("dependency", dependency)))
 }
 
-// AiCall counts one finished AI provider call (J-03). Three labels, all closed sets: the provider
+// AiCall counts one finished AI provider call. Three labels, all closed sets: the provider
 // kind, the operation, and the result as the domain's own error category in lower case. The
 // endpoint is not among them - it is a tenant's configuration, and a label per endpoint would grow
 // a series per customer (§3.2, rule 10).
@@ -845,7 +844,7 @@ func (m *Metrics) AiCall(ctx context.Context, kind, operation, result string) {
 }
 
 // AiTokens records what a call consumed, in the one unit every provider reports. It feeds the
-// tenant's budget (J-15) and an operator's sense of cost, and it is not a price - this project
+// tenant's budget and an operator's sense of cost, and it is not a price - this project
 // does not have one.
 func (m *Metrics) AiTokens(ctx context.Context, kind, operation string, input, output int) {
 	if input > 0 {
@@ -920,7 +919,7 @@ func (m *Metrics) SchedulerTickLag(ctx context.Context, seconds float64) {
 }
 
 // BackupLastSuccess publishes when a target last had a backup that worked - the number alert A-12
-// has been watching since 0.2.0 with nothing behind it (E-05, backup-restore.md §10).
+// watches (backup-restore.md §10).
 //
 // A Unix timestamp rather than an age, which is the convention every backup exporter follows and
 // the reason it works: an age computed here is stale the moment it is scraped, while a timestamp
@@ -935,7 +934,7 @@ func (m *Metrics) BackupLastSuccess(ctx context.Context, targetID string, at tim
 }
 
 // DataSubjectDeadline reports cases whose statutory deadline is near or past - alert A-19's number
-// (E-10, data-protection.md §4).
+// (data-protection.md §4).
 //
 // A counter by stage rather than a gauge of how many are open, and that is about what is true in
 // provider operation: a gauge would need a tenant label to be true there, and an unlabelled one

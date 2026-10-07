@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package httpclient is the only way out of the process. Every outbound call goes through
-// GuardedClient (rule 6, ADR-0015, security.md §T-07); http.DefaultClient is banned, and an
+// GuardedClient (rule 6, ADR-0015, T-07); http.DefaultClient is banned, and an
 // architecture test enforces it.
 //
 // The threat is server-side request forgery: a webhook URL, an automation action, or an AI
@@ -258,7 +258,7 @@ var blockedAlways = []netip.Prefix{
 }
 
 // blockedRanges is what the standard library's predicates do not cover
-// (security.md §T-07: RFC 1918, loopback, link-local, ULA).
+// (T-07: RFC 1918, loopback, link-local, ULA).
 var blockedRanges = []netip.Prefix{
 	netip.MustParsePrefix("0.0.0.0/8"),       // "this network"
 	netip.MustParsePrefix("100.64.0.0/10"),   // carrier-grade NAT

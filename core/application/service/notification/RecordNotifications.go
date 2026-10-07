@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package notification is the application half of the Notification context: the consumer that
-// turns events into records, and the delivery that turns a record into a message (C-09).
+// turns events into records, and the delivery that turns a record into a message.
 //
 // Neither is a use case, and both are deliberately absent from the catalogue in domain-model.md §5.
 // The catalogue is the list of things a person, an agent or a rule can ask for (arc42 §4), and
@@ -98,10 +98,9 @@ func (r RecordNotifications) Name() string { return ConsumerName }
 
 // Wants reports whether this event concerns anybody.
 //
-// The three C-01 and C-03 publish. `membership.granted` is the fourth thing this milestone tells
-// people about and it is not here, because it is not an event: B-02 queues the invitation in the
-// transaction that creates the account, and this task makes that job's adapter real rather than
-// inventing an event for a message that already has a delivery path.
+// The three in `categories`. An invitation is not here, because it is not an event: it is queued
+// in the transaction that creates the account (RecordInvitation), rather than announced by an
+// event invented for a message that already has a delivery path.
 func (r RecordNotifications) Wants(eventType event.Type) bool {
 	_, wanted := categories[eventType]
 	return wanted
@@ -146,8 +145,8 @@ func (r RecordNotifications) Deliver(ctx context.Context, envelope event.Envelop
 // recipients is who this event concerns, without duplicates and in a stable order.
 //
 // Authorisation is not asked here, and it does not have to be: every recipient is derived from a
-// membership of the entry itself - its assignee, its member list - which is the narrowing C-04
-// built (ADR-0005 puts the decision in the application layer, and this is it). Somebody who was
+// membership of the entry itself - its assignee, its member list - which is the narrowing of
+// domain-model.md §3.2 (ADR-0005 puts the decision in the application layer, and this is it). Somebody who was
 // never put on the entry is never in this list.
 func (r RecordNotifications) recipients(
 	ctx context.Context, envelope event.Envelope, itemID shared.ID,
@@ -319,7 +318,7 @@ func oneOf(envelope event.Envelope, key string) ([]shared.ID, error) {
 }
 
 // actorOf is who caused the event, where a person did. Zero for the system and for automation: the
-// automatic assignment acts for nobody (C-02), and a record that named a person who did not act
+// automatic assignment acts for nobody, and a record that named a person who did not act
 // would suppress their own notification for a decision they never made.
 func actorOf(envelope event.Envelope) shared.ID {
 	if envelope.Actor.Kind != shared.ActorUser {

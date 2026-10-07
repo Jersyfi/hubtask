@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# A-12's other half: the point-in-time recovery gap (observability-reliability.md §10, H-10).
+# A-12's other half: the point-in-time recovery gap (observability-reliability.md §10).
 #
 # The catalogue's A-12 is one row with two halves - "a replication/PITR gap, or a backup older
-# than 24 h, per target" - and until now only the second half had a series to watch. The first
-# needed something that does continuous archiving, which arrived with the CloudNativePG cluster
-# this chart owns (ADR-0046, deployment.md §3.2).
+# than 24 h, per target". The application's own series watches the second half. The first needs
+# something that does continuous archiving: the CloudNativePG cluster this chart owns (ADR-0046,
+# deployment.md §3.2).
 #
 # **A fourth file, loaded only where CloudNativePG runs.** The three files beside it are the
 # product's own catalogue and read metrics this application emits; every rule here reads the
@@ -26,8 +26,8 @@
 #
 # That scrape needs a cluster and therefore a nightly. What does not need one is that the drill
 # and this file agree about which names are in play, and `test/observability` reconciles the two
-# on every pull request - in both directions, because the drill's list had drifted from this file
-# without anybody noticing (#940). A name a rule reads is either required of the scrape or
+# on every pull request - in both directions, because two lists kept by hand drift apart without
+# anybody noticing. A name a rule reads is either required of the scrape or
 # excused in `PITR_ABSENT_METRICS` with its reason; there is no third state.
 #
 # **Two of them are deprecated, and are used anyway - deliberately.**
@@ -40,7 +40,7 @@
 # scrape above is what will notice the day they stop being published.
 #
 # What is deliberately *not* alerted on here: the measured RPO and RTO of a drill. Those are
-# numbers, they stay internal (decision 7 of the 0.6.0 backlog), and a threshold in a public
+# numbers, they stay internal (observability-reliability.md §13.2), and a threshold in a public
 # repository carrying a production figure would be that figure published. What fires here are gaps
 # and failures - conditions, not measurements. The thresholds are derived from promises the
 # documents already make rather than chosen: RPO <= 5 minutes (observability-reliability.md §2),

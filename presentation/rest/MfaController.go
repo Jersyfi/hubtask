@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The use case names of the second factor (H-02).
+// The use case names of the second factor.
 const (
 	completeSignInUseCase = "CompleteSignIn"
 	completeLinkUseCase   = "CompleteLink"
@@ -314,7 +314,7 @@ const (
 	confirmAuthenticatorReplacementUseCase = "ConfirmAuthenticatorReplacement"
 )
 
-// StartAuthenticatorReplacement answers POST /auth/mfa/totp:replace (SC-17).
+// StartAuthenticatorReplacement answers POST /auth/mfa/totp:replace.
 func (c *RestController) StartAuthenticatorReplacement(
 	w http.ResponseWriter, r *http.Request, params openapi.StartAuthenticatorReplacementParams,
 ) {
@@ -332,7 +332,7 @@ func (c *RestController) StartAuthenticatorReplacement(
 	})
 }
 
-// ConfirmAuthenticatorReplacement answers POST /auth/mfa/totp/replacement:confirm (SC-17).
+// ConfirmAuthenticatorReplacement answers POST /auth/mfa/totp/replacement:confirm.
 func (c *RestController) ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.UseCases == nil {

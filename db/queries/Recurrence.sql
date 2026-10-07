@@ -1,4 +1,4 @@
--- The series beside the entries (D-04, domain-model.md §3.5).
+-- The series beside the entries (domain-model.md §3.5).
 --
 -- The tenant is never a parameter here: it comes from the transaction's own context through
 -- current_tenant_id(), which is the same value row level security compares against (ADR-0010).
@@ -30,8 +30,8 @@ WHERE source_item_id = sqlc.arg('source_item_id');
 -- "every Monday in Berlin, on completion, ninety days ahead" is a sentence, and half of it is a
 -- different one.
 --
--- last_materialized_at is deliberately untouched. It is the materialisation's own bookkeeping
--- (D-05), and a rule that changed does not un-create the occurrences that already exist.
+-- last_materialized_at is deliberately untouched. It is the materialisation's own bookkeeping,
+-- and a rule that changed does not un-create the occurrences that already exist.
 UPDATE recurrence_rule SET
   rrule        = sqlc.arg('rrule'),
   time_zone    = sqlc.arg('time_zone'),
@@ -46,7 +46,7 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- name: DeleteRecurrenceRule :execrows
 -- A hard delete of one row. The occurrences it produced are ordinary entries and are not touched:
 -- deleting somebody's next three weeks because they stopped a series would be a deletion nobody
--- asked for (D-04).
+-- asked for.
 DELETE FROM recurrence_rule
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
@@ -64,9 +64,9 @@ WHERE id = sqlc.arg('id')::uuid;
 -- An occurrence's two pointers, written together: which series it belongs to, and which entry it
 -- was copied from.
 --
--- Both, because one without the other is what issue #428 was: every occurrence carried the rule
--- identifier the template carries, so the column distinguished neither and nothing on an occurrence
--- named the entry it repeats from.
+-- Both, because with one alone every occurrence would carry the rule identifier the template
+-- carries, so the column would distinguish neither and nothing on an occurrence would name the
+-- entry it repeats from.
 --
 -- No version and no stamp, for SetWorkItemRecurrence's reasons: neither column is one a client
 -- owns, and what serialises two writers is the rule's own lock, in whose transaction this runs.
@@ -77,7 +77,7 @@ WHERE id = sqlc.arg('id')::uuid;
 
 -- name: ClaimRulesToMaterialize :many
 -- What the materialisation pass takes: this tenant's series whose rolling window may owe
--- something, oldest bookkeeping first (D-05).
+-- something, oldest bookkeeping first.
 --
 -- The predicate is the window itself: a rule whose watermark already reaches past the horizon owes
 -- nothing until time moves. A rule that has never materialised has no watermark and is always a

@@ -10,13 +10,13 @@
   // the second step rather than a session, and the sign-in card finishes it - the session store
   // carries the step, so this screen hands the reader to the card rather than drawing a second
   // copy of it. Control of a mailbox is one proof; it does not replace the one the account already
-  // demanded. Staying on this form after the `202` was the defect SC-03 closed: the link was spent
-  // and nothing on the screen said what came next.
+  // demanded. This form is not kept after the `202`: the link is spent, and staying would say
+  // nothing about what comes next.
   //
   // **One field, not two.** The eye is what replaces "repeat it", and the rules under the field
   // are the workspace's own, live - so nobody learns what was wrong by pressing the button.
   //
-  // **Where the password is off, the link connects a provider instead** (SC-33, ADR-0078 §1). The
+  // **Where the password is off, the link connects a provider instead** (ADR-0078 §1). The
   // mail then links `#connect=…`, and this card offers the workspace's providers, each starting the
   // flow with the link bound to it on the server: the link and a fresh sign-in at the provider are
   // the account's proof. No password field - the workspace takes none - and the second factor, where

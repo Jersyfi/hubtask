@@ -43,7 +43,4 @@ node or app, without anybody adding it by hand.
 
 ## Today
 
-* **Check 4 fails.** Both packages are built and tested but marked private and not published
-  (`packages/n8n-nodes-hubtask/README.md`, `packages/zapier-app/README.md`: *Not published*);
-  publishing needs accounts and reviews the owner holds, planned for `0.9.5`
-  ([ADR-0058](../../adr/ADR-0058-connector-packages.md)).
+* Check 4: not met — both packages are built and tested but marked private and not published; publishing needs accounts and reviews the owner holds.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The one request helper every trigger, create and search of the app calls (P-05, ADR-0058).
+// The one request helper every trigger, create and search of the app calls (ADR-0058).
 //
 // The installation's address is part of the connection (`bundle.authData.base_url`): Hubtask is
 // self-hosted, so there is no one host to write into the app, and the person connecting names

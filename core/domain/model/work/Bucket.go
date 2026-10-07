@@ -28,7 +28,7 @@ var bucketNameCodes = nameCodes{
 // What is deliberately absent: created_at, updated_at and created_by. The column has none of them
 // (db/schema.sql), and a struct field with no column behind it is a value that reads back as zero
 // - which is worse than not answering the question at all. Who moved a bucket and when is the
-// activity history's answer (B-11), not this row's.
+// activity history's answer, not this row's.
 type Bucket struct {
 	ID       shared.ID
 	TenantID shared.ID
@@ -76,8 +76,8 @@ type NewBucketInput struct {
 	IsDoneBucket bool
 	ColorToken   string
 
-	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5,
-	// M-07); NewWorkItemInput says why it is handed in.
+	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5);
+	// NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 

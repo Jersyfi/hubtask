@@ -25,8 +25,7 @@ const (
 
 	// The stable codes of this use case. `unavailable` refuses an explicit ask that nothing can
 	// answer - the collection has no policy - where `no_candidate` is not a refusal at all: the
-	// policy ran, nobody was eligible, and the entry stays as it was with the reason in the
-	// result (C-02's acceptance).
+	// policy ran, nobody was eligible, and the entry stays as it was with the reason in the result.
 	autoAssignUnavailable = "items.auto_assign_unavailable"
 	autoAssignNoCandidate = "items.auto_assign_no_candidate"
 )
@@ -45,7 +44,7 @@ type AutoAssignWorkItem struct {
 	Groups     identityrepo.Groups
 	// Accounts answers which candidates are under a restriction of processing. Art. 18 is a
 	// technical state, and an automatic decision about somebody is exactly the processing it
-	// stops (data-protection.md §4, E-10) - so the pool is narrowed here rather than the draw
+	// stops (data-protection.md §4) - so the pool is narrowed here rather than the draw
 	// being allowed to land on them.
 	Accounts identityrepo.Accounts
 	Random   clock.RandomSource
@@ -297,8 +296,8 @@ func (h AutoAssignWorkItem) apply(
 	}
 	if !chosen {
 		// Nobody eligible: the entry stays as it is and the result says why, with a stable code
-		// rather than a failure (C-02's acceptance). The If-Match is still honoured - the state
-		// the caller reasoned about has to be the state that is there, outcome or not.
+		// rather than a failure. The If-Match is still honoured - the state the caller reasoned
+		// about has to be the state that is there, outcome or not.
 		if err := ensureExpectedVersion(item, cmd.ExpectedVersion); err != nil {
 			return domain.WorkItem{}, AutoAssignOutcome{}, err
 		}
@@ -436,8 +435,8 @@ func (h AutoAssignWorkItem) Descriptor() usecase.Descriptor {
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "it writes the history all the same - the entry lands on somebody, and the " +
-				"shared write path records `item.assigned` exactly as a manual assignment does " +
-				"(domain-model.md §3.5 keeps assignment one verb). The verb is declared by " +
+				"shared write path records `item.assigned` exactly as a manual assignment does, " +
+				"because assignment is one verb. The verb is declared by " +
 				"AssignWorkItem; declaring it here too would be two use cases claiming one " +
 				"sentence, which the vocabulary gate rightly refuses.",
 		},

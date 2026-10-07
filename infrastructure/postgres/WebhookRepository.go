@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// WebhookSubscriptionRepository stores the standing requests external systems make (G-03).
+// WebhookSubscriptionRepository stores the standing requests external systems make.
 //
 // It holds no key and does no sealing: the ciphertext arrives already sealed and leaves as it
 // came. That is the same division the access token's hash uses in the other direction - the layer
@@ -232,7 +232,7 @@ func storedFrom(row sqlc.ListWebhookSubscriptionsRow) (repository.StoredSubscrip
 	}
 	// The tenant, and it is load bearing: every auditable operation on a subscription writes its
 	// entry under `subscription.TenantID`, and an entry with a zero tenant is refused by the audit
-	// port - which is what made every replay answer `audit.entry_incomplete` (F4-15).
+	// port - which is what made every replay answer `audit.entry_incomplete`.
 	tenantID, err := idFrom(row.TenantID)
 	if err != nil {
 		return repository.StoredSubscription{}, err
@@ -506,7 +506,7 @@ func deliveryFrom(row sqlc.WebhookDelivery) (domain.WebhookDelivery, error) {
 	// The tenant, and it is load bearing rather than decoration: `Retried` and `Replayed` build
 	// the next attempt out of the row that was read, and both refuse a delivery whose tenant is
 	// zero. Leaving it to row level security to imply is what made every retry and every replay
-	// answer `webhooks.delivery_incomplete` (F4-15).
+	// answer `webhooks.delivery_incomplete`.
 	tenantID, err := idFrom(row.TenantID)
 	if err != nil {
 		return domain.WebhookDelivery{}, err

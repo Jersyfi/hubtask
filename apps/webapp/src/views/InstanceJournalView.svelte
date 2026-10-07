@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The installation's own record (SI-17, H-06, audit.md §6).
+  // The installation's own record (audit.md §6).
   //
   // **Evidence of acts whose per-tenant trail cannot hold them.** After a hard delete the
   // workspace's own audit chain is gone by design, which is the reason this record exists — and

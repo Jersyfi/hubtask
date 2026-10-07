@@ -19,7 +19,7 @@ LIMIT 1
 `
 
 // The stored hash at one sequence number, for an anchor outside the walked period to be compared
-// against (P-13). `audit_seq_idx` keeps it a lookup.
+// against. `audit_seq_idx` keeps it a lookup.
 func (q *Queries) AuditHashAt(ctx context.Context, seq int64) ([]byte, error) {
 	row := q.db.QueryRow(ctx, auditHashAt, seq)
 	var hash []byte
@@ -125,7 +125,7 @@ type LastAuditAnchorRow struct {
 
 // The last chain end this tenant exported to an append-only target outside the database.
 //
-// Written by the anchoring job since P-13 (audit.md §3, A-2): `:verify` proves the chain is intact
+// Written by the anchoring job (audit.md §3): `:verify` proves the chain is intact
 // *inside* the database, and only an anchor proves anything against somebody who can rewrite the
 // whole of it. `sealed_until` is null where a workspace has never anchored - null being the honest
 // answer rather than a date that would claim more than the system does.
@@ -165,9 +165,8 @@ type LastAuditEntryRow struct {
 // that was already taken - the unique index cannot stop it, because a partitioned table's unique
 // index has to carry the partition key and `(tenant_id, occurred_at, seq)` lets one `seq` appear
 // twice under two timestamps. The result was duplicated sequence numbers, a chain that no longer
-// verified, and a `audit.chain_broken` entry reporting tampering that never happened (E-12 found
-// it with eight concurrent writes; AT-2 writes its thousand entries one after another and could
-// not see it).
+// verified, and a `audit.chain_broken` entry reporting tampering that never happened. Eight
+// concurrent writes show it; AT-2 writes its thousand entries one after another and cannot.
 //
 // `audit_seq_idx` is what keeps this a lookup rather than a scan of every partition.
 func (q *Queries) LastAuditEntry(ctx context.Context) (LastAuditEntryRow, error) {
@@ -216,7 +215,7 @@ type ListAuditEntriesParams struct {
 
 // One page of the trail, newest first, with every filter audit.md §5 names.
 //
-// The filters are parameters rather than a query assembled from strings, which is CLAUDE.md rule 9
+// The filters are parameters rather than a query assembled from strings, which is rule 9
 // with no exception for "it is only a filter": every one of them is a `narg` that is either NULL -
 // meaning the condition is not there - or a value the driver binds. A `WHERE` built by hand for the
 // three or four filters a caller happened to send is exactly the shape T-06 is about.
@@ -224,7 +223,7 @@ type ListAuditEntriesParams struct {
 // `starts_with` rather than LIKE for the action, because a caller's `%` would otherwise be a
 // wildcard: `action` is a dotted code and a prefix filter on `auth.` is the whole point, so the
 // prefix is compared as text rather than as a pattern. `action_also` is the other names of a renamed
-// action (SC-29), matched whole: the stored entry keeps the name it was written with.
+// action, matched whole: the stored entry keeps the name it was written with.
 //
 // The boundary is the pair (occurred_at, id): entries written in the same transaction share a
 // timestamp, so a cursor on the time alone would either skip one or return one forever. The pair
@@ -320,7 +319,7 @@ type RecordAuditAnchorParams struct {
 	Receipt     *string
 }
 
-// One anchor: the chain end, where the copy went and the digest it was written with (P-13). The
+// One anchor: the chain end, where the copy went and the digest it was written with. The
 // primary key refuses a second anchor of the same sequence number, which is how a day on which the
 // chain did not move writes nothing rather than a duplicate.
 func (q *Queries) RecordAuditAnchor(ctx context.Context, arg RecordAuditAnchorParams) error {
@@ -361,8 +360,7 @@ type WalkAuditEntriesParams struct {
 // forwards, and a verifier that met the entries newest first would have to hold the whole period in
 // memory before it could check the first link.
 //
-// Ordered by `seq`, which is what the chain is built over - **not** by `occurred_at`, which is what
-// it read until E-12. Every caller takes its own clock reading before it queues for the chain's
+// Ordered by `seq`, which is what the chain is built over - **not** by `occurred_at`. Every caller takes its own clock reading before it queues for the chain's
 // lock, so two entries can carry timestamps in the opposite order to their sequence numbers. A walk
 // in timestamp order then meets the chain out of order and reports a hash mismatch and a screenful
 // of gaps for a trail that is perfectly intact. The period still selects by `occurred_at` - that is

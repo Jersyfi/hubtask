@@ -16,9 +16,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The custom field definitions against a real database (C-07): the two scopes, the key that is
-// free again once a definition is deleted, the optimistic lock, the values on the entry, and a
-// cross-tenant negative for every method (gate SG-3).
+// The custom field definitions against a real database: the two scopes, the key that is free again
+// once a definition is deleted, the optimistic lock, the values on the entry, and a cross-tenant
+// negative for every method (gate SG-3).
 
 func fieldRepo() postgres.CustomFieldRepository { return postgres.NewCustomFieldRepository() }
 

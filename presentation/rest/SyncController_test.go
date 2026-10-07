@@ -164,7 +164,7 @@ func TestAPullRefusesAnUnknownField(t *testing.T) {
 	}
 }
 
-// Without the controller wired, the route answers as it did before N-01: pending.
+// Without the controller wired, the route answers pending.
 func TestAnInstallationWithoutThePullAnswersPending(t *testing.T) {
 	controller := NewRestController()
 	request := authenticated(httptest.NewRequestWithContext(t.Context(), http.MethodPost,

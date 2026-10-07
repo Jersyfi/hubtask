@@ -1,4 +1,4 @@
--- The templates (D-06, domain-model.md §3.5).
+-- The templates (domain-model.md §3.5).
 --
 -- The tenant is never a parameter here: it comes from the transaction's own context through
 -- current_tenant_id(), which is the same value row level security compares against (ADR-0010).
@@ -29,7 +29,7 @@ WHERE id = $1;
 -- The templates a person picking one in a container can choose from: the ones defined on that
 -- container's path, plus the workspace-wide ones. The caller passes the identifiers the path names
 -- (the collection, its hub) and TENANT-scoped rows match by scope type alone, having no identifier
--- to match - the shape the saved views' reachable list already has (D-07).
+-- to match - the shape the saved views' reachable list already has.
 --
 -- Newest first: a template somebody has just written is the one they are looking for. The keyset
 -- is (created_at, id) for the reason every list in this schema takes the pair.
@@ -52,7 +52,7 @@ LIMIT sqlc.arg('page_size');
 -- The whole document, under the same optimistic lock every other row takes (api-guidelines.md §5).
 -- The scope and the root type are not here on purpose: a template that changed scope would move
 -- out from under the people who could use it, and one whose root type changed would produce a
--- different kind of thing under the same name (D-06).
+-- different kind of thing under the same name.
 UPDATE template SET
   name        = normalize(sqlc.arg('name')::text, NFC),
   description = sqlc.narg('description'),

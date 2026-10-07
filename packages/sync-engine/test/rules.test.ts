@@ -3,8 +3,7 @@
 
 // The two things this package must never acquire, as a gate rather than as a paragraph.
 //
-// F1-09's brief writes both down "because they are cheap to prevent and expensive to remove", and
-// a rule that is only written down is a rule somebody breaks in good faith two years from now,
+// Both are cheap to prevent and expensive to remove, and a rule that is only written down is a rule somebody breaks in good faith two years from now,
 // when the reason has left the room. So it is a test.
 
 import { test } from 'node:test';

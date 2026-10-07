@@ -9,9 +9,9 @@
   // one list: the rows are handed in and this component invents none.
   //
   // **The name and the address are the head of what it opens, in both drawings** (ADR-0063
-  // decision 6). The bar used to carry the display name, and a display name is the address until
-  // somebody introduces themselves — the server's own convention, so a fresh workspace put its
-  // owner's e-mail in the frame on every screen. An address is not navigation. The name joins the
+  // decision 6). Not the bar: a display name is the address until somebody introduces themselves
+  // — the server's own convention — so a fresh workspace would put its owner's e-mail in the frame
+  // on every screen. An address is not navigation. The name joins the
   // trigger again only from `large`, where there is room for it beside everything else.
   //
   // What choosing a row does is the frame's to decide - a route, the tour, signing out - so the
@@ -67,7 +67,7 @@
      one answer. The address is here and nowhere else. -->
 {#snippet who()}
   <!-- `Menu` draws the hairline under its own head, so this draws one only in the sheet, where
-       nothing else does. Two rules under the name is what the walk found (issue 1019). -->
+       nothing else does: two rules under the name would be one too many. -->
   <div class="who" data-sheet={isSheet ? '' : undefined}>
     <Avatar {name} size="md" />
     <div class="names">
@@ -128,7 +128,7 @@
 
   /* With the name beside it the control is a pill and the air after the name is the pill's; with
      the avatar alone it is a **circle** around the avatar - the target is the control's square
-     minimum and the shape is round, because what is inside it is round (issue 1019, 1022). The
+     minimum and the shape is round, because what is inside it is round. The
      two glyph controls beside it are `IconButton`'s rounded square, which is what every other
      icon control in the product is. */
   .account:has(.name) { padding-inline-end: var(--sp-100); }
@@ -170,8 +170,8 @@
   .names { display: flex; flex-direction: column; min-width: 0; }
 
   /* The name is primary text: the menu's head inherits the surface's quieter colour, which reads
-     on white and disappears on the dark theme's surface - the person's own name, greyed out
-     (issue 1022). The address under it stays subtle, because it is the second line. */
+     on white and disappears on the dark theme's surface - the person's own name, greyed out.
+     The address under it stays subtle, because it is the second line. */
   .who .name { color: var(--text-primary); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
 
   .email { color: var(--text-subtle); font-size: var(--fs-075); overflow-wrap: anywhere; }

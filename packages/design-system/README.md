@@ -1,6 +1,7 @@
 # @hubtask/design-system
 
-Design tokens and the CSS layer generated from them. Not a component library — not yet.
+Design tokens, the CSS generated from them, the Svelte 5 components both first-party clients are
+built from, and the workbench that shows them.
 
 `tokens/tokens.json` is the **single origin** for every colour, spacing, radius, duration and
 easing value in this product ([ADR-0029](../../docs/adr/ADR-0029-design-system-tokens.md)).
@@ -8,14 +9,10 @@ Everything else here is generated from it. The specification this package implem
 [`docs/design/design-system.md`](../../docs/design/design-system.md), and it is binding the way
 `project-structure.md` is binding for the Go layout.
 
-## The rule
-
-**No hex value, no pixel count and no duration is written anywhere else.** If you need a value
-that does not exist, add it to `tokens.json` — or you do not need it. `pnpm lint` fails on a
-colour written outside that file, and on a bare length or duration written in application code.
-
-A design system drifts at exactly the point where the same value is written twice. Nothing here
-depends on anybody remembering that.
+What must not happen when you change anything here — a value outside `tokens.json`, a component
+without a story, an inline style — is in [`AGENTS.md`](./AGENTS.md), with the commands that check
+it. A design system drifts at exactly the point where the same value is written twice, and nothing
+here depends on anybody remembering that: each of those rules is a lint or a test.
 
 ## What is generated
 
@@ -31,8 +28,8 @@ tokens/tokens.json                        the source, W3C DTCG
 
 `dist/` is ignored by git. `LabelTokens.go` is **committed**, because `go build ./...` has to work
 for somebody who has never installed Node.js — and because that makes a drift between the design
-system and the domain show up as a diff rather than as a rendering bug. It is generated: never
-edit it, and CI fails if you do.
+system and the domain show up as a diff rather than as a rendering bug. CI regenerates it and
+fails on a difference.
 
 Only the *names* reach Go, never a colour. The domain stores a `colorToken` on `Label` and on
 `cover` precisely so that the backend holds no display information; a hex constant in `core/`
@@ -124,11 +121,10 @@ The workbench is a development tool, and stays one even though it is published: 
 bundle or the binary that embeds it (ADR-0028). `make workbench-build` produces the static copy
 that `workbench.hubtask.eu` serves, into `dist/workbench/`.
 
-## What is not here
+## The components
 
-Components. The framework is decided — Svelte 5
-([ADR-0030](../../docs/adr/ADR-0030-svelte-frontend-framework.md)) — and there is now somewhere to
-look at them, but `src/` stays empty until the component-layer work package builds it
-deliberately, wave by wave — see [`src/README.md`](./src/README.md). The specimen the workbench
-shows today lives in `workbench/fixtures/` on purpose: it is a fixture for checking the tool, not
-a component pretending to exist.
+`src/` holds the components, imported as `@hubtask/design-system/components`. They arrive wave by
+wave in the order of `design-system.md` §4; [`src/README.md`](./src/README.md) says what each wave
+built and the shared modules beside them (`layers.ts`, `focus.ts`, `anchor.ts`, `overlay.ts`, the
+icon set). `workbench/fixtures/` holds the foundations stories and a specimen for checking the
+tool itself — fixtures, not components.

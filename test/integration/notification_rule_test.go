@@ -18,11 +18,10 @@ import (
 )
 
 // The message about a rule that was switched off commits with the real tables and reaches its
-// author naming the rule (issue 814). Before, the rule's identifier went into item_id, whose key
-// points at work_item: the insert failed, and with it the check's transaction and the streak's -
-// which is why the automation list answered 503 whenever a rule was broken. The same write sits
-// at the end of both paths (the check's DisableBroken, the streak's settle), so one write proves
-// both commit.
+// author naming the rule. The rule's identifier must not go into item_id, whose key points at
+// work_item: the insert would fail, and with it the check's transaction and the streak's - so the
+// automation list would answer 503 whenever a rule was broken. The same write sits at the end of
+// both paths (the check's DisableBroken, the streak's settle), so one write proves both commit.
 func TestARuleDisabledMessageCommitsAndNamesTheRule(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

@@ -163,7 +163,7 @@ func TestPreferencesAreWrittenAndReadBack(t *testing.T) {
 	if read.Locale != "de-AT" || read.TimeZone != "Europe/Vienna" || read.WeekStart != "MONDAY" {
 		t.Errorf("read back %+v", read)
 	}
-	// The moments (F6-12): a switch and an instant, read back in their own types.
+	// The moments: a switch and an instant, read back in their own types.
 	if read.Celebrations == nil || *read.Celebrations {
 		t.Errorf("celebrations read back %v, want false", read.Celebrations)
 	}
@@ -223,7 +223,8 @@ func TestPreferencesOfAnotherTenantCannotBeWritten(t *testing.T) {
 	}
 }
 
-// F1-08's cross-tenant negative test, and it is about the use case rather than the repository.
+// The cross-tenant negative test of reading the own account, about the use case rather than the
+// repository.
 //
 // `TestAnAccountOfAnotherTenantIsNotFound` above proves `Accounts.Find` respects the boundary.
 // This proves the thing a client actually calls does: `GetOwnAccount` performs no permission check
@@ -423,8 +424,8 @@ func TestAMembershipIsGrantedFoundAndRevoked(t *testing.T) {
 	}
 	// The tenant is a column the statement could leave out and row level security would not
 	// notice: it bounds the read either way. The grant read back is what the revocation writes
-	// its audit entry from, and an entry without a tenant is refused by the port - which made
-	// revoking a real membership answer 500 with nothing in the log (issue #426).
+	// its audit entry from, and an entry without a tenant is refused by the port - so revoking a
+	// real membership would answer 500 with nothing in the log.
 	if found.TenantID != tenantA {
 		t.Errorf("the grant came back without its tenant: %+v", found)
 	}
@@ -433,10 +434,10 @@ func TestAMembershipIsGrantedFoundAndRevoked(t *testing.T) {
 	}
 }
 
-// The use case, not the repository: with the real audit sink behind it, which is what turned a
+// The use case, not the repository: with the real audit sink behind it, which is what turns a
 // missing column into a 500. The grant is read in one transaction and the entry is written from
 // what came back, so a repository that answers a grant without its tenant produces an entry the
-// port refuses - and the caller sees `internal` on a membership that plainly exists (issue #426).
+// port refuses - and the caller sees `internal` on a membership that plainly exists.
 func TestRevokingAMembershipRemovesItAndRecordsIt(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)

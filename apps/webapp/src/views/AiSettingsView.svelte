@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The workspace's AI provider, and the consent that lets it be used (J-02, ADR-0049, F5-05).
+  // The workspace's AI provider, and the consent that lets it be used (ADR-0049).
   //
   // **Two decisions, kept two.** Configuring a provider says where a call would go; consenting
   // says the workspace's content may go there. `processing_allowed` is the second decision as a
@@ -265,8 +265,8 @@
 
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). The 60ch column that stood here was a document's measure around a
-     screen that is not a document. */
+     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
+     around a screen that is not a document. */
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
   .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }

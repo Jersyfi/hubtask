@@ -14,7 +14,7 @@
   //
   // The shimmer is deliberately absent. Rule 6 confines motion to opacity and transform, and an
   // animated gradient is neither - it is a moving `background-position`, which is the one property
-  // that cannot be composited. What it has instead is a slow opacity pulse through F2-01's
+  // that cannot be composited. What it has instead is a slow opacity pulse through the
   // `pending` role, and reduced motion takes even that away.
 
   interface Props {

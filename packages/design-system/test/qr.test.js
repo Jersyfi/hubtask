@@ -12,7 +12,9 @@
 // are not function patterns number exactly the codeword bits plus the remainder). The whole
 // symbol was then read back by a real decoder - Apple's Vision framework, on the pull request
 // that added this file - for every version boundary and for real provisioning URIs; that check
-// is not repeatable on the Linux runner and is recorded in the pull request instead.
+// is not repeatable on the Linux runner and is recorded in the pull request instead. A change to
+// src/qr.ts is read back by two independent decoders again before it merges: a wrong table row
+// shows only as a symbol nobody can read.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

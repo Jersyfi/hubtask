@@ -11,10 +11,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// SC-33 (#1140, ADR-0078 §1, UC-ID-04 check 8): in a workspace that switched the password off,
-// *Forgot your password?* mails an account that no provider switched on there lets in a link to
-// connect one - instead of the provider mail that would point to nothing. An account a provider
-// there does let in keeps that mail; where the password is open, SC-25's links stand unchanged.
+// ADR-0078 §1, UC-ID-04 check 8: in a workspace that switched the password off, *Forgot your
+// password?* mails an account that no provider switched on there lets in a link to connect one -
+// instead of the provider mail that would point to nothing. An account a provider there does let in
+// keeps that mail; where the password is open, the links of ADR-0077 §3 stand unchanged.
 
 // passwordOffWith switches the password off in the step fixture with the providers given in force -
 // at least one of them on, so that the password is not open as the fallback - and connects the
@@ -106,7 +106,7 @@ func TestAnAccountAProviderLetsInKeepsTheProviderMail(t *testing.T) {
 }
 
 // Only an active person is mailed a link to connect: an invited account accepts its invitation
-// through the invitation's own link (SC-32), and a service account signs in with a token.
+// through the invitation's own link, and a service account signs in with a token.
 func TestOnlyAnActivePersonIsMailedAConnectLink(t *testing.T) {
 	for name, change := range map[string]func(*domain.Account){
 		"an invited account": func(held *domain.Account) { held.Status = domain.AccountInvited },
@@ -127,7 +127,8 @@ func TestOnlyAnActivePersonIsMailedAConnectLink(t *testing.T) {
 }
 
 // Where the password is open - switched on, or open as the fallback - nothing changes: the reset
-// link, or SC-25's link to set a first password. A connect link is for the workspace without it.
+// link, or the link to set a first password (ADR-0077 §3). A connect link is for the workspace
+// without it.
 func TestWhereThePasswordIsOpenTheResetLinksStand(t *testing.T) {
 	on := newStepFixture(now)
 	on.passwords.writer.Session.StepUpProviders = ProviderStepUps{
@@ -145,7 +146,7 @@ func TestWhereThePasswordIsOpenTheResetLinksStand(t *testing.T) {
 	first := fallbackFixture(t)
 	withoutPassword(first)
 	if link := mintFor(t, first); !link.First || link.Connect {
-		t.Errorf("under the fallback an account without a password was mailed %+v, want SC-25's link", link)
+		t.Errorf("under the fallback an account without a password was mailed %+v, want the first-password link", link)
 	}
 }
 

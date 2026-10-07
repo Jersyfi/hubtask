@@ -10,7 +10,7 @@ import (
 	port "github.com/Jersyfi/hubtask/core/port/ai"
 )
 
-// The prompts half of the server (J-12). What is asked here is that the published prompts reach a
+// The prompts half of the server. What is asked here is that the published prompts reach a
 // client with their versions and their declared arguments, that an argument nobody declared is
 // refused by name, and - the one that matters most - that no path exists which would put material
 // into the instruction.

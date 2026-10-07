@@ -16,9 +16,9 @@ import (
 	"github.com/Jersyfi/hubtask/test/dbtest"
 )
 
-// The container and the two pools come from test/dbtest, which is where they moved when a second
-// suite needed them (B-10). The local names stay, so that the hundred call sites in this package
-// read as they did - and so that "which pool is this test using" is still answered by one word.
+// The container and the two pools come from test/dbtest, which a second suite shares. The local
+// names stay, so that "which pool is this test using" is answered by one word at each of the
+// hundred call sites in this package.
 
 // appPool connects as the application role, the way the server does. No BYPASSRLS, not an owner:
 // everything under test goes through it.

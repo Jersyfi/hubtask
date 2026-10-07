@@ -1,7 +1,8 @@
 # Multi-Tenancy
 
-The goal: the same codebase runs (a) the private installation with a single user and (b) a platform
-on which a service provider serves thousands of end customers — comparable to Atlassian/Trello.
+One codebase runs both (a) a private installation with a single user and (b) a platform on which a
+service provider serves thousands of workspaces. Decision:
+[ADR-0010](../adr/ADR-0010-multi-tenancy.md).
 
 ---
 
@@ -9,30 +10,23 @@ on which a service provider serves thousands of end customers — comparable to 
 
 | Mode | `HUBTASK_TENANCY_MODE` | Behaviour |
 |---|---|---|
-| Single | `single` (default) | Exactly one tenant — today created by `scripts/dev-workspace.sh --bootstrap` or the admin API, from SC-04 by the web app's *Set up Hubtask* with a one-time code the first start prints ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)); no tenant selection in the API; registration optionally open |
-| Multi | `multi` | Tenants are provisioned through the control/admin API; resolved by subdomain, header, or token claim; self-service signup optional |
+| Single | `single` (default) | Exactly one tenant, created by `scripts/dev-workspace.sh --bootstrap` or the admin API. A first-start setup in the web app ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)) is planned and not built. No tenant selection in the API; registration optionally open |
+| Multi | `multi` | Tenants are provisioned through the control plane (§4.1); resolved as §3 says; self-service signup optional |
 
-The code **always** knows about a tenant; "single" is merely the special case with one row in
-`tenant`. That means there is no second code path and no special cases in repositories.
+The code **always** knows about a tenant; single mode is the special case with one row in `tenant`.
+There is no second code path and no special case in a repository.
 
 ---
 
 ## 2. Isolation strategy
 
-**Chosen: shared database / shared schema + `tenant_id` + PostgreSQL row level security.**
-
-| Criterion | Shared schema + RLS (chosen) | Schema per tenant | Database per tenant |
-|---|---|---|---|
-| Operating effort at 10,000 tenants | Low | High (migrations × n) | Very high |
-| Migrations | Once | n times | n times |
-| Isolation strength | Strong (database-enforced) | Stronger | Strongest |
-| Resources per tenant | Minimal | Medium | High |
-| Noisy neighbour | Needs quotas | Partly | Solved |
-| Suitability for self-hosting | Perfect (one schema) | Overhead | Overhead |
+**Shared database, shared schema, `tenant_id` on every business table, PostgreSQL row level
+security as the boundary.** It costs one migration for all tenants and minimal resources per
+tenant; the price is that noisy neighbours need quotas (§4).
 
 For tenants with special requirements (data residency, enterprise isolation) the growth path is
 **shard routing**: a control plane database holds `tenant → shard`, and the application picks the
-matching connection pool. The data model stays identical, because it is `tenant_id`-based anyway.
+matching connection pool. The data model stays identical. Not built.
 
 ### 2.1 RLS implementation
 
@@ -45,55 +39,82 @@ CREATE POLICY tenant_isolation ON work_item
   WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
 ```
 
-* The application connects with the role `hubtask_app` — **without** `BYPASSRLS`, and **not** as the table owner.
-* Migrations run with the separate role `hubtask_migrator`, and that role **owns** the objects.
-  Ownership is not decoration: migration `0001` sets `ALTER DEFAULT PRIVILEGES FOR ROLE
-  hubtask_migrator`, so an installation whose migrations run under a different owner grants the
-  application nothing on the tables a later migration adds.
-* **`FORCE` binds the owner too, and exactly one table deliberately does without it.**
-  `item_capability_profile` holds the system defaults described below: readable by every tenant,
-  writable by none. `FORCE` there would bind the only role that legitimately writes them — the
-  migrator seeding them — so that table is `ENABLE` without `FORCE`
-  ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)). Nothing else changes: `hubtask_app`
-  is not the owner, so the policy applies to it in full.
-* Exactly one place in the code sets the context: the transaction middleware in
-  `infrastructure/postgres/Tenant.go` runs `SET LOCAL app.tenant_id = $1` and
-  `SET LOCAL app.actor_id = $2` before every transaction.
-  `SET LOCAL` is bound to the transaction and therefore pool-safe (no leak through `pgbouncer` in
-  transaction pooling mode).
-* Without a context set, every query returns zero rows — a programming error leads to "nothing
-  found", not to another tenant's data.
-* Some rows belong to no tenant: the system-defined capability profiles, which every tenant may
-  read and none may write. They are reached through an **installation scope** — a unit of work
-  that sets `app.tenant_id` to the empty value rather than skipping the call, so
-  `current_tenant_id()` is `NULL`, every policy comparing against it is false, and no tenant's
-  rows are visible at all. It is the strictest position inside the boundary rather than a way
-  around it, and it is read-only by construction: every `WITH CHECK` would compare against a
-  tenant it deliberately does not have. `GET /meta/capabilities` uses it to answer an
-  unauthenticated caller.
-* System jobs (retention, outbox dispatch) loop per tenant rather than running globally. The outbox
-  dispatcher is therefore one job per tenant, woken by the same transaction that wrote the event
-  and rescheduled by each round rather than completed ([ADR-0007](../adr/ADR-0007-events-outbox-cloudevents.md),
-  `infrastructure/eventbus/OutboxBus.go`). The queue itself is the one table without a policy — a
-  worker has to be able to claim a job before it can know whose it is — and the job names its
-  tenant, so the transaction that runs it is as bounded as a request.
+**Roles and context**
+
+* The application connects as `hubtask_app`: **no** `BYPASSRLS`, and **not** the table owner.
+* Migrations run as `hubtask_migrator`, which **owns** the objects. Migration `0001` sets
+  `ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator`, so migrations run under another owner would
+  grant the application nothing on later tables.
+* Exactly one place sets the context: the transaction wrapper in `infrastructure/postgres/Tenant.go`
+  runs `SET LOCAL app.tenant_id = $1` and `SET LOCAL app.actor_id = $2` before every transaction.
+  `SET LOCAL` is bound to the transaction, so it is safe under `pgbouncer` transaction pooling.
+* A nested unit of work may not switch tenant: a scope with a different tenant inside an open
+  transaction is refused (`postgres.tenant_switch_in_transaction`). A helper that may run inside
+  somebody else's transaction reads in the ambient scope instead of opening its own.
+* Without a context, every query returns zero rows: a programming error yields "nothing found",
+  never another tenant's data.
+* **Installation scope.** Rows that belong to no tenant (the system capability profiles) are read
+  through a unit of work that sets `app.tenant_id` to the empty value. `current_tenant_id()` is then
+  `NULL`, every tenant policy is false, and no tenant's row is visible. It is read-only by
+  construction, because every `WITH CHECK` compares against a tenant it does not have.
+  `GET /meta/capabilities` uses it to answer an unauthenticated caller.
+
+**Every table carries RLS with `FORCE`, with these exceptions.** The list is kept in three places
+that must agree: `rlsExceptions` in `test/integration/tenant_boundary_test.go`, the restore drill's
+own copy in `cmd/restore-drill/checks.go`, and this table. A new exception is entered in all three.
+
+| Table | Why it has no tenant policy | What bounds it instead |
+|---|---|---|
+| `job` | A worker must claim a job before it knows whose it is | The job names its tenant; the transaction that runs it is as bounded as a request |
+| `goose_db_version` | The migration ledger | No grant to the application role |
+| `instance_event` | The installation's own journal; its rows outlive the tenants they name ([audit.md](./audit.md) §6) | Append-only grants; written only by the tenant lifecycle use cases; no API reads it |
+| `item_capability_profile` | Has RLS but **no `FORCE`**: the system rows are the owner's to seed, and `FORCE` would bind the owner too ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)) | The policy binds every non-owner role in full, `hubtask_app` included |
+| `restore_drill_marker` | The restore drill's marker rows; no tenant column | No grant to the application role |
+| `operator` | The operator register names accounts across workspaces | No grant to the application role; reachable only through four `SECURITY DEFINER` functions |
+| `instance_setting` | Installation configuration every workspace reads (§4.1) | Holds configuration, never personal data; written by one control-plane use case |
+
+**Doors through the boundary.** A `SECURITY DEFINER` function is the only way the application role
+reads across tenants. Each is narrow by construction and granted to `hubtask_app` alone:
+
+| Function | Answers | Used by |
+|---|---|---|
+| `resolve_tenant(slug)` | One tenant identifier or none — never a list | Sign-in before a credential exists (§3) |
+| `admin_tenants()` | The list of tenants | The control plane behind `admin:tenants` (§4.1) |
+| `instance_census()` | Five counts, no rows | The instance overview |
+| `subject_tenants(email)` | The tenants one data subject has an account in | An installation-wide data subject request ([data-protection.md](./data-protection.md) §4) |
+| `is_operator`, `operator_register`, `add_operator`, `drop_operator` | The operator register | The control plane (§4.1) |
+| `purge_tenant_trail(tenant)` | Deletes one tenant's audit trail | The hard delete only ([audit.md](./audit.md) §3) |
+
+**Nothing enumerates tenants.** No job, scheduler or worker lists the tenants to do per-tenant work.
+Every per-tenant duty — the outbox dispatch, retention, reminders, recurrence materialisation,
+backup and automation schedules, media reconciliation, privacy deadlines, audit anchoring, search
+reindex, embeddings, the hard-delete grace — is **seeded by the write that creates its work**, in
+that tenant's transaction, with the tenant as the dedupe key. Each round then reschedules itself
+while work remains (`queue.Result{Repeat: true}`) and finishes when the tenant owes nothing; the
+next write seeds it again. The one legitimate listing of tenants is `admin_tenants()`, read by the
+control plane behind `admin:tenants` — an operator's read, not a job. A duty that belongs to no
+tenant (an instance-wide backup schedule, partition maintenance) is the leader's, runs under the
+installation scope, and can reach only rows that have no tenant.
+
+**Partitions.** A partition does not inherit its parent's policy when it is addressed directly. So
+every partition — and the `SECURITY DEFINER` function that creates one (`ensure_audit_partition`,
+`ensure_stream_partition`) — carries its own policy, its own `FORCE` and its own revoked grants.
 
 ### 2.1.1 A database the operator brings
 
-An installation may hand the application a connection string to a PostgreSQL it did not create — a
-managed service, or a cluster somebody else runs. The chart has always allowed it (`database.enabled`
-is off by default and every deployment reads its DSN from a Secret), and since
-[ADR-0052](../adr/ADR-0052-managed-postgresql-support.md) the migrations run there too, proven by a
-job rather than assumed ([support-matrix.md](./support-matrix.md) §3).
+An installation may point the application at a PostgreSQL it did not create — a managed service or
+a cluster somebody else runs. The chart supports it (`database.enabled` is off by default and every
+deployment reads its DSN from a Secret), and the migrations run there too
+([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md), proven by a job:
+[support-matrix.md](./support-matrix.md) §3).
 
-What such a service does **not** give you is a superuser. Two consequences, and both are the
-operator's to arrange before the first migration:
+Such a service gives no superuser. Before the first migration the operator therefore:
 
-1. **Create the two roles.** `CREATE ROLE` is often refused, which `0001` catches and reports rather
-   than failing on. Create `hubtask_migrator` and `hubtask_app` with the service's own admin
-   account, and give `hubtask_app` a password the application's DSN carries.
-2. **Let `hubtask_migrator` own the database.** Not the service's admin account: the grants in
-   `0001` name that role, and defaults set for a role nobody owns objects as apply to nothing.
+1. **Creates the two roles** with the service's own admin account. `0001` catches a refused
+   `CREATE ROLE` and reports it rather than failing. `hubtask_app` gets the password the
+   application's DSN carries.
+2. **Makes `hubtask_migrator` the database owner** — not the service's admin account: the grants in
+   `0001` name that role, and default privileges for a role that owns nothing apply to nothing.
 
 ```sql
 -- With the provider's admin account, once, before the first deploy.
@@ -102,41 +123,67 @@ CREATE ROLE hubtask_app      LOGIN PASSWORD '…';
 CREATE DATABASE hubtask OWNER hubtask_migrator;
 ```
 
-Then `HUBTASK_DB_DSN` connects as `hubtask_app`, and the migration's DSN connects as
-`hubtask_migrator`. Nothing needs `SUPERUSER` and nothing needs `BYPASSRLS`, which is the property
-the integration suite asserts on every run: it migrates a database of its own under exactly this
-arrangement and then checks that the boundary still holds.
+`HUBTASK_DB_DSN` connects as `hubtask_app`; the migration's DSN connects as `hubtask_migrator`.
+Nothing needs `SUPERUSER` or `BYPASSRLS`. The integration suite migrates its own database under
+exactly this arrangement on every run and then checks that the boundary holds.
+
+### 2.1.2 References carry the tenant
+
+Row level security does not check a foreign key: PostgreSQL validates a reference with the owner's
+rights, so a single-column key would let a row in tenant A point at a row in tenant B
+([ADR-0024](../adr/ADR-0024-tenant-scoped-foreign-keys.md)).
+
+* **A foreign key between two tables whose `tenant_id` is `NOT NULL` is composite** over
+  `(tenant_id, id)`. The referenced table carries `UNIQUE (tenant_id, id)`; its primary key stays
+  `id`.
+* `MATCH SIMPLE` (the default), so a `NULL` reference is not checked.
+* `ON DELETE SET NULL` names its column — `ON DELETE SET NULL (column)` — or it would null
+  `tenant_id` when it fires. This is why PostgreSQL 15 is the hard floor.
+* A gate walks `pg_constraint` and fails the build on a single-column foreign key between two such
+  tables, delete rule included.
+* **Exception: the backup family**, where `tenant_id IS NULL` means installation-wide. A composite
+  key is wrong there, not weaker; those references stay single-column.
 
 ### 2.2 Defence in depth
 
 1. Authentication supplies the `tenant_id` (token claim or session), never the request body.
 2. `ActorContext` carries tenant and actor, typed, through the application layer.
-3. The permission check happens in the application layer (roles/scopes).
+3. The permission check happens in the application layer (roles and scopes).
 4. RLS is the last, unbypassable boundary.
-5. Negative tests in CI: for every repository there is a test that expects empty results or errors under the wrong tenant context.
+5. Negative tests in CI: every repository method has a test that expects empty results or an error
+   under the wrong tenant context (gate SG-3).
 
 ---
 
 ## 3. Tenant resolution
 
-| Source | Priority | Example |
-|---|---|---|
-| Token claim / PAT binding | 1 | Service accounts are always bound to one tenant |
-| Subdomain | 2 | `acme.hubtask.example.com` |
-| Header `X-Hubtask-Tenant` | 3 | Internal tools, admin API |
-| Path prefix | — | Deliberately not used (it pollutes the API) |
+**Accounts are per tenant** (`account_email_uq` is `(tenant_id, lower(email))`), so a sign-in
+resolves its tenant **before any credential is checked**. Two cases:
 
-Contradictions between the token and the subdomain/header → `403 tenant_mismatch`.
+**Signing in (no credential yet)** — `SessionWriter.resolveTenant`:
+
+| Mode | Source, in order | Nothing resolves |
+|---|---|---|
+| Single | The one row (`resolve_tenant(NULL)`); the subdomain is ignored | — |
+| Multi | 1. The subdomain under the base host (`resolve_tenant(slug)`) · 2. the `X-Hubtask-Tenant` header (a workspace identifier) | `404 auth.tenant_unresolved` |
+
+**An authenticated request** — the credential binds the tenant: a session's or token's claim, a
+personal access token's or service account's account.
+
+In both cases the weaker sources **may confirm the tenant and never overrule it**. A header (or, on
+an authenticated request, a subdomain) that names another tenant is refused with
+`403 access.tenant_mismatch`, not resolved in anybody's favour. On an authenticated request the
+header may carry the identifier or the slug. A path prefix is deliberately not used.
 
 ---
 
 ## 4. Quotas, fairness, limits
 
-Configurable per tenant (`tenant.settings.quotas`, written by the operator through
-`PATCH /admin/tenants/{id}/quotas`, read by the workspace through `GET /quotas`), enforced in
-the application layer and middleware since H-08 — a capacity row refuses as `422
-capacity.<quota>`, the rate as `429`, and the approach is `hubtask_tenant_quota_usage_ratio`
-(alert A-18):
+Configured per tenant in `tenant.settings.quotas`, written by the operator through
+`PATCH /admin/tenants/{id}/quotas` and read by the workspace through `GET /quotas`. Enforced in the
+application layer and middleware. A capacity quota refuses as `422 capacity.<quota>` naming the
+ceiling; the rate refuses as `429` with `Retry-After`. The approach to a ceiling is
+`hubtask_tenant_quota_usage_ratio` (alert A-18).
 
 | Limit | Default (multi) | Default (single/self-hosted) |
 |---|---|---|
@@ -150,51 +197,46 @@ capacity.<quota>`, the rate as `429`, and the approach is `hubtask_tenant_quota_
 | Concurrent export jobs | 2 | 5 |
 | AI tokens per day | 200,000 | Unlimited |
 
-The AI budget (J-15) is the row whose asymmetry is deliberate. It is counted in the tokens every
-provider reports, over a UTC calendar day, from the billing ledger — which is the only record
-there is, because a token has no row of its own. A workspace over it **stops making suggestions
-and keeps working**: the refusal is `ai.unavailable`, the same one an absent provider and an open
-circuit answer, so nothing that calls AI has a second way to degrade. Unlimited in single mode
-because a self-hoster is either running a local model or paying their own provider directly, and
-a default ceiling there would be this project deciding how much of somebody's own machine they
-may use; a real number in multi because AI is the one feature whose marginal cost leaves the
-installation. *Since [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) §4 the budget counts
-per source:* `ai_tokens_per_day` limits the model the installation **offers**, which the provider
-pays for; a workspace's own model is limited only by its own optional `ai_own_tokens_per_day`, off
-by default.
+**The AI budget.** Counted in the tokens each provider reports, over a UTC calendar day, from the
+billing ledger. A workspace over it **stops getting suggestions and keeps working**: the refusal is
+`ai.unavailable`, the same one an absent provider or an open circuit gives. `ai_tokens_per_day`
+limits the models the installation **offers**; a workspace's own model is limited only by its
+optional `ai_own_tokens_per_day`, off by default
+([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) §4). Unlimited in single mode because
+the self-hoster pays their own provider or runs a local model.
 
-Further fairness mechanisms: a weighted job queue (one tenant cannot monopolise the workers), query
-timeouts (`statement_timeout` per role), and cost estimation for query DSL requests with rejection
-of obviously unaffordable queries.
+**Fairness:** the job queue claims per tenant round-robin, so one tenant cannot monopolise the
+workers; `statement_timeout` per role; and a query DSL request whose estimated cost is over the cap
+is refused before it runs.
 
 ---
 
 ## 4.1 The instance layer
 
-Above the workspaces and below nothing: the plane that provisions them, and — since
-[ADR-0070](../adr/ADR-0070-the-instance-layer.md) — the place a value that applies to all of them
-is set.
+The plane above the workspaces: it provisions them and sets values that apply to all of them
+([ADR-0070](../adr/ADR-0070-the-instance-layer.md)).
 
-**Who an operator is** is a register rather than a scope alone. `admin:tenants` has been mintable
-by any account that can pass a step-up, which is right for a private installation (its owner *is*
-its operator) and not for a platform. The register is checked when the scope is minted and when it
-is exercised; in single mode it is empty, and empty means the owner. A service account may be an
-operator, because provisioning driven from a purchase platform needs a credential that does not
-belong to a person who may leave.
+**The control plane's credential.** Everything under `/admin/tenants` needs the `admin:tenants`
+scope. No session carries it, with one exception: a **registered operator** may raise their own
+session to it for one hour by passing a step-up (`instance.session_elevated`, written to the trail
+and to `instance_event`). Automation uses a personal access token minted for the purpose.
 
-**What an instance setting is**: a row in `instance_setting` carrying a value *and a lock*. Open
-means a workspace may tighten it; closed means it applies and the workspace's control is switched
-off with the reason and with who set it — never hidden. The effective value is resolved on read
-along `product minimum → instance → plan → workspace`, so a change is in force in the same second
-and no job walks anything. The table carries no row-level policy, like `job`, and its exception is
-entered in all three lists that must agree about the boundary (§2.1, the boundary test, the restore
-drill); it holds installation configuration and never a person's data.
+**Who an operator is.** A register (`operator`), checked when `admin:tenants` is minted and again
+when it is exercised. An empty register counts only for an active `OWNER` on an installation with
+exactly one workspace ([identity.md](./identity.md) §19). A service account may be an operator, so
+a purchase platform can provision without a person's credential.
 
-**How it is reached**: one API with three doors — a file (`seed` or `enforce`, one source per mode),
-`hubctl admin`, and the `/instance` area of the web app. A person raises their own session to
-`admin:tenants` for an hour by passing a step-up; a machine holds a token, as it always did. What
-the plane never shows is the *contents* of a workspace: the boundary is a database policy rather
-than a role, and an operator needs counts, states and limits rather than rows.
+**What an instance setting is.** A row in `instance_setting` with a value **and a lock**. Open means
+a workspace may tighten it; closed means it applies and the workspace's control is shown switched
+off with the reason and who set it — never hidden. The effective value is resolved on read along
+`product minimum → instance → plan → workspace`, so a change applies at once and no job walks
+anything. The table has no row policy (§2.1).
+
+**How it is reached.** One API with three doors: a file (`seed` or `enforce`, one source per mode),
+`hubctl admin`, and the `/instance` area of the web app.
+
+**What it never shows** is a workspace's contents. An operator sees counts, states and limits
+(`instance_census()`), never rows; the boundary is a database policy, not a role.
 
 ---
 
@@ -211,22 +253,28 @@ stateDiagram-v2
   PendingDeletion --> [*]: hard delete after the grace period (30 days)
 ```
 
-The hard delete ends the workspace in the primary system. It is gone from the operator's system backups a further **35 days** later — P-5's period, stated in days in [data-protection.md](./data-protection.md) §12 precisely so that this sentence can name a number instead of a cycle.
-
 | Phase | Actions |
 |---|---|
-| Provisioning | Tenant, default hub, example collection, owner membership, locale/time zone, standard buckets/labels; idempotent through `Idempotency-Key` |
-| Active | Normal operation, metering (only if enabled) |
-| Suspended | The API responds `403 tenant_suspended`; data remains; read export still possible |
-| PendingDeletion | Access blocked, an export provided, automations disabled |
-| Hard delete | Cascades across every storage location: database rows, media in object storage, search index, outbox/events, job queue; evidence in the audit log; backup retention documented |
+| Provisioning | Tenant, default hub, example collection, owner membership, locale/time zone, standard buckets/labels; idempotent under `Idempotency-Key` |
+| Active | Normal operation; metering only if enabled |
+| Suspended | The API answers `403 access.tenant_suspended`; data remains; the export still works |
+| PendingDeletion | Access blocked (`403 access.tenant_pending_deletion`), automations disabled, the export still works |
+| Hard delete | A job seeded by the deletion request's own write runs after the grace period. It cascades across every storage location — database rows, media objects, search entries, outbox, queue — and purges the tenant's audit trail; the evidence goes to `instance_event` in the same transaction ([audit.md](./audit.md) §6) |
 
-**Export:** `POST /admin/tenants/{id}:export` produces a complete, documented JSON Lines archive
-(plus media) — the basis for GDPR access requests, provider migration, and building trust
-("no lock-in"). The format is [tenant-export.md](./tenant-export.md), documented well enough to
-build an importer against the document alone; the archive is written as a job to a configured
-backup target, and it works for every lifecycle state — the suspended and the leaving are exactly
-who needs it (H-07).
+Deleting a tenant demands a step-up and the typed tenant name. The hard delete removes the workspace
+from the primary system at once and from the operator's system backups **35 days** later
+([data-protection.md](./data-protection.md) §5).
+
+**Export:** `POST /admin/tenants/{id}:export` writes one complete, unencrypted archive of the
+workspace to a backup target, as a job (`202` + `/jobs/{id}`), in every lifecycle state. The format
+is [tenant-export.md](./tenant-export.md), specified well enough to build an importer from the
+document alone. The export reads through the same RLS path as the API (T-20) and is audited with its
+target, never its content. Concurrent exports count against the §4 quota.
+
+The target must be one the workspace itself can see. A target with `tenant_id IS NULL` is invisible
+under the workspace's scope, so in multi mode with `HUBTASK_BACKUP_TENANT_TARGETS=false` (the
+default) a workspace has no target and cannot be exported — an open gap; the contract's "or an
+installation-wide one" does not hold today.
 
 ---
 
@@ -235,22 +283,23 @@ who needs it (H-07).
 | Requirement | Implementation |
 |---|---|
 | Access (Art. 15) | A personal data export per account |
-| Erasure (Art. 17) | Account anonymisation (authorship remains as "former user") or full deletion including comments, depending on configuration |
-| Data residency | Shard/region per tenant; media in the regional bucket |
-| Processing on behalf | A data catalogue with fields, purposes, and retention in the repository ([`docs/privacy/data-catalog.md`](../privacy/data-catalog.md)) |
+| Erasure (Art. 17) | Anonymisation (authorship remains as "former user") or full deletion including comments, chosen per case ([data-protection.md](./data-protection.md) §4) |
+| Data residency | Shard/region per tenant; media in the regional bucket (not built) |
+| Processing on behalf | The data catalogue with fields, purposes and retention ([`docs/privacy/data-catalog.md`](../privacy/data-catalog.md)) |
 | Encryption | TLS in transit; encryption at rest by the infrastructure; integration secrets additionally at the application level (AES-GCM) |
-| Logs | No item or comment content in logs; IDs only |
+| Logs | No item or comment content in logs; identifiers only |
 
 ---
 
 ## 7. Consequences for scaling
 
 * All processes are stateless → any number of `api` replicas.
-* Reads can be directed to read replicas (the `persistence` port allows `ReadOnly` transactions; beware replication lag → always use the primary after a write within the same request).
-* Partitioning of large tables: `activity_entry`, `outbox_event` and `rule_run` partition by
-  month since H-09 (the `audit_log` pattern - default catch-all, RLS per partition, the leader
-  keeping coming months existing, and an aged-out month falling as one dropped partition,
-  evidenced in the instance journal; see `db/migrations/0068_stream_partitions.sql` for the
-  conversion strategy). If needed later: `work_item` by `tenant_id` hash — prepared for by the
-  `tenant_id` index prefix.
+* Reads may go to read replicas (the `persistence` port allows `ReadOnly` transactions). Replication
+  lags, so a read after a write in the same request uses the primary.
+* `audit_log`, `change_log`, `activity_entry`, `outbox_event` and `rule_run` partition by month: a
+  default catch-all partition, RLS per partition (§2.1), the leader keeping coming months in
+  existence, and an aged-out month dropped as one partition with evidence in the instance journal.
+  `db/migrations/0068_stream_partitions.sql` shows the conversion of a table that already held
+  data. If ever needed, `work_item` can partition by `tenant_id` hash; the `tenant_id` index prefix
+  prepares for it.
 * The `scheduler` stays single-leader; the work itself is distributed as jobs.

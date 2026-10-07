@@ -84,7 +84,7 @@ func TestABodyWithinTheLimitPassesThrough(t *testing.T) {
 	}
 }
 
-// Rule 7 of CLAUDE.md: no call without a deadline. A handler that forgets one still gets it.
+// Rule 7 of AGENTS.md: no call without a deadline. A handler that forgets one still gets it.
 func TestEveryHandlerInheritsADeadline(t *testing.T) {
 	var deadline time.Time
 	var hasDeadline bool
@@ -106,7 +106,7 @@ func TestEveryHandlerInheritsADeadline(t *testing.T) {
 	}
 }
 
-// firstTag stands in for the i18n adapter's negotiator (M-04): the header's first tag, which is
+// firstTag stands in for the i18n adapter's negotiator: the header's first tag, which is
 // enough to prove the middleware hands the header over and carries the answer. What a real
 // header negotiates against the catalogues present is the adapter's own test.
 type firstTag struct{}
@@ -182,7 +182,7 @@ func TestTheLocaleReachesTheActorContext(t *testing.T) {
 
 // The one route with no end of its own. A stream cut off after the request timeout would look to a
 // client like a server that drops connections on a timer, and the client would reconnect on that
-// timer forever (C-10).
+// timer forever.
 func TestTheStreamOutlivesTheRequestTimeout(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

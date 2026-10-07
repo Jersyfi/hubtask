@@ -10,7 +10,7 @@
   // rendered **read-only with the reason** rather than dropped: a value the reader cannot see is
   // indistinguishable from a value that is not there, and the second one is a data-loss report.
   //
-  // **`USER` is a slot.** Who may be named in this container is the domain's answer (F3-07), so
+  // **`USER` is a slot.** Who may be named in this container is the domain's answer, so
   // the picker is handed in rather than imported — which is also what keeps this component from
   // acquiring a dependency on the people half of the model to draw the seven kinds that have
   // nothing to do with people.

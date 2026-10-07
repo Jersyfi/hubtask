@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// The agent interface, from outside the process (J-11, J-12, J-13, J-16).
+// The agent interface, from outside the process.
 //
 // **The smallest honest proof that the inbound half works**: a handshake, then the three lists and
 // a read of one of each. It is a client rather than an agent - it asks a model nothing and decides

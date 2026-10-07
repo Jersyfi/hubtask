@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package jumble holds the use cases of the inbox (G-10, domain-model.md §5): something arrives,
+// Package jumble holds the use cases of the inbox (domain-model.md §5): something arrives,
 // is listed, and becomes work or ages out.
 //
 // Jumble content is the least trusted text in the system and this layer keeps it where it
@@ -57,7 +57,7 @@ type Authorizer interface {
 
 // Media is the two touches an attachment costs: the object read that proves it exists and is
 // sealed, and the fast half of the reference count - the recount job recomputes it from the
-// actual references, jumble entries included, so the counter stays a cache (C-06).
+// actual references, jumble entries included, so the counter stays a cache.
 type Media interface {
 	Find(ctx context.Context, id shared.ID) (media.Object, error)
 	AdjustRefCount(ctx context.Context, id shared.ID, delta int) error
@@ -75,7 +75,7 @@ type Writer struct {
 	IDs        clock.IDGenerator
 }
 
-// SubmitJumbleEntry catches one near-channel arrival (G-10).
+// SubmitJumbleEntry catches one near-channel arrival.
 type SubmitJumbleEntry struct{ Writer Writer }
 
 // SubmitCommand is one arrival as a caller describes it.
@@ -98,7 +98,7 @@ func (h SubmitJumbleEntry) Execute(
 		channel = domain.ChannelAPI
 	}
 	if channel != domain.ChannelAPI && channel != domain.ChannelQuickCapture {
-		// EMAIL and WEBHOOK name the intakes that authenticate their own way (G-10, G-11). An
+		// EMAIL and WEBHOOK name the intakes that authenticate their own way. An
 		// entry claiming one through this route would be forging its provenance - the one thing
 		// the channel column exists to record.
 		return domain.Entry{}, shared.ErrValidation.
@@ -149,7 +149,7 @@ func (h SubmitJumbleEntry) Execute(
 //
 // The same judgement an item attachment makes (media.Object.Attachable): a PENDING staging and a
 // marked object are refused, so nothing can reference what the reconciliation is about to
-// reclaim - the failure #231 recorded.
+// reclaim.
 func (w Writer) attach(ctx context.Context, attachments []shared.ID) error {
 	for _, id := range attachments {
 		object, err := w.Media.Find(ctx, id)

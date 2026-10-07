@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package importer is an import from another system (P-08, backup-restore.md §9): the use case
+// Package importer is an import from another system (backup-restore.md §9): the use case
 // that accepts one, the read that answers its report, and the job that runs it.
 //
 // One ingestion path, not two: the file is converted into the records a backup archive holds and

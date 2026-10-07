@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The inspector: what the selected piece of the canvas is, and its settings (F8-04).
+  // The inspector: what the selected piece of the canvas is, and its settings.
   //
   // One panel per kind of selection. It never holds the draft - every edit goes back through
   // `onupdate` with a function over the draft, so that the canvas and the head redraw from the
@@ -20,7 +20,7 @@
   interface Props {
     draft: Draft;
     selection: Selection;
-    /** The *Rule* tab (decision 16): the name, where it applies, whose rights it acts with, the guardrails - together. */
+    /** The *Rule* tab (automation.md §1.5): the name, where it applies, whose rights it acts with, the guardrails - together. */
     section?: 'rule';
     /** Whether the rule has been saved at least once: what a manual trigger's button needs. */
     ruleId?: string;
@@ -94,9 +94,9 @@
   }
 
   /**
-   * The *Rule* tab holds all four of the rule's own settings (decision 16), and the head's chips
+   * The *Rule* tab holds all four of the rule's own settings (automation.md §1.5), and the head's chips
    * lead to one of them: the section the chip named is brought into view rather than the reader
-   * hunting for it down a panel (decision 24).
+   * hunting for it down a panel (automation.md §1.5).
    */
   let guardrails = $state<HTMLElement | null>(null);
   let runAs = $state<HTMLElement | null>(null);
@@ -111,7 +111,7 @@
   });
 
   const step = $derived(selection.kind === 'step' ? stepAt(draft.actions, selection.path) : undefined);
-  /** A branch that is the sole step of an else arm is a rung of a ladder: its heading says so (decision 19). */
+  /** A branch that is the sole step of an else arm is a rung of a ladder: its heading says so (automation.md §1.5). */
   const isElseIf = $derived.by(() => {
     if (selection.kind !== 'step' || step?.kind !== 'BRANCH') return false;
     const { list } = parentOf(selection.path);
@@ -335,14 +335,14 @@
     {@render runAsSection()}
   {:else if selection.kind === 'gate'}
     <!-- The gate is one block holding every condition, so its panel holds every condition too
-         (decision 28): each under its *and*, edited and removed here, without a second click on
+         (automation.md §1.5): each under its *and*, edited and removed here, without a second click on
          the canvas for each. A single condition selected on the canvas still opens alone. -->
     <h3>{t('app.flow.card_only_when')}</h3>
     <p class="quiet">{t('app.flow.gate_hint')}</p>
     {#each draft.conditions as expr, index (index)}
       <div class="gcondition" data-condition={index}>
         <div class="ghead">
-          <!-- A rule written here has one condition (decision 30); a stored rule may carry more,
+          <!-- A rule written here has one condition (automation.md §1.5); a stored rule may carry more,
                from before, and each of those keeps its number and its own remove. -->
           <span class="label">{draft.conditions.length === 1 ? t('app.flow.the_condition') : index > 0 ? `${t('app.flow.chip_and')} · ${t('app.flow.condition_n', { n: index + 1 })}` : t('app.flow.condition_n', { n: index + 1 })}</span>
           <Button size="sm" tone="subtle" icon="trash" onclick={() => onremovecondition(index)}>{t('app.rules.remove_condition')}</Button>

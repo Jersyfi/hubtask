@@ -228,7 +228,7 @@ func (h GetMedia) ensureReadable(
 //
 // A copy of the work package's rather than an import of it: this package may not import that one -
 // they are siblings in the application layer and neither is the other's dependency - and the
-// alternative is a shared helper package for six lines that have not changed since 0.1.0.
+// alternative is a shared helper package for six lines.
 func containerPath(container domain.Container) []identity.Scope {
 	path := []identity.Scope{identity.TenantScope()}
 	if !container.ParentID.IsZero() {

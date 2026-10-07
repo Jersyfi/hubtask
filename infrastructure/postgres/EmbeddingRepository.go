@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// Semantic search's store (J-09, J-10, ADR-0050). No method takes a tenant: row level security
+// Semantic search's store (ADR-0050). No method takes a tenant: row level security
 // bounds every statement (ADR-0010).
 //
 // **The one repository in this package whose SQL is not generated**, and ADR-0050 decision 5 says
@@ -54,8 +54,8 @@ const (
 		  LIMIT $1
 		) AS owed`
 
-	// The neighbourhood of one entry (K-04). A query and a threshold: nothing is asked of a
-	// provider, because the vectors are the ones J-10's pass already wrote.
+	// The neighbourhood of one entry. A query and a threshold: nothing is asked of a
+	// provider, because the vectors are the ones the embedding pass already wrote.
 	//
 	// Four things it refuses to call a duplicate, and each is a line rather than a comment
 	// afterwards. The entry itself, which is trivially its own nearest neighbour. A row from
@@ -180,7 +180,7 @@ func (EmbeddingRepository) Near(
 	switch err := tx.QueryRow(ctx, embeddingModelOf, id).Scan(&model); {
 	case errors.Is(err, pgx.ErrNoRows):
 		// Not embedded yet, or not embedded at all. Not an error: the entry is found by nobody and
-		// finds nobody until the pass reaches it (J-10).
+		// finds nobody until the pass reaches it.
 		return repository.Nearby{}, nil
 	case err != nil:
 		return repository.Nearby{}, shared.ErrUnavailable.WithDetail("postgres.query_failed").
@@ -243,7 +243,7 @@ func (EmbeddingRepository) Store(
 	if len(embedding.Vector) > repository.EmbeddingWidth {
 		return repository.EmbeddingTooWide(embedding.Model, len(embedding.Vector))
 	}
-	// And an empty one, which the column used to refuse for us: padded, it would be a vector of
+	// And an empty one, which the column does not refuse: padded, it would be a vector of
 	// zeros, whose cosine distance to everything is NaN - and NaN sorts first under `ORDER BY
 	// rank DESC`, so one such row would head every search it lexically matched.
 	if len(embedding.Vector) == 0 {

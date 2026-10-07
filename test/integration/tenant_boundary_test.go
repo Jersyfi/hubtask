@@ -23,7 +23,7 @@ var (
 	tenantB = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000000b")
 )
 
-// The acceptance criteria of A-03 (security.md §6, multi-tenancy.md §2.1).
+// The tenant boundary against the real database (security.md §6, multi-tenancy.md §2.1).
 
 func TestTheApplicationRoleCannotBypassRowLevelSecurity(t *testing.T) {
 	ctx := context.Background()
@@ -65,21 +65,20 @@ func TestTheApplicationRoleCannotBypassRowLevelSecurity(t *testing.T) {
 // rlsExceptions are the tables that deliberately carry no row level security, each with the reason
 // it does not.
 //
-// One list for the whole package, because there used to be two: this file's, and a second inline
-// one in migration_test.go's re-run check. Adding `restore_drill_marker` to the first left the
-// second red, which is the cheap version of the expensive failure - two lists that disagree about
-// where the tenant boundary is (H-10). The drill keeps a third copy of its own, in another binary,
-// and says so where it stands.
+// One list for the whole package, migration_test.go's re-run check included, because two copies
+// drift: a table added to one leaves the other red, which is the cheap version of the expensive
+// failure - two lists that disagree about where the tenant boundary is. The drill keeps a third
+// copy of its own, in another binary, and says so where it stands.
 var rlsExceptions = map[string]string{
 	"job":              "system jobs are partly tenant-less; access is restricted by privileges (db/schema.sql)",
 	"goose_db_version": "the migration ledger; the application role has no access at all",
-	"instance_event": "the installation's own evidence journal (H-06, audit.md §6): its rows " +
+	"instance_event": "the installation's own evidence journal (audit.md §6): its rows " +
 		"outlive the tenants they name, and a policy comparing current_tenant_id() would make " +
 		"them unreachable under every honest scope; bounded instead by append-only grants",
 	"item_capability_profile": "the system defaults (tenant_id IS NULL) are the owner's to seed and " +
 		"nobody else's to write, and FORCE would bind the owner too (ADR-0052). The policy still " +
 		"applies in full to every role that is not the owner, hubtask_app among them",
-	"restore_drill_marker": "the restore drill's two marker rows per run (H-10, migration 0071): " +
+	"restore_drill_marker": "the restore drill's two marker rows per run (migration 0071): " +
 		"installation-scoped, no tenant column, and the application role has no access at all",
 	"operator": "the installation's operator register (ADR-0070 §1, migration 0101): the rows " +
 		"name accounts across workspaces, so a policy comparing current_tenant_id() would make " +
@@ -154,8 +153,8 @@ func TestAPartitionCannotBeUsedToReadAnotherTenant(t *testing.T) {
 
 	// The question is not how many rows a relation holds - the default partition legitimately
 	// holds none - but whether any of them belong to the other tenant.
-	// The three monthly streams joined the pattern with H-09: parent, history and default each
-	// answer under the same policy, addressed directly or through the parent.
+	// The three monthly streams follow the same pattern: parent, history and default each answer
+	// under the same policy, addressed directly or through the parent.
 	for _, relation := range []string{
 		"audit_log", "audit_log_2026_08", "audit_log_default",
 		"activity_entry", "activity_entry_history", "activity_entry_default",
@@ -188,9 +187,8 @@ func TestAPartitionCannotBeUsedToReadAnotherTenant(t *testing.T) {
 	// and other tests append to this tenant's trail; an exact total would make this assertion
 	// depend on how many of them ran first, which is not what it is about.
 	// The partition's name follows the clock: the seeded row lands in the current month's, which
-	// the leader (and the migration seed) always creates. A hard-coded name here broke on the
-	// first day of the next month - found 2026-09-01, when audit_log_2026_08 stopped holding
-	// today's rows.
+	// the leader (and the migration seed) always creates. A hard-coded name breaks on the first
+	// day of the next month, when the named partition stops holding today's rows.
 	currentPartition := "audit_log_" + time.Now().UTC().Format("2006_01")
 	for _, relation := range []string{"audit_log", currentPartition} {
 		t.Run(relation+" own rows", func(t *testing.T) {
@@ -649,10 +647,10 @@ func TestTheTablesOutsideTheRuleAreTheDocumentedOnes(t *testing.T) {
 		"backup_run":              "records a run of an installation-wide target",
 		"restore_run":             "restores from an installation-wide target",
 		"instance_event": "a bare identifier of a workspace that is usually gone - a reference " +
-			"would forbid the very rows the journal exists for (H-06, migration 0067)",
+			"would forbid the very rows the journal exists for (migration 0067)",
 		"identity_provider": "NULL is the installation's own provider, which every workspace reads " +
 			"and none writes - the read policy admits it and the write policy does not " +
-			"(SI-10, migration 0103)",
+			"(migration 0103)",
 	}
 
 	rows, err := admin.Query(ctx, `

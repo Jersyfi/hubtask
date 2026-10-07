@@ -56,8 +56,8 @@ func TestDuplicatesAreProposedFromTheIndexWithNoProviderAtAll(t *testing.T) {
 	}
 }
 
-// The three degradations J-10 established, reused rather than reinvented. Each is an answer, and
-// none of them is an error.
+// The semantic search's degradations, reused rather than reinvented. Each is an answer, and none
+// of them is an error.
 func TestNothingToLookWithIsAnAnswerRatherThanAnError(t *testing.T) {
 	for _, testCase := range []struct {
 		name    string

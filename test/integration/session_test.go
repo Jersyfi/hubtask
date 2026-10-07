@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The sign-in surface of H-01, against the real boundary. Gate SG-3: one negative per port
+// The sign-in surface, against the real boundary. Gate SG-3: one negative per port
 // method - a session, a refresh token, an attempt row and a redemption token of one tenant are
 // invisible and unusable in another, proved against row level security rather than asserted.
 
@@ -220,7 +220,7 @@ func TestSessionsAreListedPerTenant(t *testing.T) {
 	})
 }
 
-// UC-ID-06 check 5 (SC-19): the list is judged against the workspace's rotation cutoff, so the
+// UC-ID-06 check 5: the list is judged against the workspace's rotation cutoff, so the
 // cutoff has to arrive with the rows - read off the tenant row FindForAuth reads it from, which is
 // what makes the list and the next request agree.
 func TestTheSessionListCarriesTheWorkspacesRotationCutoff(t *testing.T) {
@@ -656,7 +656,7 @@ func TestTheSessionSweepStaysInsideTheTenantAndTakesOnlyTheOver(t *testing.T) {
 	}
 }
 
-// ====================== The step-up (repository.StepUps, H-03) ======================
+// ====================== The step-up (repository.StepUps) ======================
 
 // Gate SG-3: Record and Consume - the proof is bound to its tenant, burns once, and expires by
 // the clock, all decided in the one UPDATE.
@@ -762,7 +762,7 @@ func TestAStepUpProofBurnsOnceAndOnlyInItsTenant(t *testing.T) {
 	})
 }
 
-// UC-ID-06 check 2 (SC-09): a session opened through a provider names the provider in the listing a
+// UC-ID-06 check 2: a session opened through a provider names the provider in the listing a
 // person reads - and only a provider this tenant can see. A row naming another tenant's provider
 // lists no name, because the listing reads the provider under the reader's own row policy.
 func TestAProviderSessionNamesItsProviderInItsOwnTenantOnly(t *testing.T) {

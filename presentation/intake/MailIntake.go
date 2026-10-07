@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// MailIntake turns one posted message into a jumble entry (G-11).
+// MailIntake turns one posted message into a jumble entry.
 //
 // The seam between the two halves of the mail intake, and it is deliberately thin: the parser
 // above it knows MIME and knows nothing about this system, the use case below it knows the inbox

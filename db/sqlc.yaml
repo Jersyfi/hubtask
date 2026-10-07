@@ -1,4 +1,4 @@
-# Generation of the query layer (CLAUDE.md rule 9: SQL is parameterised and goes through sqlc,
+# Generation of the query layer (rule 9: SQL is parameterised and goes through sqlc,
 # never assembled from strings). Paths are relative to this file.
 #
 # The schema sqlc reads is db/migrations, not db/schema.sql: the migrations are what runs against

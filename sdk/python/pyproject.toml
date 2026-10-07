@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# The Python SDK's package manifest (P-03). Not published by the milestone: the licence is
-# Apache-2.0 (ADR-0080), the name stays what ADR-0057 leaves open, and the
-# version follows the product's (ADR-0035) when it is published.
+# The Python SDK's package manifest. Not published: the licence is Apache-2.0 (ADR-0080), the
+# name stays what ADR-0057 leaves open, and the version follows the product's (ADR-0035) once it
+# is published.
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"

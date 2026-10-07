@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/crypto"
 )
 
-// AiProviders is the workspace's configured AI provider (J-02).
+// AiProviders is the workspace's configured AI provider.
 //
 // Reading the configuration and reading its key are two methods, deliberately, and for the reason
 // IdentityProviders splits the same pair: the ordinary read is what a person and an auditor get and

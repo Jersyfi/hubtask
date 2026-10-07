@@ -2,7 +2,7 @@
 The migration, as a hook before the rollout (deployment.md §2.2).
 
 It runs before the new pods start and it runs once: migrations are expand/contract-safe
-(CLAUDE.md rule 12), so the old version keeps working against the new schema while the rollout
+(rule 12), so the old version keeps working against the new schema while the rollout
 proceeds. Doing it the other way round - migrating from inside the application at startup - would
 have as many migrators as replicas and no order between them.
 
@@ -69,7 +69,7 @@ spec:
               value: {{ . | quote }}
             {{- end }}
             {{- if .Values.migration.appPasswordSecretKey }}
-            # The migrator is the operator that grants hubtask_app its login (A-11): the migration
+            # The migrator is the operator that grants hubtask_app its login (deployment.md §2.1): the migration
             # creates the role without one, because a credential has no business in a migration.
             # Only installations that hand it the password get the grant - a cluster that manages
             # the role itself leaves this unset.

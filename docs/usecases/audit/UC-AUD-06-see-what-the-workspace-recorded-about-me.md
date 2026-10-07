@@ -43,9 +43,5 @@ no way to widen the view.
 
 ## Today
 
-* **Check 3 is probably not met.** The own-events path asks for read access at the workspace
-  (`core/application/service/audit/List.go`, the narrowing in `Execute`), and a check at the
-  workspace refuses somebody whose membership is on a hub only
-  (`core/application/service/access/AuthorizationService.go`). No test covers a hub-only member.
-* **Check 4 fails.** The only audit screen sits in the administration area, which the web app shows
-  only to holders of a configuration right (`apps/webapp/src/lib/shell/AppFrame.svelte`).
+* Check 3: not met — reading one's own entries asks for read access at the workspace, which a member whose only membership is on a hub does not hold, so they are refused.
+* Check 4: not met — the only audit screen is in the administration area, which the web app shows only to holders of a configuration right.

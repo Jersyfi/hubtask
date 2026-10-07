@@ -40,10 +40,10 @@ type GetWorkItem struct {
 // GetWorkItemQuery is the input, typed.
 type GetWorkItemQuery struct {
 	ItemID shared.ID
-	// CalendarUID names the entry by the address a calendar client knows it by instead of by
-	// its identifier (P-07, issue #721) - the tree's question when a PUT arrives at an address
-	// the view does not answer. Read when ItemID is empty; the permission is decided the same
-	// way, because the entry found is the same entry.
+	// CalendarUID names the entry by the address a calendar client knows it by instead of by its
+	// identifier (offline-sync.md §4.2) - the tree's question when a PUT arrives at an address the
+	// view does not answer. Read when ItemID is empty; the permission is decided the same way,
+	// because the entry found is the same entry.
 	CalendarUID string
 	// ExpandLabels asks for the labels the entry carries.
 	//
@@ -221,7 +221,7 @@ type ListWorkItems struct {
 // ListWorkItemsQuery is the input, typed.
 type ListWorkItemsQuery struct {
 	// CollectionID is required. A list of every item in a tenant is an unindexed scan, and every
-	// filter beyond one level is the query DSL's (B-12).
+	// filter beyond one level is the query DSL's.
 	CollectionID shared.ID
 	// ParentID is the item whose children are wanted. Empty means the items directly in the
 	// collection.
@@ -240,7 +240,7 @@ type ListWorkItemsQuery struct {
 // the client named the container it cannot read.
 //
 // The one caller for whom that single answer is not the whole truth is somebody who holds no role on
-// the collection and a membership on entries inside it. Their level is those entries (C-04), and the
+// the collection and a membership on entries inside it. Their level is those entries, and the
 // restriction goes into the query rather than filtering the page afterwards: filtered afterwards, a
 // page would come back short and its cursor would skip.
 func (h ListWorkItems) Execute(

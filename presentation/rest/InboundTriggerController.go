@@ -27,7 +27,7 @@ type InboundRunStarter interface {
 }
 
 // StartInboundRun answers POST /automation/inbound/{token} - the second route in this API that
-// carries no bearer credential (G-08, automation.md §1.1).
+// carries no bearer credential (automation.md §1.1).
 //
 // What happens here is parsing, and nothing else. The shape of the token is a string question and
 // belongs to an adapter; whether a rule has this address, whether it is enabled and whether its

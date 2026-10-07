@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The labels an entry carries (B-09). A sub-resource with PUT and DELETE rather than a field on the
+// The labels an entry carries. A sub-resource with PUT and DELETE rather than a field on the
 // entry, because a set is not a field: two devices adding two different labels at once is the case
 // the OR-set exists to serve, and a merge patch carrying the whole array would let the later of the
 // two erase the other's (offline-sync.md §4.2).

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The timeline shows time (F10-14, ADR-0063 decision 12). It was a list with one bar in it: a
-// window of the current month, an unlabelled mark per day, the undated in a list beside the axis,
-// and no way to change a date from the picture. Chromium only, as the other walks.
+// The timeline shows time (ADR-0063 decision 12), not a list with one bar in it: the window is
+// not pinned to the current month, a day's mark is labelled, and a date can be changed from the
+// picture. Chromium only, as the other walks.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -288,8 +288,8 @@ test('chromium: 1280 px — a collection whose work is a season away opens on it
   const browser = await chromium.launch();
   t.after(() => browser.close());
 
-  // Far enough out that no window around today reaches it, which is the case the walk of
-  // 2026-09-22 found: the entry was outside the window with nothing saying so.
+  // Far enough out that no window around today reaches it: an entry outside the window is said,
+  // never left out with nothing saying so.
   const today = new Date().toISOString().slice(0, 10);
   const far = addDays(today, 240);
   const { page, failures, close, unstubbed } = await timeline(browser, {

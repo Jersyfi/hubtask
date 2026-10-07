@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The routes C-07 adds, at the mapping layer - the catalogue's projection into the contract's
+// The custom field routes, at the mapping layer - the catalogue's projection into the contract's
 // schema - because that is the layer where a field quietly goes missing.
 
 var (

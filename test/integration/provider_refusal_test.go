@@ -20,12 +20,12 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// SC-32, against the real database: a provider arrival this workspace turns away is in the trail.
-// The refusal used to be appended inside the arrival's transaction, which the refusal itself rolls
-// back - so `identity_provider.provider_refused` was never stored, and every service test read it
-// because their unit of work kept what a failing transaction wrote. The arrival here is an invited
-// person coming without the invitation's link, at a provider that is not authoritative for the
-// address: refused, nothing connected, nothing activated, and the refusal stored.
+// Against the real database: a provider arrival this workspace turns away is in the trail. A
+// refusal appended inside the arrival's transaction is rolled back by the refusal itself - so
+// `identity_provider.provider_refused` would never be stored, and every service test would still
+// read it, because their unit of work keeps what a failing transaction wrote. The arrival here is
+// an invited person coming without the invitation's link, at a provider that is not authoritative
+// for the address: refused, nothing connected, nothing activated, and the refusal stored.
 //
 // The provider is the one thing this database cannot stand in for, so the relying party is a stub
 // that answers the identity a provider would have verified. Everything else is the real service

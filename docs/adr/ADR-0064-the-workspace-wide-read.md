@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-22 · **Accepted:** 2026-09-22
 
+**Rule lives in:** [api-guidelines.md](../architecture/api-guidelines.md) §3
+
 ## Context
 
 Two screens of milestone F10 asked the product a question it cannot answer, and the same wall
@@ -140,7 +142,7 @@ question. Precisely:
 | Work package | Target |
 |---|---|
 | The contract, the domain, the compiler and the use case | a core task, cut when this ADR is accepted |
-| F10-04 and F10-05 | [`backlog/milestone-F10.md`](../backlog/milestone-F10.md), after it |
+| F10-04 and F10-05 | [`backlog/milestone-F10.md`](../archive/backlog/milestone-F10.md), after it |
 
 ## Notes
 

@@ -1,6 +1,6 @@
 # The tenant export format
 
-Binding for the archive `POST /admin/tenants/{tenantId}:export` produces (H-07). Complements
+Binding for the archive `POST /admin/tenants/{tenantId}:export` produces. Complements
 [backup-restore.md](./backup-restore.md) §3 and §9, [multi-tenancy.md](./multi-tenancy.md) §5/§6,
 and [security.md](./security.md) T-20.
 
@@ -14,10 +14,9 @@ the other way round.
 
 ## 1. One format, not two
 
-A tenant export **is a Hubtask archive** — the same format a backup writes
-([backup-restore.md](./backup-restore.md) §9: "an export is therefore simultaneously a restorable
-backup, without a second format coming into existence"). What distinguishes an export from a backup
-is circumstance, never shape:
+A tenant export **is a Hubtask archive** — the same format a backup writes, so an export is also a
+restorable backup and no second format exists ([backup-restore.md](./backup-restore.md) §9). What
+distinguishes an export from a backup is circumstance, never shape:
 
 | | Backup run | Tenant export |
 |---|---|---|
@@ -121,7 +120,7 @@ attachment existed and that its content is gone.
 ## 6. The entities
 
 The data files, **in the order they appear and must be applied**: a row's parents come before it,
-so an importer can apply the files in sequence without deferring references. `identity` is the
+with the three exceptions named below the table. `identity` is the
 `id` field's composition; `references` are the fields in `data` that point at another entity's
 `id` (an importer that re-mints identities must rewrite exactly these).
 
@@ -162,6 +161,12 @@ so an importer can apply the files in sequence without deferring references. `id
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
 reply's comment) are ordered within the file: the referenced row's line comes first.
 
+**Three references point forward.** In `work_items`, `cover_media_id` (→ `media_objects`, #15),
+`recurrence_rule_id` (→ `recurrence_rules`, #17) and `origin_jumble_id` (→ `jumble_entries`, #21)
+name rows of files that come later. An importer that enforces these references sets them after the
+later file is applied. `work_items` also carries `recurrence_source_id`, a reference to another
+`work_items` row without a foreign key.
+
 ## 7. Media
 
 File bytes are stored **content-addressed**: an object's path is
@@ -199,15 +204,25 @@ A verifier — human or importer — checks, in this order:
 An export contains a workspace's **data**, never its **credentials or live machinery**. Absent by
 design, with the reasoning of backup-restore.md §8.4:
 
-* **Credentials, whole and half**: access tokens, sessions and their refresh chains, TOTP
-  enrolments and recovery codes, pending sign-ins, OAuth clients/grants/codes, calendar feed
-  token hashes, intake token hashes, device registrations. A copy of a credential is a credential.
+* **Credentials, whole and half**: access tokens, sessions and their refresh chains, sign-in
+  attempts, second-factor enrolments and recovery codes, password history, pending sign-ins and
+  provider flows, OAuth clients/grants/codes, sign-in provider configurations and the external
+  identities linked to accounts, the workspace's host names, calendar feed token hashes, the jumble
+  intake credential, device registrations. A copy of a credential is a credential.
 * **Live plumbing**: the outbox and event consumptions, notification rows, webhook deliveries,
-  rule runs and occurrences, idempotency keys, sync cursors and tombstone markers, usage records.
-  These describe the machine's moment, not the workspace's content.
-* **The compliance machinery's own state**: data subject requests, audit anchors and pseudonyms,
-  backup/restore/retention run bookkeeping, retention rules' operator configuration. Cases and
-  attestations belong to the installation that handled them.
+  rule runs and occurrences, idempotency keys, the synchronisation's change log, operation log,
+  field clocks and tombstones, usage records. These describe the machine's moment, not the
+  workspace's content.
+* **AI machinery**: the AI provider configuration (with its sealed key), suggestions, pending AI
+  requests, and embedding vectors (derived from content that is in the export).
+* **The compliance machinery's own state**: data subject requests, privacy incidents, the deletion
+  journal, audit anchors and pseudonyms, backup targets and schedules, backup/restore/import/
+  retention run bookkeeping, retention rules. Cases and attestations belong to the installation
+  that handled them.
+* **The product's own shape**: the system capability profiles.
+
+The list is `ExcludedTables()` in `core/application/archive/Record.go`; a test holds every table under
+row level security to being either an entity of §6 or on that list.
 
 Where an included table mixes data with a credential, the export **redacts the column**: the
 field is absent from the record, not null. The redacted fields, exhaustively:

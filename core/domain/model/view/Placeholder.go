@@ -77,10 +77,9 @@ type Resolution struct {
 	Location *time.Location
 	ActorID  shared.ID
 	// WeekStart is the first day of the week the anchors are computed for: the account's own
-	// preference, otherwise the locale's, resolved onto the actor by authentication
-	// (i18n-l10n.md §4, M-06). The zero value is Sunday, which is time.Weekday's zero - so a
-	// caller that says nothing is read as Monday below, ISO 8601's answer and what every query
-	// before 0.8.0 got.
+	// preference, otherwise the locale's, resolved onto the actor by authentication (i18n-l10n.md
+	// §7). The zero value is Sunday, which is time.Weekday's zero - so a caller that says nothing
+	// is read as Monday below, ISO 8601's answer.
 	WeekStart time.Weekday
 	// weekStartSet distinguishes "Sunday" from "nothing said".
 	weekStartSet bool

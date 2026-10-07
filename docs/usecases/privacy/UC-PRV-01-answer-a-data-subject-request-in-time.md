@@ -71,9 +71,7 @@ See [data-protection.md](../../architecture/data-protection.md) §4.
 
 ## Today
 
-* **Check 5 fails in the web app.** The register marks a case *owed soon* from two days before its
-  deadline (`apps/webapp/src/lib/data/privacy.ts`), the deadline watch from seven
-  (`core/application/service/privacy/Deadlines.go`).
-* **Check 6 fails in the web app.** The record form has no deadline field; the API and
-  `hubctl dsr create --due` take one.
-* **Checks 9 and 10 are not built.** Decided 2026-09-30; milestone PH, task PH-02.
+* Check 5: not met in the web app — the register marks a case *owed soon* from two days before its deadline, the deadline watch from seven.
+* Check 6: not met in the web app — the record form has no deadline field.
+* Check 9: not met — a case cannot be extended, tracked in #1087.
+* Check 10: not met — there is no extension to show, read or record, tracked in #1087.

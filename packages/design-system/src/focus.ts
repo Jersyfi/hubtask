@@ -6,7 +6,7 @@
 // Same reasoning as `layers.ts`, and for the same acceptance criteria. "A menu is fully operable
 // from the keyboard" and "focus returns to the trigger when a dialog closes" are checked here as
 // arithmetic and as one branch, rather than by opening a menu and pressing keys - which is a check
-// that needs a driven browser (ADR-0037 left that to F5) and would otherwise be no check at all.
+// that needs a driven browser (ADR-0037) and would otherwise be no check at all.
 //
 // The components keep the DOM half, and it stays small: read the items, call `rovingIndex`, focus
 // what it names.
@@ -126,7 +126,7 @@ export function focusables(root: ParentNode): HTMLElement[] {
  * form, a reminder's editor, the rename field, the add-an-entry form. Without this the browser
  * drops focus to `body` on both journeys: the control is gone by the time the form is there, and
  * the form's Cancel is gone by the time the control is back, so a keyboard reader is twice at the
- * top of the page with no idea why (2.4.3; the F5-11 walk found five of these). An overlay does
+ * top of the page with no idea why (2.4.3). An overlay does
  * the same through `openOverlay`; this is the non-overlay case, as an attachment so that the
  * form says so where it is written: `<Stack {@attach focusFirst()}>`.
  *

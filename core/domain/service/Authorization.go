@@ -15,9 +15,9 @@ import (
 // "all items" and sometimes "one item" is a permission nobody can reason about.
 //
 // The two that are about a single entry live beside this table rather than in it, in one decision
-// every use case consults (ItemAccess, C-04): they were once applied by each use case where it
-// was enforced, which is the arrangement in which a use case forgets. The third - a member's own
-// automation rules - is still the use case's, and arrives with the automation that has one.
+// every use case consults (ItemAccess) rather than applied by each use case where it is enforced,
+// which is the arrangement in which a use case forgets. The third - a member's own automation rules
+// - is the use case's.
 type Permission string
 
 const (
@@ -36,9 +36,9 @@ const (
 	// administrator cannot do, because it takes a subtree with it.
 	PermissionDeleteContainer Permission = "DELETE_CONTAINER"
 	// PermissionReadConfiguration is reading how the workspace is set up without being able to
-	// change any of it: the backup targets and schedules, the retention rules, the legal holds,
-	// the automation rules and the webhook subscriptions - never a secret any of them holds
-	// (audit.md §9, A-4, decided in G-12).
+	// change any of it: the backup targets and schedules, the retention rules, the legal holds, the
+	// automation rules and the webhook subscriptions - never a secret any of them holds (audit.md
+	// §5).
 	//
 	// Split out of STRUCTURE rather than granted through it, because STRUCTURE is a *writing*
 	// permission: it is what somebody who shapes the workspace holds, and an auditor's question -
@@ -78,10 +78,10 @@ var rolePermissions = map[identity.Role][]Permission{
 	identity.RoleContributor: {PermissionRead, PermissionWriteItems},
 	identity.RoleViewer:      {PermissionRead},
 	identity.RoleGuest:       {PermissionRead},
-	// The row that is two cells since G-12. An auditor reads the trail and reads how the workspace
-	// is configured, and nothing else - no READ, so every use case over containers, entries and
-	// comments refuses them by the ordinary rule rather than by a special case somebody has to
-	// remember (audit.md §5).
+	// The row with two cells. An auditor reads the trail and reads how the workspace is configured,
+	// and nothing else - no READ, so every use case over containers, entries and comments refuses
+	// them by the ordinary rule rather than by a special case somebody has to remember (audit.md
+	// §5).
 	//
 	// The second cell is what makes the first one usable: an entry saying a retention rule deleted
 	// four hundred objects is a fact an auditor cannot judge without being able to read the rule

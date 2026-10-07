@@ -47,22 +47,4 @@ invitation used twice, or after it expired, gets one plain sentence and the name
 
 ## Today
 
-* **Check 4 fails:** there is no terms agreement at all — see UC-ID-19.
-* **Check 5 holds since SC-24, with a second proof since SC-32.** Signing in through the workspace's
-  provider accepts the invitation: the account becomes ACTIVE and the invitation is spent in one
-  statement, unless it ran out (`invitation_by_provider_test.go`). Since SC-32 (ADR-0078 §1) the
-  provider is chosen on the invitation card itself, and the card starts the flow with the invitation's
-  token; the server checks it without spending it and binds the invited account to the flow
-  (`TestAFlowStartedFromAnInvitationRemembersTheInvitedAccount`, `oidc_flow_invitation_test.go`,
-  `signin.test.mjs`). That link is the second proof: the invitation is accepted through it in every
-  admission mode, under *Only people invited here* even from a provider that is not authoritative for
-  the address (`TestAnInvitedPersonAcceptsTheInvitationThroughItsLink`). The provider's verified
-  address must be the invited one, and an arrival that fails leaves the invitation unspent
-  (`TestAMismatchedAddressIsRefusedAndTheInvitationWaits`). An invitation that can no longer be
-  redeemed is refused on the card in check 3's one sentence. Without the link only a provider
-  authoritative for the address accepts the invitation; a connection made by an arrival before SC-32
-  without either proof activates nothing. In a workspace that switched the password off the card
-  offers only the providers. Under *Only these organisations* the link admits the invited address
-  even outside the list - the invitation is the administrator's choice of that person - and admits
-  nobody else; without the link an address outside the list stays refused
-  (`TestUnderDomainsTheLinkAdmitsTheInvitedAddressOutsideTheList`).
+* Check 4: not met — there is no terms agreement at all (UC-ID-19), tracked in #1066.

@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// A collection's vocabulary (B-09). The handlers hold no rules: the permission check, the
+// A collection's vocabulary. The handlers hold no rules: the permission check, the
 // uniqueness of the name and the four records a write owes all happen in the application layer,
 // once, whichever channel the call came through (ADR-0005, arc42 §4).
 

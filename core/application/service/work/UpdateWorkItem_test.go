@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// UpdateWorkItem (B-05). The item is a work package, so that both fields under test are live: its
+// UpdateWorkItem. The item is a work package, so that both fields under test are live: its
 // profile carries NOTES, and the activity beside it does not - which is the gate the task is named
 // after.
 
@@ -56,7 +56,7 @@ func newUpdateHarness() *updateHarness {
 		Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
 		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: h.uow, Clock: clock.Fixed(updateNow), IDs: &ids{}, HLC: &hlcSource{},
-		// The D-01 machinery, over the same fakes: the patch is its second caller.
+		// The due date machinery, over the same fakes: the patch is its second caller.
 		DueDates: DueDateWriter{
 			Items: store, Containers: containerStore, Profiles: profileRows,
 			Reminders:  newReminders(),
@@ -183,7 +183,7 @@ func TestUpdateClearsTheNotesWhenAskedTo(t *testing.T) {
 	}
 }
 
-// The capability profile as the gate, which is what B-05 is named after. Nothing is written, and
+// The capability profile as the gate. Nothing is written, and
 // the refusal names the type and the capability rather than the field alone.
 func TestNotesOnAnActivityAreRefusedAndNothingIsWritten(t *testing.T) {
 	h := newUpdateHarness()
@@ -601,7 +601,7 @@ func TestTheDescriptorDeclaresWhatTheGatesRead(t *testing.T) {
 	}
 }
 
-// The board an entry sits on, through the update (B-09). Empty is not "leave it alone": it takes
+// The board an entry sits on, through the update. Empty is not "leave it alone": it takes
 // the entry off the board, which is the same distinction the text fields keep.
 func TestUpdatingTheColumnAnEntrySitsIn(t *testing.T) {
 	h := newUpdateHarness()

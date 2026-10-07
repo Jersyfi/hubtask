@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-02
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §2, §6
+
 ## Context
 
 [ADR-0029](./ADR-0029-design-system-tokens.md) left `reference/foundations.html` as the visual

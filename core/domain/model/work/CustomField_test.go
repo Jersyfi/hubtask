@@ -76,8 +76,8 @@ func TestAKeyIsAnIdentifierAndNothingElse(t *testing.T) {
 }
 
 // Options and TEXT values are stored in normal form C, and a choice is brought to the form the
-// options were stored in before it is looked for among them (i18n-l10n.md §5, M-07): a person
-// who defined "Ku\u0308che" and one who picks it with a combining diaeresis mean the same option.
+// options were stored in before it is looked for among them (i18n-l10n.md §5): a person who defined
+// "Ku\u0308che" and one who picks it with a combining diaeresis mean the same option.
 func TestOptionsChoicesAndTextValuesAreInNormalFormC(t *testing.T) {
 	field := definition(t, work.CustomFieldSelect, "Ku\u0308che", "Bu\u0308ro")
 	if field.Options[0] != "K\u00fcche" || field.Options[1] != "B\u00fcro" {

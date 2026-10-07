@@ -19,7 +19,7 @@ import (
 )
 
 // A workspace's administrators are told when an operator opens its password, and when the opening
-// ends (ADR-0078 §3, SC-34).
+// ends (ADR-0078 §3).
 //
 // **Deliberately not a notification record**, SendPasswordReset's reasoning: this is a message about
 // the way into the workspace that no preference may silence, and a category that existed only to be

@@ -274,7 +274,7 @@ func (w ContainerWriter) recordTrashChanges(
 	covered := append([]shared.ID{container.ID}, cascade.Collections...)
 	for _, id := range covered {
 		// The visibility filter a pull applies: each container itself, the root and every
-		// collection the cascade covered alike (#623, core/application/repository/sync/Port.go).
+		// collection the cascade covered alike (core/application/repository/sync/Port.go).
 		err := w.Changes.Record(ctx, changelog.Change{
 			TenantID:    container.TenantID,
 			Entity:      containerTarget,
@@ -355,7 +355,7 @@ func (h TrashContainer) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityNotice, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "a container is not an item (domain-model.md §3.5), and its deletion is one act " +
+			Exempt: "a container is not an item, and its deletion is one act " +
 				"on the container. Written into every entry of the subtree it took with it, one " +
 				"act would become a thousand steps of history that all say the same thing.",
 		},
@@ -380,7 +380,7 @@ func (h RestoreContainer) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityNotice, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "a container is not an item (domain-model.md §3.5), and its deletion is one act " +
+			Exempt: "a container is not an item, and its deletion is one act " +
 				"on the container. Written into every entry of the subtree it took with it, one " +
 				"act would become a thousand steps of history that all say the same thing.",
 		},

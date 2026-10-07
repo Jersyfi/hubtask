@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// SC-17: the authenticator's replacement waits beside the armed factor as a second, unconfirmed
+// The authenticator's replacement waits beside the armed factor as a second, unconfirmed
 // enrolment, and becomes the armed one in a single statement - only for the session that began it,
 // only inside its window, and only if it is still the secret the confirmation verified. Gate SG-3:
 // none of it reaches another workspace. And the key rotation's census and re-seal see it.

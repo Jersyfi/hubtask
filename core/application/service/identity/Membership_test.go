@@ -252,7 +252,7 @@ func TestARevocationRemovesTheMembershipAndRecordsIt(t *testing.T) {
 	}
 }
 
-// The devices of whoever held the role are told what they lost (N-08), once the row is gone.
+// The devices of whoever held the role are told what they lost, once the row is gone.
 func TestARevocationIsAnnouncedToWhoeverHeldTheRole(t *testing.T) {
 	grants, told := newGrants(existingGrant(t)), &revoker{}
 	handler := revokeHandler(grants, &authorizer{}, &auditSink{})

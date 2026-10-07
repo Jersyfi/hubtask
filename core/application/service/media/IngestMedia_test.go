@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/storage"
 )
 
-// The server-side ingest (G-11): the same three steps, performed here, for bytes that arrived over
+// The server-side ingest: the same three steps, performed here, for bytes that arrived over
 // an intake instead of from a client that could have been handed a presigned URL.
 
 // sequentialIDs hands out a different identifier per call. One mail carries several attachments,

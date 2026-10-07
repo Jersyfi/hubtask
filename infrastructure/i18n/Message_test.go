@@ -13,7 +13,7 @@ import (
 
 // This file mirrors apps/webapp/src/lib/i18n/format.test.ts case for case - the same patterns,
 // the same parameters, the same sentences - so that the two renderers cannot drift apart
-// unnoticed (M-02). A case added on one side is added on the other, in the same order.
+// unnoticed. A case added on one side is added on the other, in the same order.
 
 func formatIn(t *testing.T, pattern string, params map[string]string, locale string) string {
 	t.Helper()
@@ -115,7 +115,7 @@ func TestBranchesHoldWholeMessagesNotOnlyText(t *testing.T) {
 
 // The one case the two files differ on, deliberately: the client groups digits with
 // Intl.NumberFormat, and this side writes a number as it was given (no number symbols here,
-// milestone-0.8.0.md decision 8). The client's case is `1,234 tasks`.
+// i18n-l10n.md §3). The client's case is `1,234 tasks`.
 func TestANumberIsWrittenAsItWasGiven(t *testing.T) {
 	if got := formatEN(t, "{count} tasks", map[string]string{"count": "1234"}); got != "1234 tasks" {
 		t.Errorf("%q", got)

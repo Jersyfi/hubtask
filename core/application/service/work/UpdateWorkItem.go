@@ -43,10 +43,10 @@ const (
 // What it does not change: where the item sits (MoveWorkItem), whether it is done
 // (CompleteWorkItem), which labels it carries (AddLabel - a set is not a field), and the assignee,
 // which is an action route because two ways to write that column would be two places deciding
-// whether the person may see the entry. The due date left that list with D-01, and in a
-// particular way: the contract has carried the three due fields on this schema since 0.1.0, so
-// the patch serves them - by dispatching into the writer the SetDueDate pair owns, which is how
-// the fields keep one validation, one event and one history whichever door they arrive through.
+// whether the person may see the entry. The due date is not on that list, in a particular way:
+// the contract carries the three due fields on this schema, so the patch serves them - by
+// dispatching into the writer the SetDueDate pair owns, which is how the fields keep one
+// validation, one event and one history whichever door they arrive through.
 type UpdateWorkItem struct {
 	Items      repository.Items
 	Buckets    repository.Buckets
@@ -61,9 +61,9 @@ type UpdateWorkItem struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
-	// DueDates is the writer the patch dispatches the due trio into (D-01).
+	// DueDates is the writer the patch dispatches the due trio into.
 	DueDates DueDateWriter
-	// Text brings a changed title or notes to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings a changed title or notes to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -471,7 +471,7 @@ func (h UpdateWorkItem) invoke(
 	}
 	// The due trio travels as the raw patch: which members were sent and what each said. The
 	// target is only decidable against the stored trio, which the use case reads inside its
-	// transaction (D-01).
+	// transaction.
 	patch := domain.DuePatch{}
 	if raw := in.OptionalString("due_at"); raw != nil {
 		patch.AtPresent = true

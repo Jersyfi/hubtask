@@ -43,7 +43,7 @@ const banner = `/**
 fs.writeFileSync(output, banner + fs.readFileSync(output, 'utf8'));
 console.log(`api-client: ${path.relative(process.cwd(), output)}`);
 
-// The document itself, and the event schemas beside it (P-01). `api/openapi.json` is what
+// The document itself, and the event schemas beside it. `api/openapi.json` is what
 // `make generate` writes from the YAML (project-structure.md §6); it travels through this
 // package because the website may reach the contract only through a workspace member, never by
 // climbing out of its own directory (§2.1). The events are gathered into one object keyed by

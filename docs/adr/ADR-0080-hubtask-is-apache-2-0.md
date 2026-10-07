@@ -4,6 +4,8 @@
 **Supersedes:** [ADR-0059](./ADR-0059-licensing-phases-and-licensing-start.md) and
 [ADR-0013](./ADR-0013-licensing.md)
 
+**Rule lives in:** [licensing-editions.md](../architecture/licensing-editions.md) §1–§5
+
 ## Context
 
 Hubtask has been published under the Business Source License 1.1 since its first public commit:

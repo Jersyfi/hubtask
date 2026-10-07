@@ -119,8 +119,8 @@
   /**
    * The card whose menu should hold focus again once the board has been read back. A card that
    * changed column is a card destroyed in one column and made anew in another, and the browser
-   * drops focus to `body` in between; the F5-11 walk found the reader at the top of the page
-   * after every move by keyboard. Set by `moveTo`, spent by the effect below the moment the board
+   * drops focus to `body` in between, which leaves a keyboard reader at the top of the page
+   * after every move. Set by `moveTo`, spent by the effect below the moment the board
    * that arrives holds the card - and only where nothing else took focus meanwhile.
    */
   let refocusId = $state<string | undefined>(undefined);
@@ -260,13 +260,13 @@
 
   let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
-  /** The moment standing (F6-13): on the card that was completed, whichever tier. */
+  /** The moment standing: on the card that was completed, whichever tier. */
   const moment = $derived(celebration.current);
   $effect(() => () => celebration.dismiss());
 
-  // Managing the columns themselves. `buckets` has had `create`, `update`, `remove` and `reorder`
-  // since F2-11 and no caller, so a collection's board could only be set up outside the
-  // application - including `wip_limit` and `is_done_bucket`, both of which this board reads and
+  // Managing the columns themselves. `buckets` has `create`, `update`, `remove` and `reorder`,
+  // and without this a collection's board could only be set up outside the application -
+  // including `wip_limit` and `is_done_bucket`, both of which this board reads and
   // acts on.
   let editing = $state<Bucket | undefined>(undefined);
   let isEditingColumn = $state(false);
@@ -591,8 +591,8 @@
   />
 {:else if columns.length === 0}
   <ReplicaMark state={boardState} />
-  <!-- §4.1: say what this place is for, and offer the one action. A board with no columns used to
-       explain what a column is and offer no way to make one. -->
+  <!-- §4.1: say what this place is for, and offer the one action. A board with no columns that
+       explained what a column is and offered no way to make one would be a dead end. -->
   <EmptyState kind="unused" title={t('app.board.no_buckets')} icon="bucket">
     {#snippet action()}
       {#if isBucketBoard && !isReadOnly}
@@ -635,8 +635,8 @@
             {#snippet actions()}
               <!-- A column's own actions are a **bucket's**: renaming it, its limit, deleting it.
                    Grouped by anything else the column is a value rather than a place, and there is
-                   nothing to act on — so the control is absent rather than dead. It used to be
-                   present and dead, which is the silent ignoring this project has a rule against. -->
+                   nothing to act on — so the control is absent rather than dead. Present and
+                   dead, it would be the silent ignoring this project has a rule against. -->
               {#if bucket && isBucketBoard && !isReadOnly}
                 {@const column = bucket}
                 <Menu
@@ -720,8 +720,8 @@
                         {/if}
                       {/each}
                       {#if !isReadOnly}
-                        <!-- The keyboard path to moving a card, and for now the only one — F2-12 builds
-                             the drag against it, because WCAG 2.2 SC 2.5.7 wants a single-pointer
+                        <!-- The keyboard path to moving a card — the drag is built
+                             against it, because WCAG 2.2 SC 2.5.7 wants a single-pointer
                              alternative and a rank change is a command before it is a gesture. -->
                         <Menu
                           label={t('app.board.card_actions', { title: card.title })}
@@ -795,7 +795,7 @@
      state a drag draws. The card itself is the design system's. */
   .card { display: flex; align-items: start; gap: var(--sp-050); }
 
-  /* A card is the slot a moment sits over (F6-13); a column too, for the rare one. */
+  /* A card is the slot a moment sits over; a column too, for the rare one. */
   .card[data-celebrating] { position: relative; }
 
   .card > :global(*:last-child) { flex: 1; min-width: 0; }
@@ -847,7 +847,7 @@
   /* The board scrolls sideways, not the page. Positioned, so that it is the containing block of
      what it scrolls: a card's checkbox hides its input the visually-hidden way, absolutely, and
      an absolute box inside an unpositioned scroller overflows the scroller's ancestor - which is
-     how the board widened the page by four hundred pixels on a tablet (issue 874). */
+     how a board widens the page by four hundred pixels on a tablet. */
   .board {
     position: relative;
     display: flex;

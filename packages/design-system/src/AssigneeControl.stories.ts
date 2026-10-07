@@ -27,7 +27,7 @@ export const multiple: Story = {
 export const empty: Story = {
   name: 'Nobody to choose from yet',
   about:
-    'The candidates are handed in and this component fetches nothing: who may be assigned in a container is the domain’s answer (F3-07). An empty list is therefore a real state rather than a loading one, and voice-and-tone.md §4.1 says what to do about it — name the next step.',
+    'The candidates are handed in and this component fetches nothing: who may be assigned in a container is the domain’s answer. An empty list is therefore a real state rather than a loading one, and voice-and-tone.md §4.1 says what to do about it — name the next step.',
   args: { mode: 'empty' },
 };
 

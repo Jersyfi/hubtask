@@ -24,14 +24,14 @@ import (
 	"github.com/Jersyfi/hubtask/test/s3test"
 )
 
-// The conformance suite of C-05: both adapters answer the port identically, the S3 one proved
-// against a real S3-compatible server - whose strict SigV4 validation is also what proves the
-// hand-written signer. One suite run twice, so the two stores cannot drift apart in behaviour.
+// The conformance suite of the object storage port: both adapters answer the port identically, the
+// S3 one proved against a real S3-compatible server - whose strict SigV4 validation is also what
+// proves the hand-written signer. One suite run twice, so the two stores cannot drift apart in
+// behaviour.
 
 // startS3 runs one S3-compatible server for this test and returns the adapter pointed at it.
 //
-// The server itself, and why it is no longer MinIO, is in test/s3test - one place now, where it
-// used to be three copies of the same pin plus a fourth in scripts/pitr-drill.sh (#1029).
+// The server itself, and why it is not MinIO, is in test/s3test - the one place its pin is kept.
 //
 // The bucket is made by the adapter under test here, unlike in the backup suite: CreateBucket is
 // part of the port this suite proves, and an operator's first run against a fresh bucket is the

@@ -1,6 +1,7 @@
 # ADR-0075 — A step-up proves the account with whatever it holds
 
 **Status:** accepted · **Date:** 2026-10-01 · **Accepted:** 2026-10-01
+**Rule lives in:** [identity.md](../architecture/identity.md) §8, §16
 
 ## Context
 

@@ -176,9 +176,9 @@ func setPreference(accounts *accountStore, prefs *preferenceStore, auth *authori
 	}
 }
 
-// C-09's acceptance, now reachable from a client: a category switched off makes the next
-// notification of that kind SUPPRESSED with the record saying why - proved by handing the row
-// the write stored to the decision the delivery reads.
+// Reachable from a client: a category switched off makes the next notification of that kind
+// SUPPRESSED with the record saying why - proved by handing the row the write stored to the
+// decision the delivery reads.
 func TestSwitchingACategoryOffSuppressesTheNextNotification(t *testing.T) {
 	prefs, sink := &preferenceStore{}, &auditSink{}
 

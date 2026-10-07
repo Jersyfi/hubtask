@@ -38,7 +38,7 @@ test('clearing a preference sends the empty string, not null', () => {
 
 test('the workspace’s own value is a choice, so a chosen one can be put back', () => {
   // Not a placeholder: `Select`'s placeholder is unselectable, and a first day of the week that
-  // could be chosen and never un-chosen was the F5-09 walk's finding.
+  // could be chosen and never un-chosen is the trap.
   assert.deepEqual(withWorkspaceChoice([{ value: 'MONDAY', label: 'Monday' }], 'Use the workspace’s'), [
     { value: '', label: 'Use the workspace’s' },
     { value: 'MONDAY', label: 'Monday' },

@@ -31,7 +31,7 @@ var dialableExceptions = map[string]string{
 	"presentation/rest/Problem.go":             "the documentation address in a problem document: rendered into a response, never dialled",
 	"cmd/server/main.go":                       "the process's own health probe against 127.0.0.1, which is how a container asks itself whether it is ready",
 	"cmd/hubctl/Calendar.go":                   "a prefix check on an address the person typed",
-	"cmd/hubctl/Import.go":                     "the two Graph requests a person makes with their own sign-in, printed as instructions and never dialled (P-10)",
+	"cmd/hubctl/Import.go":                     "the two Graph requests a person makes with their own sign-in, printed as instructions and never dialled",
 	"infrastructure/httpclient/Guard.go":       "the cloud metadata address, in a comment, as the thing the guard refuses",
 	"core/domain/model/automation/Outbound.go": "the scheme prefixes an HTTP_REQUEST's address is checked against: a shape rule, never a destination",
 }
@@ -73,8 +73,8 @@ func isIdentifierURL(value string) bool {
 	for _, identifier := range []string{
 		"json-schema.org", "www.w3.org", "schema.org", "spdx.org", "opensource.org",
 		"docs.hubtask.dev", "hubtask.eu", "example.org", "example.com",
-		// The CalendarServer namespace of `getctag` (P-06): a WebDAV property name every CalDAV
-		// client asks by, written into an XML document and never fetched.
+		// The CalendarServer namespace of `getctag`: a WebDAV property name every CalDAV client
+		// asks by, written into an XML document and never fetched.
 		"calendarserver.org/ns",
 	} {
 		if strings.Contains(value, identifier) {
@@ -84,7 +84,8 @@ func isIdentifierURL(value string) bool {
 	return false
 }
 
-// The other half of decision 6 - that a call which *is* made goes through the guard - is rule 6 and
-// is held by `test/architecture/outbound_test.go`, with its two documented exceptions: the
-// container's health probe against its own loopback, and the operator-configured object storage
-// endpoint. PG-6 does not repeat it. Two gates over one rule are two places to weaken it.
+// The other half of the no-phone-home rule (data-protection.md §2) - that a call which *is* made
+// goes through the guard - is rule 6 and is held by `test/architecture/outbound_test.go`, with its
+// two documented exceptions: the container's health probe against its own loopback, and the
+// operator-configured object storage endpoint. PG-6 does not repeat it. Two gates over one rule are
+// two places to weaken it.

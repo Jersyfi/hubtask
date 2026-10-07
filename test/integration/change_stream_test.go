@@ -23,7 +23,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The read half of the change log (C-10): the walk the stream and `:pull` share, and a cross-tenant
+// The read half of the change log: the walk the stream and `:pull` share, and a cross-tenant
 // negative for each of its methods (gate SG-3).
 
 // recordChange writes one entry for the tenant and returns the container it names.
@@ -340,9 +340,9 @@ func TestTheNotificationCarriesOnlyTheWorkspace(t *testing.T) {
 	}
 }
 
-// The acceptance of C-10, against a real database and the real service: a client sees only its own
-// tenant's records, never a record for a container it may not read, and `Last-Event-ID` resumes
-// with no gap and no duplicate.
+// The stream against a real database and the real service (offline-sync.md §3.3): a client sees
+// only its own tenant's records, never a record for a container it may not read, and
+// `Last-Event-ID` resumes with no gap and no duplicate.
 
 // streamFor builds the service the way the composition root builds it.
 func streamFor(ctx context.Context, t *testing.T) syncservice.StreamChanges {
@@ -491,10 +491,9 @@ func TestTheStreamCarriesOnlyWhatTheCallerMayRead(t *testing.T) {
 	}
 }
 
-// A workspace-wide template is filed under no container (#626). Its change reaches whoever may
-// read at the tenant scope - a member of the workspace - through the stream and through the pull,
-// and not somebody who holds a role on one hub only; a record of a kind nobody can place stays
-// withheld.
+// A workspace-wide template is filed under no container. Its change reaches whoever may read at the
+// tenant scope - a member of the workspace - through the stream and through the pull, and not
+// somebody who holds a role on one hub only; a record of a kind nobody can place stays withheld.
 func TestAWorkspaceWideChangeReachesWhoMayReadTheWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -640,7 +639,7 @@ func TestACursorOlderThanTheWindowIsRefusedEndToEnd(t *testing.T) {
 }
 
 // A change recorded under a context a push marked names the device, so that device can skip its
-// own echo (N-04, offline-sync.md §10); one recorded through the API names none.
+// own echo (offline-sync.md §10); one recorded through the API names none.
 func TestAChangeRecordedUnderAPushNamesTheDevice(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -664,7 +663,7 @@ func TestAChangeRecordedUnderAPushNamesTheDevice(t *testing.T) {
 	}
 }
 
-// The server's clock per field (N-05, offline-sync.md §4.2): an entry naming a field stamps the
+// The server's clock per field (offline-sync.md §4.2): an entry naming a field stamps the
 // clock in the same transaction, a push's reading in the context replaces the writer's, and the
 // clocks are read back per entity - never from another tenant.
 func TestAChangeNamingAFieldStampsTheClockAndAPushesReadingReplacesTheWriters(t *testing.T) {

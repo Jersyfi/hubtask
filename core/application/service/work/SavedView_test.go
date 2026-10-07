@@ -455,7 +455,7 @@ func TestDeletingAViewRemovesAndRecords(t *testing.T) {
 // Through the registry rather than through the handler, because the registry is what a request
 // meets: it validates the input against the descriptor before the handler is entered. Calling the
 // handler directly skips that step, which is how PUBLIC_LINK came to be tested here and refused
-// with a generic code in production (issue #427).
+// with a generic code in production.
 func TestTheViewChannelsRefuseWhatTheModelRefuses(t *testing.T) {
 	h := newSavedViewHarness(t)
 	own := h.withView(accountID, view.SharingPrivate)

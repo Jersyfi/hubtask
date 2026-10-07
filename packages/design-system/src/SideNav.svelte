@@ -10,8 +10,8 @@
   // coloured (rule 3, and `aria-current`). A tree that was only a list of indented links would be
   // none of that.
   //
-  // It knows nothing about a hub. Nodes are handed to it, and the domain arrives with the screen
-  // that has one (F2-08). What it does own is the arithmetic of "which node is next when three of
+  // It knows nothing about a hub. Nodes are handed to it, and the domain stays with the screen
+  // that has one. What it does own is the arithmetic of "which node is next when three of
   // five are collapsed", which is why the flattening happens here rather than in a caller.
 
   import Icon from './Icon.svelte';
@@ -45,14 +45,14 @@
      * A rail is a **drawing**, not a narrower panel: one mark per row, centred in the column,
      * with no twist, no label and no indent — the label stays the row's accessible name and
      * becomes its tooltip. A caller that only narrowed the column would push the marks out of it,
-     * which is what issue 915 was: at a rail of 56 px the twist took the first 24, and the mark
-     * was drawn from 44 to 68 with the half past the edge clipped.
+     * so at a rail of 56 px the twist would take the first 24, and the mark would be drawn from 44
+     * to 68 with the half past the edge clipped.
      *
      * **Depth is the one thing a rail cannot draw**, so it does not try: it lists the roots, and
      * a branch pressed there goes to the branch *and* opens its own subtree in a flyout beside the
      * column — this same component, unfolded, with the branch as its root. Nothing is unreachable
      * while the navigation is folded, there is no second tree, and a press means what it means
-     * unfolded (issue 1026).
+     * unfolded.
      */
     isRail?: boolean;
     /**
@@ -65,7 +65,7 @@
     /**
      * What the twist is called, from the branch's name and whether it is open.
      *
-     * The twist is a **control** since issue 1022, so it needs a name like any other: pressing a
+     * The twist is a **control**, so it needs a name like any other: pressing a
      * branch's row goes to the branch, and what opens and closes it is the mark at the end of the
      * row. A caller that offers no word gets the old behaviour on the row - there is then nothing
      * to navigate to, and a row that neither opened nor went anywhere would be a dead row.
@@ -116,14 +116,14 @@
   /**
    * What pressing a row does.
    *
-   * **A branch is a place before it is a container** (issue 1022). A hub has a screen of its own -
+   * **A branch is a place before it is a container.** A hub has a screen of its own -
    * its settings, its collections, the control that makes another one - and while pressing its row
    * only unfolded it, the only way in was through a collection and back up the breadcrumb. So the
    * row goes to the branch and opens it, and the twist at the end of the row is what closes it
    * again; the arrows do what they have always done. A caller that names no twist has no second
    * control, and keeps the fold on the row.
    *
-   * **Pressing a branch means the same thing in both drawings** (issue 1026): go to it, and open
+   * **Pressing a branch means the same thing in both drawings**: go to it, and open
    * it. Unfolded, "open it" is the subtree in place; folded, it is the flyout beside the column,
    * because a rail has nowhere to put a level. A rail whose mark only opened the flyout was a
    * navigation where a hub could be looked into and never entered.
@@ -198,12 +198,12 @@
              caption where there is one. `role="none"` because it is not a node of the tree — it
              says what the rows under it are, and the arrows walk past it the way they walk past a
              heading.
-             **The separation is never drawn on a row.** It was, and a row carrying
-             `padding-block-start` for it had to have that padding taken off again at the head of
-             the column — which took the row's own vertical padding with it, and drew the first row
-             of every band short and its background against its text (issue 1010).
+             **The separation is never drawn on a row.** A row carrying `padding-block-start` for it
+             would need that padding taken off again at the head of the column — which takes the
+             row's own vertical padding with it, and draws the first row of every band short and its
+             background against its text.
              Folded, the caption is not drawn: a rail is a column of marks, and a five-word group
-             name in it is words in a place that has no room for any (issue 1012). What separates
+             name in it is words in a place that has no room for any. What separates
              one group of marks from the next is the hairline, which is what is left here. -->
         <li class="band" role="none">
           {#if row.node.band.caption && !isRail}<span>{row.node.band.caption}</span>{/if}
@@ -231,8 +231,8 @@
         }}
       >
         <!-- The mark first, at one inline position for every level: it is the column that
-             survives the fold, and an indent in front of it is what pushed it out of the rail
-             (issue 915). The indent moves the label instead. -->
+             survives the fold, and an indent in front of it is what would push it out of the
+             rail. The indent moves the label instead. -->
         <span class="mark" aria-hidden="true">
           {#if row.node.icon}<Icon name={row.node.icon} size="sm" />{/if}
         </span>
@@ -241,7 +241,7 @@
           <!-- And the twist at the end of the row, where the reading direction ends: `inline-end`
                through the logical padding, so it mirrors with the document.
                A **control** where the caller named one, because the row itself now goes to the
-               branch (issue 1022): it is out of the tab order - the tree keeps its one stop and
+               branch: it is out of the tab order - the tree keeps its one stop and
                the arrows keep expanding - and the row's `aria-expanded` is what says the state,
                so this is a second way to reach it with a pointer rather than a second statement
                about it. -->

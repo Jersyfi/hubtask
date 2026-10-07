@@ -55,7 +55,7 @@ func TestTheEmptyAnswersAreDistinguishable(t *testing.T) {
 	}
 }
 
-// The two G-03 ports, held in place the same way. A signature change that breaks the use case
+// The two webhook ports, held in place the same way. A signature change that breaks the use case
 // tests breaks this first, with a clearer message.
 type subscriptions struct{}
 

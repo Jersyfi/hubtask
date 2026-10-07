@@ -19,8 +19,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// QS-09's half of the manifest (J-17, issue 502): what an installation with no AI says about
-// itself, asserted against a database that *has* pgvector.
+// QS-09's half of the manifest: what an installation with no AI says about itself, asserted
+// against a database that *has* pgvector.
 //
 // That last clause is the whole reason this test is here and not beside the fakes. The suite's
 // database carries the extension, and so does the reference stack in `deploy/docker/compose.yaml`

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package jumble is the inbox before the work exists (domain-model.md §2, G-10): entries arrive
-// over four channels - a mail, a webhook, a quick capture, a plain API call - and become work
-// items by conversion, or age out by dismissal.
+// Package jumble is the inbox before the work exists (domain-model.md §2): entries arrive over four
+// channels - a mail, a webhook, a quick capture, a plain API call - and become work items by
+// conversion, or age out by dismissal.
 //
 // Jumble content is the least trusted text in the system, and this model treats it that way. The
 // raw subject and body are data that arrived from outside: they are stored to be read by a
@@ -24,7 +24,7 @@ import (
 type Channel string
 
 const (
-	// ChannelEmail is a mail, parsed by the mail intake (G-11).
+	// ChannelEmail is a mail, parsed by the mail intake (automation.md §5).
 	ChannelEmail Channel = "EMAIL"
 	// ChannelWebhook is the tenant's token-protected intake URL.
 	ChannelWebhook Channel = "WEBHOOK"
@@ -70,9 +70,9 @@ func (s Status) Valid() bool {
 	}
 }
 
-// The bounds, checked before anything is stored. A jumble exists to catch, and the way to stay
-// able to catch is to refuse what would drown it: the parser and the intake both run under these
-// before allocation (G-11).
+// The bounds, checked before anything is stored. A jumble exists to catch, and the way to stay able
+// to catch is to refuse what would drown it: the parser and the intake both run under these before
+// allocation (security.md §7).
 const (
 	// MaxSubjectLength bounds the raw subject, in runes. Mail subjects top out far below this.
 	MaxSubjectLength = 500
@@ -93,12 +93,12 @@ type Entry struct {
 	TenantID shared.ID
 	Channel  Channel
 	// Sender is who the transport says it came from. Data, never an identity: a From header
-	// authenticates nothing - the intake token does (G-10) - and the value is stored so a person
-	// can judge provenance, not so the system can trust it.
+	// authenticates nothing - the intake token does - and the value is stored so a person can judge
+	// provenance, not so the system can trust it.
 	Sender     string
 	RawSubject string
 	RawBody    string
-	// Attachments are media object identifiers, already stored through C-05's pipeline with its
+	// Attachments are media object identifiers, already stored through the upload pipeline with its
 	// size and type discipline - never a second storage path.
 	Attachments []shared.ID
 	Status      Status
@@ -204,7 +204,7 @@ func (e Entry) Convert(target shared.ID, at time.Time) (Entry, error) {
 }
 
 // Dismiss marks the entry as decided against. A state, not a deletion: the entry stays readable,
-// and the retention engine ages it out by rule (data-retention.md §3, G-10).
+// and the retention engine ages it out by rule (data-retention.md §3).
 func (e Entry) Dismiss(at time.Time) (Entry, error) {
 	if err := e.mustBeNew(); err != nil {
 		return Entry{}, err

@@ -120,8 +120,7 @@ func (h ReadEncryptionStatus) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityInfo,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "a read of the control plane touches no item; the history is an item's " +
-				"(domain-model.md §3.5).",
+			Exempt: "a read of the control plane touches no item; the history is an item's.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

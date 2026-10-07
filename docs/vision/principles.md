@@ -1,7 +1,7 @@
 # Product principles
 
 Sixteen principles every use case is measured against. They are about what a **person** meets,
-not about how the code is layered — the engineering rules are in [`CLAUDE.md`](../../CLAUDE.md)
+not about how the code is layered — the engineering rules are in [`AGENTS.md`](../../AGENTS.md)
 and the ADRs, and several principles here are the reason those rules exist.
 
 **When two principles pull in different directions, the lower number wins.** A use case names the
@@ -125,7 +125,7 @@ a request a documented tool cannot produce.
 workspace without touching the database. Nothing phones home, nothing loads from a foreign origin,
 no licence key switches anything off, and every piece of your data can be exported.
 
-**Why.** The sovereign individual is the first audience ([market analysis](../marketing/market-analysis.md)
+**Why.** The sovereign individual is the first audience ([market analysis](../archive/marketing/market-analysis.md)
 §3.1), and "will this still be mine in five years?" is their question.
 
 **Broken when** an installation step needs a database shell, a feature needs an outside service

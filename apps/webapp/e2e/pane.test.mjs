@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The detail pane in the collection (F9-09, ADR-0061 decision 4): a place, not a feature. From
+// The detail pane in the collection (ADR-0061 decision 4): a place, not a feature. From
 // `large` a row opens the entry beside the list - the address gains `?item=`, the row stays
 // current and keeps the focus, the pane holds the entry's own form, Escape closes it through the
 // register and focus returns to the row, "open as a page" goes to the entry's address. Below

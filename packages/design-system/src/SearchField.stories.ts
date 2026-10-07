@@ -14,7 +14,7 @@ export default {
 export const labelled: Story = {
   name: 'The input, and nothing else',
   about:
-    'What it searches is F2-13’s: a search field that also decided when to send a request would be a second place the debounce and the language live. Escape empties it rather than closing anything — it is the one key a search field is expected to answer, and it does not reach the layer register because a field is not a layer.',
+    'What it searches is the application’s: a search field that also decided when to send a request would be a second place the debounce and the language live. Escape empties it rather than closing anything — it is the one key a search field is expected to answer, and it does not reach the layer register because a field is not a layer.',
 };
 
 export const toolbar: Story = {

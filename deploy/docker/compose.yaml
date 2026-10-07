@@ -21,7 +21,7 @@ services:
       # without -h reaches that one, reports ready, and `migrate` - which connects over the
       # network - gets "connection refused" from a port nothing is listening on yet. The
       # migration then never grants hubtask_app its login and the app fails authenticating,
-      # which is how one race arrives looking like a credential defect (#119).
+      # which is how one race arrives looking like a credential defect.
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hubtask} -d ${POSTGRES_DB:-hubtask} -h 127.0.0.1"]
       interval: 10s
       timeout: 5s
@@ -47,7 +47,7 @@ services:
       # and starts this container beside the database instead of after it. The migration then
       # fails with "connection refused", never grants hubtask_app its login, and the application
       # authenticates against a role that cannot log in: one missing guarantee, arriving as a
-      # credential defect three containers away (#119).
+      # credential defect three containers away.
       #
       # So the stack converges rather than depending on the guarantee. The same value and the same
       # reasoning as the Kubernetes hook, which has waited since the first sync that created its
@@ -69,16 +69,16 @@ services:
       HUBTASK_DB_DSN: postgres://hubtask_app:${HUBTASK_DB_APP_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
       HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:-http://localhost:8080}
       # Single by default - the self-hoster's mode. The smoke check overrides it to exercise the
-      # multi-mode control plane against the same file (H-06): one Compose file, both modes.
+      # multi-mode control plane against the same file: one Compose file, both modes.
       HUBTASK_TENANCY_MODE: ${HUBTASK_TENANCY_MODE:-single}
       HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY must be set}
-      # The master keyring for envelope encryption (E-02). Empty means this installation encrypts
-      # nothing and says so when asked to seal something; `.env.example` shows how to fill it.
+      # The master keyring for envelope encryption (security.md §8). Empty means this installation
+      # encrypts nothing and says so when asked to seal something; `.env.example` shows how to fill
+      # it.
       #
-      # It is passed through here because it did not used to be, and the two variables the example
-      # documents therefore reached the process not at all: an encrypted backup failed in the
-      # worker with `crypto.no_encryption_key`, minutes after the request that asked for it was
-      # accepted (E-12 found it running the drill).
+      # Passed through explicitly: a variable the example documents and Compose does not pass
+      # reaches the process not at all, and an encrypted backup then fails in the worker with
+      # `crypto.no_encryption_key`, minutes after the request that asked for it was accepted.
       #
       # One key by name, `k1`. Compose cannot pass a variable whose *name* comes from another
       # variable, so a keyring of two - which is what a rotation is - means adding the second line

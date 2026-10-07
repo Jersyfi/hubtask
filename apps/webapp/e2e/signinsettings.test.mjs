@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The workspace's sign-in rules, walked as an administrator meets them (UC-ID-12, SC-06): every rule
+// The workspace's sign-in rules, walked as an administrator meets them (UC-ID-12): every rule
 // says where its value came from and whether it is locked, choices looser than the installation
 // allows are not offered, a refusal lands at the rule it is about, and a rule that cannot be read is
 // a sentence and a retry rather than a spinner.
@@ -245,7 +245,7 @@ test('chromium: the ways to sign in are one list, one switch each, and the last 
   assert.deepEqual(sent, [{ path: '/identity-providers/platform:offer', body: { offered: true } }]);
 });
 
-// ADR-0076 §2, UC-ID-12 check 6 (SC-20): a provider the installation withdraws says its day under
+// ADR-0076 §2, UC-ID-12 check 6: a provider the installation withdraws says its day under
 // its switch while there is time to act on it, and from the day it has no switch at all.
 test('chromium: a provider the installation withdraws says when, under its switch', async (t) => {
   const browser = await chromium.launch();
@@ -276,9 +276,9 @@ test('chromium: a provider the installation withdraws says when, under its switc
   assert.match(await gone.textContent() ?? '', /Switched off by the installation/);
 });
 
-// ADR-0076 §4 (SC-20): a workspace the withdrawal left with no way in is told that the password opened
+// ADR-0076 §4: a workspace the withdrawal left with no way in is told that the password opened
 // again, from the same answer the sign-in card reads - in a sentence that names no cause, because the
-// server opens the password whatever left the workspace without a way in (SC-31, E2).
+// server opens the password whatever left the workspace without a way in (E2).
 test('chromium: a workspace left without a way in is told the password is open again', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -315,7 +315,7 @@ test('chromium: a workspace left without a way in is told the password is open a
   assert.doesNotMatch(said, /withdr|invitation/i, 'the sentence names one cause of many');
 });
 
-// P-04, ADR-0078 §1 (SC-33): before the password goes off, its row says how many people here no
+// P-04, ADR-0078 §1: before the password goes off, its row says how many people here no
 // provider switched on here signs in - the server's number - and says nothing once it is off, or
 // where nobody is without one.
 test('chromium: the password switch says how many people have no provider here before it goes off', async (t) => {
@@ -380,7 +380,7 @@ test('chromium: a switched-off password says no count', async (t) => {
   assert.equal(await list.locator('[data-reach]').count(), 0, 'a switched-off password still says the count');
 });
 
-// ADR-0078 §3 (SC-34): while the installation's operator has the password open, the administrators'
+// ADR-0078 §3: while the installation's operator has the password open, the administrators'
 // screen says so - until when, who asked and why - instead of the sentence about no way in, which the
 // sign-in card's fallback flag would otherwise draw: a person opened it, the settings did not.
 test('chromium: an operator\'s opening of the password is said with its end, its requester and its reason', async (t) => {

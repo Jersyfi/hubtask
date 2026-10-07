@@ -57,5 +57,11 @@ her account is an ordinary one.
 
 ## Today
 
-* **Not built.** Invitation, sign-in and reset key on the address today. Decided 2026-09-30 as
-  ADR-0074; milestone PH, tasks PH-06 and PH-07.
+* Check 1: not met — there are no managed accounts; invitation, sign-in and reset key on the address, tracked in #1091.
+* Check 2: not met — there is no generated start password, tracked in #1091.
+* Check 3: not met — there is no first sign-in with a start password, tracked in #1091.
+* Check 4: not met — the sign-in card takes only an address, tracked in #1091.
+* Check 5: not met — there is no new start password for a managed account, tracked in #1092.
+* Check 6: not met — no screen says "not possible without a mailbox", tracked in #1091.
+* Check 7: not met — a managed account cannot add an address, tracked in #1092.
+* Check 8: not met — there is no *Managed accounts allowed* setting, tracked in #1091.

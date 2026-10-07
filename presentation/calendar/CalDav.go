@@ -27,14 +27,14 @@ import (
 	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// CalDAV, the read half (P-06, RFC 4791).
+// CalDAV, the read half (RFC 4791).
 //
 // One calendar per calendar feed the account owns: the feed already names a view, an owner and
 // a token, and a CalDAV calendar is that feed with a second transport. The principal is the
 // account, the calendar home lists its feeds, each calendar holds one VTODO per entry the view
 // answers, and the whole tree is served by the `api` role as the feed's owner - the same
 // selection the ICS feed performs, through the same use case, with the same restraint about what
-// an entry carries (D-08).
+// an entry carries (security.md §4 T-22).
 //
 // Authentication is HTTP Basic with a personal access token as the password, resolved by the
 // middleware the API's routes go through (presentation/rest/Auth.go): every CalDAV client can
@@ -60,7 +60,7 @@ const WellKnown = "/.well-known/caldav"
 // caller. RFC 6764 has the client ask unauthenticated and follow the redirect before it presents
 // anything, so the address is public (rest.PublicRoutes) - it discloses nothing, since the tree
 // it points at still asks - and it takes Basic beside the bearer like the tree does, for the
-// client that sends its credential from the first request on (issue 719).
+// client that sends its credential from the first request on.
 func Discovery() http.Handler {
 	return http.RedirectHandler(Prefix, http.StatusMovedPermanently)
 }
@@ -70,7 +70,7 @@ const (
 	nsCalDAV = "urn:ietf:params:xml:ns:caldav"
 	nsCS     = "http://calendarserver.org/ns/"
 
-	// allowed is the method list: the reads of P-06 and the writes of P-07. No MKCALENDAR - a
+	// allowed is the method list: the reads and the writes of a todo. No MKCALENDAR - a
 	// calendar is made by creating a feed - and no MOVE, COPY or PROPPATCH.
 	allowed = "OPTIONS, PROPFIND, REPORT, GET, HEAD, PUT, DELETE"
 )
@@ -88,7 +88,7 @@ type ViewSelector interface {
 
 // ItemReader answers one entry by identifier or by the UID a calendar client chose, with the
 // caller's permission decided inwards of here: the write half's way of telling an address the
-// calendar does not answer from an entry that does not exist (issues 720, 721).
+// calendar does not answer from an entry that does not exist.
 type ItemReader interface {
 	Execute(ctx context.Context, actor appshared.ActorContext, query work.GetWorkItemQuery) (workmodel.WorkItem, error)
 }
@@ -105,7 +105,7 @@ type Controller struct {
 	BaseURL string
 	// Now stamps DTSTAMP where the selection carries no moment of its own.
 	Now func() time.Time
-	// UseCases performs the writes of P-07 as the actor; nil means the tree is read-only.
+	// UseCases performs the writes as the actor; nil means the tree is read-only.
 	UseCases Catalogue
 }
 
@@ -420,7 +420,7 @@ func supportedReports() element {
 
 // member is one entry at its address. `id` is the address - the segment before `.ics` - which is
 // the UID a calendar client chose where the entry was made through one and the identifier
-// otherwise (P-07, issue #721); `itemID` is always the identifier, for the use cases.
+// otherwise; `itemID` is always the identifier, for the use cases.
 type member struct {
 	id      string
 	itemID  string
@@ -557,7 +557,7 @@ func addressOf(item workmodel.WorkItem) string {
 }
 
 // uidOf is what the rendered todo carries as its UID: the client's own where it chose one, so
-// that a client keyed by UID reads back the todo it wrote (issue #721), and the identifier with
+// that a client keyed by UID reads back the todo it wrote, and the identifier with
 // the tree's suffix otherwise.
 func uidOf(item workmodel.WorkItem) string {
 	if item.CalendarUID != "" {

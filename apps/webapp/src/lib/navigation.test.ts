@@ -92,7 +92,7 @@ test('the administration row is offered only where the server says so', () => {
 });
 
 test('the instance row is offered only to an operator, and is absent rather than disabled', () => {
-  // SI-17: the level above the workspaces is drawn for an account in the operator register and for
+  // The level above the workspaces is drawn for an account in the operator register and for
   // nobody else. Absent, not greyed — somebody who is not an operator was never going to have it,
   // and a row they cannot use is a row they have to ask about (ADR-0070 §5).
   const ids = (reachable: boolean) =>
@@ -168,7 +168,7 @@ test('every row of the section resolves to a route it claims, and every screen i
 test('the installation section lists every screen of its area, and every word of it', () => {
   // The same two invariants the administration has, for the same two reasons: with no index screen
   // the column *is* the section (ADR-0065 decision 1), so a screen nothing lists is a screen nobody
-  // reaches — and SI-12 added two of them to a list that already existed.
+  // reaches.
   for (const group of INSTANCE) {
     for (const row of group.rows) {
       assert.ok(row.code in SOURCE, row.code);

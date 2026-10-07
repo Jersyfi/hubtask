@@ -21,11 +21,11 @@ import (
 // Between a reconfiguration and the end of the re-embedding pass the table holds two models'
 // vectors, and two models' vectors are not comparable (ADR-0049 decision 4). The search reads only
 // the rows of the model its query vector came from; an entry still embedded under the old name is
-// found by its words alone until the pass reaches it (#568).
+// found by its words alone until the pass reaches it.
 //
-// Two entries, both pointing exactly where the query points, one embedded under each model. Before
-// this, the old model's entry was a semantic hit for a query from the new one - a perfect match by
-// arithmetic on numbers that mean nothing to each other.
+// Two entries, both pointing exactly where the query points, one embedded under each model. Without
+// the model filter, the old model's entry is a semantic hit for a query from the new one - a
+// perfect match by arithmetic on numbers that mean nothing to each other.
 func TestTheSearchReadsOnlyTheVectorsOfTheModelThatEmbeddedTheQuery(t *testing.T) {
 	ctx := context.Background()
 	requirePgvector(ctx, t)

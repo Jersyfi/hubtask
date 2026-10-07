@@ -11,11 +11,11 @@ import (
 )
 
 // TestEveryItemWriteNamesItsSubject is what makes the per-role suite in test/security sufficient
-// (gate SG-5, C-04).
+// (gate SG-5).
 //
 // The narrowings live in one decision point, and a use case reaches them by naming the entry it is
 // writing. A use case that forgets to name one is not refused and not caught by its own test: it
-// gets the unqualified permission, which is exactly the state C-04 was opened to end. Nothing but
+// gets the unqualified permission, which the role narrowings exist to prevent. Nothing but
 // reading the source catches that, because the field is optional by construction - a container
 // request must not carry it.
 //
@@ -36,7 +36,7 @@ func TestEveryItemWriteNamesItsSubject(t *testing.T) {
 			}
 
 			t.Errorf("%s:%d: a permission question about an entry does not name it - "+
-				"set On, or the matrix's qualifiers are silently skipped (C-04, ADR-0005)",
+				"set On, or the matrix's qualifiers are silently skipped (SG-5, ADR-0005)",
 				rel(path), fset.Position(literal.Pos()).Line)
 			return true
 		})

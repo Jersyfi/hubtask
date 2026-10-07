@@ -25,7 +25,7 @@ test('an unreadable instant answers nothing rather than NaN', () => {
   assert.equal(remaining('soon', now), undefined);
 });
 
-// UC-ID-02 check 2 (SC-18): the step says when it is about to end, and ends at zero.
+// UC-ID-02 check 2: the step says when it is about to end, and ends at zero.
 test('the wait runs, then closes in its last minute, then is over', () => {
   assert.equal(phaseOf(at, Date.parse('2026-09-24T10:03:59Z')), 'running');
   assert.equal(phaseOf(at, Date.parse('2026-09-24T10:04:00Z')), 'closing', 'sixty seconds left is the last minute');

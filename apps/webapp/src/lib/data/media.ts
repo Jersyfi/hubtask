@@ -20,7 +20,7 @@
  * sitting on a screen since breakfast is checked against the clock rather than followed.
  *
  * **A cover is drawn only from a READY object's download URL.** That is the one path where the
- * sniffed inline allowlist (C-05) has already judged the bytes. A PENDING object has a claimed type
+ * sniffed inline allowlist has already judged the bytes. A PENDING object has a claimed type
  * and nothing more, and drawing from it would be this client trusting a claim the server refuses to.
  */
 

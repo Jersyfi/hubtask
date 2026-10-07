@@ -32,11 +32,11 @@ type unitOfWork struct {
 	scopes []persistence.Scope
 	// ledger is rolled back when the work fails, as the real transaction rolls back everything it
 	// wrote (infrastructure/postgres UnitOfWork). A fake that kept a write the refusal undid is how
-	// the second factor's uncounted guesses passed every test here (#1117).
+	// the second factor's uncounted guesses passed every test here.
 	ledger *attemptsStore
 	// trail is rolled back the same way where a fixture opts in: an audit entry appended inside a
 	// transaction that then fails was never stored, which is how the provider's refusals went
-	// unrecorded while every test here read them (SC-32).
+	// unrecorded while every test here read them.
 	trail *auditSink
 }
 
@@ -217,7 +217,7 @@ func TestTheLookupRunsInTheTokensTenant(t *testing.T) {
 // The chain of i18n-l10n.md §2 for a person: the account's own preference first, then what the
 // request asked for, then the workspace's default, then the installation's. A preference set on
 // the account is not overridden by whichever browser somebody is sitting at - which is the rule
-// the client renders by too (M-04).
+// the client renders by too.
 func TestTheLocaleChainPrefersTheAccount(t *testing.T) {
 	raw, credential := mintCredential(t)
 	credential.Account.Locale = "fr"
@@ -424,9 +424,9 @@ func TestTheActorCarriesTheAccountLabel(t *testing.T) {
 	}
 }
 
-// A suspended workspace refuses at authentication, once, for every route (H-06,
-// multi-tenancy.md §5): the credential is real, so the answer is forbidden with the lifecycle's
-// own code rather than unauthenticated.
+// A suspended workspace refuses at authentication, once, for every route (multi-tenancy.md §5): the
+// credential is real, so the answer is forbidden with the lifecycle's own code rather than
+// unauthenticated.
 func TestASuspendedTenantRefusesAuthentication(t *testing.T) {
 	raw, credential := mintCredential(t)
 	credential.TenantStatus = identity.TenantSuspended
@@ -445,8 +445,8 @@ func TestASuspendedTenantRefusesAuthentication(t *testing.T) {
 	}
 }
 
-// The slug rides with the actor so the middleware can compare §3's weaker sources without a
-// second lookup.
+// The slug rides with the actor so the middleware can compare multi-tenancy.md §3's weaker sources
+// without a second lookup.
 func TestTheActorCarriesTheWorkspaceSlug(t *testing.T) {
 	raw, credential := mintCredential(t)
 	credential.TenantSlug = "acme"
@@ -463,13 +463,13 @@ func TestTheActorCarriesTheWorkspaceSlug(t *testing.T) {
 	}
 }
 
-// weekByLocale stands in for the renderer's table (M-06).
+// weekByLocale stands in for the renderer's table.
 type weekByLocale map[string]string
 
 func (w weekByLocale) WeekStartOf(locale string) string { return w[locale] }
 
-// §4's rule for the week: the account's own preference, then the locale's day, then Monday -
-// the last being what a build without the port answers, and what every query before 0.8.0 got.
+// i18n-l10n.md §4's rule for the week: the account's own preference, then the locale's day, then
+// Monday - the last being what a build without the port answers.
 func TestTheWeekStartsWhereTheAccountOrItsLocaleSays(t *testing.T) {
 	raw, credential := mintCredential(t)
 

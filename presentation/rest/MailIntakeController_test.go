@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The public mail route (G-11). What is decided out here is what is tested out here: the body
+// The public mail route. What is decided out here is what is tested out here: the body
 // reaches the intake as the bytes that arrived, an installation that does not serve the route says
 // nothing about why, and the entry's identifier is the answer.
 

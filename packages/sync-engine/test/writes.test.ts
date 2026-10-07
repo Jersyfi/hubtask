@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// What F2-03 taught the seam: to state the version it read, to read with a `POST`, to append a
+// What the seam does with a write: state the version it read, to read with a `POST`, to append a
 // page, and to drop only what a write actually changed.
 //
 // Headless, like everything else here (ADR-0033 §2). The four are in one file because they are one

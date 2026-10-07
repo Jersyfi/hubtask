@@ -46,7 +46,7 @@ func TestEveryLocaleResolvesToSomething(t *testing.T) {
 }
 
 // The second catalogue, as the server uses it: a German workspace is seeded with German
-// structure and its people are written to in German (M-01), with de-AT falling to de.
+// structure and its people are written to in German, with de-AT falling to de.
 func TestGermanRendersWhatTheServerRenders(t *testing.T) {
 	for _, tc := range []struct{ locale, code, want string }{
 		{"de", "seed.bucket.todo", "Zu erledigen"},

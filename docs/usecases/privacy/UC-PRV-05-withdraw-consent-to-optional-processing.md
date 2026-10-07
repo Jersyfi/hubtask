@@ -67,9 +67,10 @@ the objection case.
 
 ## Today
 
-* **Check 4 fails.** The only withdrawal form is on the administrator's *Data subject requests*
-  screen (`apps/webapp/src/views/PrivacyView.svelte`); a person has no place of their own for it.
-* **Check 5 fails.** Nothing reads a consent record: no processing asks whether a person withdrew,
-  so a withdrawal is recorded and changes nothing. There is also no use case that grants consent —
-  only one that withdraws it (`core/application/service/privacy/Consent.go`).
-* **Checks 7–12 are not built.** Decided 2026-09-30; milestone PH, task PH-03.
+* Check 4: not met — the only withdrawal form is on the administrator's *Data subject requests* screen; a person has no place of their own for it, tracked in #1088.
+* Check 5: not met — nothing reads a consent record, so a withdrawal is recorded and changes nothing, tracked in #1088.
+* Check 7: not met — there is no *Keep my content out of AI*, tracked in #1088.
+* Check 8: not met — there is no such switch to show or hide, tracked in #1088.
+* Check 9: not met — a workspace cannot make AI part of the work for everybody with a legal basis, tracked in #1088.
+* Check 11: not met — neither the installation nor a plan can lock the workspace's AI choice, tracked in #1088.
+* Check 12: not met — the consent register does not show who keeps their content out, tracked in #1088.

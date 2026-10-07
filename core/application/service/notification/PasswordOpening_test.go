@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// ADR-0078 §3 (SC-34): a workspace's administrators are told when an operator opens its password,
+// ADR-0078 §3: a workspace's administrators are told when an operator opens its password,
 // with the end, and when the opening ends, with how.
 
 func TestEveryAdministratorIsQueuedANoticeOfTheOpening(t *testing.T) {

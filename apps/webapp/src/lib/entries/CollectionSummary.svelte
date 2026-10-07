@@ -1,12 +1,12 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // How the collection stands, as AI summarised it (K-05, F5-04): what is open, what moved, what
+  // How the collection stands, as AI summarised it: what is open, what moved, what
   // is overdue. Rendered as an `AISuggestion` with no accept - a collection has nowhere to put a
   // status summary, so it is read and dismissed. Asked through `:summarize`, which answers `202`
   // with no body like every AI ask, and followed through the listing.
   //
-  // The same listing carries a template drafted for the collection (P-11, F6-10): asked from the
+  // The same listing carries a template drafted for the collection: asked from the
   // templates dialog, it lands here because the collection is its target. That one is drawn as a
   // tree, read-only, the way a breakdown is, and accepting it is `CreateTemplate` - the verb says
   // so - after which the dialog's list shows it.
@@ -162,7 +162,7 @@
           {/each}
         </ul>
         {#if shape.dropped > 0}
-          <!-- The draft is not the whole answer (issue 767): a step this collection's profile
+          <!-- The draft is not the whole answer: a step this collection's profile
                does not allow was left out, with everything under it, and the count says so. -->
           <p class="text">{t('app.suggestions.template_dropped', { count: shape.dropped })}</p>
         {/if}
@@ -196,7 +196,7 @@
       >
         <p class="text">{text ?? t('app.suggestions.unknown_hint')}</p>
         {#snippet actions()}
-          <!-- No accept: nothing accepts a collection's summary (K-05). Read, then dismissed. -->
+          <!-- No accept: nothing accepts a collection's summary. Read, then dismissed. -->
           <Button
             tone="subtle"
             isBusy={dismissing === suggestion.id}

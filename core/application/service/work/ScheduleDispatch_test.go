@@ -14,9 +14,9 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The dispatch D-01 decided: the contract has carried the due fields on the create and update
-// schemas since 0.1.0, so both doors serve them - into the writer the SetDueDate pair owns, so a
-// due date has one validation, one event and one history whichever way it arrives.
+// The dispatch: the contract carries the due fields on the create and update schemas, so both
+// doors serve them - into the writer the SetDueDate pair owns, so a due date has one validation,
+// one event and one history whichever way it arrives.
 
 func TestACreateDeclaringTheScheduleDispatchesIntoTheDueWriter(t *testing.T) {
 	h := newItemHarness()

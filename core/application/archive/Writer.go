@@ -34,7 +34,7 @@ type Source interface {
 
 // Media opens a medium by its content address. Separate from Source because the two answer to
 // different stores: the records come from the database, and the bytes of an attachment come from
-// the object store (C-05).
+// the object store.
 type Media interface {
 	// Open answers the medium's content, or ErrNotFound. The caller closes the stream.
 	Open(ctx context.Context, digest string) (io.ReadCloser, error)
@@ -109,7 +109,7 @@ const (
 // What that costs is honest to state: a member is written once and cannot be rewound, so a
 // producer that fails half way leaves a member at the target that no manifest names. Nothing
 // reads such a member - the manifest is written after them and checksums.txt after that - and
-// generational retention removes the directory when it removes the run (E-05).
+// generational retention removes the directory when it removes the run.
 type Writer struct {
 	store  backupstorage.Store
 	cipher crypto.StreamCipher

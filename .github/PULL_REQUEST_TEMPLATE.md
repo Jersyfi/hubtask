@@ -4,7 +4,9 @@
 
 ## What and why
 
-<!-- Keep it short. The why matters more than the what — the what is in the diff. -->
+<!-- Keep it short. The why matters more than the what — the what is in the diff.
+     A pull request without a task and without a readiness record (documentation, a dependency
+     bump, a fix from outside) says so on its own line: `Readiness: n/a — <why>`. -->
 
 Closes #
 
@@ -12,19 +14,19 @@ Closes #
 
 ## Use cases
 
-<!-- The use cases and checks this pull request makes true — copy them from the task's
-     `**Use cases:**` line (docs/usecases/README.md). One line per check: met or not, and how it was
-     confirmed (a test, a walk, a screenshot). A check that cannot be met is reported here and in the
-     issue; it is never rewritten to match the code. Move `state:` and `checked_by:` in the use case
-     in this same pull request. "n/a" only for a change no use case describes (tooling, CI). -->
+<!-- The checks this pull request makes true — the ones the task carries in its `**Use cases:**`
+     line. One line per check: met or not, and how it was confirmed (a test, a walk). A check that
+     cannot be met is reported here and in a `decision` or `finding` issue; it is never rewritten to
+     match the code. If this pull request changes a use case's Goal, How to check or Where it ends,
+     say per change: `correction` (a wrong reference or number) or `decision #<issue>`. Move
+     `state:` and `checked_by:` in this same pull request. "n/a" only for a change no use case
+     describes (tooling, CI, documents). -->
 
 - UC-…: check n — met / not met — confirmed by …
 
 ## Affected areas
 
-<!-- Tick what this touches, and apply the matching `area:` labels. This is a personal
-     repository, so organisation-level issue fields are unavailable and the labels carry that
-     dimension (ADR-0027). -->
+<!-- Tick what this touches, and apply the matching `area:` labels. -->
 
 - [ ] `area:core` — the domain, the application layer, the ports
 - [ ] `area:api` — the OpenAPI contract, REST, MCP, the generated client
@@ -33,39 +35,44 @@ Closes #
 - [ ] `area:design-system` — tokens, the CSS layer, the visual reference
 - [ ] `area:infra` — persistence, storage, mail, outbound adapters, deployment
 - [ ] `area:ci` — workflows, gates, release
-- [ ] `area:docs` — arc42, ADRs, the backlog, the guides
+- [ ] `area:docs` — subject documents, ADRs, use cases, the backlog, the guides
 
 ## Does this need an ADR?
 
-<!-- An ADR comes *before* the code, not with it. If a box below is ticked and no ADR exists,
-     this pull request is premature: open an ADR issue instead (CONTRIBUTING.md). -->
+<!-- The rule lives in a subject document; an ADR records why. A new decision brings its ADR and
+     its subject-document change in this same pull request. -->
 
-- [ ] No — this implements a decision that is already recorded. Which one: ADR-….
-- [ ] Yes, and it is in this pull request or already merged: ADR-….
-- [ ] It deviates from an existing ADR, or introduces a third-party dependency, or renames or
-      removes a field in `api/openapi.yaml`, or touches the licence model, the security gates or
-      the retention safeguards — **none of which is decided in a pull request** (CLAUDE.md,
-      "What you do not decide yourself").
+- [ ] No — this implements a rule already decided. Where it lives: `<file>.md §n`, or ADR-….
+- [ ] Yes, and it is in this pull request (with the subject-document change) or already merged: ADR-….
+- [ ] It deviates from a rule, or introduces a third-party dependency, or renames or removes a
+      field in `api/openapi.yaml`, or touches the licence, the security gates or the retention
+      safeguards — **none of which is decided in a pull request** (AGENTS.md, "What you do not
+      decide yourself"): a `decision` issue first.
 
 ## Definition of Done
 
-<!-- Mark anything that does not apply with "n/a"; do not delete it. -->
+<!-- Mark anything that does not apply with "n/a"; do not delete it. Each item is explained in
+     docs/architecture/engineering-guidelines.md §3 under the same number. -->
 
-- [ ] Tests at every relevant level green, coverage thresholds held
-- [ ] `make verify-pr` green for the pushed `HEAD`, no diff after `make generate`
-- [ ] `api/openapi.yaml` changed before the code was written (for API changes)
-- [ ] Use case in the registry → REST, MCP, and automation (parity test green)
-- [ ] Event schema added under `api/events/`
-- [ ] Migration present, safe for rolling updates, tested against the previous state
-- [ ] Permissions checked, a cross-tenant negative test for every new repository method
-- [ ] Metric and trace span present; logs free of user content and secrets
-- [ ] Timeouts everywhere, concurrency only through `SafeGo`
-- [ ] Auditable action registered; new personal data fields in the data catalogue with a deletion path
-- [ ] Merge rule defined for new fields (offline sync)
-- [ ] Message codes in `locales/en.json`
-- [ ] Documentation updated; an ADR for an architectural decision
-- [ ] No colour, spacing, radius or duration value written outside `tokens.json`; `make tokens` produces no diff
-- [ ] `core/` learned nothing about the frontend; no `.go` file committed under `apps/` or `packages/`
+- [ ] 1. Tests green at every relevant level, coverage held; `make verify-pr` green for the pushed `HEAD`
+- [ ] 2. `api/openapi.yaml` changed first; no diff after `make generate`
+- [ ] 3. Use case in the registry → REST, MCP and automation (parity test green)
+- [ ] 4. Event schemas under `api/events/`
+- [ ] 5. Migration present, safe for rolling updates, tested against the previous state
+- [ ] 6. Message codes in `locales/en.json`
+- [ ] 7. Permissions checked; a cross-tenant negative test for every new repository method
+- [ ] 8. A metric and a trace span; errors classified; logs free of user content and secrets
+- [ ] 9. Timeouts everywhere, concurrency only through `SafeGo`, external effects through the outbox or jobs, idempotent, failure of the touched dependency tested
+- [ ] 10. Authorisation in the application layer, outbound calls through `GuardedClient`, the affected SG gates green
+- [ ] 11. Auditable action registered; new personal data in the data catalogue with a deletion path
+- [ ] 12. Retention kind, merge rule for every new field, archive format and import path adjusted
+- [ ] 13. Subject documents updated; an ADR for a decision; no history in documents or comments
+- [ ] 14. Conventional Commit title; a breaking change marked
+- [ ] 15. Client impact settled: `packages/api-client` regenerated and the web app green
+- [ ] 16. Every carried use case check met with evidence; `state:`, `checked_by:` and *Today* moved
+- [ ] 17. No colour, spacing, radius or duration value outside `tokens.json`; `make tokens` produces no diff
+- [ ] 18. `core/` learned nothing about a frontend; no `.go` file under `apps/` or `packages/`
+- [ ] 19. Reviewed against the rules no gate checks (AGENTS.md); findings: …
 
 ## Impact
 

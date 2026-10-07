@@ -15,9 +15,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The acceptance runs C-07 names, against a real database. Each of them is a sentence in the task
-// that would otherwise be a claim - and the first is where the compiled jsonb SQL is actually
-// executed rather than only proved parameter-clean.
+// The custom field acceptance runs, against a real database. Each of them would otherwise be a
+// claim - and the first is where the compiled jsonb SQL is actually executed rather than only
+// proved parameter-clean.
 
 // setKey writes one custom field on an entry as SetCustomField's write path does: through the
 // domain's one-key application and the repository's one-key statement.
@@ -172,10 +172,10 @@ func TestARecreatedKeyExposesNothingOfTheOldValue(t *testing.T) {
 	}
 }
 
-// TestTwoDevicesSettingTwoKeysConvergeToBoth is the acceptance sentence about the merge rule, at
-// the level this milestone owns: the per-key write plus the version predicate. Device B wrote
-// against the version it had read, is told the row moved, re-reads and lands its own key - and
-// nothing of device A's is lost on the way.
+// TestTwoDevicesSettingTwoKeysConvergeToBoth is the merge rule for custom fields (offline-sync.md
+// §4.2), at the level of the server's write: the per-key write plus the version predicate. Device
+// B wrote against the version it had read, is told the row moved, re-reads and lands its own key -
+// and nothing of device A's is lost on the way.
 func TestTwoDevicesSettingTwoKeysConvergeToBoth(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

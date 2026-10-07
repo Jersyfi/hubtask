@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The archive (F10-03, ADR-0063 decision 1): what has been put aside, and the way back. It exists
+// The archive (ADR-0063 decision 1): what has been put aside, and the way back. It exists
 // because archiving a container is otherwise a one-way door — the tree never asks for archived
-// rows, so the container leaves the navigation and nothing shows it again (issue 933).
+// rows, so the container leaves the navigation and nothing shows it again.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

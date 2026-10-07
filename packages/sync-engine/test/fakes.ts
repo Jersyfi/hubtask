@@ -4,9 +4,8 @@
 // The fakes ADR-0033 requires the engine to be exercisable against.
 //
 // They live in the package rather than in a test file because they are the first-party counterpart
-// to `hubctl sync-conformance` (offline-sync.md §9): the same fakes will drive the conformance run
-// when F6 brings the protocol, and a fake that only one test file can reach is a fake that gets
-// rewritten.
+// to `hubctl sync-conformance` (offline-sync.md §9): the same fakes drive the conformance run, and a
+// fake that only one test file can reach is a fake that gets rewritten.
 
 import { TransportError } from '../src/errors.ts';
 import type {

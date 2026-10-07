@@ -9,7 +9,7 @@
   // for a difference that is one line: whether choosing replaces the set or adds to it.
   //
   // **It fetches nothing.** The candidates are handed in, and who may be assigned in this
-  // container is a question the domain answers (F3-07). A control that went looking would be a
+  // container is a question the domain answers. A control that went looking would be a
   // control that has to know which container it is in, which server it is talking to, and what to
   // do when the answer is slow — three things a component in this package may not know.
   //

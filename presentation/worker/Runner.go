@@ -89,7 +89,7 @@ type Runner struct {
 	// error's SQLSTATE and the constraint it broke, never its message, which quotes the row.
 	// Injected, because the cause is an adapter's error type and this layer knows no adapter;
 	// nil logs the code alone, which is what the rule-10-safe line always carried. What it buys
-	// is the difference between "postgres.query_failed" and knowing which statement (issue 692).
+	// is the difference between "postgres.query_failed" and knowing which statement.
 	Diagnose func(error) []slog.Attr
 }
 
@@ -291,7 +291,7 @@ func (r Runner) fail(ctx context.Context, job queue.Job, code string, cause erro
 	}
 
 	// The dead letter is where the queue's account of the work ends, so a handler holding a lock
-	// beyond the job row - a run row saying RUNNING - lets it go now rather than for ever (#207).
+	// beyond the job row - a run row saying RUNNING - lets it go now rather than for ever.
 	// Before the failure is recorded, on the same detached context: a released lock whose dead
 	// letter was lost costs one repeated release, while a dead letter whose release was lost
 	// costs a target nobody can back up again.

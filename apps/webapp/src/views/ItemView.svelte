@@ -10,14 +10,14 @@
   // way to edit and it is where the field is shown** (ADR-0063 decision 9): the head's three
   // fields in place, every other field a details row that opens its own editor, and no "edit"
   // form writing the same three a second time. The subtree is `EntryList` with a root
-  // (decision 6); comments and activity are tabs. Two columns from `expanded`, one below.
+  // (design-system.md §11.8); comments and activity are tabs. Two columns from `expanded`, one below.
   //
-  // **The history is the point of this screen** (F2-15), and the rule that shapes it is
+  // **The history is the point of this screen**, and the rule that shapes it is
   // `domain-model.md` §3.5: the server stores `item.completed` and sends
   // `activity.item_completed`, and the client renders it. Nothing here writes a verb; the
   // catalogue does, and a code this client has never heard of still reads as words because
   // `messages.t` humanises an unknown code rather than printing a key — which is the normal state
-  // of a client one milestone behind its server rather than an error.
+  // of a client one release behind its server rather than an error.
   //
   // The **actor** is the one place this screen refuses to guess. The contract says of an activity
   // actor that "the label is not here: the account is one request away" — and for anybody but the
@@ -219,7 +219,7 @@
     return untrack(() => labels.open(wanted));
   });
   $effect(() => untrack(() => reminders.open(id)));
-  // The series is asked for only when the row says there is one (issue 882); the effect follows
+  // The series is asked for only when the row says there is one; the effect follows
   // `recurrence_rule_id` so that setting a series starts the read and removing it ends it.
   $effect(() => {
     const row = item ? { id: item.id, recurrence_rule_id: item.recurrence_rule_id } : undefined;
@@ -248,7 +248,7 @@
    * The two dates as one value, because they are one editor.
    *
    * `DuePanel` writes the start and the due together, so two rows opening it showed the same
-   * panel twice and the reader met the other date wherever they pressed (issue 916). One row,
+   * panel twice and the reader met the other date wherever they pressed. One row,
    * whose value reads the start, the due, or the span between them.
    */
   const datesValue = $derived(
@@ -270,7 +270,7 @@
    * no and a control nobody can use is a control nobody is offered. For `undetermined` it is a
    * lie the screen told silently. Until the manifest is read **nothing about any type is known**,
    * so every row went missing at once and the entry read as a title with a language under it —
-   * with no error, no hint and no pending state to say why (issue 1020). The manifest is read at
+   * with no error, no hint and no pending state to say why. The manifest is read at
    * boot, so this is a moment on an ordinary load and the whole screen while the read failed.
    */
   const isTypeKnown = $derived(manifest.isRead);
@@ -522,9 +522,9 @@
     history.state.status === 'failed' ? renderProblem(history.state.error, messages) : undefined,
   );
 
-  // Editing the title and the notes. `items.update` has carried both since F2-09, with the
-  // `If-Match` and the version conflict handled, and no component called it - so the text that
-  // `POST /search` searches and that the history says somebody changed could not be written here
+  // Editing the title and the notes. `items.update` carries both, with the `If-Match` and the
+  // version conflict handled - without this caller the text that `POST /search` searches and that
+  // the history says somebody changed could not be written here
   // at all. The dogfooding pass set a note with curl in order to search for a word in it.
   //
   // It was built twice: in place here, and as a form behind "edit" in the menu, both writing the
@@ -553,14 +553,14 @@
 
   // The strip exists exactly when the manifest says AI is configured for this workspace, and not
   // otherwise - not disabled with a reason, not rendered empty. An installation with AI switched
-  // off has a product that never mentioned it (milestone-F5.md decision 4), and the tokens the
+  // off has a product that never mentions it (design-system.md §4, CapabilityGate), and the tokens the
   // strip is the only consumer of leave with it.
   const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
 
-  // What sits under this entry, for the kinds that hold anything (F5-02): an accepted breakdown
+  // What sits under this entry, for the kinds that hold anything: an accepted breakdown
   // creates children, and a screen that showed the proposal but not what it made would leave
   // the reader to find them in the collection. The subtree is the one read the section below
-  // makes (issue 877), and this counts its first level; the acceptance's invalidation of the
+  // makes, and this counts its first level; the acceptance's invalidation of the
   // lists brings them here without being asked.
   const takesChildren = $derived(item ? childTypes(item.type).length > 0 : false);
   $effect(() => {
@@ -571,7 +571,7 @@
   /**
    * The title and the notes edited in place: drawn as text until they have focus, saved when the
    * reader leaves them or presses Enter in the title, restored by Escape. Only what moved is
-   * written (issue 779, offline-sync.md §4.2) - a field repeated unchanged would be queued with a
+   * written (offline-sync.md §4.2) - a field repeated unchanged would be queued with a
    * fresh clock and win a merge it never entered.
    *
    * Both the entry and its history come back on their own: the write invalidates `/items`, and the
@@ -679,7 +679,7 @@
       />
     {/if}
 
-    <!-- `data-tour`: where the tour points for "what an entry carries" (F6-14). -->
+    <!-- `data-tour`: where the tour points for "what an entry carries". -->
     <div class="head" data-tour="entry" data-celebrating={moment && moment.item.id === item.id ? '' : undefined}>
       {#if moment && moment.item.id === item.id}
         <CelebrationSlot current={moment} />
@@ -719,7 +719,7 @@
       {#if writeFailure && isTitleFailure}
         <p class="failure" role="alert">{writeFailure.message}</p>
       {/if}
-      <!-- What is set, as chips (decision 4: set before empty). Each is also a row below. -->
+      <!-- What is set, as chips (design-system.md §11.8: set before empty). Each is also a row below. -->
       <div class="marks">
         <Badge>{typeName(item.type)}</Badge>
         {#if item.archived_at}
@@ -829,9 +829,8 @@
         <Tabs
           label={t('app.item.tabs')}
           tabs={[
-            // The conversation where the type has one. An activity carries no `COMMENTS`, and the
-            // tab used to be there with a gate inside it saying so - a whole panel spent on a
-            // refusal (issue 916).
+            // The conversation where the type has one. An activity carries no `COMMENTS`, and a
+            // tab with a gate inside it saying so would be a whole panel spent on a refusal.
             ...(carries('COMMENTS')
               ? [{ id: 'comments', label: commentCount === undefined ? t('app.comments.title') : t('app.item.tab_with_count', { title: t('app.comments.title'), count: String(commentCount) }) }]
               : []),

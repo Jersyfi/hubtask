@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 )
 
-// ResilientStore composes an ObjectStore with the A-05 blocks (ADR-0016): a bulkhead so the
+// ResilientStore composes an ObjectStore with the resilience blocks (ADR-0016): a bulkhead so the
 // storage cannot take more of the process than its pool, and a breaker so a dead endpoint costs
 // an immediate answer instead of a blocked thread.
 //

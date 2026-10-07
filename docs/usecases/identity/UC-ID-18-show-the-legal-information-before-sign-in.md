@@ -45,4 +45,4 @@ the footer is empty.
 
 ## Today
 
-* **Check 3 fails:** the workspace screen shows only a lock, not the inherited link.
+* Check 3: not met — the workspace screen shows only the lock, not the inherited link beside its own field, tracked in #1063.

@@ -182,7 +182,7 @@ func TestTheSecondFactorAndTheCodeCountReachTheBody(t *testing.T) {
 
 // A merge patch says "leave it alone" by omission and "clear it" by an empty string or a null: the
 // contract declares null for all three preferences. The generated pointer reads a null as an
-// omission, so the handler reads presence from the bytes (issue 709).
+// omission, so the handler reads presence from the bytes.
 func TestANullPreferenceClearsAndAnOmittedOneIsLeftAlone(t *testing.T) {
 	registry := &catalogue{out: ownAccount()}
 	body := `{"week_start": null, "locale": "", "time_zone": "Europe/Berlin"}`
@@ -218,7 +218,7 @@ func TestANullPreferenceClearsAndAnOmittedOneIsLeftAlone(t *testing.T) {
 	}
 }
 
-// The moments (F6-12) reach the use case as the words it reads - a boolean as "true"/"false", an
+// The moments reach the use case as the words it reads - a boolean as "true"/"false", an
 // instant as RFC 3339 - and a null as the empty one; and an account that has them answers them in
 // the contract's own types.
 func TestTheMomentsTravelAsWordsAndAnswerInTheirTypes(t *testing.T) {

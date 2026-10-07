@@ -13,23 +13,21 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 )
 
-// The gate this issue exists for: **every key a suggestion may carry is one the acceptance can
-// apply.**
+// **Every key a suggestion may carry is one the acceptance can apply.**
 //
-// K-01's gate beside this one compares what a prompt asks a provider for with what the code keeps.
-// It cannot see the second narrowing. A proposal is cut down again, at the moment it is produced,
-// to what the use case that would apply it declares - because the registry refuses an input a
-// descriptor does not declare - and until this test nothing compared those two.
+// The gate beside this one (promptanswers_test.go) compares what a prompt asks a provider for with
+// what the code keeps. It cannot see the second narrowing. A proposal is cut down again, at the
+// moment it is produced, to what the use case that would apply it declares - because the registry
+// refuses an input a descriptor does not declare - and nothing else compares those two.
 //
-// What that cost: `suggest-fields` asked for `notes`, a due date and labels about a jumble entry,
-// `ConvertJumbleEntry` declares none of the three, and every jumble suggestion since J-06 paid a
-// provider for three answers no code read. The allow list and the prompt agreed with each other
-// the whole time, so K-01's gate stayed green, and the drop is silent by construction - the
-// narrowing is a security filter and dropping a key is the *right* behaviour, which is why nothing
-// looked twice.
+// The trap: a prompt that asks for `notes`, a due date and labels about a jumble entry, while
+// `ConvertJumbleEntry` declares none of the three, pays a provider for three answers no code
+// reads. The allow list and the prompt agree with each other, so the prompt gate stays green, and
+// the drop is silent by construction - the narrowing is a security filter and dropping a key is
+// the *right* behaviour, which is why nothing looks twice.
 //
 // It reads the registry, the allow lists, the pair declaration and the acceptance table, and needs
-// no database. It would have been red on the day J-16 landed, and on every day before it.
+// no database.
 func TestEveryKeyASuggestionKeepsIsOneTheAcceptanceCanApply(t *testing.T) {
 	registry := useCaseCatalogue(t)
 	inputsOf := func(name string) ([]string, bool) {
@@ -92,7 +90,7 @@ func TestEveryKeyASuggestionKeepsIsOneTheAcceptanceCanApply(t *testing.T) {
 // And the other half of the same rule, for the kinds no prompt produces.
 //
 // `SuggestDuplicates` builds its payload in code and asks no provider, so it passes through no
-// allow list and no narrowing at all (K-04). A shape like that must not be one the acceptance
+// allow list and no narrowing at all. A shape like that must not be one the acceptance
 // merges into a use case's input: there would be nothing between what the payload holds and what
 // the use case is called with. It is the one kind whose payload names *other entries*, which is
 // where that matters most.

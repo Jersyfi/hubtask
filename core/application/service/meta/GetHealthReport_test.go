@@ -115,7 +115,7 @@ func TestTheOperatorReadsTheWholeReport(t *testing.T) {
 }
 
 // The other reader gets what a banner needs and nothing that describes the installation. This is
-// the whole of K-06's decision, so it is asserted field by field rather than by a length.
+// the whole of the reduced answer, so it is asserted field by field rather than by a length.
 func TestAWorkspaceAdministratorReadsOnlyTheStatusAndWhatIsDegraded(t *testing.T) {
 	authorizer := &permissive{}
 	handler := GetHealthReport{Health: &reporter{report: fullReport()}, Authorizer: authorizer}
@@ -203,7 +203,7 @@ func TestAMemberIsRefusedAndLearnsNothing(t *testing.T) {
 // rather than left to the catalogue's test: the name is this file's decision.
 func TestTheReadScopeCanBeCarriedByASession(t *testing.T) {
 	if len(opsReadScope) >= 6 && opsReadScope[:6] == "admin:" {
-		t.Errorf("%q is filtered out of every session's scopes (0.6.0 decision 6)", opsReadScope)
+		t.Errorf("%q is filtered out of every session's scopes (identity.md §15.4)", opsReadScope)
 	}
 }
 

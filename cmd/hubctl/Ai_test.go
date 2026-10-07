@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// The provider configuration as an operator meets it (J-02, J-16). What is asked here is the one
+// The provider configuration as an operator meets it. What is asked here is the one
 // property that matters: no path through this command prints a key, and no path sends one that
 // somebody did not put in the environment.
 

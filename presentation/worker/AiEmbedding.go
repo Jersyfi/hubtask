@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// AiEmbedding keeps one workspace's vectors in step with its entries (J-10).
+// AiEmbedding keeps one workspace's vectors in step with its entries.
 //
 // The retention sweep's shape rather than the suggestion's: a batch, then a decision about whether
 // to come straight back, and a job that is never finished for good - the next entry somebody

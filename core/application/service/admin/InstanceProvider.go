@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// The providers the installation offers every workspace (ADR-0070 §2, SI-10).
+// The providers the installation offers every workspace (ADR-0070 §2).
 //
 // **One store, two levels.** A row with no workspace is the installation's: every workspace reads it
 // and draws its button, and none may change it - which is the row-level policy of migration 0103 and
@@ -248,9 +248,9 @@ func (h ConfigureInstanceIdentityProvider) Descriptor() usecase.Descriptor {
 			{Name: "allowed_email_domains", Kind: usecase.KindList,
 				Description: "Domains this provider admits under DOMAINS, for a preset with no directory claim."},
 			{Name: "allowed_directories", Kind: usecase.KindList,
-				Description: "The organisations this provider admits under DOMAINS, in its own identifiers - and required for a multi-directory issuer, which without one is every organisation in the world (ADR-0071)."},
+				Description: "The organisations this provider admits under DOMAINS, in its own identifiers - and required for a multi-directory issuer, which without one is every organisation in the world."},
 			{Name: "enabled", Kind: usecase.KindBool,
-				Description: "Deprecated. Whether a new provider is offered, absent being on. Afterwards an offer ends through the withdrawal, and a changed value is refused with identity_provider.withdraw_instead (ADR-0076)."},
+				Description: "Deprecated. Whether a new provider is offered, absent being on. Afterwards an offer ends through the withdrawal, and a changed value is refused with identity_provider.withdraw_instead."},
 			identityservice.ProviderStepUpField,
 		},
 		StepUp: "changing a way in every workspace is offered",

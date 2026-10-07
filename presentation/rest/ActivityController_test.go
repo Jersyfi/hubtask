@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The history over REST (B-11). What this layer owes is the page shape, the code the client renders
+// The history over REST. What this layer owes is the page shape, the code the client renders
 // rather than a sentence, and a change set that reaches the wire as the domain built it.
 
 const historyItemID = "0192f000-0000-7000-8000-00000000000e"

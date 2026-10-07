@@ -166,7 +166,7 @@ type InsertJumbleEntryParams struct {
 	ReceivedAt  pgtype.Timestamptz
 }
 
-// The jumble (G-10, domain-model.md §2): entries arrive, are decided about exactly once, and the
+// The jumble (domain-model.md §2): entries arrive, are decided about exactly once, and the
 // dismissed ones age out by retention rule.
 //
 // The tenant is never a parameter: row level security bounds every statement to the tenant of the
@@ -224,7 +224,7 @@ type ListJumbleEntriesRow struct {
 // that is not redundancy: the projection carries it, and the *events* a settlement announces are
 // built from the projection. Without it every conversion refused as `events.envelope_incomplete` -
 // an entry with no tenant cannot be the subject of an event - which meant converting a jumble entry
-// never worked at all, through a rule or through the API (found by J-16's end-to-end session).
+// never worked at all, through a rule or through the API.
 func (q *Queries) ListJumbleEntries(ctx context.Context, arg ListJumbleEntriesParams) ([]ListJumbleEntriesRow, error) {
 	rows, err := q.db.Query(ctx, listJumbleEntries,
 		arg.Status,
@@ -275,7 +275,7 @@ type SetJumbleIntakeTokenParams struct {
 }
 
 // Minting and rotating are one statement: the upsert replaces the hash, so the old token and the
-// new one never both open the intake (G-10).
+// new one never both open the intake.
 func (q *Queries) SetJumbleIntakeToken(ctx context.Context, arg SetJumbleIntakeTokenParams) error {
 	_, err := q.db.Exec(ctx, setJumbleIntakeToken, arg.TokenHash, arg.RotatedAt)
 	return err

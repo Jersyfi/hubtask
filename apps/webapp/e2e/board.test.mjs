@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The board's card is the thing you move (F10-11, ADR-0063 decision 11). The gesture always
+// The board's card is the thing you move (ADR-0063 decision 11). The gesture always
 // worked; what failed was that it began on a 14 × 22 px grip beside the card and the card then
 // travelled on one axis only, so carrying one across the board looked like nothing happening.
 

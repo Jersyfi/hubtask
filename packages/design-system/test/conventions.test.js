@@ -3,8 +3,8 @@
 
 // The rules of design-system.md §5 and §6, as a gate rather than as a review comment.
 //
-// F1-05's brief says every component arrives with a test, "because a component with no test is one
-// the next refactor breaks silently". What that test should assert is the question, and the answer
+// Every component arrives with a test, because a component with no test is one the next refactor
+// breaks silently. What that test should assert is the question, and the answer
 // this file gives is: the rules that hold for all of them, over the source, in plain Node.
 //
 // Not a rendering test. Rendering forty components would need a DOM, a compiler and a runner -
@@ -68,8 +68,8 @@ test('the physical-side rule catches every planted violation before it is truste
 test('no component writes a physical inline side', () => {
   // §3: alignment is start/end only, because RTL is a requirement and not a later port. The
   // failure is invisible in development and total in Arabic, which is why it is a gate. The rule
-  // itself lives in build/lint-direction.js, where `pnpm lint` applies it to every client tree
-  // (F5-10); here it reads each component's whole source - the template's inline styles included.
+  // itself lives in build/lint-direction.js, where `pnpm lint` applies it to every client tree;
+  // here it reads each component's whole source - the template's inline styles included.
   for (const component of ALL) {
     const hits = findPhysical(component.source);
     assert.deepEqual(

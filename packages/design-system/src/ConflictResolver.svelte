@@ -7,7 +7,7 @@
   // both, side by side, with two ways out: keep the server's, which is dismissing; or write mine
   // again, which is an ordinary PATCH of the field from the current version and nothing else.
   // Never a merge of the two texts, and never an automatic retry: the person reads both and
-  // decides, and what they decide is a write like any other (F6-06).
+  // decides, and what they decide is a write like any other (ADR-0021).
   //
   // Every word is resolved text. The two texts are the reader's own and are drawn as text, never
   // as markup - a note is Markdown the server does not render, and this dialog does not either.

@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The jumble (G-10). The controller maps documents and nothing else: what may be submitted, who
+// The jumble. The controller maps documents and nothing else: what may be submitted, who
 // may read the inbox and what a conversion produces are all decided inwards of here (ADR-0005).
 
 const (
@@ -228,14 +228,14 @@ func jumbleEntryResponse(out usecase.Output) openapi.JumbleEntry {
 }
 
 // JumbleIntakeDeliverer serves the public intake route: not a catalogue entry, because it answers
-// a credential nobody in this system holds (G-10). Nil leaves the route answering the pending 404.
+// a credential nobody in this system holds. Nil leaves the route answering the pending 404.
 type JumbleIntakeDeliverer interface {
 	Deliver(ctx context.Context, presented, sender, subject, body string) (jumbledomain.Entry, error)
 }
 
 // MailDeliverer serves the mail route: the message as it arrived, and the entry it became. Not a
 // catalogue entry either, for the webhook door's reason - it answers a credential nobody in this
-// system holds (G-11). Nil leaves the route answering the pending 404.
+// system holds. Nil leaves the route answering the pending 404.
 type MailDeliverer interface {
 	Deliver(ctx context.Context, presented string, raw []byte) (jumbledomain.Entry, error)
 }
@@ -263,7 +263,7 @@ func (c *RestController) StartJumbleIntake(
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.JumbleIntake == nil {
 		// The pending 404 rather than an internal error: an installation that does not serve this
-		// tells the internet nothing about why (G-08's reasoning for the inbound route).
+		// tells the internet nothing about why (the inbound route's reasoning).
 		c.pending.StartJumbleIntake(w, r, presented)
 		return
 	}

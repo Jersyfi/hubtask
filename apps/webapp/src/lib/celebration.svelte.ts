@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The moment a completion earns, held for the screen that made it (F6-13).
+ * The moment a completion earns, held for the screen that made it.
  *
  * One current celebration at a time and never a queue: §7 says a celebration is the exception,
  * and a second completion during the first replaces it rather than waiting behind it - nothing is
@@ -11,7 +11,7 @@
  * copy's rather than the tab's. Without a store attached - online only - the copy cannot be read,
  * and every completion is tier 1: a screen that cannot see the hierarchy claims nothing about it.
  *
- * **Off means nothing is mounted.** The switch is the account's `celebrations` preference (F6-12);
+ * **Off means nothing is mounted.** The switch is the account's `celebrations` preference;
  * a screen asks `isOn` before rendering the component, and this module answers no moment while it
  * is off.
  */
@@ -45,7 +45,7 @@ class Celebration {
   #current = $state<Current | undefined>(undefined);
   #next = 0;
 
-  /** The account's switch (F6-12): absent means on, §7's default. */
+  /** The account's switch: absent means on, §7's default. */
   get isOn(): boolean {
     return actor.account?.celebrations !== false;
   }
@@ -60,7 +60,7 @@ class Celebration {
    */
   async celebrate(item: WorkItem): Promise<Current | undefined> {
     if (!item.completion?.is_completed) return undefined;
-    // The tour's end and the first moment coincide (§8, F6-14): the first completion of an
+    // The tour's end and the first moment coincide (§8): the first completion of an
     // account that has not taken the tour writes `onboarding_completed_at` - whether or not the
     // moments are marked, because the tour ended either way.
     if (!actor.account?.onboarding_completed_at) void tour.complete();

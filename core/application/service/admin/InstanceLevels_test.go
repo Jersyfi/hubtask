@@ -14,9 +14,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The two areas SI-17 added to the instance level, and the one refusal the third door needs.
+// The instance level's areas, and the one refusal the third door needs.
 //
-// The concept gives this milestone four areas — the sign-in switches, the legal links, the
+// The instance level has four areas — the sign-in switches, the legal links, the
 // localisation defaults and the quota ceilings — and two of them are different in kind. A lock is
 // meaningful on a ceiling and forbidden on a language, and the difference is a decision rather than
 // an omission, so it is a test rather than a comment.

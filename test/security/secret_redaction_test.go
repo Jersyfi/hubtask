@@ -84,23 +84,23 @@ func confidentialValues(t *testing.T) []any {
 			Key  secret.Secret
 			Data secret.Bytes
 		}{"a target", secret.New(masterMaterial), derived},
-		// The path G-01 added: a minted personal access token travels from the use case to the
-		// response as a whole struct, and the whole struct is what a careless log line writes.
+		// A minted personal access token travels from the use case to the response as a whole
+		// struct, and the whole struct is what a careless log line writes.
 		identity.MintedToken{
 			Token:  model.AccessToken{ID: "01936f2a-7c1e-7000-8000-0000000000d1", Name: "a token"},
 			Secret: secret.New(credential),
 		},
-		// And the path G-03 added: a webhook's signing secret, which travels the same way and is
-		// the one value that would let anybody forge a delivery from this installation.
+		// And a webhook's signing secret, which travels the same way and is the one value that
+		// would let anybody forge a delivery from this installation.
 		integrationservice.MintedSubscription{
 			Subscription: integrationmodel.WebhookSubscription{
 				ID: "01936f2a-7c1e-7000-8000-0000000000d2", TargetURL: "https://example.org/hooks",
 			},
 			Secret: secret.New(credential),
 		},
-		// And the path H-01 added: the sign-in pair travels from the use case to the response as
-		// one struct holding both credentials, and both have to mask however the struct is
-		// printed - no password, hash or token in any log is the acceptance's own words.
+		// And the sign-in pair travels from the use case to the response as one struct holding
+		// both credentials, and both have to mask however the struct is printed: no password,
+		// hash or token in any log.
 		identity.SessionPair{
 			AccessToken:  secret.New(masterMaterial),
 			RefreshToken: secret.New(passphrase),
@@ -110,15 +110,15 @@ func confidentialValues(t *testing.T) []any {
 			Email:    "somebody@example.org",
 			Password: secret.New(credential),
 		},
-		// And the path H-02 added: the enrolment's single showing - the TOTP secret, the
-		// provisioning URI that embeds it, and the recovery codes - travels as one struct.
+		// And the enrolment's single showing - the TOTP secret, the provisioning URI that embeds
+		// it, and the recovery codes - travels as one struct.
 		identity.MintedEnrollment{
 			Secret:        secret.New(masterMaterial),
 			URI:           secret.New(passphrase),
 			RecoveryCodes: []secret.Secret{secret.New(credential)},
 		},
-		// And the paths H-05 added: a registered client's single-showing secret, and the
-		// authorization code on its way to the response.
+		// And a registered client's single-showing secret, and the authorization code on its way
+		// to the response.
 		identity.RegisteredClient{
 			Client: model.OauthClient{ID: "01936f2a-7c1e-7000-8000-0000000000d4", Name: "an app"},
 			Secret: secret.New(credential),

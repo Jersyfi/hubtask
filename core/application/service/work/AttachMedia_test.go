@@ -304,9 +304,9 @@ func TestAFileTheMediaContextWillNotStandBehindIsRefused(t *testing.T) {
 		{name: "still pending", object: pendingAttachment(), detail: "media.not_ready"},
 		{name: "staged as a cover", object: readyCover(receiptID), detail: "media.usage_mismatch"},
 		// The sequence every upload runs: stage, put, confirm, attach. A reconciliation pass
-		// between the third and the fourth used to mark the object - it points at nothing until
-		// this call - and the person was told "This entry does not exist." about the file they had
-		// just uploaded. The grace in the sweep is what keeps this case theoretical; the code here
+		// between the third and the fourth would mark the object - it points at nothing until
+		// this call - and the person would be told "This entry does not exist." about the file
+		// they had just uploaded. The grace in the sweep is what keeps this case theoretical; the code here
 		// is what makes it legible when it is not.
 		{name: "swept between the confirmation and this call", object: sweptAttachment(),
 			detail: "media.not_found"},

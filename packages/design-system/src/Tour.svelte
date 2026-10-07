@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The tour's pattern (design-system.md §8, F6-14): a spotlight on one element of the real
+  // The tour's pattern (design-system.md §8): a spotlight on one element of the real
   // interface and a coach mark beside it. Never a slide show - the element is the real one, left
   // interactive, and what is dimmed is everything else.
   //

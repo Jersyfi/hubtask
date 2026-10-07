@@ -9,7 +9,7 @@
   // the device to resolve to. A radio group rather than a select: three words, all visible, one
   // press.
   //
-  // **The third is the account's** (F6-12): somebody who switched the moments off switched them
+  // **The third is the account's**: somebody who switched the moments off switched them
   // off everywhere, so it is written to the account and put back when a write is refused - the
   // control never shows a choice the server did not take.
 
@@ -97,7 +97,7 @@
           options={MOTIONS.map((each) => ({ value: each, label: t(`app.profile.motion_${each}`) }))}
         />
         <!-- The one switch of design-system.md §7, beside the theme's and motion's - and unlike
-             them the account's (ADR-0043, F6-12): a person who switched the moments off has
+             them the account's (ADR-0043): a person who switched the moments off has
              switched them off everywhere. Absent means on. -->
         <Switch
           label={t('app.profile.celebrations')}

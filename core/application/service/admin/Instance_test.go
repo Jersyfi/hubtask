@@ -349,9 +349,9 @@ func TestTheLevelIsReadFromTheDocument(t *testing.T) {
 // defaults would be one nobody could tell apart from an operator who had chosen them.
 // The projection answers the whole catalogue, and says which of it was decided.
 //
-// It answered only the decided switches until SI-17's walk: four rows on a screen the concept gives
-// eighteen switches, with no way for a reader to learn that the other fourteen exist or that this
-// installation has left them to each workspace. Those are different facts, and `set` is what tells
+// Answering only the decided switches would show four rows of eighteen, with no way for a reader
+// to learn that the other fourteen exist or that this installation has left them to each
+// workspace. Those are different facts, and `set` is what tells
 // them apart — an undecided entry carries no `value` at all, because a zero is a decision.
 func TestTheProjectionAnswersTheWholeCatalogueAndWhatWasDecided(t *testing.T) {
 	out := instanceLevelOutput(identityrepo.InstanceLevel{

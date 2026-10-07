@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The building blocks: one list, three ways in (F8-16, decision 17). The panel's *Blocks* tab
+  // The building blocks: one list, three ways in (automation.md §1.5). The panel's *Blocks* tab
   // holds it whole; the `+` popover of a gap draws the same list, filtered to what that gap may
   // take; and every item is dragged or clicked alike.
   //
@@ -89,7 +89,7 @@
   /**
    * What the search finds on the *Blocks* sub-tab: the blocks first, then whatever else the
    * whole catalogue has for the words typed, under its own groups - typing reaches every kind
-   * (decision 17), whether or not a block happened to match too.
+   * (automation.md §1.5), whether or not a block happened to match too.
    */
   const shownBlocks = $derived(filtered(side === 'blocks' ? curated : everything));
   const rest = $derived.by((): Group[] => {
@@ -189,7 +189,7 @@
 
   .use { flex: 0 0 auto; padding: 0 var(--sp-050); border-radius: var(--r-full); background: var(--bg-surface-sunken); color: var(--text-subtle); font-size: var(--fs-050); }
 
-  /* The colour says what the block is (decision 18): the same families as on the card. */
+  /* The colour says what the block is (automation.md §1.5): the same families as on the card. */
   .mark { flex: 0 0 auto; display: inline-grid; place-items: center; width: var(--sp-250); height: var(--sp-250); border-radius: var(--r-xs); background: var(--label-blue-bg); color: var(--label-blue-fg); }
 
   .trigger .mark { background: var(--accent-primary-subtle); color: var(--accent-primary); }

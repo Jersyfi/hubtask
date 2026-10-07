@@ -16,8 +16,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The group list behind the members screen (F3-01), against the real boundary. Gate SG-3: List
-// has its cross-tenant negative below; Find and Members have theirs in identity_test.go.
+// The group list behind the members screen, against the real boundary. Gate SG-3: List has its
+// cross-tenant negative below; Find and Members have theirs in identity_test.go.
 
 func groupsListed(ctx context.Context, t *testing.T, tenant shared.ID, page repository.Page) repository.GroupPage {
 	t.Helper()

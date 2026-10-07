@@ -2,11 +2,11 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * A number typed the way the reader writes one (i18n-l10n.md §6 line 10, F5-09).
+ * A number typed the way the reader writes one (i18n-l10n.md §6 line 10).
  *
  * The contract carries a `NUMBER` field as a number, and a person under `de` types `1,5`. What
  * separates the decimals is the installation's answer first - `supported_locales[].decimal_separator`
- * (M-05) - and `Intl.NumberFormat`'s for a locale the manifest does not describe. The text is
+ * - and `Intl.NumberFormat`'s for a locale the manifest does not describe. The text is
  * parsed *before* the raw value reaches the contract, so the server sees `1.5` and never a comma.
  *
  * The parse is deliberately narrow: an optional sign, digits, at most one separator. A grouping

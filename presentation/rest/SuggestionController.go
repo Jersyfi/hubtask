@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// What AI proposed (J-05).
+// What AI proposed.
 const (
 	listSuggestionsUseCase      = "ListSuggestions"
 	acceptSuggestionUseCase     = "AcceptSuggestion"
@@ -29,7 +29,7 @@ const (
 )
 
 // The three actions automation.md §1.3 documents, served over REST as well because an automation
-// action is a use case and a use case is reachable through all three channels (J-08).
+// action is a use case and a use case is reachable through all three channels.
 func (c *RestController) AiSuggestFields(
 	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
 ) {
@@ -48,14 +48,14 @@ func (c *RestController) AiClassify(
 	c.askAi(w, r, aiClassifyUseCase, itemID)
 }
 
-// AiSummarizeThread answers POST /items/{itemId}:summarize-thread (K-05).
+// AiSummarizeThread answers POST /items/{itemId}:summarize-thread.
 func (c *RestController) AiSummarizeThread(
 	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
 ) {
 	c.askAi(w, r, aiSummarizeThreadUseCase, itemID)
 }
 
-// AiSummarizeContainer answers POST /containers/{containerId}:summarize (K-05).
+// AiSummarizeContainer answers POST /containers/{containerId}:summarize.
 //
 // Its own handler rather than `askAi`'s, because what it names is a container: the input key
 // differs, and a body asking for the answer to be applied would be asking for something nothing
@@ -79,7 +79,7 @@ func (c *RestController) AiSummarizeContainer(
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// AiTranslate answers POST /items/{itemId}:translate (M-11): a read, answered now, stored nowhere.
+// AiTranslate answers POST /items/{itemId}:translate: a read, answered now, stored nowhere.
 func (c *RestController) AiTranslate(
 	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
 ) {
@@ -165,7 +165,7 @@ func (c *RestController) SuggestDecomposition(
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// AiGenerateTemplate answers POST /templates:generate (P-11).
+// AiGenerateTemplate answers POST /templates:generate.
 //
 // 202 and no body, for the decomposition's reason: the provider has not been asked yet. The
 // description travels as the use case's input and nothing else is read from the body.
@@ -197,7 +197,7 @@ func (c *RestController) AiGenerateTemplate(
 // 200 with the suggestion, or 204 when there is nothing to propose - which is also the answer with
 // no pgvector, with no provider that can embed, and for an entry the embedding pass has not
 // reached. The adapter cannot tell those apart and does not try: they are one answer to the caller,
-// and which one it is is `/meta/capabilities`' business (K-04).
+// and which one it is is `/meta/capabilities`' business.
 func (c *RestController) SuggestDuplicates(
 	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
 ) {
@@ -284,11 +284,10 @@ func (c *RestController) DismissSuggestion(
 // decideSuggestion is both answers: they differ in the use case they name and in nothing else,
 // which is the same shape the application layer has for the same reason.
 //
-// The body is read, and it was not until J-16 - which made a whole class of suggestion impossible
-// to accept over REST. `SuggestionAcceptance` carries the overrides a person changed or added
+// The body is read. `SuggestionAcceptance` carries the overrides a person changed or added
 // before accepting, and a proposal about a jumble entry *needs* one: accepting it converts the
 // entry, and `ConvertJumbleEntry` requires a destination collection a model cannot name. Dropping
-// the body meant every such acceptance answered `usecase.field_required` for a field the caller
+// the body would answer every such acceptance `usecase.field_required` for a field the caller
 // had in fact sent.
 //
 // Optional, because a dismissal carries none and an acceptance of a work item's fields needs none:

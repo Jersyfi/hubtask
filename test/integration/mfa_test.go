@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The second factor of H-02, against the real boundary. Gate SG-3: one negative per port method.
+// The second factor, against the real boundary. Gate SG-3: one negative per port method.
 
 func mfaStores(ctx context.Context, t *testing.T) (postgres.MfaRepository, persistence.UnitOfWork) {
 	t.Helper()

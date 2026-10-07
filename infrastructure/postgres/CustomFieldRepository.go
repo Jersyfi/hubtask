@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// CustomFieldRepository stores the definitions a workspace adds to its entries (C-07).
+// CustomFieldRepository stores the definitions a workspace adds to its entries.
 //
 // The values are not here: they are a jsonb document on the entry, written through
 // ItemRepository.SetCustomFields. This is the vocabulary, and keeping the two apart is what stops

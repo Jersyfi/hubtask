@@ -13,8 +13,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// The case a data subject request becomes (E-10, data-protection.md §4). What is under test is the
-// state machine, the deadline, and the two refusals that stop a case starting work it cannot do.
+// The case a data subject request becomes (data-protection.md §4). What is under test is the state
+// machine, the deadline, and the two refusals that stop a case starting work it cannot do.
 
 var (
 	now       = time.Date(2026, 8, 26, 10, 0, 0, 0, time.UTC)
@@ -127,10 +127,10 @@ func TestTheStateMachineIsTheOneTheDocumentNames(t *testing.T) {
 	}
 }
 
-// An erasure that named no mode is started as the workspace default, which P-6 settled as
-// anonymisation (H-13). It used to be a refusal, and the refusal was the wrong shape: a case that
-// cannot start because a field nobody filled in is empty is a statutory deadline running while an
-// administrator works out which of two words to type.
+// An erasure that named no mode is started as the workspace default, which is anonymisation
+// (data-protection.md §4). Not a refusal: a case that cannot start because a field nobody filled in
+// is empty is a statutory deadline running while an administrator works out which of two words to
+// type.
 func TestAnErasureWithNoModeStartsAsTheDefault(t *testing.T) {
 	request, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
 		in.Kind = privacy.KindErasure
@@ -300,7 +300,7 @@ func TestACaseIsOverdueOnlyWhileItIsOpen(t *testing.T) {
 	}
 }
 
-// The notes and a rejection's reason are stored in normal form C (i18n-l10n.md §5, M-07).
+// The notes and a rejection's reason are stored in normal form C (i18n-l10n.md §5).
 func TestACasesTextIsStoredInNormalFormC(t *testing.T) {
 	request, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
 		in.Notes = "Eingang u\u0308ber das Kontaktformular"

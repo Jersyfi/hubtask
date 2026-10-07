@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# The engine's session (F6-08): the first-party sync engine's own obligations under
+# The engine's session: the first-party sync engine's own obligations under
 # offline-sync.md §9, proved against the reference Compose stack from a real image - the other
 # runner beside `hubctl sync-conformance`, which drives the server as two devices and is a section
 # of hubctl-e2e.sh.

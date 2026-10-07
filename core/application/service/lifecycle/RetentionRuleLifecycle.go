@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// A rule that deletes data has to be correctable and withdrawable (F4-02). Until this, one could
+// A rule that deletes data has to be correctable and withdrawable. Until this, one could
 // be written and then only read.
 const (
 	UpdateRetentionPolicyName = "UpdateRetentionPolicy"

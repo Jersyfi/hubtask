@@ -13,8 +13,8 @@ import (
 // JumbleEntrySubject names what a jumble event is about, the way every subject here is built.
 func JumbleEntrySubject(id shared.ID) string { return "jumble_entry/" + id.String() }
 
-// NewJumbleEntryReceived announces an arrival in the jumble (domain-model.md §4, G-10). Consumers:
-// automation - it is what fires a JUMBLE_ENTRY rule - webhooks, and the AI suggestions of 0.7.0.
+// NewJumbleEntryReceived announces an arrival in the jumble (domain-model.md §4). Consumers:
+// automation - it is what fires a JUMBLE_ENTRY rule - webhooks, and the AI suggestions.
 //
 // The payload deliberately carries no content and no sender. An event leaves the installation, and
 // the raw text of a mail is exactly the PERSONAL_CONTENT rule 10 keeps out of everything that

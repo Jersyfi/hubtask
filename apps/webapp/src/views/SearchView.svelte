@@ -280,7 +280,7 @@
     if (wanted !== `${location.pathname}${location.search}`) untrack(() => onnavigate?.(wanted));
   });
 
-  // Words and meaning, or words only (F5-04). The switch exists only where the manifest says
+  // Words and meaning, or words only. The switch exists only where the manifest says
   // meaning is available here; an installation without it has a search by words that never
   // mentioned the other (ADR-0063 decision 4).
   const hasMeaning = $derived(manifest.value?.features?.semantic_search === true);
@@ -378,7 +378,7 @@
 <Stack gap="300">
   <PageHeader title={t('app.search.title')} isTitleInBar={viewport.isCompact} />
 
-  <!-- `data-tour`: where the tour points for the query language (F6-14). -->
+  <!-- `data-tour`: where the tour points for the query language. -->
   <Stack gap="150" data-tour="search">
     {#if advanced}
       <!-- The whole question as text. Everything the chips can say, and the four things they

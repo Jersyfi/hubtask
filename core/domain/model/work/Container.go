@@ -51,11 +51,10 @@ const MaxContainerNameLength = 200
 
 // Container is a hub or a collection (domain-model.md §3.3).
 //
-// Of the `policies` column's four documented keys, two are here: the completion policy, because
-// B-07 reads it, and the automatic assignment, because C-02 does. The other two - the default
-// bucket, capability overrides - stay absent on the reasoning that kept these absent until then:
-// a field nothing reads and nothing writes is a promise nothing keeps. They arrive with the use
-// cases that own them.
+// Of the `policies` column's four documented keys, two are here: the completion policy and the
+// automatic assignment, because the completion and the assignment read them. The other two - the
+// default bucket, capability overrides - stay absent: a field nothing reads and nothing writes is a
+// promise nothing keeps.
 //
 // UpdateContainerPolicies writes both keys, and a collection that has never been configured reads
 // as the defaults - which is why the column starting as `{}` is a special case nowhere above the
@@ -127,8 +126,8 @@ type NewContainerInput struct {
 	CreatedBy shared.ID
 	Now       time.Time
 
-	// Text brings the name and the description to normal form C before they are bounded and
-	// stored (i18n-l10n.md §5, M-07); NewWorkItemInput says why it is handed in.
+	// Text brings the name and the description to normal form C before they are bounded and stored
+	// (i18n-l10n.md §5); NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 
@@ -175,10 +174,10 @@ func NewContainer(in NewContainerInput) (Container, error) {
 		Icon:        strings.TrimSpace(in.Icon),
 		ColorToken:  strings.TrimSpace(in.ColorToken),
 		OrderKey:    in.OrderKey,
-		// Not a parameter: a new collection has no policy configured, and the policy it behaves as is
-		// the default until UpdateContainerPolicies (B-06) says otherwise. Setting it here rather than
-		// leaving the zero value means nothing above this constructor has to know that "" and MANUAL
-		// are the same thing.
+		// Not a parameter: a new collection has no policy configured, and the policy it behaves as
+		// is the default until UpdateContainerPolicies says otherwise. Setting it here rather than
+		// leaving the zero value means nothing above this constructor has to know that "" and
+		// MANUAL are the same thing.
 		CompletionPolicy: DefaultCompletionPolicy,
 		CreatedBy:        in.CreatedBy,
 		CreatedAt:        in.Now,
@@ -382,7 +381,7 @@ func (a ContainerAttributes) IsEmpty() bool {
 // merely accepted: the caller writes nothing, spends no version and announces nothing - the same
 // contract WorkItem.Updated keeps, for the same reason.
 //
-// The normaliser is handed in for the reason NewContainer takes one (M-07).
+// The normaliser is handed in for the reason NewContainer takes one (i18n-l10n.md §5).
 func (c Container) Renamed(
 	attributes ContainerAttributes, form text.Normalizer, at time.Time,
 ) (Container, []FieldChange, error) {

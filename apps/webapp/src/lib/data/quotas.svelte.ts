@@ -17,7 +17,7 @@
  * answering two questions, and the second answer is the first one's.
  *
  * **There is no control to raise a limit *here*.** `/admin/tenants/{id}/quotas` is the installation
- * operator's (`multi-tenancy.md`, 0.6.0 decision 6), and a button the server would refuse is worse
+ * operator's (multi-tenancy.md §4), and a button the server would refuse is worse
  * than no button: the screen names who to ask instead. The operator's own control is on
  * `/instance/workspaces`, where they are looking at every workspace rather than inside one.
  */

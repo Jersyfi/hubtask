@@ -204,7 +204,7 @@ func (w ItemAttachmentWriter) change(
 
 		// The tag is the clock reading the OR-set merges on. It is taken here rather than derived
 		// from `now`, because a merge orders changes against other devices' readings and a wall
-		// clock cannot do that (offline-sync.md §4.1). A push supplies the device's own tag (N-07).
+		// clock cannot do that (offline-sync.md §4.1). A push supplies the device's own tag.
 		tag := setTag(ctx, domain.SetAttachments, w.HLC)
 
 		moved, err := w.apply(ctx, cmd, want, tag)
@@ -344,7 +344,7 @@ func (w ItemAttachmentWriter) recordChange(
 		// The visibility filter a pull applies: the entry's own collection, like every other change
 		// to an entry. A member whose grant is on the collection alone is told about it that way;
 		// filed under the hub, the record would name a container that grant is not on the path
-		// of, and the stream's per-record check would withhold it (#623, offline-sync.md §3.1).
+		// of, and the stream's per-record check would withhold it (offline-sync.md §3.1).
 		ContainerID: item.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         tag,

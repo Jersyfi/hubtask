@@ -89,7 +89,7 @@ export function capabilityVerdict(
  *
  * The three-valued answer again, and for the same reason: "this installation does not offer
  * tasks" and "nobody has told us yet what it offers" look identical on a screen that only knows
- * true and false, and both of them look like a type that simply carries nothing (issue 1020).
+ * true and false, and both of them look like a type that simply carries nothing.
  * `capabilityVerdict` already refuses every capability of an undeclared type — this is what lets
  * a screen say *why* every one of them is refused, once, instead of drawing nothing fourteen
  * times.
@@ -166,7 +166,7 @@ export function childVerdict(
   // Compared as strings, not against the generated union. `ItemType` is an enum in the contract, so
   // `@hubtask/api-client` types it closed — while `domain-model.md` §2 says the set grows with the
   // installation, and "tolerant behaviour towards unknown fields" is a binding client requirement
-  // (roadmap.md phase 5). Widening here is what lets an installation with a fourth type be read by
+  // (offline-sync.md §9.7). Widening here is what lets an installation with a fourth type be read by
   // a client generated before it existed: unknown means refused, never a crash.
   const permittedChildren = profile.allowed_child_types as readonly string[] | undefined;
   if (!permittedChildren?.includes(childType)) {

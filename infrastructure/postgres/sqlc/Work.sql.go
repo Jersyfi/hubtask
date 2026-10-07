@@ -73,7 +73,7 @@ type ClaimDueSoonItemsRow struct {
 }
 
 // The entries whose deadline has come within the lead and have not been announced yet, claimed and
-// stamped in one statement (D-03).
+// stamped in one statement.
 //
 // One statement rather than a select and an update, which is what makes the announcement
 // exactly-once: the stamp is written by the same UPDATE that returns the row, so two passes over
@@ -231,7 +231,7 @@ type CountOpenItemsByAssigneeRow struct {
 	OpenItems  int64
 }
 
-// LEAST_LOADED's material (C-02): how many open entries each candidate carries, tenant-wide,
+// LEAST_LOADED's material: how many open entries each candidate carries, tenant-wide,
 // because a person's load does not stop at a collection's edge. Open means not completed, not in
 // the trash, and not archived by its own stamp - the inherited archive of an ancestor is not
 // consulted, which overcounts a dormant subtree's entries rather than paying a recursive walk on
@@ -306,14 +306,14 @@ type FindContainerRow struct {
 // domain answers, and a query that hid a trashed parent would turn "it is in the trash" into
 // "it does not exist" (I-C2, I-C3).
 //
-// One key of `policies` is read out, not the column: the completion policy has a reader (B-07) and the
+// One key of `policies` is read out, not the column: the completion policy has a reader and the
 // keys without a use case do not, and selecting a value nothing consumes is a promise nothing keeps.
 // `->>` yields NULL for a collection that has never been configured, and coalesce turns that into the
 // empty string - which the domain reads as the default. Coalescing here rather than mapping a nil
 // pointer in the adapter keeps the generated field a plain string, and "unset" one concept instead of
 // two.
 //
-// The auto_assign key of the same document lives in its own row (C-02, see Assignment.sql), and the
+// The auto_assign key of the same document lives in its own row (see Assignment.sql), and the
 // second LEFT JOIN is how it travels with the container: NULL columns for a container without a
 // policy, which the adapter reads as the key being absent. The join lands on migration 0011's unique
 // index, so it costs an index lookup - the same price as the parent join beside it.
@@ -361,8 +361,8 @@ SELECT
   -- The visible custom fields: only the values whose own definition still lives. The hiding
   -- happens here rather than in Go, so that every read of an entry - the find, the list, the
   -- query endpoint - hides a deleted definition's values identically. Identity rather than key,
-  -- because a definition recreated under the same key must not resurrect what the old one held
-  -- (C-07): each value's ref names the definition it was written under (migration 0018), and a
+  -- because a definition recreated under the same key must not resurrect what the old one held:
+  -- each value's ref names the definition it was written under (migration 0018), and a
   -- recreated key is a new definition standing behind nothing it did not write. The values
   -- themselves stay in the row untouched, which is the whole shape of the soft delete.
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
@@ -543,7 +543,7 @@ type FindWorkItemByCalendarUIDRow struct {
 	Version               int32
 }
 
-// The entry a calendar client's UID names (P-07, issue #721). The same columns as FindWorkItem,
+// The entry a calendar client's UID names. The same columns as FindWorkItem,
 // so the adapter maps both through one function; the same rule about the trash, for the same
 // reason. The tenant is the transaction's, through row level security and through the partial
 // unique index the lookup uses - one UID is one entry per workspace and nothing across two.
@@ -620,11 +620,11 @@ type InsertContainerParams struct {
 }
 
 // The name arrives in Unicode normal form C - the constructor brings it there, behind the
-// Normalizer port, and the description with it (i18n-l10n.md §5, M-07): "Übersicht" typed with
+// Normalizer port, and the description with it (i18n-l10n.md §5): "Übersicht" typed with
 // a combining diaeresis and the same word composed are one name to a person, and the unique
 // index has to see them as one name too. normalize() stays here and on the update as the row's
 // own guarantee for a writer that reaches it without the constructor; it is idempotent, so the
-// two cannot disagree. From I-W7 to M-07 it was the only place the form was applied.
+// two cannot disagree.
 func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) error {
 	_, err := q.db.Exec(ctx, insertContainer,
 		arg.ID,
@@ -676,19 +676,18 @@ type InsertWorkItemParams struct {
 
 // The title arrives in Unicode normal form C: the constructor brings it there, behind the
 // Normalizer port, so that what the domain answers, the change set records and the row holds are
-// one string (i18n-l10n.md §5, M-07). normalize() stays on the insert as the row's own guarantee
+// one string (i18n-l10n.md §5). normalize() stays on the insert as the row's own guarantee
 // for a writer that reaches it without the constructor - a restore, a copy of a row written
-// before the form was applied - and as what it was from I-W7 to M-07: the only place the form
-// was applied. It is idempotent, so the two cannot disagree.
+// before the form was applied. It is idempotent, so the two cannot disagree.
 //
 // The fields this use case does not own are absent rather than defaulted: labels, members,
 // assignee, due date, cover, custom fields and the recurrence rule are written by the use cases
 // that own them, and their columns carry NULL until then. The due date a create declares reaches
-// the row through that writer in the same transaction (D-01), exactly as an assignee does; the
+// the row through that writer in the same transaction, exactly as an assignee does; the
 // start is the create's own, a plain attribute beside the notes.
 //
 // The calendar UID is the create's own too, and only the create's: it is the address a calendar
-// client chose for the entry (P-07, issue #721), set once here and by no other statement.
+// client chose for the entry, set once here and by no other statement.
 func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) error {
 	_, err := q.db.Exec(ctx, insertWorkItem,
 		arg.ID,
@@ -759,7 +758,7 @@ type InsertWorkItemCopyParams struct {
 	CreatedAt       pgtype.Timestamptz
 }
 
-// A copy of an entry: a new row that carries the description of another one (C-11).
+// A copy of an entry: a new row that carries the description of another one.
 //
 // Its own statement rather than more columns on InsertWorkItem, because the two write different
 // things. A create writes what its use case owns and leaves every other column NULL, deliberately,
@@ -778,12 +777,11 @@ type InsertWorkItemCopyParams struct {
 // reported (I-W6), not here.
 //
 // The jumble provenance is absent because no use case writes it yet: it is NULL on every row this
-// installation has, so carrying it would be copying a value nothing can have set. Whichever
-// milestone gives it a writer gives it a line here in the same change - a copy that silently lost
-// somebody's due date would be worse than the one it lost. The schedule left that list with D-01,
-// which is why its four columns are here.
+// installation has, so carrying it would be copying a value nothing can have set. A change that
+// gives it a writer gives it a line here - a copy that silently lost somebody's due date would be
+// worse than the one it lost. The schedule has writers, which is why its four columns are here.
 //
-// recurrence_rule_id has a writer since D-04 and is deliberately *not* carried (D-05). It says
+// recurrence_rule_id has a writer and is deliberately *not* carried. It says
 // which series an entry belongs to, and a copy belongs to no series: duplicating a recurring task
 // gives somebody a task like it, not a second template producing the same occurrences. The
 // materialisation writes the pointer itself, through the statement that owns it, precisely because
@@ -935,7 +933,7 @@ type ListContainersRow struct {
 // combinations return an empty page: a collection always has a parent, and a hub never does. That is
 // the filters agreeing, not a special case worth coding.
 //
-// Trashed rows are never here - the trash is its own view (B-10). Archived ones are, when the caller
+// Trashed rows are never here - the trash is its own view. Archived ones are, when the caller
 // asks: an archived collection is still a collection, and hiding it would make it unreachable. The
 // filter reads the row's own stamp rather than the effective one on purpose - a collection is not
 // hidden from the level because the hub above it was archived, since the client asking for that hub's
@@ -1028,7 +1026,7 @@ WHERE wi.collection_id = $1::uuid
   AND wi.deleted_at IS NULL
   AND ($3::boolean OR wi.archived_at IS NULL)
   -- The entries the caller may see, when that is fewer than the level: null is no restriction at
-  -- all, which is what every caller holding a role on the collection passes (C-04).
+  -- all, which is what every caller holding a role on the collection passes.
   AND (
     $4::uuid[] IS NULL
     OR wi.id = ANY($4::uuid[])
@@ -1097,7 +1095,7 @@ type ListWorkItemsRow struct {
 // One level of one collection, in its manual order: the items directly in the collection when no
 // parent is named, that item's children when one is. Anchored to a collection because an unanchored
 // list of every item in a tenant is an unindexed scan, and every filter beyond one level is what
-// POST /items:query exists for (B-12).
+// POST /items:query exists for.
 //
 // The collection is compared as well as the parent, even when the parent decides the level on its
 // own: it is the leading column of wi_level_order_idx, and a query that dropped it would fall back to
@@ -1246,7 +1244,7 @@ WHERE due_at IS NOT NULL
 
 // When this tenant next owes an announcement: the lead before a deadline that has not been
 // announced as approaching, or the deadline itself where only the overdue announcement is left.
-// NULL when it owes none, which is half of what lets the firing job finish (D-03).
+// NULL when it owes none, which is half of what lets the firing job finish.
 func (q *Queries) NextDueAnnouncement(ctx context.Context, leadSeconds float64) (pgtype.Timestamptz, error) {
 	row := q.db.QueryRow(ctx, nextDueAnnouncement, leadSeconds)
 	var next_at pgtype.Timestamptz
@@ -1303,7 +1301,7 @@ type OrderKeyNeighboursRow struct {
 //
 // "Exclude nothing" has to be expressible, because a create has no row to leave out: the parameter is
 // nullable and the comparison is IS DISTINCT FROM. With `<>` a NULL there is a predicate that is NULL
-// for every row, which empties this list and reports an anchor that is present as missing (issue 992).
+// for every row, which empties this list and reports an anchor that is present as missing.
 func (q *Queries) OrderKeyNeighbours(ctx context.Context, arg OrderKeyNeighboursParams) (OrderKeyNeighboursRow, error) {
 	row := q.db.QueryRow(ctx, orderKeyNeighbours,
 		arg.CollectionID,
@@ -1372,7 +1370,7 @@ type SetContainerAttributesParams struct {
 	ExpectedVersion int32
 }
 
-// A container's own descriptive fields: what RenameContainer may change (B-06).
+// A container's own descriptive fields: what RenameContainer may change.
 //
 // Every column is written on every call, not only the ones that moved. The application has already
 // decided what the row should say - it read the container, applied the update and refused what the
@@ -1584,7 +1582,7 @@ type SetWorkItemAttributesParams struct {
 	ExpectedVersion int32
 }
 
-// The item's own fields: what UpdateWorkItem may change in 0.2.0 (B-05).
+// The item's own fields: what UpdateWorkItem may change.
 //
 // Every column is written on every call, not only the ones that moved. The application has already
 // decided what the row should say - it read the item, applied the update and refused what the capability
@@ -1773,11 +1771,11 @@ type SetWorkItemDueDateParams struct {
 // Its own statement rather than columns added to SetWorkItemAttributes, for the reason the
 // assignee has one: a due date is one decision about one date, and a statement that wrote the
 // title alongside it would make moving a deadline spend the version of a rename nobody asked
-// for. The three columns travel together because none of them means anything alone (D-01,
-// i18n-l10n.md §4) - which fields *moved* is the application's answer, recorded in the change
+// for. The three columns travel together because none of them means anything alone
+// (i18n-l10n.md §4) - which fields *moved* is the application's answer, recorded in the change
 // log per field; the row simply says what is now true.
 //
-// The two announcement stamps are cleared with it (D-03): a date that moves is a new deadline,
+// The two announcement stamps are cleared with it: a date that moves is a new deadline,
 // which may be approached and missed again, and a stamp left standing would silence the
 // announcement for it. Cleared here rather than by the caller, because they are bookkeeping about
 // this column and nothing outside this statement writes it.
@@ -1836,7 +1834,7 @@ type SetWorkItemOriginParams struct {
 	ID             pgtype.UUID
 }
 
-// The provenance a conversion records (G-10): which jumble entry this item came from. Set exactly
+// The provenance a conversion records: which jumble entry this item came from. Set exactly
 // once - the guard is in the WHERE, so a second writer changes nothing - and never cleared: where
 // an item came from does not stop being true.
 func (q *Queries) SetWorkItemOrigin(ctx context.Context, arg SetWorkItemOriginParams) (int64, error) {
@@ -1973,7 +1971,7 @@ type SubtreeOfWorkItemRow struct {
 }
 
 // Everything below one entry, the entry itself excluded: what a copy of a subtree reads before it
-// writes anything (C-11).
+// writes anything.
 //
 // The prefix match is MoveWorkItemSubtree's, and for the same reasons: every descendant's path
 // begins with the entry's own, `LIKE prefix || '%'` is the form wi_path_idx
@@ -1983,7 +1981,7 @@ type SubtreeOfWorkItemRow struct {
 //
 // Trashed rows are left out. They are on their way out of the system, and a copy that carried them
 // would put back what somebody deleted; an archived one is copied, because it is a place rather
-// than a deletion and the copy keeps it (C-11).
+// than a deletion and the copy keeps it.
 //
 // Ordered by depth first, so that a caller walking the rows always meets a parent before its
 // children and can carry the mapping from old identifier to new one forwards in one pass. The rank

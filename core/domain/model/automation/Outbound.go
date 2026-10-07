@@ -9,10 +9,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// ActionHTTPRequest is the outbound call (G-09, automation.md §1.3) - the riskiest surface in the
-// milestone, and the reason its parameters are read here in full rather than left to the run: a
-// URL nobody can dial and a method nobody serves are answers their author needs at the write, and
-// unlike a use case's parameters, none of these can be supplied by the run later.
+// ActionHTTPRequest is the outbound call (automation.md §1.3, security.md §10) - the riskiest
+// surface automation has, and the reason its parameters are read here in full rather than left to
+// the run: a URL nobody can dial and a method nobody serves are answers their author needs at the
+// write, and unlike a use case's parameters, none of these can be supplied by the run later.
 const ActionHTTPRequest = "HTTP_REQUEST"
 
 // HTTPMethods is the closed set an outbound call may use. No CONNECT, no TRACE, no arbitrary
@@ -23,9 +23,9 @@ var HTTPMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE"}
 // channel answers it, and in what a client sends back unchanged on an edit to mean "keep it".
 const SecretMask = "***"
 
-// SealedSecret is a header secret as the rule stores it: ciphertext under E-02's sealing, never
-// the value. The purpose binds it to the rule it belongs to, so a ciphertext lifted out of one
-// rule and dropped into another no longer opens.
+// SealedSecret is a header secret as the rule stores it: ciphertext under the envelope encryption
+// of security.md §8, never the value. The purpose binds it to the rule it belongs to, so a
+// ciphertext lifted out of one rule and dropped into another no longer opens.
 type SealedSecret struct {
 	// Ciphertext is base64, because it lives inside the rule's JSON document.
 	Ciphertext string

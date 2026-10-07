@@ -75,11 +75,11 @@
     collectionId: string;
     /**
      * The entry whose subtree this list is, instead of the collection's top level (ADR-0061,
-     * backlog decision 6): the same flatten, the same rows, the same menus, mounted one level
+     * design-system.md §11.8): the same flatten, the same rows, the same menus, mounted one level
      * down. With a root, the top level is the root's children, "add" creates under the root with
      * the types the manifest lets it take, direct children open and deeper levels start closed,
-     * and the expansion is kept per entry on this device (decision 7). The id is what decision 6
-     * calls `rootId`; the type and the parent travel with it because the add form and "move out"
+     * and the expansion is kept per entry on this device (design-system.md §11.10). The id is what design-system.md
+     * §11.8 calls `rootId`; the type and the parent travel with it because the add form and "move out"
      * need them and the list should not read the entry a second time.
      */
     root?: Pick<WorkItem, 'id' | 'type' | 'parent_id'>;
@@ -90,7 +90,7 @@
     /**
      * `LIST_EXPANDED` rather than `LIST_COLLAPSED`: every row that takes children shows them.
      *
-     * The layout is not a second component and not a prop on the row — F2-09's note — it is
+     * The layout is not a second component and not a prop on the row — it is
      * whether the children are shown, and expanding is still what fetches them. So this opens the
      * rows as they arrive rather than reading a subtree the reader has not asked for.
      */
@@ -136,7 +136,7 @@
   /** The types the top level of this list may hold: the collection's roots, or the root's children. */
   const topTypes = () => (root ? childTypes(root.type) : rootTypes());
 
-  /** Where this device keeps which levels of a subtree are open (decision 7). */
+  /** Where this device keeps which levels of a subtree are open (design-system.md §11.10). */
   const expansionKey = $derived(root ? `hubtask.subtree.${root.id}` : undefined);
 
   function rememberedExpansion(): string[] | undefined {
@@ -170,10 +170,10 @@
   /** Whether the subtree's default - direct children open - has been applied once they arrived. */
   let hasDefaultExpansion = rememberedExpansion() !== undefined;
 
-  // `untrack` for the reason F2-08 records: the listener writes the store and writing it reads it,
+  // `untrack`, because the listener writes the store and writing it reads it,
   // so an effect that subscribes while tracking that read cancels itself before the answer lands.
   // A subtree is read whole - every level under the root in one query, unfiltered as every child
-  // level is (issue 877: a level per branch was a request per branch, twice after every write).
+  // level is: a level per branch would be a request per branch, twice after every write.
   $effect(() => {
     const wanted = collectionId;
     const asked = query;
@@ -182,7 +182,7 @@
   });
 
   // In a subtree, the direct children that take children start open and deeper levels closed
-  // (decision 7) - applied once, when the first level has arrived, unless this device remembers
+  // (design-system.md §11.10) - applied once, when the first level has arrived, unless this device remembers
   // a choice. Kept whenever it changes, and only for a subtree.
   $effect(() => {
     if (!root || hasDefaultExpansion) return;
@@ -344,7 +344,7 @@
     return { done: children.filter((child) => child.completion?.is_completed).length, total: children.length };
   }
 
-  /** The moment standing, and which row of this level carries it (F6-13). */
+  /** The moment standing, and which row of this level carries it. */
   const moment = $derived(celebration.current);
   const slotRowId = $derived.by(() => {
     if (!moment) return undefined;
@@ -407,7 +407,7 @@
   const languages = $derived(textLanguages(manifest.value));
 
   /**
-   * The page head's primary action (F9-07): opens the form at the list's end and focuses into it,
+   * The page head's primary action: opens the form at the list's end and focuses into it,
    * exactly as the button at the end does. Exported so the view can ask without owning the
    * form's state, which is the list's.
    */
@@ -1313,7 +1313,7 @@
     white-space: nowrap;
   }
 
-  /* The rows and the level are the slots a moment sits over (F6-13). */
+  /* The rows and the level are the slots a moment sits over. */
   .level { position: relative; }
   .row[data-celebrating] { position: relative; }
 

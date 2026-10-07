@@ -301,7 +301,7 @@ func TestAPlaintextEndpointMakesAPlaintextTargetWhateverTheKindIsCalled(t *testi
 	}
 }
 
-// The name and the region note are stored in normal form C (i18n-l10n.md §5, M-07).
+// The name and the region note are stored in normal form C (i18n-l10n.md §5).
 func TestATargetsNameAndNoteAreStoredInNormalFormC(t *testing.T) {
 	target, err := domain.NewTarget(input(func(in *domain.NewTargetInput) {
 		in.Name, in.RegionNote = "Bu\u0308ro-Backup", "Steht in Ko\u0308ln"

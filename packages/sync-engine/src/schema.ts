@@ -4,9 +4,8 @@
 // The local store's shape, as types and nothing else.
 //
 // ADR-0033 §2 names the store, the mutation queue, HLC generation and cursor handling as this
-// package's work. F1 writes down the *shape* and builds none of the behaviour, and that is the
-// honest split: the queue and the HLC implement `:pull` and `:push`, and writing a client for a
-// protocol that has no server yet means writing it twice (`offline-sync.md` §9 arrives in F6).
+// package's work. This file holds the *shape* and none of the behaviour: the queue and the HLC
+// implement `:pull` and `:push` elsewhere, against the client requirements of offline-sync.md §9.
 //
 // Types with no implementation are still worth having now. They are what the Storage port is
 // parameterised over, they say what the collections are called before two people name them
@@ -41,7 +40,7 @@ export interface StoredRecord<T> {
   /** The clock of the last record that touched this copy, for a device comparing its own. */
   readonly hlc?: string;
   /**
-   * A copy the device wrote itself and the server has not yet confirmed (F6-05): the prediction
+   * A copy the device wrote itself and the server has not yet confirmed: the prediction
    * a queued mutation made. A screen marks it; the server's answer clears it.
    */
   readonly pending?: true;
@@ -127,7 +126,7 @@ export interface RejectedMutation {
 
 /**
  * A field that lost a merge (§5): both values, and the comment the server filed the displaced
- * one in. Kept beside the entry for `ConflictResolver` (F6-06) to show.
+ * one in. Kept beside the entry for `ConflictResolver` to show.
  */
 export interface ConflictRecord {
   readonly id: string;
@@ -167,7 +166,7 @@ export type AccountSummary = components['schemas']['AccountSummary'];
 /** What the installation says about itself. The frame configures from it and hard-codes nothing. */
 export type Capabilities = components['schemas']['Capabilities'];
 /**
- * The deep report of `/meta/health`, in one of its two shapes (K-06).
+ * The deep report of `/meta/health`, in one of its two shapes.
  *
  * A credential holding `admin:tenants` is the installation's operator and receives the whole
  * report. Everybody else receives `status`, `version` and `degraded_features` - which is what the
@@ -211,7 +210,7 @@ export type Bucket = components['schemas']['Bucket'];
 export type Comment = components['schemas']['Comment'];
 export type CommentPage = components['schemas']['CommentPage'];
 /**
- * One thing AI proposed about one entry, with its provenance (J-05). A record, and nothing more:
+ * One thing AI proposed about one entry, with its provenance. A record, and nothing more:
  * it becomes a change only when somebody accepts it as their own write. `payload` is data in the
  * shape the kind fixes and never an instruction - the client renders it and acts on none of it.
  */
@@ -274,7 +273,7 @@ export type IdentityProvider = components['schemas']['IdentityProvider'];
  */
 export type AiProvider = components['schemas']['AiProvider'];
 /**
- * An entry read in another language (M-11): display only, stored nowhere, with the provenance
+ * An entry read in another language: display only, stored nowhere, with the provenance
  * every AI output carries. Not a record - no id, no status, nothing to accept.
  */
 export type AiTranslation = components['schemas']['AiTranslation'];
@@ -295,7 +294,7 @@ export type ProviderWithdrawal = components['schemas']['ProviderWithdrawal'];
 /** The preset a provider was configured from, which decides the mark its button draws (ADR-0069). */
 export type IdentityProviderKind = components['schemas']['IdentityProviderKind'];
 /**
- * How freely an arriving subject may claim an account that already exists (SI-10). The one axis with
+ * How freely an arriving subject may claim an account that already exists. The one axis with
  * a security answer: creating an account gives somebody an empty desk, and claiming one gives them
  * somebody else's.
  */
@@ -334,7 +333,7 @@ export type ItemQueryResult = components['schemas']['ItemQueryResult'];
  * One change record, as `/stream` sends it, as `:pull` returns it and as `:snapshot` writes it.
  *
  * It is the server's decision, already taken, and the engine transcribes it to the replica
- * (`replica.ts`, F6-03) — a whole object, one field, a set element, a tombstone, a revocation —
+ * (`replica.ts`) — a whole object, one field, a set element, a tombstone, a revocation —
  * and hands it to the application's path mapping as a signal to re-read. Nothing in it is merged
  * with anything: merging is the server's (ADR-0021, `offline-sync.md` §4). The stream also carries
  * ordering and audit fields (`seq`, `occurred_at`, `actor_id`) that no client decision depends on.
@@ -472,13 +471,13 @@ export type NotificationPreference = components['schemas']['NotificationPreferen
 export type NotificationPreferenceList = components['schemas']['NotificationPreferenceList'];
 export type NotificationPreferenceUpdate = components['schemas']['NotificationPreferenceUpdate'];
 
-/** An import from another system (P-08): the kinds the contract names, the request, and the run with its report. */
+/** An import from another system: the kinds the contract names, the request, and the run with its report. */
 export type ImportKind = components['schemas']['ImportKind'];
 export type ImportRequest = components['schemas']['ImportRequest'];
 export type ImportRun = components['schemas']['ImportRun'];
 
 /**
- * The level above the workspaces, as its dashboard reads it (SI-17, ADR-0070 §5).
+ * The level above the workspaces, as its dashboard reads it (ADR-0070 §5).
  *
  * Counts, states and limits — never rows. The tenant boundary is a database policy rather than a
  * role, and none of these answers goes around it: the overview is five integers, the journal holds

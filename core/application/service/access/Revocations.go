@@ -23,16 +23,15 @@ type Permitter interface {
 	Permits(ctx context.Context, actor appshared.ActorContext, request Request) (bool, error)
 }
 
-// Revocations tells the devices of a person that their read access has ended (N-08,
-// offline-sync.md §6).
+// Revocations tells the devices of a person that their read access has ended (offline-sync.md §6).
 //
-// A phone that holds a hub its owner was removed from keeps the hub until something says
-// otherwise, and nothing did: `RevokeMembership` and the group changes wrote their audit entry and
-// their event and told no device. This writes the one record that says it - an `ACCESS_REVOKED`
-// entry at the container root, `actor_id` naming the account that lost access - and it is
-// written where the *effective* access ends: after the removal, inside its transaction, the
-// question "may this account still read here?" is put to the same resolution every request
-// uses. A person who loses a group but keeps a direct grant loses nothing and is told nothing.
+// A phone that holds a hub its owner was removed from keeps the hub until something says otherwise,
+// and neither the audit entry nor the event that `RevokeMembership` and the group changes write
+// tells a device. This writes the one record that says it - an `ACCESS_REVOKED` entry at the
+// container root, `actor_id` naming the account that lost access - and it is written where the
+// *effective* access ends: after the removal, inside its transaction, the question "may this
+// account still read here?" is put to the same resolution every request uses. A person who loses a
+// group but keeps a direct grant loses nothing and is told nothing.
 //
 // The record is addressed to a person rather than filtered by permission, which is why it is the
 // one record the stream's filter does not ask the container about (sync.StreamChanges).

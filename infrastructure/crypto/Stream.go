@@ -32,7 +32,7 @@ import (
 //
 // This is the construction Hoang, Reyhanitabar, Rogaway and Vizár published as STREAM. It is
 // written out here rather than pulled in because it is thirty lines and a dependency is a supply
-// chain decision (CLAUDE.md, "What you do not decide yourself").
+// chain decision (security.md §11).
 const (
 	streamVersion = 1
 

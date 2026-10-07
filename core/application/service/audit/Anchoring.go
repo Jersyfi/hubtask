@@ -29,7 +29,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// External anchoring (A-2, P-13, audit.md §3): the chain proves tampering inside the database, and
+// External anchoring (A-2, audit.md §3): the chain proves tampering inside the database, and
 // only a copy of its end kept outside says anything against somebody who can rewrite the whole of
 // it. Once a day a job reads the chain's end and writes it to a backup target the workspace named,
 // and `:verify` reads the last copy back and compares.
@@ -277,7 +277,7 @@ func digestOf(content []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// AnchorCheck is what reading the last anchor back found (P-13): the moment and the sequence
+// AnchorCheck is what reading the last anchor back found: the moment and the sequence
 // number it sealed, whether the external copy holds the chain end this database computes there,
 // and why not where it could not be compared.
 type AnchorCheck struct {

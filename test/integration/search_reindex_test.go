@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The search remembers which configuration built each document (M-09, ADR-0034): the trigger
+// The search remembers which configuration built each document (ADR-0034): the trigger
 // fills it beside the document, a row written before the column existed is stale, and the
 // rebuild rewrites exactly the stale rows of the workspace the transaction is bound to.
 func TestTheSearchRemembersWhichConfigurationBuiltEachDocument(t *testing.T) {
@@ -53,10 +53,10 @@ func TestTheSearchRemembersWhichConfigurationBuiltEachDocument(t *testing.T) {
 		}
 	}
 	rows.Close()
-	// The **recipe**, not the configuration: since ADR-0066 a document carries the entry's own
+	// The **recipe**, not the configuration: under ADR-0066 a document carries the entry's own
 	// configuration and the word forms beside it, and the name says so. Japanese resolves to
-	// `simple`, which needs no second copy and keeps the plain name - so those rows are not made
-	// stale by that change and are not rewritten.
+	// `simple`, which needs no second copy and keeps the plain name - so those rows are not stale
+	// and are not rewritten.
 	if configurations[english.String()] != "english+simple" || configurations[german.String()] != "german+simple" ||
 		configurations[japanese.String()] != "simple" {
 		t.Errorf("the trigger recorded %v", configurations)

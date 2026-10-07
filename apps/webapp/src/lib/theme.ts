@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The theme, set deliberately on the document (W-07). The generated stylesheet has no `:root`
+ * The theme, set deliberately on the document. The generated stylesheet has no `:root`
  * fallback on purpose — a document without `data-theme` looks broken at once rather than
  * quietly picking a mode nobody chose (ADR-0029, the design-system README). So this module is
  * the one place that sets it, and it follows the system preference.
@@ -14,7 +14,7 @@
  * a bright monitor — which is why the operating system exposes it per device and why following it
  * is the right default rather than a placeholder.
  *
- * The visible System / Light / Dark switch (F5-12, `ProfileView`) keeps its choice on the device,
+ * The visible System / Light / Dark switch (`ProfileView`) keeps its choice on the device,
  * in the browser's storage until the local persistence port ADR-0033 defers arrives with the
  * shells: `readThemeChoice` and `storeThemeChoice` are that seam, and `startTheme` is what
  * `main.ts` and the switch both call. `followSystemTheme` returns its stop function for exactly

@@ -26,7 +26,7 @@ type AcceptInvitationParams struct {
 	ID  pgtype.UUID
 }
 
-// The provider's half of redeeming an invitation (SC-24): the invited account becomes ACTIVE and
+// The provider's half of redeeming an invitation: the invited account becomes ACTIVE and
 // the invitation is spent, in one statement - unless it ran out, which the provider's word does not
 // renew. No password is set: the person signs in through the provider.
 func (q *Queries) AcceptInvitation(ctx context.Context, arg AcceptInvitationParams) (int64, error) {
@@ -187,7 +187,7 @@ type AdministratorsAlongPathParams struct {
 	ScopeIds []pgtype.UUID
 }
 
-// Who administers anywhere on this path, for the retention advance warning (R-1, G-12).
+// Who administers anywhere on this path, for the retention advance warning (R-1).
 //
 // The mirror image of MembershipsAlongPath: that one asks what one account holds, this one asks
 // who holds something. The roles are named here rather than passed in, because "the people who can
@@ -658,7 +658,7 @@ type ListGroupsRow struct {
 	Version     int32
 }
 
-// The workspace's groups by name (F3-01). The keyset is (lower(name), id) rather than an offset,
+// The workspace's groups by name. The keyset is (lower(name), id) rather than an offset,
 // so that a page boundary survives a concurrent insert (api-guidelines.md §4); `id` is the
 // tiebreak the guidelines require, and lower() is the order the unique index already keeps. One row
 // more than the page size is read, and the caller reports has_more from it.
@@ -716,7 +716,7 @@ type ListMembershipsAtScopeRow struct {
 	Role      MembershipRole
 }
 
-// What is granted at one scope and nothing granted elsewhere (F3-01). The tenant scope carries no
+// What is granted at one scope and nothing granted elsewhere. The tenant scope carries no
 // identifier and is matched by its type alone; every other scope by type and identifier, which is
 // what IS NOT DISTINCT FROM does for the NULL. Newest first by identifier: UUIDv7 is time-ordered,
 // so the primary key is the grant order and the keyset needs no second column. One row more than
@@ -823,7 +823,7 @@ type MembershipsOfGroupRow struct {
 }
 
 // Every grant a group holds, for the revocation that has to know what its members are about to
-// lose (N-08). Unpaged: a group holds a handful of roles, and the caller reads them before the
+// lose. Unpaged: a group holds a handful of roles, and the caller reads them before the
 // group's rows are gone. The tenant boundary is the transaction's (ADR-0010).
 func (q *Queries) MembershipsOfGroup(ctx context.Context, groupID pgtype.UUID) ([]MembershipsOfGroupRow, error) {
 	rows, err := q.db.Query(ctx, membershipsOfGroup, groupID)
@@ -955,7 +955,7 @@ type SharedItemsInCollectionParams struct {
 // The entries inside one collection that the account holds a membership on directly, or through
 // one of its groups.
 //
-// What "shared with me" means (domain-model.md §3.2, C-04): a membership at ITEM scope reaches
+// What "shared with me" means (domain-model.md §3.2): a membership at ITEM scope reaches
 // that entry and nothing else, so the answer to "which of this collection's entries may I see"
 // is the list of those scope identifiers. It is asked only when the account holds no role on the
 // collection itself - the ordinary case answers the whole level in one check and never runs this.

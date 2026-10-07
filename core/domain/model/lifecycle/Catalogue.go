@@ -34,9 +34,9 @@ const (
 	ActionArchive Action = "ARCHIVE"
 	// ActionTrash puts the object in the trash, where the trash's own period then applies to it.
 	ActionTrash Action = "TRASH"
-	// ActionAnonymize strips what identifies a person and keeps the rest. It belongs to the
-	// erasure machinery of E-10 rather than to this engine, and until that exists a rule asking
-	// for it is refused rather than treated as a deletion.
+	// ActionAnonymize strips what identifies a person and keeps the rest. It belongs to the erasure
+	// of a data subject request (data-protection.md §4) rather than to this engine: no kind
+	// performs it, so a rule asking for it is refused rather than treated as a deletion.
 	ActionAnonymize Action = "ANONYMIZE"
 	// ActionHardDelete removes the object for good, with the journal entry and the tombstone that
 	// make the removal survive a restore and a stale device.
@@ -171,8 +171,7 @@ var catalogue = []Kind{
 	{Name: KindComment, Anchor: AnchorCreatedAt},
 	{Name: KindAttachment, Anchor: AnchorCreatedAt},
 	{
-		// The jumble (G-10). Ninety days from the arrival, and the closed-set change D-06
-		// predicted: the kind was named here with nothing behind it until the inbox existed.
+		// The jumble. Ninety days from the arrival.
 		//
 		// No marking phase, for the trash's reason turned around. An entry has no grace period to
 		// announce into - nobody can take one back out of a period the way `:retain` takes an item
@@ -191,11 +190,11 @@ var catalogue = []Kind{
 		Actions: []Action{ActionHardDelete},
 	},
 	{
-		// What AI proposed (J-05). Thirty days from the moment it was recorded, and the shortest
-		// default in this catalogue on purpose: a suggestion is about a state of an entry, and an
-		// entry's state does not stay still. One nobody answered in a month is one about a task
-		// that has moved on, and keeping it would be keeping an inbox of proposals nobody can act
-		// on any more.
+		// What AI proposed. Thirty days from the moment it was recorded, and the shortest default
+		// in this catalogue on purpose: a suggestion is about a state of an entry, and an entry's
+		// state does not stay still. One nobody answered in a month is one about a task that has
+		// moved on, and keeping it would be keeping an inbox of proposals nobody can act on any
+		// more.
 		//
 		// Both decided states age out with the proposals. An accepted suggestion has already
 		// become the entry's own history, which is where "why does this task say that" is answered
@@ -213,9 +212,9 @@ var catalogue = []Kind{
 	{Name: KindRuleRun, Anchor: AnchorStartedAt, DefaultDays: 30},
 	{Name: KindWebhookDelivery, Anchor: AnchorCreatedAt, DefaultDays: 30},
 	{
-		// The outbox's own rows (G-02). ADR-0007's second countermeasure and, until it existed,
-		// the one table in this schema that only ever grew: an event's job is done the moment
-		// every consumer has had it, and the row lives on afterwards for the day somebody has to
+		// The outbox's own rows - ADR-0007's second countermeasure, without which the outbox is the
+		// one table in this schema that only ever grows: an event's job is done the moment every
+		// consumer has had it, and the row lives on afterwards for the day somebody has to
 		// reconstruct what was published.
 		//
 		// Seven days, the shortest default in the catalogue. It is a debugging aid rather than a
@@ -225,43 +224,42 @@ var catalogue = []Kind{
 		Actions: []Action{ActionHardDelete},
 	},
 	{
-		// Sessions (H-01): the rows sign-in opens, aged out once they are over - run out or
-		// revoked - rather than a second sweeper beside the engine, exactly as the schema
-		// comment promised in 0001_init. No marking phase, the trash's reason turned around:
-		// nobody can take an expired session back out, so there is nothing to announce into.
+		// Sessions: the rows sign-in opens, aged out once they are over - run out or revoked - by
+		// the engine rather than by a second sweeper beside it. No marking phase, the trash's
+		// reason turned around: nobody can take an expired session back out, so there is nothing to
+		// announce into.
 		Name: KindSession, Anchor: AnchorLastSeenAt, DefaultDays: 30,
 		Actions: []Action{ActionHardDelete},
 	},
 	{
-		// The devices that synchronise (N-03). offline-sync.md §6: a device that does not check
-		// in for longer than the configured period loses its refresh token and has to
-		// re-authenticate, its local cache discarded in the process - so the row it held is over
-		// too, and the sweep revokes the session the device last synchronised under before it
-		// removes the row. Thirty days, §6's default; a device forgotten by its owner ages out
-		// the same way. No marking phase, the session's reason: a device is not an entry, and
-		// there is nobody to announce to but the device that is not there.
+		// The devices that synchronise. offline-sync.md §6: a device that does not check in for
+		// longer than the configured period loses its refresh token and has to re-authenticate, its
+		// local cache discarded in the process - so the row it held is over too, and the sweep
+		// revokes the session the device last synchronised under before it removes the row. Thirty
+		// days, §6's default; a device forgotten by its owner ages out the same way. No marking
+		// phase, the session's reason: a device is not an entry, and there is nobody to announce to
+		// but the device that is not there.
 		Name: KindDevice, Anchor: AnchorLastSeenAt, DefaultDays: 30,
 		Actions: []Action{ActionHardDelete},
 	},
 	{
-		// The synchronisation's own records (N-09, offline-sync.md §7): the change log, the
-		// operation log and the tombstones, on one clock - the offline window, 90 days by
-		// default. One kind for the three because the reason is one: a change log emptied
-		// before the window elapses would let a device that was offline recreate what was
-		// deleted, an operation log emptied sooner would let its first push apply twice, and a
-		// tombstone kept shorter would not be there to say so. The lower bound is the window
-		// itself, for the same reason; a tenant may keep the records longer and never shorter.
-		// The change log's months fall as partitions (H-09's duty), the other two by the tenant's
-		// sweep. No marking phase: nothing here is anybody's work.
+		// The synchronisation's own records (offline-sync.md §7): the change log, the operation log
+		// and the tombstones, on one clock - the offline window, 90 days by default. One kind for
+		// the three because the reason is one: a change log emptied before the window elapses would
+		// let a device that was offline recreate what was deleted, an operation log emptied sooner
+		// would let its first push apply twice, and a tombstone kept shorter would not be there to
+		// say so. The lower bound is the window itself, for the same reason; a tenant may keep the
+		// records longer and never shorter. The change log's months fall as partitions, the other
+		// two by the tenant's sweep. No marking phase: nothing here is anybody's work.
 		Name: KindSyncLog, Anchor: AnchorOccurredAt, DefaultDays: 90, MinDays: 90,
 		Actions: []Action{ActionHardDelete},
 	},
 	{
-		// 400 days is a decision rather than a placeholder since H-13 (audit.md §9, A-1): a year
-		// plus a quarter, so that an annual review still reaches the start of the year it is
-		// reviewing. No action, because nothing in this build removes an audit entry - the trail
-		// is pseudonymised rather than deleted (audit.md §6), and a kind with no sweeper is
-		// listed here rather than hidden so that configuring one is refused honestly.
+		// 400 days is a decision rather than a placeholder (audit.md §1): a year plus a quarter, so
+		// that an annual review still reaches the start of the year it is reviewing. No action,
+		// because nothing in this build removes an audit entry - the trail is pseudonymised rather
+		// than deleted (audit.md §6), and a kind with no sweeper is listed here rather than hidden
+		// so that configuring one is refused honestly.
 		Name: KindAudit, Anchor: AnchorOccurredAt, DefaultDays: 400,
 	},
 	{Name: KindMediaOrphan, Anchor: AnchorCreatedAt, DefaultDays: 7},
@@ -281,8 +279,8 @@ const (
 	KindActivityEntry   DataKind = "ACTIVITY_ENTRY"
 	KindRuleRun         DataKind = "RULE_RUN"
 	KindWebhookDelivery DataKind = "WEBHOOK_DELIVERY"
-	// KindOutboxEvent is how long a dispatched event stays readable after every consumer has
-	// had it (G-02, ADR-0007's second countermeasure).
+	// KindOutboxEvent is how long a dispatched event stays readable after every consumer has had it
+	// (ADR-0007's second countermeasure).
 	KindOutboxEvent           DataKind = "OUTBOX_EVENT"
 	KindSession               DataKind = "SESSION"
 	KindDevice                DataKind = "DEVICE"

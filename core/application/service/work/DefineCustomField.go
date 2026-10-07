@@ -67,7 +67,7 @@ type DefineCustomField struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Text brings the options and a TEXT value to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the options and a TEXT value to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 

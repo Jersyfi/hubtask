@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package calendar renders RFC 5545 documents (D-08).
+// Package calendar renders RFC 5545 documents.
 //
 // It is an inbound adapter's business, not the core's: an .ics file is a wire format, and the
 // application layer answers entries rather than files (project-structure.md §3, which names this

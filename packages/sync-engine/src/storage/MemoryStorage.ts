@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The store in memory: what the tests and the conformance runner use (F6-08), and what a runtime
+// The store in memory: what the tests and the conformance runner use, and what a runtime
 // with no durable storage falls back to. It keeps exactly the port's promises and nothing more,
 // which is what makes it the reference the shared storage test holds every other store to.
 

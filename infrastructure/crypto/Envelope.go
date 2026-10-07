@@ -63,7 +63,7 @@ const (
 )
 
 // Envelope seals a value under a fresh data key and seals that key under the installation's
-// current master key (security.md §3, backup-restore.md §4).
+// current master key (security.md §8, backup-restore.md §4).
 //
 // Two layers rather than one, and not for ceremony. AES-GCM is safe as long as a nonce is never
 // reused under one key, and the risk of that grows with the number of values encrypted under it;
@@ -289,8 +289,8 @@ func additional(label string, purpose port.Purpose) []byte {
 // labels, so that a key derived for an archive can never be the data key of a sealed value.
 const hkdfLabel = "hubtask/derive/v1:"
 
-// DeriveFromMaster answers a key made from the installation's current master key (E-05,
-// backup-restore.md §4).
+// DeriveFromMaster answers a key made from the installation's current master key
+// (backup-restore.md §4).
 //
 // HKDF-SHA256 rather than a hash of the concatenation, because that is what a key derivation
 // function is for: the extract step means the master key does not have to be uniformly random, and

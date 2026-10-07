@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// Placing and lifting a hold (E-08). What is under test is who may, what is recorded, and the two
+// Placing and lifting a hold. What is under test is who may, what is recorded, and the two
 // refusals that matter: a hold nothing would honour, and a lifting that happens twice.
 
 // holdWriter is the holds, in memory, with the "lift once" guard the statement has.

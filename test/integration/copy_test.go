@@ -15,8 +15,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The two statements a duplication is written from, against a real database (C-11): the subtree it
-// reads and the row it writes. Each gets a cross-tenant negative, because the boundary is row level
+// The two statements a duplication is written from, against a real database: the subtree it reads
+// and the row it writes. Each gets a cross-tenant negative, because the boundary is row level
 // security underneath and the only way to know it reaches a new statement is to try it (gate SG-3).
 
 func TestASubtreeIsReadParentsBeforeChildren(t *testing.T) {
@@ -115,7 +115,7 @@ func TestACopyCarriesTheDescriptionAndNotTheCompletion(t *testing.T) {
 	original.CustomFields = map[string]any{field.Key: "the value"}
 	original.ContentLanguage = "en"
 	original.ArchivedAt = &archivedAt
-	// The schedule travels whole (D-01): a copy that silently lost somebody's due date would be
+	// The schedule travels whole: a copy that silently lost somebody's due date would be
 	// worse than the one it lost.
 	startAt := created.Add(30 * time.Minute)
 	original.StartAt = &startAt
@@ -168,7 +168,7 @@ func TestACopyCarriesTheDescriptionAndNotTheCompletion(t *testing.T) {
 }
 
 // A value whose definition the caller did not name is refused rather than written: a value standing
-// behind nothing is invisible to every read while occupying the key (C-07).
+// behind nothing is invisible to every read while occupying the key.
 func TestACopyRefusesACustomFieldValueWithoutItsDefinition(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)

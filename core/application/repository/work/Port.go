@@ -43,7 +43,7 @@ type PageInfo struct {
 //
 // A level rather than a filtered set: an absent ParentID means the hubs, not "any parent". The tree
 // is two deep, so "one level" is the whole of what a plain list can usefully mean here - everything
-// else is the query DSL (B-12).
+// else is the query DSL.
 type ContainerQuery struct {
 	// ParentID is the hub whose collections are wanted, or the zero identifier for the hubs.
 	ParentID shared.ID
@@ -52,7 +52,7 @@ type ContainerQuery struct {
 	// hub never does.
 	Type work.ContainerType
 	// IncludeArchived keeps archived containers in the page. Trashed ones are never in it - the
-	// trash is its own view (B-10).
+	// trash is its own view.
 	IncludeArchived bool
 	Page            Page
 }
@@ -77,10 +77,10 @@ type ItemQuery struct {
 	Page            Page
 	// RestrictTo narrows the level to a named set of entries, or to all of them when it is empty.
 	//
-	// It carries the read half of C-04: an actor who holds no role on the collection may still
-	// hold a membership on entries inside it, and then the level is those entries rather than a
-	// refusal. Applied in the query rather than after it, so a page is a page - filtering the rows
-	// out afterwards would return short pages and a cursor that skips.
+	// It carries the read half of the share rule (domain-model.md §3.2): an actor who holds no role
+	// on the collection may still hold a membership on entries inside it, and then the level is
+	// those entries rather than a refusal. Applied in the query rather than after it, so a page is
+	// a page - filtering the rows out afterwards would return short pages and a cursor that skips.
 	//
 	// It is a narrowing and never a widening: everything else the query excludes stays excluded.
 	RestrictTo []shared.ID
@@ -104,8 +104,8 @@ type Level struct {
 //
 // The references travel beside the entry rather than on it, because they are not part of what the
 // domain models an entry as: `custom_field_refs` says which definition a value was written under,
-// which is what keeps a deleted-and-recreated key from resurrecting what the old one held (C-07,
-// migration 0018). The map is keyed exactly as the document is, and a document key without one is
+// which is what keeps a deleted-and-recreated key from resurrecting what the old one held
+// (migration 0018). The map is keyed exactly as the document is, and a document key without one is
 // a defect the adapter refuses rather than a value written under nothing.
 //
 // Everything else the copy decides - the new identifier, the path, the rank, the references the
@@ -247,7 +247,7 @@ const (
 	// AnchorTenant is everything the transaction can see, which is one tenant's entries and only
 	// those (ADR-0010). The unanchored read, and the only one: a search is the one question that
 	// is asked of a workspace rather than of a place in it, and the answer is narrowed to what the
-	// actor may see rather than refused (C-08, view.Search).
+	// actor may see rather than refused (view.Search).
 	AnchorTenant AnchorKind = "TENANT"
 	// AnchorHub is a whole hub: everything in every collection under it.
 	AnchorHub AnchorKind = "HUB"
@@ -291,33 +291,33 @@ type ItemSearch struct {
 	// one value for the whole scan. So the words are parsed under the searcher's configuration and
 	// under `simple`, which is two constants and two index scans.
 	Language string
-	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is
-	// empty - the read half of C-04, exactly as ItemQuery carries it for the plain level list.
+	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is empty -
+	// the read half of the share rule, exactly as ItemQuery carries it for the plain level list.
 	RestrictTo []shared.ID
 }
 
 // TextSearch is one full-text search as the adapter receives it: the validated request, its
-// resolved scope, and the narrowing the use case decided (C-08).
+// resolved scope, and the narrowing the use case decided.
 type TextSearch struct {
 	Anchor  Anchor
 	Request view.Search
-	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is
-	// empty - the read half of C-04, exactly as ItemSearch carries it for the query language.
+	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is empty -
+	// the read half of the share rule, exactly as ItemSearch carries it for the query language.
 	RestrictTo []shared.ID
-	// Meaning is the query embedded, and empty whenever the search is lexical (J-10, ADR-0050).
+	// Meaning is the query embedded, and empty whenever the search is lexical (ADR-0050).
 	//
 	// It arrives already computed rather than being fetched here, and that is the seam: the
-	// application layer decides whether a provider could be asked and what to do when it could
-	// not, and the repository is handed either a vector or nothing. A repository that called a
-	// provider would be one that could fail a search because somebody else's machine was slow.
+	// application layer decides whether a provider could be asked and what to do when it could not,
+	// and the repository is handed either a vector or nothing. A repository that called a provider
+	// would be one that could fail a search because somebody else's machine was slow.
 	Meaning []float32
 	// MeaningModel is the model that produced Meaning, and the only rows the vector is compared
 	// with are the ones that name it. Vectors from two models are not comparable (ADR-0049
 	// decision 4), and between a reconfiguration and the end of the re-embedding pass the table
-	// holds both: without this a query from the new model was ranked against rows from the old
-	// one, and the semantic half of the ranking was noise (#568). An entry embedded under another
-	// name is found by its words alone until the pass reaches it - J-10's own degradation for an
-	// entry not yet embedded, applied to one whose vector no longer counts.
+	// holds both: without this a query from the new model would be ranked against rows from the
+	// old one, and the semantic half of the ranking would be noise. An entry embedded under another
+	// name is found by its words alone until the pass reaches it - the degradation for an entry not
+	// yet embedded (ai-first.md §2), applied to one whose vector no longer counts.
 	MeaningModel string
 }
 
@@ -376,7 +376,7 @@ type ItemQueryResult struct {
 // One repository for all three levels, because they are one aggregate (ADR-0006). A repository
 // per level would be three sets of the same five queries, and the cross-tenant test would have to
 // be written three times to prove the same thing.
-// DueAnnouncements is the scheduling scan's slice of the entries (D-03).
+// DueAnnouncements is the scheduling scan's slice of the entries.
 //
 // Its own interface rather than three more methods on Items, for the reason the notification
 // consumer declares slices of what it reads: what the firing pass may do to the work management
@@ -398,7 +398,7 @@ type DueAnnouncements interface {
 }
 
 // DueAnnouncement is one entry a scheduling scan has claimed: what the announcement is about, and
-// the due date it is about (D-03).
+// the due date it is about.
 //
 // Four fields rather than the aggregate, because that is what the scan reads and what the event
 // carries. Reading the whole entry to announce its deadline would put the title, the notes and the
@@ -418,9 +418,9 @@ type Items interface {
 	Find(ctx context.Context, id shared.ID) (work.WorkItem, error)
 
 	// FindByCalendarUID returns the item a calendar client's UID names, or ErrNotFound if no entry
-	// of this tenant carries it (P-07, issue #721). The same answer for the trash and the
-	// archive as Find, for the same reason: the tree decides what an address it cannot show
-	// means, and "gone" is a different thing from "free".
+	// of this tenant carries it (offline-sync.md §4.2). The same answer for the trash and the
+	// archive as Find, for the same reason: the tree decides what an address it cannot show means,
+	// and "gone" is a different thing from "free".
 	FindByCalendarUID(ctx context.Context, uid string) (work.WorkItem, error)
 
 	// List returns one page of one level of one collection, in the items' manual order.
@@ -488,14 +488,14 @@ type Items interface {
 	//
 	// One key rather than the whole document, and that is a data-safety rule as much as a merge
 	// one. The stored document may hold values whose definitions were deleted - visible to no
-	// read, but kept (C-07) - and a write that replaced it with what a read answered would erase
+	// read, but kept - and a write that replaced it with what a read answered would erase
 	// them. The item carries the wanted state; what is written is the one key, taken from it: a
 	// present key is set, an absent one removed. The version predicate is what makes two devices
 	// writing two different keys resolve rather than overwrite (offline-sync.md §4.2).
 	//
 	// The definition's identity travels with the value: a read shows a value only while exactly
 	// that definition lives, which is what keeps a deleted-and-recreated key from resurrecting
-	// what the old one held (C-07).
+	// what the old one held.
 	SetCustomField(
 		ctx context.Context, item work.WorkItem, key string, definitionID shared.ID,
 		expectedVersion int,
@@ -509,7 +509,7 @@ type Items interface {
 	// SetDueDate writes the due trio, set or cleared whole, or reports a version conflict. Its
 	// own method for the reason SetAssignee is: one decision about one date, never spending a
 	// rename's version. The three columns travel together because none of them means anything
-	// alone (D-01, i18n-l10n.md §4).
+	// alone (i18n-l10n.md §4).
 	SetDueDate(ctx context.Context, item work.WorkItem, expectedVersion int) error
 
 	// MoveSubtree rewrites where an item and everything below it sits, drops the references the
@@ -584,7 +584,7 @@ type Items interface {
 	RestoreBatch(ctx context.Context, restore ItemTrash) (int, error)
 
 	// Query answers the query language: an arbitrary filter over one anchored scope, sorted,
-	// paged, and optionally grouped (B-12, api-guidelines.md §3).
+	// paged, and optionally grouped (api-guidelines.md §3).
 	//
 	// The only method here whose statement is not written in advance, and the reason ADR-0026
 	// exists. What arrives has been through the grammar in core/domain/model/view, so every field
@@ -596,7 +596,7 @@ type Items interface {
 	Query(ctx context.Context, search ItemSearch) (ItemQueryResult, error)
 
 	// Search answers the full text search: one page of entries in the order the database ranked
-	// them, with the hub each one sits under (C-08).
+	// them, with the hub each one sits under.
 	//
 	// Ranked rather than sorted, which is what makes the cursor a keyset over the rank. The order
 	// is `ts_rank_cd` descending and the identifier descending after it, so that entries matching
@@ -784,11 +784,11 @@ type Comments interface {
 	SetDeleted(ctx context.Context, comment work.Comment, expectedVersion int) error
 }
 
-// Reminders stores the promises to say something about an entry at a particular moment (D-02).
+// Reminders stores the promises to say something about an entry at a particular moment.
 //
 // No page and no cursor: what one entry may carry is bounded where reminders are written, which is
 // what makes the list one answer rather than a sequence of them. And no query about what is due -
-// that is the scheduler's question, and it arrives with the task that fires them (D-03).
+// that is the scheduler's question, and it arrives with the task that fires them.
 type Reminders interface {
 	// Find returns the reminder, or ErrNotFound if it does not exist *for this tenant*.
 	Find(ctx context.Context, id shared.ID) (work.Reminder, error)
@@ -823,7 +823,7 @@ type Reminders interface {
 
 	// ClaimDue takes the tenant's reminders whose moment has come, oldest first and at most limit
 	// of them, locking the rows for the caller's transaction so that two overlapping passes take
-	// disjoint sets (D-03).
+	// disjoint sets.
 	ClaimDue(ctx context.Context, now time.Time, limit int) ([]work.Reminder, error)
 
 	// Settle moves a reminder out of PENDING and reports whether this caller was the one who did
@@ -835,7 +835,7 @@ type Reminders interface {
 	NextMoment(ctx context.Context) (*time.Time, error)
 }
 
-// Recurrences stores the series beside the entries (D-04).
+// Recurrences stores the series beside the entries.
 //
 // Every method starts from the entry, because every route does: the rule is a sub-resource of the
 // entry it repeats, and one entry has at most one (the unique index in migration 0028 is what
@@ -855,8 +855,7 @@ type Recurrences interface {
 	Delete(ctx context.Context, rule work.RecurrenceRule, expectedVersion int) error
 
 	// ClaimToMaterialize takes the tenant's series whose rolling window may owe something, locking
-	// the rows for the caller's transaction so that two overlapping passes take disjoint sets
-	// (D-05).
+	// the rows for the caller's transaction so that two overlapping passes take disjoint sets.
 	ClaimToMaterialize(ctx context.Context, now time.Time, limit int) ([]work.RecurrenceRule, error)
 
 	// Advance moves the watermark under a compare-and-set and reports whether this caller moved
@@ -874,16 +873,15 @@ type Recurrences interface {
 
 	// AttachOccurrence points a copy at the series it belongs to and at the entry it was copied
 	// from. The copy statement deliberately carries neither - a copy belongs to no series - so the
-	// one copy that does is pointed at both here, through the statement that owns the columns
-	// (D-05).
+	// one copy that does is pointed at both here, through the statement that owns the columns.
 	//
 	// Both, because the rule identifier alone says which series without saying which end of it:
 	// the template carries the same value, and an occurrence that carried only that had no way to
-	// reach the entry it repeats from (issue #428).
+	// reach the entry it repeats from.
 	AttachOccurrence(ctx context.Context, occurrenceID, ruleID, sourceID shared.ID) error
 }
 
-// Templates stores the trees somebody wrote down to stamp out again (D-06).
+// Templates stores the trees somebody wrote down to stamp out again.
 type Templates interface {
 	// Find returns the template as it is stored, a deleted one included: whether it may still be
 	// changed is the domain's question, and hiding it would turn "it was deleted" into "it never
@@ -1012,7 +1010,7 @@ type Trash interface {
 	PurgeContainers(ctx context.Context, ids []shared.ID) (int, error)
 }
 
-// CustomFields stores the definitions a workspace or a collection adds to its entries (C-07).
+// CustomFields stores the definitions a workspace or a collection adds to its entries.
 //
 // Its own interface rather than methods on Items, because the two are not the same thing: this is
 // the vocabulary, and `work_item.custom_fields` is what an entry says in it. A repository that

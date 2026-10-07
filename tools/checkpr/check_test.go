@@ -129,7 +129,11 @@ func TestEachRuleRefusesItsOwnMistake(t *testing.T) {
 		}, "2 answers ticked"},
 		{"the ADR not named", func(s string) string {
 			return strings.Replace(s, "Which one: ADR-0015.", "Which one: ADR-….", 1)
-		}, "does not name the ADR"},
+		}, "does not name where the rule lives"},
+		{"the rule's place not named", func(s string) string {
+			return strings.Replace(s, "No — this implements a decision that is already recorded. Which one: ADR-0015.",
+				"No — this implements a rule already decided. Where it lives: `<file>.md §n`, or ADR-….", 1)
+		}, "does not name where the rule lives"},
 		{"a DoD item left open", func(s string) string {
 			return strings.Replace(s, " — n/a", "", 1)
 		}, "neither ticked nor marked n/a"},
@@ -161,5 +165,23 @@ func TestNoIssueWithAReasonPasses(t *testing.T) {
 	body := strings.Replace(filled, "Closes #246", "No issue: the owner asked for it in the session", 1)
 	if problems := check(body, required, known); len(problems) != 0 {
 		t.Errorf("a stated reason for no issue was refused:\n%s", strings.Join(problems, "\n"))
+	}
+}
+
+// The new template names the section a rule lives in rather than an ADR, and that passes.
+func TestASubjectDocumentSectionNamesTheRule(t *testing.T) {
+	root := rootForTest(t)
+	required, err := templateHeadings(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	known, err := knownUseCases(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := strings.Replace(filled, "No — this implements a decision that is already recorded. Which one: ADR-0015.",
+		"No — this implements a rule already decided. Where it lives: `security.md §9`.", 1)
+	if problems := check(body, required, known); len(problems) != 0 {
+		t.Errorf("a section as the rule's place was refused:\n%s", strings.Join(problems, "\n"))
 	}
 }

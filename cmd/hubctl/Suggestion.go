@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// What AI has proposed, and what became of it (J-05, J-16).
+// What AI has proposed, and what became of it.
 //
 // Nothing here has changed anything: a suggestion is a record with a name on it - the model, the
 // prompt and its version, the moment - and it becomes a change only when somebody accepts it, as

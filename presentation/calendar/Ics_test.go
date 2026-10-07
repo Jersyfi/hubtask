@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/calendar"
 )
 
-// The .ics files this package promises, as files rather than as assertions in prose (D-08).
+// The .ics files this package promises, as files rather than as assertions in prose.
 //
 // A golden file for the reason the recurrence expander has them: what this system hands a
 // calendar client is read by people who do not read Go, and a change to the rendering shows up as

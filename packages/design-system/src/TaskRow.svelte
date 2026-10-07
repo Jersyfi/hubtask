@@ -8,7 +8,7 @@
   // mark and which indent, and `expansion` says whether this row currently hides anything.
   //
   // It knows the three type names and nothing else about them. Which capabilities each carries is
-  // the manifest's answer (`CapabilityGate`, F2-07), and a row that decided for itself that an
+  // the manifest's answer (`CapabilityGate`), and a row that decided for itself that an
   // activity has no labels would be the hard-coded matrix `domain-model.md` §2's extension example
   // exists to rule out.
   //
@@ -55,7 +55,7 @@
     /** Labels, a badge, a menu. Not part of the row's own activation. */
     trailing?: Snippet;
     /**
-     * A change this device made and the server has not yet confirmed (F6-06): the row carries
+     * A change this device made and the server has not yet confirmed: the row carries
      * the `pending` motion role beside a word, so it reads without motion too. Resolved text -
      * "Waiting to be sent" - and absent for an entry the server has.
      */
@@ -150,7 +150,7 @@
 
   .mark { color: var(--text-subtle); }
 
-  /* A title takes a few lines and then loses its end (issue 838): the row is a row, and the whole
+  /* A title takes a few lines and then loses its end: the row is a row, and the whole
      text is on the entry's own page. The prefixed form is what every engine on the browser row
      implements; the standard property stands beside it for the day they take it. */
   .title {

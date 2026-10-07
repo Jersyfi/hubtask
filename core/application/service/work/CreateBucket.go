@@ -61,7 +61,7 @@ type CreateBucket struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
-	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -236,7 +236,7 @@ func (h CreateBucket) readCollection(
 // The merge rule for every field of a bucket is last writer wins per field, decided by the HLC -
 // which is the rule the Definition of Done asks to be stated for each new field. `order_key` is a
 // fractional index and merges by itself, and `version` is derived server-side and never merged. A
-// bucket carries no set of its own; the one set in this milestone is an item's labels, which merge
+// bucket carries no set of its own; an item's sets, such as its labels, merge
 // as an OR-set (work.MergeSetElements).
 func (h CreateBucket) recordChange(
 	ctx context.Context, bucket domain.Bucket, collection domain.Container,
@@ -249,7 +249,7 @@ func (h CreateBucket) recordChange(
 		Op:       changelog.Upsert,
 		// The visibility filter a pull applies: the column's own collection, the choice every
 		// change to an entry makes - a grant on the collection alone is on the path of the
-		// collection and not of its hub (#623, offline-sync.md §3.1).
+		// collection and not of its hub (offline-sync.md §3.1).
 		ContainerID: bucket.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         h.HLC.Next(),

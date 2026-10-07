@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// The installation at a glance, and its own record (SI-17, ADR-0070 §5).
+// The installation at a glance, and its own record (ADR-0070 §5).
 //
 // **Counts, states and limits - never rows.** The tenant boundary is a database policy rather than a
 // role, and the dashboard does not go around it: the census reaches through a function that can

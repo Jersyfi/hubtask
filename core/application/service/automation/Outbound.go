@@ -41,7 +41,7 @@ const (
 )
 
 // ruleSecretPurpose binds a rule's sealed header secret to the rule it belongs to, so a ciphertext
-// lifted out of one rule and dropped into another no longer opens (E-02).
+// lifted out of one rule and dropped into another no longer opens.
 func ruleSecretPurpose(ruleID shared.ID) crypto.Purpose {
 	return crypto.Purpose("automation.rule.http:" + ruleID.String())
 }
@@ -52,7 +52,7 @@ func requestSecretPurpose(requestID shared.ID) crypto.Purpose {
 }
 
 // sealOutboundSecrets walks a rule's actions - branch arms included - and seals every HTTP_REQUEST
-// header secret that arrived in plaintext (E-02, T-21). After this pass the rule stores ciphertext
+// header secret that arrived in plaintext (T-21). After this pass the rule stores ciphertext
 // or nothing: the plaintext exists in memory between the request and this line, and nowhere after.
 //
 // A value sent as the mask asks for the stored secret to be kept: the previous rule's sealed value
@@ -217,7 +217,7 @@ func maskedActionParams(kind string, params map[string]any) map[string]any {
 	return masked
 }
 
-// HttpRequest is the outbound call as a use case (G-09, automation.md §1.3) - which is what makes
+// HttpRequest is the outbound call as a use case (automation.md §1.3) - which is what makes
 // HTTP_REQUEST an action like every other: registered, so REST, MCP and a rule reach the same
 // code, and audited, because pointing this installation's egress somewhere is an act.
 //
@@ -234,7 +234,7 @@ func maskedActionParams(kind string, params map[string]any) map[string]any {
 type HttpRequest struct {
 	Jobs       Queue
 	Authorizer Authorizer
-	// Encryptor seals a plaintext header secret before it touches the queue (E-02). The job
+	// Encryptor seals a plaintext header secret before it touches the queue. The job
 	// carries ciphertext; the sender opens it for the length of one call.
 	Encryptor crypto.Encryptor
 	// Conditions compiles the body template at the write, so a template that cannot be read is

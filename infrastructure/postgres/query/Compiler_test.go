@@ -178,7 +178,7 @@ func TestTheOperatorsCompile(t *testing.T) {
 		},
 		{
 			// Two branches, and the argument order is the point: the configuration is a bound
-			// parameter resolved in the database, so the tag never becomes text (C-08, ADR-0034).
+			// parameter resolved in the database, so the tag never becomes text (ADR-0034).
 			// The `simple` branch is what finds an entry that stated no language at all.
 			"full text, under the searcher's configuration and under simple",
 			map[string]any{"field": "text", "op": "MATCHES", "value": "quarterly report"},
@@ -203,7 +203,7 @@ func TestTheOperatorsCompile(t *testing.T) {
 		},
 		{
 			// The assignee is a scalar, so it is a column comparison rather than a relation - which
-			// is the whole difference between it and the members beside it (C-01).
+			// is the whole difference between it and the members beside it.
 			"the assignee is a column",
 			map[string]any{"field": "assignee_id", "op": "EQ", "value": task.String()},
 			`(wi.assignee_id = $2::uuid)`, []any{task.String()},
@@ -443,7 +443,7 @@ func equalArgs(got, want any) bool {
 	return got == want
 }
 
-// The custom field family (C-07). The key is the one part of a field *name* that carries a value,
+// The custom field family. The key is the one part of a field *name* that carries a value,
 // so what these prove is that it is bound like any other value and never written into the text.
 func TestACustomFieldFilterBindsItsKeyAsAParameter(t *testing.T) {
 	cases := []struct {
@@ -568,7 +568,7 @@ func contains(args []any, want string) bool {
 	return false
 }
 
-// The semantic half of the search, as a statement (J-10). Whether the ordering it produces is the
+// The semantic half of the search, as a statement. Whether the ordering it produces is the
 // right one is a question for a real database, and test/integration asks it; what is decided here
 // is that nothing a caller sent becomes SQL text and that the lexical statement is unchanged when
 // there is no vector.
@@ -707,7 +707,7 @@ func textSearchOf(words string) repository.TextSearch {
 
 // The query vector is compared only with rows of the model that produced it, in both places the
 // statement reaches into item_embedding - the join and the neighbourhood - and the model's name
-// is bound, never written: it is configuration somebody typed (#568, rule 9).
+// is bound, never written: it is configuration somebody typed (rule 9).
 func TestASearchReadsOnlyTheRowsOfTheQueryVectorsModel(t *testing.T) {
 	search := textSearchOf("quarterly report")
 	search.MeaningModel = "embed'; DROP TABLE item_embedding; --"

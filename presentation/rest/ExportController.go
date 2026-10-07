@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The view export (D-08). The use case selects the rows and caps them; which file they become is
+// The view export. The use case selects the rows and caps them; which file they become is
 // decided here, because a wire format is an adapter's business - and the ICS rendering is the same
 // package the calendar feed serves from, which is why the export rides that task.
 

@@ -45,15 +45,15 @@ export function whenCredentialRefused(handler: () => void): void {
  * It goes through the transport rather than through the engine deliberately: the engine's own
  * calls are what get retried after an exchange, and an exchange made through them would be an
  * exchange that could trigger an exchange. Every `fetch` in this client still happens in exactly
- * one place — `FetchTransport` — which is the rule that matters (`packages/CLAUDE.md`).
+ * one place — `FetchTransport` — which is the rule that matters (`project-structure.md` §2.1).
  */
 const transport = new FetchTransport({ baseUrl: '/api/v1' });
 
 /**
  * Exchanges the refresh token for the next pair, and answers whether the session survived.
  *
- * The engine calls this at most once at a time and retries the refused request once after it
- * (F4-03). Nothing here decides what a failure means for the screen: `false` sends the engine to
+ * The engine calls this at most once at a time and retries the refused request once after it.
+ * Nothing here decides what a failure means for the screen: `false` sends the engine to
  * `onUnauthorized`, which is where the session ends and the path is remembered.
  *
  * **No bearer on this call**, and that is the contract's shape rather than an omission: the refresh
@@ -92,10 +92,10 @@ export const engine = new SyncEngine({
   token: () => platform.bearer(),
   onUnauthorized: () => onRefused(),
   onRefresh: renew,
-  // What the replica answers while the server cannot be reached (F6-04): this application's
+  // What the replica answers while the server cannot be reached: this application's
   // paths, mapped in `replica.ts` the way `live.ts` maps a record - the engine learns neither.
   storeFor,
-  // What a write becomes when it has to be queued (F6-05): the seven mutation kinds, mapped from
+  // What a write becomes when it has to be queued: the seven mutation kinds, mapped from
   // this application's writes in the same file.
   mutationFor,
 });

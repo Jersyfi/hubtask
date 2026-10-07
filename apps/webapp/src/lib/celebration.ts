@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * Which moment a completion is (design-system.md §7, F6-13).
+ * Which moment a completion is (design-system.md §7).
  *
  * Decided from the hierarchy the client already holds - the completion it just performed and the
  * entries and containers in the replica - and from nothing else. §7's table, as a function:

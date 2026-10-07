@@ -1,30 +1,31 @@
 # Engineering Guidelines
 
-Complements arc42 chapters 10 and 11. Binding for all contributions.
+How work is tested, when it may start and when it is finished. Binding for all contributions;
+complements [arc42.md](./arc42.md) chapters 10 and 11.
 
 ---
 
 ## 1. Test strategy
 
-| Level | Scope | Tooling | Runtime budget |
-|---|---|---|---|
-| **Domain** | Invariants, state transitions, capability rules, hierarchy, recurrence, assignment strategies | Pure table tests, no mocks, no database | < 10 s in total |
-| **Application** | Use cases with in-memory fakes of the ports; permissions, idempotency, event emission | Standard `testing`, fakes in the repository | < 30 s |
-| **Infrastructure** | Repositories, RLS, queue, outbox, migrations | Testcontainers with a real PostgreSQL | < 5 min |
-| **Contract** | REST responses against `openapi.yaml`, events against JSON Schema, MCP tool schemas | Schema validation in the test | < 1 min |
-| **End-to-end** | The core paths over HTTP against the complete process (Compose) | `hubctl` + Go tests | < 5 min |
-| **Load** | Query DSL over 2 million items, automation storm, webhook backlog | k6 or Vegeta, a data generator | Nightly / before a release |
-| **Architecture** | Import and layer rules, use case parity | `go-arch-lint`/`depguard` plus a custom registry test | < 10 s |
+| Level | Scope | Tooling | Gate | Runtime budget |
+|---|---|---|---|---|
+| **Domain** | Invariants, state transitions, capability rules, hierarchy, recurrence, assignment strategies | Pure table tests, no mocks, no database | `make gate-unit` (coverage ≥ 85 % per package) | < 10 s in total |
+| **Application** | Use cases with in-memory fakes of the ports; permissions, idempotency, event emission | Standard `testing`, fakes beside the tests | `make gate-unit` (coverage ≥ 75 % per package) | < 30 s |
+| **Infrastructure** | Repositories, RLS, queue, outbox, migrations | Testcontainers with a real PostgreSQL — a mock of RLS would only test the mock | `make gate-integration` | < 5 min |
+| **Contract** | REST responses against `openapi.yaml`, events against JSON Schema, MCP tool schemas | Schema validation in the test (`test/contract`) | `make gate-contract` | < 1 min |
+| **End-to-end** | The core paths over HTTP against the complete process | `scripts/hubctl-e2e.sh` against the Compose stack; Playwright for the web app ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)) | `make gate-e2e`, `make gate-compose` | < 5 min |
+| **Load** | The query DSL over a large dataset, automation storm, overload | `go test -tags load ./test/load/` against the real binary; two tiers, see [observability-reliability.md](./observability-reliability.md) §13.2 | `make gate-load` | Nightly / before a release |
+| **Architecture** | Import and layer rules, use case parity, the `go` ban, authorisation, message codes | `depguard` in `golangci-lint` plus `test/architecture` ([project-structure.md](./project-structure.md) §2) | `make gate-architecture` | < 10 s |
 
-**Mandatory test cases with a history of going wrong** (golden files):
+**Mandatory test cases with a history of going wrong** (golden files where the output is data):
 DST transitions in both directions for several time zones, leap year / 29 February in RRULE,
-`FREQ=MONTHLY;BYMONTHDAY=31`, an account changing time zone with existing reminders,
-Unicode titles (emoji, RTL, combining characters) in length checks and search,
-cross-tenant negative tests for every repository, moving a subtree across collection boundaries,
-an automation loop running to the abort depth, partial failure in a bulk operation.
+`FREQ=MONTHLY;BYMONTHDAY=31`, an account changing time zone with existing reminders, Unicode
+titles (emoji, RTL, combining characters) in length checks and search, cross-tenant negative tests
+for every repository method, moving a subtree across collection boundaries, an automation loop
+running to the abort depth, partial failure in a bulk operation.
 
-No tests against randomness or the system clock: `Clock`, `IDGenerator`, and `RandomSource` are
-injected.
+No test depends on randomness or the system clock: `Clock`, `IDGenerator` and `RandomSource` are
+injected ([arc42.md](./arc42.md) §8.13).
 
 ---
 
@@ -45,27 +46,105 @@ injected.
 13. **Data protection assessment**: new personal data fields added to the data catalogue, purpose and retention named, deletion path defined ([data-protection.md](./data-protection.md)).
 14. **Audit obligation** settled: is the operation security- or compliance-relevant? If so, enter the action in the `AuditableAction` registry.
 15. **Sync impact** settled: does the change produce change log entries, and how is the field merged on offline conflicts (LWW, OR-set, fractional index, server-side)? ([offline-sync.md](./offline-sync.md) §4)
-16. **Client availability** named: which area of the client capability matrix the feature belongs to (end-user, profile configuration, administration); a restriction beyond [ADR-0032](../adr/ADR-0032-client-capability-matrix.md)'s matrix needs its justification recorded there via supersede.
+16. **Client availability** named: which area of the client capability matrix the feature belongs to (end-user, profile configuration, administration); a restriction beyond the matrix in [arc42.md](./arc42.md) §8.19 needs its justification recorded there, with an ADR.
 17. **No other product's name in the implementation** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md) decision 6): not in code, comments, identifiers, commit titles or bodies, pull request or issue text, the catalogue, the UI, the website, the workbench or a specification. An ADR may carry one sentence of context naming where a pattern is proven; a dependency is named where its licence requires; an import format carries the format's name.
+
+---
 
 ## 3. Definition of Done
 
-1. Code and tests green at every relevant level; coverage thresholds held; `make verify-pr` green for the pushed `HEAD` before the pull request leaves draft ([ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md)).
-2. `openapi.yaml` updated, code generation run, no diff after `make generate`.
-3. The use case is registered in the registry → available via REST, MCP, and automation (parity test green).
-4. Event schemas added under `api/events/`.
-5. A migration exists, is safe for rolling updates, and has been tested against the previous state.
-6. Message codes added to `locales/en.json`.
-7. Permissions and negative tests exist (including cross-tenant).
-8. Observability: a metric **and** a trace span per use case (gate RT-12), error classification set, logs free of user content and secrets.
-9. Resilience: every call has a timeout/deadline, concurrency goes only through `SafeGo`, external effects go through the outbox or jobs, idempotency is assured, and the failure behaviour of the touched dependency has been tested.
-10. Security: authorisation in the application layer, a cross-tenant negative test added, outbound calls through `GuardedClient`, the affected SG-x gates green.
-11. Audit and data protection: the auditable action is registered and tested (gate SG-13), new fields are in the data catalogue with a deletion path, and no user content appears in the audit, logs, or metrics.
-12. Retention and sync: the new data kind is added to the retention catalogue, a merge rule is defined for every new field, and the archive format and import path are adjusted for model changes (BK-4).
-13. Documentation updated (the arc42 section, an ADR for an architectural decision, the changelog via the commit).
-14. The Conventional Commit title is correct; a breaking change is marked.
-15. **Client impact** settled: a change to `api/openapi.yaml` carries its client fix in the same pull request — `packages/api-client` regenerated and the web app building green ([ADR-0035](../adr/ADR-0035-one-product-version.md) §4). A core task adds no screens, but it may not leave the client lane red either.
-16. **Use cases met**: every check of every use case the task names holds, with a test or a walk as evidence; the use case's `state:`, `checked_by:` and *Today* say so; `/usecase-check` over the branch finds nothing open; and the pull request's *Use cases* section reports each check ([`docs/usecases/README.md`](../usecases/README.md)).
+The pull request template carries the checkboxes; this section says what each item means. An item
+that does not apply is marked `n/a` in the template, never deleted.
+
+### 3.1 Tests green, the local check passed
+Every relevant level of §1 is green and the coverage thresholds hold. `make verify-pr` is green for
+the pushed `HEAD` before the pull request leaves draft: CI runs only on a ready pull request, so the
+local run is the check a draft gets ([ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md)).
+
+### 3.2 The contract first, generation clean
+A change to the API changes `api/openapi.yaml` first; `make generate` then runs and produces no diff
+on a second run. Generated code is never edited by hand
+([ADR-0004](../adr/ADR-0004-api-first-openapi.md), [project-structure.md](./project-structure.md) §6).
+
+### 3.3 Registered in all three channels
+The use case has a descriptor, is listed in `core/application/catalogue/Catalogue.go` and wired in
+`cmd/server`, and is therefore a REST operation, an MCP tool and an automation action. The parity
+gate in `make gate-architecture` fails otherwise ([domain-model.md](./domain-model.md) §5).
+
+### 3.4 Event schemas
+A new or changed event has its JSON schema under `api/events/`, and its compatibility follows
+[domain-model.md](./domain-model.md) §4.
+
+### 3.5 A safe migration
+A schema change is a new migration — never an edit of an existing one — safe for a rolling update
+(expand/contract), and tested against the previous state
+([versioning-release.md](./versioning-release.md) §4). `db/schema.sql` is updated with it.
+
+### 3.6 Message codes
+Every message code the change emits is in `locales/en.json`; the backend sends codes and
+parameters, never a sentence ([i18n-l10n.md](./i18n-l10n.md)).
+
+### 3.7 Permissions and negative tests
+The permission is checked in the application layer, and every new repository method has a
+cross-tenant negative test — gate SG-3 reconciles methods against tests.
+
+### 3.8 Observability
+Every use case has a metric **and** a trace span (gate RT-12), its errors are classified, and its
+logs carry no user content and no secret
+([observability-reliability.md](./observability-reliability.md)).
+
+### 3.9 Resilience
+Every call has a timeout or a context deadline; concurrency goes only through `SafeGo`; external
+effects go through the outbox or a job; the operation is idempotent where it is retried; and the
+failure of the dependency it touches has been tested.
+
+### 3.10 Security
+Authorisation is in the application layer, outbound calls go through `GuardedClient`, and the
+affected SG-x gates are green ([security.md](./security.md) §13).
+
+### 3.11 Audit and data protection
+An auditable action is in the `AuditableAction` registry and tested (gate SG-13); a new personal
+data field is in [the data catalogue](../privacy/data-catalog.md) with a deletion path; no user
+content reaches the audit trail, the logs or the metrics.
+
+### 3.12 Retention, sync and the archive
+A new data kind is in the retention catalogue; every new field has a merge rule
+([offline-sync.md](./offline-sync.md) §4); the archive format and the import path follow a model
+change (BK-4).
+
+### 3.13 Documentation
+The subject document that holds the rule is updated in the same pull request. An architectural
+decision gets a new ADR, and the changelog comes from the commit titles.
+
+### 3.14 Commit titles
+Conventional Commits; a breaking change is marked
+([versioning-release.md](./versioning-release.md) §3).
+
+### 3.15 Client impact
+A change to `api/openapi.yaml` carries its client fix in the same pull request:
+`packages/api-client` regenerated and the web app building green
+([ADR-0035](../adr/ADR-0035-one-product-version.md)). A core task adds no screens, but it may not
+leave the client lane red.
+
+### 3.16 Use cases met
+Every check the task carries — the ones in its `**Use cases:**` line — holds, with a test or a walk
+as evidence; the use case's `state:`, `checked_by:` and *Today* say so; the checklist in
+[`docs/usecases/README.md`](../usecases/README.md#checking-work-against-its-use-cases) over the
+branch finds nothing open; and the pull request's *Use cases* section reports each check.
+
+### 3.17 Design values only from tokens
+No colour, spacing, radius or duration value is written outside
+`packages/design-system/tokens/tokens.json`, and `make tokens` produces no diff
+([ADR-0029](../adr/ADR-0029-design-system-tokens.md)).
+
+### 3.18 The frontend boundary
+`core/` learned nothing about a frontend, and no `.go` file is committed under `apps/` or
+`packages/` ([project-structure.md](./project-structure.md) §2.1).
+
+### 3.19 Reviewed against what no gate checks
+The author reviews the change against every rule in [AGENTS.md](../../AGENTS.md) that is not
+checked by a gate (`[partial]`, `[unchecked]`, `[owner]`) and names what the review found under
+this item. A finding that is fixed is a commit; one that is not becomes a `finding` issue.
 
 ---
 
@@ -74,53 +153,44 @@ injected.
 | Rule | Reason |
 |---|---|
 | Every query starts with `tenant_id` in the index | The RLS predicate and selectivity |
-| No `N+1`: `expand` resolves relations with batch queries (`IN`) | A kanban board loads hundreds of items |
-| No `COUNT(*)` over large sets on the standard path | Estimate, or use a cursor |
+| No `N+1`: relations are resolved with batch queries (`IN`) | A kanban board loads hundreds of items |
+| No `COUNT(*)` over large sets on the standard path; a total only with `?count=exact` | A total is a second scan nobody asked for |
 | `statement_timeout` set per role (short for the API, longer for workers) | Protection against a runaway query |
 | Cursors instead of offsets | Stable performance on deep pages |
 | The write path: one transaction, no external calls | Keep latency and lock times small |
 | External effects asynchronously through the outbox | Response time independent of third-party systems |
-| Large operations as a job with progress | No request over 30 s |
+| Large or unbounded operations as a job with progress | No request over 30 s |
 | Targets | P95 read < 200 ms, P95 write < 300 ms at 10⁶ items per tenant |
 
 ---
 
 ## 5. Operating guidelines
 
-The full concept: [observability-reliability.md](./observability-reliability.md)
-(SLOs, metric and alert catalogue, resilience patterns, degradation matrix, runbooks).
-The hard requirements in short:
+The full concept is [observability-reliability.md](./observability-reliability.md) (SLOs, metrics,
+alerts, resilience, degradation, runbooks) and [deployment.md](./deployment.md). The rules a change
+most often touches:
 
-| Topic | Requirement |
+| Topic | Rule |
 |---|---|
-| Health | `/healthz` (the process only — **never** check dependencies), `/startupz`, `/readyz` (database plus mandatory dependencies, migration state), `GET /api/v1/meta/health` (deep self-diagnosis including configuration warnings) |
-| Graceful shutdown | `SIGTERM` → no new requests, finish in-flight ones, release jobs; `terminationGracePeriodSeconds` ≥ the job timeout |
+| Health | `/healthz` checks the process only and **never** a dependency; `/readyz` checks the database, the mandatory dependencies and the migration state; `GET /api/v1/meta/health` is the deep self-diagnosis |
 | Migrations | A dedicated job or init container, never during API startup; an advisory lock prevents parallel runs |
-| Idempotent jobs | Every job must be runnable more than once (at-least-once semantics) |
-| Backups | PITR as the standard, `pg_dump` as the self-hosting minimum, the media bucket separately; RPO ≤ 5 min, RTO ≤ 60 min; a restore drill with consistency and isolation checks is a **release criterion** (RT-9); a missing backup configuration produces a warning in `/meta/health` |
-| Logs | Structured JSON, no user data content, always `tenant_id` and `request_id` |
-| Metrics | RED per use case, queue depth, outbox lag, webhook success rate, rule runs, occurrence lag, database pool utilisation |
-| Alerts | A complete symptom-based catalogue A-01…A-18 with a runbook per alert; an alert without a runbook does not ship |
-| Resilience | A timeout on every call, a circuit breaker per external dependency, bulkheads between API and worker, load shedding, dead letter instead of endless retry |
-| Degradation | The failure of an optional dependency terminates no process and never blocks the core write path; the affected feature is reported as a `degraded_feature` |
-| Panics | Caught per request and per job; no bare goroutines (`SafeGo`); the metric's target value is permanently 0 |
-| Operating material | Dashboards, Prometheus rules, and runbooks live under `deploy/observability/` in the repository |
-| Container | Distroless, non-root, read-only root filesystem, no shell, multi-arch (amd64/arm64 — Raspberry Pi self-hosting) |
-| Resources (starting values) | Self-hosting: 256 MB RAM / 0.25 vCPU; the `api` pod: 512 MB / 0.5 vCPU |
+| Jobs | Every job can run more than once (at-least-once) |
+| Degradation | The failure of an optional dependency terminates no process and never blocks the core write path; the feature is reported in `degraded_features` |
+| Panics | Caught per request and per job; no bare goroutines (`SafeGo`) |
+| Alerts | An alert without a runbook does not ship; both live under `deploy/observability/` |
 
 ---
 
 ## 6. Security in the process
 
-The full concept including the threat model and the gates: [security.md](./security.md),
-decision [ADR-0015](../adr/ADR-0015-security-baseline.md).
+The full concept, with the threat model and the gates, is [security.md](./security.md)
+([ADR-0015](../adr/ADR-0015-security-baseline.md)). In the process:
 
-* A threat model per bounded context (STRIDE short form) at the first design, and thereafter on any security-relevant change.
-* Dependency updates automated (Dependabot), `govulncheck` in CI, a container scan in the release.
-* Secrets never in the repository; secret scanning active (push rule).
-* Security-relevant changes need a second reviewer.
-* Responsible disclosure per `SECURITY.md`, advisories with CVSS and affected versions.
-* Standard hardening: security headers, restrictively configurable CORS, rate limits from day one, Argon2id for passwords, tokens stored only hashed, uploads validated, outbound calls through `GuardedClient`.
+* A new bounded context gets a short STRIDE analysis at design time, and a security-relevant change
+  updates the threat model (DoR item 11).
+* A suppressed lint finding carries its reason in the code (`nolintlint` requires it); softening a
+  gate needs an ADR.
+* Responsible disclosure follows `SECURITY.md`.
 
 ---
 
@@ -128,14 +198,14 @@ decision [ADR-0015](../adr/ADR-0015-security-baseline.md).
 
 | Purpose | Tool |
 |---|---|
-| Build / task runner | `make` (+ `go tool`), reproducible builds |
+| Build / task runner | `make`; every gate is a target, every tool version pinned in the `Makefile` |
 | Go | The toolchain is pinned to a patched release in `go.mod`; an unpatched standard library is a `govulncheck` finding |
-| Lint | `golangci-lint` (errcheck, govet, staticcheck, revive, depguard, gosec); every tool version pinned in the `Makefile` |
-| Gate self-test | `make gate-selftest` - one deliberate violation per rule, each expected to fail the build |
-| Code generation | `oapi-codegen` (API), `sqlc` (database), a custom generator for the MCP manifest |
+| Lint | `golangci-lint` (errcheck, govet, staticcheck, revive, depguard, gosec, noctx, contextcheck, errorlint and others — `.golangci.yml`) |
+| Gate self-test | `make gate-selftest` — one deliberate violation per rule, each expected to fail the build |
+| Code generation | `oapi-codegen` (server and Go SDK), `sqlc` (database), `tools/openapijson`, `tools/sdkgen`, `tools/eventmatrix`, `tools/deprecations` |
 | Migrations | `goose` |
-| Tests | `testing`, `testcontainers-go`, `k6` |
+| Tests | `testing`, `testcontainers-go`, Playwright (the web app) |
 | Container | Docker/Buildx, a distroless base |
-| Deployment | Helm (template in `k8s/`), Compose for self-hosting |
+| Deployment | Helm (the chart in `k8s/`), Compose for self-hosting |
 | Observability | OpenTelemetry SDK, Prometheus, OTel Collector |
-| Documentation | Markdown + Mermaid in the repository; arc42 as the structure |
+| Documentation | Markdown + Mermaid in the repository, checked by `make gate-docs` |

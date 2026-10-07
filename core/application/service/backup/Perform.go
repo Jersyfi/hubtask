@@ -31,7 +31,7 @@ func archiveKeyPurpose(targetID shared.ID) crypto.Purpose {
 	return crypto.Purpose("backup_target.archive:" + targetID.String())
 }
 
-// Performer runs one backup, end to end (E-05, backup-restore.md §5).
+// Performer runs one backup, end to end (backup-restore.md §5).
 //
 // It is the application layer's half of the `backup.run` job: the worker owns the queue, the
 // retries and the lease, and everything about what a backup *is* lives here.
@@ -72,7 +72,7 @@ type PerformInput struct {
 	IncludeMedia bool
 	IncludeAudit bool
 	// TrialRestore follows the archive with an INSPECT restore of it, in this same job, and fails
-	// the run where it cannot be read back (B-4, P-14). Only meaningful for a FULL run.
+	// the run where it cannot be read back (B-4). Only meaningful for a FULL run.
 	TrialRestore bool
 	// Report is how far along the run is, between 0 and 1. It may be nil, and losing a progress
 	// reading is never a reason to fail a backup.
@@ -366,7 +366,7 @@ func (p Performer) succeed(
 	return run, nil
 }
 
-// Abandon closes a run whose job the queue has given up on (#207).
+// Abandon closes a run whose job the queue has given up on.
 //
 // A row left RUNNING by a worker that is not coming back holds the one-run-per-target lock for
 // ever; this closes it as FAILED under its own code, which frees the target and puts the truth
@@ -453,7 +453,7 @@ func (p Performer) credentialsOf(
 }
 
 // Verify checks one archive at its target without restoring it, and writes down what it found
-// (E-05, backup-restore.md §3).
+// (backup-restore.md §3).
 //
 // The answer is recorded whichever way it came out. "This archive is damaged" is the finding the
 // endpoint exists to produce, and a run whose verification failed and recorded nothing would look
@@ -656,7 +656,7 @@ func zoneOr(name string) *time.Location {
 }
 
 // RetentionExport is the archive a retention rule writes before it removes anything
-// (data-retention.md §6, E-07).
+// (data-retention.md §6).
 //
 // It sits here rather than in the lifecycle context because writing an archive is this context's
 // work, and the seam the retention engine declares is one method wide. What it does is a full

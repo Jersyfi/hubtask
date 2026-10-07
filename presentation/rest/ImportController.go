@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The imports (P-08). The controller holds no rules: which hub, which file and which kind are
+// The imports. The controller holds no rules: which hub, which file and which kind are
 // acceptable is decided inwards of here. What is decided here is the shape of the answer - a
 // job pointer whose result_url names the import, and the import read back as the contract's
 // ImportRun.

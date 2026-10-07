@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The second factor: enrolment, confirmation, and taking it off again (H-02).
+ * The second factor: enrolment, confirmation, and taking it off again.
  *
  * **The secret is shown once and this module holds it for exactly as long as the screen does.**
  * `POST /auth/mfa/totp:enroll` answers a base32 secret, a provisioning URI and ten recovery codes,
@@ -32,7 +32,7 @@ const CONFIRM = '/auth/mfa/totp:confirm';
 const DISABLE = '/auth/mfa:disable';
 /** New recovery codes for an enrolment that already exists, behind the step-up. */
 const REGENERATE = '/auth/mfa/recovery:regenerate';
-/** The authenticator's replacement (SC-17): begin behind the step-up, confirm with the new app. */
+/** The authenticator's replacement: begin behind the step-up, confirm with the new app. */
 const REPLACE = '/auth/mfa/totp:replace';
 const CONFIRM_REPLACEMENT = '/auth/mfa/totp/replacement:confirm';
 
@@ -78,7 +78,7 @@ class Mfa {
     return this.#fresh;
   }
 
-  /** The new secret of a replacement, while the screen shows it (SC-17). */
+  /** The new secret of a replacement, while the screen shows it. */
   get replacement(): Replacement | undefined {
     return this.#replacement;
   }
@@ -194,7 +194,7 @@ class Mfa {
   }
 
   /**
-   * Begins replacing the authenticator (SC-17), behind the step-up: replacing the factor is the same
+   * Begins replacing the authenticator, behind the step-up: replacing the factor is the same
    * power as removing it. Nothing changes yet - the armed factor and its codes keep working until
    * the new app's code confirms the swap.
    */

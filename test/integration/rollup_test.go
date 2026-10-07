@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The roll-up end to end (B-07), which is the only thing that proves two links the unit tests cannot:
+// The roll-up end to end, which is the only thing that proves two links the unit tests cannot:
 // that the completion policy is really read out of the `policies` column, and that the walk upwards writes
 // through the real repository.
 //
@@ -71,9 +71,9 @@ func completionCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry
 	return registry
 }
 
-// setCompletionPolicy writes the collection's policy as the superuser. Nothing writes it through a use
-// case yet - UpdateContainerPolicies is B-06 - so a fixture is the only way to have a collection that
-// rolls up, and reading it back through the repository is the point of the test.
+// setCompletionPolicy writes the collection's policy as the superuser: a fixture gives a collection
+// that rolls up without going through UpdateContainerPolicies, and reading it back through the
+// repository is the point of the test.
 func setCompletionPolicy(ctx context.Context, t *testing.T, collection shared.ID, policy domain.CompletionPolicy) {
 	t.Helper()
 

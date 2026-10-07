@@ -150,9 +150,9 @@ func TestATemplateIsCheckedAtItsDefinition(t *testing.T) {
 	}
 }
 
-// The bound the backlog set instead of a jobs resource, and the refusal names the number.
-// A template's name, its description and every node's title and notes are stored in normal form C
-// (i18n-l10n.md §5, M-07): the entries an instantiation writes are made from them, and an entry is.
+// The node bound, and the refusal names the number. A template's name, its description and every
+// node's title and notes are stored in normal form C (i18n-l10n.md §5): the entries an
+// instantiation writes are made from them, and an entry is.
 func TestATemplateIsStoredInNormalFormC(t *testing.T) {
 	spec := moveTemplate(t)
 	spec.Name, spec.Description = "Umzug ins Bu\u0308ro", "Fu\u0308r jeden Umzug"

@@ -57,16 +57,7 @@ hub or the workspace, which can only be revoked where they were granted. Revokin
 
 ## Today
 
-* **Checks 4 and 5 fail in the web app**, which together means a hub or an entry cannot be shared
-  with somebody new without handing them the whole workspace. The invitation always grants its role
-  on the workspace (`apps/webapp/src/views/PeopleView.svelte:179`), and the members dialog offers
-  only people who already hold a membership along the path
-  (`apps/webapp/src/lib/people/MembersDialog.svelte:71-74`,
-  `apps/webapp/src/lib/data/people.svelte.ts:62-69`). Through the API it works: an invitation there
-  grants nothing by itself, and the role is then granted on the hub or the entry.
-* **Check 1 fails for groups.** A group holding a role is listed as "a group", without its name
-  (`apps/webapp/src/lib/people/MembersDialog.svelte:144`).
-* **Check 7 fails.** *Share* is on every entry's menu for every reader
-  (`apps/webapp/src/views/ItemView.svelte:327-337`), and the members dialog draws its grant and
-  revoke controls without asking the role (`apps/webapp/src/lib/people/MembersDialog.svelte`); the
-  server refuses them, the screen does not withhold them.
+* Check 1: not met for groups — a group holding a role is listed as "a group", without its name.
+* Check 4: not met in the web app — the members dialog offers only people who already hold a membership along the path, tracked in #1079.
+* Check 5: not met in the web app — the invitation always grants its role on the whole workspace, tracked in #1079.
+* Check 7: not met — *Share* is on every entry's menu for every reader, and the members dialog draws its grant and revoke controls without asking the role; only the server refuses them.

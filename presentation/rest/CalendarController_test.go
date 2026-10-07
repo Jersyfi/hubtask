@@ -18,7 +18,7 @@ import (
 	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The public route (D-08). Two things are decided out here and are therefore tested out here: what
+// The public route. Two things are decided out here and are therefore tested out here: what
 // a malformed token gets, and what the .ics answer carries as headers.
 
 // feedReader is the application service's double.

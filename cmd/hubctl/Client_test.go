@@ -33,7 +33,7 @@ type installation struct {
 	request *http.Request
 	body    string
 	// sessions records the Mcp-Session-Id each call carried, for the one command that has to
-	// hold state across two round trips (J-16).
+	// hold state across two round trips.
 	sessions *[]string
 }
 
@@ -294,7 +294,7 @@ func TestABodyIsSentAsJSON(t *testing.T) {
 
 // A PATCH body is a merge patch, and the header has to say so. Every PATCH in this contract
 // declares `application/merge-patch+json` (api-guidelines.md §7); the server reads no request media
-// type, so this is what a stricter proxy in front of an installation would insist on (issue #430).
+// type, so this is what a stricter proxy in front of an installation would insist on.
 func TestAPatchIsAnnouncedAsAMergePatch(t *testing.T) {
 	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

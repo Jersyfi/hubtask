@@ -12,8 +12,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
 )
 
-// What a second catalogue is held to (M-03, i18n-l10n.md §3): for every catalogue that is not
-// the source, a key the source does not have fails - a translation of a message that was renamed
+// What a second catalogue is held to (i18n-l10n.md §3): for every catalogue that is not the
+// source, a key the source does not have fails - a translation of a message that was renamed
 // or removed is a translation of nothing - and the arguments a translation takes are exactly the
 // ones its source takes: fewer is a value that was lost, more is a placeholder nobody fills. A key
 // the source has and the translation lacks is reported by family and does not fail, because a

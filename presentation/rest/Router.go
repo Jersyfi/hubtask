@@ -43,7 +43,7 @@ func NewMux() *Mux {
 }
 
 // HandleFunc implements the ServeMux interface of the generated code, which is the seam that lets
-// this rewrite happen without touching a generated line (CLAUDE.md rule 11).
+// this rewrite happen without touching a generated line (rule 11).
 func (m *Mux) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
 	routable := routablePattern(pattern)
 	if _, exists := m.templates[routable]; !exists {
@@ -75,7 +75,7 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		m.serveUnrouted(w, routed)
 		return
 	}
-	// A request that sends a field the contract has deprecated hears so (SC-28).
+	// A request that sends a field the contract has deprecated hears so.
 	announceDeprecation(w, routed, m.templates[pattern])
 	m.mux.ServeHTTP(w, routed)
 }
@@ -207,7 +207,7 @@ type Mounted struct {
 	Router Router
 	// Path is the mounted path, matched exactly - or, with Prefix set, everything beneath it.
 	Path string
-	// Prefix mounts a whole tree rather than one path: the CalDAV tree (P-06) is a WebDAV
+	// Prefix mounts a whole tree rather than one path: the CalDAV tree is a WebDAV
 	// hierarchy under one root, and every address in it is answered by one handler and counted
 	// under one route label, because a metric label per calendar would be one per feed.
 	Prefix bool

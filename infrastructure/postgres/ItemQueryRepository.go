@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The query language's half of the item repository (B-12).
+// The query language's half of the item repository.
 //
 // It sits beside the generated queries rather than among them because it is the one read whose
 // statement is not written in advance: the compiler next door produces it from a validated
@@ -279,8 +279,8 @@ func queryFailed(what string, err error) error {
 		WithCause(fmt.Errorf("%s: %w", what, err))
 }
 
-// Search answers the full text search: one page of entries in the order the database ranked them
-// (C-08).
+// Search answers the full text search: one page of entries in the order the database ranked
+// them.
 //
 // It sits beside the query language's half rather than among the generated statements for the same
 // reason that one does: the statement is compiled from a validated request, and it runs on the

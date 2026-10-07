@@ -43,7 +43,7 @@ type CountSealedValuesByKeyRow struct {
 
 // The census a rotation ends on (ADR-0045, security.md §8.1): how many stored values still name
 // each master key. Seven places hold a sealed value - the seventh an authenticator's replacement
-// waiting to be confirmed (SC-17) - and a rotation is only finished when none of
+// waiting to be confirmed - and a rotation is only finished when none of
 // them names the key that is about to leave the ring.
 //
 // Per tenant, like everything else: row level security bounds every branch of the union to the

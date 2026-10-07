@@ -167,8 +167,8 @@ func TestNoConfiguredDomainsAdmitsNobody(t *testing.T) {
 	}
 }
 
-// A client id is not optional, and neither is a key. A *workspace* is optional since SI-10: no
-// workspace is the installation's own row, which is the level above every one of them.
+// A client id is not optional, and neither is a key. A *workspace* is optional: no workspace is the
+// installation's own row, which is the level above every one of them.
 func TestAProviderNeedsItsClientAndItsKey(t *testing.T) {
 	blank := providerInput()
 	blank.ClientID = "  "
@@ -263,7 +263,7 @@ func TestAFlowNeedsAVerifierWorthTheName(t *testing.T) {
 		"no identifier": {TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n", Verifier: good, Now: at},
 		"no workspace":  {ID: id, ProviderID: providerRow, Nonce: "n", Verifier: good, Now: at},
 		// Which provider the browser left through. Without it the callback would have to guess
-		// which client secret to sign the exchange with (SI-10).
+		// which client secret to sign the exchange with.
 		"no provider": {ID: id, TenantID: sessionTenant, Nonce: "n", Verifier: good, Now: at},
 		"no nonce":    {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Verifier: good, Now: at},
 		"short verifier": {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n",

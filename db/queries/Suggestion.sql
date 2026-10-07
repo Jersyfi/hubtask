@@ -1,4 +1,4 @@
--- What AI proposed, and did not do (J-05).
+-- What AI proposed, and did not do.
 --
 -- Every statement runs inside the transaction wrapper that sets `app.tenant_id`, so the policy
 -- underneath answers "which workspace" - `current_tenant_id()` is written on insert rather than

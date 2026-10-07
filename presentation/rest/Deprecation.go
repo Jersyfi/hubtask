@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// A deprecated field says so (SC-28, versioning-release.md §5, api-guidelines.md "Deprecation").
+// A deprecated field says so (versioning-release.md §5, api-guidelines.md "Deprecation").
 //
 // The contract marks a request field `deprecated` with the day it was, the major version it goes
 // away with and, once one is set, the day it stops being accepted. `tools/deprecations` reads that

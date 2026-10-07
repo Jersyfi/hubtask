@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// stepFixture is a sign-in that knows the rule: the session machinery of H-02 with ADR-0068's
+// stepFixture is a sign-in that knows the rule: the session machinery with ADR-0068's
 // resolver behind it, so that the change step can be walked end to end.
 type stepFixture struct {
 	session   *sessionFixture

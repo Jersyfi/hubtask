@@ -1,4 +1,4 @@
--- The statements a restore writes a tenant through (E-06, backup-restore.md §8).
+-- The statements a restore writes a tenant through (backup-restore.md §8).
 --
 -- One trio per entity: does the tenant already hold this row, write it, and - for REPLACE_TENANT -
 -- empty the table. They are as alike as the schema lets them be, and they are hand-written for the
@@ -714,7 +714,7 @@ FROM jsonb_populate_record(
   NULL::activity_entry,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
--- The conflict target is the partitioned key since H-09: a partitioned table cannot hold a
+-- The conflict target is the partitioned key: a partitioned table cannot hold a
 -- unique index on id alone, and occurred_at is immutable on an activity entry, so the pair
 -- names the same row the old target did. tenant_id and occurred_at leave the update list -
 -- they are the key now.

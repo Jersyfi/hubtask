@@ -61,7 +61,7 @@ type CompletionWriter struct {
 	// Jobs is where an ON_COMPLETION series asks for its next occurrence. The completion is what
 	// seeds it, which is SY-8's server half: creation is bound to the status transition rather
 	// than to the event, so two devices completing the same entry produce one transition and one
-	// follow-up (D-05, offline-sync.md §8).
+	// follow-up (offline-sync.md §8).
 	Jobs       queue.Queue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -393,7 +393,7 @@ func (w CompletionWriter) recordChange(
 	// field" is written down): the event carries the whole entry for its subscribers, but an
 	// entry in the log repeating the untouched fields would let a stale title win a merge it was
 	// never part of. `completion` is the field, under its own clock, and it is what a device's
-	// `completed` merges against (N-06).
+	// `completed` merges against.
 	return w.Changes.Record(ctx, changelog.Change{
 		TenantID:    item.TenantID,
 		Entity:      itemTarget,
@@ -563,12 +563,12 @@ func (h ReopenWorkItem) invoke(
 // completionCommand reads the untyped input, and refuses the one field the contract declares that this
 // installation does not serve.
 //
-// `cascade_children` is in api/openapi.yaml and completing a whole subtree in one call is not part of
-// B-07. It is declared here and refused when true rather than left out of the declaration entirely,
-// because the two failures are different: a field the catalogue does not know comes back as
-// `usecase.field_unknown`, which tells a client it misspelled something, and a client sending the
-// documented default `false` would then be refused for asking for exactly what it gets. Refusing only
-// `true` says the true thing - this installation cannot do that yet.
+// `cascade_children` is in api/openapi.yaml and completing a whole subtree in one call is not
+// served. It is declared here and refused when true rather than left out of the declaration
+// entirely, because the two failures are different: a field the catalogue does not know comes back
+// as `usecase.field_unknown`, which tells a client it misspelled something, and a client sending
+// the documented default `false` would then be refused for asking for exactly what it gets.
+// Refusing only `true` says the true thing - this installation cannot do that yet.
 func completionCommand(in usecase.Input) (CompletionCommand, error) {
 	if in.Bool("cascade_children") {
 		return CompletionCommand{}, shared.ErrValidation.

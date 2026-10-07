@@ -90,7 +90,7 @@ func (w *embeddingWorld) Owed(_ context.Context, model string, batch int) ([]rep
 
 func (w *embeddingWorld) CountMissing(context.Context, int) (int, error) { return len(w.owed), nil }
 
-// Near is the neighbourhood query (K-04). The embedding pass neither reads it nor could: this
+// Near is the neighbourhood query. The embedding pass neither reads it nor could: this
 // fake carries it because the port is one interface, and a pass that started asking about
 // neighbours would be a pass doing something nobody asked it to.
 func (w *embeddingWorld) Near(
@@ -131,7 +131,7 @@ func (p embeddingProvider) Capabilities() aiprovider.ProviderCapabilities {
 	}
 }
 
-// MeasureEmbedding is the description the provider gives when asked (#569): what `measures`
+// MeasureEmbedding is the description the provider gives when asked: what `measures`
 // says, counted, so a test can tell one question from a batch.
 func (p embeddingProvider) MeasureEmbedding(context.Context) (int, error) {
 	p.world.measured++
@@ -455,7 +455,7 @@ func TestWideVectorsUnderAZeroDimensionsAreStillRefused(t *testing.T) {
 }
 
 // A model the index cannot hold is refused before the batch, for the price of one description:
-// the provider is asked what it knows, and the texts are never sent (#569).
+// the provider is asked what it knows, and the texts are never sent.
 func TestAWideModelIsRefusedBeforeAnyTextIsSent(t *testing.T) {
 	world := &embeddingWorld{
 		available: true, embedding: true, model: "embed-wide",

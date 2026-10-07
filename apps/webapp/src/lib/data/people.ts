@@ -18,7 +18,7 @@
  * entry cannot be assigned to: `assignee_id` is an account.
  *
  * **This is a courtesy, not the enforcement.** The server refuses an account that cannot see the
- * entry, and that refusal is a sentence the reader gets (F2-07). A picker that tried to be the
+ * entry, and that refusal is a sentence the reader gets. A picker that tried to be the
  * gate would be a second implementation of an authorisation rule, always one deployment behind.
  */
 
@@ -135,7 +135,7 @@ export function holdersOf(
  * Whose role a revocation would end, from the reader's side: somebody else's, the reader's own,
  * or the reader's own and last one in force at this place.
  *
- * The distinction is what the confirmation says before the revoke (issue 778): a role of one's
+ * The distinction is what the confirmation says before the revoke: a role of one's
  * own ends the reader's reach along with the subject's, and the last one ends it entirely -
  * the server allows that, because an owner may hand over and leave, so the client is the half
  * that says what it costs. A role held through a group counts as the reader's own, and a role

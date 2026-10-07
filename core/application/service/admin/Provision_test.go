@@ -62,7 +62,7 @@ type tenantsStore struct {
 	listed    []adminrepo.TenantRecord
 	deletions []time.Time
 	deleteOK  bool
-	// The operator's opening (SC-34): what was written, and the moments a close was asked for.
+	// The operator's opening: what was written, and the moments a close was asked for.
 	openings []domain.PasswordOpening
 	closes   []time.Time
 	// racing is an opening another transaction commits just before a close's statement runs.
@@ -133,7 +133,7 @@ func (s *journalStore) Record(_ context.Context, entry adminrepo.InstanceEvent) 
 	return nil
 }
 
-// Page walks what was recorded, newest first, as the real one does (SI-17).
+// Page walks what was recorded, newest first, as the real one does.
 func (s *journalStore) Page(
 	_ context.Context, cursor string, size int,
 ) ([]adminrepo.InstanceEvent, adminrepo.PageInfo, error) {
@@ -267,7 +267,7 @@ type provisionFixture struct {
 	hosts      *hostsStore
 }
 
-// hostsStore is the hosts a workspace answers at, in memory (SI-12).
+// hostsStore is the hosts a workspace answers at, in memory.
 type hostsStore struct{ rows []domain.TenantHost }
 
 func (s *hostsStore) Insert(_ context.Context, host domain.TenantHost) error {
@@ -418,7 +418,7 @@ func TestTheSeededNamesSpeakTheWorkspacesLocale(t *testing.T) {
 	}
 }
 
-// What provisioning stores is in normal form C (i18n-l10n.md §5, M-07): the workspace's name
+// What provisioning stores is in normal form C (i18n-l10n.md §5): the workspace's name
 // and the owner's as the operator typed them, and the seeded structure as the catalogue rendered
 // it - a translator's file is as free to carry combining marks as a keyboard is.
 func TestProvisioningStoresEveryNameInNormalFormC(t *testing.T) {
@@ -497,7 +497,7 @@ func TestTheOwnersNameDefaultsToTheAddress(t *testing.T) {
 	}
 }
 
-// The one host the new workspace answers at (SI-12): the slug under the installation's own domain,
+// The one host the new workspace answers at: the slug under the installation's own domain,
 // canonical and verified by construction, in the same transaction as everything else provisioning
 // writes.
 func TestAProvisionedWorkspaceGetsItsCanonicalHost(t *testing.T) {

@@ -43,13 +43,14 @@ const (
 
 // PasswordChangedAction is a password replaced, whichever door it came through. Warning rather than
 // notice: a password change is what an account takeover looks like from the trail, and a reader
-// scanning for one should see it (audit.md §2).
+// scanning for one should see it (audit.md §4).
 const PasswordChangedAction audit.Action = "account.password_changed"
 
-// PasswordBlocklist is the operator's own list of refused passwords, read offline (security.md §5).
+// PasswordBlocklist is the operator's own list of refused passwords, read offline (identity.md
+// §5.1).
 //
 // A port rather than a file path in the service, because what an installation points at is its
-// business: a text file today, and whatever a later milestone wires. Nil is "no list configured",
+// business: a text file or anything else it wires. Nil is "no list configured",
 // which is not an error - `sign_in.blocklist_file` is how an installation says it wants one.
 type PasswordBlocklist interface {
 	// Contains reports whether the folded candidate carries an entry. The folding is the domain's
@@ -80,7 +81,7 @@ type PasswordWriter struct {
 	Accounts  repository.PasswordAccounts
 	Histories repository.PasswordHistories
 	Pending   repository.PendingCredentials
-	// StepUp is the bearer door's proof (H-03).
+	// StepUp is the bearer door's proof.
 	StepUp stepupport.Verifier
 
 	// WaysIn answers ADR-0076 §4's fallback for the sign-in's verdict. Its zero value answers none.
@@ -92,7 +93,7 @@ type PasswordWriter struct {
 
 	// Text is NFKC. Applied before the rule counts anything and before the hash is computed, so
 	// that what was counted is what is stored (ADR-0068 §7). Named as every other constructor that
-	// stores text names it, which is what the gate M-07 left behind checks.
+	// stores text names it, which is what test/architecture/normalizer_test.go checks.
 	Text       text.Normalizer
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -345,7 +346,7 @@ func (w PasswordWriter) Write(
 // endOthers ends every session of the account but the one the caller is holding - every one where
 // none is held, as after a reset.
 //
-// One statement, the one *Sign out everywhere else* uses (SC-23): a read followed by one revocation
+// One statement, the one *Sign out everywhere else* uses: a read followed by one revocation
 // per row could miss a session opened between the two, and a password that just changed must leave
 // no other door open. Personal access tokens are untouched: they are their own credentials with their
 // own expiry and their own list, and a person who minted one did not mint it in a browser.
@@ -381,7 +382,7 @@ func (w PasswordWriter) AccountFor(
 // ChangePasswordCommand is the bearer door.
 type ChangePasswordCommand struct {
 	Password secret.Secret
-	// StepUpToken is the proof of the old password (H-03). Demanded, because a bearer alone is a
+	// StepUpToken is the proof of the old password. Demanded, because a bearer alone is a
 	// stolen tab.
 	StepUpToken string
 }
@@ -828,7 +829,7 @@ func (h SetPasswordAndSignIn) Execute(
 	tenantID := token.TenantID()
 	scope := persistence.Scope{TenantID: tenantID}
 	// The step a password sign-in was owed: once the workspace switched the password off, it completes
-	// nothing (SC-24).
+	// nothing.
 	if err := refuseShut(w.PasswordOpen(ctx, tenantID)); err != nil {
 		return SessionPair{}, err
 	}

@@ -46,7 +46,5 @@ back in his workspace. In a private installation (D1) the same entry appears as 
 
 ## Today
 
-* **Check 3 fails:** every token refresh clears the stored hour (`tokenStore.write`), so a reload
-  asks again and starts a second hour while the first still stands.
-* **Check 6 fails:** `hubctl` has no command to raise a session.
-* **Check 1, D1 half:** the entry is in the account menu, not as a section of *Administration*.
+* Check 3: not met — every token refresh clears the stored hour, so a reload asks again and starts a second hour while the first still stands, tracked in #1061.
+* Check 6: not met — `hubctl` has no command to raise a session, tracked in #1061.

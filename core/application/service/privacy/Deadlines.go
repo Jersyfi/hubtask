@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// The deadline watch (E-10, alert A-19). `data-protection.md` §4 is blunt about why it exists:
+// The deadline watch (alert A-19). `data-protection.md` §4 is blunt about why it exists:
 // "without deadline monitoring, the right gets violated in practice even though the feature
 // exists". A case with a statutory period is not answered by a list somebody remembers to open.
 

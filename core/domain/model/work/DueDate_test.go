@@ -29,10 +29,10 @@ func parseInstant(value string) *time.Time {
 	return &parsed
 }
 
-// The three refusals the backlog names, each with a stable code and a field error, and the
-// combinations that are due dates. The rule is about the resulting trio rather than the request:
-// a zone or a flag qualifying an instant that is not there is a row whose meaning depends on a
-// field it does not have (i18n-l10n.md §4).
+// The three refusals, each with a stable code and a field error, and the combinations that are due
+// dates. The rule is about the resulting trio rather than the request: a zone or a flag qualifying
+// an instant that is not there is a row whose meaning depends on a field it does not have
+// (i18n-l10n.md §4).
 func TestADueDateIsTheTrioOrNothing(t *testing.T) {
 	for name, test := range map[string]struct {
 		at       *time.Time

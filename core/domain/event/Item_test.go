@@ -140,8 +140,7 @@ func TestAnUnsetNoteIsOmittedAndCompletionNeverIs(t *testing.T) {
 }
 
 // A completed item carries who closed it and when. Nothing creates one, but the payload is built
-// from the item rather than from the occasion, so the shape has to be right wherever it is used
-// next (B-07).
+// from the item rather than from the occasion, so the shape has to be right wherever it is used.
 func TestACompletedItemCarriesWhoClosedItAndWhen(t *testing.T) {
 	closed := occurred.Add(time.Hour)
 	item := task()
@@ -382,7 +381,7 @@ func TestAnItemLabelEventRefusesAnEmptyLabel(t *testing.T) {
 	}
 }
 
-// The four events of C-01 carry a reference and no snapshot, for the reason the label pair does:
+// The four assignment and membership events carry a reference and no snapshot, for the reason the label pair does:
 // an entry snapshot would have to carry the member list to be useful, and that list is exactly what
 // merges separately.
 func TestTheAssignmentEventsCarryTheReference(t *testing.T) {
@@ -606,7 +605,7 @@ func TestThePurgeEventCarriesNoContentOfWhatWasDeleted(t *testing.T) {
 }
 
 // The attachment pair carries the reference for the reason the label pair does: a set is not a
-// field, and an entry snapshot would have to carry the whole set to be useful (C-06).
+// field, and an entry snapshot would have to carry the whole set to be useful.
 func TestTheAttachmentEventsCarryTheReference(t *testing.T) {
 	item := task()
 	mediaID := shared.MustParseID("0192f000-0000-7000-8000-0000000000d1")
@@ -654,7 +653,7 @@ func TestAnAttachmentEventWithoutAFileIsRefused(t *testing.T) {
 	}
 }
 
-// The announcement a stamped-out template makes (D-06). One event for the act, beside the
+// The announcement a stamped-out template makes. One event for the act, beside the
 // item.created of every entry it produced: what happened to the world is that entries came into
 // being, and what this adds is which template they came from.
 func TestTheInstantiationEventNamesTheTemplateAndItsRoot(t *testing.T) {

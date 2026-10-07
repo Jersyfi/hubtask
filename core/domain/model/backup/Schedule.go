@@ -113,8 +113,8 @@ type Schedule struct {
 	FullRRULE    string
 	IncludeMedia bool
 	IncludeAudit bool
-	// TrialRestore follows every FULL run with an INSPECT restore of the archive it wrote, in
-	// the same job, and fails the run when the archive cannot be read back (B-4, P-14).
+	// TrialRestore follows every FULL run with an INSPECT restore of the archive it wrote, in the
+	// same job, and fails the run when the archive cannot be read back (backup-restore.md §5, B-4).
 	TrialRestore bool
 	Retention    Retention
 	NotifyOn     []Notification
@@ -318,19 +318,19 @@ const (
 	CodeTargetBusy                  = "backup.target_busy"
 	CodeChainIncomplete             = "backup.chain_incomplete"
 	CodeRunFailed                   = "backup.run_failed"
-	// CodeRunAbandoned closes a run whose job the queue gave up on (#207). The row was RUNNING
-	// and its worker is not coming back; left open it would hold the one-run-per-target lock for
-	// ever, so the dead letter closes it under this code and the target is free again.
+	// CodeRunAbandoned closes a run whose job the queue gave up on. The row was RUNNING and its
+	// worker is not coming back; left open it would hold the one-run-per-target lock for ever, so
+	// the dead letter closes it under this code and the target is free again.
 	CodeRunAbandoned = "backup.run_abandoned"
 	// CodeRestoreAbandoned is the same closing for a restore run, whose open row holds the
 	// one-restore-per-tenant lock.
 	CodeRestoreAbandoned = "backup.restore_abandoned"
 	// CodeScheduleVersionConflict is a change written against a version that no longer stands
-	// (F4-02): either the caller's form was stale, or somebody committed in between.
+	// (api-guidelines.md §5): either the caller's form was stale, or somebody committed in between.
 	CodeScheduleVersionConflict = "backup.schedule_version_conflict"
-	// CodeTargetInUse refuses the removal of a target a schedule still names (F4-02). Refused
-	// rather than cascaded: deleting one silently disarms a backup that runs every night, and
-	// the disarming would be discovered by whoever needed the archive.
+	// CodeTargetInUse refuses the removal of a target a schedule still names. Refused rather than
+	// cascaded: deleting one silently disarms a backup that runs every night, and the disarming
+	// would be discovered by whoever needed the archive.
 	CodeTargetInUse = "backup.target_in_use"
 )
 
@@ -399,7 +399,7 @@ type Run struct {
 	VerifiedAt  time.Time
 	VerifyOK    *bool
 	// TrialReport is what the trial restore found, encoded as the restore's report, and TrialAt
-	// when; both zero where no trial ran (B-4, P-14).
+	// when; both zero where no trial ran (backup-restore.md §5, B-4).
 	TrialReport []byte
 	TrialAt     time.Time
 }
@@ -419,7 +419,7 @@ type Outcome struct {
 	// ErrorCode is the message code of the failure, never a message and never anything the run
 	// was working on (rules 8 and 10).
 	ErrorCode string
-	// TrialReport and TrialAt are the trial restore's, where one ran (B-4, P-14).
+	// TrialReport and TrialAt are the trial restore's, where one ran (backup-restore.md §5, B-4).
 	TrialReport []byte
 	TrialAt     time.Time
 }

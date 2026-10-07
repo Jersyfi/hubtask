@@ -11,8 +11,8 @@
 // and goes looking for all of it again at the end.
 //
 // The generator itself lives in test/load/harness: it counts from the client, paces independently
-// of the responses, and records a timeline, and H-11 gave it a ramp so that RT-6 could use the
-// same one. What stays here is what is particular to RT-8 - the mix of calls both versions of a
+// of the responses, records a timeline, and has a ramp, so that RT-6 uses the same one. What
+// stays here is what is particular to RT-8 - the mix of calls both versions of a
 // rolling update can serve, and the search for every identifier afterwards.
 //
 // Two things it does deliberately, beyond what the harness gives it:
@@ -52,7 +52,7 @@ const envToken = "HUBTASK_TOKEN" //nolint:gosec // G101: the name of an environm
 
 // requestTimeout bounds one call. Generous, because what is under test is whether a request is
 // answered at all - a slow answer during a rollout is a different finding from a refused one, and
-// this has to be able to tell them apart (CLAUDE.md rule 7).
+// this has to be able to tell them apart (rule 7).
 const requestTimeout = 30 * time.Second
 
 // stagger is how far apart the workers begin.

@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The two directions of completion (B-07). Both hold no rules: the guards, the roll-up, the events and the
+// The two directions of completion. Both hold no rules: the guards, the roll-up, the events and the
 // audit entries all happen in the application layer, once, whichever channel the call arrived through
 // (ADR-0005, arc42 §4).
 

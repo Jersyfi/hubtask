@@ -3,6 +3,8 @@
 **Status:** accepted · **Date:** 2026-09-04 · **Amended:** 2026-09-07 ([below](#amendment-2026-09-07-the-platforms-facts-and-what-they-change)) ·
 **Closes:** open points D-1 and D-2 (`deployment.md` §8), B-2 and B-3 (`backup-restore.md` §12)
 
+**Rule lives in:** [deployment.md](../architecture/deployment.md) §3.2, §4, [backup-restore.md](../architecture/backup-restore.md) §8.5, [deploy/production/PLATFORM-INTERFACE.md](../../deploy/production/PLATFORM-INTERFACE.md)
+
 ## Context
 
 [§3.1](../architecture/deployment.md#31-where-integration-runs) settled where `integration` runs and

@@ -95,7 +95,7 @@ func TestAConditionAnswersTrueOrFalse(t *testing.T) {
 	}
 }
 
-// A time condition evaluates the server's time (N-10, offline-sync.md §8): `now` is the run's
+// A time condition evaluates the server's time (offline-sync.md §8): `now` is the run's
 // own instant, and a completion a device made three days ago - and three hours before office
 // hours - does not fire a deadline rule about the day it happened. The table is the device
 // three days behind, and the condition reads the same either way.

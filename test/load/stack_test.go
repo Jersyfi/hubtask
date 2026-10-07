@@ -63,7 +63,8 @@ const (
 // capacity ramp on named hardware, seeded by scripts/seed-load-dataset.sh against a real stack;
 // carrying them into a container on a shared runner would spend the whole nightly on the COPY and
 // measure the runner's disk. So the nightly seeds a scaled dataset and says so, and the two tiers
-// stay what decision 7 asks for rather than one tier pretending to be both.
+// stay what observability-reliability.md §13.2 asks for rather than one tier pretending to be
+// both.
 func datasetSize(t *testing.T) (tenants, items int) {
 	t.Helper()
 	return envInt(t, "HUBTASK_LOAD_TENANTS", 20), envInt(t, "HUBTASK_LOAD_ITEMS", 40_000)
@@ -374,7 +375,7 @@ func startServer(ctx context.Context, dsn string) (string, int, error) {
 		"HUBTASK_DB_DSN="+dsn,
 		"HUBTASK_SECRET_KEY="+installationSecret,
 		// The storm's webhook subscription carries a signing secret, and the application never
-		// stores a plaintext one (E-02): without a key ring, creating one answers 503 rather than
+		// stores a plaintext one (security.md §8): without a key ring, creating one answers 503 rather than
 		// silently storing something readable. Fixed material, because the installation and
 		// everything sealed under it end together.
 		"HUBTASK_ENCRYPTION_KEYS=k1",

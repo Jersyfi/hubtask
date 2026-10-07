@@ -22,7 +22,7 @@ import (
 // `plural` with `offset:` and `=n`, `selectordinal`, `select`, `#` inside a plural, nested
 // messages in every branch, and ICU's apostrophe quoting. Everything else - `number`, `date`,
 // `time` and any other argument type - is refused by name when the message is parsed, which is
-// what lets M-03's gate hear the refusal when the message is written rather than when somebody
+// what lets the catalogue gate hear the refusal when the message is written rather than when somebody
 // reads Polish (i18n-l10n.md §3).
 //
 // The categories come from golang.org/x/text/feature/plural, the CLDR data Intl.PluralRules
@@ -30,7 +30,7 @@ import (
 //
 // One deliberate difference from the client: a number is written as it was given. The client
 // groups digits with Intl.NumberFormat; this side has no number symbols and does not pretend to
-// (milestone-0.8.0.md, decision 8), and the few numbers the server renders are counts and limits.
+// (i18n-l10n.md §3), and the few numbers the server renders are counts and limits.
 
 // MessageSyntaxError is what parsing refuses with. The message names the construct, because
 // "unsupported syntax" sends a reader looking and "`{n, number}` is not implemented" sends them to

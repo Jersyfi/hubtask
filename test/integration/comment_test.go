@@ -18,8 +18,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The discussion beside the entries, against a real database (C-03): the thread pages oldest
-// first, the tombstone clears the text, and a cross-tenant negative for every method (gate SG-3).
+// The discussion beside the entries, against a real database: the thread pages oldest first, the
+// tombstone clears the text, and a cross-tenant negative for every method (gate SG-3).
 
 func commentRepo() postgres.CommentRepository {
 	return postgres.NewCommentRepository(pageCursors())

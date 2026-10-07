@@ -22,7 +22,7 @@ import (
 const streamCursorInfo = "hubtask/stream-cursor/v1"
 
 // streamCursorParts is how many fields a delta cursor's payload has: the position, the moment it
-// was minted, and the epoch it was minted under (N-11). A walk cursor carries two more: the kind
+// was minted, and the epoch it was minted under. A walk cursor carries two more: the kind
 // being walked and the key it resumes after. A cursor minted before the epoch existed has one
 // field fewer in either shape and reads as epoch zero, which is the epoch every workspace starts
 // at - so a device holding one is not sent through a resynchronisation for the field's sake.
@@ -47,11 +47,11 @@ const streamCursorFieldSeparator = "."
 type StreamPosition struct {
 	Seq      int64
 	IssuedAt time.Time
-	// Epoch is the workspace's synchronisation epoch the cursor was minted under (N-11): a
+	// Epoch is the workspace's synchronisation epoch the cursor was minted under: a
 	// restore advances it, and a cursor from an older epoch is refused, because the rows a
 	// restore wrote are in no change log entry the cursor could reach.
 	Epoch int64
-	// Kind and After are set while an initial synchronisation is under way (N-02): the kind being
+	// Kind and After are set while an initial synchronisation is under way: the kind being
 	// walked and the key of the last row handed out. Both empty is a delta position - the only
 	// kind a stream resumes from. They are inside the signed payload for the same reason the
 	// moment is: a client that could edit them could skip a kind and believe itself complete.

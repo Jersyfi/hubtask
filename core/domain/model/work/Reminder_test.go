@@ -134,8 +134,8 @@ func TestAnOffsetSpecIsOneOfTwoFormsOrNothing(t *testing.T) {
 	}
 }
 
-// The backlog's rule, both halves of it: a relative reminder follows its due date, an absolute one
-// does not, and both are decided against a fixed clock so the test says what it means.
+// Both halves of the rule: a relative reminder follows its due date, an absolute one does not, and
+// both are decided against a fixed clock so the test says what it means.
 func TestARelativeReminderFollowsTheDueDateAndAnAbsoluteOneDoesNot(t *testing.T) {
 	due := dueAt("2026-09-01T17:00:00Z")
 	moved := dueAt("2026-09-04T17:00:00Z")
@@ -220,7 +220,7 @@ func TestAnAllDayDueDateIsCountedFromTheStartOfItsDayInItsOwnZone(t *testing.T) 
 	}
 }
 
-// The refusal the backlog names, and its counterpart: an absolute reminder needs no due date at
+// The relative reminder's refusal, and its counterpart: an absolute reminder needs no due date at
 // all, because it counts from nothing.
 func TestARelativeReminderNeedsADueDateAndAnAbsoluteOneDoesNot(t *testing.T) {
 	_, err := work.NewReminder(draftReminder("REL:-PT1H", nil))

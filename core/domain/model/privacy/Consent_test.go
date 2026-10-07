@@ -10,8 +10,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/privacy"
 )
 
-// Consent is a record rather than a flag (E-10): not "is this allowed now" but "was it allowed
-// then", which is what an operator has to be able to show.
+// Consent is a record rather than a flag: not "is this allowed now" but "was it allowed then",
+// which is what an operator has to be able to show.
 
 func TestAWithdrawalIsRecordedEvenWhereNothingWasGranted(t *testing.T) {
 	consent, err := privacy.NewWithdrawal(requestID, subjectID, " ai_processing ", "", now)

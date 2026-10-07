@@ -27,13 +27,12 @@ const maxDisplayName = 200
 // setting a workspace up actually does. What it cannot do is act - Account.Verify refuses any
 // status but ACTIVE, so an invitation that is never accepted grants nothing.
 //
-// There is deliberately no token here. Accepting an invitation means proving control of the
-// mailbox and choosing a credential, and neither exists before the sign-in flow arrives in 0.6.0
-// (security.md §5). Issuing a token nobody can redeem would be a credential lying around for
-// months.
+// There is deliberately no token here. The redemption token is minted when the invitation mail is
+// delivered, not when the invitation is made (data-catalog.md §7.5): a token nobody can redeem yet
+// would be a credential lying around for months.
 //
-// The two ports are what the domain may not do itself: bring the address's domain to the form
-// the DNS holds (M-10) and the name to normal form C (M-07, i18n-l10n.md §5).
+// The two ports are what the domain may not do itself: bring the address's domain to the form the
+// DNS holds (i18n-l10n.md §7) and the name to normal form C (i18n-l10n.md §5).
 func Invite(
 	id shared.ID, tenantID shared.ID, email string, displayName string,
 	domains text.DomainEncoder, form text.Normalizer,
@@ -98,14 +97,14 @@ func NewServiceAccount(
 // catches is the mistake - a name pasted into the wrong field, a missing domain - before it
 // becomes a row and a send attempt.
 //
-// Lower-cased, because the uniqueness index compares that way (db/schema.sql, account_email_uq)
-// and because two spellings of one address are two accounts for one person. The domain half is
-// brought to the ASCII form a mail server sees for the same reason (i18n-l10n.md §7, M-10):
-// `anna@müller.de` and `anna@xn--mller-kva.de` are one mailbox, and what is stored is the second.
-// The local part is not touched beyond the case: it is the mailbox's business, and case-folding
-// it is already more than RFC 5321 allows. Without an encoder a domain that is not ASCII is
-// refused rather than stored as it stands - fail closed, so a caller that forgot the port cannot
-// create the second row this exists to prevent.
+// Lower-cased, because the uniqueness index compares that way (db/schema.sql, account_email_uq) and
+// because two spellings of one address are two accounts for one person. The domain half is brought
+// to the ASCII form a mail server sees for the same reason (i18n-l10n.md §7): `anna@müller.de` and
+// `anna@xn--mller-kva.de` are one mailbox, and what is stored is the second. The local part is not
+// touched beyond the case: it is the mailbox's business, and case-folding it is already more than
+// RFC 5321 allows. Without an encoder a domain that is not ASCII is refused rather than stored as
+// it stands - fail closed, so a caller that forgot the port cannot create the second row this
+// exists to prevent.
 func emailAddress(raw string, domains text.DomainEncoder) (string, error) {
 	address := strings.ToLower(strings.TrimSpace(raw))
 	switch {
@@ -171,8 +170,8 @@ func isASCII(text string) bool {
 
 // accountDisplayName falls back to the local part of the address. An invitation that names nobody
 // still has to show something beside every action the account takes, and "j.winkel" is a better
-// answer than an empty cell (audit.md §2). The name is stored in normal form C (M-07): it is
-// shown beside everything a person does, and shown in one spelling.
+// answer than an empty cell (audit.md §2). The name is stored in normal form C (i18n-l10n.md §5):
+// it is shown beside everything a person does, and shown in one spelling.
 func accountDisplayName(raw string, address string, form text.Normalizer) (string, error) {
 	name, err := shared.NFC(strings.TrimSpace(raw), form)
 	if err != nil {
@@ -207,7 +206,7 @@ type Preferences struct {
 	// MONDAY, SUNDAY, SATURDAY - what CLDR distinguishes for the calendars this product draws.
 	WeekStart string
 	// Celebrations is "true" or "false", and OnboardingCompletedAt an RFC 3339 instant - strings,
-	// so that the one rule every preference has holds for them too: empty clears (F6-12).
+	// so that the one rule every preference has holds for them too: empty clears.
 	Celebrations          string
 	OnboardingCompletedAt string
 }
@@ -288,8 +287,8 @@ func onboardingCompletedAtOf(raw string) (*time.Time, error) {
 // resolves to its fallback rather than failing a request (i18n-l10n.md §2).
 //
 // The grammar itself is shared.LanguageTag, because an entry's content language is checked against
-// exactly the same one (C-08). What is not shared is the message code: this is an account's
-// preference and says so.
+// exactly the same one. What is not shared is the message code: this is an account's preference and
+// says so.
 func localeTag(raw string) (string, error) {
 	tag, ok := shared.LanguageTag(raw)
 	if !ok {

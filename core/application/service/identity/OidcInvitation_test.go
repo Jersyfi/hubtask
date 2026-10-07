@@ -13,8 +13,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// An invited person accepts the invitation through the workspace's provider (SC-24) - and only with
-// a second proof (SC-32, ADR-0078 §1): the person arrives through the invitation's own link, bound
+// An invited person accepts the invitation through the workspace's provider - and only with
+// a second proof (ADR-0078 §1): the person arrives through the invitation's own link, bound
 // to the provider flow on the server, or the provider is authoritative for the address. A
 // provider's `email_verified` alone activates nothing and connects nothing. Under INVITED_ONLY the
 // link admits even a provider that is not authoritative, for that account only, and in every case
@@ -244,8 +244,8 @@ func TestALapsedInvitationIsNotAcceptedThroughAnAuthoritativeProvider(t *testing
 	assertStillInvited(t, f, invitation)
 }
 
-// A connection made earlier while the account was invited, without a second proof - SC-24's
-// arrivals, or an earlier provider's word - activates nothing on the next arrival through it. Through
+// A connection made earlier while the account was invited, without a second proof - an arrival on
+// the provider's word alone - activates nothing on the next arrival through it. Through
 // the link it does, and the connection is made afresh: what was connected before the proof is
 // dropped in the activation's transaction.
 func TestAnEarlierLinkWithoutProofActivatesNothing(t *testing.T) {

@@ -226,7 +226,7 @@ func TestTheLocalAdapterAsksForAWholeAnswer(t *testing.T) {
 }
 
 // A model that cannot embed is an ordinary configuration for a local provider, and Capabilities()
-// is how an installation is told - the search then degrades rather than failing (J-10).
+// is how an installation is told - the search then degrades rather than failing.
 func TestALocalModelThatCannotEmbedSaysSo(t *testing.T) {
 	client := &recordingClient{}
 	provider := ai.Ollama{
@@ -255,7 +255,7 @@ func localAdapter(client *recordingClient) ai.Ollama {
 
 // The width is asked of the server's model description before any text is sent, read off
 // `<architecture>.embedding_length`, and remembered per process: the second question costs no
-// call, and Capabilities answers it from then on without one (#569).
+// call, and Capabilities answers it from then on without one.
 func TestTheWidthIsReadOffTheModelDescriptionOnceAndRemembered(t *testing.T) {
 	client := &recordingClient{body: `{"model_info":{"general.architecture":"nomic-bert",
 		"nomic-bert.embedding_length":768,"nomic-bert.context_length":2048}}`}

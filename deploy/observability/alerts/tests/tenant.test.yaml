@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# Synthetic firing test for the tenant file's one rule (H-08's A-18).
+# Synthetic firing test for the tenant file's one rule (A-18).
 rule_files:
   - ../prometheus-rules-tenant.yaml
 evaluation_interval: 30s

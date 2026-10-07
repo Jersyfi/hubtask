@@ -90,7 +90,7 @@ func TestReadingTheWorkspaceAnswersItsConfigurationAndAnETag(t *testing.T) {
 	}
 }
 
-// The anchoring target is read on the workspace (issue 774) - null where anchoring is off, the
+// The anchoring target is read on the workspace - null where anchoring is off, the
 // identifier where it is on - and written nowhere but PUT /audit/anchoring.
 func TestTheWorkspaceAnswersItsAnchoringTarget(t *testing.T) {
 	registry := &catalogue{out: storedWorkspace()}

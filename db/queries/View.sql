@@ -1,4 +1,4 @@
--- Saved views (D-07).
+-- Saved views.
 --
 -- The query column is stored exactly as the client sent it, validated by the application against
 -- the same grammar the query endpoint applies. Nothing here interprets it - or the layout, or the
@@ -72,7 +72,6 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- name: DeleteSavedView :execrows
 -- A hard delete: the table carries no deleted_at, and a view is a bookmark rather than content -
 -- nothing below it to keep, nothing to restore. A calendar feed that served it keeps its row and
--- loses the reference, which is the composite foreign key's ON DELETE SET NULL (migration 0005)
--- and D-08's question answered here.
+-- loses the reference, which is the composite foreign key's ON DELETE SET NULL (migration 0005).
 DELETE FROM saved_view
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');

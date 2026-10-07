@@ -15,8 +15,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The read behind the members screen (F3-01), against the real boundary. Gate SG-3: ListAt has
-// its cross-tenant negative below.
+// The read behind the members screen, against the real boundary. Gate SG-3: ListAt has its
+// cross-tenant negative below.
 
 // grantedAt writes one membership for a fresh account at the scope and returns it.
 func grantedAt(ctx context.Context, t *testing.T, tenant shared.ID, scope identity.Scope) identity.Grant {

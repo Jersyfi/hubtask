@@ -11,8 +11,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// InvitationMessage is the queue's way into the invitation B-02 has been queueing since the
-// account was created (C-09).
+// InvitationMessage is the queue's way into the invitation queued when the account was
+// created.
 //
 // Not detached, unlike the delivery beside it, and that is the whole design: this handler writes a
 // record and queues the send, both inside the transaction the runner opened, so a process that

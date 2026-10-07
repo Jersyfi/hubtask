@@ -20,10 +20,10 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// What D-06 promises once real rows are involved: a relative date becomes an absolute one against
-// the anchor the request named, read in the caller's own zone and stored as the day it is; the tree
-// arrives whole and parented; and the role that may read a collection may not stamp a template out
-// into it.
+// What UC-WRK-16 checks 3 and 4 promise once real rows are involved: a relative date becomes an
+// absolute one against the anchor the request named, read in the caller's own zone and stored as
+// the day it is; the tree arrives whole and parented; and the role that may read a collection may
+// not stamp a template out into it.
 
 // seedTemplateTenant gives this file a tenant of its own, with an administrator, a hub and a
 // collection. Its own rather than the shared one, because tenant A carries a deliberately narrowed

@@ -9,7 +9,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The presets a provider can be configured from (SI-10, ADR-0069 §3).
+// The presets a provider can be configured from (identity.md §10.3, ADR-0069 §3).
 //
 // **Data rather than branches**, and the reason is the second one: a `switch` on the issuer that
 // decides the mark is a `switch` somebody extends without noticing that the scopes, the
@@ -49,13 +49,13 @@ type ProviderPreset struct {
 	Scopes []string
 
 	// AddressesVerified is whether this issuer's addresses are verified by construction - shown to
-	// the person configuring it, and nothing more since ADR-0071's addendum (E2).
+	// the person configuring it, and nothing more (ADR-0071's addendum).
 	//
-	// It used to decide whether the provider may be INVITED_ONLY, on the reasoning that the mode
-	// hands an existing account to an arriving subject on the strength of an address. Every mode
-	// did, and the other two created accounts besides. What decides now is the account: one that
-	// holds a credential is connected only after that credential is proven. GENERIC stays false,
-	// because this installation cannot know how a self-hosted issuer verifies an address.
+	// It does not decide whether the provider may be INVITED_ONLY: every mode would hand an
+	// existing account to an arriving subject on the strength of an address, and the other two
+	// create accounts besides. What decides is the account: one that holds a credential is
+	// connected only after that credential is proven. GENERIC stays false, because this
+	// installation cannot know how a self-hosted issuer verifies an address.
 	AddressesVerified bool
 
 	// DirectoryClaim is the claim that names the organisation a person belongs to, as this
@@ -104,7 +104,7 @@ type ProviderPreset struct {
 	//
 	// A public provider may **only** be INVITED_ONLY, and the rule is not an operator's to relax:
 	// `ANY` on a public issuer means every person alive is provisioned an account in this
-	// workspace, which is the finding SI-10 answers.
+	// workspace.
 	Public bool
 
 	// Particular is the message code of the one thing about this provider that is not like the

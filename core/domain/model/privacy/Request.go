@@ -115,8 +115,8 @@ const (
 
 func (m ErasureMode) Valid() bool { return m == ModeAnonymize || m == ModeFullDelete }
 
-// DefaultErasureMode is what a case is carried out as when nobody named a mode, and it is the
-// decision open point P-6 owed (data-protection.md §12, H-13).
+// DefaultErasureMode is what a case is carried out as when nobody named a mode (data-protection.md
+// §4, P-6).
 //
 // Anonymisation, because the rights in a workspace are not only the asking person's. A task
 // somebody else depends on, a comment in a thread that stops making sense without it, a decision
@@ -200,8 +200,8 @@ type NewRequestInput struct {
 	Notes            string
 	Now              time.Time
 
-	// Text brings the notes to normal form C before they are bounded and stored (i18n-l10n.md §5,
-	// M-07); work.NewWorkItemInput says why it is handed in.
+	// Text brings the notes to normal form C before they are bounded and stored (i18n-l10n.md §5);
+	// work.NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 
@@ -311,7 +311,7 @@ func (r Request) Complete(at time.Time, archive string) (Request, error) {
 
 // Reject refuses the request, with the reason that makes it an answer.
 //
-// The normaliser is handed in for the reason NewRequest takes one (M-07).
+// The normaliser is handed in for the reason NewRequest takes one (i18n-l10n.md §5).
 func (r Request) Reject(reason string, by shared.ID, form text.Normalizer, at time.Time) (Request, error) {
 	if !r.Status.CanMoveTo(StatusRejected) {
 		return Request{}, transitionRefused(r.Status, StatusRejected)

@@ -3,15 +3,16 @@
 #
 # The self-hosting alert set (observability-reliability.md §10).
 #
-# Six rules, not eighteen. The catalogue's full set is written for provider operation with an
+# Eight rules, not twenty. The catalogue's full set is written for provider operation with an
 # on-call rota and an error budget; a self-hosted installation has one person, who is asleep, and
 # an alert that fires for a symptom nobody will act on trains that person to ignore the next one.
 # What is left is the set where doing nothing loses data or leaves the installation broken:
 # A-03 (nobody is serving), A-04 (a defect), A-05 (events are stuck), A-07 (work was finally
-# given up on), A-12 (the backup is not happening), and A-08 (D-03), which joins them because a
-# reminder that does not arrive is not a symptom somebody can catch up on afterwards: the moment
-# it was for has passed, and to the person waiting for it the failure is indistinguishable from
-# the reminder never having been set.
+# given up on), A-12 (the backup is not happening), A-19 (a data subject request nears its
+# statutory deadline), A-20 (nobody has proved the backups restore), and A-08 (reminders are late),
+# which joins them because a reminder that does not arrive is not a symptom somebody can catch up
+# on afterwards: the moment it was for has passed, and to the person waiting for it the failure is
+# indistinguishable from the reminder never having been set.
 #
 # Every rule carries a `runbook` annotation naming a file under deploy/observability/runbooks/.
 # That is not decoration: §11 says an alert without a runbook does not ship, and the gate in
@@ -102,7 +103,7 @@ groups:
         # series is missing entirely, and `absent()` is what turns "nobody configured a backup"
         # into an alert rather than into silence.
         #
-        # Per target rather than over the maximum (E-05). The gauge is labelled by target, and a
+        # Per target rather than over the maximum. The gauge is labelled by target, and a
         # `max()` across them means one healthy target hides a broken one - which is exactly the
         # 3-2-1 arrangement backup-restore.md §2 recommends, so it is the normal case rather than
         # an edge one. Without the aggregation each series alerts for itself and the label says
@@ -131,7 +132,7 @@ groups:
         # A counter rather than a gauge, and the increase over a window rather than a value. The
         # deadline watch runs per workspace once a day and reports what it found, so a case that is
         # near or past its deadline shows up every day it stays that way; a gauge would have needed
-        # a tenant label to be true in provider operation (E-10).
+        # a tenant label to be true in provider operation.
         expr: |
           increase(hubtask_dsr_deadline_total{stage="overdue"}[26h]) > 0
           or increase(hubtask_dsr_deadline_total{stage="approaching"}[26h]) > 0

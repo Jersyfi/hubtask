@@ -14,9 +14,9 @@ import (
 // the constraint, table and column the server reported. Never the message or the detail - both
 // quote the row, and a row is user content (rule 10, ADR-0017).
 //
-// It exists for the failure nobody could read: a job that failed with `postgres.query_failed`
-// and nothing else, twice, in the e2e session (issue 692). The code said a statement failed and
-// the log could not say which; the constraint name does.
+// It exists for the failure nobody can read: a job that fails with `postgres.query_failed` and
+// nothing else. The code says a statement failed and the log cannot say which; the constraint name
+// does.
 func Diagnostics(err error) []slog.Attr {
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) {

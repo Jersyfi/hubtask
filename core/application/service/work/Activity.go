@@ -60,7 +60,7 @@ func (j ActivityJournal) record(
 }
 
 // RecordStep writes one step of an entry's history on behalf of something that is not a use case:
-// the push, marking a merge or a change that lost (N-06). The entry is named by its identifiers
+// the push, marking a merge or a change that lost. The entry is named by its identifiers
 // rather than handed over whole, because the caller holds the server's copy as the catalogue
 // answered it and not as the domain type.
 func (j ActivityJournal) RecordStep(

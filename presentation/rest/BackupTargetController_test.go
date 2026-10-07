@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The backup targets over REST (E-03). What this layer owes is the shape of the answer and, above
+// The backup targets over REST. What this layer owes is the shape of the answer and, above
 // all, what it does not write: the response schema has no credential in it, and a use case that
 // grew one must not be able to leak it through this mapper.
 

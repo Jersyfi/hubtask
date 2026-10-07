@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The engine's conformance run (F6-08): the client requirements of offline-sync.md §9, proved
+// The engine's conformance run: the client requirements of offline-sync.md §9, proved
 // through the engine's own API against a running server.
 //
-// `hubctl sync-conformance` (N-13) drives the *server* as two devices and asks what it owes a
+// `hubctl sync-conformance` drives the *server* as two devices and asks what it owes a
 // client. This is the other half: the first-party engine constructed the way a client constructs
 // it - a store, a transport, a clock - and driven through `attach`, `mutate`, `push`, `catchUp`
 // and `listen` while the server is the real one. Nothing here reaches into the engine; what a
@@ -93,8 +93,8 @@ const DEVICE_NAME = 'sync conformance';
 
 /**
  * The wire, as the runner can cut it. A client goes offline by losing its network, and the
- * engine's decision 5 is what it does then - so the runner does the same to the engine rather
- * than asking it to pretend. `dropNextAnswer` is the network failing on the way back from a
+ * engine's write rule (offline-sync.md §1) is what it does then - so the runner does the same to
+ * the engine rather than asking it to pretend. `dropNextAnswer` is the network failing on the way back from a
  * push: the server applied, the client never heard, and the next push repeats the operation.
  */
 class Line implements Transport {

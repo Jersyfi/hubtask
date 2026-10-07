@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The discussion beside the entries (C-03): a sub-resource of the item, because a comment is not
+// The discussion beside the entries: a sub-resource of the item, because a comment is not
 // a field of its row - it appends, it never merges, and it pages on its own.
 
 const (

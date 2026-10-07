@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-11 · **Accepted:** 2026-09-17
 
+**Rule lives in:** [ai-first.md](../architecture/ai-first.md) §2 (semantic search)
+
 ## Context
 
 `item_embedding.embedding` is `vector(1536)`. Migration 0075 fixed the width with its reasoning

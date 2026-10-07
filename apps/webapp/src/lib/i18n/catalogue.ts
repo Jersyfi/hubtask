@@ -47,7 +47,7 @@ function withoutMetadata(entries: Readonly<Record<string, string>>): Catalogue {
 export const SOURCE: Catalogue = withoutMetadata(english);
 
 /**
- * The other catalogues, lazily (F5-07, `milestone-F5.md` decision 5).
+ * The other catalogues, lazily (`i18n-l10n.md` §3).
  *
  * `import.meta.glob` over the same directory: one chunk per file, none of them in the initial
  * bundle, loaded when the resolved locale is not the source. Not a `fetch` of `/locales/<tag>.json`

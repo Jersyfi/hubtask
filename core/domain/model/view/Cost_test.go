@@ -17,9 +17,8 @@ func containsLeaf() map[string]any {
 	return map[string]any{"op": "CONTAINS", "field": "title", "value": "needle"}
 }
 
-// The boundary, documented and held: an affordable filter passes, an obviously unaffordable one
-// is refused before it runs, with the estimate and the ceiling in the answer (H-08,
-// multi-tenancy.md §4).
+// The boundary, documented and held: an affordable filter passes, an obviously unaffordable one is
+// refused before it runs, with the estimate and the ceiling in the answer (multi-tenancy.md §4).
 func TestTheCostCeilingRefusesTheUnaffordableAndOnlyIt(t *testing.T) {
 	affordable := make([]any, 0, 10)
 	for range 10 {

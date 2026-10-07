@@ -163,7 +163,7 @@ func (cli *CLI) restoreRequest(target, archive, mode string) (openapi.RestoreReq
 		Mode:      openapi.RestoreRequestMode(mode),
 	}
 	// No `decryption_passphrase`, for the reason `backup target add` sends no passphrase: the key
-	// an archive is written under is derived from the installation's master key (E-02), and this
+	// an archive is written under is derived from the installation's master key, and this
 	// version refuses the field rather than ignoring it.
 	return request, nil
 }
@@ -179,7 +179,7 @@ func (cli *CLI) startRestore(
 	}
 	// The step-up travels in the request field rather than in the header, which is the one
 	// difference between this act and every other that demands a proof (api/openapi.yaml,
-	// RestoreRequest.step_up_token, carried since 0.4.5). The asking, the proving and the retry
+	// RestoreRequest.step_up_token). The asking, the proving and the retry
 	// are the shared ones.
 	var accepted openapi.JobRef
 	err = cli.proveAgain(ctx, client, func(stepUp string) error {

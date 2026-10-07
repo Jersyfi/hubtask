@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// ImportRunRepository stores what an import asked and did (P-08). The shape is the restore run's:
+// ImportRunRepository stores what an import asked and did. The shape is the restore run's:
 // the applier writes the same report and the same progress into it, because the applying is the
 // restore's.
 type ImportRunRepository struct{}

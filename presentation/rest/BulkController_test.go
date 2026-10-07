@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The bulk route at the mapping layer (C-11), which owns exactly one thing worth testing here: the
+// The bulk route at the mapping layer, which owns exactly one thing worth testing here: the
 // status each operation would have answered on its own.
 
 func bulkAnswer() usecase.Output {

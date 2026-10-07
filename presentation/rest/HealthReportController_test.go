@@ -18,7 +18,7 @@ import (
 
 // healthReader is the use case as this controller sees it. What it returns is already the answer
 // the actor may read - the reduction is the application layer's, and a test that let this adapter
-// trim would be testing the wrong layer (K-06).
+// trim would be testing the wrong layer.
 type healthReader struct {
 	report health.Report
 	err    error
@@ -41,8 +41,7 @@ func serveHealthReport(t *testing.T, reader HealthReportReader) *httptest.Respon
 	return response
 }
 
-// The route the contract has declared since A-06 and `Pending.go` answered 404 to until K-06
-// (#507). W-03's acceptance in milestone-0.3.5.md says it answers in a running container.
+// The route the contract declares answers under the API path, not only on the internal port.
 func TestTheHealthReportIsServedUnderTheApiPath(t *testing.T) {
 	response := serveHealthReport(t, healthReader{report: health.Report{
 		Status:  health.StatusOK,

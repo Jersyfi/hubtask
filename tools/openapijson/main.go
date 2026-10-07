@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Command openapijson writes api/openapi.yaml as api/openapi.json (P-01).
+// Command openapijson writes api/openapi.yaml as api/openapi.json.
 //
 // The specification is YAML because people write it; what renders it is JavaScript that ships no
 // YAML parser. `make generate` runs this beside oapi-codegen and sqlc, the output is committed

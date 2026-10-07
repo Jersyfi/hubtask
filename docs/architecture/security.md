@@ -1,8 +1,11 @@
 # Security Concept
 
-Binding for all building blocks. Complements [arc42.md](./arc42.md) §8.4,
+Binding for all building blocks: the threat model, the security gates, hardening, cryptography and
+secrets. Accounts, sign-in, passwords, the second factor, providers, sessions, tokens and the
+step-up live in [identity.md](./identity.md); the tenant boundary in
+[multi-tenancy.md](./multi-tenancy.md). Decision records:
 [ADR-0005](../adr/ADR-0005-authn-authz.md), [ADR-0010](../adr/ADR-0010-multi-tenancy.md),
-and [ADR-0015](../adr/ADR-0015-security-baseline.md).
+[ADR-0015](../adr/ADR-0015-security-baseline.md).
 
 ---
 
@@ -11,7 +14,7 @@ and [ADR-0015](../adr/ADR-0015-security-baseline.md).
 | Principle | What it means in the code |
 |---|---|
 | **Defence in depth** | Every protective rule exists at two levels at least. The tenant boundary: the application layer *and* PostgreSQL RLS. Permissions: the token scope *and* the RBAC check. |
-| **Secure by default** | The unconfigured state is the safe one. AI off, registration closed, CORS empty, outbound HTTP targets only by allowlist, a signup token required. |
+| **Secure by default** | The unconfigured state is the safe one. AI off, no self-registration (an account is invited, or admitted by a provider a workspace configured), every sign-in switch at what NIST advises, CORS empty, outbound HTTP targets only by allowlist, no default for a secret. |
 | **Fail closed** | If the tenant context is missing, the policy cache is cold, or the permission source is unreachable → rejection (`403`/`503`), never passage. |
 | **Least privilege** | A database role without `BYPASSRLS`; tokens with minimal scope; automation rules run with the rights of their `run_as`, not as an administrator; containers non-root and read-only. |
 | **No security through obscurity** | The model is publicly documented and must hold even when an attacker reads the source — in an open project, they do read it. |
@@ -74,8 +77,8 @@ test evidence (§13).
 
 | ID | Boundary | STRIDE | Threat | Countermeasure | Evidence |
 |---|---|---|---|---|---|
-| T-01 | TB-1 | Spoofing | A stolen access token is replayed | Short lifetime (15 min), refresh rotation with reuse detection → invalidate the family; a client binding hint (UA/IP class) is logged with the token | Token replay integration test |
-| T-02 | TB-1 | Spoofing | Credential stuffing / brute force | Argon2id, progressive delay, lockout after *n* failed attempts per account **and** per IP, a generic error message (no account existence disclosure), optional TOTP MFA | "Login enumeration" test |
+| T-01 | TB-1 | Spoofing | A stolen access token is replayed | Short lifetime (15 min), refresh rotation with reuse detection → invalidate the family and raise the alert; the session records a client-binding hint (user agent, IP class) ([identity.md](./identity.md) §14) | Token replay integration test |
+| T-02 | TB-1 | Spoofing | Credential stuffing / brute force | Argon2id; an attempt ledger per account **and** per IP class whose delay doubles to a fifteen-minute ceiling, advanced by every password and second-factor door; one generic refusal (no account existence disclosure); a second factor a workspace can require ([identity.md](./identity.md) §4.3, §8) | "Login enumeration" test; a per-door ledger test against the real database |
 | T-03 | TB-1 | Tampering | A manipulated `tenant_id`/`container_id` in the request | The tenant **never** comes from the request body but from the token or host; RLS as the second level | Cross-tenant negative test suite |
 | T-04 | TB-5 | Info disclosure | IDOR: another tenant's `item_id` in the URL | Authorisation in the application layer through scope inheritance; RLS makes foreign IDs invisible → `404`, not `403` (no existence disclosure) | A test per resource |
 | T-05 | TB-1 | Info disclosure | Mass extraction through the query DSL | A field allowlist, a maximum filter depth, a capped `limit`, rate limit plus quota, a bounded `expand` depth | Fuzz test of the DSL |
@@ -85,8 +88,8 @@ test evidence (§13).
 | T-09 | Internal | DoS | An automation infinite loop (rule A triggers B triggers A) | A causality chain of maximum depth 5, loop detection over the `causation_id` path, a throttle per rule, automatic deactivation after *n* failed runs | Golden loop test |
 | T-10 | TB-1 | Elevation | Prompt injection through item content against the MCP agent | User content is handed to the model as **data**, never as instruction; destructive MCP tools blocked by default; agent tokens with their own scope; every agent action in the audit with actor `AI_AGENT` | "Injected instruction" test case |
 | T-11 | TB-4 | Info disclosure | Stored XSS through an upload (SVG/HTML) | Delivery only through a separate origin/bucket domain, `Content-Disposition: attachment`, `Content-Type` from sniffing rather than the client's claim, SVG either rasterised or served as a download, `Content-Security-Policy: sandbox` | Upload matrix test |
-| T-12 | TB-1 | Tampering | CSRF against cookie sessions | The API is primarily bearer-token; where cookies are needed: `SameSite=Lax`, `Secure`, `HttpOnly` plus a double-submit token; state-changing operations never over `GET` | Test |
-| T-13 | TB-2 | Spoofing | A manipulated ID token / wrong issuer | Full verification of the signature, `iss`, `aud`, `exp`, `nonce`, a JWKS cache with rotation; no `alg: none`; clock skew ≤ 60 s | Test with a tampered JWT |
+| T-12 | TB-1 | Tampering | CSRF against cookie sessions | There is no cookie session: every route takes a bearer ([identity.md](./identity.md) §14). Should one ever be introduced: `SameSite=Lax`, `Secure`, `HttpOnly` plus a double-submit token. State-changing operations never over `GET` | Test |
+| T-13 | TB-2 | Spoofing | A manipulated ID token / wrong issuer | Full verification of the signature, `iss` (exact; a templated issuer substituted first), `aud`, `exp`, `nonce`, a JWKS cache with rotation; no `alg: none`; clock skew ≤ 60 s ([identity.md](./identity.md) §10.1) | Test with a tampered JWT |
 | T-14 | TB-1 | Repudiation | A user disputes a deletion | Append-only `activity_entry` plus the audit with actor, time, `request_id`, and a before/after diff; trash kept 30 days | Test |
 | T-15 | Internal | Tampering | Tampering with the audit trail | The app role holds no `UPDATE`/`DELETE` rights on the audit tables (a database grant), plus optional hash chaining per tenant | Test with the app role |
 | T-16 | Supply chain | Tampering | A compromised dependency or build | Pinning through `go.sum`, `govulncheck` in the gate, an SBOM (CycloneDX) per release, signed images (cosign) plus provenance, reproducible builds, no `curl \| sh` steps in CI | Release gate |
@@ -94,8 +97,9 @@ test evidence (§13).
 | T-18 | Operations | Info disclosure | Secrets in logs, traces, or error messages | A redaction layer in the logger, the `Secret` type with a masking `String()`, a ban on `%+v` over config structs (lint), and a "the log contains no token" test case | Test |
 | T-19 | TB-1 | Spoofing | A forged inbound webhook | An HMAC signature plus timestamp tolerance (5 min) plus a nonce against replay; constant-time comparison | Test |
 | T-20 | Operations | Info disclosure | A backup or export containing another tenant | The export runs through the same RLS path as the API; the backup restore drill includes an isolation check | Restore drill |
-| T-21 | TB-1 | Info disclosure | A calendar feed URL leaks - through a log, a `Referer`, a shared screen, a calendar client's own history or a synchronised device - and the holder reads somebody's work | The URL is the only credential in the system that travels in one, so: it is revocable at any time and the revocation is immediate; it is stored only as an HMAC-SHA-256 under its own purpose label, so a database dump yields no working URL and a hash from another table cannot be replayed as one; it appears in no log, metric, trace or audit entry, and the type that carries it masks every way of printing it; the lookup is one index seek on a unique hash rather than a comparison, and an unknown, revoked, view-less or owner-less feed answer one indistinguishable `404`; a bucket of its own sheds a client polling too hard before the query runs, while the anonymous bucket bounds the guessing; the feed reads as its **owner** evaluated at fetch time, so a revoked membership narrows it and a disabled account silences it; and the document is minimal - a title, a date and a link, never the notes | The feed suite (D-08): the token refused as a bearer credential, the six refusals compared byte for byte, the masking test, and the golden `.ics` |
-| T-22 | TB-1 | Tampering, Info disclosure | The CalDAV tree (P-06) parses XML a calendar client sends and takes HTTP Basic - an entity bomb, a document that names another account's tree, a password guessed through a client that retries silently | Every request body is read through `encoding/xml`, which expands no DTD-declared entity and refuses a document that names one, and it is bounded by the same body limit as every API request; the tree is mounted inside the middleware chain, so the credential bucket and the auth bucket shed a guesser before the token lookup; Basic is taken **only** on the tree, refused before any lookup everywhere else, and the password is a personal access token - revocable, hashed at rest, scoped - never the account password; the account in the address must be the token's own and any other is `404`, exactly as a feed the account does not own; every calendar is selected as the owner with the owner's permission, through the same use case the ICS feed uses; a title is written as XML text and never as markup; a write (P-07) is the ordinary use case performed as the token's account through the registry - validated and authorised there, never here - behind `If-Match` (`428` without one, `412` when stale), and a property the product does not model is refused by name rather than dropped; and the tree offers no `sync-token` at all, because a change token that hid deletions would be a lie a client acts on | `presentation/calendar/CalDav_test.go` (an internal entity refused; another account's tree and a feed not owned answered `404`; a revoked feed absent); `CalDavWrite_test.go` (`428` and `412`, the unmodelled property refused by name, a use case's refusal travelling as its status, a tree without a catalogue read-only); `presentation/rest/Auth_test.go` (Basic taken on the tree, refused on an API route before any lookup, the Basic challenge on both a missing and a refused credential) |
+| T-21 | TB-1 | Info disclosure | A calendar feed URL leaks - through a log, a `Referer`, a shared screen, a calendar client's own history or a synchronised device - and the holder reads somebody's work | The URL is the only credential in the system that travels in one, so: it is revocable at any time and the revocation is immediate; it is stored only as an HMAC-SHA-256 under its own purpose label, so a database dump yields no working URL and a hash from another table cannot be replayed as one; it appears in no log, metric, trace or audit entry, and the type that carries it masks every way of printing it; the lookup is one index seek on a unique hash rather than a comparison, and an unknown, revoked, view-less or owner-less feed answer one indistinguishable `404`; a bucket of its own sheds a client polling too hard before the query runs, while the anonymous bucket bounds the guessing; the feed reads as its **owner** evaluated at fetch time, so a revoked membership narrows it and a disabled account silences it; and the document is minimal - a title, a date and a link, never the notes | The feed suite: the token refused as a bearer credential, the six refusals compared byte for byte, the masking test, and the golden `.ics` |
+| T-22 | TB-1 | Tampering, Info disclosure | The CalDAV tree parses XML a calendar client sends and takes HTTP Basic - an entity bomb, a document that names another account's tree, a password guessed through a client that retries silently | Every request body is read through `encoding/xml`, which expands no DTD-declared entity and refuses a document that names one, and it is bounded by the same body limit as every API request; the tree is mounted inside the middleware chain, so the credential bucket and the auth bucket shed a guesser before the token lookup; Basic is taken **only** on the tree, refused before any lookup everywhere else, and the password is a personal access token - revocable, hashed at rest, scoped - never the account password; the account in the address must be the token's own and any other is `404`, exactly as a feed the account does not own; every calendar is selected as the owner with the owner's permission, through the same use case the ICS feed uses; a title is written as XML text and never as markup, and a VTODO carries what the ICS feed carries - never the notes, an assignee or a comment; a write is the ordinary use case performed as the token's account through the registry - validated and authorised there, never here - behind `If-Match` (`428` without one, `412` when stale), and a property the product does not model is refused by name rather than dropped; and the tree offers no `sync-token` at all, because a change token that hid deletions would be a lie a client acts on | `presentation/calendar/CalDav_test.go` (an internal entity refused; another account's tree and a feed not owned answered `404`; a revoked feed absent); `CalDavWrite_test.go` (`428` and `412`, the unmodelled property refused by name, a use case's refusal travelling as its status, a tree without a catalogue read-only); `presentation/rest/Auth_test.go` (Basic taken on the tree, refused on an API route before any lookup, the Basic challenge on both a missing and a refused credential) |
+| T-23 | TB-2 | Spoofing, Elevation | A provider an administrator configured — or a public one — asserts somebody else's address, and the arrival is connected to that person's account and skips its second factor | Connecting a provider to an account that holds a credential takes that account's own proof (`LINK`), or a mailbox link plus a fresh sign-in where the password is off, and never skips an armed factor; an invited account is activated only with a second proof; a provider is trusted for an address only where it hosts the mailbox; once connected, an identity is found by issuer and subject, never by address ([identity.md](./identity.md) §10.4, §11) | `OidcLinking_test.go` (`TestAProviderCannotOpenAnAccountThatHoldsAPasswordAndAFactor`), `OidcAdmission_test.go` |
 
 New bounded contexts get a short STRIDE analysis at design time; the result is added here
 (Definition of Ready, the "security assessment" point).
@@ -104,32 +108,22 @@ New bounded contexts get a short STRIDE analysis at design time; the result is a
 
 ## 5. Identity, sessions, permissions
 
-| Topic | Requirement |
+The rules for accounts and every way into one live in [identity.md](./identity.md). This section
+keeps the permission check and says where each identity rule lives.
+
+| Topic | Rule |
 |---|---|
-| Passwords | Argon2id, `m=64 MiB, t=3, p=2` (starting values, reviewed yearly and **re-applied at sign-in**, where the plaintext is in hand and a hash carrying older parameters is recomputed); the rule itself is a policy rather than a constant ([ADR-0068](../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md)) — eighteen switches in three levels, shipped at what NIST SP 800-63B-4 advises: length 12, no composition requirement, the common-password and context-word checks on, and expiry, history and the breach check off. Periodic rotation is **not the default and not recommended**; it exists because PCI DSS 4.0 §8.3.9 requires it where a password is the only factor, and the one-time "require a new password from everyone" is an event with a reason rather than a calendar |
-| Access token | JWT or opaque, 15 min, `tenant_id`, `sub`, `scopes`, `jti`; verifiable without a database round trip |
-| Refresh token | 30 days, rotating; reuse invalidates the entire family and raises an alert |
-| PAT (`hbt_pat_…`) | Visible only at creation, stored hashed (SHA-256 + pepper), a mandatory expiry date (max. 1 year), scopes, last use visible; the prefix enables secret scanning at GitHub/GitLab |
-
-The concrete form of a personal access token is
-`hbt_pat_<32 hex digits of the tenant>_<43 characters, base64url, 32 random bytes>` — a scanning
-pattern of `hbt_pat_[0-9a-f]{32}_[A-Za-z0-9_-]{43}`. The tenant travels inside the credential
-because the lookup needs it before it can happen: `access_token` is behind row level security like
-every other table, so a query for the hash returns nothing until a tenant context is set, and for a
-non-interactive credential the only honest source of that context is the credential itself
-(multi-tenancy.md §3). Naming the wrong tenant gains nothing — the hash covers the whole string,
-tenant half included, and is unique across the installation. The stored hash is
-HMAC-SHA-256 keyed on a pepper derived from `HUBTASK_SECRET_KEY` with a purpose label, so a hash
-from here cannot be replayed as a signed cursor or a feed token.
-
-| Service accounts | No login, tokens only, bound to a tenant, with their own role |
-| MFA | TOTP from milestone `0.6.0`; enforceable per tenant for the `OWNER`/`ADMIN` roles, or for everybody ([ADR-0068](../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md)); ten single-use recovery codes, replaceable behind a step-up, and how many are left is answered to their holder |
-| Session management | The user sees active sessions and can sign out individually or globally; a workspace may shorten the thirty days and may end an idle session, and every such bound is a comparison in the check the revocation list already performs ([ADR-0068](../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md)) |
-| Setting a password | One use case with four doors — an invitation token, a reset token, the pending credential of a sign-in, or a bearer with a step-up. A password that no longer meets the rule is answered `202` with `PASSWORD_CHANGE` and the sign-in becomes the change: **no job walks accounts and no job walks tenants** |
-| Forgetting a password | `password:forgot` answers `202` for every address, the token is an `auth_pending` row with its own purpose label (32 bytes, thirty minutes, single use), and a reset **does not walk past a second factor**: where one is armed the reset answers the step rather than a session |
-| Sign-in providers | Admission is decided by the provider's **directory** (`tid`, `hd`), never by the text of an address ([ADR-0071](../adr/ADR-0071-provider-admission.md)); the modes `INVITED_ONLY`, `DOMAINS` and `ANY` are one axis, who comes in. An account that already holds a password, a second factor or another identity is connected to a provider **only after its own proof**, the `LINK` step at `/auth/sessions:link` — whoever configures a provider must not be able to open somebody else's account by asserting their address ([P-02](../vision/principles.md#p-02-an-account-is-opened-only-by-its-own-strongest-proof), ADR-0071's addendum) |
-| Privileged actions | Tenant deletion, changing the `OWNER` role, creating a token with the `admin` scope, changing the sign-in rule, configuring, offering or removing a sign-in provider, elevating a session to the installation ([ADR-0070](../adr/ADR-0070-the-instance-layer.md) §4), and an operator's opening of the password for one workspace ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §3): re-authentication ("step-up"). From milestone PH also a managed account's new start password ([ADR-0074](../adr/ADR-0074-managed-accounts.md)) and a private hub's emergency access ([ADR-0073](../adr/ADR-0073-private-hubs.md)). The proof is whatever the account holds — its password, a code, a recovery code, or a fresh sign-in at its connected provider — and turning off the second factor takes it like every other privileged action ([ADR-0075](../adr/ADR-0075-step-up-with-what-the-account-holds.md), SC-16) |
-| Permission check | Exactly one place: `core/application/service` through `AuthorizationService`; adapters must not authorise; the architecture test fails on violation |
+| Permission check | Exactly one place: `core/application/service` through `AuthorizationService`; adapters and repositories must not authorise; the architecture test fails on violation (SG-5). Roles and their inheritance: [domain-model.md](./domain-model.md) §3.2 |
+| Two bounds on every request | The role along the path **and** the credential's scopes; either alone refuses ([identity.md](./identity.md) §15) |
+| Passwords | The rule, its levels, hashing and the rules route: [identity.md](./identity.md) §5; setting and changing: §6; forgetting: §7 |
+| Access and refresh token, sessions | [identity.md](./identity.md) §14 |
+| Personal access tokens, service accounts, OAuth2 grants | [identity.md](./identity.md) §15 |
+| Second factor and recovery codes | [identity.md](./identity.md) §8, §9 |
+| Sign-in providers and connecting one to an account | [identity.md](./identity.md) §10, §11 (T-13, T-23) |
+| Privileged actions (step-up) | [identity.md](./identity.md) §16 — each privileged operation declares its step-up on its descriptor, and the architecture test fails one that does not |
+| Credentials in a client | [identity.md](./identity.md) §14.4 |
+| Nobody is locked out | [identity.md](./identity.md) §17 |
+| Operators and the elevated session | [identity.md](./identity.md) §19 |
 
 ---
 
@@ -148,8 +142,9 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security-relevant core po
 
 * **Validation** at the edge (the OpenAPI schema, generated types) *and* in the domain (value objects with constructor invariants). The adapter validates form, the domain validates meaning.
 * **Normalisation** of Unicode (NFC) before storage and comparison; protection against homoglyph display names in invitations (a warning, not a block).
-* **Output** is structured (JSON); there are no server-rendered HTML pages apart from a static error page. That removes the classic XSS surface in the backend; the client's responsibility is recorded in the client requirements in the roadmap.
+* **Output** is structured (JSON); there are no server-rendered HTML pages apart from a static error page. That removes the classic XSS surface in the backend; the web client is bound by the interface's `Content-Security-Policy` (§9).
 * **Markdown in notes and comments** is stored as raw text and **not** rendered to HTML server-side; rendering is the client's job, with a mandatory sanitiser.
+* **Inbound mail is hostile input.** Its HTML is stored as text and never rendered by the server; its sender is provenance and never an identity — the intake address is the credential; and every bound is checked before anything is allocated. A client draws what arrived from outside — a jumble entry's subject, body and sender — as text, never as markup or a live link, and labels the sender as what the transport claimed, never as an identity.
 * **CEL expressions** run with a time limit, an expression depth limit, and a cost limit (`cel-go` cost budget); no network or time functions beyond the ones provided.
 
 ---
@@ -158,14 +153,15 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security-relevant core po
 
 | Purpose | Method |
 |---|---|
-| Password hash | Argon2id |
-| Token storage | SHA-256 with a server-side pepper (not in the database) |
-| Integration credentials, webhook secrets, backup target credentials | AES-256-GCM, envelope encryption: a data key **per value**, encrypted with a master key from the environment keyring (E-02, `HUBTASK_ENCRYPTION_KEYS`); the key ID is persisted → rotation without data migration. A data key per value rather than per tenant, because GCM's safety is a bound on how much one key encrypts, and a per-value key means the master key only ever encrypts random 32-byte keys. The ciphertext is bound to a purpose the caller supplies, so it cannot be moved between rows |
+| Password hash | Argon2id, `m=64 MiB, t=3, p=2`, re-applied at sign-in ([identity.md](./identity.md) §5.3) |
+| Token storage | HMAC-SHA-256 keyed on a pepper derived from `HUBTASK_SECRET_KEY` (not in the database) under a purpose label per credential kind, so a hash of one kind cannot be replayed as another |
+| Signed tokens | The session access token, cursors and media tokens are HMAC-SHA-256 under a key derived from `HUBTASK_SECRET_KEY` with their own purpose label; none of them is JOSE |
+| Integration credentials, webhook secrets, backup target credentials | AES-256-GCM, envelope encryption: a data key **per value**, encrypted with a master key from the environment keyring (`HUBTASK_ENCRYPTION_KEYS`, §8.1); the key ID is persisted → rotation without data migration. A data key per value rather than per tenant, because GCM's safety is a bound on how much one key encrypts, and a per-value key means the master key only ever encrypts random 32-byte keys. The ciphertext is bound to a purpose the caller supplies, so it cannot be moved between rows |
 | Backup archives | AES-256-GCM under a key derived from a passphrase with Argon2id (RFC 9106's second recommended cost: t=3, m=64 MiB, p=4). The passphrase is stored nowhere; the salt and the cost are stored beside the archive, so raising the cost later leaves older archives readable (backup-restore.md §4) |
 | Signatures on outbound webhooks | HMAC-SHA-256, a secret per subscription, the header `X-Hubtask-Signature` with a timestamp |
 | Transport | TLS 1.2+ (target 1.3); inside the cluster ideally mTLS through a service mesh (optional, not required); HSTS where TLS is terminated |
 | Randomness | Exclusively `crypto/rand` for tokens, IDs, and nonces; the `RandomSource` port uses `crypto/rand` in production |
-| Home-grown crypto | Forbidden. Only the standard library and established packages. One package names a cipher — `infrastructure/crypto` — and `gate-architecture` fails a build that imports `crypto/aes`, `crypto/cipher`, `crypto/hkdf` or `golang.org/x/crypto` anywhere else |
+| Home-grown crypto | Forbidden. Only the standard library and established packages. One package names a cipher — `infrastructure/crypto` — and `gate-architecture` fails a build that imports `crypto/aes`, `crypto/cipher`, `crypto/hkdf` or `golang.org/x/crypto` anywhere else; the one named exception is `golang.org/x/crypto/ssh` in `infrastructure/backupstorage`, the transport of the SFTP target. A small, closed protocol over standard primitives — TOTP (RFC 6238), AWS SigV4, the SFTP file protocol — is written in-house rather than imported (§11) |
 
 Secrets come exclusively from environment variables or mounted secret files (the `HUBTASK_*_FILE`
 convention for Docker and Kubernetes secrets). There is no default value for a secret — if one is
@@ -173,10 +169,11 @@ missing, the process does not start (fail closed, with a clear error message and
 
 ### 8.1 Rotating the master key
 
-*The procedure S-2 owes ([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md)). The
-roll-forward was drilled on 2026-09-04 ([evidence](../evidence/S-2-2026-09-04.md)); the completed
-rotation - the count reaching zero and the old key leaving the ring - on 2026-09-06
-([evidence](../evidence/S-2-2026-09-06.md)).*
+The master key stays in the environment: a KMS or a vault would defend nothing a live compromise
+could not also reach, and the ring is not in the database a dump yields
+([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md), which also names the trigger for
+revisiting it). The procedure below is drilled
+([evidence](../archive/evidence/S-2-2026-09-04.md), [completion](../archive/evidence/S-2-2026-09-06.md)).
 
 `HUBTASK_ENCRYPTION_KEYS` is a ring, current first, and every predecessor in it stays readable.
 That is what makes a rotation a configuration change: nothing is rewritten at the moment the key
@@ -202,22 +199,20 @@ changes, because the master key protects one data key per row rather than the ro
    the census then lists the key with `in_ring: false`, which is the state to repair by putting it
    back and re-sealing again.
 
-**What a round touches, and what it does not.** Five places hold a sealed value — the second
-factor, the identity provider's client secret, a webhook's current and previous signing secret, a
-backup target's credential, and a rule's HTTP header secret at any depth of a branch — and each is
-re-sealed by the service that owns it, under the purpose only that service knows. No version moves
-and no `updated_at` changes: a rotation of the installation's keys is nobody's edit, and the person
+**What a round touches, and what it does not.** Six places hold a sealed value — the second
+factor, an identity provider's client secret, the AI provider's API key, a webhook's current and
+previous signing secret, a backup target's credential, and a rule's HTTP header secret at any depth
+of a branch — and each is re-sealed by the service that owns it, under the purpose only that
+service knows. A round runs per workspace, so an installation provider's client secret is not
+re-sealed yet and stays under the key it was sealed with, which the census reports rather than
+hides (S-6). No version moves and no `updated_at` changes: a rotation of the installation's keys is nobody's edit, and the person
 editing their subscription at that moment meets no conflict. A value that names a key the ring no
 longer holds is skipped and counted, never failed on. The round's counts land in
 `hubtask_secret_reseals_total` by store and outcome, and in the workspace's audit trail as
 `encryption.resealed` when anything moved.
 
-**What the drills proved.** The roll-forward: a value sealed under `k1`, stored, and read back
-through the repository opens under a ring whose current key is `k2`, and everything written after
-the rotation names `k2` without a rewrite. The completion: values sealed under `k1` in all five
-stores, a round under `[k2 k1]`, the census answering zero for `k1`, and every value opening under
-a ring that holds `k2` alone. Removing `k1` before the round answered an unavailability rather than
-a corrupted read, which is why step 4 counts before it removes.
+Removing an old key before its count is zero answers an unavailability rather than a corrupted
+read, which is why step 4 counts before it removes.
 
 ---
 
@@ -249,6 +244,10 @@ on the frontend framework**, decided before the framework was, rather than a con
 that gets chosen. `presentation/webui` sets the policy on every answer it produces, including its
 404 and its 405.
 
+**The upload's middle step carries no credential.** It is the one request a client sends to an
+address it did not compose, and it carries no bearer and no cookies: a presigned URL is its own
+credential, and a bearer sent to a bucket is a bearer leaked.
+
 ---
 
 ## 10. Automation and AI as attack surface
@@ -258,7 +257,7 @@ agents write. The rules:
 
 1. **No scripting language** — only declarative rules with CEL conditions ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md)). There is no execution primitive for arbitrary code.
 2. **`run_as` is the permission boundary** (T-08), not the triggering user.
-3. **Outbound calls only through `GuardedClient`** (T-07); in provider operation, an egress allowlist at the network level on top.
+3. **Outbound calls only through `GuardedClient`** (T-07); in provider operation, an egress allowlist at the network level on top. An operator-configured endpoint in the database DSN's trust class — the object store — may use its own client, listed in the architecture test's exceptions, with deadlines, refused redirects, the breaker and the bulkhead.
 4. **A causality bound** against loops and amplification attacks (T-09).
 5. **AI is opt-in per tenant**, off by default; content goes only to the configured provider, documented in the data catalogue; AI results are suggestions with provenance, never silent changes.
 6. **MCP tools** carry `readOnly`/`destructive` hints; destructive tools require explicit release per token and appear in the audit.
@@ -269,7 +268,8 @@ agents write. The rules:
 
 | Control | Implementation |
 |---|---|
-| Dependencies | Dependabot ([ADR-0022](../adr/ADR-0022-github-platform.md)): grouped version updates weekly, ungrouped security updates on the advisory; `go.sum` mandatory; no `replace` directives onto forks without an ADR |
+| New dependencies | A new direct third-party dependency arrives only through an accepted ADR, before the first commit that uses it, pinned, licence-gated, and imported by exactly one adapter package a gate names (`cel-go`, the OIDC libraries in `infrastructure/oidc`, the NATS client in `infrastructure/eventbus`, the text libraries, `golang.org/x/crypto` in `infrastructure/crypto` with `x/crypto/ssh` in `infrastructure/backupstorage` — the one dependency the SFTP target adds). A small, closed protocol (TOTP, SigV4, SFTP) is written here instead |
+| Dependency updates | Dependabot ([ADR-0022](../adr/ADR-0022-github-platform.md)): grouped version updates weekly, ungrouped security updates on the advisory; `go.sum` mandatory; no `replace` directives onto forks without an ADR |
 | Vulnerabilities | `govulncheck` in every pipeline run (a gate), a container scan (Trivy/Grype) in the release gate |
 | Static analysis | `gosec` as part of `golangci-lint`; `depguard` enforces layer boundaries and forbids risky packages |
 | Secret scanning | A push rule plus a history scan (gitleaks) |
@@ -282,11 +282,13 @@ agents write. The rules:
 
 ## 12. Data protection (reference)
 
-* The data catalogue `docs/privacy/data-catalog.md`: data kind, purpose, legal basis, storage location, retention, recipients (including AI providers) — mandatory before `1.0.0`.
-* Processing on behalf: provider operation needs a DPA template and a sub-processor list.
-* Data subject rights are technically represented: export (`GET /tenants/{id}:export`), deletion with a defined deadline, rectification through the normal API.
-* Data minimisation: logs without user content, metrics without personal labels, traces with masked attributes.
-* Retention: trash 30 days, the audit trail configurable (400 days by default), webhook deliveries 30 days, rule runs 30 days.
+The rules live in [data-protection.md](./data-protection.md) (data subject rights, deletion,
+processing on behalf), [data-retention.md](./data-retention.md) (retention periods) and the data
+catalogue [data-catalog.md](../privacy/data-catalog.md) (every personal data field with its purpose,
+legal basis and deletion path). The security-relevant core:
+
+* Data minimisation: logs without user content, metrics without personal labels, traces with masked attributes (rule 10).
+* A new personal data field is not merged without its catalogue row and deletion path.
 
 ---
 
@@ -308,16 +310,16 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 | SG-10 | An SBOM produced and the image signed (release pipeline only) |
 | SG-11 | Auth negative tests: an expired/tampered/revoked token, the wrong issuer, a missing scope |
 | SG-12 | The upload matrix test (SVG, HTML, polyglot files, the wrong content type) |
+| SG-13 | Every use case that writes declares its audit obligation, and every auditable action is in the `AuditableAction` registry ([audit.md](./audit.md) §7) |
 
 ---
 
 ## 14. Handling incidents
 
-1. **Reporting** through `SECURITY.md` (a dedicated address, a GPG key, 72 h to acknowledge, coordinated disclosure, a 90-day deadline).
-2. **Triage** with CVSS v3.1; severity targets: critical fixed ≤ 7 days, high ≤ 30 days, medium ≤ 90 days.
-3. **Remediation** on all supported minor lines (see [versioning-release.md](./versioning-release.md)).
-4. **Communication** through a GitHub security advisory with the affected versions, a workaround, and detection guidance (log patterns).
-5. **Follow-up**: a blameless post-mortem note in the repository; a new regression test is part of the fix — without a test, the incident does not count as closed.
+1. **Reporting and aims** are in [`SECURITY.md`](../../SECURITY.md): a private GitHub security advisory or `security@hubtask.eu`; acknowledgement, a CVSS assessment and a fix are aims, best effort, not deadlines; disclosure is coordinated.
+2. **Remediation** goes into the current minor version ([versioning-release.md](./versioning-release.md)).
+3. **Communication** through a GitHub security advisory with the affected versions, a workaround, and detection guidance (log patterns).
+4. **Follow-up**: a blameless post-mortem note in the repository; a new regression test is part of the fix — without a test, the incident does not count as closed.
 
 ---
 
@@ -337,7 +339,6 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 | # | Point | Needed by |
 |---|---|---|
 | S-1 | An external penetration test / code audit before the first commercial operation | Before `1.0.0` |
-| S-2 | ~~Decide master key management in provider operation (environment vs. KMS vs. Vault)~~ — settled as **the environment keyring** ([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md), H-13). The threat the question names is a database dump plus a filesystem read, and only the cold half of it is defensible: a process compromised badly enough to read the environment can hold a KMS session or a Vault token just as easily, so all three options fail together against a live compromise and the cheapest of them already defends the dump — the ring is not in the database. What a KMS would add is the record rather than the secrecy, which is why the decision carries a **trigger instead of a review date**: hardware the project does not control operated by somebody who is not Hubtask's operator, or a compliance review asking for custody separation in writing. The half that was missing is now the work: a ring only grows until something rewraps what an older key sealed, so the ADR decides the re-seal that lets a key finally be retired, and §8.1 is the procedure | Closed (H-13) |
-| S-3 | The data catalogue and the DPA template | Before `1.0.0` |
-| S-4 | Extend the threat model for the frontend (once decided) | With the frontend ADR |
+| S-4 | Extend the threat model for the web client: today the interface's policy (§9) and the client's credential rules ([identity.md](./identity.md) §14.4) cover it, and no threat row names the client itself | — |
+| S-6 | Re-seal the installation's own sealed values on a key rotation (§8.1) | Before a multi-tenant installation rotates its keys |
 | S-5 | Bug bounty yes/no, and its framing | After `1.0.0` |

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The tour's content (design-system.md §8, F6-14): six steps on the real interface, each a route
+ * The tour's content (design-system.md §8): six steps on the real interface, each a route
  * and an element found by `data-tour`, and the seventh which is not a step - *now make one*.
  *
  * What the workspace holds decides which steps can be walked: a collection's list and board and

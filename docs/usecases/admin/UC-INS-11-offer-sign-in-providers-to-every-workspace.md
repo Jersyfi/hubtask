@@ -45,47 +45,5 @@ installation puts it on everywhere and removes the switch.
 
 ## Today
 
-* **Check 6 fails:** the re-seal runs per workspace only; the installation's provider secrets stay
-  under the key they were sealed with (ADR-0070, "one gap").
-* **Check 5 holds** since SC-20
-  ([ADR-0076](../../adr/ADR-0076-withdrawing-an-offered-provider.md)): a withdrawal is announced for a
-  day - two weeks ahead unless another is chosen - with the number of workspaces that use it, or made
-  now with that number typed back; from its day the provider is a way in nowhere, the connected
-  identities stay, and *Keep offering it* restores sign-in for the same people through the same links
-  (`TestAWithdrawalKeepsTheConnectedIdentitiesAndOfferingAgainRestoresSignIn`,
-  `InstanceProviderWithdrawal_test.go`, `instanceproviders.test.mjs` against a stubbed API). *Remove*
-  comes after the withdrawal since SC-27 ([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §2):
-  while the offer stands and a workspace uses it, removal is refused (`identity_provider.withdraw_first`)
-  and the screen's *Remove* is disabled, saying to withdraw first - or, with a withdrawal already
-  announced, the day it can be removed from (`identity_provider.remove_after_withdrawal`) - because
-  removal deletes the connections and offering the provider again does not restore them; the
-  statement that deletes asks again, so a change in between is refused too
-  (`TestAnOfferedProviderIsRemovedOnlyAfterItsOfferEnded`, `TestARemovalLooksAgainWhereItDeletes`,
-  `instanceproviders.test.mjs`).
-  Since SC-26 the number of workspaces is counted from their own switches where the installation
-  reads it ([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §1), so it stays true when a
-  workspace is deleted for good, restored or imported, still counts one waiting out its deletion
-  grace, and a workspace reads none - not even by calling the count itself
-  (`TestAnOfferedProvidersCountIsCountedAndItsWithdrawalIsTheInstallations`,
-  `provider_withdrawal_test.go`).
-  Since SC-31 ([#1138](https://github.com/Jersyfi/hubtask/issues/1138), E2) no installation decision
-  leaves a workspace without a way in: where a withdrawal, an installation default or an installation
-  lock leaves a workspace's methods without the password and no provider is switched on there, the
-  password opens as ADR-0076 §4's fallback, until the workspace switches a way in on
-  (`TestThePasswordOpensWheneverNoWayInWorks`; against PostgreSQL under an installation default,
-  `TestAnInstallationDefaultWithoutThePasswordOpensItAsTheFallback`). A lock on the ways to sign in
-  decides the methods only; it does not switch the installation's provider on in a workspace, which
-  check 4 describes, and SC-31 does not change that.
-* **No check changes with SC-34**, which adds the installation's lever beside them. Since SC-34 ([#1141](https://github.com/Jersyfi/hubtask/issues/1141),
-  [ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §3) the installation has a lever for the case the
-  fallback cannot see - a provider that is switched on but broken: an operator opens the password for
-  one named workspace, 24 hours unless said otherwise and at most seven days, behind the scope, the
-  operator register and a step-up, with who asked and why. Every account there that holds a password
-  signs in with it, whatever the workspace's switch and any installation lock say; the opening ends on
-  its own at its time, read where the ways in are, and can be closed early. Both acts are in the
-  workspace's trail and the installation's journal, and the workspace's administrators are mailed when
-  it opens and when it closes (`PasswordOpening_test.go` in the control plane, `OperatorOpening_test.go`
-  over the door, the card and the sign-in; against PostgreSQL with the real resolver, the end job in the
-  workspace's own transaction and both statements kept to their workspace,
-  `test/integration/password_opening_test.go`; the installation's screen walked against a stubbed API,
-  `instanceworkspaces.test.mjs`; `hubctl admin tenant open-password|close-password`).
+* Check 4: not met — a lock on the ways to sign in decides the methods only; it does not switch the installation's provider on in any workspace.
+* Check 6: not met — the re-seal runs per workspace; the installation's provider secrets stay under the key they were sealed with, tracked in #1068.

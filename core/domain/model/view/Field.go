@@ -35,7 +35,7 @@ const (
 	KindTimestamp Kind = "timestamp"
 	KindEnum      Kind = "enum"
 	KindIDSet     Kind = "id_set"
-	// KindCustom is a value whose shape a definition decides rather than this catalogue (C-07).
+	// KindCustom is a value whose shape a definition decides rather than this catalogue.
 	//
 	// The custom fields are the one family this package cannot enumerate: their keys are data a
 	// tenant wrote, and what a key holds is the definition's answer. So the grammar accepts the
@@ -75,11 +75,9 @@ func (f Field) Permits(op Operator) bool { return slices.Contains(f.Operators, o
 
 // The fields this version serves.
 //
-// Deliberately not every column `work_item` has: a field is served here once a use case writes
-// it, because a filter on a column nothing fills would match nothing, and a client could not tell
-// that from a collection in which nothing is due. The assignee and the members left that refusal
-// with C-01, and `due_at` and `start_at` with D-01 - the schedule's first writers are what made
-// them answerable.
+// Deliberately not every column `work_item` has: a field is served here once a use case writes it,
+// because a filter on a column nothing fills would match nothing, and a client could not tell that
+// from a collection in which nothing is due.
 const (
 	FieldType        = "type"
 	FieldParentID    = "parent_id"
@@ -229,9 +227,9 @@ var catalogue = []Field{
 		Nullable:  true, Sortable: true,
 	},
 	{
-		// The timeline's pair (D-01, api-guidelines.md §3): the timeline view sorts by the start
-		// and windows with BETWEEN over both. What a query compares is the instant alone - the
-		// all-day flag and the zone say how a client renders a due date, not when it is.
+		// The timeline's pair (api-guidelines.md §3): the timeline view sorts by the start and
+		// windows with BETWEEN over both. What a query compares is the instant alone - the all-day
+		// flag and the zone say how a client renders a due date, not when it is.
 		Name: FieldStartAt, Kind: KindTimestamp,
 		Operators: []Operator{OpLt, OpLte, OpGt, OpGte, OpBetween, OpIsNull},
 		Nullable:  true, Sortable: true,

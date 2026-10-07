@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The entry read in another language (M-11, F5-06; i18n-l10n.md §7 line 7).
+  // The entry read in another language (i18n-l10n.md §7 line 7).
   //
   // A read, not a record: `:translate` answers now, stores nothing, and there is nothing to
   // accept - a person reads the answer and it is gone. So this holds the answer in component

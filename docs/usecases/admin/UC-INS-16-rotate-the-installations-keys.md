@@ -41,5 +41,5 @@ screen says it can be removed.
 
 ## Today
 
-* **Check 2 fails:** the re-seal runs per workspace; the installation's provider secrets are never
-  moved (ADR-0070, "one gap the plural providers opened").
+* Check 1: not met — the census counts per workspace only, so the installation's provider secrets are counted once for every workspace and the installation's own level is not counted on its own, tracked in #1068.
+* Check 2: not met — the re-seal runs per workspace; the installation's provider secrets are never moved, tracked in #1068.

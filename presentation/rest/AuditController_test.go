@@ -16,8 +16,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The audit trail over REST (E-09). What this layer owes is the filters reaching the catalogue by
-// the names it declares, and the page shape this one path has carried since phase 0 - `items` and
+// The audit trail over REST. What this layer owes is the filters reaching the catalogue by
+// the names it declares, and the page shape this one path carries - `items` and
 // `next_cursor` rather than `data` and `page`.
 
 func auditPageOutput() usecase.Output {

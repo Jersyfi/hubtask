@@ -18,7 +18,7 @@ SET response_code = $3, response_body = $4
 WHERE key = $1 AND endpoint = $2;
 
 -- name: ReleaseIdempotencyKey :exec
--- A reservation whose work failed, let go (G-09). Without this, a failed action's claim would
+-- A reservation whose work failed, let go. Without this, a failed action's claim would
 -- survive the run that recorded the failure - and a replay of that run would find the key taken
 -- and "complete" the action without ever performing it.
 DELETE FROM idempotency_key

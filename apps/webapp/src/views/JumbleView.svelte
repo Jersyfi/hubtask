@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The inbox around `JumbleInboxItem` (G-10, `automation.md` §4).
+  // The inbox around `JumbleInboxItem` (`automation.md` §4).
   //
   // **An entry is decided about exactly once**, and a dismissal is not a deletion: the row stays
   // readable and ages out by retention rule. So nothing here removes anything from the list — the
@@ -16,10 +16,10 @@
   // The control is offered and the server refuses it where the reader lacks `AUTOMATION`; a screen
   // that hid it would be a screen guessing at a permission, and this client does not do that.
   //
-  // **AI, where the manifest says there is one** (F5-03): a control on each undecided card asks
+  // **AI, where the manifest says there is one**: a control on each undecided card asks
   // `:suggest`, and the proposal renders in the card's slot as an `AISuggestion` whose acceptance
   // converts the entry with the proposed fields into the collection the person chooses. With AI
-  // off the card is the F4 card - the control and the slot are not rendered.
+  // off the card is the plain card - the control and the slot are not rendered.
 
   import { untrack } from 'svelte';
 
@@ -78,7 +78,7 @@
   const reading = $derived(jumble.stateOf(filter));
   const entries = $derived(jumble.of(filter));
 
-  // Absent when AI is off - not disabled with a reason (milestone-F5.md decision 4).
+  // Absent when AI is off - not disabled with a reason (design-system.md §4, CapabilityGate).
   const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
   let askFailure = $state<string | undefined>(undefined);
 

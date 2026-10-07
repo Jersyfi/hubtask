@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The trash, and the one irreversible thing in this milestone.
+ * The trash, and its one irreversible act.
  *
  * **One row per deletion, not one per deleted row.** The contract is explicit: "a hub with two
  * hundred entries under it went into the trash as one act and comes back as one act, so what is

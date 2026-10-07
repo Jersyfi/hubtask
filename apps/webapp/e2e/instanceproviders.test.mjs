@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Withdrawing an offered provider, walked as an operator meets it (ADR-0076, UC-INS-11 check 5,
-// SC-20): the screen shows how many workspaces use the provider, announces the withdrawal for a
+// Withdrawing an offered provider, walked as an operator meets it (ADR-0076, UC-INS-11 check 5):
+// the screen shows how many workspaces use the provider, announces the withdrawal for a
 // day two weeks ahead unless another is chosen, keeps offering it on request, and withdraws it now
 // only with the number typed back.
 //

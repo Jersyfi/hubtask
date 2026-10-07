@@ -17,8 +17,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// The OAuth2 provider's shapes (H-05, api-guidelines.md §7): authorization code + PKCE only,
-// issuing H-01's own token shapes with the grant as their leash.
+// The OAuth2 provider's shapes (identity.md §15.3, api-guidelines.md §7): authorization code + PKCE
+// only, issuing the session's own token shapes (identity.md §14.1) with the grant as their leash.
 
 // OauthCodePrefix and OauthClientSecretPrefix mark the two credentials this side mints, with
 // TokenPrefix's reasoning: public markers for scanning, and the tenant inside because the public
@@ -78,8 +78,8 @@ type NewOauthClientInput struct {
 	CreatedBy    shared.ID
 	Now          time.Time
 
-	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5,
-	// M-07); work.NewWorkItemInput says why it is handed in.
+	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5);
+	// work.NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 

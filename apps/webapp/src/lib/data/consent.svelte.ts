@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The consent an app asks for, and the grants a person has already given (H-05).
+ * The consent an app asks for, and the grants a person has already given.
  *
  * **The code is answered once and travels nowhere but the redirect.** `POST /oauth/authorize`
  * answers a single-use code with minutes of life; this module hands it to its caller, which puts it

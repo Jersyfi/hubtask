@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The entry's lifecycle over REST (B-10). What this layer owes is small and worth pinning down all
+// The entry's lifecycle over REST. What this layer owes is small and worth pinning down all
 // the same: the right use case name, the If-Match read off a header the specification does not
 // declare for an action, and the new tag on the way back.
 

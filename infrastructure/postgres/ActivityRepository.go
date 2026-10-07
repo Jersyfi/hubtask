@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The item history, written and read (B-11).
+// The item history, written and read.
 //
 // Nothing here names a tenant. The transaction the caller opened decided that, and row level
 // security applies it to every statement below (ADR-0010) - which is why the cross-tenant tests in

@@ -27,7 +27,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 )
 
-// The measurement #532 asks for: where the similarity bands of paraphrases, of entries that merely
+// The measurement behind the duplicate floor: where the similarity bands of paraphrases, of entries that merely
 // share a subject, and of unrelated entries sit for the embedding models this product stores, so
 // that `suggestion.DefaultDuplicateFloor` is a measured number rather than an argued one.
 //

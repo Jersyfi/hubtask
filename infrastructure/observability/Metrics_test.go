@@ -37,7 +37,7 @@ func scrape(t *testing.T, m *Metrics) string {
 	return rec.Body.String()
 }
 
-// The acceptance criterion of A-04: the panic counter exists, and it reads zero.
+// The panic counter exists, and it reads zero.
 func TestThePanicCounterExistsAndStaysAtZero(t *testing.T) {
 	m := newTestMetrics(t, env.Config{})
 
@@ -388,7 +388,7 @@ func TestRateLimitedCountsByScope(t *testing.T) {
 	}
 }
 
-// The signals of A-08. The names are the ones the alert catalogue and the dashboards use, so they
+// The signals of the job queue and the outbox. The names are the ones the alert catalogue and the dashboards use, so they
 // are asserted as strings rather than derived - a renamed metric is a silent dashboard, and a
 // silent dashboard is discovered during the incident it was meant to explain.
 func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
@@ -419,7 +419,7 @@ func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
 	}
 }
 
-// The saturation and rollout gauges H-12 added, under their catalogue names (§4): the pool with
+// The saturation and rollout gauges, under their catalogue names (§4): the pool with
 // its three states including the max A-11 divides by, and the embedded migration version whose
 // spread across pods is what A-13 reads.
 func TestThePoolAndMigrationGaugesAreScrapable(t *testing.T) {

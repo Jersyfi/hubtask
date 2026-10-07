@@ -108,8 +108,8 @@ func TestDecidingWhetherSomebodyIsTold(t *testing.T) {
 			reason: notification.ReasonSelfCaused,
 		},
 		{
-			// Nobody caused it: the automatic assignment acts for the system (C-02), and a zero
-			// actor must not match a zero recipient into a self-caused suppression.
+			// Nobody caused it: the automatic assignment acts for the system, and a zero actor must
+			// not match a zero recipient into a self-caused suppression.
 			name:       "nobody caused it",
 			change:     func(in *notification.NewInput) { in.ActorID = "" },
 			recipient:  notification.Recipient{AccountID: shared.ID(""), HasAddress: true},

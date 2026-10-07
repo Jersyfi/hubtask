@@ -15,18 +15,18 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// AiProviders answers which provider a workspace uses (J-03). An interface here rather than the
+// AiProviders answers which provider a workspace uses. An interface here rather than the
 // adapter, because the application layer may not import one (ADR-0001).
 type AiProviders interface {
 	For(ctx context.Context, actor appshared.ActorContext) (aiprovider.Provider, error)
 }
 
-// SemanticSearch reports whether this installation has an embedding store at all (J-09, ADR-0050).
+// SemanticSearch reports whether this installation has an embedding store at all (ADR-0050).
 type SemanticSearch interface {
 	Available(ctx context.Context) (bool, error)
 }
 
-// EmbedItems brings one workspace's vectors up to date with its entries (J-10).
+// EmbedItems brings one workspace's vectors up to date with its entries.
 //
 // Not a use case, and deliberately not in the catalogue: nobody asks for their entries to be
 // embedded. It is the pass behind a job, in the shape the retention sweep has - a batch, then a
@@ -107,7 +107,7 @@ func (h EmbedItems) Execute(
 		return EmbedOutcome{}, nil
 	}
 
-	// Before the batch is sent: what the provider can say about its model's width (#569). A model
+	// Before the batch is sent: what the provider can say about its model's width. A model
 	// the index cannot hold is refused here for the price of one description rather than one
 	// batch per pass for ever - and what a description taught is remembered, so the next pass's
 	// question is answered from memory. Asked every pass rather than only until known, because

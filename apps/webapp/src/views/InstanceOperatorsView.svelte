@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // Who operates this installation (SI-17, ADR-0070 §1).
+  // Who operates this installation (ADR-0070 §1).
   //
   // **An empty register is the private installation.** Nothing configured, and the owner is the
   // operator exactly as they were before the table existed — which is the honest reading of "this

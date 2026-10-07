@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package jumble is the repository port of the inbox (G-10, domain-model.md §2).
+// Package jumble is the repository port of the inbox (domain-model.md §2).
 package jumble
 
 import (
@@ -52,7 +52,7 @@ type Entries interface {
 	Settle(ctx context.Context, entry domain.Entry) (bool, error)
 }
 
-// Intake is the tenant's one webhook address (G-10): a hash nobody can present, and the moment it
+// Intake is the tenant's one webhook address: a hash nobody can present, and the moment it
 // was minted - the only thing about the credential a read may show.
 type Intake interface {
 	// SetToken mints or replaces the address in one statement, so the old token and the new one

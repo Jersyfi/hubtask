@@ -102,7 +102,7 @@ func TestAFirstKeyedPostRunsAndIsStored(t *testing.T) {
 
 // The guard decides what is replayed by the answer's meaning, and a problem's meaning is its
 // detail code: the middleware reads it back off the document it wrote, so a step-up demand
-// reaches the guard as one rather than as an anonymous 403 (issue 543).
+// reaches the guard as one rather than as an anonymous 403.
 func TestAProblemsDetailCodeReachesTheGuard(t *testing.T) {
 	g := &guard{}
 

@@ -18,11 +18,11 @@ import (
 )
 
 // WorkspaceSettingsRepository is the tenant's own row as the people inside it read and change
-// it (F4-01). Neither statement names a tenant: row level security has bound the transaction to
+// it. Neither statement names a tenant: row level security has bound the transaction to
 // one, and that is what makes another workspace invisible rather than forbidden.
 //
 // Named for what it serves rather than for the row, because `WorkspaceRepository` is taken by
-// the restore's one-column reader (E-06) and two types with one name would have to live in two
+// the restore's one-column reader and two types with one name would have to live in two
 // packages to be told apart.
 type WorkspaceSettingsRepository struct{}
 
@@ -37,7 +37,7 @@ var _ repository.Workspaces = WorkspaceSettingsRepository{}
 // unmodelled keys never travel through here at all - the write merges rather than replaces.
 type settingsDocument struct {
 	RequireAdminTotp bool `json:"require_admin_totp"`
-	// AuditAnchorTargetID names the backup target the chain's end is anchored to daily (P-13);
+	// AuditAnchorTargetID names the backup target the chain's end is anchored to daily;
 	// empty is anchoring switched off, and it is written empty rather than omitted because the
 	// write merges keys - an omitted key would leave the old target standing.
 	AuditAnchorTargetID string `json:"audit_anchor_target_id"`
@@ -46,7 +46,7 @@ type settingsDocument struct {
 	// zero written here would be a decision the workspace did not make - and would freeze the
 	// instance's default at whatever it happened to be on the day of the save.
 	SignInPolicy *policyDocument `json:"sign_in_policy,omitempty"`
-	// OfferedProviders are the installation's providers this workspace switched on (SI-10). A list
+	// OfferedProviders are the installation's providers this workspace switched on. A list
 	// of the ones taken rather than of the ones refused: a provider the installation adds tomorrow
 	// must not be on everywhere tonight. Omitted while empty, which is what a workspace that has
 	// taken none means.
@@ -80,7 +80,7 @@ type policyDocument struct {
 	// rather than a flag: the flag would have to be cleared by something, and a moment is compared.
 	RotationFrom *time.Time `json:"rotation_from,omitempty"`
 
-	// The four links this workspace set for its own sign-in footer (SI-12). Beside the switches
+	// The four links this workspace set for its own sign-in footer. Beside the switches
 	// rather than under a key of their own, because that is how the contract patches them.
 	ImprintURL       *string `json:"imprint_url,omitempty"`
 	PrivacyURL       *string `json:"privacy_url,omitempty"`

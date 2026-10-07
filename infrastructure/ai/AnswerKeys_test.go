@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// The answer shape, at the edges (K-01). Inside the package, because what is being tested is the
+// The answer shape, at the edges. Inside the package, because what is being tested is the
 // reading of a convention rather than anything the store answers.
 //
 // A shape written for a model is not JSON - it has ellipses where the values go - and must not be

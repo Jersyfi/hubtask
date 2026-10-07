@@ -25,9 +25,8 @@ import (
 	storage "github.com/Jersyfi/hubtask/infrastructure/storage"
 )
 
-// The three runs C-06 names as its acceptance, against the real database and - for the one that is
-// about somebody else's server - a real object store. Each of them is a sentence in the task that
-// otherwise be a claim.
+// Three runs of the media life, against the real database and - for the one that is about
+// somebody else's server - a real object store. Each of them would otherwise only be a claim.
 
 // pngBytes is a real PNG signature and enough after it to be worth storing.
 var pngBytes = append(
@@ -169,7 +168,7 @@ func TestAPurgedItemLosesItsReferencesAndTheJobReclaimsTheObject(t *testing.T) {
 	}
 
 	// The first pass recounts to zero and stamps, and marks nothing at all. This is the pass that
-	// used to take the object away: at the moment it runs, the row has just lost its last
+	// could take the object away: at the moment it runs, the row has just lost its last
 	// reference, and that is indistinguishable from an upload waiting for its first one.
 	reconcile := mediaservice.ReconcileMedia{
 		Objects: mediaRepo(), Store: store,

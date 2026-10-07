@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The frame on the shell wave (F9-06, ADR-0061 decision 1): one list of destinations, drawn three
+// The frame on the shell wave (ADR-0061 decision 1): one list of destinations, drawn three
 // ways, and the proof that the same destinations are reachable on each. At 375 px the primary
 // group is the bottom bar, the tree is behind ☰ and the account group behind "You"; at 600 px
 // the drawer holds both groups and the avatar is in the bar; at 905 and 1280 px the navigation is
@@ -36,8 +36,8 @@ const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false }
 async function stub(route) {
   const url = new URL(route.request().url());
   const path = url.pathname;
-  // The stream, **accepted and empty**: the connection is what the mark in the bar reads since
-  // issue 1017, so a walk that refused it would draw *Reconnecting…* on every screenshot of every
+  // The stream, **accepted and empty**: the connection is what the mark in the bar reads,
+  // so a walk that refused it would draw *Reconnecting…* on every screenshot of every
   // screen. It carries the server's own reconnect suggestion and no records; what a walk needs
   // from the stream is that it was opened.
   if (path.endsWith('/api/v1/stream')) {
@@ -136,7 +136,7 @@ async function common(page, width) {
   assert.equal(await page.getByRole('link', { name: 'Skip to the content' }).count(), 1, `${width}: no skip link`);
   // No footer, on any width and on every screen behind the sign-in: the way to the statement is
   // "About Hubtask" while there is a session, and a landmark carrying one external link is not
-  // worth the band it takes off a board (F10, `design-system.md` §10). The walk below proves the
+  // worth the band it takes off a board (`design-system.md` §10). The walk below proves the
   // way is there; this proves the band is not.
   assert.equal(await page.getByRole('link', { name: STATEMENT }).count(), 0, `${width}: a footer while signed in`);
   assert.equal(await page.getByRole('status').filter({ hasText: /Connected|Reconnecting|Offline|synced|copy/ }).count() > 0, true, `${width}: no sync line`);
@@ -165,9 +165,9 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   const rows = await drawer.getByRole('treeitem').allTextContents();
   assert.deepEqual(rows.map((row) => row.trim()), ['House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
   assert.equal(await drawer.getByRole('button', { name: 'Create hub' }).count(), 1, 'the drawer has no way to create a hub');
-  // The twist opens a hub where it stands; pressing the hub's row goes to the hub, which is the
-  // whole of issue 1022 - a hub is a place before it is a container, and the only way into one
-  // used to be through a collection and back up the breadcrumb.
+  // The twist opens a hub where it stands; pressing the hub's row goes to the hub, because a hub
+  // is a place before it is a container: the way into one is not through a collection and back up
+  // the breadcrumb.
   await drawer.getByRole('button', { name: `Show what is in ${HUB.name}` }).click();
   await drawer.getByRole('treeitem', { name: 'Kitchen' }).waitFor({ timeout: 5_000 });
   await drawer.getByRole('treeitem', { name: 'Kitchen' }).click();
@@ -241,13 +241,13 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
   await drawer.waitFor({ timeout: 5_000 });
   const rows = (await drawer.getByRole('treeitem').allTextContents()).map((row) => row.trim());
   assert.deepEqual(rows, [...PRIMARY, 'House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
-  // Search is the bar's field here, and it leads to the same destination the row used to.
+  // Search is the bar's field here, and it leads to the same destination as the row.
   await page.keyboard.press('Escape');
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
   await page.locator('header form[role="search"] input').fill('milk');
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => location.pathname === '/search', null, { timeout: 5_000 });
-  // The address carries a handle for the words, never the words (issue 997): what is kept is kept
+  // The address carries a handle for the words, never the words: what is kept is kept
   // in this tab, and a link made of this address would carry the narrowing and nothing typed.
   assert.equal(page.url().includes('milk'), false, `the words reached the address bar: ${page.url()}`);
   assert.equal(new URL(page.url()).searchParams.get('q'), null, 'the term is in the address as `q`');
@@ -297,8 +297,8 @@ for (const width of [905, 1280]) {
     assert.ok(rail < pinned / 2, `${width}: the rail is ${rail} px against ${pinned} px pinned`);
     assert.equal(await tree.getByRole('treeitem').count(), rows.length, `${width}: the rail lost rows`);
     assert.equal(await keeping.getByRole('treeitem').count(), 2, `${width}: the rail lost the keeping band`);
-    // And every mark is **drawn**, inside the column. Folding used to leave the twist in front of
-    // it and clip the half that stuck out, so the rail was a column of slivers (issue 915).
+    // And every mark is **drawn**, inside the column. A twist left in front of a folded mark
+    // clips the half that sticks out, and the rail becomes a column of slivers.
     const marks = await aside.evaluate((el) => {
       const column = el.getBoundingClientRect();
       return [...el.querySelectorAll('[role="treeitem"] svg')].map((mark) => {
@@ -314,7 +314,7 @@ for (const width of [905, 1280]) {
 
     // A branch pressed in the rail **goes to the branch and** opens its subtree beside the column,
     // so a press means what it means unfolded and nothing is unreachable while the navigation is
-    // folded (ADR-0063 decision 2, issue 1026). Escape closes the flyout and focus comes back.
+    // folded (ADR-0063 decision 2). Escape closes the flyout and focus comes back.
     const hubMark = aside.locator(`[data-node="${HUB.id}"]`);
     await hubMark.click();
     await page.waitForFunction((id) => location.pathname === `/hubs/${id}`, HUB.id, { timeout: 5_000 })
@@ -331,7 +331,7 @@ for (const width of [905, 1280]) {
     await page.getByRole('button', { name: 'Expand the navigation' }).click();
     assert.equal(await aside.evaluate((el) => el.getBoundingClientRect().width), pinned);
 
-    // What the application says about itself is a mark too (ADR-0065 decision 4), and no longer a
+    // What the application says about itself is a mark too (ADR-0065 decision 4), and not a
     // banner above the head of every page: the stage is behind it, and the page starts at its own
     // heading.
     const notice = page.getByRole('banner', { name: 'Application bar' }).getByRole('button', { name: 'Hubtask is a preview' });
@@ -345,7 +345,7 @@ for (const width of [905, 1280]) {
     await said.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
 
     // The connection is one mark in the bar, and no line of the page (ADR-0063 decision 5). At its
-    // quietest it says nothing until it is pressed; what the line used to print is behind it.
+    // quietest it says nothing until it is pressed; what a line would print is behind it.
     const mark = page.getByRole('banner', { name: 'Application bar' }).locator('.trigger');
     assert.equal(await mark.count(), 1, `${width}: the connection is not in the bar`);
     assert.equal(await mark.getAttribute('aria-label'), 'Connected');
@@ -358,10 +358,10 @@ for (const width of [905, 1280]) {
     await page.keyboard.press('Escape');
     await surface.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
 
-    // The three controls at the end of the bar are drawn as one kind of thing (issue 1022): the
+    // The three controls at the end of the bar are drawn as one kind of thing: the
     // two glyph controls are `IconButton`'s square with its radius, and the avatar is the same
     // square drawn round, because what is inside it is round. Three shapes for one row of
-    // controls is what the walk found.
+    // controls is the defect this guards.
     const shapes = await page.evaluate(() => {
       const read = (selector) => {
         const el = document.querySelector(`header ${selector}`);
@@ -413,7 +413,7 @@ for (const width of [905, 1280]) {
     const whose = page.locator('.surface').filter({ has: page.getByRole('menu', { name: 'You' }) });
     assert.equal(await whose.getByText(ACCOUNT.email).count(), 1, `${width}: the menu does not say whose it is`);
     // And the name is read in the colour the rows are: the head inherits the surface's quieter
-    // one, which reads on white and disappears on the dark theme's surface (issue 1022). Compared
+    // one, which reads on white and disappears on the dark theme's surface. Compared
     // against a row rather than against a token, so it holds in both themes.
     const nameColour = await whose.getByText(ACCOUNT.display_name).first().evaluate((el) => getComputedStyle(el).color);
     const rowColour = await menu.getByRole('menuitem').first().evaluate((el) => getComputedStyle(el).color);
@@ -428,10 +428,10 @@ for (const width of [905, 1280]) {
 const EMPTY_HUB = { id: '01a0e2e0-0000-7000-8000-00000000000e', type: 'HUB', parent_id: null, name: 'Nothing here', order_key: 'a1', version: 1 };
 
 test('chromium: 1280 px — a hub with nothing in it offers nothing to open, and is still a place', async (t) => {
-  // Issue 1026. Every hub carries a twist before its level is read, because "has collections" is
+  // Every hub carries a twist before its level is read, because "has collections" is
   // not known until it is opened. Once it **is** read and empty, the twist has to go: a control
-  // that opens nothing is a promise the navigation cannot keep, and pressing it twice is what the
-  // owner did before finding out there was nothing behind it.
+  // that opens nothing is a promise the navigation cannot keep: a reader presses it a second time
+  // before finding out there is nothing behind it.
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -514,7 +514,7 @@ test('chromium: the accessibility statement is reachable signed in, and signed o
   const signedOut = await open(browser, 1280, { signedIn: false });
   t.after(signedOut.close);
   // Signed out, the foot carries the operator's links and nothing of the project's (UC-ID-18 check
-  // 5, SC-09): an installation that set no accessibility statement shows none, rather than the
+  // 5): an installation that set no accessibility statement shows none, rather than the
   // project's standing in for a service it does not run.
   assert.equal(await signedOut.page.locator('footer a[href*="hubtask.eu"]').count(), 0, 'the sign-in screen points at hubtask.eu');
 

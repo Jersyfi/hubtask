@@ -2,14 +2,14 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * Reduced motion, as the product's own preference (F5-12, `design-system.md` §10 row 2.3.3).
+ * Reduced motion, as the product's own preference (`design-system.md` §10 row 2.3.3).
  *
- * The media query has been honoured since wave 1: every component that moves has a
+ * The media query is honoured everywhere: every component that moves has a
  * `prefers-reduced-motion` rule. What a media query cannot give is a choice the product makes on
  * its own - a reader whose operating system does not offer the setting, or who wants it here and
  * nowhere else. That choice is `data-motion="reduced"` on the document, which the same components
  * honour through `[data-motion='reduced']` beside their media query, and this module is the one
- * place that sets it (decision 9: one module, one attribute, one owner).
+ * place that sets it (design-system.md §11.10: one module, one attribute, one owner).
  *
  * It belongs to the device for the reason the theme does (ADR-0043): motion, like the theme, is a
  * property of the screen in front of the reader and not of the person. So the choice is kept the

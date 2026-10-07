@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// The reading half of RFC 5545, as far as a VTODO a client writes back needs (P-07). Not a
+// The reading half of RFC 5545, as far as a VTODO a client writes back needs. Not a
 // general parser: it unfolds the lines, walks into the one VTODO, reads the properties the
 // product models and names the ones it does not, and skips the components inside (a VALARM is
 // the client's own). A document without exactly one VTODO is refused.

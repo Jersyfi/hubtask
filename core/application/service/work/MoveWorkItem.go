@@ -570,7 +570,7 @@ func (w PlacementWriter) write(
 // from the parent and never merge on their own, so they travel *inside* the parent's entry, under
 // its clock: a client rewrites its own copy of the subtree from that one entry. One entry each,
 // each under its own reading, because a device that reordered an entry while another moved it
-// keeps both - which is precisely what one entry covering the move would destroy (N-06).
+// keeps both - which is precisely what one entry covering the move would destroy.
 func (w PlacementWriter) recordChanges(
 	ctx context.Context, before, after domain.WorkItem, actor appshared.ActorContext,
 ) error {

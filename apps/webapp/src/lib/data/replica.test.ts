@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// What the replica answers, path by path (F6-04): every path it answers, and the four it refuses
+// What the replica answers, path by path: every path it answers, and the four it refuses
 // by design. Over the memory store the package ships, filled the way a snapshot fills it.
 
 import { test } from 'node:test';
@@ -73,7 +73,7 @@ test('a level: the plain question the list asks, in the manual order, labels and
   }, storage)) as { data: unknown[] };
   assert.deepEqual(ids(children.data), ['i-1-a']);
 
-  // The entry page's one read (issue 877): everything under the entry, the entry itself left out.
+  // The entry page's one read: everything under the entry, the entry itself left out.
   const subtree = (await storeFor({
     path: '/items:query',
     body: { scope: { item_id: 'i-1', include_descendants: true }, include_archived: true, sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'], page: { size: 200 } },
@@ -131,7 +131,7 @@ test('the four the replica refuses by design', async () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// What a write becomes when it is queued (F6-05): the seven kinds, and what is refused.
+// What a write becomes when it is queued: the seven kinds, and what is refused.
 // ---------------------------------------------------------------------------------------------
 
 import { mutationFor } from './replica.ts';
@@ -150,7 +150,7 @@ test('ITEM_PATCH: an edit, a completion, an assignment, a due date, a custom fie
   assert.deepEqual(await mutationFor('PATCH', '/items/i-1', { title: 'renamed', notes: null }, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { title: 'renamed', notes: null } });
   assert.deepEqual(await mutationFor('POST', '/items/i-1:complete', undefined, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { completion: { is_completed: true } } });
   assert.deepEqual(await mutationFor('POST', '/items/i-1:reopen', undefined, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { completion: { is_completed: false } } });
-  // The body is the contract's `Assignment` - `account_id` - and the mutation sets the entry's `assignee_id` (issue 876).
+  // The body is the contract's `Assignment` - `account_id` - and the mutation sets the entry's `assignee_id`.
   assert.deepEqual(await mutationFor('POST', '/items/i-1:assign', { account_id: 'acc-2' }, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { assignee_id: 'acc-2' } });
   assert.deepEqual(await mutationFor('POST', '/items/i-1:unassign', undefined, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { assignee_id: null } });
   assert.deepEqual(
@@ -165,7 +165,7 @@ test('MOVE: a reorder mints its rank between the neighbours the copy knows, a mo
   const storage = await workspace();
   const h = helpers(storage);
   // i-2 (a1) moved before i-1 (a0): a key below a0, at the top of the level. The collection
-  // travels with a reorder (issue 777): the server refuses a MOVE that names no destination, and a
+  // travels with a reorder: the server refuses a MOVE that names no destination, and a
   // rank-only move is a move to the same place.
   assert.deepEqual(await mutationFor('POST', '/items/i-2:reorder', { before_item_id: 'i-1' }, h), { kind: 'MOVE', itemId: 'i-2', payload: { parent_id: null, collection_id: COLLECTION, order_key: 'Zz' } });
   // i-1 moved to the end: after i-2's a1.

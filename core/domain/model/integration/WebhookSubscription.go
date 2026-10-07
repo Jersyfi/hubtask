@@ -55,9 +55,9 @@ const (
 // WebhookSubscription is one external system's standing request to be told what happens here.
 //
 // It carries no secret and no ciphertext. What is stored is sealed under the installation's key by
-// the adapter that holds it (E-02's precedent, the same division the calendar feed's token uses),
-// and what this aggregate knows is when the previous secret stops verifying - which is a rule
-// about time rather than about a value.
+// the adapter that holds it (security.md §8, the same division the calendar feed's token uses), and
+// what this aggregate knows is when the previous secret stops verifying - which is a rule about
+// time rather than about a value.
 type WebhookSubscription struct {
 	ID       shared.ID
 	TenantID shared.ID
@@ -69,9 +69,9 @@ type WebhookSubscription struct {
 	// EventTypes are the types this subscription wants. Never empty: a subscription to nothing is
 	// a row that costs a delivery check per event and can never produce one.
 	EventTypes []event.Type
-	// Filter is a CEL expression narrowing the subscription further, and is empty until the
-	// expression engine lands. It is refused rather than stored and ignored - a filter that is
-	// accepted and does nothing is a subscriber receiving events they asked not to receive.
+	// Filter is a CEL expression narrowing the subscription further, and is always empty: a filter
+	// is refused (automation.md §3.1) rather than stored and ignored - a filter that is accepted
+	// and does nothing is a subscriber receiving events they asked not to receive.
 	Filter string
 	State  SubscriptionState
 	// FailureCount is the run of consecutive failed deliveries. The first success resets it, which
@@ -206,12 +206,10 @@ func SubscribedTypes(requested []string) ([]event.Type, error) {
 	return types, nil
 }
 
-// RefuseFilter is the whole of the CEL field until the expression engine lands.
+// RefuseFilter is the whole of the CEL field: a filter is refused (automation.md §3.1).
 //
-// Refused rather than stored and ignored, which is E-08's `ACCOUNT` lesson: a field accepted and
-// silently not honoured is worse than one that is not offered, because the caller has been told
-// their instruction was understood. When G-06 lands, this becomes a parse and the test that
-// asserts the refusal becomes one that asserts the acceptance.
+// Refused rather than stored and ignored: a field accepted and silently not honoured is worse than
+// one that is not offered, because the caller has been told their instruction was understood.
 func RefuseFilter(filter string) error {
 	if strings.TrimSpace(filter) == "" {
 		return nil

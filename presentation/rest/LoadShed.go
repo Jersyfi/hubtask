@@ -14,7 +14,7 @@ import (
 
 // DeferrableRoutes are the operations that may be refused while the process is busy: the bulk,
 // export and search shapes observability-reliability.md §6 names by class, plus the item query,
-// which is the heaviest read the contract has (H-11).
+// which is the heaviest read the contract has.
 //
 // Everything absent from this list is interactive and is never shed. That direction is the safe
 // one, and it is the reason the list is written out rather than derived: a person who cannot tick
@@ -23,7 +23,7 @@ import (
 // test - every entry has to be a route the router serves, or a typo would be a line that silently
 // never matches.
 var DeferrableRoutes = map[string]bool{
-	// Five hundred operations in one call, by the contract's own bound (C-11).
+	// Five hundred operations in one call, by the contract's own bound.
 	http.MethodPost + " " + APIBasePath + "/items:bulk": true,
 	// The query DSL: filters and sorts the interactive list endpoints do not offer, over the
 	// whole of a tenant's items (ADR-0026).

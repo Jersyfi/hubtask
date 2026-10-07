@@ -100,7 +100,7 @@ func TestMovingACollectionIntoAnotherHub(t *testing.T) {
 	if len(h.audit.entries) != 1 || h.audit.entries[0].Action != ContainerMovedAction {
 		t.Fatalf("unexpected audit entries: %+v", h.audit.entries)
 	}
-	// Whoever read it through the hub it left is told (N-08): the move says where it came from
+	// Whoever read it through the hub it left is told: the move says where it came from
 	// and where it went, after the placement is written.
 	if len(h.revoker.moves) != 1 || h.revoker.moves[0][0].ParentID != hubID || h.revoker.moves[0][1].ParentID != otherHubID {
 		t.Errorf("the revocation was told %+v, want the move from one hub to the other", h.revoker.moves)

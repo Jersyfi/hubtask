@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// The advance warning of data-retention.md §6 (R-1, answered in G-12): the people who can stop a
+// The advance warning of data-retention.md §6: the people who can stop a
 // retention rule are told before it acts.
 
 // administratorStore answers who administers, and records what it was asked about - the path is
@@ -151,7 +151,7 @@ func TestSomebodyWhoQualifiesTwiceIsToldOnce(t *testing.T) {
 }
 
 // A preference switched off suppresses the record rather than dropping it: the trail of what was
-// decided about somebody is the point of writing it at all (C-09).
+// decided about somebody is the point of writing it at all.
 func TestAWarningSomebodySwitchedOffIsSuppressedRatherThanLost(t *testing.T) {
 	preferences := newPreferences()
 	preferences.switchOff(anna, domain.CategoryRetention)

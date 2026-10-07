@@ -28,7 +28,7 @@ type ActiveLegalHoldsRow struct {
 }
 
 // The end of data's life: the instructions not to delete, and the record of what was deleted anyway
-// (B-10, ADR-0020).
+// (ADR-0020).
 //
 // The tenant is never a parameter here either: it comes from the transaction's own context through
 // current_tenant_id(), which is the value row level security compares against. That matters more
@@ -524,9 +524,8 @@ type StartRetentionRunParams struct {
 // halfway leaves a row saying RUNNING with no finish. That is the state an operator needs to see: a
 // deletion run that vanished without trace is indistinguishable from one that never started.
 //
-// `policy_id` stays null. A period is keyed on (tenant, data kind) rather than by an identifier of
-// its own - the column anticipates the rule model of data-retention.md §2, which is its own piece of
-// work.
+// `policy_id` stays null. A trash period is keyed on (tenant, data kind) rather than by an
+// identifier of its own.
 //
 // The phase is EXECUTE and not MARK. For the trash the grace period ADR-0020 §3 asks for is the
 // trash itself: the object is visible, it can be taken out, and it has a date - so a MARK pass would

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The ordering rule of design-system.md §9, tested before the five components that need it exist.
+// The ordering rule of design-system.md §6, tested before the five components that need it exist.
 //
 // That is the point of writing the register first. "`Escape` closes one layer at a time with two
-// open" is F1-06's acceptance criterion, and by the time `Dialog` and `Popover` are both written
+// open" is design-system.md §4's rule for Wave 1, and by the time `Dialog` and `Popover` are both written
 // it is a criterion that can only be checked by opening two of them and pressing a key. Here it is
 // four assertions.
 //

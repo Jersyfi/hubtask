@@ -312,7 +312,7 @@ func TestARecordForAContainerTheCallerMayNotReadIsWithheld(t *testing.T) {
 	}
 }
 
-// A change naming no container is workspace-wide - a template defined at the workspace (#626) -
+// A change naming no container is workspace-wide - a template defined at the workspace -
 // and is read at the tenant scope, once for the batch.
 func TestAWorkspaceWideRecordIsReadAtTheTenantScope(t *testing.T) {
 	first, second := entry(1, ""), entry(2, "")
@@ -416,8 +416,8 @@ func TestAnUnansweredAuthorisationQuestionIsNotARefusal(t *testing.T) {
 	}
 }
 
-// A cursor from an older epoch is refused the way a cursor past the window is (N-11,
-// backup-restore.md §12 B-5): a restore wrote rows that are in no change log entry, and the
+// A cursor from an older epoch is refused the way a cursor past the window is
+// (backup-restore.md §12 B-5): a restore wrote rows that are in no change log entry, and the
 // walk is what hands them to the device. Every position minted - at the head, past a batch, at
 // the end of a walk - carries the current epoch.
 func TestACursorFromAnOlderEpochIsRefusedAndEveryPositionCarriesTheCurrentOne(t *testing.T) {
@@ -573,7 +573,7 @@ func TestWithholdingARecordWritesNoAuditEntry(t *testing.T) {
 }
 
 // An ACCESS_REVOKED record is addressed to a person and is the one record permission does not
-// filter (N-08): it reaches the account it names although that account may no longer read the
+// filter: it reaches the account it names although that account may no longer read the
 // container - which is the point - and reaches nobody else, however well they may read it.
 func TestARevocationReachesTheAccountItNamesAndNobodyElse(t *testing.T) {
 	stranger := shared.ID("01936f2a-7c1e-7000-8000-0000000000a9")

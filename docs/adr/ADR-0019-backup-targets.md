@@ -1,7 +1,9 @@
 # ADR-0019: Backup as an application feature with freely chosen targets
 
-* **Status:** accepted
-* **Date:** 2026-08-14
+**Status:** accepted · **Date:** 2026-08-14
+
+**Rule lives in:** [backup-restore.md](../architecture/backup-restore.md) §1, §2, §3, §4, §6, §8
+
 * **Concerns:** operations, data, security
 * **Related:** [ADR-0003](./ADR-0003-postgresql-as-single-datastore.md), [ADR-0015](./ADR-0015-security-baseline.md), [backup-restore.md](../architecture/backup-restore.md)
 

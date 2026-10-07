@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// Import is the queue's way into landing a file somebody exported elsewhere (P-08).
+// Import is the queue's way into landing a file somebody exported elsewhere.
 //
 // Detached, for the reason a restore is: it reads the file back from the object store and applies
 // its records in batches of their own, and doing that inside the runner's transaction would hold

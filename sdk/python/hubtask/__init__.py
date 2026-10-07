@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
-"""The Python client for the Hubtask API, generated from api/openapi.yaml (P-03, ADR-0057).
+"""The Python client for the Hubtask API, generated from api/openapi.yaml.
 
     from hubtask import Client, ProblemError
 
@@ -12,7 +12,7 @@
         print(refused.status, refused.problem["code"])
 
 `client.py` and `types.py` are generated; this file and `pyproject.toml` are the hand-written
-half, kept to what a package needs so that the extraction ADR-0057 proposes is a move.
+half, kept to what a package needs so that moving it to a repository of its own is a move.
 """
 
 from .client import Client, ProblemError

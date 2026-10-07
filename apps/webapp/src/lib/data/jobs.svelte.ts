@@ -6,7 +6,7 @@
  *
  * A backup, a verification, a restore, an audit export and a data subject request's archive all
  * answer `202 Accepted` with a `JobRef`, and the answer arrives at `GET /jobs/{jobId}`. Five
- * screens in this milestone need that loop; five copies of it is where a bug lives in four of
+ * screens need that loop; five copies of it is where a bug lives in four of
  * them, so it is written here and each screen watches rather than polls.
  *
  * **It is not a resource.** `engine.subscribe` holds a state per path and re-reads it when

@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// SavedViewRepository stores the bookmark shelf (D-07). The query documents pass through it as
+// SavedViewRepository stores the bookmark shelf. The query documents pass through it as
 // they were sent - validated by the application, interpreted by nobody here.
 //
 // Nothing here names a tenant: the transaction the caller opened decided that, and row level

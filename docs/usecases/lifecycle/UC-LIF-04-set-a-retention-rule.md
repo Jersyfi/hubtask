@@ -65,7 +65,4 @@ See [data-retention.md](../../architecture/data-retention.md) and
 
 ## Today
 
-* **Check 9 fails in the web app and in part for `hubctl`.** The web form writes workspace-wide
-  rules only, with kind, period, action and justification — no hub or collection scope, no grace
-  period, no warning, no second stage, no condition (`apps/webapp/src/views/RetentionView.svelte`).
-  `hubctl retention add` has no grace or warning flags; `set` has `--grace` only.
+* Check 9: not met in the web app and in part for `hubctl` — the web form writes workspace-wide rules only, without hub or collection scope, grace period, warning, second stage or condition; `hubctl retention add` has no grace or warning flags, and `set` has `--grace` only.

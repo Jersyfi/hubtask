@@ -15,10 +15,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
-// The acceptance of C-08, against a real database. Every sentence of the task that is about
-// *finding* something is here, because nothing below PostgreSQL can answer it: which lexemes a
-// German document holds, whether a trigram index serves a substring of a Japanese title, and what
-// `ts_rank_cd` thinks a title is worth against a note.
+// The search against a real database. Everything about *finding* something is here, because nothing
+// below PostgreSQL can answer it: which lexemes a German document holds, whether a trigram index
+// serves a substring of a Japanese title, and what `ts_rank_cd` thinks a title is worth against a
+// note.
 
 // searchFixture writes one collection of entries in four languages, and answers the collection and
 // the hub above it.
@@ -178,7 +178,7 @@ func TestACJKQueryMatchesASubstring(t *testing.T) {
 	// that merely contains those letters somewhere.
 	//
 	// The probe is a run from the **middle** of a word rather than its beginning, and that is the
-	// whole point of it since ADR-0066 decision 4: a beginning is matched on purpose now
+	// whole point of it: under ADR-0066 decision 4 a beginning is matched on purpose
 	// (`TestTheLastWordOfASearchIsMatchedAsABeginning`), so `quarterl` would find *Quarterly
 	// report* and prove nothing. `uarterly` is a substring and not a prefix, so only the ILIKE
 	// branch could answer it - and for a Latin script there is no ILIKE branch.
@@ -245,7 +245,7 @@ func TestTheScopeDecidesWhereASearchLooks(t *testing.T) {
 }
 
 // The narrowing the use case decides reaches the statement rather than the page: filtered
-// afterwards, a page would come back short and its cursor would skip (C-04).
+// afterwards, a page would come back short and its cursor would skip.
 func TestASearchIsRestrictedToTheEntriesTheCallerMaySee(t *testing.T) {
 	ctx := context.Background()
 	f := newSearchFixture(ctx, t)
@@ -371,12 +371,11 @@ func TestASearchNeverCrossesTheTenantBoundary(t *testing.T) {
 // The document holds the word forms as well as the stems, so a reader whose configuration is not
 // the entry's finds it anyway (ADR-0066).
 //
-// This is the case the language picker used to work around, and the three words below are not
-// chosen for effect - they are what German and English disagree about. `german` folds
-// `Hausaufgabenbetreuung` to `hausaufgabenbetreu`, `Bäume` to `baum` and `gießen` to `giess`;
-// none of those is what an English configuration or `simple` makes of the same word, so before the
-// second copy an English reader typing **what is on the screen** was answered "nothing matches"
-// about an entry plainly there.
+// The three words below are not chosen for effect - they are what German and English disagree
+// about. `german` folds `Hausaufgabenbetreuung` to `hausaufgabenbetreu`, `Bäume` to `baum` and
+// `gießen` to `giess`; none of those is what an English configuration or `simple` makes of the
+// same word, so without the second copy an English reader typing **what is on the screen** is
+// answered "nothing matches" about an entry plainly there.
 func TestAnEntryIsFoundByItsOwnWordsWhateverTheSearcherReads(t *testing.T) {
 	ctx := context.Background()
 	f := newSearchFixture(ctx, t)
@@ -406,9 +405,9 @@ func TestAnEntryIsFoundByItsOwnWordsWhateverTheSearcherReads(t *testing.T) {
 // A search answers while it is still being typed: the last word is matched as a beginning too
 // (ADR-0066 decision 4, `view.Search.PrefixTerm`).
 //
-// Until this existed a tsquery compared whole lexemes, so `Haus` was not a worse match for
-// *Hausaufgabenbetreuung* - it was no match at all, and a single letter was worse still, because a
-// configuration drops it as a stop word. The bar shows hits as somebody types, so that read as a
+// A tsquery compares whole lexemes, so without the prefix term `Haus` is not a worse match for
+// *Hausaufgabenbetreuung* - it is no match at all, and a single letter is worse still, because a
+// configuration drops it as a stop word. The bar shows hits as somebody types, so that reads as a
 // bar that does not work.
 func TestTheLastWordOfASearchIsMatchedAsABeginning(t *testing.T) {
 	ctx := context.Background()

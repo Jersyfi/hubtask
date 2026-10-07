@@ -1,7 +1,9 @@
 # ADR-0044 — Which browsers a Hubtask client is required to work in
 
-* Status: **accepted**
-* Date: 2026-09-04
+**Status:** accepted · **Date:** 2026-09-04
+
+**Rule lives in:** [support-matrix.md](../architecture/support-matrix.md) §5
+
 * Deciders: the project owner
 * Related: [ADR-0039](./ADR-0039-overlay-positioning.md), [ADR-0030](./ADR-0030-svelte-frontend-framework.md),
   [ADR-0028](./ADR-0028-embedded-web-ui.md), [`support-matrix.md`](../architecture/support-matrix.md),

@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// Trello is a board's JSON export (P-09): one document with the board, its lists, its cards,
+// Trello is a board's JSON export: one document with the board, its lists, its cards,
 // its labels, its checklists and its actions.
 //
 // The mapping is the one the two products' shapes suggest and nothing cleverer: the board is a

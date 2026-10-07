@@ -126,7 +126,7 @@ func TestAKindWithAnEmptyQueueIsStillReported(t *testing.T) {
 	}
 }
 
-// The acceptance criterion of A-08: two instances, one active. Both tick, and the work happens
+// Two instances, one active (observability-reliability.md §15). Both tick, and the work happens
 // once - the second one is a standby that costs nothing but a lock attempt.
 func TestOfTwoSchedulersOnlyOneActs(t *testing.T) {
 	contested := &lock{}
@@ -267,7 +267,7 @@ func TestAContradictorySchedulerDoesNotStart(t *testing.T) {
 	}
 }
 
-// The partition duty (E-09, audit.md §3). A partition of `audit_log` inherits neither the parent's
+// The partition duty (audit.md §3). A partition of `audit_log` inherits neither the parent's
 // policy nor its revokes when it is addressed directly, so one created without them is a
 // cross-tenant leak with a date on it - and the leader is what makes sure next month's exists
 // before the first entry of it does.
@@ -377,7 +377,7 @@ func (p *streamPartitions) DropAged(_ context.Context, table string, defaultDays
 }
 
 // The stream duty covers all three tables, this month and next - the audit duty's contract,
-// three times over (H-09).
+// three times over.
 // retryBacklog is a RetryBacklog with a fixed answer.
 type retryBacklog struct{ waiting int }
 
@@ -418,7 +418,7 @@ func TestTheLeaderEnsuresEveryStreamsComingMonths(t *testing.T) {
 }
 
 // The change log's drop floor is the installation's offline window when that is longer than the
-// catalogue's default (N-09): a month falling inside the window would let a device that was
+// catalogue's default: a month falling inside the window would let a device that was
 // offline recreate what was deleted. The other streams keep the catalogue's floor.
 func TestTheChangeLogsDropFloorIsTheOfflineWindow(t *testing.T) {
 	partitions := &streamPartitions{}

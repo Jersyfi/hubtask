@@ -43,7 +43,7 @@ func findItem(ctx context.Context, items repository.Items, id shared.ID) (domain
 // readItemScope reads the entry a request is about together with the collection it lives in,
 // read-only and outside any write transaction, because the permission check needs both first: the
 // collection for the path a membership is resolved along, and the entry for the assignee the
-// narrowing is measured against (C-04).
+// narrowing is measured against.
 //
 // One helper rather than the copy each writer held. Those copies read the entry and threw it away,
 // which was harmless while nothing about the entry decided anything - and stopped being harmless
@@ -76,7 +76,7 @@ func readItemScope(
 }
 
 // changing, commenting and reading name what a request does to an entry, for the one decision
-// point that applies the matrix's qualifiers to it (access.ItemSubject, C-04).
+// point that applies the matrix's qualifiers to it (access.ItemSubject).
 //
 // Three constructors rather than a literal at every call site, because the assignee is the field
 // that is easy to leave out and impossible to notice missing: an omitted one reads as "this entry
@@ -226,9 +226,9 @@ func ensureBucketOnBoard(
 // ensureAccountCanSee refuses an account that cannot reach the entry.
 //
 // Assignment and membership are both decisions about a second person, and one made about somebody
-// who gets a 404 on the entry is a piece of work nobody can do - and, once C-04 lands, a
-// contributor's write right pointing at nothing. So the account has to hold a membership somewhere
-// along the entry's path (domain-model.md §3.2).
+// who gets a 404 on the entry is a piece of work nobody can do - and a contributor's write right
+// pointing at nothing. So the account has to hold a membership somewhere along the entry's path
+// (domain-model.md §3.2).
 //
 // One refusal for three situations, deliberately: no membership, another tenant's account, and an
 // account that does not exist all come back as `items.account_without_access`. Separating them

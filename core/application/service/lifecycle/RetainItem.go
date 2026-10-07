@@ -87,7 +87,7 @@ func (h RetainItem) Execute(
 		TokenScope: itemsWriteScope,
 		TargetType: itemTarget,
 		TargetID:   itemID,
-		// Narrowed like any other write on the entry (C-04): a role that reaches only what is
+		// Narrowed like any other write on the entry: a role that reaches only what is
 		// assigned to it does not get to keep somebody else's work out of the workspace's rule.
 		On: access.ItemSubject{
 			Does: service.ItemChange, ID: item.ID, Assignee: item.AssigneeID,

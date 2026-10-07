@@ -1,13 +1,13 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The rule editor: a rule drawn as a path (F8-04, `milestone-F8.md` decisions 1-4, 10, 11).
+  // The rule editor: a rule drawn as a path (automation.md §1.5, design-system.md §4).
   //
   // **The view holds one draft**, and everything else draws from it: the head with the name and
   // the sentence, the canvas, the inspector. An edit is a function over the draft; nothing edits
   // in place, so the three surfaces cannot disagree.
   //
-  // **The name is generated unless it is owned** (decision 4). A stored name equal to the one the
+  // **The name is generated unless it is owned** (automation.md §1.5). A stored name equal to the one the
   // rule generates for itself counts as automatic and follows every edit; any other is the
   // person's and is left alone; clearing it returns to automatic.
   //
@@ -65,14 +65,14 @@
   const TENANT = { scopeType: 'TENANT' } as const;
   const isNew = $derived(id === 'new');
 
-  // What the first paint needs, and nothing more (issue 818): the rules, the hubs and their
+  // What the first paint needs, and nothing more: the rules, the hubs and their
   // collections for the scope's name, the service accounts for the runner's. Everything a form or
   // a name might need later - the memberships, the groups, the templates, the webhooks, each
   // collection's labels and buckets - is opened when a field of the rule or the panel names its
   // kind (`needed`, below), so that a deep link never meets the credential's burst on one screen.
   // The canvas takes the content region whole: it is a surface with its own head, its own
-  // hairlines and an inspector against the far edge, and standing it in the frame's padding drew
-  // a slab of one colour on a page of another - a box on a page (issue 918).
+  // hairlines and an inspector against the far edge, and standing it in the frame's padding draws
+  // a slab of one colour on a page of another - a box on a page.
   $effect(() => page.fill());
 
   // And the bar carries the rule's name on a phone (ADR-0061 decision 1's table). The canvas keeps
@@ -103,8 +103,8 @@
     if (taken) return;
     if (isNew) {
       // The first event type is what a fresh rule starts on, and the manifest is what says which:
-      // taking the draft before it has arrived left the rule starting on nothing, silently, on
-      // every deep link into `/rules/new` that beat the boot (found by F8-26's own review).
+      // taking the draft before it has arrived leaves the rule starting on nothing, silently, on
+      // every deep link into `/rules/new` that beats the boot.
       if (manifest.state.status === 'loading' || manifest.state.status === 'idle') return;
       const first = manifest.value?.event_types?.[0] ?? '';
       draft = emptyDraft(first);
@@ -121,7 +121,7 @@
   };
 
   let selection = $state<Selection>({ kind: 'rule' });
-  /** The panel's five tabs (decision 16): Rule, Blocks, Details, Probe, Runs. */
+  /** The panel's five tabs (automation.md §1.5): Rule, Blocks, Details, Probe, Runs. */
   let tab = $state('rule');
   const RULE_TAB: ReadonlySet<Selection['kind']> = new Set(['rule', 'scope', 'runas', 'guardrails']);
   const TABS = [
@@ -132,7 +132,7 @@
     { id: 'runs', code: 'app.flow.tab_runs', icon: 'clock' },
   ] as const;
 
-  /* ---------- Narrow: the inspector as a sheet, one arm at a time (F8-05, decision 8) ---------- */
+  /* ---------- Narrow: the inspector as a sheet, one arm at a time (automation.md §1.5) ---------- */
 
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px) less one; a media query cannot read a custom property. */
   const narrowQuery = typeof matchMedia === 'function' ? matchMedia('(max-width: 904px)') : undefined;
@@ -145,9 +145,9 @@
   });
   let sheetOpen = $state(false);
   /**
-   * How much of the screen the sheet takes (decision 27): half to begin with, and afterwards
+   * How much of the screen the sheet takes (design-system.md §4): half to begin with, and afterwards
    * whatever the reader dragged it to, kept in this browser. Not the account's: it is a choice
-   * about this screen, like the theme (`apps/webapp/CLAUDE.md`).
+   * about this screen, like the theme (design-system.md §11.10).
    */
   let sheetSize = $state(0.5);
   try {
@@ -167,7 +167,7 @@
   const select = (next: Selection): void => {
     selection = next;
     if (next.kind === 'none') {
-      // Nothing is selected (decision 26): *Details* has nothing to show, so the panel moves to
+      // Nothing is selected (automation.md §1.5): *Details* has nothing to show, so the panel moves to
       // the blocks - what one does next after letting a card go is add another - while *Rule*,
       // *Probe* and *Runs*, which are about the whole rule, stay where they are. On a narrow
       // screen the sheet is over the canvas, so it closes instead.
@@ -175,7 +175,7 @@
       if (narrow) sheetOpen = false;
       return;
     }
-    // The canvas shows, the panel sets (decision 16): what was clicked opens where it is edited.
+    // The canvas shows, the panel sets (automation.md §1.5): what was clicked opens where it is edited.
     tab = RULE_TAB.has(next.kind) ? 'rule' : 'piece';
     if (narrow) sheetOpen = true;
   };
@@ -184,7 +184,7 @@
     armChoice = new Map([...armChoice, [path, arm]]);
   };
 
-  /* ---------- Drag and drop (decision 7) ---------- */
+  /* ---------- Drag and drop (automation.md §1.5) ---------- */
 
   let drag = $state<Drag | undefined>(undefined);
   let refusal = $state<string | undefined>(undefined);
@@ -208,7 +208,7 @@
     }
     drag = undefined;
   }
-  /** Why a piece may not go where it was let go, said in the hint line (decision 20). */
+  /** Why a piece may not go where it was let go, said in the hint line (automation.md §1.5). */
   function refuse(piece: Drag, list?: string): void {
     const stop = (piece.src === 'action' && piece.kind === 'STOP') || (piece.src === 'step' && stepAt(draft.actions, piece.path)?.kind === 'STOP');
     const ended = list !== undefined && endsRun(listAt(draft.actions, list) ?? []);
@@ -217,7 +217,7 @@
     refusalTimer = setTimeout(() => (refusal = undefined), 6000);
   }
 
-  /** + Else if: a rung under the ladder, selected so the panel opens on its condition (decision 19). */
+  /** + Else if: a rung under the ladder, selected so the panel opens on its condition (automation.md §1.5). */
   function addElseIf(path: string): void {
     const before = stepAt(draft.actions, path);
     if (!before || before.kind !== 'BRANCH') return;
@@ -231,7 +231,7 @@
     }
     select({ kind: 'step', path: at });
   }
-  /** The trash on a rung: the ladder closes over it, and nothing is left selected (decision 28). */
+  /** The trash on a rung: the ladder closes over it, and nothing is left selected (automation.md §1.5). */
   function removeElseIf(path: string): void {
     update((current) => ({ ...current, actions: removeRung(current.actions, path) }));
     select({ kind: 'none' });
@@ -291,7 +291,7 @@
   });
   /**
    * The kinds of thing the rule names or the panel is about to ask for: what decides which stores
-   * are read (issue 818). A step's declared fields name their kinds through the reference table;
+   * are read. A step's declared fields name their kinds through the reference table;
    * a condition anywhere may name a label, a bucket or an account; the composer and the runner
    * picker need theirs open while they are shown.
    */
@@ -363,7 +363,7 @@
     bucket: (bucketId) => pickers.bucket?.find((choice) => choice.value === bucketId)?.label,
     label: (labelId) => pickers.label?.find((choice) => choice.value === labelId)?.label,
   });
-  /** The guardrails in the words the canvas's card used, now the head's third chip (decision 24). */
+  /** The guardrails in the words the canvas's card used, now the head's third chip (automation.md §1.5). */
   const guardrailWords = $derived(
     [
       t(`app.rules.on_error_${draft.onError.toLowerCase()}`),
@@ -414,7 +414,7 @@
 
   function insert(list: string, index: number, kind: string): void {
     if (!canPlace(draft.actions, list, index, kind)) {
-      // An end anywhere but an arm's last place, or anything after an end (decision 19): said,
+      // An end anywhere but an arm's last place, or anything after an end (automation.md §1.5): said,
       // never silently dropped.
       refuse({ src: 'action', kind }, list);
       return;
@@ -448,7 +448,7 @@
 
   function addCondition(): void {
     update((current) => ({ ...current, conditions: [...current.conditions, "item.type == 'TASK'"] }));
-    // The gate holds every condition and so does its panel (decision 28): the new one is already
+    // The gate holds every condition and so does its panel (automation.md §1.5): the new one is already
     // on screen, at the bottom of it, and jumping to it alone would take the others away.
     select({ kind: 'gate' });
   }
@@ -472,7 +472,7 @@
   const isBroken = $derived(findings.some((finding) => finding.level === 'BROKEN'));
 
   /**
-   * What the draft itself is missing (F8-26, decision 29): read from the draft and the manifest,
+   * What the draft itself is missing (automation.md §1.5): read from the draft and the manifest,
    * live, because the check runs on a stored rule and has nothing to say about what is under the
    * hands. An inbound rule has an address only once one has been minted.
    */
@@ -595,11 +595,11 @@
     await attempt(() => runs.trigger(stored.id), t('app.flow.manual_started'));
   }
 
-  /** Each kind's sentence from the manifest (F8-15), and how often this workspace's rules use it (decision 17). */
+  /** Each kind's sentence from the manifest, and how often this workspace's rules use it (automation.md §1.5). */
   const summaries = $derived((manifest.value?.automation?.action_summaries ?? {}) as Readonly<Record<string, string>>);
   const usage = $derived(usageOf(rules.all));
 
-  /* ---------- The probe, drawn onto the canvas (decision 9) ---------- */
+  /* ---------- The probe, drawn onto the canvas (automation.md §1.5) ---------- */
 
   let verdicts = $state<Map<string, Verdict>>(new Map());
   let drawn = $state(false);
@@ -709,7 +709,7 @@
             <Icon name="shield" size="sm" /><span>{t('app.flow.runs_as')}</span><b>{names.account(draft.runAs)}</b>
             {#if marks.get('run_as')}<span class="chip-flag"><Icon name="triangle-alert" size="sm" /><VisuallyHidden>{marks.get('run_as')}</VisuallyHidden></span>{/if}
           </button>
-          <!-- The guardrails are the rule's, not a card on the canvas (decision 24): said here,
+          <!-- The guardrails are the rule's, not a card on the canvas (automation.md §1.5): said here,
                set on the *Rule* tab, and nowhere else. -->
           <button class="chip" type="button" onclick={() => select({ kind: 'guardrails' })}>
             <Icon name="settings" size="sm" /><span>{t('app.flow.card_guardrails')}</span><b>{guardrailWords}</b>
@@ -755,7 +755,7 @@
       {/if}
     </header>
 
-    <!-- Where a lifted piece may go, and why a drop was refused (decision 20): a line that takes
+    <!-- Where a lifted piece may go, and why a drop was refused (automation.md §1.5): a line that takes
          no room - it is zero height and its words overlay the canvas's top padding - so nothing
          moves under the pointer when a piece is lifted, and sticky, so it is read while scrolling. -->
     <p class="dragline" role="status" class:lifted={drag !== undefined} class:refused={drag === undefined && refusal !== undefined}>
@@ -764,7 +764,7 @@
 
     <div class="bench">
 
-      <!-- The room around the flow deselects too (decision 26): the flow answers a click on its
+      <!-- The room around the flow deselects too (automation.md §1.5): the flow answers a click on its
            own background, this one the pixels beside and below it. Escape does the same from
            anywhere on the canvas, which is the keyboard's way to the same place. -->
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -834,7 +834,7 @@
     </div>
 
     {#snippet inspector()}
-        <!-- The tabs stay where the head stays (decision 27): they are how the panel is steered,
+        <!-- The tabs stay where the head stays (design-system.md §4): they are how the panel is steered,
              and a panel whose steering scrolls away is steered by scrolling back up. -->
         <div class="tabsrow">
         <Tabs
@@ -938,7 +938,7 @@
 
 <style>
   /* The editor is the region it was given, and nothing of it hangs past the fold: the head at the
-     top, the bench the rest, each of the two surfaces scrolling on its own (decision 16). The
+     top, the bench the rest, each of the two surfaces scrolling on its own (automation.md §1.5). The
      frame answers `page.fill()` with a region of a definite height, which is what makes this
      `100%` a real one. */
   .editor { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
@@ -979,7 +979,7 @@
 
   .sentence-row { display: flex; align-items: flex-start; gap: var(--sp-050); }
 
-  /* Collapsed to one line, expanded on request, the choice kept in this browser (decision 4). */
+  /* Collapsed to one line, expanded on request, the choice kept in this browser (automation.md §1.5). */
   .sentence { margin: 0; flex: 1 1 auto; min-width: 0; font-size: var(--fs-075); color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 1; line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 
   .sentence.open { display: block; max-width: 80ch; }
@@ -988,7 +988,7 @@
 
   .fold:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
 
-  /* The canvas and the panel, nothing else (decision 16): the panel reaches the bottom and
+  /* The canvas and the panel, nothing else (automation.md §1.5): the panel reaches the bottom and
      scrolls on its own, the canvas takes every other pixel. */
   .bench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 44ch); flex: 1 1 auto; min-height: 0; }
 
@@ -1012,14 +1012,14 @@
   .tabsrow { position: sticky; inset-block-start: 0; z-index: var(--z-sticky); background: var(--bg-surface); }
 
   /* Below the expanded breakpoint the palette is gone (the + is the way in) and the inspector
-     follows the canvas; F8-05 makes it a sheet over it. */
+     follows the canvas as a sheet over it. */
   .sheetbar { display: none; }
 
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px) less one; a media query cannot read a custom property. */
   @media (max-width: 904px) {
     .bench { grid-template-columns: minmax(0, 1fr); }
     .canvas { padding-block-end: calc(var(--sp-1600) + var(--layout-bottombar-height)); }
-    /* Above the shell's bottom bar (F9), not behind it. */
+    /* Above the shell's bottom bar, not behind it. */
     .sheetbar { position: fixed; inset-inline: var(--sp-200); inset-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0) + var(--sp-100)); z-index: var(--z-sticky); display: flex; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); background: var(--bg-surface); box-shadow: var(--shadow-overlay); overflow: hidden; }
     .sheetbar button { flex: 1 1 0; min-width: 0; display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-025); padding: var(--sp-050) var(--sp-025); border: 0; background: transparent; color: var(--text-secondary); font-size: var(--fs-050); }
     .sheetbar button[aria-selected='true'] { color: var(--accent-primary); }

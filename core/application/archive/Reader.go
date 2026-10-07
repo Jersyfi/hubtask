@@ -154,8 +154,8 @@ func (r *Reader) Chain(ctx context.Context, prefix string) ([]Description, error
 			if errors.Is(err, shared.ErrNotFound) {
 				if at == prefix {
 					// The archive asked for is not there at all. That is not a broken chain - there
-					// is no chain - and saying "chain" sent a caller who had sent the manifest's
-					// identifier instead of the path looking for a missing parent (issue 548).
+					// is no chain - and saying "chain" would send a caller who sent the manifest's
+					// identifier instead of the path looking for a missing parent.
 					return nil, shared.ErrNotFound.WithDetail(CodeArchiveNotFound).
 						WithParams(map[string]string{"path": at}).WithCause(err)
 				}

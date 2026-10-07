@@ -176,8 +176,8 @@ func (w ItemLabelWriter) change(
 		now := w.Clock.Now()
 		// The tag is the clock reading the OR-set merges on. It is taken here rather than derived
 		// from `now`, because a merge orders changes against other devices' readings and a wall
-		// clock cannot do that (offline-sync.md §4.1). A push supplies the device's own tag
-		// (N-07): the reading that decided the merge is the one the row has to carry.
+		// clock cannot do that (offline-sync.md §4.1). A push supplies the device's own tag:
+		// the reading that decided the merge is the one the row has to carry.
 		tag := setTag(ctx, domain.SetLabels, w.HLC)
 
 		changed, err := w.apply(ctx, cmd, want, tag)
@@ -205,10 +205,10 @@ func (w ItemLabelWriter) change(
 	return result, nil
 }
 
-// addWithin puts a label on an entry that is being created, inside the creator's transaction
-// (issue 878): the same guards and the same four records as `PUT /items/{id}/labels/{labelId}`,
-// minus the permission question, which the creation has already asked of the same path with
-// the same permission. A refusal takes the whole creation with it - a merge of one request
+// addWithin puts a label on an entry that is being created, inside the creator's transaction:
+// the same guards and the same four records as `PUT /items/{id}/labels/{labelId}`, minus the
+// permission question, which the creation has already asked of the same path with the same
+// permission. A refusal takes the whole creation with it - a merge of one request
 // half-applied is a state nobody asked for. `position` is where the label sat in the request's
 // list, so a refusal names the element rather than a field the request never had.
 func (w ItemLabelWriter) addWithin(
@@ -331,7 +331,7 @@ func (w ItemLabelWriter) recordChange(
 		// The visibility filter a pull applies: the entry's own collection, like every other change
 		// to an entry. A member whose grant is on the collection alone is told about it that way;
 		// filed under the hub, the record would name a container that grant is not on the path
-		// of, and the stream's per-record check would withhold it (#623, offline-sync.md §3.1).
+		// of, and the stream's per-record check would withhold it (offline-sync.md §3.1).
 		ContainerID: item.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         tag,
@@ -535,8 +535,8 @@ func labelCommandOf(in usecase.Input) (LabelCommand, error) {
 }
 
 // setTag is the tag a set change is written under: the device's reading when a push applies it -
-// carried in the context under the set's name, the way a field's reading is (N-07,
-// appshared.ContextWithReadings) - and a fresh server reading otherwise. The reading that decided
+// carried in the context under the set's name, the way a field's reading is
+// (appshared.ContextWithReadings) - and a fresh server reading otherwise. The reading that decided
 // a merge is the reading the row has to carry, or the next device compares against the wrong one.
 func setTag(ctx context.Context, set domain.SetName, source clock.HLCSource) shared.HLC {
 	if reading, found := appshared.ReadingFrom(ctx, string(set)); found {

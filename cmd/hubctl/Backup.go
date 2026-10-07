@@ -125,7 +125,7 @@ func backupTargetAdd(ctx context.Context, cli *CLI, args []string) error {
 
 	// The mode, and no passphrase with it. The contract has an `encryption_passphrase` and this
 	// version refuses it: an archive is written under a key derived from the installation's master
-	// key (E-02), and a passphrase that had no effect would leave somebody believing their
+	// key, and a passphrase that had no effect would leave somebody believing their
 	// archives are protected by one. So there is nothing here for a person to keep safe, and
 	// nothing for this CLI to ask for - the flag arrives with the version that serves the field.
 	mode := openapi.BackupTargetCreateEncryptionModeAES256GCM

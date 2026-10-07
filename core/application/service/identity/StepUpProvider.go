@@ -380,7 +380,7 @@ func (h StartProviderStepUp) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: StartProviderStepUpName,
 		Summary: "Begins a step-up at the provider this account is connected to and that is " +
-			"switched on for its workspace (ADR-0075 §2): a fresh sign-in there, with " +
+			"switched on for its workspace: a fresh sign-in there, with " +
 			"prompt=login and max_age=0, bound to the session that asked. The browser comes back " +
 			"to this installation's callback, and the state and code it carries finish the " +
 			"step-up at StepUp.",

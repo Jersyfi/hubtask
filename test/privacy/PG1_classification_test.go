@@ -14,8 +14,8 @@ import (
 //
 // The place a field's classification is *acted on* in this build is the audit trail: `audit.Change`
 // carries one, and the masking derived from it decides whether a value is written in clear text,
-// as a fingerprint, or not at all. A change built without one used to fall through to OPEN, which
-// is the direction that cannot be taken back - a title written into the trail is a copy no deletion
+// as a fingerprint, or not at all. A change built without one would read as OPEN, which is the
+// direction that cannot be taken back - a title written into the trail is a copy no deletion
 // reaches (audit.md §4).
 //
 // So this is what PG-1 checks: no `Change` literal anywhere in the source omits `Classification`.

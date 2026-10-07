@@ -43,7 +43,7 @@ function settled<T>(request: IDBRequest<T>): Promise<T> {
 
 /**
  * A request that could not be issued because the transaction it was issued on is no longer
- * active - finished between its last request and its `complete` event (issue 776), or aborted
+ * active - finished between its last request and its `complete` event, or aborted
  * meanwhile. The remedy is the same for both: a fresh transaction.
  */
 function isInactive(cause: unknown): boolean {
@@ -112,7 +112,7 @@ export class IndexedDbStorage implements Storage {
    *
    * The request is issued here, not by the caller, because a finished transaction is only found
    * out at that moment: `objectStore()` still answers between the last request's completion and
-   * the `complete` event, and it is the request that throws (issue 776). Then the held transaction is
+   * the `complete` event, and it is the request that throws. Then the held transaction is
    * dropped and the request goes on a fresh one - the reuse is only ever for a request issued
    * from a continuation, and that one never lands in the window.
    */

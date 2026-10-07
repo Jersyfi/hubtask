@@ -323,7 +323,7 @@ func TestCreatingAReminderWritesTheRowTheChangeAndTheEntry(t *testing.T) {
 	}
 }
 
-// The reachability question an assignment asks, asked about every named recipient (C-01): somebody
+// The reachability question an assignment asks, asked about every named recipient: somebody
 // who cannot see the entry cannot be reminded of it.
 func TestCreatingAReminderAsksWhetherEveryRecipientCanSeeTheEntry(t *testing.T) {
 	h := newReminderHarness(t, reminderProfiles())
@@ -571,7 +571,7 @@ func TestTheReminderChannelsAreTheNotificationChannels(t *testing.T) {
 }
 
 // The write is what seeds the schedule: nothing may enumerate tenants, so a wake-up exists because
-// somebody made something due, not because a scheduler went looking (D-03).
+// somebody made something due, not because a scheduler went looking.
 func TestWritingAReminderSeedsTheTenantsWakeUp(t *testing.T) {
 	h := newReminderHarness(t, reminderProfiles())
 	due := remindedDue(t)

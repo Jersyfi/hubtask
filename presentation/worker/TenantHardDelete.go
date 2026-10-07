@@ -12,9 +12,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// TenantHardDelete is the grace job's way into §5's final act (H-06): seeded by the deletion
-// request's own write, due when the 30-day deadline the row carries has passed, and translated
-// here into one call on the application layer.
+// TenantHardDelete is the grace job's way into multi-tenancy.md §5's final act: seeded by the
+// deletion request's own write, due when the 30-day deadline the row carries has passed, and
+// translated here into one call on the application layer.
 //
 // Detached, for MediaReconciliation's reason: the pass deletes bytes from a bucket between two
 // writes, and a transaction held open across that call is exactly what

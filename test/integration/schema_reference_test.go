@@ -22,8 +22,8 @@ import (
 )
 
 // db/schema.sql says of itself that the migrations are the source and it is "the readable reference
-// of the same state". Until now that was a promise on trust: the file is not applied anywhere, so
-// nothing noticed when it drifted.
+// of the same state". Without this test that is a promise on trust: the file is not applied
+// anywhere, so nothing notices when it drifts.
 //
 // This applies it to a database of its own and compares what it produced with what the migrations
 // produce. Foreign keys and unique indexes rather than the whole catalogue, because those are what a

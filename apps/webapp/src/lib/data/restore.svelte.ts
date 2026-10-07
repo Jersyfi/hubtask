@@ -16,7 +16,7 @@
  * it with `stepUp.around` the same way every other screen does.
  *
  * **Two modes are not here.** `INSTANCE` and `NEW_TENANT` cross or create a tenant, which is the
- * installation operator's business rather than one workspace's (F4's decision 6). They are absent
+ * installation operator's business rather than one workspace's (backup-restore.md §8.2). They are absent
  * from `Mode` rather than filtered later, so nothing in this client can compose one by accident.
  */
 

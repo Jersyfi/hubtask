@@ -25,9 +25,9 @@ func newDeleteHarness() (*bucketHarness, DeleteBucket) {
 	}}
 }
 
-// The acceptance criterion of B-09: deleting a column moves its entries to the one that is left
-// rather than orphaning them. Which one is the leftmost remaining column, derived rather than read
-// from a stored default that nothing keeps up to date.
+// Deleting a column moves its entries to the one that is left rather than orphaning them. Which one
+// is the leftmost remaining column, derived rather than read from a stored default that nothing
+// keeps up to date.
 func TestDeletingAColumnMovesItsEntriesToTheLeftmostRemainingOne(t *testing.T) {
 	h, deleter := newDeleteHarness()
 	first := h.withBucket(shared.MustParseID("0192f000-0000-7000-8000-0000000000f0"), "Todo", "a0")
@@ -82,7 +82,7 @@ func TestDeletingAColumnMovesItsEntriesToTheLeftmostRemainingOne(t *testing.T) {
 			t.Errorf("the deletion carries a payload: %+v", change.Payload)
 		}
 		if change.ContainerID != collectionID {
-			t.Errorf("the change is filed under %s, want the collection (#623)", change.ContainerID)
+			t.Errorf("the change is filed under %s, want the collection", change.ContainerID)
 		}
 	})
 

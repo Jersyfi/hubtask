@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// The workspace's AI provider (J-02). No method takes a tenant: row level security bounds every
+// The workspace's AI provider. No method takes a tenant: row level security bounds every
 // statement, and the workspace is the row's key (ADR-0010).
 type AiProviderRepository struct{}
 

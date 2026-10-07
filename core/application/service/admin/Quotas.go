@@ -45,7 +45,7 @@ type UpdateTenantQuotasCommand struct {
 	Changes  []QuotaChange
 }
 
-// UpdateTenantQuotas is the operator's write on a workspace's §4 ceilings (H-08): partial by
+// UpdateTenantQuotas is the operator's write on a workspace's §4 ceilings: partial by
 // design, version-guarded, audited field by field.
 type UpdateTenantQuotas struct {
 	Tenants    adminrepo.Tenants
@@ -195,7 +195,7 @@ func overrideLabel(value *int64) any {
 func (h UpdateTenantQuotas) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: UpdateTenantQuotasName,
-		Summary: "Sets a workspace's §4 ceilings: each provided key becomes the ceiling " +
+		Summary: "Sets a workspace's quota ceilings: each provided key becomes the ceiling " +
 			"(0 = unlimited), an explicit null clears the override back to the mode's default, " +
 			"absent keys stay untouched. Answers the resolved standings.",
 		SideEffects: "Rewrites the quotas key of the tenant's settings document and records " +
@@ -213,7 +213,7 @@ func (h UpdateTenantQuotas) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityWarning, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "the control plane acts on workspaces, not on items (domain-model.md §3.5).",
+			Exempt: "the control plane acts on workspaces, not on items.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

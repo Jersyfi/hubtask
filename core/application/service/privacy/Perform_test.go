@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// The job's half (E-10): the work, and the completion that goes with it. They are one step here
+// The job's half: the work, and the completion that goes with it. They are one step here
 // rather than two calls from the worker, because a case whose archive was written and never
 // completed sits in the list of what is owed for ever.
 

@@ -54,7 +54,7 @@ const PathSeparator = "/"
 //
 // One value rather than three fields, because the three are only ever meaningful together: a
 // completed item without a timestamp, or a timestamp on an open one, are states nothing should be
-// able to express. CompleteWorkItem (B-07) is what moves it.
+// able to express. CompleteWorkItem is what moves it.
 type Completion struct {
 	IsCompleted bool
 	CompletedAt *time.Time
@@ -67,10 +67,8 @@ type Completion struct {
 // this struct but in its CapabilityProfile, which is why a field being present here does not mean
 // every item may carry it - the profile decides, and Require refuses what it does not allow.
 //
-// What is deliberately absent, on the same reasoning that kept `policies` off Container: a field
-// nothing writes is a promise nothing keeps. The recurrence rule arrives with the use case that
-// owns it; its column exists and carries NULL until then. The due date and the start left this
-// sentence with D-01, which is the task that gave the schedule columns their first writers.
+// What is deliberately absent follows the reasoning that kept `policies` off Container: a field
+// nothing writes is a promise nothing keeps.
 //
 // The labels and the members are absent too, and for a different reason: they are sets rather than
 // fields. They live in their own tables with their own merge tags, because two devices adding two
@@ -162,12 +160,11 @@ type WorkItem struct {
 	ContentLanguage string
 
 	// CalendarUID is the UID a calendar client knows this entry by, and empty for an entry no
-	// calendar client made (P-07, issue #721). A todo made in Reminders or Thunderbird arrives as
-	// a PUT to an address the client chose, and the client keys the todo by that UID from then
-	// on - so the tree answers the entry at that address and renders that UID back, and the
-	// identifier the server minted stays the server's. Not an identifier: N-04's rule about
-	// client-minted ones (offline-sync.md §9) is untouched, and every other channel addresses the
-	// entry by ID.
+	// calendar client made. A todo made in Reminders or Thunderbird arrives as a PUT to an address
+	// the client chose, and the client keys the todo by that UID from then on - so the tree answers
+	// the entry at that address and renders that UID back, and the identifier the server minted
+	// stays the server's. Not an identifier: the rule about client-minted ones (offline-sync.md §9)
+	// is untouched, and every other channel addresses the entry by ID.
 	//
 	// Set exactly once, at creation, and never edited: a UID that moved would be a todo the
 	// client cannot find again. Server-side rather than merged, like the provenance below - it
@@ -175,14 +172,14 @@ type WorkItem struct {
 	CalendarUID string
 
 	// OriginJumbleID is the jumble entry this item came from, and zero for an item that was not
-	// converted out of one (G-10). Provenance, set exactly once at the conversion and never
-	// cleared: where an item came from does not stop being true.
+	// converted out of one. Provenance, set exactly once at the conversion and never cleared: where
+	// an item came from does not stop being true.
 	OriginJumbleID shared.ID
 
 	// RecurrenceRuleID is the series this entry belongs to, and empty for an entry that repeats
-	// never (D-04). The link is on the entry rather than the rule holding a list, because a series
-	// has exactly one template - and it is what tells a reader, without a second query, that this
-	// entry has something to do with a series at all.
+	// never. The link is on the entry rather than the rule holding a list, because a series has
+	// exactly one template - and it is what tells a reader, without a second query, that this entry
+	// has something to do with a series at all.
 	//
 	// It does not say *which end*: the materialisation writes it onto every occurrence as well as
 	// onto the template, which is what RecurrenceSourceID is for.
@@ -192,10 +189,10 @@ type WorkItem struct {
 	RecurrenceRuleID shared.ID
 
 	// RecurrenceSourceID is the entry this one was copied from as an occurrence, and empty on the
-	// template and on everything that is not an occurrence at all (D-04). With RecurrenceRuleID it
-	// is what tells the two ends of a series apart, and it is the only thing on an occurrence that
-	// names the entry it repeats from - `GET /items/{id}/recurrence` resolves a rule by its source
-	// entry, so an occurrence asking for its own series answers 404 (issue #428).
+	// template and on everything that is not an occurrence at all. With RecurrenceRuleID it is what
+	// tells the two ends of a series apart, and it is the only thing on an occurrence that names
+	// the entry it repeats from - `GET /items/{id}/recurrence` resolves a rule by its source entry,
+	// so an occurrence asking for its own series answers 404.
 	//
 	// Provenance, like OriginJumbleID: written once by the materialisation, beside the rule
 	// identifier, and never cleared. Where an entry came from does not stop being true when the
@@ -266,21 +263,20 @@ type NewWorkItemInput struct {
 	// waiting to be applied.
 	ContentLanguage string
 
-	// StartAt is when the work begins, nil for no start (D-01). The due date is deliberately not
-	// beside it: it arrives through the writer that owns the trio, in the same transaction, the
-	// way an assignee does.
+	// StartAt is when the work begins, nil for no start. The due date is deliberately not beside
+	// it: it arrives through the writer that owns the trio, in the same transaction, the way an
+	// assignee does.
 	StartAt *time.Time
 
 	// CalendarUID is the UID a calendar client chose for the entry it is making, and empty for
-	// every other creation (P-07). Bounded and checked here, because it becomes a path segment
-	// of the tree: what a client may write into a UID is anything, and what an address can carry
-	// is not.
+	// every other creation. Bounded and checked here, because it becomes a path segment of the
+	// tree: what a client may write into a UID is anything, and what an address can carry is not.
 	CalendarUID string
 
 	// Text brings the title and the notes to normal form C before they are bounded and stored
-	// (i18n-l10n.md §5, M-07). Handed in like the profile is, because the domain may not import
-	// the library that knows the form (rule 1, ADR-0056); without it, a title that is not ASCII
-	// is refused rather than stored in whatever form it arrived (shared.NFC).
+	// (i18n-l10n.md §5). Handed in like the profile is, because the domain may not import the
+	// library that knows the form (rule 1, ADR-0056); without it, a title that is not ASCII is
+	// refused rather than stored in whatever form it arrived (shared.NFC).
 	Text text.Normalizer
 
 	// Profile is the capability profile in force for this type, which is data rather than code
@@ -370,8 +366,8 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		Notes:        notes,
 		StartAt:      startAt,
 		// An item starts open. There is no way to create a completed one, and that is deliberate:
-		// completion is an event with a time and an actor, and inventing one at creation would
-		// put a lie in the history (I-W5, B-07).
+		// completion is an event with a time and an actor, and inventing one at creation would put
+		// a lie in the history (domain-model.md §3.4, I-W5).
 		Completion:      Completion{},
 		BucketID:        in.BucketID,
 		OrderKey:        in.OrderKey,
@@ -548,7 +544,8 @@ const (
 	// `custom_fields.<key>`, which is what makes the merge per key (CustomFieldPath).
 	FieldCustomFields = "custom_fields"
 	// FieldCompletion is the done/open state as one field - `completion` in the contract, the
-	// object with is_completed, completed_at and completed_by - which merges as one (N-06).
+	// object with is_completed, completed_at and completed_by - which merges as one
+	// (offline-sync.md §4.2).
 	FieldCompletion      = "completion"
 	FieldContentLanguage = "content_language"
 	// FieldCalendarUID is the address a calendar client knows the entry by. Not something an
@@ -559,7 +556,7 @@ const (
 	FieldCollectionID = "collection_id"
 )
 
-// ItemAttributes is what an update may change: the fields 0.2.0 owns.
+// ItemAttributes is what an update may change.
 //
 // A nil pointer means "leave it alone", which is what an absent member of a JSON Merge Patch says.
 // The distinction is the whole of the type's job: `notes: null` clears the notes and an omitted
@@ -567,9 +564,9 @@ const (
 // caller that meant the other - it would clear the notes of every client that only wanted to
 // rename something.
 //
-// Icon and colour are deliberately absent. The backlog names them, but a WorkItem has neither -
-// domain-model.md §3.4 gives the item no such field and §3.3 puts both on Container, which is
-// B-06's subject. Adding them here would be a model change rather than an implementation of one.
+// Icon and colour are deliberately absent: a WorkItem has neither - domain-model.md §3.4 gives the
+// item no such field and §3.3 puts both on Container. Adding them here would be a model change
+// rather than an implementation of one.
 type ItemAttributes struct {
 	Title *string
 	Notes *string
@@ -580,7 +577,7 @@ type ItemAttributes struct {
 	// string clears the statement altogether.
 	ContentLanguage *string
 	// StartAt moves the start, and a pointer to the zero time clears it - the same "empty is not
-	// set" the board keeps, because the zero time is not an instant anything can begin at (D-01).
+	// set" the board keeps, because the zero time is not an instant anything can begin at.
 	StartAt *time.Time
 }
 
@@ -613,7 +610,7 @@ type FieldChange struct {
 // would still be refused afterwards.
 //
 // The normaliser is handed in for the reason NewWorkItem takes one: the title and the notes are
-// stored in normal form C, and the domain cannot produce that form itself (M-07).
+// stored in normal form C, and the domain cannot produce that form itself (i18n-l10n.md §5).
 func (i WorkItem) Updated(
 	attributes ItemAttributes, profile CapabilityProfile, form text.Normalizer, at time.Time,
 ) (WorkItem, []FieldChange, error) {
@@ -761,9 +758,9 @@ func (i WorkItem) Completed(by shared.ID, at time.Time) WorkItem {
 
 // Reopened returns the item marked open again, and clears who completed it and when.
 //
-// Cleared rather than kept: the two fields answer "when was this finished, and by whom", and an open
-// item has no answer. Keeping the old values would make `completed_at` a record of the last time it
-// happened to be closed, which is what the activity history is for (B-11).
+// Cleared rather than kept: the two fields answer "when was this finished, and by whom", and an
+// open item has no answer. Keeping the old values would make `completed_at` a record of the last
+// time it happened to be closed, which is what the activity history is for.
 //
 // Idempotent for the reason Completed is: reopening propagates upwards, and an item already open comes
 // back untouched so that nothing is written.

@@ -43,8 +43,8 @@ func TestTheDatasetHoldsExactlyWhatWasAskedFor(t *testing.T) {
 	}
 }
 
-// The decay with items per tenant is the figure H-11 records, and an even split would have none to
-// measure. The shape asserted here is the shape, not the arithmetic: the largest tenant holds far
+// The decay with items per tenant is half the capacity figure (observability-reliability.md
+// §13.2), and an even split would have none to measure. The shape asserted here is the shape, not the arithmetic: the largest tenant holds far
 // more than the smallest, and the smallest still holds something.
 func TestTheDistributionIsALongTail(t *testing.T) {
 	shares := distribute(2_000_000, 200)

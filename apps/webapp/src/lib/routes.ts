@@ -16,9 +16,8 @@ import type { Route } from './router.ts';
 
 export const ROUTES: readonly Route[] = [
   { name: 'home', pattern: '/' },
-  // The address the invitation mail links to (`DeliverNotification.go`). It has fallen through
-  // `presentation/webui` to `index.html` and resolved to nothing since H-01 shipped the mail;
-  // this is the screen it was always pointing at.
+  // The address the invitation mail links to (`DeliverNotification.go`). It falls through
+  // `presentation/webui` to `index.html`, and this is the screen it points at.
   { name: 'redeem', pattern: '/redeem' },
   // Where the reset mail links. Signed out like `/redeem`, and for the same reason: somebody who
   // arrives here has no password, and asking for one would be asking for the thing the screen
@@ -26,7 +25,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'reset', pattern: '/reset' },
   // The redirect URI `cmd/server/main.go` derives and registers with the provider. The address is
   // the server's rather than this table's choice: nothing about where an authorization code comes
-  // back may be taken from a request (H-04).
+  // back may be taken from a request.
   { name: 'oidc-callback', pattern: '/auth/callback' },
   // Where a third-party app sends somebody to be asked. `end-user`, because being asked whether
   // to allow an app is not administration — it is a decision every member makes for themselves.
@@ -38,7 +37,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'profile', pattern: '/profile', area: 'profile' },
   // A person's own credentials are profile configuration, not administration: nobody else can
   // list them, and an administrator who could would learn which of somebody's automations to
-  // attack (F4-10, `security.md` §5).
+  // attack (`security.md` §5).
   { name: 'tokens', pattern: '/profile/tokens', area: 'profile' },
   // The rest of Your settings, which is a section since ADR-0065 decision 3: one screen per
   // question, each with an address of its own, all of them the reader's own and therefore
@@ -49,7 +48,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'sessions', pattern: '/profile/sessions', area: 'profile' },
   { name: 'devices', pattern: '/profile/devices', area: 'profile' },
   { name: 'grants', pattern: '/profile/apps', area: 'profile' },
-  // ADR-0032's administration area. Every route this milestone adds under it is tagged as it is
+  // ADR-0032's administration area. Every route added under it is tagged as it is
   // added, and `router.test.ts` asserts that the tagged set is exactly the set under
   // `/administration` — so a screen added here without the tag, or tagged without living here,
   // fails rather than quietly shipping in the mobile shell.
@@ -61,7 +60,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'service-accounts', pattern: '/administration/service-accounts', area: 'administration' },
   { name: 'apps', pattern: '/administration/apps', area: 'administration' },
   { name: 'rules', pattern: '/administration/rules', area: 'administration' },
-  // The rule editor (F8-04): a rule drawn as a path. `new` before `:id`, so that a rule whose
+  // The rule editor: a rule drawn as a path. `new` before `:id`, so that a rule whose
   // identifier happened to be `new` could not exist and the two do not compete.
   { name: 'rule-new', pattern: '/administration/rules/new', area: 'administration' },
   { name: 'rule', pattern: '/administration/rules/:id', area: 'administration' },
@@ -78,7 +77,7 @@ export const ROUTES: readonly Route[] = [
   // everybody for a new password. Beside the provider rather than inside the workspace screen,
   // because ADR-0065 decision 3 is one screen per question and this is a question of its own.
   { name: 'sign-in-settings', pattern: '/administration/sign-in', area: 'administration' },
-  // The AI provider and the consent that lets it be used (F5-05): where a workspace's content may
+  // The AI provider and the consent that lets it be used: where a workspace's content may
   // be sent is administration, exactly as the sign-in provider above it is.
   { name: 'ai', pattern: '/administration/ai', area: 'administration' },
   // No parameter, and that is the point: `/search` is a `POST` because a search term is content
@@ -91,12 +90,12 @@ export const ROUTES: readonly Route[] = [
   { name: 'jumble', pattern: '/jumble' },
   { name: 'trash', pattern: '/trash' },
   { name: 'archive', pattern: '/archive' },
-  // The address the board's cards and the search results have linked to since F2-11. An entry is
-  // a thing with its own history (F2-15), so it is a screen rather than a row somewhere.
+  // The address the board's cards and the search results link to. An entry is
+  // a thing with its own history, so it is a screen rather than a row somewhere.
   { name: 'item', pattern: '/items/:id' },
   { name: 'hub', pattern: '/hubs/:id' },
   { name: 'collection', pattern: '/collections/:id' },
-  // The level above the workspaces (ADR-0070 §5, SI-17). Its own area, excluded from the shells as
+  // The level above the workspaces (ADR-0070 §5). Its own area, excluded from the shells as
   // administration is: an administrator runs a workspace and an operator runs the installation, and
   // a shell that shipped one because it shipped the other would ship the control plane by accident.
   //
@@ -115,7 +114,7 @@ export const ROUTES: readonly Route[] = [
 /** Where the area's own screens live. One prefix, so the test and the table cannot disagree. */
 export const ADMINISTRATION_PREFIX = '/administration';
 
-/** The instance area's own prefix, for the same reason (SI-17, ADR-0070 §5). */
+/** The instance area's own prefix, for the same reason (ADR-0070 §5). */
 export const INSTANCE_PREFIX = '/instance';
 
 /**

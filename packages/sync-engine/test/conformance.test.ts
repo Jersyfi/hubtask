@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The conformance runner (F6-08) held to its own claims: against a server in memory that keeps
+// The conformance runner held to its own claims: against a server in memory that keeps
 // offline-sync.md's promises it passes every testable point; against a deliberately wrong engine
 // - one whose store keeps what an ACCESS_REVOKED record tells it to drop - it fails point 3 and
 // only point 3. A runner that cannot go red proves nothing.

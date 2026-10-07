@@ -25,14 +25,14 @@ import (
 
 const (
 	rulesFile = "../../deploy/observability/alerts/prometheus-rules.yaml"
-	// tenantRulesFile is the multi-tenant operator's additions (H-08): a separate file, so the
+	// tenantRulesFile is the multi-tenant operator's additions: a separate file, so the
 	// self-hosting pin below stays on the set where doing nothing loses data.
 	tenantRulesFile = "../../deploy/observability/alerts/prometheus-rules-tenant.yaml"
-	// providerRulesFile is the rest of the catalogue (H-12): what provider operation adds, with
+	// providerRulesFile is the rest of the catalogue: what provider operation adds, with
 	// an on-call rota behind it. A third file for the same reason the second is one - the
 	// self-hosting pin must keep reading a file that never grows.
 	providerRulesFile = "../../deploy/observability/alerts/prometheus-rules-provider.yaml"
-	// pitrRulesFile is A-12's point-in-time recovery half (H-10): rules over the database
+	// pitrRulesFile is A-12's point-in-time recovery half: rules over the database
 	// operator's own series, loaded only where that operator runs. A fourth file for the reason
 	// there is a third - the pinned self-hosting set must keep reading a file that never grows,
 	// and an installation with a database of its own has none of these series.
@@ -176,24 +176,24 @@ func TestEveryAlertCarriesWhatAnOperatorNeeds(t *testing.T) {
 // leaves the installation broken (§10). Pinning it here means adding one is a deliberate act -
 // somebody has to change this list and say why in the pull request.
 //
-// A-08 was added by D-03, and the argument is in the rules file: a reminder that does not arrive
-// cannot be caught up on afterwards, because the moment it was for has passed - which puts it with
-// the losses rather than with the symptoms.
+// A-08 is in it, and the argument is in the rules file: a reminder that does not arrive cannot be
+// caught up on afterwards, because the moment it was for has passed - which puts it with the
+// losses rather than with the symptoms.
 //
-// A-20 was added by E-05, and the argument is the one A-12 already makes: a backup nobody has
-// restored is a promise about a day that has not happened yet, and the only evidence for it is a
-// restore that worked. An installation that discovers on that day that its archives do not open has
-// lost the data as surely as one that never made them.
+// A-20 is in it for the argument A-12 already makes: a backup nobody has restored is a promise
+// about a day that has not happened yet, and the only evidence for it is a restore that worked. An
+// installation that discovers on that day that its archives do not open has lost the data as
+// surely as one that never made them.
 func TestTheSelfHostingSetIsExactlyWhatWasDecided(t *testing.T) {
 	want := []string{"A-03", "A-04", "A-05", "A-07", "A-08", "A-12", "A-19", "A-20"}
 
-	// The self-hosting file alone: the tenant file next door (A-18, H-08) is the provider's
+	// The self-hosting file alone: the tenant file next door (A-18) is the provider's
 	// set, under its own rule - a capacity signal is not "doing nothing loses data", which is
 	// exactly why it does not join this list.
 	got := selfHostingAlerts(t)
 	sort.Strings(got)
 
-	// A-19 joined with E-10, under the rule this test states: a statutory deadline is not a
+	// A-19 is in it under the rule this test states: a statutory deadline is not a
 	// symptom somebody can catch up on afterwards. It loses no data - it loses a right, and the
 	// period runs out whether or not anybody was watching, which is the same reason A-08 is here.
 	if strings.Join(got, ",") != strings.Join(want, ",") {
@@ -322,8 +322,8 @@ func TestTheDashboardIdentifiersAreDistinct(t *testing.T) {
 }
 
 // Every objective in §2 has a row. The dashboard is the answer to "are we keeping our promises",
-// and an objective missing from it is one nobody is looking at - which is how SLO-6 and SLO-7 sat
-// unmeasured until their metrics were built (H-12).
+// and an objective missing from it is one nobody is looking at - an objective can sit unmeasured
+// without anything turning red.
 func TestTheSLODashboardCoversEveryObjective(t *testing.T) {
 	board, ok := dashboards(t)["slo.json"]
 	if !ok {
@@ -382,9 +382,8 @@ func TestTheTenantDashboardDegradesToANotice(t *testing.T) {
 //
 // What runs here is the half that needs no cluster: that the script's list and the rules file
 // agree about which names are in play. The script cannot check a name nobody reads, and it must
-// not stay silent about one a rule does read - and both had already gone wrong. Its list carried
-// `cnpg_collector_up`, which no rule has ever read, and it would have carried on reporting on it
-// forever (#940).
+// not stay silent about one a rule does read. A name on the list that no rule reads would be
+// reported on forever, and a name a rule reads that is missing from it is never checked.
 //
 // The same two-directional shape as the support matrix in tools/checkdocs: a claim and its
 // evidence, checked from both ends, because a list that only grows one way rots quietly.

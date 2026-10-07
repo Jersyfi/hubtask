@@ -20,7 +20,7 @@ type Entries interface {
 }
 
 // Sets is the read `item.labels` and `item.members` need: the identifiers an entry carries, which
-// live beside the aggregate rather than on it (issue 807). Narrow, like Entries, so that nothing
+// live beside the aggregate rather than on it. Narrow, like Entries, so that nothing
 // holding an activation can write through it; the label and the member repositories both fit.
 type Sets interface {
 	List(ctx context.Context, itemID shared.ID) ([]shared.ID, error)
@@ -48,23 +48,23 @@ type Values struct {
 	// one run sees one instant (automation.md §1.2).
 	Now time.Time
 	// subject is the entry a run that no event started is about - a RELATIVE_DATE run measured
-	// from one entry's due date (G-08). The envelope's subject wins where there is one, so an
+	// from one entry's due date. The envelope's subject wins where there is one, so an
 	// event-triggered run is unaffected by this field existing.
 	Subject shared.ID
 	// payload is the body an inbound delivery carried. Untrusted from end to end: it is read as
-	// *data* under one name and never rendered as an instruction to anything (ai-first.md §4,
+	// *data* under one name and never rendered as an instruction to anything (ai-first.md §1.3,
 	// automation.md §1.1).
 	Payload    map[string]any
 	Entries    Entries
 	Containers Containers
 	// Labels and Members answer the entry's two sets beside it, so that `item.labels` and
-	// `item.members` are the lists automation.md §1 promises rather than absent keys (issue 807).
+	// `item.members` are the lists automation.md §1 promises rather than absent keys.
 	// Read only when `item` is - the same laziness - and optional: without them the document is
-	// the entry alone, as it was.
+	// the entry alone.
 	Labels  Sets
 	Members Sets
 	// JumbleID names the entry a JUMBLE_ENTRY run is about; `payload` is rendered from it, lazily
-	// and as data (G-10). Zero everywhere else - the envelope's own subject still lets an EVENT
+	// and as data. Zero everywhere else - the envelope's own subject still lets an EVENT
 	// rule on a jumble event read the same names.
 	JumbleID shared.ID
 	Jumble   JumbleEntries
@@ -80,8 +80,8 @@ func (v Values) Resolve(ctx context.Context, name string) (any, bool, error) {
 	case VarActor:
 		return actorDocument(v.Envelope), true, nil
 	case VarPayload:
-		// The body an inbound webhook delivered - or, on a jumble run, the entry's fields as data
-		// (G-10). Empty for a run that has neither, which is what an absent document means rather
+		// The body an inbound webhook delivered - or, on a jumble run, the entry's fields as data.
+		// Empty for a run that has neither, which is what an absent document means rather
 		// than a failure - a condition written for one trigger and used on another asks about
 		// something that is not there.
 		if len(v.Payload) > 0 {

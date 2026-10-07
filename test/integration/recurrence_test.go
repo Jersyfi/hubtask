@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The statements the series runs on, against a real database (D-04): the round trip, the pointer
+// The statements the series runs on, against a real database: the round trip, the pointer
 // the entry and the rule share, the invariant that keeps them from disagreeing, and the tenant
 // boundary per method (gate SG-3).
 
@@ -72,7 +72,7 @@ func TestASeriesRoundTripsAndTheEntryPointsAtIt(t *testing.T) {
 	}
 
 	// The entry points at it, which is what lets a reader see that it repeats without a second
-	// query - and the read answers the column rather than always null (D-04).
+	// query - and the read answers the column rather than always null.
 	if item := findWorkItem(ctx, t, tenantA, task); item.RecurrenceRuleID != rule.ID {
 		t.Errorf("the entry points at %q rather than at its series", item.RecurrenceRuleID)
 	}
@@ -259,8 +259,8 @@ func TestASeriesIsInvisibleFromAnotherTenant(t *testing.T) {
 	})
 }
 
-// The merge rule offline-sync.md §4.2 gains for a series, proved the way D-01 and D-02 proved
-// theirs: two devices changing two different fields converge to both, because each field is its own
+// The merge rule offline-sync.md §4.2 gives a series, proved the way the other fields' rules are:
+// two devices changing two different fields converge to both, because each field is its own
 // change log entry and the version predicate makes the loser re-read rather than overwrite.
 func TestTwoDevicesChangingASeriesConvergeToBothFields(t *testing.T) {
 	ctx := context.Background()

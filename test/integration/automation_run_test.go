@@ -19,10 +19,10 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The engine's reads and writes against a real database (G-07). What only PostgreSQL can answer:
-// that a run survives the two jsonb columns, that the failure counter and the disabling are the
-// atomic statements they claim to be, that the per-event lookup finds what it should and nothing
-// else, and that none of it reaches another tenant.
+// The engine's reads and writes against a real database. What only PostgreSQL can answer: that a
+// run survives the two jsonb columns, that the failure counter and the disabling are the atomic
+// statements they claim to be, that the per-event lookup finds what it should and nothing else,
+// and that none of it reaches another tenant.
 
 func automationRuns() postgres.AutomationRunRepository {
 	return postgres.NewAutomationRunRepository(pageCursors())
@@ -59,8 +59,8 @@ func startedRun(t *testing.T, tenant, ruleID shared.ID) domain.Run {
 
 	run, err := domain.StartRun(domain.NewRunInput{
 		ID: freshID(t), TenantID: tenant, RuleID: ruleID, EventID: freshID(t),
-		// Required since G-08: a run that does not know what started it is a programming error,
-		// because the log's whole value is that it says which of six things happened.
+		// Required: a run that does not know what started it is a programming error, because the
+		// log's whole value is that it says which of six things happened.
 		Trigger:        domain.TriggerEvent,
 		CausationDepth: 1, Now: time.Now().UTC().Truncate(time.Microsecond),
 	})
@@ -138,8 +138,8 @@ func TestARunSurvivesTheColumnsItIsStoredIn(t *testing.T) {
 	}
 }
 
-// The G-09 halves of the row, round-tripped: the path and the branch answer on an action result,
-// the occasion, and a parked run whose finished_at is honestly NULL.
+// The branching and parking halves of the row, round-tripped: the path and the branch answer on an
+// action result, the occasion, and a parked run whose finished_at is honestly NULL.
 func TestAParkedRunAndItsPathsSurviveTheRow(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -520,7 +520,7 @@ func TestTheRunListingPagesAndFilters(t *testing.T) {
 		}
 	}
 
-	// The window (F8-02): half-open on started_at. Every run above started moments ago, so a
+	// The window: half-open on started_at. Every run above started moments ago, so a
 	// window opening an hour ago holds them and one closing an hour ago holds none - and the two
 	// ends combine with the rule filter rather than replacing it.
 	hourAgo := time.Now().UTC().Add(-time.Hour)
@@ -589,8 +589,8 @@ func TestTheRunListingPagesAndFilters(t *testing.T) {
 }
 
 // A rule carries its most recent run when it is read - the newest by its start, failed or not -
-// and a rule that never ran carries none (F8-21). The list reads a page of rules with one
-// statement for the runs, so the card says "last run" without a runs request per rule.
+// and a rule that never ran carries none. The list reads a page of rules with one statement for
+// the runs, so the card says "last run" without a runs request per rule.
 func TestARuleIsReadWithItsLastRun(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
-// The read side's two list methods against a real database (B-04).
+// The read side's two list methods against a real database.
 //
 // The pagination tests are the point of this file. A keyset walk is correct or it is not, and the way
 // it is wrong - one row visited twice, or one never visited at all - is invisible in a unit test
@@ -199,9 +199,9 @@ func TestNamingNoParentListsTheHubs(t *testing.T) {
 	assertPresent(t, seen, hub, "the hub just written")
 }
 
-// The acceptance criterion of B-04: no skipped and no repeated rows. Walked at every page size from
-// one row upwards, because one row at a time is what turns an off-by-one at the boundary into a wrong
-// answer rather than a lucky one.
+// No skipped and no repeated rows. Walked at every page size from one row upwards, because one row
+// at a time is what turns an off-by-one at the boundary into a wrong answer rather than a lucky
+// one.
 func TestPaginationVisitsEveryRowExactlyOnce(t *testing.T) {
 	ctx := context.Background()
 	hub := hubFor(ctx, t, tenantA, authorA)
@@ -223,7 +223,7 @@ func TestPaginationVisitsEveryRowExactlyOnce(t *testing.T) {
 	}
 }
 
-// The other half of the criterion: a row inserted while a client is halfway through the walk must
+// The other half of the guarantee: a row inserted while a client is halfway through the walk must
 // not disturb the rows it has not reached. Inserted *behind* the cursor, which is the case an offset
 // gets wrong - with an offset every later row shifts one place and one is skipped entirely.
 func TestAConcurrentInsertDoesNotDisturbTheRestOfTheWalk(t *testing.T) {
@@ -359,7 +359,7 @@ func TestTheTypeFilterComposesWithTheLevel(t *testing.T) {
 }
 
 // A trashed row is not part of a level, and an archived one only when the caller asks. The two are
-// deliberately different: the trash is its own view (B-10), an archive is still the workspace.
+// deliberately different: the trash is its own view, an archive is still the workspace.
 func TestTheLifecycleStateDecidesWhetherARowIsInTheLevel(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
@@ -376,8 +376,8 @@ func TestTheLifecycleStateDecidesWhetherARowIsInTheLevel(t *testing.T) {
 		t.Fatalf("seeding the lifecycle fixtures: %v", err)
 	}
 
-	// Stamped through the superuser rather than through the repository. InsertWorkItem writes neither
-	// column - archiving and trashing are use cases of their own (B-06, B-10) - so a fixture that set
+	// Stamped through the superuser rather than through the repository. InsertWorkItem writes
+	// neither column - archiving and trashing are use cases of their own - so a fixture that set
 	// the field on the struct would be silently dropped, and this test would then be asserting the
 	// absence of rows that were never in the state it claims.
 	stamp(ctx, t, archived, "archived_at")
@@ -473,7 +473,7 @@ func stamp(ctx context.Context, t *testing.T, id shared.ID, column string) {
 	t.Helper()
 
 	// The column name is a constant of this test and never a value from anywhere else, which is what
-	// keeps CLAUDE.md rule 9 intact here, where sqlc cannot express "either of two columns".
+	// keeps rule 9 intact here, where sqlc cannot express "either of two columns".
 	switch column {
 	case "archived_at", "deleted_at":
 	default:

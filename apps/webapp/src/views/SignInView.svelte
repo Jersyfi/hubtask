@@ -48,7 +48,7 @@
   let asking = $state(false);
   /**
    * Where the workspace switched the password off, the same detour asks for the link that connects
-   * its provider (ADR-0078 §1, SC-33): the same request, answered the same for every address, under
+   * its provider (ADR-0078 §1): the same request, answered the same for every address, under
    * words that do not promise a password. Without this entry the link that is a member's way back -
    * the one `identity_provider.link_needs_mailbox` points at - could be asked for only through the
    * API.
@@ -141,7 +141,7 @@
   }
 
   /**
-   * Hands the browser to one of the workspace's providers (H-04).
+   * Hands the browser to one of the workspace's providers.
    *
    * The address goes with it as a `login_hint` where one has been typed, so somebody does not type
    * it twice. It decides nothing: which account signs in is the ID token's `sub` and only that.
@@ -444,7 +444,7 @@
         {#if !signInRules.hasPassword && signInRules.isServed}
           <p class="forgot">
             <!-- The way back where the password is off: a link by mail that connects the provider
-                 (SC-33). Only where the installation serves the request, as the password's link. -->
+                 (ADR-0078 §1). Only where the installation serves the request, as the password's link. -->
             <button class="link" type="button" onclick={() => (asking = true)}>
               {t('app.sign_in.mail_link')}
             </button>

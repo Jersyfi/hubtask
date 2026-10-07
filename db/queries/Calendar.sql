@@ -1,4 +1,4 @@
--- The calendar feeds (D-08, api-guidelines.md §7).
+-- The calendar feeds (api-guidelines.md §7).
 --
 -- The tenant is never a parameter: it comes from the transaction's own context through
 -- current_tenant_id(), which is the value row level security compares against (ADR-0010). That

@@ -3,11 +3,10 @@
 
 // Package privacy holds gates PG-1 to PG-8 (data-protection.md §10, ADR-0018).
 //
-// They were asserted by four documents and existed in no form at all until E-11 - not a Makefile
-// target, not a script, not a test - and one acceptance had already claimed a green from them. So
-// the point of this package is not that the checks are clever: it is that they run, that they are
+// The point of this package is not that the checks are clever: it is that they run, that they are
 // wired into a gate whose cost suits them, and that `gate-selftest` proves each of them goes red
-// against a deliberate violation.
+// against a deliberate violation. A gate a document asserts and nothing runs is a green nobody may
+// read as a check.
 //
 // Where each one runs: the cheap ones here, in `make gate-privacy`, which `make verify` runs. The
 // two that need a database - PG-2, the deletion test across every storage location, and PG-7, the

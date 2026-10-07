@@ -3,7 +3,7 @@
 
 /**
  * The providers a workspace signs its people in through, as the administration screen reads and
- * writes them (H-04, SI-10).
+ * writes them.
  *
  * **Plural, and two levels deep.** The listing carries the workspace's own rows and the ones its
  * installation offers every workspace. `scope` says which: an `installation` row is offered here and
@@ -11,8 +11,8 @@
  * controls that answer a refusal.
  *
  * **The client secret goes one way.** It is a member of the configuration and of no answer: sealed
- * on the way in (E-02) and read only by the token exchange. So there is nothing here that holds one,
- * nothing that reads one back, and a screen that showed a row of dots where a secret used to be
+ * on the way in and read only by the token exchange. So there is nothing here that holds one,
+ * nothing that reads one back, and a screen that showed a row of dots where a secret would be
  * would be inventing a fact the server does not offer. Omitting it on a replace keeps the one that
  * is sealed — which is the contract's promise and not a rule this module invents.
  *

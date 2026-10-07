@@ -34,8 +34,8 @@ const (
 	journalResumed   = "tenant.resumed"
 )
 
-// ListTenants answers the installation's workspaces - the one legitimate enumerator (0.6.0
-// decision 6), behind the admin scope, through the installation-scoped read path.
+// ListTenants answers the installation's workspaces - the one legitimate enumerator
+// (multi-tenancy.md §2.1), behind the admin scope, through the installation-scoped read path.
 type ListTenants struct {
 	Tenants    adminrepo.Tenants
 	UnitOfWork persistence.UnitOfWork
@@ -84,8 +84,7 @@ func (h ListTenants) Descriptor() usecase.Descriptor {
 			Action: "tenant.listed", TargetType: tenantTarget, Severity: audit.SeverityInfo,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "a read of the control plane touches no item; the history is an item's " +
-				"(domain-model.md §3.5).",
+			Exempt: "a read of the control plane touches no item; the history is an item's.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
@@ -212,7 +211,7 @@ func (h SuspendTenant) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityWarning, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "the control plane acts on workspaces, not on items (domain-model.md §3.5).",
+			Exempt: "the control plane acts on workspaces, not on items.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
@@ -260,7 +259,7 @@ func (h ResumeTenant) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityInfo, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "the control plane acts on workspaces, not on items (domain-model.md §3.5).",
+			Exempt: "the control plane acts on workspaces, not on items.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

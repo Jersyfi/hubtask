@@ -31,7 +31,7 @@ const sessionTokenTagLength = 16
 // uuidLength is the canonical 8-4-4-4-12 form the three identifiers travel in.
 const uuidLength = 36
 
-// SessionTokenIssuer signs the access half of the pair (H-01, security.md §5): fifteen minutes,
+// SessionTokenIssuer signs the access half of the pair (security.md §5): fifteen minutes,
 // verified by its signature without a database read - the same discipline every cursor and feed
 // token already follows. What the signature does not answer - is the session still alive, may the
 // account act - is the row's business, read afterwards by whoever holds the claims.
@@ -169,7 +169,7 @@ func hashUnder(pepper []byte, value string) []byte {
 	return mac.Sum(nil)
 }
 
-// The second factor's stored credentials (H-02), TokenHasher's construction under their own
+// The second factor's stored credentials, TokenHasher's construction under their own
 // purpose labels.
 //
 //nolint:gosec // G101: public derivation labels, not credentials
@@ -199,7 +199,7 @@ func NewRecoveryCodeHasher(installationSecret secret.Secret) RecoveryCodeHasher 
 
 func (h RecoveryCodeHasher) Hash(normalised string) []byte { return hashUnder(h.pepper, normalised) }
 
-// stepUpTokenInfo separates the step-up proof from every other derivation (H-03).
+// stepUpTokenInfo separates the step-up proof from every other derivation.
 //
 //nolint:gosec // G101: a public derivation label, not a credential
 const stepUpTokenInfo = "hubtask/step-up/v1"
@@ -214,7 +214,7 @@ func NewStepUpTokenHasher(installationSecret secret.Secret) StepUpTokenHasher {
 
 func (h StepUpTokenHasher) Hash(presented string) []byte { return hashUnder(h.pepper, presented) }
 
-// The provider's stored credentials (H-05), TokenHasher's construction under their own labels.
+// The provider's stored credentials, TokenHasher's construction under their own labels.
 const (
 	oauthCodeInfo   = "hubtask/oauth-code/v1"
 	oauthClientInfo = "hubtask/oauth-client/v1"
@@ -240,7 +240,7 @@ func NewOauthClientSecretHasher(installationSecret secret.Secret) OauthClientSec
 
 func (h OauthClientSecretHasher) Hash(presented string) []byte { return hashUnder(h.pepper, presented) }
 
-// oidcFlowInfo separates the relying party's flow handle from every other derivation (H-04).
+// oidcFlowInfo separates the relying party's flow handle from every other derivation.
 const oidcFlowInfo = "hubtask/oidc-flow/v1"
 
 // OidcFlowHasher turns a presented sign-in state into the value stored in oidc_flow.state_hash.

@@ -99,8 +99,8 @@ func TestALockWithoutAValuePinsTheDefault(t *testing.T) {
 	}
 }
 
-// The plan's layer is a parameter with no writer yet (ADR-0070 §3). It resolves between the two,
-// so that the milestone that fills it is not a migration through the sign-in path.
+// The plan's layer is a parameter with no writer yet (ADR-0070 §3). It resolves between the two, so
+// that filling it needs no migration through the sign-in path.
 func TestThePlansLayerSitsBetweenTheTwo(t *testing.T) {
 	instance := PolicyLayer{Patch: PolicyPatch{MinLength: intOf(12)}}
 	plan := PolicyLayer{

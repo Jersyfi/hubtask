@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// Data subject rights over REST (E-10, data-protection.md §4). No rules here: which permission a
+// Data subject rights over REST (data-protection.md §4). No rules here: which permission a
 // step needs depends on the case, and that decision belongs to the application layer where the
 // case can be read (ADR-0005).
 

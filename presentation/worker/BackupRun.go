@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// BackupRun is the queue's way into writing an archive (E-05, backup-restore.md §5).
+// BackupRun is the queue's way into writing an archive (backup-restore.md §5).
 //
 // Detached, and it has to be. The run holds a REPEATABLE READ snapshot while it streams to somebody
 // else's machine, and doing that inside the runner's own transaction would mean two open at once -
@@ -57,7 +57,7 @@ func (h BackupRun) Run(ctx context.Context, job queue.Job) (queue.Result, error)
 		// a second archive at the same moment is what the lock exists to prevent - but not a
 		// success either: this job was asked for an archive and has not written one. It comes
 		// back when the target should be free and writes it then, so the job's final state never
-		// says SUCCEEDED over work that did not happen (#207).
+		// says SUCCEEDED over work that did not happen.
 		if busy(err) {
 			slog.InfoContext(ctx, "a backup was already running at that target; coming back",
 				slog.String("target_id", in.TargetID.String()))
@@ -77,7 +77,7 @@ func (h BackupRun) Run(ctx context.Context, job queue.Job) (queue.Result, error)
 // looking is one refused insert - cheap - so the exact number matters less than that there is one.
 const busyRetryDelay = 5 * time.Minute
 
-// Release closes the run row of a job the queue has given up on (queue.Releaser, #207).
+// Release closes the run row of a job the queue has given up on (queue.Releaser).
 //
 // A run left RUNNING holds the one-run-per-target lock for ever: every later backup at that target
 // is refused, and the refusals come back as repeats that never end. The row is closed as FAILED

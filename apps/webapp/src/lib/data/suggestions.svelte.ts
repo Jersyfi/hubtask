@@ -96,10 +96,10 @@ class Suggestions {
   }
 
   /**
-   * Asks what a jumble entry should become (J-06), and follows the listing the same way.
+   * Asks what a jumble entry should become, and follows the listing the same way.
    *
    * One operation rather than six: an arrival has no fields yet, so the one question is what it
-   * would be as work - a title, notes, a date, and the subtasks the material implies (K-01).
+   * would be as work - a title, notes, a date, and the subtasks the material implies.
    */
   async askJumble(entryId: string): Promise<void> {
     const askedAt = new Date().toISOString();
@@ -125,7 +125,7 @@ class Suggestions {
   }
 
   /**
-   * Asks how a collection stands (K-05) - what is open, what moved, what is overdue - and follows
+   * Asks how a collection stands - what is open, what moved, what is overdue - and follows
    * the listing. Nothing accepts the answer: a collection has nowhere to put a status summary, so
    * it is read and dismissed.
    */
@@ -153,7 +153,7 @@ class Suggestions {
   }
 
   /**
-   * Asks for a template drafted from a description (P-11, F6-10), and follows the collection's
+   * Asks for a template drafted from a description, and follows the collection's
    * listing the way the status summary is followed: the draft appears there as a `TEMPLATE`
    * suggestion with the collection as its target, and accepting it is `CreateTemplate`.
    */
@@ -187,7 +187,7 @@ class Suggestions {
   }
 
   /**
-   * Reads the entry in another language (M-11). Synchronous and stored nowhere: the answer is
+   * Reads the entry in another language. Synchronous and stored nowhere: the answer is
    * handed back and held by nothing here - it is the caller's to show and to drop.
    */
   async translate(itemId: string, targetLocale: string): Promise<AiTranslation> {
@@ -216,7 +216,7 @@ class Suggestions {
         // The entry changed - its fields, or the children under it - so every read of it is stale,
         // and the engine matches by prefix: `/items/{id}`, its activity, its children. A jumble
         // acceptance is a conversion, so the inbox and the containers a board reads are stale too.
-        // A container's suggestion is a template (P-11): accepting it is `CreateTemplate`, so the
+        // A container's suggestion is a template: accepting it is `CreateTemplate`, so the
         // templates that apply here are what changed.
         invalidates:
           target === 'JUMBLE_ENTRY'

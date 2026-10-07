@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// UC-ID-11 check 8 and UC-ID-12 check 6 (SC-21, ADR-0076 §5): a provider is switched on or off in
+// UC-ID-11 check 8 and UC-ID-12 check 6 (ADR-0076 §5): a provider is switched on or off in
 // the list of ways to sign in, and nowhere else. Its own form - the collection's `PUT`, its `POST`
 // and the singular route - refuses a changed `enabled` with a sentence pointing to the list, accepts
 // the same value so a client that echoes the field keeps working, and creates a provider off.

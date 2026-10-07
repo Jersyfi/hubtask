@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The two preferences that belong to this device rather than to the account (ADR-0043, F5-12):
+ * The two preferences that belong to this device rather than to the account (ADR-0043):
  * the theme and reduced motion. One store, so that the profile shows them side by side and
  * `main.ts` starts them with one call; each attribute is still set by its own module.
  */

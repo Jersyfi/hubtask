@@ -1,4 +1,4 @@
--- Who an entry is on: its member list (C-01).
+-- Who an entry is on: its member list.
 --
 -- The assignee is a column of `work_item` and is written in Work.sql, where every statement about
 -- that row lives. The members are their own table, because a set is not a field: they are joined
@@ -39,7 +39,7 @@ ON CONFLICT DO NOTHING;
 DELETE FROM item_member
 WHERE item_id = sqlc.arg('item_id')::uuid AND account_id = sqlc.arg('account_id')::uuid;
 
--- How what is created here gets handed out: the assignment policy per scope (C-02).
+-- How what is created here gets handed out: the assignment policy per scope.
 --
 -- One row per scope, which migration 0011's unique index insists on: the row is the storage of
 -- the `autoAssign` key of the container's policies document, and a document key cannot be two
@@ -54,7 +54,7 @@ WHERE scope_type = sqlc.arg('scope_type') AND scope_id = sqlc.arg('scope_id')::u
 -- name: LockAutoAssignPolicy :one
 -- The same row, held for the rest of the transaction. ROUND_ROBIN reads its cursor through this
 -- rather than through FindAutoAssignPolicy: two creates arriving together must queue on the row,
--- because a cursor read hopefully is a turn handed to both of them (C-02's acceptance).
+-- because a cursor read hopefully is a turn handed to both of them.
 SELECT id, tenant_id, scope_type, scope_id, strategy, candidates, state, enabled, version
 FROM auto_assign_policy
 WHERE scope_type = sqlc.arg('scope_type') AND scope_id = sqlc.arg('scope_id')::uuid

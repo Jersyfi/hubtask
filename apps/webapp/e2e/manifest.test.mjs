@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The entry screen when `/meta/capabilities` has not been read (issue 1020). Everything an entry
-// shows below its title is the manifest's answer, and the screen used to render "not read yet"
-// exactly like "this type refuses it": no rows, no notes, no subtree, and not a word about why.
+// The entry screen when `/meta/capabilities` has not been read. Everything an entry
+// shows below its title is the manifest's answer, and "not read yet" must not render exactly
+// like "this type refuses it": no rows, no notes, no subtree, and not a word about why.
 //
 // Three roads to that screen are walked here, because they are three different defects:
 //
@@ -85,7 +85,7 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   const drawn = await page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail')));
   assert.deepEqual(drawn, [], `the column drew ${JSON.stringify(drawn)} from a manifest nobody has`);
 
-  // And it is said. Before this the column was simply empty, which reads exactly like a type that
+  // And it is said: a column simply empty reads exactly like a type that
   // carries nothing (voice-and-tone.md §4.4).
   const said = page.getByText('What this kind of entry can hold could not be read', { exact: false });
   await said.waitFor({ timeout: 5_000 }).catch(() => assert.fail('the column says nothing about why it is empty'));

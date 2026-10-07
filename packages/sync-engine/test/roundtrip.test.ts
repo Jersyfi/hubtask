@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// F1-09's acceptance criterion that no fake can satisfy: "a call through the engine reaches a
-// running server and returns typed data".
+// The one claim no fake can satisfy: a call through the engine reaches a running server and
+// returns typed data.
 //
 // The other suites hand `FetchTransport` a `fetch` of their own, which proves what the transport
 // *does* with an answer and nothing about whether it can obtain one. This one starts a real HTTP
@@ -112,7 +112,8 @@ test('a read reaches the server and comes back as typed data', async () => {
 
   assert.equal(state.status, 'ready');
   const data = state.status === 'ready' ? state.data : undefined;
-  // The two fields F1-10 and F1-11 exist to consume, arriving over a socket rather than from a map.
+  // The two fields the application's frame and session consume, arriving over a socket rather
+  // than from a map.
   assert.equal(data?.locale, 'de');
   assert.equal(data?.time_zone, 'Europe/Berlin');
 

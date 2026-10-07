@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package mail is the port for the one channel that sends in this milestone (C-09, arc42 §5.2).
+// Package mail is the port for the one notification channel that sends (arc42 §5.2).
 //
 // It is deliberately the smallest thing that can carry an email: an address, a subject, a body. No
 // attachments, no alternative parts, no headers a caller can set - every one of those is a way for

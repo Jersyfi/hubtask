@@ -469,7 +469,7 @@ func TestAFullBatchOfWithheldRowsDoesNotEndTheKind(t *testing.T) {
 	}
 }
 
-// The snapshot is the page sequence with the pages joined (SY-C, P-12): the same records in the
+// The snapshot is the page sequence with the pages joined (SY-C): the same records in the
 // same order, and the same cursor at the end.
 func TestTheSnapshotAnswersWhatThePageSequenceAnswers(t *testing.T) {
 	pull, _, _ := walking(t, entry(1, collectionA), entry(2, collectionA))

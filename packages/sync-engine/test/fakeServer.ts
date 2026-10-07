@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// A server in memory, as much of one as the conformance runner (F6-08) touches: the fixtures it
+// A server in memory, as much of one as the conformance runner touches: the fixtures it
 // makes, the three sync verbs, the stream, and one read. It behaves the way offline-sync.md says
 // the real one does on the paths the runner takes - once per op_id, a refusal for a cursor it
 // never minted, an ACCESS_REVOKED record for the account whose membership went - so that the

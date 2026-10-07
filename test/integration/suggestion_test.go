@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// What AI proposed, against the real boundary (J-05). Gate SG-3: one workspace's suggestions are
+// What AI proposed, against the real boundary. Gate SG-3: one workspace's suggestions are
 // invisible, unanswerable and unremovable next door - and the retention sweep, which runs with no
 // actor behind it, is bounded by the same policy as everything else.
 
@@ -58,17 +58,17 @@ func proposalFor(t *testing.T, id, tenantID shared.ID, at time.Time) domain.Sugg
 		ID: id, TenantID: tenantID,
 		TargetType: domain.TargetWorkItem, TargetID: sugTargetA,
 		Kind: domain.KindFields,
-		// The titles a note implied travel in the payload beside the fields (K-01), so the
+		// The titles a note implied travel in the payload beside the fields, so the
 		// boundary is proved over the shape the product actually stores rather than over a
 		// simpler one.
 		Payload: map[string]any{
 			"title":    "Buy oat milk",
 			"subtasks": []any{"Check the fridge", "Walk to the shop"},
-			// And what a classification chose from the sets it was shown (K-02): identifiers
+			// And what a classification chose from the sets it was shown: identifiers
 			// rather than words, which is what makes them applicable at all.
 			"label_ids": []any{sugLabelA.String()},
 			"bucket_id": sugBucketA.String(),
-			// And the values it proposed for the fields the collection declared (K-03), which are
+			// And the values it proposed for the fields the collection declared, which are
 			// a nested document inside the payload's own.
 			"custom_fields": map[string]any{
 				"priority": "high", "areas": []any{"kitchen"},
@@ -79,7 +79,7 @@ func proposalFor(t *testing.T, id, tenantID shared.ID, at time.Time) domain.Sugg
 			ProducedAt: at.Add(-time.Minute),
 		},
 		InputDigest: domain.Digest("Buy milk", ""),
-		// And what the narrowing dropped (issue 767), which the client reads off the row.
+		// And what the narrowing dropped, which the client reads off the row.
 		DroppedNodes: 2,
 		Now:          at,
 	})
@@ -185,9 +185,9 @@ func TestOneWorkspacesSuggestionsAreInvisibleNextDoor(t *testing.T) {
 	})
 }
 
-// A suggestion about a *collection* (K-05) is the third target type, and it is bounded by the same
-// policy as the other two: the row is invisible next door, and it round-trips with the target type
-// the aggregate now carries.
+// A suggestion about a *collection* is the third target type, and it is bounded by the same policy
+// as the other two: the row is invisible next door, and it round-trips with the target type the
+// aggregate carries.
 func TestASuggestionAboutACollectionIsBoundedLikeEveryOther(t *testing.T) {
 	ctx := context.Background()
 	seedSuggestionTenants(ctx, t)
@@ -311,7 +311,7 @@ func TestTheSuggestionSweepStaysInsideTheTenant(t *testing.T) {
 	})
 }
 
-// The words a person asked a template to be drafted from (P-11): held under the same policy,
+// The words a person asked a template to be drafted from: held under the same policy,
 // invisible and unremovable next door, and swept with the suggestions when a job left one behind.
 func TestARequestIsBoundedLikeTheSuggestionsAndSweptWithThem(t *testing.T) {
 	ctx := context.Background()

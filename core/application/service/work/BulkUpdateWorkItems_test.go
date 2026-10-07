@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// What a bulk owns: the order, and what happens when one operation fails (C-11). What each
+// What a bulk owns: the order, and what happens when one operation fails. What each
 // operation does is the use case performing it, which is why the double below is a catalogue rather
 // than a set of item fakes - a bulk that reimplemented the operations would be the design this one
 // exists not to be.

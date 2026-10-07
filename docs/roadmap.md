@@ -1,267 +1,151 @@
-# Implementation Plan
+# Roadmap
+
+What is still ahead on the way to `1.0.0`. What is done is in the closed milestones under
+[`archive/backlog/`](./archive/backlog/); what runs now is in [`backlog/`](./backlog/README.md).
 
 Versioning follows [SemVer](./architecture/versioning-release.md). Before `1.0.0`, minor releases
 may contain breaks; with `1.0.0`, API v1 is promised stable. There is **one** version for the
 product and every first-party client ([ADR-0035](./adr/ADR-0035-one-product-version.md)).
 
-The order follows the requirement: **the core is built completely first**, then automation and
-operations. The client track no longer waits for the end of that — it runs **alongside from
-`0.4.0`**, one milestone window behind the core, so that every screen is built on a contract that
-has already settled (phase 5). Both tracks meet in the convergence milestone `0.9.5`, and `1.0.0`
-is released when the server, the clients and the website are finished together.
+The core track (`0.1.0` to `0.9.0`) is built, and so are the client milestones F1 to F6 and F8 to
+F10 and the sign-in milestone SI. Two tracks remain: the client track, which still owes the
+installed shells, and the convergence and stabilisation that close the major. Both meet in
+`0.9.5`, and `1.0.0` is released when the server, the clients and the website are finished
+together.
 
 ---
 
-## Phase 0 — Foundation (`0.1.0`) · Walking skeleton
+## Running now
 
-| Epic | Contents |
-|---|---|
-| Repo setup | Instantiate the template, work through the checklist in [project-structure.md](./architecture/project-structure.md) §5, `LICENSE`, `CLA`, `SECURITY.md`, `CONTRIBUTING.md` |
-| Toolchain | `Makefile`, `golangci-lint`, `sqlc`, `goose`, `oapi-codegen`, architecture tests, GitHub Actions with every gate |
-| Skeleton | `cmd/server` with roles, the environment port, the four health levels (`/healthz`, `/startupz`, `/readyz`, `/meta/health`), OpenTelemetry, structured logs with redaction, `SafeGo`, graceful shutdown |
-| Security baseline | Gates SG-1…SG-12 in the pipeline (initially against the reference use case), `GuardedClient`, security headers, rate limits, Argon2id, token hashing, the secret type, `SECURITY.md`, secret scanning, SBOM + image signature |
-| Resilience baseline | `infrastructure/resilience` (timeouts, breaker, retry, bulkhead, load shedding), panic middleware, the degradation registry, tests RT-1…RT-4 |
-| Observability material | The basic metric catalogue, trace propagation across the outbox and jobs, `deploy/observability/` with a first dashboard, alert rules A-03/A-04/A-05/A-07/A-12 and their runbooks |
-| Audit skeleton | `audit_log` with the hash chain and grants (no `UPDATE`/`DELETE` for the app role), the `AuditableAction` registry, gate SG-13 and test AT-1 on the reference use case |
-| Data protection skeleton | The data catalogue created and checked in the gate, field classification, log and metric redaction, the `retention_policy` table with defaults |
-| Sync foundation | `change_log`, `tombstone`, HLC generation, and position fractional indices in the data model — not introducible later without a break ([ADR-0021](./adr/ADR-0021-offline-sync.md)) |
-| Persistence | The PostgreSQL connection, UnitOfWork, the tenant context (`SET LOCAL`), the RLS skeleton, the first migration |
-| API skeleton | `openapi.yaml` with `/meta/*`, the generated router, problem details, middleware (auth stub, locale, request ID, rate limit) |
-| Reference use case | `CreateContainer` end to end: REST + MCP + automation registration + tests + event |
-| Deployment | Dockerfile (distroless, multi-arch), `compose.yaml`, the Helm chart adjusted, the migration job |
+| Milestone | Builds | Backlog |
+|---|---|---|
+| **SC — Signing in and the installation, made coherent** | One rule in one place for the second factor, the first start and the way back into an installation without SQL; operators and machines on the screen; terms of use agreed and re-agreed; AI offered by the installation ([ADR-0072](./adr/ADR-0072-ai-at-the-installation-level.md)); budgets per source; invitations without mail; the brand marks cleared; the walk by use case | [`backlog/milestone-SC.md`](./backlog/milestone-SC.md) |
+| **PH — Privacy and the household** | A legal hold that wins over an erasure as far as it reaches; a deadline extended once; a person's objection to AI and a workspace's choice to make AI part of the work on a named legal basis ([`data-protection.md`](./architecture/data-protection.md) §4.1); private hubs with a transparent emergency access ([ADR-0073](./adr/ADR-0073-private-hubs.md)); accounts without a mail address for a child or a grandparent ([ADR-0074](./adr/ADR-0074-managed-accounts.md)) | [`backlog/milestone-PH.md`](./backlog/milestone-PH.md) |
 
-**The result:** a runnable, deployable, tested system with exactly one use case — every cross-cutting
-concern driven through once, completely.
-
-Security and reliability belong deliberately in **phase 0**, not in stabilisation: the gates must
-bite while there is one use case and rework is cheap. A cross-tenant test introduced later finds
-defects in 200 methods at once — one present from the start prevents them one at a time.
+**After SC and PH**, in this order: passkeys, then plans, then custom domains. SI prepared all
+three without building any. Each is cut against its use cases like every milestone
+([`backlog/README.md`](./backlog/README.md)).
 
 ---
 
-## Phase 1 — The business core (`0.2.0` – `0.4.5`)
+## Phase 5 — The client track
 
-### `0.2.0` Hierarchy and items
-The identity base model (tenant, account, membership, roles, permission resolution), containers
-(hub/collection), the generalised `WorkItem` with capability profiles, the hierarchy service,
-buckets, labels, ordering (drag and drop), query DSL v1, trash/archive, activity history, and
-`hubctl` as the first real client.
+The stack is decided: Svelte 5 with the webapp as a plain Vite SPA
+([ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md)), Tauri 2 shells for desktop and mobile
+with the PWA path closed ([ADR-0031](./adr/ADR-0031-tauri-app-shell.md)), parity by default with
+tenant administration reached via the web on mobile
+([ADR-0032](./adr/ADR-0032-client-capability-matrix.md)), and one product UI plus a
+framework-agnostic sync engine ([ADR-0033](./adr/ADR-0033-shared-client-architecture.md)).
 
-### `0.3.0` Collaboration and content
-Comments, members and assignment, automatic assignment (every strategy), covers (colour/image
-upload), media and attachments with presigned upload, custom fields, full-text search, notifications
-(email), the SSE stream, and bulk plus duplicate — the two item operations the use case catalogue
-has named since the beginning and no milestone owned. `POST /items:bulk` had been in the
-specification since A-06 and answered `route.operation_not_available`; `:duplicate` was in no
-document but the catalogue, and C-11 is where it entered the contract.
+Four rules govern the track. They are what make a client built alongside a moving core affordable
+rather than a source of permanent rework.
 
-### `0.3.5` The workspace
-The repository becomes a monorepo: `apps/webapp` (the to-do application), `apps/website`
-(hubtask.eu), `packages/design-system` and `packages/api-client`, plus the design tokens every
-client draws from and a pipeline that runs only where a change actually landed. No use case is
-added — the milestone is measured by what still works afterwards. It sits here because phase 5
-starts in parallel from `0.4.0`, and the house has to exist before anybody moves in
-([ADR-0027](./adr/ADR-0027-monorepo-structure.md),
-[ADR-0028](./adr/ADR-0028-embedded-web-ui.md),
-[ADR-0029](./adr/ADR-0029-design-system-tokens.md)). With
-[ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md)–[ADR-0033](./adr/ADR-0033-shared-client-architecture.md)
-accepted, the milestone carries a second wave, W-06–W-09: the Svelte webapp scaffold, the token
-wiring, the embedded pipeline proven against the real bundle, and the workspace dependency lint.
+**One version, and no second one.** [ADR-0035](./adr/ADR-0035-one-product-version.md): the client
+is not versioned separately — the web app is embedded in the binary and released with it, the
+shells carry the product version plus a platform build counter, the website is unversioned. What a
+second number would have expressed is expressed by a maturity stage instead: `experimental`, then
+`preview` (where the web app is now), then `stable` at convergence.
 
-### `0.4.0` Time
-Due dates (including all-day, time zones), reminders (predefined + custom), recurrence (RRULE, both
-modes, DST tests), the scheduler role, the job queue, the retention job, the ICS calendar feed,
-templates, and saved views including layout hints for list/kanban/timeline. The scheduler role, the
-job queue, and the retention job were built ahead of schedule (A-08, B-10, C-09); what this
-milestone adds to them is the first duty that turns a stored future timestamp into work.
+**The client works against a contract that has settled.** A client milestone builds the surface
+for core work that has already shipped, so the cost of the parallelism stays bounded to the window
+it occurs in.
 
-**The result of phase 1:** the core is functionally complete per the product idea — without a
-frontend.
+**Incomplete is normal; broken is a defect.** A use case without a screen is an expected state
+before convergence, and the maturity stage says so. A red client lane is not the frontend catching
+up: build, lint, typecheck and test are green at every commit, on the same terms as the Go gates.
+And because `packages/api-client` is generated from the specification, a contract change turns the
+client red in the pull request that makes it — which is why that pull request carries the client
+fix (ADR-0035 §4).
 
----
+**Client milestones are letters, not versions.** They are planning buckets holding the client
+issues; nothing is released by them.
 
-### `0.4.5` Backup, retention, audit
-Backup targets (`local`, `s3`, `sftp`, `webdav` first), the archive format with encryption, RRULE
-schedules, generational retention, listing at the target, restore in every mode including the
-deletion journal; retention rules with a preview, a grace period, and safeguards; audit query,
-export, and `:verify`; legal hold; data subject requests (`data_subject_request`) with deadline
-tracking and export. Further target adapters (`ftps`, `ftp`, `smb`, `azure`, `gcs`, `rclone`) follow
-once they pass conformance test BK-1. Two things this list does not name are prerequisites rather
-than additions: `/jobs/{id}`, which `0.4.0` deferred to "the first operation that genuinely cannot
-be bounded" and which three backup responses have been promising since A-06, and the data
-protection gates PG-1…PG-8, which four documents assert and which exist in no form.
+### F7 — The shells
 
----
+Not cut. The owner cuts it when the developer accounts and the signing certificates exist, because
+no shell task can close without them.
 
-## Phase 2 — Automation and integration (`0.5.0` – `0.6.0`)
+* **The Tauri desktop shell**: SQLite and the keystore behind the `Storage` port, the updater,
+  signed distribution, the webview smoke matrix (`1.0.0` prerequisite 18).
+* **The mobile shell** after it: signing, the store pipeline, what is left of platform adaptation
+  once the web app's phone layout exists ([`design-system.md`](./design/design-system.md) §9: the
+  system conventions only a shell can follow), and the capability matrix made real in the build —
+  the administration routes and the navigation row tagged for it are excluded, and each appears as
+  the affordance ADR-0032 asks for, named and linked to the web app of the server the client is
+  signed into.
+* **One core task**: the mutation kinds [`offline-sync.md`](./architecture/offline-sync.md) §1's
+  left column promises and the push frame does not carry — reminders, recurrence, template
+  instantiation, the structure — because the offline *promise* is the installed clients'
+  (ADR-0031), and the browser's cache did not need them.
+* **SY-B**, the default synchronisation scope on a mobile shell, is set here, with a phone's
+  storage to measure against ([`offline-sync.md`](./architecture/offline-sync.md) §12).
 
-### `0.5.0` Automation and webhooks
-The outbox dispatcher production-ready, CloudEvents schemas published, the rule engine (triggers,
-CEL conditions, every action), dry run, RuleRuns, loop and throttle protection, webhook
-subscriptions with HMAC/retry/dead letter, the trigger polling endpoints, PATs and service accounts
-with scopes, and the jumble (email intake, webhook intake, quick capture, conversion). The backlog
-(`docs/backlog/milestone-0.5.0.md`) scopes the email intake webhook-first — the IMAP adapter waits
-on a dependency decision recorded as open point AM-1 — and lands `SCHEDULE` triggers as RRULE
-through the one schedule engine, with cron notation deferred as sugar.
+### What binds every client
 
-The milestone also closes what earlier ones parked with a date on it: the retention advance warning
-(R-1), the referential safeguard's direction (R-2), the `AUDITOR`'s configuration reads (A-4, a
-read-only permission split out of `STRUCTURE`), and where the chaos tests run (O-4, decided by
-measuring what they cost). And `hubctl` grows with it — `rule`, `webhook`, `jumble` and
-`events poll` — so that the milestone's verbs are typed against a real stack in the scripted
-session rather than described.
+* The contract: an OpenAPI-generated SDK, `/meta/capabilities` for configuration, saved views with
+  a `layout` hint, the stream for live updates.
+* **Localisation** as listed in
+  [`i18n-l10n.md` §6](./architecture/i18n-l10n.md#6-text-direction-and-presentation) — the
+  negotiated locale, the catalogue with its fallback, `Intl` from the account's preference
+  (locale and time zone), moments and due dates, the week, the writing direction, the 40 % rule,
+  grapheme clusters, an entry's language.
+* **Accessibility** as listed in
+  [`design-system.md` §10](./design/design-system.md#10-accessibility) — WCAG 2.2 AA by criterion,
+  the two walks, and an accessibility statement published for the released clients, demonstrated
+  for `1.0.0` rather than asserted ([`data-protection.md`](./architecture/data-protection.md) §7
+  names it as where the European Accessibility Act lands).
+* **Tolerant behaviour towards unknown fields.**
+* **Offline-tolerant writing** with an `Idempotency-Key`.
+* **No non-essential cookies without consent**, the website included. The backend uses bearer
+  tokens rather than tracking cookies; nothing a client adds may quietly reintroduce them.
+* **Offline conformance** per [`offline-sync.md`](./architecture/offline-sync.md) §9:
+  client-assigned UUIDv7, an `op_id` per mutation, an HLC per field change, local deletion on
+  `ACCESS_REVOKED` and `sync.gone`, a full resynchronisation on `sync.cursor_too_old`, and encrypted
+  local storage with complete deletion on sign-out — verifiable through `hubctl sync-conformance`,
+  which applies to third-party implementations too.
+* The offline promise is carried by the installed clients; the browser app holds a best-effort
+  cache, and no client merges — merging belongs on the server
+  ([ADR-0031](./adr/ADR-0031-tauri-app-shell.md),
+  [ADR-0033](./adr/ADR-0033-shared-client-architecture.md)).
 
-### `0.6.0` Multi-tenancy and operations
-Multi mode, tenant provisioning/suspension/deletion, export (GDPR), quotas and fairness, the OIDC
-connection, an OAuth2 provider for third-party apps, TOTP MFA with enforcement per tenant, session
-management, step-up authentication, envelope encryption with key rotation (open point S-2), role
-separation in the Kubernetes deployment, HPA, PodDisruptionBudget, NetworkPolicy, load tests
-(2 million items, an automation storm), partitioning, PITR backup with a verified restore (RT-9),
-the complete alert catalogue A-01…A-18 with runbooks, SLO dashboards, and the optional NATS adapter.
+A dedicated arc42 client-architecture chapter is current by `0.9.5` rather than promised.
 
-The backlog (`docs/backlog/milestone-0.6.0.md`) scopes it: the Kubernetes half — role separation,
-HPA, PodDisruptionBudget, NetworkPolicy — was built ahead with the chart and is proved under load
-rather than added; sign-in, sessions, MFA, OIDC, OAuth2 and the admin surface start from an empty
-schema *and* an empty contract, so every task is specification first and migration first; the
-load figures are measured and recorded internally only, publication being a separate decision;
-and the dependency candidates (the OIDC verification library, the NATS client) each land through
-their own ADR rather than in passing — a third, an IMAP client, was declined by
-[ADR-0040](./adr/ADR-0040-no-imap-intake.md) rather than chosen.
+### The website
 
----
+`hubtask.eu` is live and true to what is built today; what the site may and may not claim is in
+[`apps/website/AGENTS.md`](../apps/website/AGENTS.md). Its second stop is the **1.0 site** at
+convergence: documentation, the licence notice, downloads for the shells, the accessibility
+statement. Because it is unversioned and continuously deployed
+([ADR-0035](./adr/ADR-0035-one-product-version.md)), its content can move as often as the message
+does without touching a release.
 
-## Phase 3 — AI and ecosystem (`0.7.0` – `0.9.0`)
+What switches on at `0.9.5`, and not before it has happened: the desktop and mobile clients with
+their signed installers and store listings, full offline operation, the formal accessibility
+statement, and the SDKs and connectors as *available* — until they are published, the site says
+they exist and are not yet published.
 
-| Version | Contents |
-|---|---|
-| `0.7.0` | **Built.** The AI port and the provider that calls nothing; consent, per-workspace configuration and PG-8's refusal; the OpenAI-compatible and Ollama adapters, one breaker per endpoint; a suggestion as a record with provenance, retention and audit; the jumble's suggestions and a task proposing the work under it; semantic search on detected pgvector and the hybrid ranking that outranks a word match over a meaning match; MCP completed with resources, prompts, streaming and a signed session; the agent's guardrails, destructive off by default; the AI budget as an ordinary quota row; `hubctl ai`, `suggestion` and `mcp`. **Two of `ai-first.md` §2's seven use cases moved**: translation to `0.8.0`, because the surface that would show it is the i18n one, and template generation to `0.9.0` with the ecosystem work that gives it somewhere to come from. The milestone's own acceptance is QS-09, walked rather than assumed ([evidence](./evidence/QS-09-2026-09-09.md)). **Of the five rows it kept, three say more than what landed under them** — a fact discovered after the milestone closed and scoped as `0.7.5` rather than reopened, because the code that shipped is right and it is the table that was left behind |
-| `0.7.5` | **What §2 promised.** Not a planned milestone: `0.7.0` kept five of `ai-first.md` §2's seven rows and built less than three of them say, which nothing noticed because J-17's acceptance named `arc42.md`, this file and `observability-reliability.md` and not the document that *is* the AI vision. So the difference gets built in six tasks, `K-01`…`K-06`: the `subtasks` a prompt asks for and the allow list discards, with the test that ends that class of defect; the bucket, and the values of the custom fields a workspace declared — both chosen from a set the model was shown, neither of them a destination it invented, which is what keeps `Producing.go`'s filter on `collection_id` intact; near-duplicates from the embedding index J-10 already maintains, at no token cost and with J-10's own three degradations; and a comment thread and a collection summarised, where `0.7.0` summarised one entry's notes. **"Priority" is not built as a field** — the item model has never had one, and K-03 says the row means the fields a workspace declares. The one task that is not §2's is `K-06`, the authenticated `/api/v1/meta/health` [#507](https://github.com/Jersyfi/hubtask/issues/507) — a defect of `0.3.5` found by `0.7.0`'s QS-09 walk, blocking a component `F1` shipped |
-| `0.8.0` | **Built.** i18n complete on the server, proved rather than asserted: every `locales/*.json` embedded and an operator's directory laid over them, so a language is a file (M-01); one ICU subset on both renderers with a gate each, and the plural contradiction in `i18n-l10n.md` §3 resolved by teaching the Go side rather than scoping around it (M-02, M-03); one matcher over the catalogues present, and the account's own language standing before the browser's header (M-04); `supported_locales` answered with direction, week start and decimal separator, which is what `F1`'s language picker had been waiting on (M-05); `@start_of_week` where the account or its locale says (M-06); names sorted under one collation on every installation, managed databases included (M-08); the search remembering which configuration built each document, and the reindex that brings the stale rows current (M-09); an address with a Unicode domain being one address (M-10); the entry read in another language, display only (M-11, the row `0.7.0` moved here); the translation process written where a contributor looks, and no Weblate instance until there is a translator to serve (M-12, [ADR-0055](./adr/ADR-0055-translation-process.md)); the frontend's two requirement lists (M-13). What this row used to promise in the wrong place — *CLDR formats* from a server that renders no text, *language-dependent search* and *localised emails* that `0.3.0` built — is corrected rather than reinterpreted. NFC once, on the way in, in the constructor of every text kind, and no backfill of what was written before (M-07). The milestone's own acceptance is QS-08, walked with an operator's `ar.json` ([evidence](./evidence/QS-08-2026-09-15.md)), and the walk found one defect the tests could not: a notification to somebody who had not chosen a language ignored the workspace's default ([#603](https://github.com/Jersyfi/hubtask/issues/603)). It also carries the two `0.7.5` follow-ups that are not `0.7.5`'s: [#529](https://github.com/Jersyfi/hubtask/issues/529) closed, [#532](https://github.com/Jersyfi/hubtask/issues/532) open |
-| `0.8.5` | Offline synchronisation, the server's half complete: `:pull` — the delta and the initial synchronisation as a page sequence — and `:push` performing the catalogue's use cases as the pushing person, idempotent by `op_id`; last writer wins per field over a server-side `field_clock`, the OR-set on the request path, `MOVE` with cycle detection, a completion that lost as a visible step and a displaced note filed as a system comment; devices that register by turning up and are forgotten; `ACCESS_REVOKED` written where an access ends and addressed to the person; the change log, the operation log and the tombstones on one clock, the offline window, with `sync.gone` for the purged; `received_at` beside `occurred_at` and one webhook delivery per push; B-5 closed by the workspace's synchronisation epoch inside the cursor; `hubctl sync` as the reference client and `hubctl sync-conformance` as the check, with the twelve SY rows a test package and QS-24…27 walked ([SY-2026-09-16.md](./evidence/SY-2026-09-16.md)). Still open: SY-B (the default scope) and SY-C (a snapshot file for large initial synchronisations); the client's half — the local store, the queue, the conflict resolver — is `F6`'s (cut 2026-09-17) |
-| `0.9.0` | Ecosystem. The API reference rendered on the website from the document itself, one page per tag, with the document travelling through the generated client package (P-01); three client SDKs — Go through oapi-codegen, TypeScript and Python through the repository's own generator — regenerated on `make generate`, bringing no dependency, each with an example that runs against the product, their licence put to the owner in ADR-0057 (P-02, P-03); the n8n community node and the Zapier app generated from the contract, complete by test, their shape in ADR-0058 (P-04, P-05); CalDAV as one `VTODO` calendar per calendar feed under HTTP Basic with a personal access token, read and written back through the use cases (P-06, P-07); one import path for CSV, Trello, Google Tasks and Microsoft To Do — archive records the restore applies, idempotent under the source's own identity, with the report and the refused rows on the run (P-08…P-10); the seven parked points closed — template generation as a `TEMPLATE` suggestion accepted into `CreateTemplate`, `POST /sync:snapshot` streaming the initial synchronisation with the cursor last, the audit chain anchored daily to a backup target and read back by `:verify`, every full backup inspected by the code that would restore it, the Kyverno policy the chart can render and the `cosign verify` the integration deploy runs, and the capacity model written from the runs that exist (P-11…P-16); the walk filed (P-17) |
+Open, and the owner's:
 
-The backlog (`docs/backlog/milestone-0.7.0.md`) scoped `0.7.0` in seventeen tasks, `J-01`…`J-17`
-(the letter after H; I is skipped because it is unreadable beside `1` and `l` in an issue title).
-Three things it settled that the table above could not, and all three held. **Neither adapter
-brought a dependency** — an OpenAI-compatible provider and Ollama are both JSON over HTTP through
-the guarded client rule 6 already mandates, so the milestone's only supply chain decision is the
-one it did *not* take. **pgvector is a detected capability rather than a requirement**
-([ADR-0050](./adr/ADR-0050-pgvector-as-a-capability.md)): an installation cannot be asked to
-rebuild its database image in order to keep searching, so the migration asks the catalogue the way
-migration 0019 asks for a text search configuration. The reference Compose images do carry the
-extension and the chart's default does not, which is why the capability is answered from the
-database rather than from the build — and why `/meta/capabilities` reports the store *and* a
-provider that can embed, since a database full of pgvector with nobody to produce vectors searches
-lexically. And **the milestone's own acceptance was QS-09** — the product with none of it switched
-on is the product `0.6.0` shipped, proved by a full suite, a scripted session and an
-[evidence file](./evidence/QS-09-2026-09-09.md) rather than by an assertion in an ADR. The walk
-found two defects, neither of them in the claim: the product worked without AI throughout and could
-not say so, which is the part only a run like this one tests.
-
-What the walk could not find is the thing `0.7.5` exists for, and it is worth writing down why.
-J-17's acceptance listed the documents to bring current — `arc42.md` QS-09, this file's `0.7.0`
-line, `observability-reliability.md` §7 — and `ai-first.md` was not among them, because it is the
-document a milestone *reads* rather than the one it reports into. So the milestone reported itself
-complete against a table nobody re-read, and three of §2's rows kept describing a product that was
-not built: a suggested collection that `Producing.go` deliberately refuses, a "priority" the item
-model has never had, and a summary of a comment thread nothing reads. The backlog
-(`docs/backlog/milestone-0.7.5.md`) builds the difference in six tasks and says in its own header
-that a row nobody built is a promise to whoever reads it next — which, for §2, is `F5`.
-
-**`0.8.0` is built**, and its backlog is [`backlog/milestone-0.8.0.md`](./backlog/milestone-0.8.0.md)
-— fourteen tasks, `M-01`…`M-14` (L is skipped because `L-01 … [L]` collides with the marker in its
-own title). Cutting it read `i18n-l10n.md` line by line *before* the first task rather than after
-the last, which is the lesson of `0.7.5`, and found that the `0.8.0` row promised three things in
-the wrong place: "CLDR formats" from a server that delivers no display text (§7 puts formatting in
-the client), "language-dependent search" that `0.3.0` built, and "localised emails" whose
-mechanism `0.3.0` built — while omitting the translation its own `0.7.0` row says moved here. The
-row above now says what was built. Three things the milestone settled that the row could not:
-**the reading of §2's chain**, on which the client and the server disagreed until M-04 — a
-language somebody set on their account beats the browser's header, and the table says so in two
-columns; **no Weblate instance** until there is a translator to serve
-([ADR-0055](./adr/ADR-0055-translation-process.md)), the repository being made Weblate-ready
-instead; and **the `1.0` locale set**, eleven — the ten most spoken languages by total speakers
-plus German — of which `0.8.0` ships `en` and `de`, every other one arriving as a file. The two
-supply chain decisions were confirmations rather than choices: `golang.org/x/text` and `x/net/idna`
-were already in the module graph ([ADR-0056](./adr/ADR-0056-golang-x-text-and-idna.md)). The
-walk that closed it ([QS-08](./evidence/QS-08-2026-09-15.md)) found the defect the tests could
-not — a recipient without a locale read English in an Arabic workspace (#603) — and says in its
-last section what the interface still owes `F5`: the client's own second catalogue, the switch,
-the RTL audit. M-07, NFC on the way in, landed last, once the owner had confirmed the decision
-it waited on: nothing written before it is rewritten (#577).
-
-**`0.8.5` is cut**, and its backlog is [`backlog/milestone-0.8.5.md`](./backlog/milestone-0.8.5.md)
-— fourteen tasks, `N-01`…`N-14`. Cutting it read `offline-sync.md` §1–§12 against the code
-*before* the first task and found the milestone smaller than its row suggests and larger than the
-routes suggest: the recording half of the protocol has been built since `0.3.0` — one change log
-entry per field, OR-set tags on every set, tombstones from the trash, a stream with the caller's
-permission checked per record — and what is missing is everything a device would *do* with it:
-`:pull` including the initial synchronisation, `:push` and every merge rule §4.2 states, devices,
-`ACCESS_REVOKED` (which nothing has ever produced), the retention of the four sync tables, B-5,
-`hubctl sync` and the conformance runner §9 promises. Five things it settled that the row could
-not: pull and push are **not catalogue use cases** and push **performs** catalogue use cases as
-the pushing person, on J-05's precedent; the server's per-field clock is a **table**, with no
-backfill of what was written before it; the initial synchronisation is a **page sequence** with
-the log position taken first, and SY-C stays `0.9.0`; the operation log lives **the offline
-window**, not the thirty days §3.2 said; and B-5 closes with an **epoch** on the tenant rather
-than a change log entry per restored row. The milestone's own acceptance is QS-24…QS-27 walked
-with two `hubctl` profiles, and `N-14` rewrites the row.
-
-**`0.8.5` is built** (2026-09-16, N-01…N-14 in one session, a pull request each): the row above
-is what it built, and the walk is [`evidence/SY-2026-09-16.md`](./evidence/SY-2026-09-16.md).
-Three things it found on the way are issues of their own rather than lines in a task: the change
-log filed entries under the wrong container (#623, fixed in #624), a workspace-wide template's
-changes were never delivered (#626, fixed in #633), and a 10 MB `hubctl` binary has been tracked
-at the repository root since B-13 (#640, open). What the row calls open is open: SY-B and SY-C in
-`offline-sync.md` §12, and the client's half of the protocol, which is `F6`'s.
-
-**`0.9.0` is cut**, and its backlog is [`backlog/milestone-0.9.0.md`](./backlog/milestone-0.9.0.md)
-— seventeen tasks, `P-01`…`P-17` (O is skipped, because `O-2` is one of the milestone's own
-tasks and `O-02` beside it would be a title somebody misreads). Cutting it read every row that
-names `0.9.0` against the code and found the milestone in three states at once: built and
-waiting (OAuth2 with PKCE for the marketplace, the REST hooks pattern, an `audit_anchor` table
-nothing writes), half-built (a `CalDavController.go` the structure document has named since
-phase 0, an api-client package that is the TypeScript SDK in every respect but a call), and
-unbuilt (no importer, no connector, no reference rendered from the document, no `sdk/`). Five
-things it settled that the row could not: the reference is rendered from the document on the
-website, one page per tag, with the document travelling through the generated package; the
-three SDKs come from two generators and bring no dependency, and their licence is put to the
-owner in [ADR-0057](./adr/ADR-0057-sdk-licence-and-extraction.md) rather than decided; the two
-connector packages are generated and name their platform library as a peer this repository
-never installs ([ADR-0058](./adr/ADR-0058-connector-packages.md)); CalDAV is one `VTODO`
-calendar per calendar feed under HTTP Basic with a personal access token; and the importers
-write archive records the restore applies, which is what `backup-restore.md` §9 decided in
-phase 0 and what the `0.5.0` backlog's line about the jumble's path got wrong. The seven points
-earlier milestones parked with `0.9.0` on them — template generation, SY-C, A-2, B-4, O-2, CI-3
-and D-3 — each close in one task, and `P-17` walks the result and rewrites the row.
-
-**`0.9.0` is built** (2026-09-16, P-01…P-17 in one session, a pull request each, merged one at a
-time): the row above is what it built, and the walk is
-[`evidence/ECO-2026-09-16.md`](./evidence/ECO-2026-09-16.md). What building it found, in the
-shape the milestones before it found theirs. Two defects only a real run could show: the export
-ordered a child before its parent and a restore refused the row ([#693](https://github.com/Jersyfi/hubtask/issues/693),
-fixed in #694), and a Google subtask arrived typed as a task, which the model refuses to hold
-under a parent (found by P-10's own e2e run, fixed on its branch). One thing no task could have
-seen: two pull requests merged in the other order than they were numbered, `0091` before `0090`,
-and the integration environment stopped deploying for four merges until the migrator learned to
-apply a lower number late ([#717](https://github.com/Jersyfi/hubtask/issues/717), #718). And the
-walk found what a walk finds — five issues, none fixed in it: CalDAV's discovery address answers
-401 to the one credential a client can send ([#719](https://github.com/Jersyfi/hubtask/issues/719)),
-a PUT to an entry outside the calendar's view is a 500 ([#720](https://github.com/Jersyfi/hubtask/issues/720)),
-a todo made in a client needs a UUIDv7 that Apple's clients do not mint ([#721](https://github.com/Jersyfi/hubtask/issues/721)),
-the Zapier app passes the platform's validator structurally and owes 46 trigger descriptions
-before the App Directory ([#722](https://github.com/Jersyfi/hubtask/issues/722)), and the n8n
-trigger fires and acts on an empty item because n8n does not parse `cloudevents+json`
-([#723](https://github.com/Jersyfi/hubtask/issues/723)). What the row calls open is open: ADR-0057's
-licence question and the connectors' publication, both the owner's.
+* the wordmark, which `design-system.md` §9 still lists as unfinished — the site uses the
+  workbench's placeholder;
+* which mailbox: the site uses `info@hubtask.eu`, while [`TRADEMARK.md`](../TRADEMARK.md) names
+  `licensing@hubtask.eu`;
+* whether the colour mode persists across a navigation — it costs a script on a site that loads
+  none, so it is a decision with an ADR, not a commit;
+* a social preview image, which needs a raster tool the repository does not have;
+* a German accessibility statement, which the BFSG may expect for a German-operated service;
+* showing the product interface on the site, and with it whether a scoped script is allowed;
+* how much of the roadmap `/roadmap/` shows;
+* whether there is a waiting list, a newsletter or an early-access signup — each collects personal
+  data and therefore needs a data-catalogue entry with a legal basis and a deletion path, and
+  consent for anything non-essential.
 
 ---
 
 ## Requirements that arrive late
 
-New requirements will arrive while this plan runs, and some of them will change the core and the
-client at the same time. That is ordinary work rather than an exception, and it is handled like
-this:
+New requirements arrive while this plan runs, and some change the core and the client at the same
+time. That is ordinary work rather than an exception, and it is handled like this:
 
 1. **The contract moves first.** `api/openapi.yaml`, then `make generate`, then `make api-client`,
    then the implementation ([ADR-0004](./adr/ADR-0004-api-first-openapi.md)); a change to the data
@@ -271,9 +155,9 @@ this:
    `main` green, and what makes the real cost of a rename visible while reconsidering it is still
    cheap ([ADR-0035](./adr/ADR-0035-one-product-version.md) §4).
 3. **Both sides get an issue, and the two are linked.** Where the change is additive they are
-   separate pull requests and the client one lands in its own window. Where it removes or renames
-   something a client already ships, they land together.
-4. **The window closes when `0.9.5` opens.** Until that day a new requirement is scheduled into a
+   separate pull requests. Where it removes or renames something a client already ships, they land
+   together.
+4. **The window closes when `0.9.5` opens.** Until that day a new requirement is cut into a
    milestone like any other. After it there are only defects: a new requirement waits for `1.1.0`,
    or it is an exception with its own ADR that says what it costs and why the freeze does not apply
    to it.
@@ -296,11 +180,10 @@ shape, which is why the rule lives in
 Not a feature milestone. It holds exactly the work that can be done neither earlier nor later:
 
 * **The coverage report, completed.** Every use case of the catalogue, where it is reachable in
-  each client, and every deliberate omission with its reason — written to `docs/evidence/` and
-  reviewed, in the manner of the resilience evidence already there. The web column exists since
-  F6-15 ([COVERAGE-2026-09-18.md](./evidence/COVERAGE-2026-09-18.md), 231 rows, held to the
-  catalogue by `tools/checkdocs`); this milestone adds the two shells' columns to the same table
-  and closes the three rows that name an issue. The capability matrix
+  each client, and every deliberate omission with its reason. The web column exists
+  ([`evidence/COVERAGE-2026-09-18.md`](./evidence/COVERAGE-2026-09-18.md), held to the catalogue by
+  `tools/checkdocs`); this milestone adds the two shells' columns to the same table and closes the
+  rows that name an issue. The capability matrix
   ([ADR-0032](./adr/ADR-0032-client-capability-matrix.md)) is either met or amended by supersede;
   it is not quietly missed.
 * **The maturity stage goes to `stable`.** The preview banner comes off, and from that moment a
@@ -324,7 +207,7 @@ Prerequisites for `1.0.0`:
 4. Load test results against the target figures published.
 5. A security review including an external pentest or code audit of the tenant boundary and the webhook/SSRF paths (open point S-1); the threat model T-01…T-20 complete with test evidence; every gate SG-1…SG-12 permanently green.
 6. The upgrade path from `0.x` documented and tested.
-7. ~~Trademark registration for the name and logo completed~~ — moved to the owner's items below; the licence itself is settled ([ADR-0080](./adr/ADR-0080-hubtask-is-apache-2-0.md): Apache-2.0), and `1.0.0` does not wait for a registration.
+7. *(Moved to the owner's items below.)*
 8. Operating documentation complete: backup, restore (with a logged drill), monitoring, the alert catalogue with a runbook per alert, an SLO report over at least 30 days, resilience tests RT-1…RT-12 green, `hubtask_panics_recovered_total` at 0 over the period.
 9. Reference deployments (Compose and Helm) tested reproducibly.
 10. The data catalogue `docs/privacy/data-catalog.md` and the DPA template in place (open point S-3).
@@ -340,6 +223,11 @@ Prerequisites for `1.0.0`:
 20. The website deployed from the release commit, carrying the 1.0 content, the licence notice and the download links.
 21. The design system holds: no literal colour, spacing, radius or duration value anywhere (the lint proves it), contrast measured in CI rather than asserted, and waves 1 to 3 complete or the gap named with its reason.
 
+### After `1.0.0`
+
+SAML and SCIM ([`security.md`](./architecture/security.md)), and every requirement that arrives
+after the `0.9.5` window closes, wait for `1.1.0`.
+
 ---
 
 ## The owner's items — not a version
@@ -348,301 +236,10 @@ Hubtask is Apache-2.0 ([ADR-0080](./adr/ADR-0080-hubtask-is-apache-2-0.md)): not
 there is no commercial edition, and nothing about maintenance or continuation is promised. What is
 left outside the version-bound milestones is the owner's, with no version and no issue:
 
-| Item | Owner | Where it is written down |
-|---|---|---|
-| Trademark registration of the name and the logo at the EUIPO, so that [TRADEMARK.md](../TRADEMARK.md) rests on a registration rather than on use alone | The owner | (was `1.0.0` prerequisite 7) |
-| Sponsorship tiers that offer no consideration in return | The owner | [licensing-editions.md](./architecture/licensing-editions.md) §5 |
-
-Neither is a task in `docs/backlog/`, and neither blocks a release.
-
----
-
-## Phase 5 — The client track (in parallel from `0.4.0`)
-
-The stack is decided: Svelte 5 with the webapp as a plain Vite SPA
-([ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md)), Tauri 2 shells for desktop and mobile
-with the PWA path closed ([ADR-0031](./adr/ADR-0031-tauri-app-shell.md)), parity by default with
-tenant administration reached via the web on mobile
-([ADR-0032](./adr/ADR-0032-client-capability-matrix.md)), and one product UI plus a
-framework-agnostic sync engine ([ADR-0033](./adr/ADR-0033-shared-client-architecture.md)). The
-scaffolds live in milestone `0.3.5` (W-06–W-09). What was missing was the schedule.
-
-Four rules govern the track. They are what make a client built alongside a moving core affordable
-rather than a source of permanent rework.
-
-**One version, and no second one.** [ADR-0035](./adr/ADR-0035-one-product-version.md): the client
-is not versioned separately — the web app is embedded in the binary and released with it, the
-shells carry the product version plus a platform build counter, the website is unversioned. What a
-second number would have expressed is expressed by a maturity stage instead: `experimental`, then
-`preview`, then `stable` at convergence.
-
-**The client track runs one milestone window behind the core.** A client milestone builds the
-surface for a core milestone that has already shipped. The client therefore works against a
-contract that has just settled rather than one still moving, and the cost of the parallelism stays
-bounded to the window it occurs in.
-
-**Incomplete is normal; broken is a defect.** A use case without a screen is the expected state for
-most of the `0.x` phase, and the maturity stage says so. A red client lane is not the frontend
-catching up: build, lint, typecheck and test are green at every commit, on the same terms as the Go
-gates. And because `packages/api-client` is generated from the specification, a contract change
-turns the client red in the pull request that makes it — which is why that pull request carries the
-client fix (ADR-0035 §4).
-
-**`F1`…`F7` are milestones, not versions.** They are planning buckets holding the client issues;
-nothing is released by them. Tasks are numbered `F1-01`, `F2-01` and so on, and each milestone is
-cut into issues when it opens, from the then-current state of this file and the accepted ADRs.
-
-| Milestone | Opens with | Builds the surface for | Contents |
-|---|---|---|---|
-| **F1 — Foundations** | `0.4.0` | up to `0.3.0` | The component workbench decision and design-system wave 1; the three §9 gaps that block it (iconography, contrast verification in CI, voice and tone) and the wordmark the website needs; the application frame — layout, navigation, `data-theme`, the message-code renderer, problem-details rendering, `HealthBanner` from `/meta/health`, the capability manifest, the maturity banner; sign-in and session; and the data seam: `packages/sync-engine` with its three ports, an online-only pass-through and the Svelte binding, so that no component ever talks to `@hubtask/api-client` directly. And the pre-release website, whose own requirement follows this table |
-| **F2 — The working surface** | `0.4.5` | `0.2.0` | Wave 2; hubs, collections and the five levels, buckets, labels, ordering and drag and drop, trash and archive, the activity history; the query language made visible — `SearchField`, `QueryBuilder`, `ViewSwitcher` for list and kanban, `TaskRow`, `WorkItemCard`, `BucketColumn`, `LabelChip` and `LabelPicker`, `CapabilityGate`. This is where the tool becomes usable for its own development: daily work moves out of `hubctl` and into the app, which is what risk R-08 was waiting for |
-| **F3 — Collaboration, content, time** | `0.5.0` | `0.3.0` and `0.4.0` | Comments, members and assignment, covers, attachments with presigned upload, custom fields, notifications, the SSE stream, bulk and duplicate — `CommentThread`, `AssigneeControl`, `CustomFieldRenderer`, `ActivityFeed`; and the time surfaces `DueDateControl`, `ReminderEditor`, `RecurrenceEditor`, templates, saved views with their `layout` hint, the timeline, and calendar feed management |
-| **F4 — Automation, administration, tenant** | `0.6.0` | `0.4.5`, `0.5.0` and `0.6.0` | The jumble inbox, `AutomationRuleCard` and `RunStatusBadge`, dry run, webhook subscriptions, personal access tokens and service accounts; the administration area — tenant settings, `RoleBadge` and `PermissionMatrix`, quotas, the OIDC connection, MFA, sessions and step-up, backup and restore, retention with its preview, audit query, export and `:verify`, data subject requests. Administration is the one area the mobile client does not carry, so its routes are tagged by area here (ADR-0032), long before there is a mobile build to exclude them from |
-| **F5 — AI, i18n, accessibility** | `0.7.0` | `0.7.0` and `0.8.0` | `AISuggestion` — visually separable, and gone without residue when AI is switched off — semantic search, the AI paths of the jumble and of decomposition, and the entry read in another language (M-11); the client's second catalogue and language switching, `Intl` formats and the RTL audit, cut from the list in [`i18n-l10n.md` §6](./architecture/i18n-l10n.md#6-text-direction-and-presentation); and accessibility — WCAG 2.2 AA by criterion, keyboard operability, `focus-visible`, the screen-reader pass, and the accessibility statement the European Accessibility Act expects — cut from [`design-system.md` §10](./design/design-system.md#10-accessibility) |
-| **F6 — Offline, the moments, the ecosystem's screens** | `0.8.5` | `0.8.5` and `0.9.0` | The sync engine becomes what its name says, for the browser's half of the promise: the replica in IndexedDB behind the `Storage` port, the initial synchronisation from `:snapshot` with the page walk as the fallback, the delta and the stream applying records, the HLC, the mutation queue for the seven kinds the frame carries, `:push` with the server's word overwriting the device's prediction, `ACCESS_REVOKED`, `sync.cursor_too_old` and `sync.gone` behaviour, `SyncStatus` and `ConflictResolver`, the account's devices, the `offline-sync.md` §9 harness against fakes, and the engine's own conformance run against a real instance in a required job (`1.0.0` prerequisite 17). Then what `0.9.0` built and no screen reaches: the import wizard with its report, template generation, the CalDAV address. Then the two pieces of the product the design system decided in its first week: the celebration kit — the guardrails as tokens, one slot per tier, the triggers read off the replica, the switch on the account — and the onboarding tour, whose last step is the first celebration. One core task, the account's two preference fields. The milestone closes with the coverage report — every use case of the catalogue a route or a reason for the web client, held to the catalogue by the documentation gate — which is what `0.9.5` completes for three clients rather than starts. **Cut on 2026-09-17** in two passes: [`backlog/milestone-F6.md`](./backlog/milestone-F6.md) opened that morning with the two tasks that build ADR-0047 and ADR-0048 — accepted that day, consistent, and built by nobody — and the rest, F6-03…F6-15, followed the same day by the owner's decision that the shells wait for their own milestone |
-| **F7 — The shells** | after F6 | `0.8.5` | Not cut, and cut by the owner when the developer accounts and the signing certificates exist, because no shell task can close without them. The Tauri desktop shell — SQLite and the keystore behind the `Storage` port, the updater, signed distribution, the webview smoke matrix (`1.0.0` prerequisite 18) — and after it the mobile shell with signing, the store pipeline, what is left of platform adaptation once F9 built the web app's phone layout (`design-system.md` §9: the system conventions only a shell can follow) and the capability matrix made real in the build: the admin routes F4 tagged and the navigation row F9 tagged (ADR-0061 decision 1) are excluded from it, and each appears as the affordance ADR-0032 asks for, named and linked to the web app of the server the client is signed into. It carries the one core task F6 named and did not take: the mutation kinds `offline-sync.md` §1's left column promises and the push frame does not carry — reminders, recurrence, template instantiation, the structure — because the offline *promise* is the installed clients' (ADR-0031) and the browser's cache did not need them. SY-B's mobile default is set here, with a phone's storage to measure against. What F6 owes it is listed in that backlog's decision 2 |
-| **F8 — The rule flow** | after F6 | `0.6.0`'s automation, and three additive core tasks | **Built 2026-09-20**, the day it was cut, in eight pull requests (#803, #804, #805, #806, #808, #811, #810 and the walk's), and the walk against a real server found seven things — four fixed the same evening (#819, #820, #821, #822), three open (#814, #817, #818), in [`evidence/F8-2026-09-20.md`](./evidence/F8-2026-09-20.md). The owner's walk of the build brought a second round on 2026-09-21 (#847, F8-09 to F8-14 in #848–#852 and the second walk's): icons on the building blocks, events in words, the stop as a terminus, drop targets you can read, conditions as a tree — and four more findings, two fixed (#854 and the case fold), two open (#855, #856). Cut from a prototype the owner walked twice: a rule drawn as a path — the trigger, the gate of conditions, the chain with a branch as a fork and a wait as a pause, the guardrails — instead of the form F4 built; every action's form from the manifest's new `action_fields`, never compiled in; a condition composed as a sentence and stored as CEL; the name generated until somebody owns it; drag and drop that lights only what may take the piece, with the keyboard doing everything the drag does; the details as a sheet over the canvas at phone width; the dry run drawn onto the canvas as the run it would be, and a recorded run drawn the same way; the rule's health from its last runs; and the check — a rule's references resolved against what exists now, findings on the rule, a broken rule switched off with a word to its author — with its ADR. Skips F7's letter, which stays reserved for the shells. Its backlog is [`backlog/milestone-F8.md`](./backlog/milestone-F8.md) |
-| **F9 — The shell** | after F8's cut, beside it | `0.3.5`'s design system, F2's client | **Built 2026-09-21**, the day it was cut, in ten pull requests (#834, #835, #836, #839, #837, #840, #859, #861, #862, #870) and the walk's: the tokens for status as a surface, the layout measures and a third density; `AppBar` and `NavDrawer` proven on the workbench first, which then showed every story on every width with an index one can find a component in; `Badge` with an emphasis and the status surfaces in `Banner`, `Callout`, `Toast`, the run badge and the sync line; `PageHeader`, `BottomBar` and `DetailPane`; the frame on one list of destinations drawn three ways; the collection on the page head with one primary action and a menu in three groups, the board one column at a time on a phone; the entry as head, its whole subtree to the bottom level with a child created from its page, details beside the text and the history as tabs; the detail pane from `large`. The seventy functions of the four surfaces are where the inventory said; two were added. The walk against a real server on a phone, a tablet and a desk found nine things — four fixed the same day (#884: #874, #875, #876, #879), five the next (#892, #893, #894, #897, #899), in [`evidence/F9-2026-09-21.md`](./evidence/F9-2026-09-21.md) and [`F9-2026-09-22.md`](./evidence/F9-2026-09-22.md), whose final reading of the concept against the screen found four small things (#905) and one task (#904). Cut from a concept the owner walked four times. Its ADR is [ADR-0061](./adr/ADR-0061-page-anatomy-and-the-shell.md), accepted with the walk; its backlog is [`backlog/milestone-F9.md`](./backlog/milestone-F9.md) |
-| **F10 — The working surface** | after F9 | F9's shell | **Cut 2026-09-22** from the owner's walk of the built shell, which found thirteen things: the fold shows nothing, the tree is one flat list with the trash under the last hub and no archive anywhere, the first destination lists what the tree lists, the connection takes a line of every screen, the frame is on the content's plane, the bar carries the reader's address, administration is seventeen links inside the workspace's navigation, every list spends two controls a row on a selection nobody asked for, the board's card is not the thing you move, the entry's breadcrumb leads nowhere and its details offer fields its own type refuses. Its ADR is [ADR-0063](./adr/ADR-0063-navigation-and-the-working-surface.md), accepted on the day it was written, with the two reversals of ADR-0061 it asks for; its backlog is [`backlog/milestone-F10.md`](./backlog/milestone-F10.md) |
-| **SI — Signing in** | after F10, beside the client track | F4's sign-in, F9's shell | **Cut 2026-09-26** from a concept the owner walked six times, and its client half built and walked before the cut. What the walk found is in the ADRs rather than in a list: nobody can change a password, the policy is a constant in the domain, three ways to be refused have one way to find out, and the contract answers three things no client reads. Eighteen switches in three levels with a lock; the enforcement as a step of the sign-in rather than a job, because nothing enumerates accounts; one use case with four doors; a reset that does not walk past a second factor; the rules under a password field as data and message codes, checked live and asked of the server only once the local ones hold; recovery codes that can be copied and replaced; providers in the plural with their owners' marks on our button; and the instance layer the whole of it needs — an operator register, settings with a lock, an elevated session and a dashboard. Its records are [ADR-0068](./adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md), [ADR-0069](./adr/ADR-0069-third-party-brand-marks.md) and [ADR-0070](./adr/ADR-0070-the-instance-layer.md), all three accepted; its backlog is [`backlog/milestone-SI.md`](./backlog/milestone-SI.md). **Built** by 2026-09-28 (the last three tasks in #1054). Where it sits — a version on the core track or a letter on the client's — is the owner's to set. It prepares passkeys, plans and custom domains without building any; since the review of 2026-09-30, SC and PH come before them |
-| **SC — Signing in and the installation, made coherent** | after SI | SI's mechanisms | **Cut 2026-09-30** from the review of the built SI against its concept, the deployments D1–D7 and the principles of [`vision/`](./vision/README.md) — the first milestone cut against [use cases](./usecases/README.md): every task names the checks it makes true. Three defects come first because they lock people out or let the wrong person in (SC-01, done in #1072: connecting a provider to an account asks for that account's own proof). Then one rule in one place for the second factor, the first start and the way back into an installation without SQL, operators and machines on the screen, terms of use agreed and re-agreed, AI offered by the installation ([ADR-0072](./adr/ADR-0072-ai-at-the-installation-level.md)), budgets per source, invitations without mail, the brand marks cleared, and the walk by use case. Its records are [ADR-0071](./adr/ADR-0071-provider-admission.md)'s addendum and ADR-0072; its backlog is [`backlog/milestone-SC.md`](./backlog/milestone-SC.md) |
-| **PH — Privacy and the household** | after SC, beside it | SC's installation defaults and locks | **Cut 2026-09-30** from five decisions measured against D1–D7: a legal hold wins over an erasure as far as it reaches (a defect today, PH-01), a deadline extended once, a person's objection to AI and a workspace's choice to make AI part of the work on a named legal basis ([`data-protection.md`](./architecture/data-protection.md) §4.1), private hubs with a transparent emergency access ([ADR-0073](./adr/ADR-0073-private-hubs.md)) and accounts without a mail address for a child or a grandparent ([ADR-0074](./adr/ADR-0074-managed-accounts.md)). Its backlog is [`backlog/milestone-PH.md`](./backlog/milestone-PH.md). After SC and PH: passkeys, then plans, then custom domains |
-
-Each open point in [`design-system.md`](./design/design-system.md) §9 therefore has an owner: the
-wordmark in F1, platform adaptation with the mobile shell in F7. The list is not fixed — F1-02,
-F1-03, F1-04 and F1-05 closed contrast verification, iconography, voice and tone and the border
-scale, and F1-13 closed the layering scale and opened two more, which is what a gap list does while
-a milestone runs.
-
-**F1 is done**, and its backlog is [`backlog/milestone-F1.md`](./backlog/milestone-F1.md) —
-thirteen tasks, F1-01…F1-13. Cutting it found one thing this table could not: the client had no way
-to learn which account it is signed in as, because nothing read an `Account` and
-`/accounts/{accountId}/preferences` needs an id it never receives. Since "locale and time zone
-through the account preference" is a binding requirement above, F1 carried **one core task**
-(`GET /accounts/me`, additive and specification first) — the first worked example of the rule for
-a requirement that touches both sides, and a reminder that a client milestone may find a gap in
-the contract rather than only build on it.
-
-**F2 is done**, and its backlog is [`backlog/milestone-F2.md`](./backlog/milestone-F2.md) —
-sixteen tasks, F2-01…F2-16. Cutting it found the second such gap, and of the same kind: every
-`Container` carries an `order_key`, `POST /containers/{id}:move` ranks a collection by naming the
-hub it is already in, and a hub sits in nothing and so has a rank that nothing can change. F2
-therefore carried **one core task** as well (`POST /containers/{id}:reorder`, additive and
-specification first). Two of the milestone's own gaps were older: `design-system.md` §9's density
-decision and its named motion roles are what F2-01 closed, because the milestone with the long
-lists was the last cheap moment for both. Whether F2 moved the client's maturity stage from
-`experimental` to `preview` was deliberately not in the backlog — F2-16 produced the evidence
-([`R-08-2026-09-04.md`](./evidence/R-08-2026-09-04.md)), the owner decided, and the client has
-been `preview` since the four creation surfaces that pass found missing were built.
-
-**F3 is done**, and its backlog is [`backlog/milestone-F3.md`](./backlog/milestone-F3.md) —
-twenty tasks, F3-01…F3-20, the longest of the track so far because it builds the surface for two core
-milestones. Cutting it found **three** gaps of the kind F1 and F2 each found one of, and F3
-therefore carries three core tasks, each additive and specification first: no read lists who
-holds a role at a scope or what a group contains, so an assignee picker has no candidates
-(`api-guidelines.md` §2 has promised `GET /memberships` since phase 0); no route reads or writes
-the notification preferences C-09 stored, although `data-protection.md` §9 calls the title switch
-switchable; and `TrashEntry` names no actor (#354). It also found one thing a client task cannot
-settle alone: under object storage the presigned URLs the media flow hands out are on an origin the
-interface's content security policy does not name, so the browser can neither upload to the bucket
-nor draw a cover from it — F3-09 opens with an ADR amending ADR-0028's policy rather than with code.
-And one product question it records without answering: the roadmap's "notifications" is built as
-the preferences, because the notification record has one channel, `EMAIL`, and an inbox in the
-client would be a new channel rather than a screen. The maturity stage is not a question this
-time — `stable` belongs to convergence.
-
-**F4 is done**, and its backlog is [`backlog/milestone-F4.md`](./backlog/milestone-F4.md) —
-twenty-one tasks, F4-01…F4-21, the longest of the track, because it builds the surface for
-**three** core milestones rather than two. That is the first thing cutting it settled: the table
-above said `0.4.5` and `0.5.0` while its own contents column named MFA, sessions and step-up, the
-OIDC connection and quotas — all of them `0.6.0`'s. The contents column governs and the cell is
-corrected, because the window rule exists so that the client works against a contract that has
-stopped moving, and `0.6.0`'s has: fifteen of its sixteen tasks are closed and the one that is not
-(#267) has no client surface. Cutting it found **two** gaps of the kind every client milestone has
-found — the workspace could not read or change its own settings, and three pieces of operational
-configuration could be created and never revised — and **building** it found three more of a kind
-no cutting could have: `/meta/capabilities` declared the event types, the retention catalogue and
-the automation triggers and answered none of them, so three pickers had nothing to offer until the
-task that needed each list published it (the third, #542, is still open). It found one thing a
-client task cannot settle alone, in the same shape F3-09 found its: the TOTP provisioning URI needs
-a QR code, a QR code needs an encoder, and an encoder is either a new dependency or two hundred
-lines in the design system — F4-04 opened ADR-0053 and shipped manual entry meanwhile, and the
-owner chose the encoder (accepted 2026-09-11; the encoder itself is #553). And it found, by
-driving finished screens against a real server, a kind of defect no test had seen: three
-aggregates read back without their tenant, so that no webhook delivery had ever been retried and
-no retention rule ever corrected on any installation (#536, #538). The third R-08 walk ([2026-09-11](./evidence/R-08-2026-09-11.md)) opened every one of the
-area's seventeen screens in a browser, signed in with a password and a second factor, and left
-eight issues, one of them a missing surface. One product question it records without answering:
-nothing in this contract disables or removes an account, so a workspace has no offboarding beyond
-revoking every membership.
-
-**F5 is cut**, and its backlog is [`backlog/milestone-F5.md`](./backlog/milestone-F5.md) —
-fourteen tasks, F5-01…F5-14, building the surface for `0.7.0`, `0.7.5` and `0.8.0`. Cutting it
-found **no core task**, the first client milestone that did not, and the backlog records why:
-every route it needs was read against the contract, and the one thing the interface wants that
-the contract does not carry — a reduced-motion preference — is ADR-0043's rule applied rather
-than a gap, because motion, like the theme, belongs to the device. Four things it settled: AI is
-a *treatment* before it is a component — `ai.*` tokens measured for contrast in both directions,
-a voice-and-tone rule for a proposal, and then `AISuggestion` on top of them — and its absence is
-absence rather than a gate; a proposal is rendered once, in one strip, whatever asked for it; the
-second catalogue is loaded lazily from `locales/*.json` through the one module that reads the
-directory, and German is written whole, by hand, as the pull request ADR-0055 describes; and the
-two accessibility walks are two tasks that fix in place, because a `margin-left` is not a product
-question. QS-08 is completed for the interface by F5-14, as `0.8.0`'s backlog said it would be.
-
-**F5 is done**, and its backlog is [`backlog/milestone-F5.md`](./backlog/milestone-F5.md) —
-fourteen tasks, F5-01…F5-14, the first client milestone that cut **no core task** (the paragraph
-above says why). **Building** it found what cutting could not, in three kinds. Two premises of
-the backlog were wrong the way M-07's was: the six AI asks answer `202` with *no body* — there is
-no job to follow, and the client re-reads the suggestions on a schedule (F5-02's `followArrival`)
-— and a `FIELDS` proposal is accepted whole, its `overrides` laid over the payload, not field by
-field. Two core defects only a finished screen driven against a real server could find: a
-classification accepted as labels alone met `items.update_empty` (#696 → #697), and `AiTranslate`
-wrote its audit entry outside a transaction and 500'd on every call (#703 → #704). And the two
-walks that fix in place found, in the shape the backlog predicted, things no story had shown:
-`:dir(rtl)` does not match what Chromium renders after the root's `dir` is set, the switch's knob
-travelled off its track and every mirrored icon needed `[dir='rtl']` instead (F5-10); every write
-from a list dropped the keyboard's focus to `body`, because the engine published `loading` over a
-`ready` state and the list drew its skeleton for the length of every reload (F5-11, fixed in the
-engine for every screen at once); eleven stops from the top of the frame to any content, which is
-the skip link; and eighty writes that changed the screen in silence for a reader who cannot see
-it (F5-12). Three findings became issues rather than fixes — a merge-patch `null` read as absent
-(#709), six lifts painted with a token nobody defined (#711), a language select that shows tags
-(#715). The screen-reader pass was **not run**: the session that made it was unattended and no
-reader was heard, and [A11Y-2026-09-16.md](./evidence/A11Y-2026-09-16.md) says so for each of the
-four rather than claiming one — the accessibility tree of every route was read instead, and the
-website's statement carries the status as that leaves it, dated. QS-08 is now true of the
-interface ([QS-08-2026-09-15.md](./evidence/QS-08-2026-09-15.md), the interface section): a
-language is a file on both sides. The maturity stage stays `preview`; `stable` is convergence's,
-when criterion 16's walks are repeated for a release and the statement is published rather than
-dated.
-
-**F6 is done**, and its backlog is [`backlog/milestone-F6.md`](./backlog/milestone-F6.md) —
-fifteen tasks, F6-01…F6-15, building the surface for `0.8.5` and `0.9.0`, merged between
-2026-09-17 and 2026-09-18. **Cutting** it settled the question the table above had left open
-since the shells were named in it: the client track reaches convergence through the browser, and
-the shells wait for their own milestone (F7) rather than holding the offline half hostage to a
-signing certificate. Cutting it found **one core task**, the smallest of the track: a
-celebration is *one preference, all tiers* and the tour runs *on first start*, and neither fact
-is knowable from a client — two additive fields on `AccountPreferences`, specification first, in
-F1-08's shape (F6-12). Four things it settled that the table could not: the engine stays
-product-agnostic and the application supplies `storeFor` and `mutationFor` beside the `pathsFor`
-F3-04 introduced; reads go through to the server while it answers and the replica answers only
-when it does not, marked *as of*; a write is direct while nothing is queued and queued or refused
-otherwise, with no rollback ever invented; and the browser offers offline exactly what the push
-frame carries, with the missing kinds a core task of F7's. **Building** it found what cutting
-could not. In the engine: a browser that cannot negotiate a streamed upload over HTTP/1.1 sends
-the body whole (#756 → #757, found by the F6-01 proof against a real object store); the replica
-is one object store keyed by collection and identifier, and a subtree deletion walks it under
-one transaction because a transaction per record was the whole of the cost (F6-03); a plain
-question of `/items:query` — a collection's entries, no filter — is one the replica can answer,
-and the copy answers it (F6-04); a device forgotten from another screen keeps what its queue held
-as refused rather than losing it with the copy (F6-07, refining F6-05); and the engine's own
-conformance run passed against a real server on its first run and went red on point 3 alone when
-one line of the replica was made wrong, which is what makes the job evidence (F6-08). On the
-screens: a second CSV into a hub that already holds *Imported* fails the job on a unique name
-rather than being refused with a code (#766); the count of nodes a template draft dropped lives
-only in the job's result and no client can reach it (#767); the first-ever moment claims itself
-once — after the day's tier 3 is spent, "that was your first" is not said of the second — and the
-tour asks the server rather than the copy which collection to point at, because on the first
-sign-in the copy is not yet synchronised (F6-13, F6-14). And the coverage report found three use
-cases nobody built a control for — a collection's policies, audit anchoring, the rotation of a
-rule's inbound token (#773, #774, #775) — each a row that names its issue rather than a reason.
-The walk of F6-15 was made against the Compose image rather than the integration environment's
-`demo` workspace, for the reason [F6-2026-09-18.md](./evidence/F6-2026-09-18.md) gives. What it
-deliberately leaves to `0.9.5`: the `stable` stage, the statement's publication, and the
-coverage report's other two columns.
-
-### The website: a pre-release site from the `0.4.0` window
-
-> **`hubtask.eu` carries a pre-release site from the `0.4.0` window onwards.** It shows what the
-> project intends to be and advertises it — before there is a product to sign into. It is the
-> public face of the whole `0.x` phase, not a placeholder that goes up shortly before the launch.
-
-The website is the one surface with an audience before the product has users, which is why it comes
-first in the track rather than last. It has two stops: the **pre-release site** in F1, and the
-**1.0 site** at convergence (documentation, the licence notice, downloads for the shells, the
-accessibility statement). Because it is unversioned and continuously deployed
-([ADR-0035](./adr/ADR-0035-one-product-version.md)), its content can move as often as the message
-does without touching a release.
-
-**Decided, and needing no brief:** SvelteKit with `adapter-static`, fully prerendered
-([ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md)); every value from the design system
-([ADR-0029](./adr/ADR-0029-design-system-tokens.md)), with wave 4 as its component budget; never
-embedded in the binary and never a second product surface — information only, no sign-in, no task
-management ([ADR-0027](./adr/ADR-0027-monorepo-structure.md),
-[ADR-0028](./adr/ADR-0028-embedded-web-ui.md)); and the client requirement above about cookies
-applies to it before it applies to anything else.
-
-**Open, and awaited from the owner** — named here so it is visible what waits on what:
-
-* positioning and messaging: what the site claims the product is, and for whom;
-* the page structure and how much of the roadmap is shown in public;
-* visual direction beyond the tokens, and the wordmark F1 produces;
-* what may be promised about dates and editions — settled by
-  [ADR-0080](./adr/ADR-0080-hubtask-is-apache-2-0.md): Apache-2.0, one edition, no price, and no
-  maintenance commitment ([licensing-editions.md](./architecture/licensing-editions.md));
-* whether there is a waiting list, a newsletter or an early-access signup — each collects personal
-  data and therefore needs a data-catalogue entry with a legal basis and a deletion path
-  ([data-protection.md](./architecture/data-protection.md)), and consent for anything
-  non-essential;
-* the launch moment.
-
-**The split that lets work start before the brief exists.** The scaffold, the deployment lane, the
-design-system wiring and a minimal holding page are buildable now and are one work package. The
-content wave is a **second** work package that is explicitly allowed to sit unstarted without
-blocking F1; it begins when the brief does, in whichever milestone that turns out to be. What must
-not happen is content invented in the absence of a brief and then defended because it is already
-live.
-
-Where the built files are actually served from is undecided: there is a `website` job that lints,
-type-checks and builds, and none that deploys. It is open point **CI-4** in
-[ci-cd.md](./architecture/ci-cd.md) §8.
-
-A dedicated arc42 client-architecture document is written with the sync-engine package, once
-there is a first implementation to describe. What was settled in preparation and stays binding:
-
-* The contract: an OpenAPI-generated SDK, `/meta/capabilities` for configuration, saved views with a
-  `layout` hint, SSE for live updates.
-* Binding requirements on every frontend, in two lists that are the source and not restated
-  here (M-13): **localisation** in [`i18n-l10n.md` §6](./architecture/i18n-l10n.md#6-text-direction-and-presentation)
-  — the negotiated locale, the catalogue with its fallback, `Intl` from the account's preference,
-  moments and due dates, the week, the writing direction, the 40 % rule, grapheme clusters, an
-  entry's language — and **accessibility** in [`design-system.md` §10](./design/design-system.md#10-accessibility)
-  — WCAG 2.2 AA by criterion, the two walks, the accessibility statement. What is not in either
-  list stays here: tolerant behaviour towards unknown fields, and offline-tolerant writing with an
-  `Idempotency-Key`.
-* **Accessibility: WCAG 2.2 AA**, with an accessibility statement published for the released
-  clients. [`data-protection.md`](./architecture/data-protection.md) §7 names
-  `design-system.md` §10 as where the European Accessibility Act lands, and it is demonstrated for
-  `1.0.0` rather than asserted.
-* **No non-essential cookies without consent** — the second client requirement `data-protection.md`
-  §7 places here. The backend uses bearer tokens rather than tracking cookies; nothing a client adds
-  may quietly reintroduce them, the website included.
-* **Offline conformance** per [offline-sync.md](./architecture/offline-sync.md) §9: client-assigned
-  UUIDv7, an `op_id` per mutation, an HLC per field change, local deletion on `ACCESS_REVOKED` and
-  `sync.gone`, a full resynchronisation on `sync.cursor_too_old`, and encrypted local storage with
-  complete deletion on sign-out. Verifiable through `hubctl sync-conformance` — which applies to
-  third-party implementations too.
-* The offline promise is carried by the installed clients; the browser app holds a best-effort
-  cache only, and no client merges — merging belongs on the server
-  ([ADR-0031](./adr/ADR-0031-tauri-app-shell.md), [ADR-0033](./adr/ADR-0033-shared-client-architecture.md)).
-* As an interim solution, `hubctl` (the CLI) plus a minimal reference client serve for dogfooding —
-  not a product decision, just a tool (risk R-08). F2 is where that interim ends.
-
----
-
-## What is immediately implementable
-
-| Ready | Reason |
+| Item | Where it is written down |
 |---|---|
-| The complete core (phases 0 and 1) | The domain model, invariants, use case catalogue, API contract, and persistence sketch are settled |
-| The automation service (phase 2) | The rule model, trigger/action catalogue, execution semantics, and protective mechanisms are decided |
-| The integration layer | The event catalogue, webhook mechanics, and auth methods are in place |
-| Deployment and CI | The role model, image strategy, and pipeline gates are in place |
-| The security baseline | The threat model T-01…T-20 with countermeasures and gates SG-1…SG-12 is decided ([security.md](./architecture/security.md)) |
-| Audit, data protection, retention | The log model, data subject rights, deletion paths, and the retention model are decided and represented in the schema |
-| Backup and restore | The target abstraction, archive format, schedules, retention, and restore modes are decided ([backup-restore.md](./architecture/backup-restore.md)) |
-| Offline synchronisation | The protocol, conflict handling, and data model prerequisites are decided; the client requirements are settled ([offline-sync.md](./architecture/offline-sync.md)) |
-| Observability and resilience | The health model, metric and alert catalogue, resilience patterns, and the test series RT-1…RT-12 are decided ([observability-reliability.md](./architecture/observability-reliability.md)) |
-| **Not ready** | SAML/SCIM details, master key management in provider operation (S-2), and the capacity model from real load data (O-2). The frontend stack is decided (ADR-0030…ADR-0033); its visual design beyond the design system emerges with the component layer |
+| Trademark registration of the name and the logo at the EUIPO, so that [TRADEMARK.md](../TRADEMARK.md) rests on a registration rather than on use alone | (was `1.0.0` prerequisite 7) |
+| Sponsorship tiers that offer no consideration in return | [licensing-editions.md](./architecture/licensing-editions.md) §5 |
+| Publishing the SDKs to their registries and the n8n node and the Zapier app to their marketplaces; the SDKs' names and extraction | [ADR-0057](./adr/ADR-0057-sdk-licence-and-extraction.md), [ADR-0058](./adr/ADR-0058-connector-packages.md) |
+
+None of them is a task in `docs/backlog/`, and none blocks a release.

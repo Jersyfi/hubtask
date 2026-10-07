@@ -772,7 +772,7 @@ func TestARuleWithConditionsNeedsAnEngine(t *testing.T) {
 	}
 }
 
-// G-08. The run records which of the six triggers produced it, and who pulled it when a person did.
+// The run records which of the six triggers produced it, and who pulled it when a person did.
 //
 // On the run rather than resolved from the rule at read time: a rule can be edited from one kind
 // into another, and a log that resolved the kind when somebody opened it would rewrite its own
@@ -864,8 +864,8 @@ func TestTwoOccasionsOfOneRuleDoNotShareAnIdempotencyKey(t *testing.T) {
 }
 
 // The engine's own guarantees do not belong to `EVENT`. Whatever started a run, the depth bound and
-// the throttle answer the same way and the run is recorded either way - which is what "each
-// producing into the engine G-07 built rather than a second execution path" means (G-08).
+// the throttle answer the same way and the run is recorded either way - every trigger produces
+// into the one engine rather than a second execution path.
 func TestEveryTriggerCarriesTheDepthBoundAndTheThrottle(t *testing.T) {
 	kinds := []domain.TriggerKind{
 		domain.TriggerEvent, domain.TriggerSchedule, domain.TriggerRelativeDate,
@@ -920,7 +920,7 @@ func TestEveryTriggerCarriesTheDepthBoundAndTheThrottle(t *testing.T) {
 	}
 }
 
-// The flow vocabulary (G-09). A branch is a nested condition, a STOP is a deliberate end, and the
+// The flow vocabulary. A branch is a nested condition, a STOP is a deliberate end, and the
 // run log names every action by its path.
 
 func branchOf(condition string, then, otherwise []map[string]any) domain.Action {
@@ -1058,9 +1058,9 @@ func TestAStopInsideABranchEndsTheWholeRun(t *testing.T) {
 	}
 }
 
-// G-07's key is (rule, occasion, action index), and a nested action has no index at the top level -
-// two branches' first actions keyed by index would share a key and the second would silently do
-// nothing. The key names the path.
+// A key of (rule, occasion, action index) cannot serve a nested action, which has no index at the
+// top level - two branches' first actions keyed by index would share a key and the second would
+// silently do nothing. The key names the path.
 func TestTwoBranchesFirstActionsDoNotShareAKey(t *testing.T) {
 	rule := enabledRule()
 	rule.Actions = []domain.Action{
@@ -1130,7 +1130,7 @@ func TestABranchConditionThatCannotBeEvaluatedFailsTheAction(t *testing.T) {
 	}
 }
 
-// WAIT (G-09): the run suspends and a job resumes it. A WAIT of a day holds no worker, survives a
+// WAIT: the run suspends and a job resumes it. A WAIT of a day holds no worker, survives a
 // restart - the moment lives on the job row - and resumes on time, proved with the fixed clock.
 
 func waitingRule() domain.Rule {
@@ -1407,8 +1407,8 @@ func TestTheRunSuppliesTheEventBesideTheRulesParameters(t *testing.T) {
 
 // The entry an event is about is the other value a rule cannot carry: ADD_LABEL declares `item_id`
 // as required and the rule leaves it out (automation.md §2.2), so the run has to supply it - the
-// same entry the conditions read, from the event's subject. F8's walk found nothing did: every
-// entry action on an event rule failed at the run with `usecase.input_invalid`.
+// same entry the conditions read, from the event's subject. Without it every entry action on an
+// event rule fails at the run with `usecase.input_invalid`.
 func TestTheRunSuppliesTheEntryTheEventIsAbout(t *testing.T) {
 	rule := enabledRule()
 	rule.Actions = []domain.Action{{
@@ -1452,7 +1452,7 @@ func TestTheRunSuppliesTheEntryTheEventIsAbout(t *testing.T) {
 	}
 }
 
-// The JUMBLE_ENTRY runs (G-10): the conditions read the entry as data under `payload`, and the
+// The JUMBLE_ENTRY runs: the conditions read the entry as data under `payload`, and the
 // run supplies the entry to the actions a rule cannot carry it for.
 
 type jumbleEntries struct{ entry jumbledomain.Entry }
@@ -1509,7 +1509,7 @@ func TestAJumbleRunReadsTheEntryAndSuppliesIt(t *testing.T) {
 }
 
 // tenantBudgetFake answers the verdict directly - the resolution is the quota engine's, tested
-// there; this engine owes that an exhausted workspace budget throttles visibly (H-08).
+// there; this engine owes that an exhausted workspace budget throttles visibly.
 type tenantBudgetFake struct {
 	allowed bool
 	asked   int

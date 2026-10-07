@@ -128,8 +128,8 @@ func TestATokenIsFoundInItsOwnTenant(t *testing.T) {
 }
 
 // The cross-tenant negative test the security gate requires for every repository method
-// (security.md §6, CLAUDE.md "the loop", step 5). Row level security is what makes it pass: the
-// query carries no tenant condition of its own.
+// (security.md §6, gate SG-3). Row level security is what makes it pass: the query carries no
+// tenant condition of its own.
 func TestATokenIsInvisibleFromAnotherTenant(t *testing.T) {
 	ctx := context.Background()
 	tokenA, tokenB := tokenFixtures(ctx, t)
@@ -220,7 +220,7 @@ func TestTouchLastUsedStaysInsideTheTenant(t *testing.T) {
 }
 
 // A repository called outside a unit of work must fail rather than reach for the pool - a query
-// on the pool would run with no tenant context at all (CLAUDE.md rule 3).
+// on the pool would run with no tenant context at all (rule 3).
 func TestTheRepositoryRefusesToRunOutsideATransaction(t *testing.T) {
 	ctx := context.Background()
 	tokenA, _ := tokenFixtures(ctx, t)
@@ -260,7 +260,7 @@ func secretHalf(token identity.Token) string {
 	return raw[len(raw)-43:]
 }
 
-// The identifiers the write side of G-01 uses. Distinct from the fixtures above, so that a test
+// The identifiers the minting tests use. Distinct from the fixtures above, so that a test
 // which mints can run beside one that reads without either seeing the other's rows.
 var (
 	mintedIDA = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000c1")

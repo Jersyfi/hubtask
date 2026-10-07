@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package suggestion is the outbound port of what AI proposed (J-05).
+// Package suggestion is the outbound port of what AI proposed.
 //
 // No method takes a tenant: every read and write is bounded by the transaction it runs in, like
 // every repository (ADR-0010).
@@ -52,7 +52,7 @@ type Suggestions interface {
 	Decide(ctx context.Context, decided domain.Suggestion, expectedVersion int) (bool, error)
 }
 
-// Expiring is the slice the retention engine removes through (E-07).
+// Expiring is the slice the retention engine removes through.
 //
 // The same two methods as the jumble, the notification history and the outbox, and deliberately the
 // same shape: the engine treats a fifth kind exactly as it treats the second. Declared here rather
@@ -65,8 +65,8 @@ type Expiring interface {
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
-// Request is what a person asked a template to be drafted from (P-11): the one question a
-// provider is asked whose material exists nowhere the workspace already holds.
+// Request is what a person asked a template to be drafted from: the one question a provider is
+// asked whose material exists nowhere the workspace already holds.
 type Request struct {
 	ID        shared.ID
 	AskedBy   shared.ID

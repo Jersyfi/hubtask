@@ -52,7 +52,7 @@ type MatchRules struct {
 	// a rule with no dedupe expression needs none, and a build without an engine still dispatches
 	// every other rule rather than none.
 	Conditions expression.Compiler
-	// Jumble is the read a dedupe key naming `payload` costs on an arrival (G-10). Optional for
+	// Jumble is the read a dedupe key naming `payload` costs on an arrival. Optional for
 	// the reason Containers is: without it the name resolves to an empty document, and the key
 	// falls back to the unique one rather than collapsing every arrival into one job.
 	Jumble condition.JumbleEntries
@@ -86,8 +86,8 @@ func (m MatchRules) Wants(eventType event.Type) bool {
 // Deliver queues one job per rule that wants this event.
 func (m MatchRules) Deliver(ctx context.Context, envelope event.Envelope) error {
 	if envelope.Type == event.JumbleEntryReceived {
-		// An arrival fires the JUMBLE_ENTRY rules beside any EVENT rule on the type itself
-		// (G-10): one engine, and the trigger decides only what makes this run one occasion.
+		// An arrival fires the JUMBLE_ENTRY rules beside any EVENT rule on the type itself:
+		// one engine, and the trigger decides only what makes this run one occasion.
 		if err := m.deliverJumble(ctx, envelope); err != nil {
 			return err
 		}

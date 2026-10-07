@@ -28,10 +28,10 @@ const (
 	RuleTestedAction audit.Action = "automation.rule_tested"
 )
 
-// TestRule is the dry run automation.md §2 promises (G-09): a sample event in, which conditions
+// TestRule is the dry run automation.md §2 promises: a sample event in, which conditions
 // matched and which actions *would* run out - and no side effects.
 //
-// The restore's dry-run discipline is the whole design (E-06): nothing below this use case opens
+// The restore's dry-run discipline is the whole design: nothing below this use case opens
 // a writing transaction. Conditions are evaluated - reads, through the same lazy activation a
 // real run uses - but no action dispatches, nothing is queued, no run row is written and the
 // failure streak is untouched. What makes that provable rather than promised is the shape: the
@@ -44,7 +44,7 @@ type TestRule struct {
 	Entries    Entries
 	Containers Containers
 	// Labels and Members are the entry's sets beside it, for a condition on `item.labels` or
-	// `item.members` (issue 807). Optional, as in condition.Values.
+	// `item.members`. Optional, as in condition.Values.
 	Labels     condition.Sets
 	Members    condition.Sets
 	Authorizer Authorizer
@@ -52,7 +52,7 @@ type TestRule struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Text is what a dry run's definition is built with, as a write would build it (M-07).
+	// Text is what a dry run's definition is built with, as a write would build it.
 	Text text.Normalizer
 }
 

@@ -5,10 +5,10 @@
  * What the installation says about itself, read once and held.
  *
  * `/meta/capabilities` is the one thing the client configures itself from: item types and their
- * capability profiles, view layouts, the query fields F2's filter editor is built from, the
+ * capability profiles, view layouts, the query fields the filter editor is built from, the
  * supported locales and their direction, the role matrix, the limits. Nothing here may be
  * hard-coded against it — a list somebody typed is a list that is wrong on the installation that
- * has one more (`apps/webapp/CLAUDE.md`).
+ * has one more.
  *
  * It is a module rather than a `resource()` in a component for one reason: *once*. The engine
  * already keeps one state per path and loads it only when idle, so a second component asking
@@ -17,7 +17,7 @@
  *
  * It is unauthenticated (`security: []` in the contract), so it works before anybody signs in —
  * which is what makes it the right thing to read first. **Once is not the same as once per page**,
- * though, and issue 1020 is the difference: the *route* takes no credential, the *request* carries
+ * though, and that is the difference: the *route* takes no credential, the *request* carries
  * whatever bearer this tab still holds, and a stale one is answered `401` rather than anonymously
  * (`presentation/rest/Auth.go`: a credential that was presented is always verified). That `401`
  * ends the session, `engine.reset()` clears this subscription with every other, and a `failed`
@@ -72,7 +72,7 @@ class Manifest {
   }
 
   /**
-   * Whether this account may reach the level above the workspaces (SI-17, ADR-0070 §1).
+   * Whether this account may reach the level above the workspaces (ADR-0070 §1).
    *
    * **Read, never compiled in**, and `false` until the manifest says otherwise — the third value
    * every capability question here has: not yet known is not "yes". A way into `/instance` is drawn
@@ -133,7 +133,7 @@ class Manifest {
    * Reads it again, as whoever is signed in now. A retry after a failure, and every change of
    * actor.
    *
-   * **The listener first**, and that is the whole of issue 1020's third defect: `engine.reset()`
+   * **The listener first**, and that is the trap: `engine.reset()`
    * clears every listener there is, so a refresh on its own would read the manifest into an entry
    * nobody hears and leave this module publishing the state it failed in — for the life of the
    * page. Subscribing to an entry the reset removed starts the read by itself, which is why the

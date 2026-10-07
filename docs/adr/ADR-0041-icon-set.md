@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-02
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §12
+
 ## Context
 
 `design-system.md` §9 named iconography as a gap and half-answered it: "24 px grid, 1.5 px stroke.

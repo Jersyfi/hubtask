@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// AdminTenantRepository is the control plane's view of the tenant row (H-06).
+// AdminTenantRepository is the control plane's view of the tenant row.
 //
 // The listing is the one deliberate exception to "no statement reaches beyond its transaction's
 // tenant": it goes through the SECURITY DEFINER enumerator migration 0067 pins down, under the
@@ -29,7 +29,7 @@ func NewAdminTenantRepository() AdminTenantRepository { return AdminTenantReposi
 
 var _ repository.Tenants = AdminTenantRepository{}
 
-// List reads through admin_tenants(), the one legitimate enumerator (0.6.0 decision 6).
+// List reads through admin_tenants(), the one legitimate enumerator (multi-tenancy.md §2.1).
 func (AdminTenantRepository) List(ctx context.Context) ([]repository.TenantRecord, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -294,7 +294,7 @@ func (AutomationSwitch) DisableAll(ctx context.Context, now time.Time) (int, err
 	return int(disabled), nil
 }
 
-// TenantPurge is the hard delete's surface (H-06, §5's final phase).
+// TenantPurge is the hard delete's surface (multi-tenancy.md §5, the final phase).
 type TenantPurge struct{}
 
 func NewTenantPurge() TenantPurge { return TenantPurge{} }
@@ -451,7 +451,7 @@ func (TenantPurge) HardDelete(ctx context.Context, now time.Time) (bool, error) 
 	return removed > 0, nil
 }
 
-// Page walks the journal backwards, newest first (SI-17).
+// Page walks the journal backwards, newest first.
 //
 // Keyed on the moment and the identifier together, which is the same keyset every other listing
 // here walks: two entries can share a moment - a provisioning writes one while a suspension writes
@@ -553,7 +553,7 @@ func instanceEventFrom(row sqlc.InstanceEvent) (repository.InstanceEvent, error)
 	return entry, nil
 }
 
-// InstallationRepository answers the census (SI-17, migration 0105).
+// InstallationRepository answers the census (migration 0105).
 //
 // Its own type rather than a method on one of the others, for the reason every slice here has one:
 // the census reaches through a SECURITY DEFINER function that can answer five integers and nothing

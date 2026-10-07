@@ -9,8 +9,7 @@
  * more: which methods this workspace signs in with, which providers, what a password has to meet,
  * and the links its operator is obliged to show.
  *
- * **Why a public route at all.** F4 refused one that would have existed only to hide a button, and
- * that reasoning stands. This one exists because a *configurable* hint would otherwise be wrong:
+ * **Why a public route at all.** Not one that would exist only to hide a button: this one exists because a *configurable* hint would otherwise be wrong:
  * a screen that says "at least twelve characters" in a workspace that demands fifteen is a screen
  * that lies, and the password is refused after the person has typed it. What it does not answer is
  * everything a guesser could use - the expiry, the history, the timeouts, the lists.

@@ -67,8 +67,9 @@ sentence each.
 What is deliberately not asked for — so nobody builds too little, and nobody builds too much.
 
 ## Today
-Only while the state is `specified` or `partial`: which checks are not met, and where that is
-tracked (task, issue).
+Only while the state is `specified` or `partial`: one line per check that is not met —
+"Check n: not met — what is missing, tracked in #issue". Nothing that holds, no history, no test
+names (those are in `checked_by:`). At `built` and `verified` the section is gone.
 ```
 
 **The front matter**, every field required:
@@ -104,13 +105,48 @@ that does not exist.
 1. **Cutting a milestone:** every task names the use cases it serves in a
    `**Use cases:** UC-ID-04 (1, 3), UC-ID-05` line, with the check numbers it is meant to make true.
    A milestone file that uses the line anywhere must use it in every task.
-2. **Starting a task:** the session reads those use cases completely, before the code
-   ([`CLAUDE.md`](../../CLAUDE.md), the loop, step 1).
+2. **Starting a task:** the worker reads those use cases completely, before the code
+   ([`AGENTS.md`](../../AGENTS.md), the loop, step 1).
 3. **Leaving draft:** the pull request body carries a *Use cases* section — each named check, met or
    not, and how it was confirmed. A check that cannot be met is reported, not rewritten.
 4. **Merging:** the same pull request moves `state:` and adds `checked_by:`.
-5. **Reviewing:** `/usecase-check` (a project skill) walks a branch, a pull request or a whole
-   milestone against its use cases and reports every check met, unmet or overstepped.
+5. **Reviewing:** the checklist below, for a pull request, a branch, a milestone or one use case.
+
+## Checking work against its use cases
+
+Read the work against the use cases — not against the task text or your own plan. That is the
+point: work that reinterprets a goal passes its author's review and fails this one. Read this file
+and [`../vision/principles.md`](../vision/principles.md) first.
+
+1. **Find what the work promised.**
+
+   | Scope | Where the promise is |
+   |---|---|
+   | a pull request | its *Use cases* section, and the `**Use cases:**` line of the task it closes |
+   | a branch | the `Task:` trailers of `git log main..<branch>` → each task's `**Use cases:**` line |
+   | a milestone | the milestone's `Delivers:` line and every task's `**Use cases:**` line |
+   | one use case | the use case itself, against the code on `main` |
+
+   A task that names no use case is itself the finding: the work was built without a yardstick.
+2. **Every check the work carries: met, not met, or not proven.** Read each use case completely.
+   *Met* needs evidence — the test that asserts it (by name), or a walk of the screen as the persona
+   in `actors:` would do it, at the widths and by the keyboard where the check says so. "The code
+   looks like it would" is *not proven*. *Not met* says what the person sees instead. A check that
+   holds in one deployment and fails in another (`deployments:`) is not met (P-10).
+3. **Work beyond the goal.** Compare the change with every *Where it ends* and with
+   [`../vision/non-goals.md`](../vision/non-goals.md). Something built that a use case does not ask
+   for, or a non-goal forbids, is a finding even when it works. So is a check rewritten in the same
+   change (`git diff main -- docs/usecases`) without the owner's decision.
+4. **Principles broken on the way.** For each principle the use cases serve, its "Broken when"
+   line is the test. Most often broken: a control offered that the server refuses (P-05), a second
+   place for the same rule (P-06), a raw key or identifier on a screen (P-12), a way in on less than
+   the account's own proof (P-02), a task only SQL can do (P-08, P-09).
+5. **Report** a table — use case, check, verdict, evidence or what the person sees instead — then
+   anything beyond the goal, principles broken, use cases whose `state:`, `checked_by:` or *Today*
+   no longer match, and the verdict: ready or not, and what decides it.
+
+Never edit a *Goal*, *How to check* or *Where it ends* so that a verdict comes out right. An
+unattended run reports its findings as a `finding` issue and changes nothing.
 
 ## Index
 

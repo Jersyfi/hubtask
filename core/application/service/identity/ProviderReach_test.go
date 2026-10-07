@@ -14,9 +14,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
-// SC-33 (#1140, ADR-0078 §1, UC-ID-12): the password switch says, before the password goes off, how
-// many people here no provider switched on here signs in - connected, invited and service accounts
-// aside. A number, through the same permission as the list of providers.
+// ADR-0078 §1, UC-ID-12: the password switch says, before the password goes off, how many people
+// here no provider switched on here signs in - connected, invited and service accounts aside. A
+// number, through the same permission as the list of providers.
 
 // reachFixture is a workspace with its own provider switched on, an ended installation offer, and
 // five accounts: one connected to the provider, one connected only to the ended offer, one with

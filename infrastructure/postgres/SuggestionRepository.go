@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// What AI proposed (J-05). No method takes a tenant: row level security bounds every statement
+// What AI proposed. No method takes a tenant: row level security bounds every statement
 // (ADR-0010).
 type SuggestionRepository struct {
 	cursors security.CursorCodec
@@ -193,7 +193,7 @@ func (r SuggestionRepository) DeleteExpired(
 		return 0, shared.ErrUnavailable.WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("removing expired suggestions: %w", err))
 	}
-	// The requests a job left behind go with the same sweep (P-11): the job that reads one
+	// The requests a job left behind go with the same sweep: the job that reads one
 	// deletes it when it ends, and this is the net under a job that never did. Not counted - the
 	// number is the suggestions', and a request is not a proposal.
 	if _, err := queries.DeleteExpiredAiRequests(ctx, sqlc.DeleteExpiredAiRequestsParams{
@@ -206,7 +206,7 @@ func (r SuggestionRepository) DeleteExpired(
 	return int(removed), nil
 }
 
-// Put holds what a person asked a template to be drafted from (P-11), for the job that will read it.
+// Put holds what a person asked a template to be drafted from, for the job that will read it.
 func (r SuggestionRepository) Put(ctx context.Context, request repository.Request) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

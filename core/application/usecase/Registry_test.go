@@ -193,7 +193,7 @@ func TestTheInputIsCheckedAgainstTheDeclaration(t *testing.T) {
 		"an empty required field":  {in: Input{"type": "HUB", "name": "  "}, path: "/name", code: "usecase.field_required"},
 		"a value outside the enum": {in: Input{"type": "PROJECT", "name": "x"}, path: "/type", code: "usecase.field_not_in_enum"},
 		// An optional field sent empty is a clearing, which the enum does not judge - the whole
-		// point of sending it is that it names no value (issue #427). A required one still has to
+		// point of sending it is that it names no value. A required one still has to
 		// name one, and says so as a missing field rather than as an enum miss.
 		"an empty optional enum field":        {in: Input{"type": "HUB", "name": "x", "color_token": ""}, valid: true},
 		"a blank optional enum field":         {in: Input{"type": "HUB", "name": "x", "color_token": "  "}, valid: true},
@@ -204,8 +204,8 @@ func TestTheInputIsCheckedAgainstTheDeclaration(t *testing.T) {
 		"a fraction where an integer belongs": {in: Input{"type": "HUB", "name": "x", "position": 1.5}, path: "/position", code: "usecase.field_type_invalid"},
 		"a number where a string belongs":     {in: Input{"type": "HUB", "name": 7}, path: "/name", code: "usecase.field_type_invalid"},
 		// Both shapes of a list pass: a decoded JSON document arrives as []any, an in-process
-		// caller hands the typed slice - the same pair StringList reads (C-13 found the REST
-		// path for a definition's options refused at this gate).
+		// caller hands the typed slice - the same pair StringList reads, and the REST path for a
+		// definition's options passes this gate.
 		"a decoded list where a list belongs": {in: Input{"type": "HUB", "name": "x", "labels": []any{"a", "b"}}, valid: true},
 		"a typed list where a list belongs":   {in: Input{"type": "HUB", "name": "x", "labels": []string{"a", "b"}}, valid: true},
 		"a number where a list belongs":       {in: Input{"type": "HUB", "name": "x", "labels": 7}, path: "/labels", code: "usecase.field_type_invalid"},
@@ -286,7 +286,7 @@ func TestFindingsAreOrdered(t *testing.T) {
 	}
 }
 
-// The agent's guardrail (J-14, ai-first.md §1.3): a destructive use case is closed to an agent
+// The agent's guardrail (ai-first.md §1.3): a destructive use case is closed to an agent
 // token unless the token says otherwise, and the refusal names what to change.
 //
 // It is asked of `Invoke` rather than of the descriptor, because `Invoke` is the single door all

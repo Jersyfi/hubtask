@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// The mail intake's application half (G-11): a parsed message becomes an EMAIL entry, its files go
+// The mail intake's application half: a parsed message becomes an EMAIL entry, its files go
 // through the media pipeline, and a message nobody could parse still lands.
 
 // ingestedMedia is the media pipeline's slice, in memory.
@@ -69,7 +69,7 @@ func mailDoor(t *testing.T) (IntakeMail, *ingestedMedia, *entryStore, *published
 }
 
 // The ordinary mail: it becomes one entry on the EMAIL channel, its files go through the media
-// pipeline, and the arrival is announced - which is what fires a JUMBLE_ENTRY rule (G-10).
+// pipeline, and the arrival is announced - which is what fires a JUMBLE_ENTRY rule.
 func TestAMailBecomesAnEntryWithItsAttachments(t *testing.T) {
 	door, media, entries, events, token := mailDoor(t)
 

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package awssig is AWS Signature Version 4 over the standard library, with two callers: the
-// media object store (C-05) and the backup target (E-03).
+// media object store and the backup target.
 //
 // One package rather than a copy in each, for the reason the envelope has one implementation: a
 // second signer is a second place for a canonical request to be assembled slightly differently,
@@ -25,7 +25,7 @@ import (
 //
 // Hand-written rather than imported, and that is a decision with a reason: an S3 SDK is a new
 // third-party dependency, and a dependency is a supply-chain decision that is not taken inside a
-// pull request (CLAUDE.md). The protocol below is HMAC-SHA256 chained four times over public,
+// pull request (security.md §11). The protocol below is HMAC-SHA256 chained four times over public,
 // stable inputs - the standard library's primitives, no cryptography of our own (security.md §8)
 // - and the three requests this adapter makes carry no query strings and three headers, which is
 // the corner of SigV4 that fits on a page. The conformance suite runs against a server that

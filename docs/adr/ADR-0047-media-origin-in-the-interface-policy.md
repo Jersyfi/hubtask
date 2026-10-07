@@ -1,6 +1,7 @@
 # ADR-0047 — The interface's policy names the installation's media origin
 
 **Status:** accepted · **Date:** 2026-09-08 · **Accepted:** 2026-09-17
+**Rule lives in:** [security.md](../architecture/security.md) §9
 
 ## Context
 
@@ -174,4 +175,4 @@ it is `'self'`), [ADR-0015](./ADR-0015-security-baseline.md) and
 [ADR-0018](./ADR-0018-privacy-by-design.md) (why the interface contacts no foreign origin it was not
 configured with), [ADR-0027](./ADR-0027-monorepo-structure.md) (why the bundle cannot know the
 origin). arc42 §8.4 is where "the server never carries the bytes" is written down; C-05 and C-06 in
-`docs/backlog/milestone-0.3.0.md` are the tasks that built the pipeline.
+`docs/archive/backlog/milestone-0.3.0.md` are the tasks that built the pipeline.

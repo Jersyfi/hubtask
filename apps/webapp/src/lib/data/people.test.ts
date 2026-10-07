@@ -99,7 +99,7 @@ test('a workspace row is granted here when the workspace is what is being looked
   assert.equal(rows[0]?.isHere, true);
 });
 
-test('a revocation is somebody else\'s, the reader\'s own, or the reader\'s last (issue 778)', () => {
+test('a revocation is somebody else\'s, the reader\'s own, or the reader\'s last', () => {
   const here = { scopeType: 'TENANT' } as const;
   const holders = holdersOf(
     [

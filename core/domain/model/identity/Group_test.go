@@ -77,8 +77,8 @@ func TestTheNameIsCheckedAndNormalised(t *testing.T) {
 }
 
 // The name and the description are stored in normal form C, on creation, rename and describe
-// (i18n-l10n.md §5, M-07): the uniqueness index unaccents the composed letter, and a combining
-// mark on its own is not one to it.
+// (i18n-l10n.md §5): the uniqueness index unaccents the composed letter, and a combining mark on
+// its own is not one to it.
 func TestAGroupIsStoredInNormalFormC(t *testing.T) {
 	in := validInput()
 	in.Name, in.Description, in.Text = "Bu\u0308ro", "Alle im Bu\u0308ro", text.Composing{}

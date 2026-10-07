@@ -5,19 +5,19 @@ package identity
 
 import "strings"
 
-// The two levels of instance value that are not switches (SI-17, the concept's §5.3 and §6.4).
+// The two levels of instance value that are not switches (identity.md §18, multi-tenancy.md §4.1).
 //
-// Both are "the installation decides a default and a workspace may differ", which is the model §5.3
-// draws for every instance-wide setting. What separates them is whether a lock is even meaningful,
-// and that difference is in the shape rather than in a rule somebody has to remember.
+// Both are "the installation decides a default and a workspace may differ", which is the model
+// multi-tenancy.md §4.1 draws for every instance setting. What separates them is whether a lock is
+// even meaningful, and that difference is in the shape rather than in a rule somebody has to
+// remember.
 
 // LocalisationDefaults is the language, time zone and week start a workspace inherits.
 //
-// **There is no lock, and there is deliberately no field for one.** The concept's §5.7: "Die
-// Sprache und das Aussehen eines Arbeitsbereichs. Eine Instanz gibt einen Standard, nie ein
-// Schloss: ein Unternehmen, das nicht auf Deutsch arbeiten darf, weil der Betreiber es so
-// eingestellt hat, ist ein Produktfehler." A type with nowhere to put a lock cannot grow one by
-// accident.
+// **There is no lock, and there is deliberately no field for one.** Language and time zone may be
+// defaulted by the installation and never locked (identity.md §18): a company that may not work in
+// its own language because the operator set it so would be a product defect. A type with nowhere to
+// put a lock cannot grow one by accident.
 //
 // An empty string is "the installation decides nothing here", and the workspace falls through to
 // the product's own default — not to an empty language, which is not a language.
@@ -44,8 +44,7 @@ const MaxWeekStart = 7
 // is the rule — a ceiling is a whole number that is not negative — and the lock beside each.
 //
 // Unlike localisation, a lock **is** meaningful: an operator running a platform may set a ceiling
-// and forbid a workspace raising it, which is exactly what §6.4's "Tarif, Ausnahme je Bereich" will
-// mean once there are plans.
+// and forbid a workspace raising it.
 type QuotaDefaults struct {
 	Limits map[string]int64
 	Locks  map[string]bool

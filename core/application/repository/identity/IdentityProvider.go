@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/crypto"
 )
 
-// IdentityProviders is the providers in force where the transaction is (H-04, SI-10).
+// IdentityProviders is the providers in force where the transaction is.
 //
 // No method takes a tenant, and one of them deliberately sees two levels: the read policy admits a
 // workspace's own rows and the installation's together (migration 0103), so `List` is the answer to
@@ -86,7 +86,7 @@ type OidcFlows interface {
 	ConsumeForStepUp(ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time) (identity.OidcFlow, bool, error)
 }
 
-// ExternalAccounts is the link between a provider's subject and an account here (SI-10).
+// ExternalAccounts is the link between a provider's subject and an account here.
 //
 // `account_identity` rather than `account.external_subject`: one column cannot say *which* provider
 // vouched for a subject, and with providers in the plural that is the whole question. The column

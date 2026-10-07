@@ -16,7 +16,7 @@ import (
 )
 
 // GetHealthReportName is the catalogue name, and it is `Get…` rather than `Read…` because every
-// channel identity is derived from it: the REST operation the contract has declared since A-06 is
+// channel identity is derived from it: the REST operation the contract declares is
 // `getHealthReport`.
 const GetHealthReportName = "GetHealthReport"
 
@@ -28,8 +28,8 @@ const HealthReportReadAction audit.Action = "health.report_read"
 const (
 	// opsReadScope is the scope a credential needs for the reduced answer. Deliberately not
 	// `admin:…`: `catalogue.SessionScopes` filters on that prefix, so a scope named that way could
-	// never be carried by a session - and a session is exactly the reader this answer exists for
-	// (0.6.0 decision 6, K-06).
+	// never be carried by a session (identity.md §15.4) - and a session is exactly the reader this
+	// answer exists for.
 	opsReadScope = "ops:read"
 	// adminTenantsScope is the installation's own credential, and holding it is what makes a reader
 	// the operator. No membership in any workspace can answer for an installation, so the bound is
@@ -54,9 +54,8 @@ type Authorizer interface {
 
 // GetHealthReport answers the deep self-diagnosis at `/api/v1/meta/health`, in one of two shapes.
 //
-// The report itself has existed since A-04 and is served on the operations listener; what was
-// missing until K-06 is the authenticated door the contract declares, left "until A-06" in a
-// comment that outlived A-06 by six milestones (#507).
+// The report is also served on the operations listener; this is the authenticated door the
+// contract declares.
 //
 // **One route, two answers**, the way `GetCapabilities` puts it: the same endpoint, a different
 // answer, decided by the scope the use case opens rather than by a branch in an adapter.
@@ -137,7 +136,7 @@ func (h GetHealthReport) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityInfo, Required: false,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "the installation's health is not an entry's history (domain-model.md §3.5).",
+			Exempt: "the installation's health is not an entry's history.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

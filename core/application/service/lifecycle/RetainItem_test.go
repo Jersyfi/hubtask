@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// `:retain` (E-07, data-retention.md §5): the third of the three ways to take an object out, and
+// `:retain` (data-retention.md §5): the third of the three ways to take an object out, and
 // the only one that says so out loud.
 
 // changeLog is what offline clients are told.
@@ -148,7 +148,7 @@ func TestRetainingAnEntryNothingHasAnnouncedIsRefused(t *testing.T) {
 	}
 }
 
-// A write on the entry, narrowed like any other (C-04).
+// A write on the entry, narrowed like any other.
 func TestRetainingIsAWriteOnTheEntry(t *testing.T) {
 	h := newRetainHarness()
 

@@ -69,9 +69,9 @@ func TestCompletingATwiceKeepsTheFirstAnswer(t *testing.T) {
 	}
 }
 
-// Cleared rather than kept: the two fields answer "when was this finished, and by whom", and an open item
-// has no answer. Keeping them would make completed_at a record of the last time it happened to be
-// closed, which is what the activity history is for (B-11).
+// Cleared rather than kept: the two fields answer "when was this finished, and by whom", and an
+// open item has no answer. Keeping them would make completed_at a record of the last time it
+// happened to be closed, which is what the activity history is for.
 func TestReopeningClearsWhoAndWhen(t *testing.T) {
 	at := created.Add(2 * time.Hour)
 

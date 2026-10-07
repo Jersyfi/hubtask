@@ -9,8 +9,8 @@
 // Not the same tests as the unit ones a layer down. Those prove that the engine decides correctly
 // given what it was handed; these prove that what it is handed is what the database holds - the
 // period, the holds, the order the rows go in, and the records left behind. RE-4, RE-7 and RE-9
-// arrived with E-07, which built the parts of ADR-0020 they are about: the marking phase, the
-// activation switch and multi-stage chains.
+// hold the parts of ADR-0020 that are about the marking phase, the activation switch and
+// multi-stage chains.
 package retention
 
 import (
@@ -123,7 +123,7 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 	}
 	return lifecycle.RunRetention{
 		Policies: store, Runs: store, History: postgres.NewNotificationRepository(),
-		// The jumble, as the server wires it (G-10): the engine refuses to run with a kind
+		// The jumble, as the server wires it: the engine refuses to run with a kind
 		// unwired, and RE-8's cross-tenant question is asked of this kind too.
 		Inbox:  postgres.NewJumbleRepository(security.NewCursorCodec(installationSecret)),
 		Purger: purger,
@@ -138,9 +138,9 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 			Purger:  purger,
 			Changes: postgres.NewChangeLog(),
 			// The expression engine, so that a conditioned rule is evaluated here as it is in
-			// production rather than skipped by a nil (G-06).
+			// production rather than skipped by a nil.
 			Conditions: celexpression.New(),
-			// The advance warning of §6, as the server wires it (R-1, G-12): the marking and the
+			// The advance warning of §6, as the server wires it (R-1): the marking and the
 			// messages to the people who can stop it commit together.
 			Warnings: notificationservice.RecordRetentionWarning{
 				Notifications: postgres.NewNotificationRepository(),
@@ -285,8 +285,7 @@ func TestRE1ThePeriodRemovesExactlyWhatIsPastIt(t *testing.T) {
 }
 
 // RE-2: a legal hold prevents the removal, and the run says so. Visible in the run rather than only
-// refused, which is the acceptance criterion of the task: an operator has to be able to see that a
-// deletion did not happen and why.
+// refused, because an operator has to be able to see that a deletion did not happen and why.
 func TestRE2ALegalHoldBlocksTheRemovalAndIsVisibleInTheRun(t *testing.T) {
 	s := newSuite(t, 24*time.Hour)
 	collectionID := s.collection(t)
@@ -384,7 +383,7 @@ func TestRE5AHardDeleteLeavesNoOrphans(t *testing.T) {
 		t.Errorf("%d rows survive under the removed entry", count)
 	}
 	// And the run is closed rather than left saying RUNNING. Narrowed to the trash, because a pass
-	// logs one run per data kind and the notification history's is beside it (C-09).
+	// logs one run per data kind and the notification history's is beside it.
 	if count := s.count(t, `
 		SELECT count(*) FROM retention_run
 		WHERE tenant_id = $1 AND data_kind = 'TRASH'
@@ -490,7 +489,7 @@ func TestAFullBatchIsReportedAsUnfinished(t *testing.T) {
 }
 
 // The NOTIFICATION class of data-retention.md §3, against the real table: seeded at ninety days
-// on the first pass, and enforced by the same run that empties the trash (C-09).
+// on the first pass, and enforced by the same run that empties the trash.
 func TestTheNotificationHistoryIsSweptAtNinetyDays(t *testing.T) {
 	s := newSuite(t, 24*time.Hour)
 	ctx := s.ctx
@@ -560,7 +559,7 @@ func (s *suite) notificationExists(ctx context.Context, t *testing.T, id shared.
 	return found
 }
 
-// ── The rule model (E-07) ─────────────────────────────────────────────────────────────────────
+// ── The rule model ────────────────────────────────────────────────────────────────────────────
 
 // completedItem writes one entry that was finished `daysAgo` days before the run.
 func (s *suite) completedItem(t *testing.T, collectionID shared.ID, daysAgo int) shared.ID {
@@ -753,9 +752,8 @@ func TestRE4AnObjectTakenOutIsNotDeleted(t *testing.T) {
 	}
 }
 
-// RE-4's other half since G-12 (R-1): the object is not only marked, the people who can take it out
-// are told - and what proves it is a notification row rather than the refusal that used to stand
-// where the message is.
+// RE-4's other half (R-1): the object is not only marked, the people who can take it out are told -
+// and what proves it is a notification row.
 //
 // The administrator is seeded as a membership rather than assumed, because who is warned is the role
 // matrix's answer: a workspace whose only administrator holds the role at the tenant is the ordinary
@@ -910,7 +908,7 @@ func TestRE9AChainCountsEachStageFromItsOwnColumn(t *testing.T) {
 
 func graceOf(days int) *int { return &days }
 
-// ── QS-23 (E-08) ──────────────────────────────────────────────────────────────────────────────
+// ── QS-23 ─────────────────────────────────────────────────────────────────────────────────────
 
 // holds is the three legal hold use cases, wired the way the server wires them.
 func (s *suite) holds() lifecycle.Holds {
@@ -1051,10 +1049,9 @@ func TestQS23AHoldPlacedThroughTheAPIStopsEveryDeletion(t *testing.T) {
 
 // RE-10: a rule with a CEL condition sweeps only what the condition matches.
 //
-// The extension G-06 owes RE. E-07 refused a condition outright because there was nothing that
-// could evaluate one, and every RE test until now described a rule decided by its scope and its
-// period alone. This is the same path with the expression engine in it, end to end and against the
-// database: the entry the condition excludes is not announced, is not blocked, and is still there.
+// Every other RE test describes a rule decided by its scope and its period alone. This is the same
+// path with the expression engine in it, end to end and against the database: the entry the
+// condition excludes is not announced, is not blocked, and is still there.
 func TestRE10AConditionedRuleSweepsOnlyWhatMatches(t *testing.T) {
 	s := newSuite(t, 24*time.Hour)
 	collectionID := s.collection(t)

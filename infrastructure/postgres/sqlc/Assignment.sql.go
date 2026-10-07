@@ -62,7 +62,7 @@ type FindAutoAssignPolicyParams struct {
 	ScopeID   pgtype.UUID
 }
 
-// How what is created here gets handed out: the assignment policy per scope (C-02).
+// How what is created here gets handed out: the assignment policy per scope.
 //
 // One row per scope, which migration 0011's unique index insists on: the row is the storage of
 // the `autoAssign` key of the container's policies document, and a document key cannot be two
@@ -93,7 +93,7 @@ WHERE item_id = $1
 ORDER BY account_id
 `
 
-// Who an entry is on: its member list (C-01).
+// Who an entry is on: its member list.
 //
 // The assignee is a column of `work_item` and is written in Work.sql, where every statement about
 // that row lives. The members are their own table, because a set is not a field: they are joined
@@ -149,7 +149,7 @@ type LockAutoAssignPolicyParams struct {
 
 // The same row, held for the rest of the transaction. ROUND_ROBIN reads its cursor through this
 // rather than through FindAutoAssignPolicy: two creates arriving together must queue on the row,
-// because a cursor read hopefully is a turn handed to both of them (C-02's acceptance).
+// because a cursor read hopefully is a turn handed to both of them.
 func (q *Queries) LockAutoAssignPolicy(ctx context.Context, arg LockAutoAssignPolicyParams) (AutoAssignPolicy, error) {
 	row := q.db.QueryRow(ctx, lockAutoAssignPolicy, arg.ScopeType, arg.ScopeID)
 	var i AutoAssignPolicy

@@ -177,8 +177,8 @@ func TestAFailedLookupIsUnavailableNotInvalid(t *testing.T) {
 	}
 }
 
-// An empty answer is the same situation as a failed one, and it used to be the case that slips
-// through: len(addrs) == 0 with err == nil.
+// An empty answer is the same situation as a failed one, and it is the case that slips through
+// easily: len(addrs) == 0 with err == nil.
 func TestAnEmptyAnswerIsNotASilentPass(t *testing.T) {
 	g := guard(t, env.OutboundConfig{}).WithResolver(resolvingTo())
 

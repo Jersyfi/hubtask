@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// The case, as the three use cases move it (E-10, data-protection.md §4). What is under test is
+// The case, as the three use cases move it (data-protection.md §4). What is under test is
 // which permission each step asks for, what the trail records, and when the work is queued.
 
 type harness struct {
@@ -74,8 +74,7 @@ func TestRecordingACaseAsksForTheAdministratorsLine(t *testing.T) {
 		t.Errorf("recording a case asked for the scope %q", asked.TokenScope)
 	}
 
-	// The entry names the occasion, which is the `legal_basis` field audit.md §2 has carried since
-	// phase 0 and nothing had ever written.
+	// The entry names the occasion, in the `legal_basis` field of audit.md §2.
 	if len(h.audit.entries) != 1 {
 		t.Fatalf("%d entries were written", len(h.audit.entries))
 	}
@@ -277,7 +276,7 @@ func TestAnIllegitimateStepIsRefusedByName(t *testing.T) {
 
 // The step nothing takes: back to RECEIVED. The contract offers the value, so the answer has to be
 // the sentence naming both ends of the step rather than a generic validation code from a descriptor
-// that never let it through (issue #427).
+// that never let it through.
 func TestMovingACaseBackToReceivedIsRefusedByName(t *testing.T) {
 	h := newHarness()
 	recorded, _ := (CreateDataSubjectRequest{Cases: h.cases()}).

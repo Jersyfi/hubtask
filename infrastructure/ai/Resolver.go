@@ -48,7 +48,7 @@ type Resolver struct {
 	Meter      Meter
 	// Breakers hands out one breaker per endpoint. Never nil in production.
 	Breakers *BreakerPool
-	// Widths remembers what this process learned about models' widths (#569). Nil learns nothing.
+	// Widths remembers what this process learned about models' widths. Nil learns nothing.
 	Widths *WidthPool
 }
 

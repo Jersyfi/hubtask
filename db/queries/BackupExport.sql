@@ -1,4 +1,4 @@
--- The export the archive writer reads a tenant through (E-05, backup-restore.md §3, §5).
+-- The export the archive writer reads a tenant through (backup-restore.md §3, §5).
 --
 -- One statement per entity, and they are as alike as the schema lets them be: an identity, when
 -- the row last changed, and the row itself as JSON with `tenant_id` taken out - a restore into
@@ -458,7 +458,7 @@ LIMIT sqlc.arg('batch')::int;
 -- Where the bytes of one medium lie, by the checksum the archive addresses it with.
 --
 -- READY only, and a checksum that is actually there: a PENDING upload is one whose bytes were
--- never read back and judged (C-06, migration 0013), and an object with no recorded checksum has
+-- never read back and judged (migration 0013), and an object with no recorded checksum has
 -- no content address at all. Neither is carried into an archive, and the row itself still is - so
 -- a restore keeps the metadata and knows the bytes are gone.
 -- name: FindMediaStorageKey :one

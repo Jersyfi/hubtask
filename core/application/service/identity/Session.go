@@ -32,22 +32,22 @@ const (
 )
 
 // The audit codes of the sign-in flow. Opening a way into the workspace and detecting a stolen
-// one are both the class of event a review looks for (audit.md §2, T-01).
+// one are both the class of event a review looks for (audit.md §4, T-01).
 const (
 	SignedInAction         audit.Action = "auth.signed_in"
 	SessionRefreshedAction audit.Action = "auth.session_refreshed"
 	RefreshReuseAction     audit.Action = "auth.refresh_reuse_detected"
 )
 
-// The metric reasons of hubtask_auth_failures_total, a closed set (§3.2). refresh_reused is the
-// one A-15's second half watches.
+// The metric reasons of hubtask_auth_failures_total, a closed set (observability-reliability.md
+// §3.2). refresh_reused is the one A-15's second half watches.
 const (
 	FailureWrongCredential = "wrong_credential" //nolint:gosec // G101: a metric label, not a credential
 	FailureLocked          = "locked"
 	FailureRefreshRefused  = "refresh_refused"
 	FailureRefreshReused   = "refresh_reused"
 	FailureRedemption      = "redemption_refused"
-	// FailureOidc is every dead end of the relying-party flow (H-04): an unknown or spent
+	// FailureOidc is every dead end of the relying-party flow: an unknown or spent
 	// state, a provider that refused the code, a token that did not verify. One reason, because
 	// the answer is one refusal - the trail carries which it was.
 	FailureOidc = "oidc_refused"
@@ -86,30 +86,29 @@ type SessionWriter struct {
 	IDs        clock.IDGenerator
 	Entropy    clock.Entropy
 	// Domains brings a typed address's domain to the ASCII form the stored one has, so that a
-	// person who types `anna@müller.de` finds the row that holds `anna@xn--mller-kva.de` (M-10).
+	// person who types `anna@müller.de` finds the row that holds `anna@xn--mller-kva.de`.
 	Domains text.DomainEncoder
-	// Multi is decision 3's mode switch: in multi mode the tenant comes from the subdomain or
-	// the header, in single mode from the installation's only row - one code path, one special
-	// case (multi-tenancy.md §1).
+	// Multi is tenant resolution's mode switch (multi-tenancy.md §3): in multi mode the tenant
+	// comes from the subdomain or the header, in single mode from the installation's only row -
+	// one code path, one special case (multi-tenancy.md §1).
 	Multi bool
 
-	// The second factor's stores (H-02). Nil switches the second step off wholesale - the shape
-	// H-01 shipped - which is what lets the two tasks land in separate releases.
+	// The second factor's stores. Nil switches the second step off wholesale.
 	Enrollments repository.MfaEnrollments
 	Recovery    repository.RecoveryCodes
 	Pending     repository.PendingCredentials
-	// Encryptor opens and seals the TOTP secret (E-02): verification needs the plaintext for
+	// Encryptor opens and seals the TOTP secret: verification needs the plaintext for
 	// thirty lines of arithmetic, storage never does.
 	Encryptor cryptoport.Encryptor
 	// Memberships and Policy answer the enforcement question: does this tenant demand a factor
-	// of this account's role (security.md §5).
+	// of this account's role (identity.md §8).
 	Memberships repository.Memberships
 	Policy      repository.TenantPolicy
 	// People reads the account an MFA operation acts for - the provisioning URI labels it by
 	// its address, which the actor deliberately does not carry.
 	People repository.Accounts
-	// StepUps and StepUpWindow are H-03's: the proof on the session, and how long it covers the
-	// one privileged action it is presented to.
+	// StepUps and StepUpWindow are the step-up's (identity.md §16): the proof on the session, and
+	// how long it covers the one privileged action it is presented to.
 	StepUps      repository.StepUps
 	StepUpWindow time.Duration
 	// Issuer is the label an authenticator shows beside the code.
@@ -121,8 +120,7 @@ type SessionWriter struct {
 	// Rule answers what ADR-0068's three levels say about this sign-in: whether the password that
 	// was just accepted still meets the workspace's rule, who a second factor is demanded of, and
 	// what bounds the session it is about to open. Nil switches the PASSWORD_CHANGE step off
-	// wholesale and falls back to `require_admin_totp`, which is the shape H-02 shipped - and what
-	// lets the two land in separate releases.
+	// wholesale and falls back to `require_admin_totp`.
 	Rule SignInRuleReader
 }
 
@@ -137,9 +135,9 @@ type SignInRuleReader interface {
 
 // sessionBounds is what a session opened without a password in hand answers to: the workspace's
 // two bounds, read through the same rule the password door reads (ADR-0068 §3). A provider arrival,
-// the second factor's step and a forced setup all end here, and every one of them opened unbounded
-// sessions until SC-03 - which is how a workspace that ends idle sessions after half an hour kept a
-// provider's open for a month (UC-ID-08 check 4).
+// the second factor's step and a forced setup all end here, so none of them opens an unbounded
+// session - a workspace that ends idle sessions after half an hour must not find a provider's open
+// for a month (UC-ID-08 check 4).
 //
 // Asked with no password, so the verdict's password answers stay silent and only the bounds (and
 // who a factor is demanded of) are read. Nil rule is the installation wired before there was one.
@@ -156,7 +154,7 @@ func (w SessionWriter) sessionBounds(
 	return verdict.Sessions, nil
 }
 
-// SignInChallenge is the second step a two-step sign-in owes (H-02).
+// SignInChallenge is the second step a two-step sign-in owes.
 type SignInChallenge struct {
 	Token     secret.Secret
 	ExpiresAt time.Time
@@ -192,8 +190,8 @@ type SessionPair struct {
 }
 
 // SignInCommand carries what the sign-in route received. The client fields are hints recorded on
-// the session (T-01); the tenant fields are decision 3's sources, resolved before the credential
-// is checked.
+// the session (T-01); the tenant fields are tenant resolution's sources (multi-tenancy.md §3),
+// resolved before the credential is checked.
 type SignInCommand struct {
 	Email    string
 	Password secret.Secret
@@ -207,15 +205,15 @@ type SignInCommand struct {
 	TenantHeader string
 }
 
-// SignIn is the password sign-in (H-01): email and password in, an access/refresh pair and a
-// session row out - or, since H-02, the challenge a second factor demands first.
+// SignIn is the password sign-in: email and password in, an access/refresh pair and a
+// session row out - or the challenge a second factor demands first.
 type SignIn struct{ Writer SessionWriter }
 
 // Execute checks the credential and opens the session.
 //
 // Every credential failure is one generic refusal, byte for byte (T-02): the ledger and the
 // metric learn the difference, the caller never does. The tenant is resolved first, because
-// accounts are per-tenant and the lookup cannot run without a context (decision 3).
+// accounts are per-tenant and the lookup cannot run without a context (multi-tenancy.md §3).
 func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, error) {
 	w := h.Writer
 
@@ -224,7 +222,7 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 		return SignInResult{}, err
 	}
 	// Before any account is looked up: where the workspace switched the password off, the answer is
-	// the same for every address (SC-24). Whether it is open only as the fallback is read here, once,
+	// the same for every address. Whether it is open only as the fallback is read here, once,
 	// and recorded below once the password has proved right.
 	fallback, err := w.passwordDoor(ctx, tenantID)
 	if err != nil {
@@ -290,7 +288,7 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 	if err := found.Account.Verify(); err != nil {
 		return SignInResult{}, err
 	}
-	// The workspace's own standing (H-06): a suspended tenant refuses sign-in with the same
+	// The workspace's own standing: a suspended tenant refuses sign-in with the same
 	// code every authenticated call answers, after the password so the refusal leaks nothing.
 	if err := found.TenantStatus.Verify(); err != nil {
 		return SignInResult{}, err
@@ -376,7 +374,7 @@ func (h RefreshSession) Execute(ctx context.Context, cmd RefreshSessionCommand) 
 		if err := credential.Account.Verify(); err != nil {
 			return err
 		}
-		// The workspace's standing refuses the exchange too (H-06): a suspension without this
+		// The workspace's standing refuses the exchange too: a suspension without this
 		// would pause access tokens while the refresh chain kept minting new ones.
 		if err := credential.TenantStatus.Verify(); err != nil {
 			return err
@@ -557,8 +555,9 @@ func (w SessionWriter) pairFor(
 	}
 }
 
-// resolveTenant is decision 3, in code: subdomain, then header, and in single mode the only row -
-// with `tenant_mismatch` on contradiction and one refusal for "no workspace answers here".
+// resolveTenant is multi-tenancy.md §3 in code: subdomain, then header, and in single mode the
+// only row - with `tenant_mismatch` on contradiction and one refusal for "no workspace answers
+// here".
 func (w SessionWriter) resolveTenant(ctx context.Context, slug, header string) (shared.ID, error) {
 	var tenantID shared.ID
 
@@ -635,7 +634,7 @@ const recordFailureTimeout = 5 * time.Second
 // recordFailure advances every subject on the curve, in its own transaction: the refusal must
 // land even though the sign-in did not.
 //
-// Not cancelled with the request (SC-22): a client that disconnects the moment it reads the refusal
+// Not cancelled with the request: a client that disconnects the moment it reads the refusal
 // would otherwise take the count with it - the cheapest way to guess without being counted. Bounded
 // by its own deadline instead (rule 7). The count is added by the statement rather than computed
 // from a read, so failures arriving at once are each counted (AuthAttempts.Fail).

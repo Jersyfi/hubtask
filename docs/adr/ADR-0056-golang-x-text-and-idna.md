@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-13
 
+**Rule lives in:** [i18n-l10n.md](../architecture/i18n-l10n.md) §2, §3, §5, §6, §7
+
 ## Context
 
 [i18n-l10n.md](../architecture/i18n-l10n.md) names two packages by their import path: §2
@@ -106,6 +108,6 @@ not to create it.
 
 Related: [ADR-0036](ADR-0036-oidc-token-verification.md) and [ADR-0042](ADR-0042-nats-client.md)
 (the shape of a confined dependency), [ADR-0001](ADR-0001-hexagonal-architecture.md),
-[i18n-l10n.md](../architecture/i18n-l10n.md) §2, §3, §5, §7, `docs/backlog/milestone-0.8.0.md`
+[i18n-l10n.md](../architecture/i18n-l10n.md) §2, §3, §5, §7, `docs/archive/backlog/milestone-0.8.0.md`
 (M-02, M-04, M-07, M-10). The owner asked on 2026-09-13 that the three claims behind this ADR be
 verified before it was written; the `go doc` checks above are that verification.

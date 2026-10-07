@@ -26,11 +26,7 @@ import (
 // PG-8: third-country AI without explicit confirmation is refused (ADR-0018 decision 7,
 // data-protection.md §6 and §10).
 //
-// **It was a tripwire until J-02 and is a check now.** There was nothing to gate before: no AI
-// provider surface existed, and a gate written against that absence would have been a green nobody
-// may read as a check. What arrived with J-02 is the surface the tripwire was watching for - a
-// provider a workspace configures, with a declared jurisdiction - so the tripwire is replaced by
-// the measure it named.
+// The surface it gates is the AI provider a workspace configures, with a declared jurisdiction.
 //
 // Three things are asserted, because ADR-0018 decision 7 is three sentences. The transfer is
 // refused without the installation's confirmation. The confirmation is the *installation's* and

@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// Verifying the chain (E-09, audit.md §3, test AT-2). What is under test here is the arithmetic of
+// Verifying the chain (audit.md §3, test AT-2). What is under test here is the arithmetic of
 // the walk - the break, the link, the gap - against a chain built in memory. That the *stored*
 // chain holds over a thousand mixed events, and that a row edited in the database is found, is a
 // question for a real PostgreSQL and is asked in test/integration.

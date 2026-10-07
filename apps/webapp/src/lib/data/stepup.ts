@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The step-up's two decisions, without the state that renders them (H-03).
+ * The step-up's two decisions, without the state that renders them.
  *
  * Here rather than in the store for this directory's usual reason: what is worth a test is the
  * shape of the recovery — try, ask once, retry once, never twice — and a rune cannot be run under
@@ -64,7 +64,7 @@ export async function withStepUp<T>(
  * for an account with a factor armed, `PASSWORD` for one without — and the contract says so at
  * `POST /auth/step-up`. Splitting on commas as well costs nothing and is what this once did
  * alone, which read the whole list as one unknown name and offered the password to exactly the
- * accounts a step-up protects (issue 544). A refusal without the parameter is an older server,
+ * accounts a step-up protects. A refusal without the parameter is an older server,
  * which named the password for everybody; one that names an empty list is an account that signs in
  * only through a provider and holds no factor, and the prompt says so instead of drawing a field. A name this client does not
  * know is dropped rather than shown: a prompt with a field nobody can fill is worse than one

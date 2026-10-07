@@ -9,11 +9,10 @@
 // govern what this package accepts, and both are about the same thing - that a rule which cannot
 // be run must not be storable:
 //
-//   - **What is accepted is what is executable.** A condition is a CEL expression and there is no
-//     evaluator yet, so a non-empty condition is refused rather than stored. An action naming a
-//     kind automation.md §1.3 documents and no release serves is refused for the same reason. The
-//     alternative - accept it, ignore it - is a rule whose owner believes it is filtering and whose
-//     behaviour says otherwise, which is the failure E-08 was built to avoid.
+//   - **What is accepted is what is executable.** A condition is a CEL expression, and one the
+//     compiler cannot read is refused rather than stored. An action naming a kind automation.md
+//     §1.3 documents and no release serves is refused for the same reason. The alternative - accept it, ignore it - is a rule whose owner believes it is filtering and whose
+//     behaviour says otherwise.
 //   - **Refusals name what is wrong.** Every one carries a field path and a code, so that an editor
 //     can point at the line and an agent can act on the answer rather than parse a sentence
 //     (ai-first.md §1.2).
@@ -96,9 +95,7 @@ func (s Scope) Path() []identity.Scope {
 type TriggerKind string
 
 const (
-	// TriggerEvent is a domain event. The only kind an engine serves in this release; the other
-	// four that are not the jumble's arrive with G-08, and the rule is stored switched off until
-	// then like every newly written rule.
+	// TriggerEvent is a domain event.
 	TriggerEvent TriggerKind = "EVENT"
 	// TriggerSchedule is a recurrence rule in a named zone.
 	TriggerSchedule TriggerKind = "SCHEDULE"
@@ -113,8 +110,8 @@ const (
 )
 
 // TriggerKinds is the six, in the order automation.md §1.1 lists them: what the manifest answers
-// and a rule editor offers (issue 542). Read from here rather than restated, so that the kind a
-// client may pick is the kind ValidTrigger accepts.
+// and a rule editor offers. Read from here rather than restated, so that the kind a client may pick
+// is the kind ValidTrigger accepts.
 func TriggerKinds() []TriggerKind {
 	return []TriggerKind{
 		TriggerEvent, TriggerSchedule, TriggerRelativeDate,
@@ -216,7 +213,7 @@ type Rule struct {
 	// enabling it by hand clears the count.
 	FailureCount int
 	// NextRunAt is when a SCHEDULE rule next fires, and the zero time for every other kind and for
-	// a schedule whose rule is exhausted (G-08).
+	// a schedule whose rule is exhausted (automation.md §1.1).
 	//
 	// Stored rather than derived on every pass, for the reason `backup_schedule` stores one: a
 	// poller that re-expanded every rule would pay a library call for every rule that is not due.
@@ -224,7 +221,7 @@ type Rule struct {
 	// from the definition - which is why NewRule neither takes it nor sets it.
 	NextRunAt time.Time
 	// InboundRotatedAt is when an INBOUND_WEBHOOK rule's address was last minted, and the zero time
-	// for a rule that has none (G-08).
+	// for a rule that has none (automation.md §1.1).
 	//
 	// The moment and nothing else. The token is hashed and answered once; a prefix or a masked
 	// value beside it would be a credential whose guessing space has been narrowed for whoever
@@ -237,7 +234,7 @@ type Rule struct {
 	Findings  []Finding
 	CheckedAt time.Time
 	// LastRun is the rule's most recent run, read beside the rule for the list that says when it
-	// last ran and how it ended without a page of runs per card (F8-21, decision 23). Nil for a
+	// last ran and how it ended without a page of runs per card (automation.md §1.5). Nil for a
 	// rule that never ran. Not part of the definition: an edit neither sends nor stores it.
 	LastRun   *LastRun
 	CreatedBy shared.ID
@@ -308,8 +305,8 @@ type NewRuleInput struct {
 	CreatedBy  shared.ID
 	Now        time.Time
 
-	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5,
-	// M-07); work.NewWorkItemInput says why it is handed in.
+	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5);
+	// work.NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 
@@ -361,7 +358,7 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	}, nil
 }
 
-// RuleName checks a title somebody wrote, in normal form C (M-07).
+// RuleName checks a title somebody wrote, in normal form C (i18n-l10n.md §5).
 func RuleName(raw string, form text.Normalizer) (string, error) {
 	name, err := shared.NFC(strings.TrimSpace(raw), form)
 	if err != nil {
@@ -626,8 +623,7 @@ func foreignField(name string) shared.FieldError {
 //
 // Whether the text is an expression, and whether it names things that exist, is the compiler's
 // question - and the compiler is a port the application layer holds, because core/domain may not
-// reach for one (ADR-0001). Until G-06 there was no compiler and this function refused every
-// non-empty condition; what replaced that refusal is a real check rather than the absence of one.
+// reach for one (ADR-0001).
 func ValidConditionShape(conditions []Condition) ([]Condition, error) {
 	if len(conditions) > MaxConditions {
 		return nil, shared.ErrValidation.
@@ -664,9 +660,9 @@ func ValidConditionShape(conditions []Condition) ([]Condition, error) {
 // application layer's question: the answer is the use case catalogue, and core/domain may not read
 // it (ADR-0001). What is here is the shape - at least one action, not too many, every kind named.
 //
-// The three **flow** kinds are the exception, and they are one on purpose (G-09). `WAIT`, `BRANCH`
-// and `STOP` are not use cases and never reach the catalogue, so their parameters have nobody else
-// to be checked by: a `WAIT` with no delay and a `BRANCH` with no condition are refused here, where
+// The three **flow** kinds are the exception, and they are one on purpose. `WAIT`, `BRANCH` and
+// `STOP` are not use cases and never reach the catalogue, so their parameters have nobody else to
+// be checked by: a `WAIT` with no delay and a `BRANCH` with no condition are refused here, where
 // every other shape question about a rule is answered.
 func ValidActionShape(actions []Action) ([]Action, error) {
 	return validActionsAt(actions, "/actions", 0)

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The handle a search is known by in the address, and where its words are kept (issue 997).
+ * The handle a search is known by in the address, and where its words are kept.
  *
  * **The address carries the narrowing, never the words** (ADR-0063 decision 4, as corrected).
  * `POST /search` has no `GET` so that a term never becomes a query string, and a client that

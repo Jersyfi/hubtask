@@ -53,7 +53,7 @@ type VerifyAuditChain struct {
 	Audit      port.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
-	// Anchoring reads the last anchor's copy back when a check asks for it (P-13). Nil is a
+	// Anchoring reads the last anchor's copy back when a check asks for it. Nil is a
 	// build that anchors nothing, and a check that asked is told the workspace anchors nothing.
 	Anchoring *Anchoring
 }
@@ -83,7 +83,7 @@ type Verification struct {
 	// SealedUntil is when this tenant's chain was last anchored outside the database, and the zero
 	// time when it never was (audit.md §3).
 	SealedUntil time.Time
-	// Anchor is what reading the last anchor back found, when the check asked for it (P-13).
+	// Anchor is what reading the last anchor back found, when the check asked for it.
 	Anchor AnchorCheck
 }
 

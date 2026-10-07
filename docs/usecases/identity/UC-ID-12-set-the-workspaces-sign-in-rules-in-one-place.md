@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-06, P-07, P-10, P-12]
 state: built
 tasks: [SI-07, SI-08, SI-16, SC-06, SC-20, SC-21, SC-24, SC-25, SC-31, SC-33, SC-34]
-checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordSwitch_test.go, test/integration/password_fallback_test.go, core/application/service/identity/FallbackReset_test.go, core/application/service/identity/ProviderReach_test.go, core/application/service/identity/OperatorOpening_test.go, test/integration/password_opening_test.go, cmd/server/Wiring_test.go]
+checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/application/service/identity/AdminFlag_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/IdentityProviderWithdrawal_test.go, core/application/service/identity/PasswordFallback_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordSwitch_test.go, test/integration/password_fallback_test.go, core/application/service/identity/FallbackReset_test.go, core/application/service/identity/ProviderReach_test.go, core/application/service/identity/OperatorOpening_test.go, test/integration/password_opening_test.go, cmd/server/Wiring_test.go, test/integration/connect_by_mail_test.go]
 ---
 
 # Set how people in our workspace sign in, in one place
@@ -56,94 +56,3 @@ the installation is the same person and set nothing.
 * No presets ("strict", "relaxed"): every rule stands on its own with a sentence about its cost.
 * Rate limits and the lockout curve are not settings ([ADR-0068](../../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md)).
 * Regular expressions for passwords are never offered ([NG-regex-rules](../../vision/non-goals.md)).
-
-## Today
-
-Checks 1, 2, 3, 4, 5, 7, 8 and 9 hold since SC-06 (`AdminFlag_test.go`, `FactorRule_test.go`,
-`LastWayIn_test.go`, `cmd/server/Wiring_test.go`, `signinsettings.test.mjs`). Check 6 holds for every
-door a workspace has. Since SC-21 the provider's own form is no longer one of them: a changed
-`enabled` on `PUT /identity-providers/{id}` is refused and the list is the one switch
-(`IdentityProviderSwitch_test.go`).
-
-Since SC-20 it holds at the installation's doors too, the way
-[ADR-0076](../../adr/ADR-0076-withdrawing-an-offered-provider.md) decided it. The installation's form
-no longer switches an offer off (`identity_provider.withdraw_instead`); an offer ends through a
-withdrawal that shows the number of workspaces using it, is announced two weeks ahead by default and
-can be cancelled, and the workspaces that use it say on this screen when it ends
-(`InstanceProviderWithdrawal_test.go`, `IdentityProviderWithdrawal_test.go`,
-`signinsettings.test.mjs`). A workspace whose last way in was an offer that ended - withdrawn on its
-day, withdrawn now, or removed - is never left without one: the sign-in card offers the password again
-for the accounts that hold one, under this workspace's rules, the screen says so, and each sign-in
-through it is in the trail as `auth.password_fallback`, until another way is switched on here
-(`PasswordFallback_test.go`). Since SC-25 an account without a password is let back in too, by mail:
-*Forgot your password?* sends it a link to set one while the fallback stands, and wherever the
-password is on but no provider it is connected to lets it in any more
-([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §3, §4, `FallbackReset_test.go`). The walks of
-these screens run against a stubbed API.
-
-Since SC-31 ([#1138](https://github.com/Jersyfi/hubtask/issues/1138), the owner's decision of
-2026-10-04, E2) the fallback answers **every** cause, not only an ended offer: wherever the rule this
-workspace resolves to leaves the password out and no provider is switched on here, the password opens.
-That covers what the last-way-in guard of check 6 cannot see, because nobody on this screen made the
-change - an installation default or an installation lock without the password (a lock decides the
-methods, never which provider is on), a rescue lock lifted after the provider went, a restore or an
-import that brought the settings without the providers, two administrators switching off the last two
-ways at once - and a workspace provisioned under such a default, whose invited owner accepts the
-invitation with a password through it. Each cause, and the fallback ending the moment a way in is
-switched on, is a service test over the card, the door and the sign-in (`PasswordFallback_test.go`);
-the installation default and the invited owner are walked against PostgreSQL with the real resolver
-(`test/integration/password_fallback_test.go`). The trail entry carries `cause: NO_WAY_IN`, a
-redemption through the fallback is recorded as well, in the redemption's own transaction, and one
-sign-in reads the fallback once. The screen's sentence names no cause
-(`app.signin_settings.fallback_no_way_in`).
-
-Since SC-24 the password's own switch holds at the server too
-([#1119](https://github.com/Jersyfi/hubtask/issues/1119)): where a workspace switched it off, the
-password is refused with `auth.password_not_offered` at the sign-in (for every address alike, before
-any account is looked up), an invitation redeemed with a password, a reset link, the change step a
-password sign-in was owed, and the step-up, which no longer offers it; the reset mail points to the
-provider. Stored passwords are kept and work again when the password is switched back on, and
-ADR-0076 §4's fallback is the one exception, at every one of those doors (`PasswordSwitch_test.go`,
-service tests over fakes). All nine checks hold.
-
-Since SC-33 ([#1140](https://github.com/Jersyfi/hubtask/issues/1140), ADR-0078 §1, P-04) the
-password's switch says what switching it off costs before it is switched: while the password is on and
-could go off, its row says how many active people here no provider switched on here signs in, and
-that each of them connects one through "Get a sign-in link by mail" on the sign-in card - or with
-their password at the provider's first arrival (`chromium: the password switch says how many people have no provider here
-before it goes off`, `signinsettings.test.mjs`). The number is the server's, never a list
-(`CountAccountsWithoutProvider`, `GET /tenant/accounts-without-provider`, `ProviderReach_test.go`;
-connected, invited and service accounts excluded, and another workspace's never counted, against
-PostgreSQL in `TestTheCountIsTheWorkspacesUnconnectedPeopleOnly`). Where the password goes off, the card's
-"Get a sign-in link by mail" mails each of them a link to connect a provider (UC-ID-04 check 8).
-
-That is not everybody the count names, and the screen does not claim it is. An account whose address
-no provider switched on here vouches for - a personal address, an address on another domain than the
-organisation's directory - cannot use that link, because the provider's verified address has to be
-the account's, and has no way in once the password is off (UC-ID-10). The count is the warning the
-administrator gets; connecting a differently addressed identity from a signed-in session is SC-37
-([#1146](https://github.com/Jersyfi/hubtask/issues/1146)), not built yet. The owner decides this
-limit.
-
-Since SC-34 ([#1141](https://github.com/Jersyfi/hubtask/issues/1141),
-[ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §3) the fallback has a second cause: the
-installation's operator opens the password for this one workspace for a limited time - for a provider
-that is switched on but broken, which nothing on this screen can see - and it overrides this screen's
-switch and any installation lock until its end, read where the ways in are. The trail entry of a
-sign-in through it carries `cause: OPERATOR`; an account without a password is mailed a link to set
-one under it, and nobody is mailed SC-33's link to connect a provider while it stands - nor does one
-mailed before start a flow - because the password is open (`TestUnderAnOpeningNoConnectLinkIsMailed`,
-`TestUnderAnOpeningAConnectLinkStartsNoFlow`); and this screen says while it stands - until when, who asked and why - instead of the
-sentence about no way in (`OperatorOpening_test.go`, the real resolver in
-`test/integration/password_opening_test.go`, `signinsettings.test.mjs`). The guard of check 6 is
-unchanged: the opening switches nothing on this screen. And the step-up's refusal no longer offers the
-password at any door where it is switched off: five verifiers were copied from the session writer
-before the rule and offered it, and a server whose writers cannot say whether the password is open now
-refuses to start (`cmd/server/Wiring_test.go`).
-
-Two things stay open, said so that nobody reads more into it. A sign-in already past its password when
-the switch flips may finish its second-factor step within the pending credential's five minutes - the
-credential does not record whether a password or a provider began it. And the LINK step still asks an
-account that holds a password for it before a provider is connected: that is ADR-0071's safeguard
-(E2), and the password is a proof there even where it is off as a way in (ADR-0078 §1); the mailbox
-is the other proof since SC-33.

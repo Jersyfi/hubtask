@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The proof before the irreversible (H-03, `security.md` §5).
+ * The proof before the irreversible (`security.md` §5).
  *
  * **A refusal, not a screen.** Any request may meet `403 auth.step_up_required` — granting an
  * `OWNER` role, minting a token with an admin scope, a destructive restore — and the recovery is

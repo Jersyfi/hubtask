@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The generated TypeScript client against a server that records what it received (P-03). The
+// The generated TypeScript client against a server that records what it received. The
 // typing is proved by `pnpm typecheck` against dist/schema.d.ts; this proves the runtime half -
 // the path filled, the query appended, the bearer and the headers sent, the body encoded, and a
 // refusal decoded into ProblemError.

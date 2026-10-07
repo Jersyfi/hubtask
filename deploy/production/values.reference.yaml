@@ -109,7 +109,8 @@ restoreDrill:
   # rather than by the incident.
   schedule: "0 4 * * 1"
   evidence:
-    # Where the measured RPO and RTO go. Internal by decision 7, and opaque to this repository.
+    # Where the measured RPO and RTO go. Internal (observability-reliability.md §13.2), and opaque
+    # to this repository.
     bucket: ""            # set by the operator
     endpoint: ""          # set by the operator
     prefix: ""            # set by the operator

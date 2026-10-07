@@ -2,12 +2,12 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package mail is the outbound adapter for the mail port: SMTP, and the health probe that reads
-// the same breaker it trips (C-09).
+// the same breaker it trips.
 //
 // The standard library's net/smtp is what carries it. It is frozen rather than maintained, which
 // is precisely the argument for using it here: what this adapter needs is EHLO, STARTTLS, AUTH and
 // DATA, none of which has changed since the package was frozen - and a third-party mailer would be
-// a supply chain decision (CLAUDE.md, "What you do not decide yourself") bought for nothing.
+// a supply chain decision (security.md §11) bought for nothing.
 package mail
 
 import (

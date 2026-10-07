@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-14
 
+**Rule lives in:** [automation.md](../architecture/automation.md) §1.2, §1.3
+
 ## Context
 Users should be able to "build any conceivable feature themselves" — through external tools (n8n,
 Zapier) and through internal automation. The internal variant runs on the operator's server

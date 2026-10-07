@@ -13,9 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
-// The three AI actions `automation.md` §1.3 documents and `deferredActions` has refused by name
-// since G-05, with a code that said "not built yet" and a comment naming the milestone that would
-// build them (J-08).
+// The three AI actions `automation.md` §1.3 documents.
 //
 // Three use cases rather than one with a mode, because an automation action *is* a use case: the
 // kind a rule names is derived from the name (`usecase.Descriptor.AutomationAction`), so
@@ -27,7 +25,7 @@ const (
 	AiSuggestFieldsName = "AiSuggestFields"
 	AiSummarizeName     = "AiSummarize"
 	AiClassifyName      = "AiClassify"
-	// The other two thirds of §2's Summarisation row (K-05): the same target and different
+	// The other two thirds of §2's Summarisation row: the same target and different
 	// material, and a target of its own.
 	AiSummarizeThreadName    = "AiSummarizeThread"
 	AiSummarizeContainerName = "AiSummarizeContainer"
@@ -63,14 +61,14 @@ type AiClassify struct {
 	Queue Jobs
 }
 
-// AiSummarizeThread proposes notes that say what an entry's discussion came to (K-05).
+// AiSummarizeThread proposes notes that say what an entry's discussion came to.
 type AiSummarizeThread struct {
 	Cases Cases
 	AI    AiAvailability
 	Queue Jobs
 }
 
-// AiSummarizeContainer proposes how a collection stands (K-05).
+// AiSummarizeContainer proposes how a collection stands.
 type AiSummarizeContainer struct {
 	Cases Cases
 	AI    AiAvailability
@@ -123,9 +121,10 @@ func (h AiSummarizeContainer) Execute(
 // askInput is the input all three declare: which entry, and whether the answer is applied or
 // proposed.
 //
-// `apply` defaults to false, which is the milestone's whole shape: a result is a suggestion unless
-// a rule says otherwise, and `automation.md` §1.3's "or applied directly" is the exception that has
-// to be written down rather than the behaviour that happens by not thinking about it.
+// `apply` defaults to false, which is the shape of every AI feature (ai-first.md §2): a result is a
+// suggestion unless a rule says otherwise, and `automation.md` §1.3's "or applied directly" is the
+// exception that has to be written down rather than the behaviour that happens by not thinking
+// about it.
 func askInput(what string) []usecase.Field {
 	return []usecase.Field{
 		{Name: "item_id", Kind: usecase.KindID, Required: true,

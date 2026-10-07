@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The three renderings, at the layer that decides them (D-08). The rows are the catalogue's; what
+// The three renderings, at the layer that decides them. The rows are the catalogue's; what
 // they become - a spreadsheet, a document, a calendar - is this layer's, so this is where it is
 // tested.
 

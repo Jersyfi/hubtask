@@ -3,7 +3,7 @@
 
 // Package access decides whether an actor may do something.
 //
-// This is the one place authorisation happens (CLAUDE.md rule 2, ADR-0005). Not in an adapter,
+// This is the one place authorisation happens (rule 2, ADR-0005). Not in an adapter,
 // not in a repository, not in a middleware: a check in an adapter covers the channel it sits in,
 // and the same use case reached through MCP or through an automation rule would then be checked
 // by nobody. It also has to be one place for the audit trail's sake - a refusal is recorded here,
@@ -36,7 +36,7 @@ type Request struct {
 	// Permission is what is being asked for.
 	Permission service.Permission
 	// Alternative is a second permission that satisfies the request on its own, and empty where
-	// there is none (A-4, G-12).
+	// there is none (A-4).
 	//
 	// It exists for the configuration *reads* and for nothing else. Their first permission is the
 	// writing one somebody who administers the workspace holds; the second is the read-only one an
@@ -63,7 +63,7 @@ type Request struct {
 }
 
 // ItemSubject is what the per-entry half of the role matrix needs in order to be applied: the
-// entry, what the request does to it, and whose it is (domain-model.md §3.2, C-04).
+// entry, what the request does to it, and whose it is (domain-model.md §3.2).
 //
 // The use case fills it in; the use case does not decide from it. It has already read the entry -
 // the path to it is what the check is about - so naming it here costs nothing, while reading it
@@ -367,12 +367,12 @@ func (s Service) Permitted(
 // anywhere on this path that this account holds?
 //
 // It exists because an assignment is a decision about a second person. Giving an entry to somebody
-// who gets a 404 on it is a piece of work nobody can do, and - once C-04 lands - a contributor's
-// write right pointing at nothing, so the account has to hold a membership along the path
-// (domain-model.md §3.2, service.EffectiveRole). Read rather than write, because that is what
-// "can see it" means; every role in the matrix reads, so this is in practice "holds a role at all",
-// and it is asked as the permission rather than as the presence of a row so that a role added later
-// without a read right does not silently become assignable.
+// who gets a 404 on it is a piece of work nobody can do, and a contributor's write right pointing
+// at nothing, so the account has to hold a membership along the path (domain-model.md §3.2,
+// service.EffectiveRole). Read rather than write, because that is what "can see it" means; every
+// role in the matrix reads, so this is in practice "holds a role at all", and it is asked as the
+// permission rather than as the presence of a row so that a role added later without a read right
+// does not silently become assignable.
 //
 // It is here rather than in the use case for the reason this whole package exists: an answer about
 // who may reach what is one answer, and a second implementation of it in a work-management service
@@ -440,7 +440,7 @@ func (s Service) RoleAlong(
 // It is the one thing about the narrowing a use case has to know *before* it writes rather than
 // after. A creation by somebody whose writes are narrowed that way has to land on them, or the
 // entry they just made would be out of their own reach the moment it existed - so the create path
-// asks this and assigns accordingly (the decision on issue #84).
+// asks this and assigns accordingly (domain-model.md §3.2).
 //
 // What it hands back is "this entry has to be yours", not "you are a contributor". The role stays
 // here and the matrix answers the question (service.ItemAccessOf), so a role added later with the

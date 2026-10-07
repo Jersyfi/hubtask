@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The trash over REST (B-10). What this layer owes is the page shape and the explicit nulls: the
+// The trash over REST. What this layer owes is the page shape and the explicit nulls: the
 // list mixes containers and entries by design, so a field that appeared only for some rows is one a
 // client cannot read unconditionally.
 

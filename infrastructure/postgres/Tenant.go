@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// UnitOfWork is the only place in the system that sets the tenant context (CLAUDE.md rule 3,
+// UnitOfWork is the only place in the system that sets the tenant context (rule 3,
 // ADR-0010). Everything else reaches the database through a transaction opened here.
 //
 // SET LOCAL rather than SET: the setting is bound to the transaction and disappears with it, so
@@ -198,7 +198,7 @@ func (u *UnitOfWork) joinExisting(
 const rollbackTimeout = 5 * time.Second
 
 // applyScope is the SET LOCAL. Parameters are bound rather than interpolated - a tenant
-// identifier is data, and SQL is never assembled from data (CLAUDE.md rule 9).
+// identifier is data, and SQL is never assembled from data (rule 9).
 //
 // set_config with is_local = true is the parameterised form of SET LOCAL; SET LOCAL itself takes
 // no placeholders.

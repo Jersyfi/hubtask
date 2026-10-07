@@ -44,7 +44,7 @@ type FindPendingDeliveryOfPushParams struct {
 	EventType      *string
 }
 
-// The delivery of one push the fan-out collapses onto (N-10, offline-sync.md §8): the same
+// The delivery of one push the fan-out collapses onto (offline-sync.md §8): the same
 // subscription, push, subject and type, still pending. FOR UPDATE, because two events of the push
 // dispatched in one round both ask, and both must land on the one row.
 func (q *Queries) FindPendingDeliveryOfPush(ctx context.Context, arg FindPendingDeliveryOfPushParams) (WebhookDelivery, error) {
@@ -82,7 +82,7 @@ WHERE id = $1
 
 // The tenant is selected rather than left to row level security to imply, because the aggregate
 // carries it: a retry and a replay both build the next attempt from the row that was read, and a
-// delivery read back without its tenant is one neither of them can construct (F4-15).
+// delivery read back without its tenant is one neither of them can construct.
 func (q *Queries) FindWebhookDelivery(ctx context.Context, id pgtype.UUID) (WebhookDelivery, error) {
 	row := q.db.QueryRow(ctx, findWebhookDelivery, id)
 	var i WebhookDelivery
@@ -134,7 +134,7 @@ type FindWebhookSubscriptionRow struct {
 
 // The tenant travels with the aggregate rather than being left to row level security to imply: an
 // audit entry is written under the subscription's tenant, and a subscription read back without one
-// is a subscription no auditable operation can be performed on (F4-15).
+// is a subscription no auditable operation can be performed on.
 func (q *Queries) FindWebhookSubscription(ctx context.Context, id pgtype.UUID) (FindWebhookSubscriptionRow, error) {
 	row := q.db.QueryRow(ctx, findWebhookSubscription, id)
 	var i FindWebhookSubscriptionRow
@@ -228,7 +228,7 @@ type InsertWebhookSubscriptionParams struct {
 	CreatedAt   pgtype.Timestamptz
 }
 
-// Webhook subscriptions and their deliveries (G-03, automation.md §3.1).
+// Webhook subscriptions and their deliveries (automation.md §3.1).
 //
 // The tenant is never a parameter: row level security bounds every statement to the tenant of the
 // running transaction, which is what makes another workspace's subscription invisible rather than
@@ -236,7 +236,7 @@ type InsertWebhookSubscriptionParams struct {
 //
 // The sealed secrets travel as a ciphertext and a key identifier together. A sealed value is a
 // pair - the envelope opens under whichever master key sealed it - and an installation that has
-// rotated its keyring holds several (E-02).
+// rotated its keyring holds several.
 func (q *Queries) InsertWebhookSubscription(ctx context.Context, arg InsertWebhookSubscriptionParams) error {
 	_, err := q.db.Exec(ctx, insertWebhookSubscription,
 		arg.ID,

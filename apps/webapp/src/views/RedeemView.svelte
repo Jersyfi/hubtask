@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The moment an invited account becomes a person (H-01).
+  // The moment an invited account becomes a person.
   //
   // **The token arrives in the fragment, and that is the server's decision rather than this
   // screen's.** `DeliverNotification.go` links `<base>/redeem#token=…`: a fragment is never sent
@@ -18,12 +18,12 @@
   // **One field, not two.** The eye is what replaces "repeat it" (3.3.8): a password that can be
   // read is one nobody has to type twice.
   //
-  // **No password where the workspace has none** (SC-24). A workspace that switched the password off
+  // **No password where the workspace has none**. A workspace that switched the password off
   // refuses one here, so this screen does not ask for it: it says the invitation is accepted by
   // signing in through the workspace's provider - which makes the account active. Nobody invited is
   // left in front of a field that cannot work.
   //
-  // **The provider is chosen here, and the invitation goes with it** (SC-32, ADR-0078 §1). A
+  // **The provider is chosen here, and the invitation goes with it** (ADR-0078 §1). A
   // provider's word alone activates no invited account: the second proof is this link, which the
   // server binds to the provider flow without spending it. So the buttons are on this card rather
   // than on the sign-in card - a person sent there would arrive without the invitation and be

@@ -326,9 +326,9 @@ func TestTheCloudEventNamesAReplayAndSaysNothingOtherwise(t *testing.T) {
 }
 
 // A stalled consumer is exactly the state alert A-05 describes - "the dispatcher is behind or not
-// running" - and until G-02 it was the one state the metric could not report: a subscriber that
-// fails every time delivers nothing, marks nothing, and the histogram the alert reads stayed
-// empty. A percentile over no observations has nothing to exceed.
+// running" - and it is the one state a metric reported on success alone could not report: a
+// subscriber that fails every time delivers nothing, marks nothing, and the histogram the alert
+// reads would stay empty. A percentile over no observations has nothing to exceed.
 func TestAStalledConsumerStillReportsItsLag(t *testing.T) {
 	stale := now.Add(-5 * time.Minute)
 	pending := &pendingDouble{events: []event.Envelope{

@@ -118,8 +118,8 @@ export function manifestViolations(members) {
  * `locales/en.json` is the product's single source of display text (i18n-l10n.md §3) and it lives
  * at the repository root because the Go binary embeds it - `locales/Embed.go` exists for that
  * reason alone. The client renders the same codes from the same file, and the alternative to this
- * import is a copy under `apps/`, which is the one thing a source of truth must not have. Since
- * F5-07 the other catalogues are reached the same way, lazily, through `import.meta.glob` over
+ * import is a copy under `apps/`, which is the one thing a source of truth must not have. The
+ * other catalogues are reached the same way, lazily, through `import.meta.glob` over
  * `locales/*.json` - one directory, one module that reads it, still no copy.
  *
  * It is deliberately the catalogues rather than the directory: an escape from a member towards

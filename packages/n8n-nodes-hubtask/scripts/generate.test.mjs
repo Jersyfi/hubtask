@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The node against the contract it is generated from (P-04): every operation reachable, every
+// The node against the contract it is generated from: every operation reachable, every
 // event type offered, the description in the shape n8n loads, and the validator able to fail.
 
 import assert from 'node:assert/strict';

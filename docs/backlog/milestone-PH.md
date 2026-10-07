@@ -4,24 +4,32 @@ The goal: **a household can share one Hubtask and still keep things to itself, a
 grandparent can have an account without a mailbox, and a data protection officer can answer every
 right the law gives — including where the law and a legal hold pull in different directions.**
 
-Five decisions of 2026-09-30, each measured against the deployments `D1`–`D7`, are the source:
-
-* [data-protection.md](../architecture/data-protection.md) §4.1 — the deadline extension, a legal
-  hold against an erasure (which also answers R-3), and AI objection per person with the workspace's
-  choice to make AI part of the work for everybody.
-* [ADR-0073](../adr/ADR-0073-private-hubs.md) — private hubs with a transparent emergency access.
-* [ADR-0074](../adr/ADR-0074-managed-accounts.md) — managed accounts without a mail address.
-
 **One defect comes first.** The erasure reads no legal hold at all today — not even one on the whole
 workspace — so a hold placed for a lawsuit does not protect what it names from an erasure request.
 PH-01 fixes it before anything is added.
 
 Every task names its use cases; a task is done when the named checks hold, with the evidence in the
-pull request. Every task is **[L]** in the initial phase.
+pull request.
+
+**Delivers:** UC-ID-16 (1–8), UC-ID-20 (1–8), UC-LIF-06 (1–8), UC-PRV-01 (9, 10), UC-PRV-03 (9–13), UC-PRV-05 (4, 5, 7–12)
+**Released:** 2026-09-30
+
+## Decisions
+
+Each measured against the deployments `D1`–`D7`:
+
+1. **The data protection rights** ([data-protection.md](../architecture/data-protection.md) §4.1):
+   a deadline extended once, a legal hold that wins over an erasure as far as it reaches (which also
+   answers R-3), and AI objection per person with the workspace's choice to make AI part of the work
+   for everybody.
+2. **Private hubs** with a transparent emergency access ([ADR-0073](../adr/ADR-0073-private-hubs.md)).
+3. **Managed accounts** without a mail address ([ADR-0074](../adr/ADR-0074-managed-accounts.md)).
+4. **Only the workspace can name the legal basis `NOT_OFFERED` needs**, so the installation's and the
+   plan's lock can hold a workspace at `OFFERED` only (PH-03).
 
 ---
 
-## PH-01 — A legal hold wins over an erasure, as far as it reaches **[L]**
+## PH-01 — A legal hold wins over an erasure, as far as it reaches
 
 *Depends on: nothing. First, because it is a defect.*
 
@@ -39,7 +47,7 @@ completes the rest; the integration suite green.
 
 ---
 
-## PH-02 — Extending a deadline once, with a reason **[L]**
+## PH-02 — Extending a deadline once, with a reason
 
 *Depends on: nothing.*
 
@@ -55,7 +63,7 @@ register shows both dates.
 
 ---
 
-## PH-03 — Keeping one's own content out of AI, and the workspace's choice **[L]**
+## PH-03 — Keeping one's own content out of AI, and the workspace's choice
 
 *Depends on: ADR-0072's installation level (SC-11) for the lock; the workspace half stands alone.*
 
@@ -63,8 +71,7 @@ register shows both dates.
 
 The workspace value `ai.person_opt_out` — `OFFERED` (default) or `NOT_OFFERED` with a required legal
 basis — with the installation's and the plan's lock, which can hold a workspace at `OFFERED` only
-(decided 2026-10-01: only the workspace can name the basis `NOT_OFFERED` needs). The profile's *Keep my content out
-of AI*, shown only where AI is on and the workspace has more than one person. The prompt builder
+(decision 4). The profile's *Keep my content out of AI*, shown only where AI is on and the workspace has more than one person. The prompt builder
 reads the objections: authored content excluded, names replaced, AI actions not offered to the
 person. `NOT_OFFERED` shows the basis instead of the switch and tells each person whose earlier
 withdrawal stops taking effect. A person may withdraw their own consent in the web app.
@@ -74,7 +81,7 @@ receives; a walk in both positions.
 
 ---
 
-## PH-04 — Private hubs: the rule and every reader **[L]**
+## PH-04 — Private hubs: the rule and every reader
 
 *Depends on: nothing.*
 
@@ -92,7 +99,7 @@ cross-member negative test for every reader; a walk as two parents and a child.
 
 ---
 
-## PH-05 — Private hubs: the emergency access and the setting **[L]**
+## PH-05 — Private hubs: the emergency access and the setting
 
 *Depends on: PH-04.*
 
@@ -107,7 +114,7 @@ of the setting switched off.
 
 ---
 
-## PH-06 — Managed accounts: creating one and signing in **[L]**
+## PH-06 — Managed accounts: creating one and signing in
 
 *Depends on: nothing.*
 
@@ -124,7 +131,7 @@ name and an address are indistinguishable in every refusal.
 
 ---
 
-## PH-07 — Managed accounts: a new start password, and an address later **[L]**
+## PH-07 — Managed accounts: a new start password, and an address later
 
 *Depends on: PH-06.*
 
@@ -139,13 +146,13 @@ renewal and the upgrade.
 
 ---
 
-## PH-08 — The walk, by use case and deployment **[L]**
+## PH-08 — The walk, by use case and deployment
 
 *Depends on: all.*
 
-**Use cases:** UC-PRV-01, UC-PRV-03, UC-PRV-05, UC-ID-16, UC-ID-20
+**Use cases:** every check in `Delivers` — the walk confirms them and adds none.
 
-`/usecase-check PH`, then a walk per deployment: `D2` a household with two parents, a teenager with a
+The use case checklist (`docs/usecases/README.md`, "Checking work against its use cases") over PH, then a walk per deployment: `D2` a household with two parents, a teenager with a
 private hub and a grandparent with a managed account; `D4` a company with a legal hold, an erasure
 request and AI made part of the work; `D5` a consumer alone in a workspace, where none of it appears.
 The evidence under `docs/evidence/`; the use cases move to `built` or `verified`.

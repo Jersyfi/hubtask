@@ -32,38 +32,33 @@ const APIVersion = "v1"
 // Capabilities is the self-description clients configure themselves from instead of hard-coding
 // values (api-guidelines.md §1).
 //
-// Nothing the schema declares is deliberately absent any more. The rule while something was:
-// an empty list would read as "this installation has none", which is a different statement from
-// "this part of the contract is not implemented yet" - and the first of those is a lie a client
-// would act on. The view layouts left that sentence with D-07, the event types with F4-15, the
-// retention kinds with F4-18 and the automation triggers and actions with issue 542, each with the
-// task that gave it a reader.
+// Nothing the schema declares is left out: an empty list reads as "this installation has none",
+// which is a different statement from "this part of the contract is not implemented" - and the
+// first of those, if untrue, is a lie a client would act on.
 type Capabilities struct {
 	ProductVersion string
 	APIVersion     string
 	TenancyMode    string
 	ItemTypes      []work.CapabilityProfile
 	// QueryFields is what POST /items:query accepts: which fields may be filtered, ordered and
-	// grouped by, and with which operators (B-12, api-guidelines.md §3).
+	// grouped by, and with which operators (api-guidelines.md §3).
 	//
 	// The catalogue itself rather than a copy of it, for the reason the item types come from the
 	// database: a manifest that listed a field the grammar refuses would send a client to build a
 	// filter editor for a query that cannot run.
 	QueryFields []view.Field
-	// ViewLayouts is the set a saved view's layout is validated against (D-07). The declaration
+	// ViewLayouts is the set a saved view's layout is validated against. The declaration
 	// is the whole of the server's involvement: a layout is stored, echoed back, and never
 	// consulted, which is what makes new frontend views possible without a backend change
 	// (api-guidelines.md §3).
 	ViewLayouts []view.Layout
 	// CompletionPolicies and AutoAssignStrategies are the closed sets a collection's policies are
-	// validated against (issue 773). Read from the domain, which has offered both lists "for
-	// /meta/capabilities" since the policies were built and which nothing answered from until
-	// now: a policies form built from a copy of the enum would offer a value the installation
-	// refuses on the day the domain gains one.
+	// validated against. Read from the domain: a policies form built from a copy of the enum
+	// would offer a value the installation refuses on the day the domain gains one.
 	CompletionPolicies   []work.CompletionPolicy
 	AutoAssignStrategies []work.AutoAssignStrategy
 	// EventTypes is every type this build emits, and therefore every type a webhook subscription
-	// may name (F4-15). Read from the domain rather than restated here, for the reason the roles
+	// may name. Read from the domain rather than restated here, for the reason the roles
 	// are: `SubscribedTypes` refuses a type this build does not emit, so a client offering a list
 	// of its own would offer a choice that is refused at the end - and a subscription cannot
 	// quietly wait for something that will never arrive.
@@ -71,22 +66,22 @@ type Capabilities struct {
 	// AutomationTriggers is every way a rule may be started, and AutomationActions every use case
 	// a rule may perform, named the way a rule names them (automation.md §1.1, §1.3). A rule
 	// editor is built from these two lists rather than from a copy: a client with its own would be
-	// wrong on the installation that has one more, and the F4-13 editor built without them was
-	// complete and unusable (issue 542). The triggers are read from the domain, the actions handed
+	// wrong on the installation that has one more, and an editor built without them is complete
+	// and unusable. The triggers are read from the domain, the actions handed
 	// in for the reason the scopes are: the catalogue is assembled from these very use cases. The
 	// engine's own flow kinds - WAIT, BRANCH, STOP - are not actions in this sense and are not in
 	// the list; the contract says a client names those three itself.
 	AutomationTriggers []automation.TriggerKind
 	AutomationActions  []string
-	// AutomationActionFields is, per action kind, what its use case declares (F8-01): the same
+	// AutomationActionFields is, per action kind, what its use case declares: the same
 	// declaration the MCP tool schema is built from, so that an action's form is built from the
 	// manifest and never from a schema compiled into a client. Handed in with the actions.
 	AutomationActionFields map[string][]usecase.Field
-	// AutomationActionSummaries is, per action kind, the use case's one sentence (F8-15): what a
+	// AutomationActionSummaries is, per action kind, the use case's one sentence: what a
 	// rule editor's catalogue says under a kind's name. Handed in with the actions.
 	AutomationActionSummaries map[string]string
 	// RetentionDataKinds is the catalogue of `data-retention.md` §3, and what this build can do to
-	// each (F4-18). The catalogue itself rather than a copy of it, for the reason the query fields
+	// each. The catalogue itself rather than a copy of it, for the reason the query fields
 	// are: the document says a new kind "is then immediately configurable through the API - with
 	// no code change to the engine", and a client carrying its own list would be the one place
 	// that still needed the code change.
@@ -97,13 +92,13 @@ type Capabilities struct {
 	// and the two are refused with different codes.
 	RetentionDataKinds []lifecycle.Kind
 	// SupportedLocales are the locales this installation has a catalogue for, with the metadata
-	// a client needs before it has rendered anything (M-05, i18n-l10n.md §2, §6). Derived from
+	// a client needs before it has rendered anything (i18n-l10n.md §2, §6). Derived from
 	// the catalogue files present - the embedded ones and an operator's directory - which is what
 	// makes a new language a file rather than a release (arc42 QS-08). The account's language
 	// picker is this list.
 	SupportedLocales []i18n.LocaleInfo
 	// TextLanguages are the languages this installation can index the text of, as BCP 47 tags
-	// (C-08, ADR-0034).
+	// (ADR-0034).
 	//
 	// Read from the database for the reason the item types are: it is the installation's answer
 	// rather than the product's, because which text search configurations exist is what its
@@ -112,7 +107,7 @@ type Capabilities struct {
 	// refused, which is why this is a manifest entry and not a validation rule.
 	TextLanguages []string
 	// NotificationCategories and NotificationChannels are what a notification-preference form
-	// has rows and columns for (F3-02). The categories are a closed set in a check constraint;
+	// has rows and columns for. The categories are a closed set in a check constraint;
 	// publishing them here is what lets a client render the form from data rather than from a
 	// constant compiled into it, and INVITATION is in the list although no preference switches
 	// it off - the form shows it and the domain ignores the switch.
@@ -128,13 +123,13 @@ type Capabilities struct {
 	// database: a second copy answers what the first one used to say. It matters most for the two
 	// cells no permission name carries - a contributor writes only what is assigned to them, a
 	// guest comments on what it may not change - because a client that does not know them draws
-	// buttons the server refuses (C-04).
+	// buttons the server refuses.
 	Roles []RoleDescription
 	// Limits are the numbers a client has to respect to avoid being refused.
 	Limits map[string]int64
 	// Features says which optional parts of the installation are configured.
 	Features map[string]bool
-	// InstanceReachable is whether this caller is in the operator register (SI-17, ADR-0070 §1).
+	// InstanceReachable is whether this caller is in the operator register (ADR-0070 §1).
 	//
 	// It is what decides whether a client draws a way into `/instance` at all. Hubtask does not
 	// draw a control somebody may not use and then refuse it - what the installation permits is
@@ -142,7 +137,7 @@ type Capabilities struct {
 	// disabled. A caller with no credential is false, which is also the honest answer.
 	InstanceReachable bool
 	// Legal is the four links this installation is obliged to show, resolved for the caller's
-	// workspace or - where there is none - for the installation itself (SI-12, ADR-0068 §7).
+	// workspace or - where there is none - for the installation itself (ADR-0068 §7).
 	//
 	// Here as well as on `/auth/sign-in-rules`, and not by duplication: that route is what a
 	// *signed-out* card reads, and a footer inside the application needs the same four without
@@ -181,8 +176,8 @@ func roleMatrix() []RoleDescription {
 	return described
 }
 
-// LegalPolicy answers the links an installation is obliged to show, resolved through the levels
-// (SI-12). An interface here rather than the resolver itself, for AiProviders' reason: the
+// LegalPolicy answers the links an installation is obliged to show, resolved through the levels.
+// An interface here rather than the resolver itself, for AiProviders' reason: the
 // application layer may not import an adapter, and this package may not reach into another service's
 // internals - what it needs is one question answered.
 type LegalPolicy interface {
@@ -191,7 +186,7 @@ type LegalPolicy interface {
 	Legal(ctx context.Context, tenantID shared.ID) (identity.LegalLinks, error)
 }
 
-// OperatorRegister answers whether one account operates this installation (SI-17, ADR-0070 §1).
+// OperatorRegister answers whether one account operates this installation (ADR-0070 §1).
 //
 // An interface here rather than the repository, for LegalPolicy's reason: what this package needs
 // is one question answered about the caller, and a package that held the register could be asked
@@ -200,7 +195,7 @@ type OperatorRegister interface {
 	Holds(ctx context.Context, accountID shared.ID) (bool, error)
 }
 
-// AiProviders answers which provider the caller's workspace uses (J-02). An interface here rather
+// AiProviders answers which provider the caller's workspace uses. An interface here rather
 // than the adapter, because the application layer may not import one (ADR-0001) - the same
 // declaration work.AiProviders and suggestion.Providers make, for the same reason.
 type AiProviders interface {
@@ -214,36 +209,35 @@ type AiProviders interface {
 type GetCapabilities struct {
 	Profiles  repository.CapabilityProfiles
 	Languages repository.TextLanguages
-	// Locales answers the catalogues present (M-05). Optional for the reason Semantic and
+	// Locales answers the catalogues present. Optional for the reason Semantic and
 	// Ordering are: a build wired without it answers the source language alone, which is the
-	// honest reading of "nothing here says otherwise" and what every installation before this
-	// milestone was.
+	// honest reading of "nothing here says otherwise".
 	Locales i18n.Locales
-	// Semantic answers whether this installation can search by meaning (J-09, ADR-0050). Optional:
+	// Semantic answers whether this installation can search by meaning (ADR-0050). Optional:
 	// a build wired without it answers `false`, which is the honest reading of "nothing here says
 	// otherwise" and the safe direction - a client offers one control fewer rather than one that
 	// will always refuse.
 	Semantic repository.SemanticSearch
-	// Ordering answers whether names sort under the ICU root collation here (M-08). Optional,
+	// Ordering answers whether names sort under the ICU root collation here. Optional,
 	// like Semantic and for the same reason: a build wired without it answers `false`, which is
 	// the honest reading of "nothing here says otherwise" - names still sort, in the database's
 	// own order.
 	Ordering repository.NaturalOrdering
-	// Providers answers what the caller's workspace can ask a model to do (issue 502). Optional,
+	// Providers answers what the caller's workspace can ask a model to do. Optional,
 	// like Semantic and for the same reason: a build wired without it answers `false`, which is
 	// the honest reading of "nothing here says otherwise".
 	Providers AiProviders
-	// Legal answers the four links (SI-12). Optional, like Semantic and for the same reason: a
+	// Legal answers the four links. Optional, like Semantic and for the same reason: a
 	// build wired without it answers none, which is what an installation with no instance layer has.
 	Legal LegalPolicy
-	// Operators answers whether the caller may reach the level above the workspaces (SI-17).
+	// Operators answers whether the caller may reach the level above the workspaces.
 	// Optional: a build wired without it answers false, which draws no way in - the safe direction,
 	// because a control that is not drawn is one nobody is refused at.
 	Operators  OperatorRegister
 	UnitOfWork persistence.UnitOfWork
 	Config     env.Config
 	// Actions is every automation action kind that is a use case, handed in from the catalogue at
-	// composition for the reason Scopes is; ActionFields what each of them declares (F8-01).
+	// composition for the reason Scopes is; ActionFields what each of them declares.
 	Actions         []string
 	ActionFields    map[string][]usecase.Field
 	ActionSummaries map[string]string
@@ -380,19 +374,19 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			"max_upload_bytes":          g.Config.Request.MaxUploadBytes,
 			"rate_limit_per_minute":     int64(g.Config.RateLimit.TokenPerMinute),
 			"anonymous_rate_per_minute": int64(g.Config.RateLimit.AnonymousPerMinute),
-			// The bound that makes an entry's reminder list answerable in one page (D-02). A
+			// The bound that makes an entry's reminder list answerable in one page. A
 			// constant rather than configuration: it is a shape of the product, and a client
 			// reads it here rather than discovering it by being refused.
 			"max_reminders_per_item": int64(work.MaxRemindersPerItem),
 			// The bound on one template's tree, and therefore on what a single instantiation
-			// writes (D-06). A client that lets somebody build a template reads it here rather
+			// writes. A client that lets somebody build a template reads it here rather
 			// than letting them build a tree of six hundred nodes and refusing it at the end.
 			"max_template_nodes": int64(work.MaxTemplateNodes),
-			// How many operations one bulk may carry (C-11, api-guidelines.md §5). A client that
+			// How many operations one bulk may carry (api-guidelines.md §5). A client that
 			// offers a selection reads it here rather than letting somebody select six hundred
 			// entries and refusing the request at the end.
 			"max_bulk_operations": int64(work.MaxBulkOperations),
-			// What one :export answers at most (D-08). A client that offers "download this view"
+			// What one :export answers at most. A client that offers "download this view"
 			// reads it here rather than discovering the bound from a truncated file.
 			"max_export_rows": int64(view.MaxExportRows),
 		},
@@ -407,8 +401,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// discovers it here rather than by asking for "/" and reading the answer, which is
 			// the same reason every other optional part of the installation is in this map.
 			"web_ui": g.Config.UI.Enabled,
-			// Whether this installation can seal a backup target's credentials at all (E-02,
-			// E-03). A client that offers "add an S3 target" on an installation with no
+			// Whether this installation can seal a backup target's credentials at all. A client that offers "add an S3 target" on an installation with no
 			// encryption keyring is offering a form that will be refused at the end; the manifest
 			// says so first.
 			"backup_encryption": g.Config.Encryption.ActiveKeyID() != "",
@@ -416,14 +409,14 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// this installation serves one tenant - there the owner is the operator - and the
 			// operator's switch otherwise (backup-restore.md §2).
 			"backup_targets": g.Config.Tenancy != env.TenancyMulti || g.Config.Backup.TenantTargets,
-			// Whether the caller's workspace can ask a model for a suggestion (issue 502).
+			// Whether the caller's workspace can ask a model for a suggestion.
 			//
 			// Named `ai_suggestions` rather than `ai`, because it is the name /meta/health already
 			// gives the same feature in `degraded_features` (observability-reliability.md §7) -
 			// one feature, one name, whichever of the two a client reads. It is also the honest
 			// scope: what a person loses is suggestions, not "AI".
 			"ai_suggestions": ai.Completion,
-			// Whether the caller's workspace can search by meaning (J-09, ADR-0050, issue 502).
+			// Whether the caller's workspace can search by meaning (ADR-0050).
 			//
 			// Both halves, because either alone is not the feature. The store is read from the
 			// database rather than from configuration, for the reason the text languages are: the
@@ -435,20 +428,20 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// An installation missing either searches lexically, which is complete - so this is a
 			// manifest entry and not a warning.
 			//
-			// And not for a model this process knows the index cannot hold (#569, ADR-0054): the
+			// And not for a model this process knows the index cannot hold (ADR-0054): the
 			// pass refused it and the search is lexical for as long as it stays configured, so a
 			// control that offered meaning would offer what the product cannot do. Zero is "not
 			// known yet", which is not the same as "fits", and is answered as it always was.
 			"semantic_search": semantic && ai.Embedding &&
 				ai.EmbeddingDimensions <= workrepo.EmbeddingWidth,
 			// Whether names sort under the ICU root collation, the same on every installation
-			// (M-08, i18n-l10n.md §5). Read from pg_collation rather than assumed, because
+			// (i18n-l10n.md §5). Read from pg_collation rather than assumed, because
 			// migration 0080 falls back to the database's own locale where PostgreSQL has no
 			// ICU - names still sort then, so this is a manifest entry and not a warning, and a
 			// client sorting a list itself with Intl.Collator reads here whether the server
 			// already did.
 			"natural_ordering": ordering,
-			// Whether this installation answers `GET /auth/sign-in-rules` (ADR-0068 §7, SI-02).
+			// Whether this installation answers `GET /auth/sign-in-rules` (ADR-0068 §7).
 			//
 			// The seam that let the sign-in screen land ahead of the core: without this entry a
 			// client draws exactly the screen it drew before - no rules under the password field,

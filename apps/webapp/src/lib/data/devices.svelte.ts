@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The devices somebody's own account synchronises from (F6-07, offline-sync.md §6, N-03).
+ * The devices somebody's own account synchronises from (offline-sync.md §6).
  *
  * **One's own, and never anybody else's** — the route's decision: a device is the person's, like a
  * session, and there is no account parameter here to pass. A device registers by turning up (its
@@ -11,7 +11,7 @@
  *
  * **Forgetting is blocking, not erasing.** The row stays, marked `blocked`, until the retention
  * sweep removes it, so a person can see what they ended; the device's next push is refused with
- * `sync.device_revoked` and it starts over with a new identity - the engine's half (F6-05).
+ * `sync.device_revoked` and it starts over with a new identity - the engine's half.
  *
  * *This device* is the one whose identifier the engine minted into this browser's store.
  */

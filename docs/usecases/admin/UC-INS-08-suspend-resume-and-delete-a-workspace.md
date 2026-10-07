@@ -42,6 +42,6 @@ that period *Cancel deletion* brings it back.
 
 ## Today
 
-* **Check 1 fails:** *Suspend* has no confirmation and the own workspace is not marked.
-* **Check 5 fails:** there is no way to cancel a deletion, although the confirmation text promises
-  one.
+* Check 1: not met — *Suspend* has no confirmation and the operator's own workspace is not marked, tracked in #1064.
+* Check 4: not proven — deleting a workspace other than the operator's own asks for the step-up inside that workspace's transaction and, read from the code, answers 500; not reproduced yet, tracked in #1150.
+* Check 5: not met — there is no way to cancel a deletion, although the confirmation promises one, tracked in #1064.

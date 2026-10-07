@@ -85,7 +85,7 @@ func translateFixture(provider *translator) (AiTranslate, *sink, *authorizer) {
 
 // transactionalSink is the real store's one demand, made of the double: an entry is appended in a
 // transaction or not at all. `postgres.no_transaction_in_context` is what the first person to
-// ask for a translation met (#703), and a sink that took anything could not have said so.
+// ask for a translation met, and a sink that took anything could not have said so.
 type transactionalSink struct{ sink *sink }
 
 func (t transactionalSink) Append(ctx context.Context, entry audit.Entry) error {

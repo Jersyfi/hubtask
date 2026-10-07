@@ -37,15 +37,14 @@ export const DECLARED = {
     'link',
     'search',
     'settings',
-    // A tour is a way through rather than a notice, and it used to carry the same outlined `info`
-    // as the installation — two rows of one menu saying the same thing with one mark (ADR-0063
-    // decision 6).
+    // A tour is a way through rather than a notice. With the outlined `info` the installation
+    // carries, two rows of one menu would say the same thing with one mark (ADR-0063 decision 6).
     'compass',
     'log-out',
     'ellipsis',
     'grip-vertical',
     'funnel', // a filter; lucide renamed `filter` to `funnel`
-    'star', // the saved views, beside the switcher that draws them (F9-07)
+    'star', // the saved views, beside the switcher that draws them
   ],
   'Navigation — wave 2': [
     'chevron-up',
@@ -97,14 +96,14 @@ export const DECLARED = {
     'file-text', // a note
     'repeat', // a recurrence rule
   ],
-  'Offline operation — F6-06': [
+  'Offline operation': [
     // What SyncStatus says in a shape beside its word (rule 3): the copy is in step with the
     // server, the server cannot be reached, a change waits to be sent, a change was refused.
     'cloud-check', // synchronised
     'cloud-off', // offline - the server cannot be reached
     'cloud-upload', // changes waiting to be pushed
   ],
-  'The rule flow — F8-04': [
+  'The rule flow': [
     // The cards of the rule editor, each with a shape beside its word (rule 3): what starts a
     // rule, the six ways; and the three flow kinds the engine owns.
     'zap', // an event
@@ -119,8 +118,8 @@ export const DECLARED = {
     'shield', // the account a rule runs as
     'fold-vertical', // a branch folded to one line, and unfolded
   ],
-  'The rule flow — F8-09': [
-    // A building block carries its icon (decision 12): one per action kind the palette and the
+  'The rule flow, its building blocks': [
+    // A building block carries its icon (design-system.md §12): one per action kind the palette and the
     // + menu know, chosen in apps/webapp's words.ts; the group's icon stands in for the rest.
     'calendar-x', // clear the due date
     'rotate-ccw', // reopen
@@ -136,22 +135,22 @@ export const DECLARED = {
     'square-check', // complete
     'send', // deliver to a webhook
   ],
-  'The administration section — F10-08': [
-    // Three marks the section's five groups asked for and the set did not have (issue 998). The
+  'The administration section': [
+    // Three marks the section's five groups asked for and the set did not have. The
     // rest of its rows took marks that were already here; these three name concepts the product
     // repeats, which is what earns a place in this list.
     'key', // a credential: a service account, its tokens, a person's own tokens
     'gauge', // a load against a limit: the quotas screen, and what the health report reads
     'file-user', // a person's request about their own data: access, erasure, objection, export
   ],
-  'The installation section — SI-12': [
+  'The installation section': [
     // One mark the level above the workspaces asked for and the set did not have. The keyring is
     // the concept a lock names, and it is the one screen of that section that reads without
     // turning anything: `shield` was taken by the operator register, and two sections' rows must
     // not share a glyph where they sit in one column.
     'lock',
   ],
-  'The AI treatment — F5-01': [
+  'The AI treatment': [
     // The one mark a proposal carries beside its heading. Rule 3: the surface and the border say
     // "not the reader's own" by colour, and this says it in a shape. Not a logo, not a badge -
     // voice-and-tone.md §7.2 - and it takes the text's colour like every other glyph.
@@ -160,7 +159,7 @@ export const DECLARED = {
 };
 
 /**
- * The icons that point the way the text runs, and so turn round with it (F5-10, i18n-l10n.md §6
+ * The icons that point the way the text runs, and so turn round with it (i18n-l10n.md §6
  * line 6). An arrow that means "forward" points the other way in Arabic; a clock, a check and a
  * calendar do not. The mark is here rather than on the call site because the call site does not
  * know the direction and should not have to: `Icon` reads this set and flips the glyph under

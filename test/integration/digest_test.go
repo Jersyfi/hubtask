@@ -14,7 +14,7 @@ import (
 )
 
 // `digest_of` in the database and `suggestion.Digest` in the domain are the same function written
-// twice, which is a thing this project otherwise refuses to have (J-10, migration 0076). It exists
+// twice, which is a thing this project otherwise refuses to have (migration 0076). It exists
 // because the alternative is reading every entry's text across the wire to fingerprint it and throw
 // almost all of it away — the embedding pass asks "whose text has moved" over a whole workspace.
 //

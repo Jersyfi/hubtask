@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A person's own personal access tokens (G-01, `security.md` §5).
+  // A person's own personal access tokens (`security.md` §5).
   //
   // **Profile configuration rather than administration**, which is ADR-0032's split rather than
   // convenience: these are this person's credentials, nobody else can list them, and an
@@ -166,7 +166,7 @@
       dismissLabel={t('app.tokens.done')}
       onDismiss={() => (minted = undefined)}
     />
-    <!-- The one other thing a token is for that no screen said (P-06, F6-11): it is what a calendar
+    <!-- The one other thing a token is for, said here because no other screen says it: what a calendar
          client asks for as the password. -->
     <p class="quiet">{t('app.tokens.caldav_note')}</p>
   {/if}

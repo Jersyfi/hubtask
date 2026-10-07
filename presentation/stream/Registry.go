@@ -4,8 +4,8 @@
 // Package stream is the machinery a long-lived connection needs, shared by every adapter that
 // holds one.
 //
-// It exists because there is now more than one. `GET /stream` has served changes to a browser
-// since C-10; `GET /mcp` serves notifications to an agent since J-13. **An agent's stream is not a
+// It exists because there is more than one: `GET /stream` serves changes to a browser, and
+// `GET /mcp` serves notifications to an agent. **An agent's stream is not a
 // different kind of connection from a browser's and must not have a different kind of limit** - so
 // the caps, the draining and the refusal reasons live here rather than in either adapter, and a
 // pod's capacity is one number whoever is holding it.

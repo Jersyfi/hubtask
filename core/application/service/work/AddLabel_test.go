@@ -256,7 +256,7 @@ func TestAddingALabelWritesTheSetTheEventTheChangeAndTheEntry(t *testing.T) {
 			t.Error("the change carries no clock reading")
 		}
 		if change.ContainerID != collectionID {
-			t.Errorf("the change is filed under %s, want the collection (#623)", change.ContainerID)
+			t.Errorf("the change is filed under %s, want the collection", change.ContainerID)
 		}
 	})
 
@@ -603,7 +603,7 @@ func TestALabelAddedTwiceLeavesOneStepInTheHistory(t *testing.T) {
 	}
 }
 
-// A push supplies the device's own tag through the context (N-07): the membership, its tag and
+// A push supplies the device's own tag through the context: the membership, its tag and
 // the change log entry all carry the reading that decided the merge, not a fresh server one.
 func TestAPushesTagIsTheOneTheRowAndTheEntryCarry(t *testing.T) {
 	h := newItemLabelHarness(t)

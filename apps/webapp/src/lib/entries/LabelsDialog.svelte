@@ -3,14 +3,13 @@
 <script lang="ts">
   // The collection's labels: making them, renaming them, taking them away.
   //
-  // `labels` has had `create`, `update` and `remove` since F2-10 and no caller, so the set a
-  // `LabelPicker` offers could only ever be made outside the application. The picker's own empty
-  // state - "No labels in this collection yet." - was therefore a dead end rather than a beginning,
-  // and the first use of every collection needed `hubctl`.
+  // `labels` has `create`, `update` and `remove`, and without this the set a `LabelPicker`
+  // offers could only be made outside the application: the picker's own empty state - "No labels
+  // in this collection yet." - would be a dead end rather than a beginning.
   //
   // **Here rather than in the picker.** Putting a create control inside `LabelPicker` would mean
-  // changing a design system component, and `packages/design-system/CLAUDE.md` rules out a
-  // component changing as a side effect of application work. It also belongs here on its own
+  // changing a design system component, and the design system grows in the order of
+  // design-system.md §4, never as a side effect of application work. It also belongs here on its own
   // merits: a label is a property of the collection, and this is the collection's screen. The
   // picker stays what it is - a chooser among what exists.
   //

@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// RetentionRuleRepository stores the rule model of data-retention.md §2 (E-07).
+// RetentionRuleRepository stores the rule model of data-retention.md §2.
 type RetentionRuleRepository struct{}
 
 func NewRetentionRuleRepository() RetentionRuleRepository { return RetentionRuleRepository{} }
@@ -91,7 +91,7 @@ func (r RetentionRuleRepository) Insert(ctx context.Context, rule domain.Rule) e
 	return nil
 }
 
-// Update writes a corrected rule, guarded on the version the caller read (F4-02).
+// Update writes a corrected rule, guarded on the version the caller read.
 //
 // The kind and the scope are not among the columns the statement writes: the unique index over
 // the pair is what makes "the rule for this kind at this level" a thing one can name at all.
@@ -281,7 +281,7 @@ func ruleFrom(row sqlc.RetentionRule) (domain.Rule, error) {
 
 	// The tenant, and it is load bearing: a correction rebuilds the rule from the row that was
 	// read, and `NewRule` refuses one whose tenant is zero - which is what made every PATCH on a
-	// retention rule answer `lifecycle.rule_incomplete` (F4-18).
+	// retention rule answer `lifecycle.rule_incomplete`.
 	tenantID, err := idFrom(row.TenantID)
 	if err != nil {
 		return domain.Rule{}, err

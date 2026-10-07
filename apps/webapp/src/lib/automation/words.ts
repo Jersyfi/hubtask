@@ -3,7 +3,7 @@
 
 /**
  * The words of the rule flow: what a kind is called, how a rule reads as a sentence, and what
- * name it gives itself (F8-04, decision 4). Every word is a catalogue entry; what this module
+ * name it gives itself (automation.md §1.5). Every word is a catalogue entry; what this module
  * decides is which entry, from what the rule holds.
  *
  * Nothing here is compiled in about what the manifest serves. A kind the catalogue has no word
@@ -39,7 +39,7 @@ export function eventWord(type: string): string {
   return type.replace(/^de\.hubtask\./, '').replace(/\.v\d+$/, '').replace(/^work\./, '').replace(/[._]/g, ' ');
 }
 
-/** An event type, said in words (decision 13). */
+/** An event type, said in words (automation.md §1.5). */
 export interface EventWords {
   /** The entity's segment: `item`, `container`, `rule_run` - what the group is keyed by. */
   entity: string;
@@ -124,7 +124,7 @@ export const COMMON_GROUPS: readonly { code: string; kinds: readonly string[] }[
 
 /**
  * The manifest's kinds arranged for a menu: the common groups, then everything else sorted. The
- * palette shows the groups alone (decision 12) - ninety names of which `Confirm TOTP` is one are
+ * palette shows the groups alone (automation.md §1.5) - ninety names of which `Confirm TOTP` is one are
  * not a palette - and the `+` menu's search is what finds the rest.
  */
 export function grouped(served: readonly string[], rest: 'listed' | 'folded' = 'listed'): { code: string; kinds: string[] }[] {
@@ -140,7 +140,7 @@ export function grouped(served: readonly string[], rest: 'listed' | 'folded' = '
 }
 
 /**
- * The icon a kind is drawn with (decision 12), in the palette, the `+` menu and on its card. One
+ * The icon a kind is drawn with (automation.md §1.5), in the palette, the `+` menu and on its card. One
  * table, so the three cannot disagree; a kind it does not name gets its group's, and a kind in
  * no group a plain mark. The names are the design system's declared set and nothing else.
  */
@@ -190,7 +190,7 @@ export function kindIcon(kind: string): KindIconName {
 }
 
 /**
- * The family a kind belongs to, which is what its colour says (decision 18): the same word in the
+ * The family a kind belongs to, which is what its colour says (automation.md §1.5): the same word in the
  * blocks list, the `+` popover and on the card, so the three cannot disagree. The flow kinds are
  * the engine's own; a kind in no group is *other*.
  */
@@ -210,7 +210,7 @@ export function kindFamily(kind: string): KindFamily {
 }
 
 /**
- * How often each kind is used across the rules the client holds (decision 17): what the blocks
+ * How often each kind is used across the rules the client holds (automation.md §1.5): what the blocks
  * list's *Frequent* group is counted from, arms included. Nothing is asked of the server.
  */
 export function usageOf(rules: readonly { actions: readonly { kind: string; params?: Record<string, unknown> }[] }[]): Map<string, number> {
@@ -231,7 +231,7 @@ export function usageOf(rules: readonly { actions: readonly { kind: string; para
 /**
  * The reference table's client half (ADR-0060): which store answers an identifier's name, by the
  * parameter's name. One table for the form's pickers and for what the editor reads at all - a
- * store is opened when a field of the rule names its kind, and not before (issue 818).
+ * store is opened when a field of the rule names its kind, and not before.
  */
 export const REFERENCE: Readonly<Record<string, string>> = {
   label_id: 'label',
@@ -334,7 +334,7 @@ function stepsWords(words: Catalogue, names: Names, steps: readonly Step[]): str
     .join(words.t('app.flow.sentence_then_sep'));
 }
 
-/** The whole rule as one sentence: the second view of the same rule (decision 4). */
+/** The whole rule as one sentence: the second view of the same rule (automation.md §1.5). */
 export function sentence(words: Catalogue, names: Names, draft: Draft): string {
   const conditions = draft.conditions.filter((expr) => expr.trim() !== '');
   return words.t('app.flow.sentence', {

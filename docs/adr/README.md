@@ -1,7 +1,19 @@
 # Architecture Decision Records (ADR)
 
-Format: lightweight MADR. One file per decision, immutable once accepted — a change produces a new
-ADR that supersedes the old one (`Supersedes ADR-xxxx` / `Superseded by ADR-yyyy`).
+An ADR records **why and when** a decision was taken. The rule itself lives in a subject document
+(`docs/architecture/`, `docs/design/`), and each ADR names it in its `**Rule lives in:**` line —
+read that section for what holds today ([ADR-0081](./ADR-0081-how-work-is-organised.md)).
+
+- One file per decision, short: context, decision, consequences, and the `Rule lives in` line.
+- Not edited once accepted, apart from its status line (a few older ADRs carry addenda from before
+  this rule). A change is a new ADR plus the change in the
+  subject document, in the same pull request; the new one says what it supersedes.
+- Take the number from all remote branches right before writing the file, not from this folder:
+  unmerged branches hold numbers too.
+- An ADR accepted before anything implements it gets a task in a milestone, in the pull request that
+  accepts it, and an open point in its subject document; a decision no task owns stays unbuilt.
+- Every new ADR is named to the owner. When the code that implements a proposed ADR merges, the
+  same pull request moves it to `accepted` here, in its header and in arc42 §9.
 
 Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 
@@ -87,3 +99,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0078](./ADR-0078-the-ways-back-in.md) | The ways back in: a second proof for a provider, a fallback for every cause, and an operator's lever | accepted | Identity, multi-tenancy |
 | [0079](./ADR-0079-a-draft-is-checked-locally.md) | A draft is checked locally; CI runs when a pull request is ready | accepted | CI, process, tooling |
 | [0080](./ADR-0080-hubtask-is-apache-2-0.md) | Hubtask is Apache-2.0 | accepted | Legal, product, process |
+| [0081](./ADR-0081-how-work-is-organised.md) | How work on Hubtask is organised | accepted | Process |

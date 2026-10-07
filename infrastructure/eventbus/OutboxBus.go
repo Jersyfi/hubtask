@@ -55,7 +55,7 @@ type Dispatcher struct {
 	MaxInterval time.Duration
 
 	// Lag reports the age of a delivered event in seconds, which is SLO-4 and the alert on events
-	// being stuck (A-05). A hook rather than a metrics dependency, so that this adapter does not
+	// being stuck (alert A-05). A hook rather than a metrics dependency, so that this adapter does not
 	// have to know the observability one (project-structure.md §2). Nil is allowed.
 	Lag func(ctx context.Context, seconds float64)
 }
@@ -76,13 +76,13 @@ func (d Dispatcher) Run(ctx context.Context, job queue.Job) (queue.Result, error
 	}
 
 	// The age of what this round had in hand is reported whatever becomes of it, and that is the
-	// point of putting it here rather than after the delivery (G-02).
+	// point of putting it here rather than after the delivery.
 	//
-	// It used to be reported only for a round that succeeded, which left alert A-05 unable to
-	// fire in the case its own description names: "the dispatcher is behind or not running". A
-	// consumer that fails every time delivers nothing, marks nothing, and emitted no measurement
-	// at all - so the histogram stayed empty and the percentile over it had nothing to exceed.
-	// The one state where events are certainly late was the one state nothing reported.
+	// Reported only for a round that succeeded, it would leave alert A-05 unable to fire in the
+	// case its own description names: "the dispatcher is behind or not running". A consumer that
+	// fails every time delivers nothing, marks nothing, and would emit no measurement at all - so
+	// the histogram would stay empty and the percentile over it would have nothing to exceed. The
+	// one state where events are certainly late would be the one state nothing reported.
 	defer d.reportLag(ctx, envelopes, d.Clock.Now())
 
 	delivered := make([]shared.ID, 0, len(envelopes))
@@ -126,7 +126,7 @@ func (d Dispatcher) deliver(ctx context.Context, envelope event.Envelope) error 
 		// Through the library function rather than the claim directly (ADR-0007's third
 		// countermeasure). The order of the claim and the work is the part that is easy to get
 		// wrong, and getting it wrong is invisible until an event is acted on twice - so it lives
-		// in one place that G-03's webhook delivery and G-07's rule engine call as well.
+		// in one place that the webhook delivery and the rule engine call as well.
 		if _, err := eventbusport.Once(ctx, d.Consumed, subscriber.Name(), envelope,
 			func(ctx context.Context) error { return subscriber.Deliver(ctx, envelope) },
 		); err != nil {

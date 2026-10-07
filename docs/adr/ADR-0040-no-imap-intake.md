@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-02 · **Closes:** open point AM-1 (`automation.md` §5)
 
+**Rule lives in:** [automation.md](../architecture/automation.md) §5
+
 ## Context
 
 G-11 built the mail intake transport-first: `POST /jumble/mail/{token}` takes a whole message,

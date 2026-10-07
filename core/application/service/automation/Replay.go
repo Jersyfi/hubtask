@@ -27,7 +27,7 @@ const (
 	RunReplayedAction audit.Action = "automation.run_replayed"
 )
 
-// ReplayRuleRun completes a half-finished run (G-09, automation.md §2).
+// ReplayRuleRun completes a half-finished run (automation.md §2).
 //
 // It re-executes a failed run's remaining actions under the same idempotency keys, which is the
 // whole design: the replay's run carries the original occasion, so an action the original run

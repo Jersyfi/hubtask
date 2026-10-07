@@ -21,7 +21,7 @@ import (
 
 const StepUpName = "StepUp"
 
-// StepUpAction is the proof itself, audited with its method and never its credential (H-03).
+// StepUpAction is the proof itself, audited with its method and never its credential.
 const StepUpAction audit.Action = "auth.step_up"
 
 // stepUpSubject is the attempt ledger's key for step-up guesses, mfaSubject's reasoning.
@@ -64,7 +64,7 @@ type StepUpGrant struct {
 	Method    domain.StepUpMethod
 }
 
-// StepUp is the fresh re-authentication a privileged action demands (H-03, security.md §5).
+// StepUp is the fresh re-authentication a privileged action demands (identity.md §16).
 type StepUp struct{ Writer SessionWriter }
 
 // Execute proves. Only a session may step up - the proof is recorded on it, and a personal
@@ -162,7 +162,7 @@ func (h StepUp) prove(
 ) (domain.StepUpMethod, error) {
 	w := h.Writer
 	subject := stepUpSubject(actor.AccountID)
-	// A password the workspace switched off proves nothing here either (SC-24): the account proves
+	// A password the workspace switched off proves nothing here either: the account proves
 	// itself at its provider or with its factor. Asked before the proof's own transaction.
 	if !cmd.Password.IsEmpty() {
 		if err := w.passwordShut(ctx, actor.TenantID); err != nil {
@@ -273,14 +273,14 @@ func (w SessionWriter) stepUpWindow() time.Duration {
 	return 5 * time.Minute
 }
 
-// StepUpVerifier is the port's implementation (H-03): the seam E-06 cut, filled without changing
-// shape. Available is finally true; Satisfied judges and burns the proof in one statement.
+// StepUpVerifier is the port's implementation. Available is true; Satisfied judges and burns the
+// proof in one statement.
 type StepUpVerifier struct{ Writer SessionWriter }
 
 var _ stepupport.Verifier = StepUpVerifier{}
 
 // Available reports yes: this installation can ask anybody with a session to prove themselves
-// again, which since H-01 is everybody who signs in.
+// again, which is everybody who signs in.
 func (v StepUpVerifier) Available() bool { return true }
 
 // Satisfied consumes. Unknown, foreign, stale, already-burned and expired-session proofs are one
@@ -319,7 +319,7 @@ func (v StepUpVerifier) Methods(
 ) ([]stepupport.Method, error) {
 	w := v.Writer
 	methods := []stepupport.Method{}
-	// Not offered where the workspace switched the password off (SC-24): a field for it would ask
+	// Not offered where the workspace switched the password off: a field for it would ask
 	// for a proof the step-up refuses.
 	passwordOpen := w.passwordShut(ctx, tenantID) == nil
 	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID, ActorID: accountID},
@@ -337,8 +337,8 @@ func (v StepUpVerifier) Methods(
 			}
 			if err == nil && !enrollment.ConfirmedAt.IsZero() {
 				methods = append(methods, stepupport.MethodTotp)
-				// A recovery code where one is left: offering a method nobody can answer is the
-				// prompt issue 544 was about.
+				// A recovery code where one is left: offering a method nobody can answer is a
+				// prompt that leads nowhere.
 				if w.Recovery != nil {
 					left, err := w.Recovery.Remaining(ctx, accountID)
 					if err != nil {
@@ -370,8 +370,8 @@ func (v StepUpVerifier) Methods(
 func (h StepUp) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: StepUpName,
-		Summary: "Proves the caller afresh for one privileged action (security.md §5), with " +
-			"exactly one method the account holds (ADR-0075): the password, the TOTP code where a " +
+		Summary: "Proves the caller afresh for one privileged action, with " +
+			"exactly one method the account holds: the password, the TOTP code where a " +
 			"factor is armed, a recovery code, which the step-up consumes, or the state and code a " +
 			"provider sent the browser back with after StartProviderStepUp. The proof lands on the current " +
 			"session, is valid for a short window, and is consumed by the one action it is " +

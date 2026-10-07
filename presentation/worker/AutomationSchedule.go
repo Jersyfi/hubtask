@@ -13,9 +13,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// AutomationScheduling is one tenant's wake-up for its SCHEDULE rules (G-08).
+// AutomationScheduling is one tenant's wake-up for its SCHEDULE rules.
 //
-// The same shape as E-05's backup scheduling and D-03's reminders, and for the same reason: nothing
+// The same shape as the backup scheduling and the reminders, and for the same reason: nothing
 // in this system may enumerate tenants, so a scheduler cannot create one job per tenant even if it
 // wanted to (multi-tenancy.md §2.1). The write that creates or enables a scheduled rule seeds this
 // job for its own tenant, each round reschedules itself to the moment the tenant next owes

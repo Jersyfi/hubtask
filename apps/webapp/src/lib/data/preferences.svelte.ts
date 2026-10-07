@@ -8,7 +8,7 @@
  * zone and the week start from `/accounts/me`, and applies the language in one place — so the write
  * naming that path is what makes the page speak the new language without a reload. Nothing here
  * applies anything itself; a second module that set an attribute would be the second answer to
- * "which locale", which `apps/webapp/CLAUDE.md` rules out by name.
+ * "which locale", which design-system.md §11.10 rules out.
  *
  * **A notification row is written whole.** `enabled` and `include_title` travel together, because
  * "a row is a statement about a category rather than two switches that could drift".

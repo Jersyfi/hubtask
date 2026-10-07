@@ -168,7 +168,7 @@ func TestAServerFailureIsReleasedRatherThanStored(t *testing.T) {
 
 // A demand for a proof is not an outcome of the intent: the request was not attempted. The
 // client's retry carries the proof under the same key - that is what "the same intent" means to
-// it - and a replay of the demand would refuse every privileged action forever (issue 543).
+// it - and a replay of the demand would refuse every privileged action forever.
 func TestAStepUpDemandIsReleasedRatherThanStored(t *testing.T) {
 	store := &store{}
 	guard := Guard{Store: store, UnitOfWork: &unitOfWork{}}

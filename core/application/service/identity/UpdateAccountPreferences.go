@@ -43,7 +43,7 @@ type UpdateAccountPreferencesCommand struct {
 	Locale    *string
 	TimeZone  *string
 	WeekStart *string
-	// The moments (F6-12), under the same rule: "true"/"false" and an RFC 3339 instant, empty
+	// The moments, under the same rule: "true"/"false" and an RFC 3339 instant, empty
 	// clears. Strings rather than a bool and a time so that the one rule holds for all five.
 	Celebrations          *string
 	OnboardingCompletedAt *string

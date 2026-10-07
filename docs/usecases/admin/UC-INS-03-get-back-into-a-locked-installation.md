@@ -42,7 +42,8 @@ as done from the machine, and says so. The person signs in, opens *Installation*
 
 ## Today
 
-* **Not built.** Migration 0108 and ADR-0070 name "`hubctl` against the database" as the way back;
-  `hubctl` is an API client and has no database access. The only way today is SQL — as on the
-  integration environment on 2026-09-30.
-* **Check 5 fails:** the scope is silently dropped and the route answers the generic scope refusal.
+* Check 1: not met — the server binary has no command that restores an operator; the only way back is SQL, tracked in #1060.
+* Check 2: not met — no command adds the account to the register, tracked in #1060.
+* Check 3: not met — no such command exists to refuse an address, tracked in #1060.
+* Check 4: not met — the health report does not name an empty register, tracked in #1060.
+* Check 5: not met — the administrative scope is silently dropped and the route answers the generic scope refusal, tracked in #1060.

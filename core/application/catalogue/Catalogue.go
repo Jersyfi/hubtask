@@ -330,7 +330,7 @@ func Scopes() []string {
 		seen[descriptor.TokenScope] = true
 		scopes = append(scopes, descriptor.TokenScope)
 	}
-	// And the one scope that is not an operation's (J-14). `agent:destructive` is a *capability*:
+	// And the one scope that is not an operation's. `agent:destructive` is a *capability*:
 	// it says an agent token may reach the destructive use cases at all, and no descriptor declares
 	// it because no single operation is what it permits. It is named here rather than derived so
 	// that CreateAccessToken accepts it - a scope a token cannot be minted with is a guardrail
@@ -342,7 +342,7 @@ func Scopes() []string {
 }
 
 // AutomationActions is every action kind a rule may name that is a use case, sorted: what the
-// manifest answers and a rule editor offers (issue 542). Derived from the descriptors for the
+// manifest answers and a rule editor offers. Derived from the descriptors for the
 // reason Scopes is, and handed to the manifest by the composition root for the same reason - the
 // engine's own flow kinds (WAIT, BRANCH, STOP) are not in it because they are in no catalogue;
 // the contract says so, and a client names those three itself.
@@ -357,7 +357,7 @@ func AutomationActions() []string {
 
 // AutomationActionFields is, for every action kind AutomationActions names, the fields the use
 // case behind it declares - what the manifest answers so that a rule editor builds an action's
-// form from the declaration rather than from a schema compiled into it (F8-01). The same
+// form from the declaration rather than from a schema compiled into it. The same
 // []usecase.Field the MCP tool schema is derived from, read off the descriptor here and never
 // declared a second time; a kind with no fields maps to an empty slice rather than being absent,
 // because "no parameters" and "no such kind" are two different answers.
@@ -374,7 +374,7 @@ func AutomationActionFields() map[string][]usecase.Field {
 // AutomationActionSummaries is, for every action kind AutomationActions names, the one sentence
 // its use case declares as its Summary - the sentence the MCP tool for it carries, read off the
 // descriptor here so that a rule editor's catalogue says what a kind does without a second copy
-// of ninety sentences (F8-15, decision 17). Protocol documentation in English, as the Field
+// of ninety sentences. Protocol documentation in English, as the Field
 // descriptions are, and for the same reason not a breach of ADR-0011.
 func AutomationActionSummaries() map[string]string {
 	summaries := make(map[string]string, len(Descriptors()))
@@ -386,10 +386,10 @@ func AutomationActionSummaries() map[string]string {
 
 // SessionScopes is what a session-authenticated person may exercise: every declared scope except
 // the control plane's. A session is the person themselves - but the admin surface is entered by
-// a deliberately minted credential, never by whoever happens to be signed in (H-06, 0.6.0
-// decision 6), so the one scope class sessions never carry is `admin:*`.
+// a deliberately minted credential, never by whoever happens to be signed in (identity.md
+// §15.4), so the one scope class sessions never carry is `admin:*`.
 //
-// **One exception, added by ADR-0070 §4 and written here rather than left to be discovered.** A
+// **One exception, ADR-0070 §4, written here rather than left to be discovered.** A
 // session *raised* by a registered operator who has just passed a step-up carries `admin:tenants`
 // for an hour - which is not this function's doing: it still answers every scope but the control
 // plane's, and `AuthenticateToken.elevatedScopes` adds the one back for exactly that hour, for
@@ -405,8 +405,7 @@ func SessionScopes() []string {
 		}
 		// Nor the agent capability. A session is a person at a keyboard, never an actor this
 		// system calls an agent, so the scope would be one a session could carry and nothing
-		// would ever read - and a bound that is never read is one its holder believes in
-		// (J-14).
+		// would ever read - and a bound that is never read is one its holder believes in.
 		if scope == usecase.AgentDestructiveScope {
 			continue
 		}

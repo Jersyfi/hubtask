@@ -27,7 +27,7 @@ import (
 //
 // The front matter is a deliberately flat subset of YAML - `key: value` and `key: [a, b]` - read by
 // hand here rather than through a YAML library, because a dependency is a supply-chain decision
-// (CLAUDE.md) and nothing richer is allowed in the files.
+// (AGENTS.md) and nothing richer is allowed in the files.
 
 // ucContexts maps a folder under docs/usecases to the prefix its use cases carry. The folder is the
 // name of the service package that implements the context (core/application/service/<name>).

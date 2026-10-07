@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The one person an entry is on (C-01). An action route rather than a field of the merge patch,
+// The one person an entry is on. An action route rather than a field of the merge patch,
 // exactly as completing an entry is: the assignee is a scalar on the entry's own row, and both
 // operations move that row, spend a version and announce something a rule reacts to.
 //
@@ -56,7 +56,7 @@ func (c *RestController) UnassignWorkItem(
 }
 
 // AutoAssignWorkItem answers POST /items/{itemId}:auto-assign. No body either: the whole point
-// is that the caller names nobody - the collection's policy does the choosing (C-02).
+// is that the caller names nobody - the collection's policy does the choosing.
 func (c *RestController) AutoAssignWorkItem(
 	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
 	params openapi.AutoAssignWorkItemParams,

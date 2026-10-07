@@ -100,7 +100,7 @@ func TestTheSecondFactorsMoveUnderTheirOwnPurposeAndAForeignKeyIsSkipped(t *test
 	}
 }
 
-// A replacement waiting to be confirmed (SC-17) is a sealed value too, under the same purpose as the
+// A replacement waiting to be confirmed is a sealed value too, under the same purpose as the
 // factor it will become: the census counts it, so the re-seal moves it.
 func TestAWaitingReplacementMovesUnderTheFactorsPurpose(t *testing.T) {
 	waiting := shared.MustParseID("018f2a1b-0000-7000-8000-0000000000c4")
@@ -130,7 +130,7 @@ type resealProviderStore struct {
 	rewrapped []string
 }
 
-// resealProviderRow is the one row these tests work through. Plural since SI-10, and the fake
+// resealProviderRow is the one row these tests work through. Providers are plural, and the fake
 // answers a list of one: what the tests are about is the purpose and the guard, not the count.
 const resealProviderRow = shared.ID("018f2a1b-0000-7000-8000-0000000000e9")
 

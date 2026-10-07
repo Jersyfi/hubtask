@@ -238,7 +238,7 @@ func (r BucketRepository) Neighbours(
 		return "", "", err
 	}
 	// Optional, because a create excludes nothing: the query reads a NULL here as "leave every
-	// row in the level" (issue 992). `uuidOf` would refuse the empty identifier outright.
+	// row in the level". `uuidOf` would refuse the empty identifier outright.
 	moving, err := optionalUUID(movingID)
 	if err != nil {
 		return "", "", err

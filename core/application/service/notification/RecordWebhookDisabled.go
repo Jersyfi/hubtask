@@ -15,17 +15,16 @@ import (
 )
 
 // RecordWebhookDisabled tells the owner of a webhook subscription that this system has stopped
-// calling their server (G-03, automation.md §3.1).
+// calling their server (automation.md §3.1).
 //
-// The notification path C-09 built rather than a new channel: the preference is honoured, the
+// The ordinary notification path rather than a new channel: the preference is honoured, the
 // record is deduplicated, and the send is a job like every other. What is different is only what
 // caused it - nobody's action and no domain event, but a run of failures the system concluded
 // something from.
 //
 // # Why it carries no event
 //
-// `event_id` is null, which the column has allowed since C-09 "for the invitation, which is not an
-// event". A disabled subscription is the second of those: the trigger is the eighth failed attempt
+// `event_id` is null, which the column allows "for the invitation, which is not an event". A disabled subscription is the second of those: the trigger is the eighth failed attempt
 // of the third dead-lettered delivery, and there is no envelope that says so. The deduplication
 // index therefore does not apply, which is correct here - the aggregate disables itself once, so
 // the caller is already the thing that happens once.
@@ -60,7 +59,7 @@ func (r RecordWebhookDisabled) WebhookDisabled(
 		RecipientID: recipientID,
 		Category:    domain.CategoryIntegration,
 		Channel:     domain.ChannelEmail,
-		// The subscription is the subject (issue 814): what the message is about, and what a
+		// The subscription is the subject: what the message is about, and what a
 		// renderer needs to name. No event - see the note on the type.
 		SubscriptionID: subscriptionID,
 		At:             r.Clock.Now(),

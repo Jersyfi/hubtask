@@ -292,8 +292,8 @@ func seedErasableSubject(
 		  VALUES ($1, $2, $3, 'text/plain', 12, $4, 'ATTACHMENT', $5)`,
 			[]any{freshID().String(), tenant.String(), mediaKey(subject),
 				"sha-" + subject.String(), subject.String()}},
-		// The derived locations the acceptance of E-11 names one by one: the outbox, the rule runs,
-		// the deliveries, the activity feed, the person's devices and what they sent in by mail.
+		// The derived locations, named one by one: the outbox, the rule runs, the deliveries, the
+		// activity feed, the person's devices and what they sent in by mail.
 		// Seeding them is the whole point - a sweep only proves something about a location that had
 		// the person in it to begin with.
 		{`INSERT INTO outbox_event (id, tenant_id, event_type, payload, actor_type, actor_id)
@@ -351,11 +351,11 @@ func cursors() security.CursorCodec {
 	return security.NewCursorCodec(secret.New("privacy gate installation secret"))
 }
 
-// And the case PG-2 turned up on its way there: the person is the identity an automation rule acts
-// as. `automation_rule.run_as` is the one reference to an account this schema declares `ON DELETE
-// RESTRICT`, so before E-11 the deletion reached the database and came back as a foreign key
-// violation - a dependency error, in a case with a statutory deadline, telling the operator
-// nothing. It is a refusal with a count now.
+// And the case where the person is the identity an automation rule acts as.
+// `automation_rule.run_as` is the one reference to an account this schema declares `ON DELETE
+// RESTRICT`, so a deletion that reached the database would come back as a foreign key violation - a
+// dependency error, in a case with a statutory deadline, telling the operator nothing. It has to be
+// a refusal with a count.
 func TestPG2AnErasureIsRefusedWhileARuleActsAsThePerson(t *testing.T) {
 	ctx := context.Background()
 	subject, tenant, _ := seedErasableSubject(ctx, t, runsAsThePerson)

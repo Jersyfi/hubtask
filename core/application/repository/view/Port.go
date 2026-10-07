@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package view declares how the application layer stores saved views (D-07).
+// Package view declares how the application layer stores saved views.
 //
 // Its own package rather than a corner of the work port, the way meta and media have their own:
 // a saved view is a bookmark over the work, not a piece of it - it names no item, joins no
@@ -31,7 +31,7 @@ type SavedViews interface {
 	// ListReachable answers the account's own views plus what is shared into the given scopes -
 	// the container identifiers along one path, with TENANT-wide shares included by their type.
 	// The scopes are the authorisation's answer bound into the statement, never a filter after
-	// the page (C-04's rule, applied here).
+	// the page (domain-model.md §3.2).
 	ListReachable(ctx context.Context, ownerID shared.ID, scopeIDs []shared.ID) ([]view.SavedView, error)
 
 	Insert(ctx context.Context, saved view.SavedView) error

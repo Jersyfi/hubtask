@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# Synthetic firing tests for A-12's point-in-time recovery half (H-10): every rule driven to fire
+# Synthetic firing tests for A-12's point-in-time recovery half: every rule driven to fire
 # from crafted series, and the two that could plausibly fire when nothing is wrong driven the
 # other way as well. Run by `make gate-observability` through `promtool test rules`.
 #

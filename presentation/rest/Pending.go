@@ -14,8 +14,8 @@ import (
 )
 
 // pending answers every operation the specification declares and this installation does not serve
-// yet. RestController embeds it and overrides one method per use case that lands, so this file is
-// the visible remainder of the milestone: what is still missing is a list, not a guess.
+// yet. RestController embeds it and overrides one method per use case it serves, so this file is
+// the visible remainder of the contract: what is still missing is a list, not a guess.
 //
 // The routes are registered all the same. That is what lets the contract test compare the router
 // against api/openapi.yaml as a whole (ADR-0004), and it keeps the metric labels bounded to the
@@ -36,9 +36,8 @@ func notAvailable(w http.ResponseWriter, r *http.Request) {
 		correlation.RequestIDFrom(r.Context()))
 }
 
-// The identity operations. They land one by one as B-02 registers each use case; until then the
-// route exists because the contract declares it, and answers that this installation does not
-// serve it yet.
+// The identity operations. Where RestController does not override one, the route exists because
+// the contract declares it, and answers that this installation does not serve it yet.
 func (pending) InviteAccount(w http.ResponseWriter, r *http.Request, _ openapi.InviteAccountParams) {
 	notAvailable(w, r)
 }
@@ -100,9 +99,7 @@ func (pending) DeleteGroup(w http.ResponseWriter, r *http.Request, _ openapi.Gro
 	notAvailable(w, r)
 }
 
-// The session operations of H-01. They land one by one as the use cases register; until then the
-// route exists because the contract declares it, and answers that this installation does not
-// serve it yet.
+// The session operations, for the reason given at InviteAccount.
 func (pending) SignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) RefreshSession(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
@@ -115,12 +112,12 @@ func (pending) RevokeSession(w http.ResponseWriter, r *http.Request, _ openapi.S
 
 func (pending) RevokeAllSessions(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-// Sign out everywhere else: served by RestController since SC-23.
+// Sign out everywhere else: served by RestController.
 func (pending) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) RedeemInvitation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-// The sign-in surface of ADR-0068, pending until each use case lands.
+// The sign-in surface of ADR-0068.
 func (pending) GetSignInRules(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ChangePassword(w http.ResponseWriter, r *http.Request, _ openapi.ChangePasswordParams) {
@@ -137,7 +134,7 @@ func (pending) ResetPassword(w http.ResponseWriter, r *http.Request) { notAvaila
 
 func (pending) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-// The instance layer of ADR-0070, pending until each use case lands.
+// The instance layer of ADR-0070.
 func (pending) ReadInstanceSettings(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
 func (pending) WriteInstanceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 func (pending) ListOperators(w http.ResponseWriter, r *http.Request)         { notAvailable(w, r) }
@@ -157,7 +154,7 @@ func (pending) RegenerateRecoveryCodes(
 	notAvailable(w, r)
 }
 
-// The MFA operations of H-02, pending until each use case lands.
+// The MFA operations.
 func (pending) CompleteSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) CompleteLink(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
@@ -184,12 +181,12 @@ func (pending) ConfirmAuthenticatorReplacement(w http.ResponseWriter, r *http.Re
 
 func (pending) StepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-// The keyring's census and the re-seal (ADR-0045), pending until the sealing service lands.
+// The keyring's census and the re-seal (ADR-0045).
 func (pending) ReadEncryptionStatus(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ResealSecrets(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-// The control plane of H-06, pending until each use case lands.
+// The control plane.
 func (pending) ListTenants(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ProvisionTenant(w http.ResponseWriter, r *http.Request, _ openapi.ProvisionTenantParams) {
@@ -208,7 +205,7 @@ func (pending) RequestTenantDeletion(w http.ResponseWriter, r *http.Request, _ o
 	notAvailable(w, r)
 }
 
-// An operator's opening of the password for one workspace (SC-34), pending until the use cases land.
+// An operator's opening of the password for one workspace.
 func (pending) OpenTenantPassword(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId, _ openapi.OpenTenantPasswordParams) {
 	notAvailable(w, r)
 }
@@ -217,12 +214,12 @@ func (pending) CloseTenantPassword(w http.ResponseWriter, r *http.Request, _ ope
 	notAvailable(w, r)
 }
 
-// The tenant export of H-07, pending until the use case lands.
+// The tenant export.
 func (pending) ExportTenant(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
 	notAvailable(w, r)
 }
 
-// The workspace's own view of itself (F4-01). Overridden by RestController, for the reason
+// The workspace's own view of itself. Overridden by RestController, for the reason
 // given at CreateContainer.
 func (pending) ReadWorkspace(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
@@ -230,7 +227,7 @@ func (pending) UpdateWorkspace(w http.ResponseWriter, r *http.Request, _ openapi
 	notAvailable(w, r)
 }
 
-// The configuration lifecycle of F4-02. All six are overridden by RestController, for the reason
+// The configuration lifecycle. All six are overridden by RestController, for the reason
 // given at CreateContainer: the route exists because the contract declares it, and the pending set
 // is what the contract test compares the router against.
 func (pending) ListBackupSchedules(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
@@ -255,14 +252,14 @@ func (pending) DeleteRetentionPolicy(w http.ResponseWriter, r *http.Request, _ o
 	notAvailable(w, r)
 }
 
-// The quota surface of H-08, pending until each use case lands.
+// The quota surface.
 func (pending) ReadQuotas(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) UpdateTenantQuotas(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
 	notAvailable(w, r)
 }
 
-// The OAuth2 provider of H-05, pending until each use case lands.
+// The OAuth2 provider.
 func (pending) ListOauthClients(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ReadOauthClient(w http.ResponseWriter, r *http.Request, _ openapi.OauthClientId) {
@@ -287,7 +284,7 @@ func (pending) RevokeOauthGrant(w http.ResponseWriter, r *http.Request, _ openap
 	notAvailable(w, r)
 }
 
-// The five credential operations of G-01. All of them are overridden by RestController; they stay
+// The five credential operations. All of them are overridden by RestController; they stay
 // here because the compile-time check above needs every method of the interface.
 func (pending) ListAccessTokens(w http.ResponseWriter, r *http.Request, _ openapi.ListAccessTokensParams) {
 	notAvailable(w, r)
@@ -305,7 +302,7 @@ func (pending) ListServiceAccounts(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
-// The webhook subscriptions of G-03. All eight are overridden by RestController; they stay here
+// The webhook subscriptions. All eight are overridden by RestController; they stay here
 // because the compile-time check above needs every method of the interface.
 func (pending) ListWebhookSubscriptions(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
@@ -388,7 +385,7 @@ func (pending) TestRule(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
-// The jumble (G-10). RestController overrides them as the steps land.
+// The jumble. RestController overrides them as the steps land.
 func (pending) ListJumbleEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListJumbleEntriesParams) {
 	notAvailable(w, r)
 }
@@ -419,7 +416,7 @@ func (pending) StartJumbleIntake(w http.ResponseWriter, r *http.Request, _ strin
 	notAvailable(w, r)
 }
 
-// The mail door beside it (G-11), and pending for the same reason: an installation that does not
+// The mail door beside it, and pending for the same reason: an installation that does not
 // serve it tells the internet nothing about why.
 func (pending) DeliverMail(w http.ResponseWriter, r *http.Request, _ string) {
 	notAvailable(w, r)
@@ -481,7 +478,7 @@ func (pending) VerifyAuditChain(w http.ResponseWriter, r *http.Request) { notAva
 // ExportAuditTrail is overridden by RestController, for the reason ListAuditEntries is.
 func (pending) ExportAuditTrail(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-// The privacy operations (E-10). Overridden by RestController where a use case serves them; they
+// The privacy operations. Overridden by RestController where a use case serves them; they
 // stay here because the compile-time assertion is on `pending` itself.
 func (pending) ListDataSubjectRequests(w http.ResponseWriter, r *http.Request, _ openapi.ListDataSubjectRequestsParams) {
 	notAvailable(w, r)
@@ -709,7 +706,7 @@ func (pending) DeleteComment(w http.ResponseWriter, r *http.Request, _ openapi.I
 	notAvailable(w, r)
 }
 
-// The custom field operations land one by one as C-07 registers each use case.
+// The custom field operations.
 func (pending) ListCustomFields(w http.ResponseWriter, r *http.Request, _ openapi.ListCustomFieldsParams) {
 	notAvailable(w, r)
 }
@@ -740,7 +737,7 @@ func (pending) ClearDueDate(w http.ResponseWriter, r *http.Request, _ openapi.It
 	notAvailable(w, r)
 }
 
-// The media operations land one by one as C-06 registers each use case.
+// The media operations.
 func (pending) SetCover(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetCoverParams) {
 	notAvailable(w, r)
 }
@@ -988,15 +985,15 @@ func (pending) PreviewRetentionPolicy(w http.ResponseWriter, r *http.Request, _ 
 }
 
 // ListSyncDevices and ForgetSyncDevice are overridden by RestController, for the reason given at
-// CreateContainer (N-03).
+// CreateContainer.
 func (pending) ListSyncDevices(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ForgetSyncDevice(w http.ResponseWriter, r *http.Request, _ openapi.DeviceId) {
 	notAvailable(w, r)
 }
 
-// SyncPull and SyncPush are overridden by RestController, for the reason given at CreateContainer
-// (N-01, N-04).
+// SyncPull and SyncPush are overridden by RestController, for the reason given at
+// CreateContainer.
 func (pending) SyncPull(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) SyncPush(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
@@ -1008,7 +1005,7 @@ func (pending) StreamChanges(w http.ResponseWriter, r *http.Request, _ openapi.S
 }
 
 // The three feed operations are overridden by RestController, for the reason given at
-// CreateContainer. The fetch and the export answer as pending until the steps that serve them.
+// CreateContainer.
 func (pending) ListCalendarFeeds(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) CreateCalendarFeed(w http.ResponseWriter, r *http.Request, _ openapi.CreateCalendarFeedParams) {
@@ -1027,7 +1024,7 @@ func (pending) ExportView(w http.ResponseWriter, r *http.Request, _ openapi.View
 	notAvailable(w, r)
 }
 
-// The relying party (H-04). RestController serves all five of its routes; these stand behind
+// The relying party. RestController serves all five of its routes; these stand behind
 // them, as they do behind every operation this installation does serve.
 func (pending) StartOidcSignIn(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
@@ -1079,7 +1076,7 @@ func (pending) ListIdentityProviderPresets(w http.ResponseWriter, r *http.Reques
 	notAvailable(w, r)
 }
 
-// The installation at a glance, and its own record (SI-17, ADR-0070 §5).
+// The installation at a glance, and its own record (ADR-0070 §5).
 func (pending) ReadInstanceOverview(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
@@ -1090,7 +1087,7 @@ func (pending) ListInstanceJournal(
 	notAvailable(w, r)
 }
 
-// The providers the installation offers every workspace (SI-10, ADR-0070 §2).
+// The providers the installation offers every workspace (ADR-0070 §2).
 func (pending) ListInstanceIdentityProviders(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
@@ -1111,7 +1108,7 @@ func (pending) RemoveInstanceIdentityProvider(
 	notAvailable(w, r)
 }
 
-// The AI provider's configuration (J-02). RestController serves all three; these stand behind
+// The AI provider's configuration. RestController serves all three; these stand behind
 // them, as they do behind every operation this installation does serve.
 func (pending) ReadAiProvider(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
@@ -1125,7 +1122,7 @@ func (pending) RemoveAiProvider(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
-// Asking AI what an entry should become (J-06). RestController serves it; this stands behind it.
+// Asking AI what an entry should become. RestController serves it; this stands behind it.
 func (pending) SuggestFromJumbleEntry(
 	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID,
 	_ openapi.SuggestFromJumbleEntryParams,
@@ -1133,7 +1130,7 @@ func (pending) SuggestFromJumbleEntry(
 	notAvailable(w, r)
 }
 
-// The suggestions (J-05). RestController serves all three.
+// The suggestions. RestController serves all three.
 func (pending) ListSuggestions(w http.ResponseWriter, r *http.Request, _ openapi.ListSuggestionsParams) {
 	notAvailable(w, r)
 }
@@ -1190,7 +1187,7 @@ func (pending) AiGenerateTemplate(
 	notAvailable(w, r)
 }
 
-// The imports (P-08) are overridden by RestController, for the reason given at CreateContainer.
+// The imports are overridden by RestController, for the reason given at CreateContainer.
 func (pending) ImportEntries(w http.ResponseWriter, r *http.Request, _ openapi.ImportEntriesParams) {
 	notAvailable(w, r)
 }
@@ -1199,7 +1196,7 @@ func (pending) GetImport(w http.ResponseWriter, r *http.Request, _ openapi.Impor
 	notAvailable(w, r)
 }
 
-// The withdrawal of an offered provider (ADR-0076): served by RestController since SC-20.
+// The withdrawal of an offered provider (ADR-0076): served by RestController.
 func (pending) WithdrawInstanceIdentityProvider(
 	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
 	_ openapi.WithdrawInstanceIdentityProviderParams,

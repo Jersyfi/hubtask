@@ -46,8 +46,8 @@ import (
 )
 
 // mailpitImage is overridable the way the PostgreSQL image is, so the support matrix can vary it
-// without a code change. The S3-compatible server is test/s3test's, which is one place for a pin
-// that used to be three (#1029).
+// without a code change. The S3-compatible server is test/s3test's, so its pin lives in one
+// place.
 func mailpitImage() string {
 	if image := os.Getenv("HUBTASK_TEST_MAILPIT_IMAGE"); image != "" {
 		return image
@@ -62,7 +62,7 @@ func mailpitImage() string {
 // provider's wire format, can be stopped, and can be started again. It does not need a model:
 // pulling one would add hundreds of megabytes and minutes to every `gate-resilience` run to prove
 // nothing this test asserts. The *shape* of the wire is proved by the adapters' own suite, which
-// both must pass, and against a real provider by the scripted session (J-16).
+// both must pass, and against a real provider by the scripted session.
 func aiStubImage() string {
 	if image := os.Getenv("HUBTASK_TEST_AI_STUB_IMAGE"); image != "" {
 		return image
@@ -153,10 +153,10 @@ func startAgain(t *testing.T, container testcontainers.Container) {
 	}
 }
 
-// TestRT1AStoppedContainerDegradesExactlyItsOwnFeature is the container-backed sibling the
-// stand-in's header promised (C-12): the same composition - adapter, breaker, bulkhead, probe,
-// registry, metrics - wired the way cmd/server/main.go wires it, against a real object store and
-// a real Mailpit that are stopped mid-flight, one at a time.
+// TestRT1AStoppedContainerDegradesExactlyItsOwnFeature is the container-backed sibling of the
+// stand-in in rt1_optional_dependency_test.go: the same composition - adapter, breaker, bulkhead,
+// probe, registry, metrics - wired the way cmd/server/main.go wires it, against a real object
+// store and a real Mailpit that are stopped mid-flight, one at a time.
 //
 // One test rather than one per dependency, deliberately: "a stopped dependency degrades exactly
 // its own feature and nothing else" is a claim about the whole report, and it can only be asserted
@@ -476,10 +476,8 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 
 	// --- The AI provider goes down ---------------------------------------------------------
 	//
-	// The row observability-reliability.md §7 has carried since it was written and nothing has
-	// ever asserted: "AI suggestions disappear, every manual route remains". The stand-in in
-	// rt1_optional_dependency_test.go held this place with an in-process server and a comment
-	// naming 0.7.0; J-03 built the adapter, so the place is filled.
+	// The AI provider row of observability-reliability.md §7: AI suggestions disappear, and every
+	// manual route remains.
 	if err := askAI(); err != nil {
 		t.Fatalf("the AI path failed while everything was up: %v", err)
 	}
@@ -526,7 +524,7 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 		`hubtask_dependency_up{dependency="smtp"} 1`,
 		`hubtask_degraded_mode{feature="ai_suggestions"} 1`,
 		// The second thing the outage costs: search finds entries by their words and no longer by
-		// what they mean (J-10). Two features from one dependency, which is why the report carries
+		// what they mean. Two features from one dependency, which is why the report carries
 		// a list rather than a name.
 		`hubtask_degraded_mode{feature="semantic_search"} 1`,
 		`hubtask_degraded_mode{feature="media"} 0`,

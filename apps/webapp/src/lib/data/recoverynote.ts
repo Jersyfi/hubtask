@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The note a recovery code leaves (UC-ID-02 check 6, SC-18), as it is kept between pages.
+ * The note a recovery code leaves (UC-ID-02 check 6), as it is kept between pages.
  *
  * In the tab's own storage: the number arrived with this one sign-in and nothing after it answers it
  * again, so a reload must not lose it - and a tab is where this sign-in lives. Read rather than

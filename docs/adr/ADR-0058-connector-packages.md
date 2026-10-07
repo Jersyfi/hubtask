@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-16 · **Accepted:** 2026-09-17
 
+**Rule lives in:** [project-structure.md](../architecture/project-structure.md) §2.2; [automation.md](../architecture/automation.md) §3.3
+
 ## Context
 
 [`automation.md`](../architecture/automation.md) §3.3 has promised since phase 0 "an official
@@ -9,7 +11,7 @@
 manifest, so that they stay complete automatically", and `0.5.0` and `0.6.0` built what they
 need on the server side — the REST hooks pattern, trigger polling, OAuth2 with PKCE — with the
 sentence "this milestone builds the endpoints they will be generated against". Milestone `0.9.0`
-generates them (P-04, P-05 in [`milestone-0.9.0.md`](../backlog/milestone-0.9.0.md)).
+generates them (P-04, P-05 in [`milestone-0.9.0.md`](../archive/backlog/milestone-0.9.0.md)).
 
 Both packages are TypeScript or JavaScript, both live in `packages/` as workspace members, and
 both are loaded by a platform this repository does not run: an n8n community node imports
@@ -20,7 +22,7 @@ it here would add it to this repository's lockfile, its licence scan and its vul
 for the sake of one thing: a local typecheck of the generated description against the platform's
 types.
 
-[`CLAUDE.md`](../../CLAUDE.md) makes every dependency a supply chain decision, and this is one
+[`CLAUDE.md`](../../AGENTS.md) makes every dependency a supply chain decision, and this is one
 that a pull request must not take in passing. It is also one where the value is genuinely
 unclear: the n8n declarative node format is JSON with a documented schema, and a schema written
 into the generator's tests catches a malformed description as surely as a `.d.ts` would — but

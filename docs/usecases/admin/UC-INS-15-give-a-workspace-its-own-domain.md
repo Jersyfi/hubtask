@@ -45,4 +45,9 @@ itself and the screen warns.
 
 ## Today
 
-* **Not built.** SI-12 prepared the list of a workspace's hosts; nothing resolves through it yet.
+* Check 1: not met — there is no screen for a workspace's own domain; only the list of a workspace's hosts is prepared.
+* Check 2: not met — there is no verification of a domain.
+* Check 3: not met — nothing resolves a workspace through its own domain.
+* Check 4: not met — there is no own domain whose change the sent links would have to survive.
+* Check 5: not met — there is no confirmation dialog for a domain change.
+* Check 6: not met — there is no fallback from a broken domain, and no warning.

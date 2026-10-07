@@ -27,7 +27,7 @@ var rightToLeft = map[string]bool{
 }
 
 // weekAndDecimal is the table behind week_start and decimal_separator: the `1.0` locale set,
-// the ten most spoken languages by total speakers and German (milestone-0.8.0.md, decision 3).
+// the ten most spoken languages by total speakers and German (i18n-l10n.md §2).
 //
 // A table rather than a dependency, on purpose: golang.org/x/text exposes no week data and no
 // number symbols as a public API, and the CLDR archive it can parse is not something a server

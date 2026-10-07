@@ -40,7 +40,7 @@ class FakeRequest<T> {
  * one `await` chains a thousand puts on one transaction - and inactive once such a task has
  * ended. When it goes inactive with no request outstanding it is finished: a request issued on it
  * throws `TransactionInactiveError`, `objectStore()` still answers, and `oncomplete` fires a
- * task later. That last window is what the store must survive (issue 776).
+ * task later. That last window is what the store must survive.
  */
 class FakeTransaction {
   #active = true;

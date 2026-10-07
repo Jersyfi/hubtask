@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Generates the Zapier app from the contract (P-05, ADR-0058).
+// Generates the Zapier app from the contract (ADR-0058).
 //
 // Zapier's format is code per trigger, create and search, so the generator writes one file per
 // entry over one hand-written request helper (src/hubtask.js): a trigger per event type as REST
@@ -27,7 +27,7 @@ const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 /**
  * The platform library's version, pinned to the platform's current one: `zapier validate` names
  * the latest under D027, and `cleanInputData` - which every perform here needs said, because they
- * drop empty values themselves - is a key the schema learned after 17 (issue 722).
+ * drop empty values themselves - is a key the schema learned after 17.
  */
 export const PLATFORM_VERSION = '19.1.0';
 
@@ -271,8 +271,9 @@ export function searchSource(op, entry) {
 /**
  * A trigger's description, in the shape the platform's D021 check demands: "Triggers when " and
  * then the event's own first sentence, as the contract writes it in api/events - "Triggers when a
- * task, a work package or an activity was created." The task references the schemas carry for a
- * reader of the repository ("(C-03)") are dropped; a person building a Zap has no use for them.
+ * task, a work package or an activity was created." An internal reference in parentheses - a
+ * task id, an invariant - is dropped should a schema carry one; a person building a Zap has no use
+ * for it.
  */
 export function triggerDescription(eventType, schema) {
   const own = firstSentence(schema?.description ?? '')

@@ -3,12 +3,11 @@
 
 // Measures WCAG 2.2 contrast for every pair tokens.json declares, in both modes.
 //
-// design-system.md §9 said the label tokens "are calculated for >= 4.5:1 but have not been
-// measured", and that measuring them belongs in CI rather than in a one-off check. A one-off check
+// Contrast is measured in CI rather than in a one-off check (design-system.md §1). A one-off check
 // is true on the day it is run; this one is true on the day somebody changes a neutral step.
 //
 // Two properties make it worth trusting. It reads colours from tokens/tokens.json and from nowhere
-// else, so it cannot drift away from the source it is checking (ADR-0029, CLAUDE.md rule 15). And
+// else, so it cannot drift away from the source it is checking (ADR-0029, rule 15). And
 // every semantic colour token has to carry a role in ROLES below - a token nobody has classified
 // fails the suite instead of being skipped, so the check cannot quietly shrink as the token set
 // grows.
@@ -74,7 +73,7 @@ const ROLES = {
 
   'focus.ring': 'indicator',
 
-  // The AI treatment (F5-01): a proposal has to be legible *and* visibly not the reader's own
+  // The AI treatment: a proposal has to be legible *and* visibly not the reader's own
   // content, so its surfaces are measured under every text like any other tinted surface, and
   // its own text, border and fill are measured against every surface like any other - both
   // directions, one table. The surfaces sit at the neutrals' luminance on purpose - they differ
@@ -86,7 +85,7 @@ const ROLES = {
   'ai.text': 'body-text',
   'ai.accent': 'fill',
 
-  // A status as a surface (ADR-0061, F9-01): the four roles `ai.*` established, five times. Each
+  // A status as a surface (ADR-0061): the four roles `ai.*` established, five times. Each
   // surface is measured under every text like any tinted surface, and each text, border and
   // accent against every surface - so `text.warning` is measured on `status.info.surface` as
   // well as on its own, which is the pair a banner with a warning badge in it draws.

@@ -38,7 +38,7 @@ var contentKeys = map[string]string{
 	"subject":      "a subject line is PERSONAL_CONTENT",
 	"raw_body":     "an intake body is PERSONAL_CONTENT",
 	// What somebody typed into a search box is their content too, and it is the one piece of it
-	// that arrives already looking like a technical value (J-10). `q` is the contract's name for
+	// that arrives already looking like a technical value. `q` is the contract's name for
 	// it and `words` the domain's, which are the two a person reaches for when they are about to
 	// log a query "just to see what people search for".
 	"q":          "a search query is PERSONAL_CONTENT",

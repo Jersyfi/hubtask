@@ -66,7 +66,4 @@ See [backup-restore.md](../../architecture/backup-restore.md) §2.
 
 ## Today
 
-* **Check 10 fails in the web app.** The target form offers local, S3 and SFTP only — no WebDAV —
-  and its SFTP variant has no host key field and sends the user name as a credential rather than
-  in the configuration (`apps/webapp/src/views/BackupView.svelte`), so an SFTP target added there is
-  always refused with `backup.host_key_required`. The form also offers no encryption choice.
+* Check 10: not met in the web app — the target form offers no WebDAV, and its SFTP variant has no host key field and sends the user name as a credential, so an SFTP target added there is always refused; the form offers no encryption choice either, tracked in #1073.

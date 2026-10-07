@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-23
 
+**Rule lives in:** [support-matrix.md](../architecture/support-matrix.md) §7, [versioning-release.md](../architecture/versioning-release.md) §1, [offline-sync.md](../architecture/offline-sync.md) §1
+
 ## Context
 
 [ADR-0021](./ADR-0021-offline-sync.md) promises clients that work entirely without a network, and

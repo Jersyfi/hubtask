@@ -21,9 +21,9 @@ import (
 // Category is the coarse classification the adapters map to a protocol. The application layer
 // assigns it; an adapter never invents one.
 //
-// arc42 §8.11 names the first six. UNAUTHENTICATED, GONE and UNAVAILABLE follow from the status
-// mapping in api-guidelines.md §6, which requires 401, 410 and 503 - none of which any of the six
-// can produce.
+// arc42 §8.11 names all nine and the status each maps to; api-guidelines.md §6 is the mapping
+// UNAUTHENTICATED, GONE and UNAVAILABLE exist for, because 401, 410 and 503 are statuses none of
+// the other six can produce.
 type Category string
 
 const (

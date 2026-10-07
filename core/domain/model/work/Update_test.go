@@ -194,8 +194,8 @@ func TestAnUpdateThatChangesSomethingMovesTheTimestamp(t *testing.T) {
 	}
 }
 
-// The capability matrix, which is the whole point of B-05: an activity carries no NOTES, so
-// writing notes to one is refused by name rather than silently ignored (domain-model.md §2).
+// The capability matrix at work: an activity carries no NOTES, so writing notes to one is refused
+// by name rather than silently ignored (domain-model.md §2).
 func TestNotesOnATypeWithoutTheCapabilityAreRefused(t *testing.T) {
 	activity := updatable(t)
 	activity.Type = ItemActivity

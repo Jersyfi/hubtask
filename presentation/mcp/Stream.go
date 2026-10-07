@@ -14,12 +14,10 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
-// The server-initiated half of the streamable transport (J-13).
+// The server-initiated half of the streamable transport.
 //
-// `GET /mcp` used to answer `405` with a comment saying this server initiates nothing and that
-// saying so is better than holding a connection that never speaks. J-11 and J-12 ended that: there
-// are lists that can change, and a client that has to poll to find out is a client holding a stale
-// picture of a workspace somebody else is editing.
+// There are lists that can change, and a client that has to poll to find out is a client holding
+// a stale picture of a workspace somebody else is editing.
 //
 // **It is the same kind of connection as `GET /stream`, and it is held to the same limits.** The
 // caps, the draining, the refusal reasons and the framing are `presentation/stream`'s, shared with
@@ -171,7 +169,7 @@ func listChanged() string {
 func (s Server) subscribe(tenantID shared.ID) (<-chan struct{}, func()) {
 	if s.Wakeups == nil {
 		// No listener wired. The stream still works - it heartbeats and it drains - and it simply
-		// never notifies, which is a client polling as it did before J-13 rather than a broken one.
+		// never notifies, which leaves a client polling rather than a broken one.
 		return nil, func() {}
 	}
 	return s.Wakeups.Subscribe(tenantID)

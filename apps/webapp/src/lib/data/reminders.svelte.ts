@@ -14,8 +14,8 @@
  *
  * **An entry that repeats never is not asked.** `recurrence_rule_id` is on the row, null for an
  * entry with no series, so "none" is known before any request - and the request is not made
- * (issue 882): every `GET` that answered 404 was a red line in the browser's console, one per read, and
- * with the entry page's re-reads that was five to ten per page hiding a failure that mattered. The
+ * at all: every `GET` answered 404 is a red line in the browser's console, one per read, and
+ * with the entry page's re-reads that is five to ten per page hiding a failure that matters. The
  * 404 branch stays for the one case the row cannot settle: an occurrence restored from an archive
  * taken before the source column existed, which carries a rule id and has no rule of its own.
  *
@@ -184,7 +184,7 @@ class Series {
 
   /**
    * Sets the series, and changes it: one call for both, because a rule is one thing an entry
-   * either carries or does not (D-04).
+   * either carries or does not.
    *
    * `/items` is invalidated as well, because setting a series materialises occurrences — and those
    * are ordinary entries that a list is showing.

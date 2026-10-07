@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The calendar feeds (D-08). The controller holds no rules: who may mint a feed over which view,
+// The calendar feeds. The controller holds no rules: who may mint a feed over which view,
 // and whose feed may be revoked, are decided inwards of here. What is decided here is the one
 // thing that is genuinely this layer's - the address a client subscribes to, which is a URL and
 // therefore a question about this installation rather than about the domain.

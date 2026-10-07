@@ -71,13 +71,13 @@ type Profile struct {
 	// to the order of two fields; so the profile holds one at a time and each sign-in replaces
 	// the other.
 	Session Session
-	// Device is the identifier this shell synchronises as (N-12), minted on the first `hubctl
+	// Device is the identifier this shell synchronises as, minted on the first `hubctl
 	// sync` and kept, so that every invocation is the same device to the server; and Clock is
 	// the last reading hubctl stamped, so that its hybrid clock ticks on across invocations
 	// rather than starting over (offline-sync.md §4.1).
 	Device string
 	Clock  string
-	// Cursor is where this device stands after a snapshot it applied (SY-C, P-12): the delta
+	// Cursor is where this device stands after a snapshot it applied: the delta
 	// cursor `hubctl sync snapshot --apply` kept, moved by every `hubctl sync pull --continue`.
 	// hubctl keeps no copy of the workspace, so the cursor is the whole of what "the profile's
 	// store" holds.
@@ -88,7 +88,7 @@ type Profile struct {
 //
 // The access token is what travels on every call, and it lives fifteen minutes - far less than
 // the time between two commands somebody types. So the refresh token is held beside it and
-// exchanged when the access token is nearly out (H-01): without that, `hubctl login` would be
+// exchanged when the access token is nearly out: without that, `hubctl login` would be
 // good for a quarter of an hour and a scripted session would sign in over and over.
 type Session struct {
 	// ID is the session row, so that `hubctl session ls` can say which line is this shell.

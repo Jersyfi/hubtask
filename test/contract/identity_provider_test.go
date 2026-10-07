@@ -22,9 +22,9 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/rest"
 )
 
-// SC-21, ADR-0076 §5: `enabled` on a provider's configuration is deprecated, not removed - a client
-// that echoes it keeps working until the next major version - and a changed value is refused as a
-// problem the client can read, pointing to the list of ways to sign in.
+// UC-ID-11 check 8, ADR-0076 §5: `enabled` on a provider's configuration is deprecated, not removed
+// - a client that echoes it keeps working until the next major version - and a changed value is
+// refused as a problem the client can read, pointing to the list of ways to sign in.
 
 func TestTheProviderSwitchOnTheFormIsDeprecatedAndStillAccepted(t *testing.T) {
 	configuration := contractSpec(t).Components.Schemas["IdentityProviderConfiguration"]
@@ -94,7 +94,7 @@ func TestAChangedProviderSwitchIsAProblemAndTheFieldReachesTheUseCase(t *testing
 	}
 }
 
-// SC-20, ADR-0076 §2-3: the withdrawal is served, its body is optional - none is the default
+// ADR-0076 §2-3: the withdrawal is served, its body is optional - none is the default
 // notice - and what it answers is the operator's projection, with the count and the date.
 
 // answeringCatalogue remembers the input and answers one output.

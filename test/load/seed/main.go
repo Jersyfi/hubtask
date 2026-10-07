@@ -10,11 +10,11 @@
 // two million rows on any machine, in any order the loader chooses.
 //
 // It holds no database driver, deliberately. It writes to standard output and scripts/seed-load-
-// dataset.sh pipes it into `psql \copy`, which keeps CLAUDE.md rule 3 - every query through the
+// dataset.sh pipes it into `psql \copy`, which keeps rule 3 - every query through the
 // transaction wrapper - a statement about code that talks to a database, rather than one with an
 // exception in it.
 //
-// The distribution is a long tail rather than an even split, because the figure H-11 records is
+// The distribution is a long tail rather than an even split, because the capacity figure is
 // throughput per vCPU *and its decay with items per tenant*: an even split would have no decay to
 // measure. Rank r of n tenants gets a share proportional to 1/(r+1) - Zipf, the shape a real
 // installation has, where a handful of workspaces hold most of the work and the rest hold a few
@@ -171,7 +171,7 @@ func derive(seed, kind string, index ...int) string {
 }
 
 // choice picks deterministically out of n possibilities, from the same derivation the identifiers
-// use. There is no random source here at all - CLAUDE.md rule 4 bans one in the core, and a
+// use. There is no random source here at all - rule 4 bans one in the core, and a
 // dataset generator that drew from one could not be reproduced anyway.
 func choice(seed, kind string, index int, n int) int {
 	if n < 1 {

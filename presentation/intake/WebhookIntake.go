@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package intake is the inbound adapter for content that arrives from outside without a person
-// behind it (G-10): the jumble's doors. The webhook intake is here; the mail intake joins it
-// (G-11). An intake differs from the REST API in who is asking - a bridge with a token, not an
+// behind it: the jumble's doors, the webhook intake and the mail intake. An intake differs from
+// the REST API in who is asking - a bridge with a token, not an
 // account with a role - and in nothing else: everything it stores goes through the same
 // application services and the same bounds.
 package intake
@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// WebhookIntake turns one posted delivery into a jumble entry (G-10, automation.md §1.1's
+// WebhookIntake turns one posted delivery into a jumble entry (automation.md §1.1's
 // credential discipline applied to the inbox).
 //
 // It authenticates the tenant, never a person: the token is the whole credential, and every

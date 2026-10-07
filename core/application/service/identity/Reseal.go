@@ -36,7 +36,7 @@ func (r MfaResealer) Reseal(ctx context.Context, _ shared.ID) (sealing.Outcome, 
 	if err := r.move(ctx, rows, r.Enrollments.Rewrap, &outcome); err != nil {
 		return outcome, err
 	}
-	// The replacements waiting to be confirmed (SC-17) under the same purpose: each becomes the
+	// The replacements waiting to be confirmed under the same purpose: each becomes the
 	// factor it is bound to, so it is sealed for that factor, and the census counts it.
 	waiting, err := r.Enrollments.ReplacementsSealedNotUnder(ctx, active)
 	if err != nil {
@@ -80,7 +80,7 @@ type providerSealing interface {
 
 // IdentityProviderResealer moves the client secrets of one level.
 //
-// Plural since SI-10, and the purpose is still the level's rather than the row's, which is why
+// Providers are plural, and the purpose is the level's rather than the row's, which is why
 // Reseal takes the tenant: a ciphertext is bound to the workspace it was sealed for, so every row
 // of that workspace opens under the same purpose.
 //

@@ -25,11 +25,11 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// The access and portability export (Art. 15 and 20, E-10).
+// The access and portability export (Art. 15 and 20).
 //
 // It is **not a new format**. `backup-restore.md` §9 settled that: an export is a Hubtask archive,
 // "so an export is therefore simultaneously a restorable backup, without a second format coming
-// into existence". So this writes the archive of E-04, through the writer of E-05, with one thing
+// into existence". So this writes the backup archive, through the backup's writer, with one thing
 // changed - the source hands over the person's rows rather than the tenant's.
 
 const (

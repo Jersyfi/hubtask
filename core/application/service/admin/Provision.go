@@ -2,12 +2,12 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package admin holds the control plane's use cases: the lifecycle of a tenant, as
-// multi-tenancy.md §5 draws it (H-06).
+// multi-tenancy.md §5 draws it.
 //
 // Authorisation here is the scope alone, checked in this layer (rule 2): the role matrix is a
 // tenant's internal order, and the operator acting on the control plane is deliberately not a
 // member of the tenants they administer. `admin:tenants` is carried only by a personal access
-// token minted for exactly this - never by a session (0.6.0 decision 6, catalogue.SessionScopes).
+// token minted for exactly this - never by a session (identity.md §15.4, catalogue.SessionScopes).
 package admin
 
 import (
@@ -112,11 +112,11 @@ type ProvisionTenant struct {
 	Tenants  adminrepo.Tenants
 	Journal  adminrepo.Journal
 	Accounts AccountSeeder
-	// Domains brings the owner's address to its stored form (M-10).
+	// Domains brings the owner's address to its stored form.
 	Domains text.DomainEncoder
 	// Text brings the seeded names to normal form C: they are rendered from the catalogue in the
 	// workspace's language, and a translator's file is as free to carry combining marks as a
-	// keyboard is (i18n-l10n.md §5, M-07).
+	// keyboard is (i18n-l10n.md §5).
 	Text       text.Normalizer
 	Redemption RedemptionTokens
 	Grants     MembershipSeeder
@@ -138,9 +138,9 @@ type ProvisionTenant struct {
 	// Tenancy is the installation's mode. Provisioning a second workspace only exists in multi
 	// mode: single mode's whole contract is "exactly one tenant, no selection" (§1).
 	Tenancy env.TenancyMode
-	// Hosts records the one host the new workspace answers at (SI-12). Optional: a build wired
-	// without it provisions exactly as before, which is what every installation before migration
-	// 0104 was - nothing resolves through the table yet, so a missing row costs nothing.
+	// Hosts records the one host the new workspace answers at. Optional: a build wired
+	// without it provisions without a host - nothing resolves through the table, so a missing row
+	// costs nothing.
 	Hosts identityrepo.TenantHosts
 	// InstallationHost is this installation's own host, from which the canonical one is derived: the
 	// slug in front of it in multi mode, and the host itself in single mode. From the configured
@@ -464,7 +464,7 @@ func (h ProvisionTenant) Descriptor() usecase.Descriptor {
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "the control plane acts on workspaces, not on items; the history is an " +
-				"item's (domain-model.md §3.5). The evidence lives in the audit trail and the " +
+				"item's. The evidence lives in the audit trail and the " +
 				"instance journal instead.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
@@ -527,7 +527,7 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 	return out
 }
 
-// seedHost writes the one host the new workspace answers at (SI-12).
+// seedHost writes the one host the new workspace answers at.
 //
 // VERIFIED and canonical on arrival: it is the installation's own host with this workspace's slug in
 // front of it, so the installation already answers at it and there is nobody to prove anything to.
@@ -535,11 +535,11 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 // to canonical later is one update rather than a column that has to be filled in first.
 //
 // Silent where the store or the host is not wired: nothing resolves a request through this table, so
-// a build without it provisions exactly as it did before migration 0104.
+// a build without it provisions as if the table did not exist.
 //
 // Only reached in multi mode, because provisioning is: single mode's whole contract is one workspace
 // and no selection, and its `tenant_host` therefore stays empty - which costs nothing while nothing
-// resolves through it, and is the first thing the milestone that does will have to fill in.
+// resolves through it, and has to be filled before anything does.
 func (h ProvisionTenant) seedHost(
 	ctx context.Context, tenant domain.Tenant, now time.Time,
 ) error {

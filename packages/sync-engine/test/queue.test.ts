@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The queue and the push (F6-05), headless: a scripted transport whose `/sync:push` applies
+// The queue and the push, headless: a scripted transport whose `/sync:push` applies
 // what it is sent the way the server does - once per op_id - and a memory store. The points of
 // offline-sync.md §9 the engine owes as named tests: 1 (a created entry's identity is the
 // client's and final), 2 (the same push twice applies once), 5 (the server's answer overwrites
@@ -296,7 +296,7 @@ test('sync.device_revoked on a push clears the store and forgets the device', as
   assert.notEqual(again.id, before, 'a new device is minted');
 });
 
-test('forgetting another device refuses its next push, and that device starts over (F6-07, N-03)', async () => {
+test('forgetting another device refuses its next push, and that device starts over', async () => {
   // One fake server, two devices of one account: A and B, each with a store of its own.
   const forgotten = new Set<string>();
   class Server extends PushingTransport {

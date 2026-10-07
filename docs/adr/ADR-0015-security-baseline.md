@@ -1,7 +1,8 @@
 # ADR-0015: Security as an enforced baseline rather than a review practice
 
-* **Status:** accepted
-* **Date:** 2026-08-14
+**Status:** accepted · **Date:** 2026-08-14
+**Rule lives in:** [security.md](../architecture/security.md) §1, §4, §13
+
 * **Concerns:** security, CI, process
 * **Related:** [ADR-0005](./ADR-0005-authn-authz.md), [ADR-0010](./ADR-0010-multi-tenancy.md), [security.md](../architecture/security.md)
 

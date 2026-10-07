@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The ways in this installation offers every workspace (SI-12, ADR-0070 §2).
+  // The ways in this installation offers every workspace (ADR-0070 §2).
   //
   // **Offered, not on.** A row added here appears on every workspace's sign-in settings as
   // something they may take; it is a way into none of them until an owner switches it on. That is
@@ -15,7 +15,7 @@
   // the form does not offer the modes the preset does not permit, so the refusal is rare rather
   // than the first thing a reader meets.
   //
-  // **The secret is written and never read.** Sealed on the way in (E-02), absent from every
+  // **The secret is written and never read.** Sealed on the way in, absent from every
   // answer. Leaving it empty on a change keeps the one that is sealed, which is why the field says
   // so rather than looking like a field somebody forgot to fill.
   //

@@ -23,8 +23,7 @@ type DeleteSavedViewParams struct {
 
 // A hard delete: the table carries no deleted_at, and a view is a bookmark rather than content -
 // nothing below it to keep, nothing to restore. A calendar feed that served it keeps its row and
-// loses the reference, which is the composite foreign key's ON DELETE SET NULL (migration 0005)
-// and D-08's question answered here.
+// loses the reference, which is the composite foreign key's ON DELETE SET NULL (migration 0005).
 func (q *Queries) DeleteSavedView(ctx context.Context, arg DeleteSavedViewParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteSavedView, arg.ID, arg.ExpectedVersion)
 	if err != nil {
@@ -89,7 +88,7 @@ type InsertSavedViewParams struct {
 	CreatedAt     pgtype.Timestamptz
 }
 
-// Saved views (D-07).
+// Saved views.
 //
 // The query column is stored exactly as the client sent it, validated by the application against
 // the same grammar the query endpoint applies. Nothing here interprets it - or the layout, or the

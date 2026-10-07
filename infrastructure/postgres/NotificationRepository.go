@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// NotificationRepository stores the notification records and the preferences (C-09).
+// NotificationRepository stores the notification records and the preferences.
 type NotificationRepository struct{}
 
 func NewNotificationRepository() NotificationRepository { return NotificationRepository{} }

@@ -56,8 +56,5 @@ See [data-retention.md](../../architecture/data-retention.md) §4 and
 
 ## Today
 
-* **Check 8 fails.** The web app's scope picker still offers *account*
-  (`apps/webapp/src/views/RetentionView.svelte`), which the server refuses — until PH-01 makes the
-  server accept it.
-* **An erasure ignores every hold today** (`core/application/service/privacy/Erasure.go`);
-  PH-01.
+* Check 3: not met for an erasure — erasing a person removes data under a hold, tracked in #1086.
+* Check 8: not met — the web app's scope picker offers *account*, which the server refuses, tracked in #1086.

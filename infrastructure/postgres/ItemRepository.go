@@ -28,7 +28,7 @@ import (
 const workItemPrimaryKey = "work_item_pkey"
 
 // workItemCalendarUIDIndex is the partial unique index a calendar UID the workspace already holds
-// breaks (migration 0092, issue #721): the other taken identity, one a calendar client chose.
+// breaks (migration 0092): the other taken identity, one a calendar client chose.
 const workItemCalendarUIDIndex = "wi_calendar_uid_uq"
 
 // ItemRepository stores tasks, work packages and activities - one table for all three, because
@@ -73,7 +73,7 @@ func (r ItemRepository) Find(ctx context.Context, id shared.ID) (work.WorkItem, 
 	return itemFrom(row)
 }
 
-// FindByCalendarUID returns the item a calendar client's UID names (P-07, issue #721).
+// FindByCalendarUID returns the item a calendar client's UID names.
 //
 // Not found is the whole of what a miss says, exactly as in Find: the partial unique index is
 // per tenant and the transaction's tenant is the only one the statement can see, so an address
@@ -384,7 +384,7 @@ func (r ItemRepository) SetAssignee(ctx context.Context, item work.WorkItem, exp
 //
 // The whole item is passed and the trio read off it, as SetAssignee does and for the same reason:
 // the decision about what the row should say has already been taken, and the three columns travel
-// together because none of them means anything alone (D-01).
+// together because none of them means anything alone.
 func (r ItemRepository) SetDueDate(ctx context.Context, item work.WorkItem, expectedVersion int) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -811,9 +811,9 @@ func (r ItemRepository) LastOrderKey(ctx context.Context, collectionID, parentID
 // Insert writes the item.
 //
 // One uniqueness is translated and one deliberately is not. The identity: a client that minted
-// its own (N-04, a CalDAV client's address in P-07) and presents one the workspace already holds
+// its own (a CalDAV client's address) and presents one the workspace already holds
 // has to hear "taken" rather than "database error", because it is the one thing it can act on -
-// look the entry up and update it (issue 720). The title is not: two items in one collection may
+// look the entry up and update it. The title is not: two items in one collection may
 // share one. A shopping list with "milk" on it twice is a list somebody wrote that way, and a
 // container's name is the thing that has to be unique because it is how a person navigates.
 func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
@@ -1030,7 +1030,7 @@ func (r ItemRepository) InsertCopy(ctx context.Context, duplicate repository.Cop
 //
 // A value whose definition the caller did not name is refused rather than written: the reference is
 // what a read resolves a value through, and a value standing behind nothing would be invisible to
-// every read while occupying the key (C-07). Both documents are always written, as `{}` for an
+// every read while occupying the key. Both documents are always written, as `{}` for an
 // entry carrying nothing, because the columns are NOT NULL.
 func customDocumentsOf(duplicate repository.Copy) (fields, refs []byte, err error) {
 	values := map[string]any{}
@@ -1073,7 +1073,7 @@ func columnDepth(depth int) (int32, error) {
 	return int32(depth), nil
 }
 
-// dueFrom folds the three schedule columns back into the one value they store (D-01). The flag
+// dueFrom folds the three schedule columns back into the one value they store. The flag
 // and the zone mean nothing without the instant, and the table's CHECK guarantees they are never
 // stored without one - so a row with no instant answers no due date at all.
 func dueFrom(at pgtype.Timestamptz, dateOnly bool, zone *string) *work.DueDate {
@@ -1339,7 +1339,7 @@ func announcementFrom(
 	}, nil
 }
 
-// RecordOrigin writes the provenance a conversion records (G-10): which jumble entry the item
+// RecordOrigin writes the provenance a conversion records: which jumble entry the item
 // came from. Set exactly once - the guard is in the statement - and false reports that another
 // conversion, or nothing, already owns the row.
 func (r ItemRepository) RecordOrigin(ctx context.Context, itemID, entryID shared.ID) (bool, error) {

@@ -16,8 +16,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The container lifecycle against the real database (B-06): the four writes, the inherited archive
-// the read computes, and a cross-tenant negative for every one of them (gate SG-3).
+// The container lifecycle against the real database: the four writes, the inherited archive the
+// read computes, and a cross-tenant negative for every one of them (gate SG-3).
 
 var changedAt = created.Add(time.Hour)
 
@@ -433,7 +433,7 @@ func TestNeighboursReportsTheBoundsAndExcludesTheMover(t *testing.T) {
 	}
 
 	// And with nothing moving, which is what a create asks: the mover's own rank counts again,
-	// because there is no mover (issue 992). An empty identifier has to leave the level whole.
+	// because there is no mover. An empty identifier has to leave the level whole.
 	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
 		var err error
 		previous, next, err = repo.Neighbours(ctx, hubID, "", "")
@@ -446,14 +446,13 @@ func TestNeighboursReportsTheBoundsAndExcludesTheMover(t *testing.T) {
 	}
 }
 
-// Ranking a **hub**, against a real database, which is the test that was missing.
+// Ranking a **hub**, against a real database.
 //
-// F2-04 shipped `:reorder` calling `SetPlacement`, and every unit test passed: a fake repository
-// records the write and asks no questions of it. The statement behind it writes `parent_id` as a
-// required argument, because it was written for a move and a collection always has one — so
-// reordering a hub failed before it reached the database and answered 500. Nothing but a real
-// write could show that, which is the same lesson `SetPlacement` beside `SetRank` now records in
-// the port.
+// A `:reorder` calling `SetPlacement` passes every unit test: a fake repository records the write
+// and asks no questions of it. The statement behind `SetPlacement` writes `parent_id` as a required
+// argument, because it is written for a move and a collection always has one — so reordering a hub
+// through it fails before it reaches the database and answers 500. Nothing but a real write shows
+// that, which is the same lesson `SetPlacement` beside `SetRank` records in the port.
 func TestRankingAHubWritesTheRankAndLeavesItAHub(t *testing.T) {
 	ctx := context.Background()
 	tenant, author := seedOwnTenant(ctx, t)
@@ -512,10 +511,10 @@ func readContainer(ctx context.Context, t *testing.T, tenant, id shared.ID) (wor
 	return found, err
 }
 
-// The hub level, which is the case F2-04 rests on and the reason the query compares the parent with
-// IS NOT DISTINCT FROM rather than with `=`: a null parent has to mean "the hubs" and not "no
-// filter at all". A plain `parent_id = NULL` is never true, so this level would come back empty and
-// every hub would rank as though it were the only one.
+// The hub level, which is the case reordering a hub rests on and the reason the query compares the
+// parent with IS NOT DISTINCT FROM rather than with `=`: a null parent has to mean "the hubs" and
+// not "no filter at all". A plain `parent_id = NULL` is never true, so this level would come back
+// empty and every hub would rank as though it were the only one.
 //
 // It runs in a tenant of its own, and that is the point rather than tidiness. A collection level is
 // one hub, so a test can own one; the hub level is the **whole tenant**, so every other test's hub

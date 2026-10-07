@@ -22,7 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// An operator opens the password for one workspace (ADR-0078 §3, SC-34).
+// An operator opens the password for one workspace (ADR-0078 §3).
 //
 // For a provider that is switched on but broken, nothing inside the workspace can help: the people
 // who could switch the password back on cannot sign in to do it. The operator opens it for that one
@@ -89,7 +89,7 @@ type PasswordOpeningWriter struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Text brings the requester and the reason to normal form C (M-07).
+	// Text brings the requester and the reason to normal form C.
 	Text text.Normalizer
 }
 
@@ -101,7 +101,7 @@ type OpenTenantPasswordCommand struct {
 	Hours     int
 	Requester string
 	Reason    string
-	// StepUpToken is H-03's proof, consumed by this one request.
+	// StepUpToken is the step-up proof (identity.md §16), consumed by this one request.
 	StepUpToken string
 }
 
@@ -394,7 +394,7 @@ func (h OpenTenantPassword) Descriptor() usecase.Descriptor {
 		SideEffects: "Writes the opening on the tenant row; records it in the workspace's trail and " +
 			"the instance journal. Reads and changes nothing of the workspace's content.",
 		TokenScope: adminTenantsScope,
-		StepUp:     "always - it widens the way into somebody else's workspace (ADR-0078 §3)",
+		StepUp:     "always - it widens the way into somebody else's workspace",
 		Input: []usecase.Field{
 			{Name: "tenant_id", Kind: usecase.KindID, Required: true},
 			{Name: "hours", Kind: usecase.KindInt,
@@ -413,7 +413,7 @@ func (h OpenTenantPassword) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityWarning, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "the control plane acts on workspaces, not on items (domain-model.md §3.5).",
+			Exempt: "the control plane acts on workspaces, not on items.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
@@ -459,7 +459,7 @@ func (h CloseTenantPassword) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityInfo, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "the control plane acts on workspaces, not on items (domain-model.md §3.5).",
+			Exempt: "the control plane acts on workspaces, not on items.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

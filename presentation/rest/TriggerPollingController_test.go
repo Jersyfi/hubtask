@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The polling trigger over REST (G-04). What this layer owes is that the CloudEvent reaches the
+// The polling trigger over REST. What this layer owes is that the CloudEvent reaches the
 // wire as the use case rendered it - every attribute, including the extension attributes a
 // field-by-field mapper would drop - and that the query parameters arrive as the catalogue's input.
 

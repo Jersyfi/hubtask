@@ -73,7 +73,7 @@ type DuplicateWorkItem struct {
 	Profiles    metarepo.CapabilityProfiles
 	Authorizer  Authorizer
 	// Ownership is the same question the create path asks: does the role the actor holds write only
-	// what is assigned to them (C-04). A copy is a create, so it has to ask it too.
+	// what is assigned to them. A copy is a create, so it has to ask it too.
 	Ownership  Ownership
 	Visibility Visibility
 	Events     outbox.Events
@@ -85,7 +85,7 @@ type DuplicateWorkItem struct {
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
 	// Text is what a copied TEXT value is checked with; a value written before the form was
-	// applied is composed by the copy, exactly as its next edit would compose it (M-07).
+	// applied is composed by the copy, exactly as its next edit would compose it.
 	Text text.Normalizer
 }
 
@@ -144,25 +144,25 @@ type duplication struct {
 	destination domain.Container
 	command     DuplicateWorkItemCommand
 	// ownEntriesOnly says the role the actor holds at the destination writes only what is assigned
-	// to them, so every entry the copy produces has to land on them (C-04).
+	// to them, so every entry the copy produces has to land on them.
 	ownEntriesOnly bool
 	// dueOverride replaces the root copy's due date, and is nil for an ordinary duplicate. The
 	// materialisation sets it: an occurrence is the same entry on another date, and that date is
-	// the one the rule computed (D-05). Only the root - a child's date is a fact about the child,
+	// the one the rule computed. Only the root - a child's date is a fact about the child,
 	// and a series that rewrote its subtree's dates would be inventing the relative dates a
-	// template owns (D-06).
+	// template owns.
 	dueOverride *domain.DueDate
 	// series is the rule an occurrence belongs to, and empty for an ordinary duplicate: a copy
 	// belongs to no series (db/queries/Work.sql, CopyWorkItem).
 	series shared.ID
 	// seriesSource is the entry the occurrence was copied from, and empty wherever series is. The
-	// pair travels together because one without the other is what issue #428 was: the rule
-	// identifier is on the template as well, and says nothing about which end this copy is.
+	// pair travels together because one without the other cannot be read: the rule identifier is on
+	// the template as well, and says nothing about which end this copy is.
 	seriesSource shared.ID
 	// createdBy overrides who the copy was made by, and is empty for an ordinary duplicate, where
 	// it is the actor. The materialisation sets it to whoever created the template: the system has
 	// no account, an entry needs one, and the person who wrote the series is the honest answer -
-	// they are the one who asked for this entry to exist, weeks ago (D-05).
+	// they are the one who asked for this entry to exist, weeks ago.
 	createdBy shared.ID
 }
 
@@ -316,7 +316,7 @@ func (h DuplicateWorkItem) perform(
 	var result DuplicateResult
 
 	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		// The items ceiling (H-08). Asked once for the copy: a subtree may land its children past
+		// The items ceiling. Asked once for the copy: a subtree may land its children past
 		// the wall by their number - the quota is a wall against runaway growth, not an
 		// invariant, and the very next create is refused (quota.Guard's stance).
 		if h.Quota != nil {
@@ -342,12 +342,12 @@ func (h DuplicateWorkItem) perform(
 // copyInto is the copy itself, without the permission questions and without a transaction of its
 // own: everything perform does inside the caller's.
 //
-// It exists as its own method because the materialisation reuses it (D-05, "the copy machinery is
-// C-11's duplicate, reused"). A series copying its own template is the system acting on a decision
-// somebody already made - when they wrote the rule - so there is no second person to ask about,
-// and asking the authorisation service about an actor with no memberships would refuse the only
-// caller that has the right to be here. What is *not* skipped is everything that makes a copy
-// correct: the fresh read, the lifecycle guards, the placement, and the records each entry owes.
+// It exists as its own method because the materialisation reuses it: an occurrence is a copy of its
+// template. A series copying its own template is the system acting on a decision somebody already
+// made - when they wrote the rule - so there is no second person to ask about, and asking the
+// authorisation service about an actor with no memberships would refuse the only caller that has
+// the right to be here. What is *not* skipped is everything that makes a copy correct: the fresh
+// read, the lifecycle guards, the placement, and the records each entry owes.
 func (h DuplicateWorkItem) copyInto(
 	ctx context.Context, actor appshared.ActorContext, plan duplication, now time.Time,
 ) (DuplicateResult, error) {
@@ -479,7 +479,7 @@ func (h DuplicateWorkItem) vocabularyOf(
 	}
 	for _, definition := range definitions {
 		// The collection's own wins over the workspace-wide one under the same key, which is the
-		// order ListInScope answers in (C-07).
+		// order ListInScope answers in.
 		if _, taken := known.fields[definition.Key]; !taken {
 			known.fields[definition.Key] = definition
 		}
@@ -510,8 +510,8 @@ func (h DuplicateWorkItem) vocabularyOf(
 // canSee answers whether an account reaches the destination, once per account.
 //
 // Asked at all only when the collection changes: an account that could see the entry can see a copy
-// of it beside it. It is the question C-01 asks before an assignment, and asking it here is what
-// keeps "an entry is only ever on somebody who can see it" true through a copy as well.
+// of it beside it. It is the question an assignment asks first, and asking it here is what keeps
+// "an entry is only ever on somebody who can see it" true through a copy as well.
 func (h DuplicateWorkItem) canSee(
 	ctx context.Context, actor appshared.ActorContext, known *vocabulary,
 	destination domain.Container, accountID shared.ID,
@@ -612,10 +612,10 @@ func (h DuplicateWorkItem) copyOf(
 
 	// A copy belongs to no series, whatever the entry it was copied from belongs to: duplicating a
 	// recurring task gives somebody a task like it rather than a second template. The
-	// materialisation is the one caller that says otherwise, for the root it creates (D-05).
+	// materialisation is the one caller that says otherwise, for the root it creates.
 	copied.RecurrenceRuleID, copied.RecurrenceSourceID = noID, noID
 	// Nor a calendar address: the UID is the client's name for the one entry it made, and the
-	// workspace holds each UID once (issue #721). The copy statement does not carry the column.
+	// workspace holds each UID once. The copy statement does not carry the column.
 	copied.CalendarUID = ""
 
 	switch {
@@ -705,7 +705,7 @@ func (h DuplicateWorkItem) bucketFor(
 }
 
 // assigneeFor is the person the copy is on: the one the entry was on, when they can see where the
-// copy lands. An entry is only ever on somebody who can see it (C-01), and a copy into another
+// copy lands. An entry is only ever on somebody who can see it, and a copy into another
 // collection is the moment that can stop being true.
 func (h DuplicateWorkItem) assigneeFor(
 	ctx context.Context, actor appshared.ActorContext, plan duplication,
@@ -758,7 +758,7 @@ func (h DuplicateWorkItem) assigneeFor(
 // A key that is text in one collection and a number in another is not the same field, and a value
 // written under a definition that will not have it would be invisible to every read while occupying
 // the key. So the value is validated against the destination's definition rather than carried over
-// on the strength of its key (C-07).
+// on the strength of its key.
 func (h DuplicateWorkItem) fieldsFor(
 	source, copied domain.WorkItem, profile domain.CapabilityProfile,
 	known *vocabulary, made *copies,
@@ -887,7 +887,7 @@ func (h DuplicateWorkItem) copyMembers(
 
 // copyAttachments links the copy to the same files and raises their reference counts. The bytes are
 // not copied: an attachment is a reference to an object of this tenant, and two entries pointing at
-// one file is what the counter exists to describe (C-06).
+// one file is what the counter exists to describe.
 func (h DuplicateWorkItem) copyAttachments(
 	ctx context.Context, actor appshared.ActorContext, plan duplication,
 	source, copied domain.WorkItem, profile domain.CapabilityProfile, made *copies,
@@ -944,7 +944,7 @@ func (h DuplicateWorkItem) recordElement(
 		EntityID: copied.ID,
 		Op:       changelog.Upsert,
 		// The visibility filter a pull applies: the copy's own collection, the same choice
-		// AddLabel, AddMember and AttachMedia make (#623, offline-sync.md §3.1).
+		// AddLabel, AddMember and AttachMedia make (offline-sync.md §3.1).
 		ContainerID: copied.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         tag,

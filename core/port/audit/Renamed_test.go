@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// A renamed action is one action under two names: new entries carry the new one, stored entries keep
-// the old one (the hash covers the stored shape), and a search by either finds both (SC-29).
+// A renamed action is one action under two names: new entries carry the new one, stored entries
+// keep the old one (the hash covers the stored shape), and a search by either finds both.
 func TestARenamedActionIsFoundUnderEitherName(t *testing.T) {
 	for _, tc := range []struct {
 		prefix string

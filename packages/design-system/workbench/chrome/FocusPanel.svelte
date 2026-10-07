@@ -8,7 +8,7 @@
   interface Props {
     /** The panes on stage. Only the first is walked: four panes would fight over focus. */
     hosts: readonly HTMLElement[];
-    /** Open from `expanded` up, folded on a phone - where the story comes first (F9-03). */
+    /** Open from `expanded` up, folded on a phone - where the story comes first. */
     isOpenByDefault?: boolean;
   }
 
@@ -79,7 +79,7 @@
   <p class="caveat">
     The order is read from the DOM: a synthetic <kbd>Tab</kbd> moves focus in no browser. This
     finds an order that disagrees with the layout. It does not find a focus trap — that needs a
-    driven browser, which is F5's decision (ADR-0037).
+    driven browser (ADR-0037).
   </p>
 </details>
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The other catalogues are loaded, not bundled (F5-07, milestone-F5.md decision 5).
+// The other catalogues are loaded, not bundled (`i18n-l10n.md` §3).
 //
 // `import.meta.glob` over `locales/*.json` gives one chunk per file and none of them in the
 // initial bundle - which is a promise about what Vite emits, so it is checked against what Vite

@@ -42,7 +42,7 @@ func TestTheProjectionCarriesNoEmailAndNoPreferences(t *testing.T) {
 
 	for _, field := range []string{"email", "locale", "time_zone", "week_start"} {
 		if _, present := out[field]; present {
-			t.Errorf("%q travels to another member, and §9 says the visibility is minimal", field)
+			t.Errorf("%q travels to another member, profile visibility is minimal", field)
 		}
 	}
 	// Named rather than counted, so that adding a field is a decision somebody makes here rather
@@ -101,7 +101,7 @@ func TestAReadWithoutAnIdentifierIsRefused(t *testing.T) {
 // The tenant boundary is the transaction's rather than this use case's: the scope handed to the
 // unit of work is the actor's tenant and never the account's, so an identifier from elsewhere does
 // not resolve rather than being refused - which is what keeps a refusal from confirming that an
-// account exists (multi-tenancy.md §2). The negative test against the real database is in
+// account exists (T-04). The negative test against the real database is in
 // test/integration; this asserts the half that is this layer's.
 func TestTheAccountReadRunsAsTheActorsTenant(t *testing.T) {
 	account := settled(t)

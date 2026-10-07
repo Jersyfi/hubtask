@@ -1,7 +1,9 @@
 # ADR-0021: Offline capability through server-authoritative delta sync with per-field merging
 
-* **Status:** accepted
-* **Date:** 2026-08-14
+**Status:** accepted · **Date:** 2026-08-14
+
+**Rule lives in:** [offline-sync.md](../architecture/offline-sync.md) §1–§10
+
 * **Concerns:** API, domain, clients
 * **Related:** [ADR-0004](./ADR-0004-api-first-openapi.md), [ADR-0007](./ADR-0007-events-outbox-cloudevents.md), [ADR-0020](./ADR-0020-retention-policies.md), [offline-sync.md](../architecture/offline-sync.md)
 

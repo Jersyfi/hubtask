@@ -11,9 +11,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// The language an entry is written in (C-08). What it decides is the text search configuration the
-// entry is indexed under, which is why it is a field of the entry rather than of the account that
-// wrote it (i18n-l10n.md §5, ADR-0034).
+// The language an entry is written in. What it decides is the text search configuration the entry
+// is indexed under, which is why it is a field of the entry rather than of the account that wrote
+// it (i18n-l10n.md §5, ADR-0034).
 
 func TestAnEntryCarriesTheLanguageItWasWrittenIn(t *testing.T) {
 	in := taskInput()

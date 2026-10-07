@@ -127,7 +127,7 @@ func TestAnOpenBreakerDegradesSuggestionsAndNothingElse(t *testing.T) {
 		t.Fatalf("status %q, want %q", result.Status, health.StatusDown)
 	}
 	// Two features from one dependency: a provider outage costs suggestions and costs search its
-	// semantic half (J-10). Naming only the first would leave a client showing a search control
+	// semantic half. Naming only the first would leave a client showing a search control
 	// that quietly finds less.
 	want := []string{port.Feature, port.FeatureSemanticSearch}
 	if len(result.Impact) != len(want) {

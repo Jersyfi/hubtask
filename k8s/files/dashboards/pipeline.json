@@ -1,7 +1,7 @@
 {
   "uid": "hubtask-pipeline",
   "title": "Hubtask — Pipeline",
-  "description": "The work that happens outside a request: the outbox, the job queue and the scheduler (ADR-0007, ADR-0008). Reminders joined it with D-03, automation and webhooks with H-12 - the two rows §11 has been promising since those features were metrics on paper.",
+  "description": "The work that happens outside a request: the outbox, the job queue and the scheduler (ADR-0007, ADR-0008). A row each for reminders and for automation and webhooks.",
   "tags": [
     "hubtask"
   ],

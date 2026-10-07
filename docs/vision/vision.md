@@ -33,7 +33,7 @@ The full lists are [personas.md](./personas.md) and [deployments.md](./deploymen
 
 Nobody else sells operational seriousness at personal scale. The guarantees Hubtask ships are
 things people meet in infrastructure software and never in a to-do list
-([market analysis](../marketing/market-analysis.md) §2). That is a promise about how the product is
+([market analysis](../archive/marketing/market-analysis.md) §2). That is a promise about how the product is
 *built*, which is why it has to be checked on every change — and why each use case in
 [`usecases/`](../usecases/README.md) says how to check it.
 

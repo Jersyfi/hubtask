@@ -30,7 +30,7 @@ const triggerCursorParts = 2
 // is decimal digits and cannot contain one, and the identifier that follows is a uuid.
 const triggerCursorFieldSeparator = "."
 
-// TriggerCursorCodec turns a position in the outbox into an opaque cursor and back (G-04).
+// TriggerCursorCodec turns a position in the outbox into an opaque cursor and back.
 //
 // Signed, for the page cursor's reason and more sharply: this value decides where in the event log
 // a caller resumes, and a client that could craft one would be asking to be handed events from a

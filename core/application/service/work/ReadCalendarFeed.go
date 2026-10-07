@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// ReadCalendarFeed answers what one subscription contains (D-08).
+// ReadCalendarFeed answers what one subscription contains.
 //
 // It is not a use case and is deliberately not in the catalogue, for MediaContent's reason: a
 // catalogue entry is something a person, an agent or a rule may ask for, and this is a route

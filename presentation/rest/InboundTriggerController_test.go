@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The public inbound route (G-08). Three things are decided out here and are therefore tested out
+// The public inbound route. Three things are decided out here and are therefore tested out
 // here: what a malformed token gets, what the payload bound refuses, and what shape a body has to
 // have before it can become `payload`.
 

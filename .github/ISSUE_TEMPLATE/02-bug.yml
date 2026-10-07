@@ -1,7 +1,7 @@
 name: Bug
 description: Report incorrect behaviour.
 title: "[Bug] "
-labels: ["bug"]
+labels: ["bug", "finding"]
 body:
   - type: textarea
     id: observed

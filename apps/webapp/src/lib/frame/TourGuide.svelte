@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The tour in the frame (F6-14): the design system's pattern over the real interface, the
+  // The tour in the frame: the design system's pattern over the real interface, the
   // words for each step resolved here, and the start decided once the account has arrived. The
   // frame mounts this on every route because the tour walks routes.
 

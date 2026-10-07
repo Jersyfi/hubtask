@@ -79,10 +79,9 @@ func CollectionScope(id shared.ID) Scope { return Scope{Type: ScopeCollection, I
 
 // ItemScope names one entry, the bottom of the path.
 //
-// It is what sharing an entry with somebody is (domain-model.md §3.2, C-04): a membership granted
-// here reaches that entry and nothing else, so "shared items only" needs no mechanism of its own -
-// it is the ordinary resolution asked about a path that ends at the entry. The scope type has been
-// in the model since 0.1.0; until entries were on anybody's path there was nothing to grant it on.
+// It is what sharing an entry with somebody is (domain-model.md §3.2): a membership granted here
+// reaches that entry and nothing else, so "shared items only" needs no mechanism of its own - it is
+// the ordinary resolution asked about a path that ends at the entry.
 func ItemScope(id shared.ID) Scope { return Scope{Type: ScopeItem, ID: id} }
 
 // Membership grants a role at a scope, to an account directly or through a group. Which of the

@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The use case names of the control plane (H-06). All four are written out longhand for
+// The use case names of the control plane. All four are written out longhand for
 // ListServiceAccounts' reason: the identity helper's closure gives the linter nothing to trace
 // the context through.
 const (

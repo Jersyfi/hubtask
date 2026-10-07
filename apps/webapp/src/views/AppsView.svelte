@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The third-party apps this workspace has registered (H-05).
+  // The third-party apps this workspace has registered.
   //
   // **The redirect URIs are matched byte for byte**, at authorization and again at exchange. So the
   // form says that, and this screen normalises nothing: a trailing slash quietly removed here is an
@@ -213,8 +213,8 @@
 <style>
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). The 60ch column that stood here was a document's measure around a
-     screen that is not a document. */
+     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
+     around a screen that is not a document. */
 
   .section,
   .name { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }

@@ -421,7 +421,7 @@ type InsertRetentionRuleParams struct {
 	Now            pgtype.Timestamptz
 }
 
-// The rule model of data-retention.md §2 and the two phases that execute it (E-07).
+// The rule model of data-retention.md §2 and the two phases that execute it.
 //
 // Row level security supplies the tenant condition none of these statements writes (ADR-0010).
 //
@@ -467,7 +467,7 @@ ORDER BY data_kind,
 //
 // The tenant is selected rather than left to row level security to imply, because the aggregate
 // carries it: a correction rebuilds the rule from the row that was read, and `NewRule` refuses one
-// whose tenant is zero (F4-18).
+// whose tenant is zero.
 func (q *Queries) ListRetentionRules(ctx context.Context) ([]RetentionRule, error) {
 	rows, err := q.db.Query(ctx, listRetentionRules)
 	if err != nil {
@@ -856,7 +856,7 @@ type UpdateRetentionRuleParams struct {
 	ExpectedVersion int32
 }
 
-// The lifecycle F4-02 added: a rule that deletes data has to be correctable and withdrawable.
+// The lifecycle: a rule that deletes data has to be correctable and withdrawable.
 // Everything a rule may change, guarded on the row version. The kind and the scope are not among
 // the columns: the unique index over the pair is what makes "the rule for this kind at this level"
 // a thing one can name, and a rule that moved either would be a different rule under an old

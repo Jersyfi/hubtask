@@ -3,7 +3,7 @@
 
 /**
  * The workspace's AI provider: the one read, the `PUT` that configures it, the `DELETE` that
- * takes it away (J-02, ADR-0049, F5-05).
+ * takes it away (ADR-0049).
  *
  * **The key goes one way.** It is sent on a `PUT` and sealed there; the read answers `has_api_key`
  * and nothing else about it, so this module never holds one after the request leaves. An empty

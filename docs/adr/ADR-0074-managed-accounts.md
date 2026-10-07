@@ -1,6 +1,7 @@
 # ADR-0074 — Managed accounts: a sign-in name, a start password, and who may renew it
 
 **Status:** accepted · **Date:** 2026-09-30 · **Accepted:** 2026-09-30
+**Rule lives in:** [identity.md](../architecture/identity.md) §13
 
 ## Context
 

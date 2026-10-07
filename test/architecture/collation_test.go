@@ -12,8 +12,8 @@ import (
 	"testing"
 )
 
-// Every read that orders by a name a person wrote says which collation it orders under (M-08,
-// i18n-l10n.md §5).
+// Every read that orders by a name a person wrote says which collation it orders under
+// (i18n-l10n.md §5).
 //
 // `ORDER BY name` sorts in whatever collation the database was created with, which differs by
 // installation; `hubtask_name` is the one migration 0080 defines so that "Ä" sits beside "A"

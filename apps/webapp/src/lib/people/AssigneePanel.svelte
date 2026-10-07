@@ -3,8 +3,8 @@
 <script lang="ts">
   // Who the entry belongs to, and who else is on it.
   //
-  // **Two controls, because the model has two operations.** C-01 split the assignee from the
-  // member list because they merge differently — last-write-wins against an OR-set — and a single
+  // **Two controls, because the model has two operations.** The assignee and the member list are
+  // split because they merge differently — last-write-wins against an OR-set — and a single
   // control that wrote both would be a client deciding which merge rule applies. So one picker
   // sets the assignee and another adds and removes members, one call at a time.
   //
@@ -22,9 +22,8 @@
   // the server refuses one that cannot see the entry, and that refusal reaches the reader as a
   // sentence rather than being pre-empted badly.
   //
-  // **Auto-assign exists where a policy does, and nowhere else.** A disabled button carrying its
-  // reason was the shape issue 917 was closed in; decision 10 replaces it, because the reason is
-  // not a refusal of something this reader may do - it is a setting that has not been made. So the
+  // **Auto-assign exists where a policy does, and nowhere else.** Not a disabled button carrying its
+  // reason (design-system.md §11.8), because the reason is not a refusal of something this reader may do - it is a setting that has not been made. So the
   // part says where a policy is set and leads there, and a reader who holds `STRUCTURE` on the
   // collection gets the link; a reader who does not gets the sentence, which is what tells them
   // whom to ask.
@@ -54,7 +53,7 @@
    * Whether anything would choose, if asked.
    *
    * The answer is on the collection the client already holds - `policies.auto_assign`, with its
-   * `enabled` - rather than a round trip that ends in "nothing happened" (issue 917).
+   * `enabled` - rather than a round trip that ends in "nothing happened".
    */
   $effect(() => {
     const wanted = item.collection_id;
@@ -83,7 +82,7 @@
 
   const candidateIds = $derived(people.candidates(path));
   // Gathered from four memberships, so the list has no order until this gives it one - the
-  // reader's, under the collator for the resolved locale (F5-09, i18n-l10n.md §6 line 3).
+  // reader's, under the collator for the resolved locale (i18n-l10n.md §6 line 3).
   const candidates = $derived(
     candidateIds
       .map((id) => ({ id, name: accounts.nameOf(id) ?? t('app.people.unnamed') }))
@@ -188,7 +187,7 @@
         </div>
       {:else}
         <!-- No button, because there is nothing to press: what is missing is a setting, not a
-             permission (decision 10). The sentence says where it is made, and the way there is
+             permission (design-system.md §11.8). The sentence says where it is made, and the way there is
              offered to a reader who may make it. -->
         <p class="says">
           {t('app.people.auto_assign_unset')}

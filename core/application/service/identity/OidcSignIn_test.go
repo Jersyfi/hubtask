@@ -57,8 +57,8 @@ func (s *flowStore) ConsumeForStepUp(
 	return flow, true, nil
 }
 
-// externalStore is the `account_identity` seam. Keyed on the provider *and* the subject since
-// SI-10: the same person at two providers is two links, and a fake that keyed on the subject alone
+// externalStore is the `account_identity` seam. Keyed on the provider *and* the subject: the same
+// person at two providers is two links, and a fake that keyed on the subject alone
 // would make the second arrival look like the first.
 type externalStore struct {
 	bySubject map[string]domain.Account
@@ -375,10 +375,9 @@ func TestAVerifiedAddressInsideTheDomainsLinksAndIsRecorded(t *testing.T) {
 // The two ways an arrival is refused under DOMAINS: an address the provider did not verify, and one
 // outside the configured list.
 //
-// **Both are a refusal now, not a new account.** Before SI-10 they were provisioned, which made
-// DOMAINS the same thing as ANY under a name that promised otherwise - and meant that pointing a
-// workspace at Google handed a desk to anybody who asked. The concept's §8 fixes the axis: the mode
-// says who comes in.
+// **Both are a refusal, not a new account.** Provisioning them would make DOMAINS the same thing as
+// ANY under a name that promised otherwise - and pointing a workspace at Google would hand a desk to
+// anybody who asked. identity.md §10.4 fixes the axis: the mode says who comes in.
 func TestAnAddressOutsideTheDomainsIsRefusedRatherThanProvisioned(t *testing.T) {
 	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
 	existing := domain.Account{
@@ -567,7 +566,7 @@ func TestATokenTheAdapterRefusedEndsTheFlow(t *testing.T) {
 	}
 }
 
-// The header may confirm the state's workspace and never overrule it (decision 3).
+// The header may confirm the state's workspace and never overrule it (multi-tenancy.md §3).
 func TestTheTenantHeaderMayNotOverruleTheState(t *testing.T) {
 	f := newOidcFixture(t, time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC))
 

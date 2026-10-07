@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// SuggestDuplicatesName is the catalogue name, as domain-model.md §5 writes it.
+// SuggestDuplicatesName is the catalogue name, as core/application/catalogue names it.
 const SuggestDuplicatesName = "SuggestDuplicates"
 
 // DuplicatesAskedAction records that somebody asked which entries look like this one.
@@ -30,7 +30,7 @@ const SuggestDuplicatesName = "SuggestDuplicates"
 // anywhere - which is worth being able to tell apart in a trail rather than inferring.
 const DuplicatesAskedAction audit.Action = "ai.duplicates_asked"
 
-// Neighbours is the slice of the embedding store this use case needs (K-04).
+// Neighbours is the slice of the embedding store this use case needs.
 type Neighbours interface {
 	Near(ctx context.Context, itemID shared.ID, floor float64, limit int) (workrepo.Nearby, error)
 }
@@ -56,12 +56,12 @@ type Readers interface {
 	) ([]bool, error)
 }
 
-// SuggestDuplicates answers which entries look like one entry (K-04).
+// SuggestDuplicates answers which entries look like one entry.
 //
-// **The one AI feature in this product that asks nothing of a provider.** Two entries are near
-// each other in the embedding space or they are not, and J-10 already maintains the vector that
-// says so - so this is a query with a threshold, it costs no tokens, it spends no budget, and it
-// works on an installation whose provider can embed and cannot complete. There is no `Providers`
+// **The one AI feature in this product that asks nothing of a provider.** Two entries are near each
+// other in the embedding space or they are not, and the semantic index already maintains the vector
+// that says so - so this is a query with a threshold, it costs no tokens, it spends no budget, and
+// it works on an installation whose provider can embed and cannot complete. There is no `Providers`
 // field on this struct, which is how that stays true rather than being asserted.
 //
 // Synchronous, for the same reason: the others queue because a provider is somebody else's
@@ -84,20 +84,19 @@ type SuggestDuplicates struct {
 // A number somebody has to choose, and one chosen by a session is one nobody can defend later - so
 // it is configuration (`HUBTASK_AI_DUPLICATE_THRESHOLD`) and this is only its default.
 //
-// **Measured, not argued for**: docs/evidence/K-04-2026-09-11.md, against a 295-entry corpus in two
-// languages on the two Ollama embedding models the product stores, with the floor chosen on one
+// **Measured, not argued for**: docs/archive/evidence/K-04-2026-09-11.md, against a 295-entry corpus
+// in two languages on the two Ollama embedding models the product stores, with the floor chosen on one
 // half of the corpus and reported on the other. What it found: a same-language paraphrase sits
-// around 0.85-0.89, not above 0.95 as this comment used to claim - that is where a copy with one
-// word changed sits. At 0.9 the product found a third of the paraphrases, mostly those copies. At
-// 0.85 it found between half and four fifths, and showed a false candidate to four entries in a
-// hundred - every one of them a near-miss a person can reasonably be asked about (the kitchen tap
-// and the bathroom tap, the cat's vaccination and the dog's). Below 0.825 the false candidates
-// climb faster than the found ones.
+// around 0.85-0.89, not above 0.95 - that is where a copy with one word changed sits. At 0.9 the
+// product found a third of the paraphrases, mostly those copies. At 0.85 it found between half and
+// four fifths, and showed a false candidate to four entries in a hundred - every one of them a
+// near-miss a person can reasonably be asked about (the kitchen tap and the bathroom tap, the cat's
+// vaccination and the dog's). Below 0.825 the false candidates climb faster than the found ones.
 //
-// The reasoning K-04 wrote stands and is what keeps the number here rather than lower: the cost of
-// the two mistakes is not symmetric. A duplicate that is not proposed is a duplicate somebody finds
-// by searching, which is what they do today; a proposal that is not a duplicate is an inbox of
-// noise, and an inbox of noise is how a feature stops being read at all.
+// What keeps the number here rather than lower: the cost of the two mistakes is not symmetric. A
+// duplicate that is not proposed is a duplicate somebody finds by searching, which is what they do
+// today; a proposal that is not a duplicate is an inbox of noise, and an inbox of noise is how a
+// feature stops being read at all.
 //
 // One number for both models, because they disagree by less than a title-only pair and a pair with
 // notes do; and no floor at all for a translation, which neither model puts nearer than a mere
@@ -112,8 +111,8 @@ const defaultDuplicateLimit = 5
 // Execute answers the entries near one entry, and records what it found.
 //
 // Nothing near, no store, no vector: the same answer to all three - no suggestion, no error. That
-// is J-10's degradation reused rather than reinvented, and it is what makes this feature safe to
-// offer on an installation that cannot support it.
+// is the semantic search's degradation reused rather than reinvented, and it is what makes this
+// feature safe to offer on an installation that cannot support it.
 func (h SuggestDuplicates) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
 ) (domain.Suggestion, bool, error) {
@@ -177,7 +176,7 @@ func (h SuggestDuplicates) Execute(
 		Payload: duplicatesPayload(visible),
 		Provenance: domain.Provenance{
 			// The embedding model, because that is what produced the vectors that were compared -
-			// and no prompt, because none was asked (K-04).
+			// and no prompt, because none was asked.
 			Model: near.Model, ProducedAt: c.Clock.Now(),
 		},
 		InputDigest: digest,

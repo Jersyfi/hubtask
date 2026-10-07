@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# Seeds the load dataset of H-11: two million work items across a long tail of tenants, against a
+# Seeds the load dataset: two million work items across a long tail of tenants, against a
 # real, migrated stack.
 #
 # It is a script and not a Go test for the same reason the generator holds no driver: this is the

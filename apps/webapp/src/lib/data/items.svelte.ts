@@ -13,7 +13,7 @@
  *
  * It is `/items:query` rather than `GET /items` because the query is the one read that takes a
  * scope: an anchored question, checked once against that scope, rather than a filter a client
- * assembles. F2-03 taught the engine that a `POST` can be a read.
+ * assembles. The engine knows that a `POST` can be a read.
  */
 
 import type {
@@ -70,7 +70,7 @@ function level(
       scope: { ...scope, include_descendants: descendants },
       // **Archived is read-only, not hidden** (I-W4). The query defaults to leaving archived
       // entries out, and taking that default would make "archived" mean "gone" — which is the
-      // failure F2-14 exists to prevent: the row stays, says so, and has every control off with
+      // failure this prevents: the row stays, says so, and has every control off with
       // the reason. A reader who wants them out filters them out; `archived_at` is a field the
       // manifest reports.
       //
@@ -176,7 +176,7 @@ class Items {
   /**
    * Starts one level. **Call this from `untrack`** — the listener writes the store and writing it
    * reads it, so an effect that subscribes while tracking that read cancels its own subscription
-   * before the answer arrives (F2-08 records the symptom).
+   * before the answer arrives.
    */
   openCollection(containerId: string, query: ItemsQuery = {}): () => void {
     return this.#open(`container:${containerId}`, level({ container_id: containerId }, query));
@@ -194,11 +194,11 @@ class Items {
   }
 
   /**
-   * Everything under one entry, in one read: the subtree the entry page shows (F9-08).
+   * Everything under one entry, in one read: the subtree the entry page shows.
    *
    * One level at a time is the collection's shape, where a collapsed row costs nothing; a
    * subtree shows every level and says "done of total" on every branch, so reading it level by
-   * level was one request per branch, twice after every write (issue 877). One
+   * level was one request per branch, twice after every write. One
    * `include_descendants` query answers every level, and `childrenOf` groups it by parent - the
    * server orders by `order_key`, which orders siblings under every parent alike. The anchor is
    * not in its own subtree, exactly as one level below it does not include it.
@@ -262,8 +262,7 @@ class Items {
     },
     idempotencyKey: string,
   ): Promise<WorkItem> {
-    // `due_date_only` is required by the contract and false is what "no due date" means here;
-    // F3 is where dates get a surface.
+    // `due_date_only` is required by the contract and false is what "no due date" means here.
     return engine.mutate<WorkItem>('POST', '/items', { due_date_only: false, ...body }, {
       idempotencyKey,
       // A new entry is a row in a list and nothing else yet: nobody holds its document open.
@@ -274,7 +273,7 @@ class Items {
   /** Retitles or renotes one, against the version the reader had (ADR-0025). */
   async update(
     id: string,
-    // `start_at` is a plain scalar on the patch, which is D-01's own decision: a start is one
+    // `start_at` is a plain scalar on the patch on purpose: a start is one
     // instant with nothing qualifying it, while a due date is three fields that only mean
     // something together and therefore has a writer of its own.
     body: { title?: string; notes?: string | null; start_at?: string | null; content_language?: string | null },
@@ -287,7 +286,7 @@ class Items {
   }
 
   /**
-   * "Write mine again" after a conflict on the notes (F6-06, offline-sync.md §5): an ordinary
+   * "Write mine again" after a conflict on the notes (offline-sync.md §5): an ordinary
    * PATCH of the one field from the entry's current version - read first, so the write states
    * the version the server holds now and not the one that lost - and nothing else. Never a merge
    * of the two texts, and never an automatic retry: the person chose this.
@@ -464,14 +463,14 @@ class Items {
    * Who the entry belongs to. One account, or nobody.
    *
    * Two operations rather than a nullable field, because the server has two — and because the
-   * scalar and the member list are written separately on purpose (C-01): an assignee is
+   * scalar and the member list are written separately on purpose: an assignee is
    * last-write-wins and a member list is an OR-set, so they cannot share a request without one of
    * the two merge rules losing.
    *
    * The account is **not checked here**. The server refuses one that cannot see the entry, with
    * the same answer for an account of another tenant and one that does not exist, and that answer
    * is a sentence the reader gets. A client that filtered instead would be a second implementation
-   * of an authorisation rule, always one deployment behind (F2-07).
+   * of an authorisation rule, always one deployment behind.
    */
   async assign(id: string, accountId: string, version: number, idempotencyKey: string): Promise<WorkItem> {
     return engine.mutate<WorkItem>(
@@ -479,7 +478,7 @@ class Items {
       `/items/${id}:assign`,
       // Typed as the contract's `Assignment`, so the field's name comes from the specification and
       // not from memory: the entry's field is `assignee_id`, the body's is `account_id`, and the
-      // other spelling was refused as unknown by every real server (issue 876).
+      // other spelling was refused as unknown by every real server.
       { account_id: accountId } satisfies Assignment,
       { idempotencyKey, ifMatch: etagFor(version), invalidates: touchesOf(id) },
     );

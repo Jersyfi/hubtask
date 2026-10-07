@@ -1,4 +1,4 @@
--- The OAuth2 provider (H-05). The tenant is never a parameter: row level security bounds every
+-- The OAuth2 provider. The tenant is never a parameter: row level security bounds every
 -- statement to the tenant of the running transaction (ADR-0010).
 
 -- name: InsertOauthClient :exec

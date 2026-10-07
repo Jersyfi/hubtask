@@ -105,7 +105,7 @@ func (c *RestController) UpdateAccountPreferences(w http.ResponseWriter, r *http
 		// from the input, and one it sent empty is present and empty. That is the difference
 		// between "leave my time zone" and "clear it". A null is the empty one: the contract
 		// declares it for all three, and the generated pointer cannot tell it from an omission,
-		// so presence is read from the bytes and a null is written as "" (issue 709).
+		// so presence is read from the bytes and a null is written as "".
 		in := usecase.Input{"account_id": accountID.String()}
 		if present["locale"] {
 			in["locale"] = stringOrEmpty(body.Locale)
@@ -116,7 +116,7 @@ func (c *RestController) UpdateAccountPreferences(w http.ResponseWriter, r *http
 		if present["week_start"] {
 			in["week_start"] = weekStartOrEmpty(body.WeekStart)
 		}
-		// The moments (F6-12) travel as the words the use case reads - "true"/"false", an RFC
+		// The moments travel as the words the use case reads - "true"/"false", an RFC
 		// 3339 instant - and a null as the empty one, like the three above.
 		if present["celebrations"] {
 			in["celebrations"] = boolWordOrEmpty(body.Celebrations)
@@ -426,7 +426,7 @@ func accountResponse(out usecase.Output) openapi.Account {
 	}
 	if remaining, held := out["recovery_codes_remaining"].(int); held {
 		// Present exactly where a factor is armed, and then zero is answered as zero, because there
-		// zero is the number to act on (SI-09). Absent is not zero: an account holding no factor
+		// zero is the number to act on. Absent is not zero: an account holding no factor
 		// has no codes to count, and a screen told zero offers ten it cannot make.
 		account.RecoveryCodesRemaining = &remaining
 	}

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package streams holds the outbound port of the partitioned streams' maintenance (H-09):
+// Package streams holds the outbound port of the partitioned streams' maintenance:
 // activity entries, outbox events and rule runs partition by month, the leader keeps the
 // coming months existing, and the retention engine drops what has wholly aged out.
 package streams
@@ -14,7 +14,7 @@ import (
 )
 
 // Tables is the closed set of partitioned streams, the vocabulary the two functions validate
-// against (migration 0068; the change log joined in 0085, N-09).
+// against (migration 0068; the change log joined in 0085).
 func Tables() []string { return []string{"activity_entry", "outbox_event", "rule_run", ChangeLog} }
 
 // ChangeLog is the synchronisation's stream, named because its floor is the offline window the

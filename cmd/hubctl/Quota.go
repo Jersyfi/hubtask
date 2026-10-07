@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// What a workspace may hold, and how close it is to the wall (H-08).
+// What a workspace may hold, and how close it is to the wall.
 //
 // A read from inside the workspace rather than from the control plane: a quota is workspace
 // configuration, and who is near a wall is exactly what its administrators and its auditors read.

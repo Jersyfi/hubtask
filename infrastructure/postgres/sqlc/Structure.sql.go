@@ -73,7 +73,7 @@ type BucketOrderKeyNeighboursRow struct {
 //
 // "Exclude nothing" has to be expressible, because a create has no row to leave out: the parameter is
 // nullable and the comparison is IS DISTINCT FROM. With `<>` a NULL there is a predicate that is NULL
-// for every row, which empties this list and reports an anchor that is present as missing (issue 992).
+// for every row, which empties this list and reports an anchor that is present as missing.
 func (q *Queries) BucketOrderKeyNeighbours(ctx context.Context, arg BucketOrderKeyNeighboursParams) (BucketOrderKeyNeighboursRow, error) {
 	row := q.db.QueryRow(ctx, bucketOrderKeyNeighbours, arg.CollectionID, arg.MovingID, arg.BeforeID)
 	var i BucketOrderKeyNeighboursRow
@@ -194,7 +194,7 @@ WHERE id = $1
 `
 
 // The structure of a collection: the buckets its items are arranged in, and the labels they are
-// tagged with (B-09).
+// tagged with.
 //
 // The tenant is never a parameter here, exactly as in Work.sql: it comes from the transaction's own
 // context through current_tenant_id(), which is the same value row level security compares against.
@@ -263,7 +263,7 @@ type FirstBucketParams struct {
 }
 
 // The collection's leftmost live bucket, ignoring one: the bucket a deleted column's items fall
-// back to (B-09).
+// back to.
 //
 // Derived rather than stored. `default_bucket_id` is a documented key of the policies document and
 // no use case writes it, so a stored default would be a value nothing keeps up to date - a column
@@ -307,8 +307,8 @@ type InsertBucketParams struct {
 	ColorToken   *string
 }
 
-// The name arrives in Unicode normal form C, for the reason a container's does (InsertContainer,
-// M-07): the constructor brings it there, and normalize() stays on the insert and the update as
+// The name arrives in Unicode normal form C, for the reason a container's does
+// (InsertContainer): the constructor brings it there, and normalize() stays on the insert and the update as
 // the row's own guarantee for a writer that reaches it without the constructor. "Prüfung" typed
 // with a combining diaeresis and the same word composed are one name to a person, and the unique
 // index has to see them as one name too.

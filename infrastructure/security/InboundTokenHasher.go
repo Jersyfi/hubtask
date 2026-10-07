@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// inboundPepperInfo separates this use of the installation secret from every other one (G-08).
+// inboundPepperInfo separates this use of the installation secret from every other one.
 //
 // The label is the whole of the separation security.md §5 asks for: the same key protects access
 // tokens, calendar feeds, signed cursors and media tokens, and deriving each purpose through its
@@ -47,7 +47,7 @@ func (h InboundTokenHasher) Hash(presented string) []byte {
 	return mac.Sum(nil)
 }
 
-// jumbleIntakePepperInfo separates the jumble intake's tokens from the automation rules' (G-10).
+// jumbleIntakePepperInfo separates the jumble intake's tokens from the automation rules'.
 //
 // Its own label, so a rule's inbound token presented at the jumble intake matches nothing and
 // vice versa - the two stores share a prefix and a shape, and the purpose is what keeps them two

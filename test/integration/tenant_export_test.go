@@ -27,7 +27,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The tenant export of H-07, end to end against the real boundary: T-20's two-tenant grep, the
+// The tenant export, end to end against the real boundary: T-20's two-tenant grep, the
 // manifest counts against the database, the media checksums, and the redaction - all read off an
 // archive written by the real archivist through the real RLS path.
 
@@ -47,7 +47,7 @@ const (
 const exportMediaContent = "the attached bytes of tenant X"
 
 // exportTargetStore hands the archivist a local store rooted in a temp dir - the target
-// configuration is E-05's business, and this test is about the archive.
+// configuration is the backup targets' business, and this test is about the archive.
 type exportTargetStore struct{ store backupport.Store }
 
 func (s exportTargetStore) OpenTarget(context.Context, shared.ID, shared.ID) (backupport.Store, error) {
@@ -274,7 +274,7 @@ func firstLine(files map[string][]byte, path string) []byte {
 	return content
 }
 
-// A suspended and a leaving workspace export successfully - §5's own promise.
+// A suspended and a leaving workspace export successfully - multi-tenancy.md §5's own promise.
 func TestSuspendedAndLeavingWorkspacesExport(t *testing.T) {
 	ctx := context.Background()
 	seedExportTenants(ctx, t)

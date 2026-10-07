@@ -1,10 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // What this workspace may use, and how close it is (`multi-tenancy.md` §4, H-08).
+  // What this workspace may use, and how close it is (`multi-tenancy.md` §4).
   //
   // **There is no control to raise a limit, and the screen says who to ask.**
-  // `/admin/tenants/{id}/quotas` is the installation operator's (0.6.0 decision 6). A button the
+  // `/admin/tenants/{id}/quotas` is the installation operator's (multi-tenancy.md §4). A button the
   // server would refuse is worse than no button — it teaches somebody that the product is broken
   // rather than that the decision is somebody else's.
   //
@@ -162,8 +162,8 @@
 <style>
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). The 60ch column that stood here was a document's measure around a
-     screen that is not a document. */
+     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
+     around a screen that is not a document. */
 
   .quiet { margin: 0; color: var(--text-secondary); }
 

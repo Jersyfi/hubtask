@@ -89,7 +89,7 @@ func profileFrom(
 	}
 }
 
-// TextLanguageRepository reads which languages this installation can index (C-08).
+// TextLanguageRepository reads which languages this installation can index.
 //
 // Beside the capability profiles because it answers the same endpoint and nothing else, and
 // because both are reads of what this installation *is* rather than of what a tenant has: the
@@ -117,7 +117,7 @@ func (r TextLanguageRepository) List(ctx context.Context) ([]string, error) {
 	return tags, nil
 }
 
-// SemanticSearchRepository answers whether this installation can search by meaning (J-09).
+// SemanticSearchRepository answers whether this installation can search by meaning.
 //
 // Beside the text languages and for the same reason: both are reads of what this installation *is*.
 type SemanticSearchRepository struct{}
@@ -142,7 +142,7 @@ func (r SemanticSearchRepository) Available(ctx context.Context) (bool, error) {
 	return available, nil
 }
 
-// NaturalOrderingRepository answers whether names sort under the ICU root collation (M-08).
+// NaturalOrderingRepository answers whether names sort under the ICU root collation.
 //
 // Beside the two above and for the same reason: a read of what this installation *is*.
 type NaturalOrderingRepository struct{}

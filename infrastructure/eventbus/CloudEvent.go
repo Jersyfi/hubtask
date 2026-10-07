@@ -5,8 +5,8 @@
 //
 // CloudEvents 1.0, structured JSON (ADR-0007): the format n8n, Zapier and Knative already
 // understand, so an integration is configuration rather than a parser. The delivery itself - the
-// dispatcher, the retries, the dead letter - arrives with A-08; what is here is the shape it will
-// put on the wire, and the contract test judges it against the schemas under api/events/.
+// dispatcher, the retries, the dead letter - lives elsewhere; what is here is the shape it puts on
+// the wire, and the contract test judges it against the schemas under api/events/.
 package eventbus
 
 import (

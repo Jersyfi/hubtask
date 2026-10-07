@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The hosts a workspace answers at, against the real boundary (SI-12, migration 0104).
+// The hosts a workspace answers at, against the real boundary (migration 0104).
 //
 // Gate SG-3 for a new table, and one invariant beyond it: **one host, one workspace,
 // installation-wide**. That is the failure this table exists to make impossible, and it is the one

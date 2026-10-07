@@ -22,7 +22,7 @@ import (
 	recurrenceadapter "github.com/Jersyfi/hubtask/infrastructure/recurrence"
 )
 
-// The materialisation against a real database (D-05): what two passes at once produce, what an
+// The materialisation against a real database: what two passes at once produce, what an
 // ON_COMPLETION series owes for one transition (SY-8), and what a rolling window holds.
 
 // Every test here gets a tenant of its own, and the reason is the pass itself: it materialises
@@ -195,7 +195,7 @@ func TestTwoPassesOverOneSeriesProduceOneSetOfOccurrences(t *testing.T) {
 
 	// Both pointers survive the round trip through the statement that owns them. The rule
 	// identifier alone is what the template carries too, so it says a series is involved and not
-	// which end - the source is what an occurrence links up by (issue #428).
+	// which end - the source is what an occurrence links up by.
 	for _, occurrence := range occurrences {
 		if occurrence.RecurrenceSourceID != template {
 			t.Errorf("occurrence %s names %q as the entry it repeats from, want %s",

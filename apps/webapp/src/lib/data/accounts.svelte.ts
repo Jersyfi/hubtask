@@ -28,7 +28,7 @@ class Accounts {
   /**
    * The standing beside the name, from the same answer.
    *
-   * `AccountSummary` carries it, so keeping it costs a field rather than a request — and F4-09's
+   * `AccountSummary` carries it, so keeping it costs a field rather than a request — and the
    * people screen needs it: an invitation that has not been redeemed is an `INVITED` row, and a
    * screen that could not tell it from an active person would say somebody is in the workspace
    * who has not arrived yet.

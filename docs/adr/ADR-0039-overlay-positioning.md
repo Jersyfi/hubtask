@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-02 · **The fallback:** removed 2026-09-17 (F6-02) — its lifetime ended when the `engines` job ([ADR-0048](./ADR-0048-browser-job-driver.md)) proved every engine on the support row has anchor positioning; `src/anchor.ts` is the CSS path alone
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §6
+
 ## Context
 
 `design-system.md` §4 lands `Tooltip`, `Menu`, `Popover`, `Dialog` and `Toast` together in wave 1b

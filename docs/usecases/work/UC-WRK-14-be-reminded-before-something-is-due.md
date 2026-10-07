@@ -56,9 +56,5 @@ the reminder panel says reminders cannot reach anybody until mail is configured.
 
 ## Today
 
-* **Check 7 fails.** The manifest always publishes `EMAIL` as a channel
-  (`core/application/service/meta/GetCapabilities.go:474`) and the panel offers it whether or not a
-  mail server is configured; only the server's log says `config.smtp_missing_with_reminders`. In
-  `D1` and `D2` without mail, a reminder is stored and silently never reaches anybody.
-* **Check 8 fails.** The list shows the stored form, for example `REL:-PT1H`
-  (`apps/webapp/src/lib/entries/ReminderPanel.svelte:172`).
+* Check 7: not met — the manifest always publishes `EMAIL` as a channel and the panel offers it whether or not a mail server is configured; without mail a reminder is stored and silently reaches nobody.
+* Check 8: not met — the list shows the stored form, for example `REL:-PT1H`.

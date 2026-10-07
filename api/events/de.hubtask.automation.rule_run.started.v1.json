@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://docs.hubtask.dev/events/de.hubtask.automation.rule_run.started.v1.json",
   "title": "de.hubtask.automation.rule_run.started.v1",
-  "description": "An automation rule began a run. Announced before the conditions are evaluated, so that a run whose process dies is still visible as one that started - which is the only way a `RUNNING` row can be told from a run nobody attempted. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
+  "description": "An automation rule began a run. Announced before the conditions are evaluated, so that a run whose process dies is still visible as one that started - which is the only way a `RUNNING` row can be told from a run nobody attempted. The wire format is a CloudEvent 1.0 in structured JSON; the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases.",
   "type": "object",
   "required": [
     "specversion",
@@ -52,7 +52,7 @@
     "receivedat": {
       "type": "string",
       "format": "date-time",
-      "description": "When the server learned of the event. The same instant as `time` for an event raised online; for a change a device made offline and pushed later, `time` is the device's bounded moment and this is the push's (offline-sync.md §8). A rule with a time condition evaluates this one."
+      "description": "When the server learned of the event. The same instant as `time` for an event raised online; for a change a device made offline and pushed later, `time` is the device's bounded moment and this is the push's. A rule with a time condition evaluates this one."
     },
     "datacontenttype": {
       "type": "string",
@@ -77,7 +77,7 @@
     "actorid": {
       "type": "string",
       "format": "uuid",
-      "description": "Absent when the system itself acts. No label: an event leaves the installation, and a name is personal data a subscriber does not need in order to react (ADR-0018)."
+      "description": "Absent when the system itself acts. No label: an event leaves the installation, and a name is personal data a subscriber does not need in order to react."
     },
     "onbehalfof": {
       "type": "string",
@@ -97,11 +97,11 @@
     "pushid": {
       "type": "string",
       "format": "uuid",
-      "description": "The push a device brought the change in with, and absent for a change made online (offline-sync.md §8). Deliveries of one push about one subject and of one type are collapsed to one, with the last event's payload."
+      "description": "The push a device brought the change in with, and absent for a change made online. Deliveries of one push about one subject and of one type are collapsed to one, with the last event's payload."
     },
     "causationdepth": {
       "type": "integer",
-      "description": "Distance from the original action. The rule engine stops at 5 and marks the run ABORTED_LOOP (automation.md §2)."
+      "description": "Distance from the original action. The rule engine stops at 5 and marks the run ABORTED_LOOP."
     },
     "data": {
       "type": "object",
@@ -132,7 +132,7 @@
         },
         "causation_depth": {
           "type": "integer",
-          "description": "How far this run is from the act a person performed. The engine aborts at the documented limit rather than following the chain further (automation.md §2)."
+          "description": "How far this run is from the act a person performed. The engine aborts at the documented limit rather than following the chain further."
         }
       }
     }

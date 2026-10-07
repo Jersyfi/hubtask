@@ -52,7 +52,4 @@ cases that follow).
 
 ## Today
 
-* **Check 7 fails in the web app, by a choice the client wrote down.** The intake section and its
-  button are rendered for every reader (`apps/webapp/src/views/JumbleView.svelte:310`), and the
-  comment at `JumbleView.svelte:15` says the control is offered so the server can refuse it rather
-  than the screen guessing at a permission. That contradicts P-05; the owner decides which stands.
+* Check 7: not met in the web app — the intake section and *Make a new address* are drawn for every reader, by a choice the client's code states (the server refuses, the screen does not guess); the owner decides which stands, tracked in #1083.

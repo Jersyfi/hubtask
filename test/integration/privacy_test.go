@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// QS-19 against a real PostgreSQL (E-10): "a data subject requests erasure of their data - a
+// QS-19 against a real PostgreSQL: "a data subject requests erasure of their data - a
 // `data_subject_request` with a deadline; every storage location from the data catalogue is served;
 // audit references are pseudonymised; the deletion journal prevents return on restore."
 //

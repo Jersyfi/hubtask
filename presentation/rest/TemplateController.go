@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The templates (D-06): their own resource rather than a sub-resource of a container, because one
+// The templates: their own resource rather than a sub-resource of a container, because one
 // may be defined for the whole workspace and a path would have to invent a container for it.
 
 const (

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-23
 
+**Rule lives in:** [arc42.md](../architecture/arc42.md) §8.19
+
 ## Context
 
 arc42 §2.2 C-14 left the frontend feature set open. With the delivery vehicles decided —

@@ -14,7 +14,7 @@ export default {
 export const ten: Story = {
   name: 'All ten, and there is no eleventh',
   about:
-    '§4 states it in five words — “ten colorToken values, nothing else” — and domain-model.md §3.5 gives the reason: the colour is a token, not a hex, so theming is possible. Each token is a **pair**, background and foreground, measured together by F1-02 for contrast in both themes. One hex could not carry that, which is why a picker with a colour wheel would produce a chip that is unreadable in one of them. Switch the theme axis: every chip stays legible.',
+    '§4 states it in five words — “ten colorToken values, nothing else” — and domain-model.md §3.5 gives the reason: the colour is a token, not a hex, so theming is possible. Each token is a **pair**, background and foreground, measured together for contrast in both themes. One hex could not carry that, which is why a picker with a colour wheel would produce a chip that is unreadable in one of them. Switch the theme axis: every chip stays legible.',
 };
 
 export const removable: Story = {

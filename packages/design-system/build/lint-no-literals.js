@@ -107,7 +107,7 @@ if (dangling.length > 0) {
   for (const problem of dangling) console.error(problem);
   console.error(
     `\n${dangling.length} reference(s) to a custom property nothing defines.\n` +
-      'Name a token tokens.json generates, or add the value there (ADR-0029, issue 711).',
+      'Name a token tokens.json generates, or add the value there (ADR-0029).',
   );
   process.exit(1);
 }

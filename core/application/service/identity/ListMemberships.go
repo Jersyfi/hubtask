@@ -56,7 +56,7 @@ type ListMembershipsQuery struct {
 	Size      int
 }
 
-// ListMemberships answers who holds a role at a scope (F3-01).
+// ListMemberships answers who holds a role at a scope.
 //
 // What is granted *at* the scope named and nothing granted elsewhere. A membership applies
 // downwards, so what is in force at a collection is this list plus what its hub and the workspace

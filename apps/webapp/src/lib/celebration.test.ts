@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// §7's table as a table (F6-13): every row, and the daily cap. Hierarchies rather than heuristics.
+// §7's table as a table: every row, and the daily cap. Hierarchies rather than heuristics.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

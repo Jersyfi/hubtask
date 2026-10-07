@@ -1,4 +1,4 @@
--- The notification record and what people have said about being told (C-09, arc42 §5.2).
+-- The notification record and what people have said about being told (arc42 §5.2).
 --
 -- The tenant is never a parameter: it comes from the transaction's own context through
 -- current_tenant_id(), the same value row level security compares against (ADR-0010).

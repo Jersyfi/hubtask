@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The automation surface as a person meets it (G-13): write a rule, read it back, switch it on,
+// The automation surface as a person meets it: write a rule, read it back, switch it on,
 // see what it did.
 //
 // The one thing this group does not do is hide the split between writing a rule and letting it
@@ -415,7 +415,7 @@ func ruleReplay(ctx context.Context, cli *CLI, args []string) error {
 }
 
 // ruleRotateToken mints the address an inbound rule listens on, and says the one thing that has to
-// be said about a credential printed to a terminal (D-09's discipline).
+// be said about a credential printed to a terminal (project-structure.md §3).
 func ruleRotateToken(ctx context.Context, cli *CLI, args []string) error {
 	ruleID, err := cli.onlyID(args, "rule rotate-token <id>")
 	if err != nil {

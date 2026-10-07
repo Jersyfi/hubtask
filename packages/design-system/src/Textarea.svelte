@@ -53,7 +53,7 @@
   .textarea {
     display: block;
     /* The padding inside the width, or a full-width field is wider than its column by two
-       paddings - which is what made the entry page scroll sideways on a phone (F9-08). */
+       paddings - and the page scrolls sideways on a phone. */
     box-sizing: border-box;
     width: 100%;
     padding: var(--density-control-md-block) var(--sp-150);

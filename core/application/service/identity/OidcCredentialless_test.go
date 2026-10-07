@@ -14,9 +14,9 @@ import (
 
 // An ACTIVE account that holds no credential at all - no password, no second factor, no provider
 // identity, as after its provider was removed and its identity went with it - has nothing to prove
-// on the card. Until SC-32 the provider's word connected it and opened a session in every mode, so
-// an administrator's own issuer minting a member's address signed in as that member (P-02,
-// UC-ID-10 checks 5 and 6). It is connected now only by a provider authoritative for the address -
+// on the card. Were the provider's word to connect it and open a session in every mode, an
+// administrator's own issuer minting a member's address would sign in as that member (P-02,
+// UC-ID-10 checks 5 and 6). It is connected only by a provider authoritative for the address -
 // the mailbox's host vouching is a mailbox proof (ADR-0078 §1, §5) - and otherwise refused with the
 // sentence that names the way back: *Forgot your password?*.
 

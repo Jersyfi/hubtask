@@ -44,12 +44,12 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 		"notes":         optionalStringField(body.Notes),
 		"bucket_id":     optionalUUIDField(body.BucketId),
 		// Empty is not a value here but the absence of one: the use case then takes the creator's
-		// locale, which is what an unstated content language falls back to (C-08).
+		// locale, which is what an unstated content language falls back to.
 		"content_language": optionalStringField(body.ContentLanguage),
-		// The address a calendar client chose, where the caller is one (P-07, issue #721).
+		// The address a calendar client chose, where the caller is one.
 		"calendar_uid": optionalStringField(body.CalendarUid),
 	}
-	// The two assignment fields the create path serves since C-02: a named person, or the
+	// The two assignment fields the create path serves: a named person, or the
 	// collection's policy asked for explicitly. Both optional, and the catalogue refuses the
 	// combination.
 	if body.AssigneeId != nil {
@@ -58,7 +58,7 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 	if body.AutoAssign != nil {
 		in["auto_assign"] = *body.AutoAssign
 	}
-	// The schedule the create path serves since D-01: the start as the create's own field, and
+	// The schedule the create path serves: the start as the create's own field, and
 	// the due trio dispatching into the writer the due route owns.
 	if body.StartAt != nil {
 		in["start_at"] = body.StartAt.Format(time.RFC3339Nano)
@@ -72,18 +72,17 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 	if body.DueTimeZone != nil {
 		in["due_time_zone"] = *body.DueTimeZone
 	}
-	// Where the entry lands among its siblings, served since F10-17 (issue 896). Sent only when
+	// Where the entry lands among its siblings. Sent only when
 	// the caller named one: an absent anchor is "at the end", which is not the same instruction.
 	if body.BeforeItemId != nil {
 		in["before_item_id"] = body.BeforeItemId.String()
 	}
-	// The cover the entry is created with, served since F10-17 (issue 896). What it says travels
-	// whole - the field used to be passed on as an empty document, which refused the request by
-	// name and therefore never had to carry anything.
+	// The cover the entry is created with. What it says travels whole: an empty document would
+	// be refused by name.
 	if body.Cover != nil {
 		in["cover"] = coverDocument(*body.Cover)
 	}
-	// And the custom field values, served since F10-17 (issue 896), each judged against the
+	// And the custom field values, each judged against the
 	// definition in force for the entry's collection.
 	if body.CustomFields != nil {
 		in["custom_fields"] = map[string]any(*body.CustomFields)
@@ -154,7 +153,7 @@ func (c *RestController) UpdateWorkItem(
 		// indexed under the language it already declared.
 		in["content_language"] = stringOrEmpty(body.ContentLanguage)
 	}
-	// The schedule (D-01), by presence like everything above. Null reaches the catalogue as the
+	// The schedule, by presence like everything above. Null reaches the catalogue as the
 	// empty string; for `due_at` that clears the trio whole, per the contract.
 	if present["start_at"] {
 		in["start_at"] = ""
@@ -225,15 +224,15 @@ func uuidOrEmpty(value *openapi_types.UUID) string {
 // reminder is gone. Presence rather than the value, because null is what clearing looks like and
 // dropping it would be exactly the silence this exists to prevent.
 //
-// `assignee_id` stays here now that C-01 has landed, and for a different reason from the rest: an
+// `assignee_id` is here for a different reason from the rest: an
 // assignment is not a field of a merge patch, it is `POST /items/{id}:assign`. Two ways to write one
 // column would be two places deciding whether the person being given the entry may see it, which is
 // the check that makes the assignment mean anything. Refused by name here, so that a client sending
 // it is told where to send it instead rather than believing it was stored.
 //
-// The others disappear when their use case lands: the cover in 0.3.0, the custom fields with
-// theirs. The bucket left this list with B-09, and the due date with D-01 - the patch now
-// dispatches the trio into the writer the due route owns.
+// `cover` and `custom_fields` are passed on the same way: the patch does not write them, so the
+// catalogue refuses them by name. The due trio is not here - the patch dispatches it into the
+// writer the due route owns.
 func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[string]bool, in usecase.Input) {
 	if present["assignee_id"] {
 		in["assignee_id"] = ""
@@ -263,16 +262,8 @@ func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[strin
 // A field is passed on only when the client actually sent it. Sending it always would refuse
 // every request, since the catalogue does not declare these names.
 //
-// Each entry disappears from this list when the create path serves it. `assignee_id` and
-// `auto_assign` left it with C-02, which took the decision C-01 deferred: an entry may be created
-// already assigned, by name or by the collection's policy. `member_ids` stays for the reason
-// `label_ids` stayed after B-09: the endpoint that owns the set is its own
-// (`/items/{id}/members/{accountId}`), and no task has yet decided that a create may seed it.
-// The cover follows in 0.3.0. The bucket left this list with B-09, the due date with D-01, and
-// `before_item_id`, `cover` and `custom_fields` with F10-17 - the create serves all three now,
-// through the writers that own them, so nothing of `WorkItemCreate` is left in this list but the
-// member set. It is kept rather than deleted because the shape is what the next promise the
-// specification makes ahead of an implementation will need.
+// What is left are the two sets, `label_ids` and `member_ids`: each is owned by an endpoint of its
+// own (`/items/{id}/members/{accountId}` for the members), and a create does not seed either.
 func withUnservedItemFields(body openapi.WorkItemCreate, in usecase.Input) {
 	if body.LabelIds != nil {
 		in["label_ids"] = uuidList(*body.LabelIds)
@@ -372,7 +363,7 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		sourceID := uuidValue(source)
 		item.RecurrenceSourceId = &sourceID
 	}
-	// Present exactly when automatic assignment ran (C-02): the outcome of an :auto-assign call,
+	// Present exactly when automatic assignment ran: the outcome of an :auto-assign call,
 	// or of a create a policy applied to. Absent means it did not run, which is a different
 	// answer from "it ran and assigned nobody".
 	if outcome, ran := out["auto_assign"].(map[string]any); ran {
@@ -399,7 +390,7 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	if values, carried := out["custom_fields"].(map[string]any); carried {
 		item.CustomFields = &values
 	}
-	// The schedule (D-01). The flag rides along only when a due date is there: the schema defaults
+	// The schedule. The flag rides along only when a due date is there: the schema defaults
 	// it to false, and a flag on an entry with no date is a state nothing can store.
 	item.StartAt, item.DueAt = optionalTimeField(out["start_at"]), optionalTimeField(out["due_at"])
 	if item.DueAt != nil {
@@ -419,7 +410,7 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 
 // coverResponse maps the cover, or nothing when the entry carries none. Absent rather than an
 // object with three nulls: the schema makes the whole field optional, and a client reading `cover`
-// as present would draw a card with a picture nobody chose (C-06).
+// as present would draw a card with a picture nobody chose.
 func coverResponse(value any) *openapi.Cover {
 	fields, carried := value.(map[string]any)
 	if !carried {

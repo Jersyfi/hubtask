@@ -38,14 +38,3 @@ marked. *End* ends one; *Sign out everywhere else* ends all others.
 * Administrators do not see or end other people's sessions here; removing a person is the
   administrator's tool.
 * No location lookup beyond the IP class the session already stores.
-
-## Today
-
-All five checks hold. Since SC-09 each session says how it was opened, the provider by its name
-(`TestAProviderSessionNamesItsProviderInItsOwnTenantOnly`); since SC-19 the list holds only what the
-next request accepts (`TestTheListShowsOnlyWhatTheNextRequestAccepts`); since SC-23 *Sign out
-everywhere else* ends every other session and leaves exactly this one
-(`TestSigningOutEverywhereElseLeavesExactlyThisSession` against the database,
-`SessionsElsewhere_test.go`, and the walk in `settings.test.mjs` against a stubbed API). Ending every
-session including this one stays in the API (`DELETE /auth/sessions`) for hubctl and automations; the
-screen does not offer it, because *Sign out* ends this one.

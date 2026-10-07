@@ -375,9 +375,7 @@ func TestCancellingThroughTheCatalogueAnswersTheJobItNowIs(t *testing.T) {
 	}
 }
 
-// A job that can say how far along it is, and where its result will be, carries both. Nothing
-// reports either yet - the first that will is the backup - so this is the shape that has to be
-// there when it does rather than a field added later.
+// A job that can say how far along it is, and where its result will be, carries both.
 func TestAJobThatCanSayHowFarAlongItIsSaysSo(t *testing.T) {
 	half := 0.5
 	h := newHarness(domain.StateRunning)

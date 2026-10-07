@@ -20,8 +20,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The sentences E-01 exists to make true, against real memberships and real rows: "show me" and
-// "stop it" are different questions, and a job answers only to the tenant that asked for it.
+// What a job must answer, against real memberships and real rows: "show me" and "stop it" are
+// different questions, and a job answers only to the tenant that asked for it.
 
 var (
 	jobViewer      = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000e1")

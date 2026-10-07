@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The provider's three stores (H-05), one type per port because two of them insert and one
+// The provider's three stores, one type per port because two of them insert and one
 // receiver cannot answer two spellings of the same verb. They are the only places that know how
 // a code or a client secret becomes a hash, AccessTokenRepository's reasoning. No method takes
 // a tenant - row level security bounds every statement (ADR-0010).

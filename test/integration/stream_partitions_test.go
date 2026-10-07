@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/test/dbtest"
 )
 
-// The stream partitions of H-09, against the real boundary: the conversion rehearsed over
+// The stream partitions, against the real boundary: the conversion rehearsed over
 // existing data with the old binary's statements, the duty creating and repairing, the default
 // catching, and the retention dropping - with the evidence's counts.
 
@@ -134,8 +134,8 @@ func TestTheConversionCarriesExistingDataAndTheOldStatements(t *testing.T) {
 	}
 }
 
-// The duty, E-09's precedent tests over the generalised function: create with policy and full
-// grant, repair what an operator broke, and answer the empty name for a month the default
+// The duty, the audit partitions' tests over the generalised function: create with policy and
+// full grant, repair what an operator broke, and answer the empty name for a month the default
 // already holds.
 func TestTheStreamDutyCreatesAndRepairs(t *testing.T) {
 	ctx := context.Background()

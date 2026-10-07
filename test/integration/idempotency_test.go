@@ -214,7 +214,7 @@ func releaseAs(ctx context.Context, t *testing.T, tenant shared.ID, key reposito
 	}
 }
 
-// A released claim is free again (G-09): the engine lets a failed action's reservation go so a
+// A released claim is free again: the engine lets a failed action's reservation go so a
 // replay can perform the work the first run never did.
 func TestAReleasedKeyIsFreeAgain(t *testing.T) {
 	ctx := context.Background()

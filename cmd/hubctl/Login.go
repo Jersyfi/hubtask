@@ -20,8 +20,8 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The sign-in of a person, as opposed to `hubctl auth login`, which stores a machine's credential
-// (H-01, H-02).
+// The sign-in of a person, as opposed to `hubctl auth login`, which stores a machine's
+// credential.
 //
 // The difference is worth the second verb. A personal access token is a credential somebody minted
 // once and pasted; a session is a person who proved themselves just now, and it is the only

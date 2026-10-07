@@ -1,20 +1,19 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The bar at the top of every page (ADR-0061 decision 2, the first half of wave 5).
+  // The bar at the top of every page (ADR-0061 decision 2; design-system.md §11.2).
   //
   // It holds four things and refuses a fifth. At the start, the way into the navigation: a
   // drawer trigger below `expanded`, the rail toggle above it - the caller says which, because the
   // caller knows the width and this component does not. In the middle, the brand or the page's
   // title: on a phone the title is what the bar carries, because the page head below it has no
-  // room to say it twice. Then the entry to search, where the caller has room for one. At the
-  // end, the account menu, or whatever the caller renders there.
+  // room to say it twice. Then the search field, from `medium` up. At the end, the account menu,
+  // or whatever the caller renders there.
   //
-  // **The search slot reverses ADR-0061's "the bar carries no search field" (ADR-0063 decision
-  // 4).** What changed is what the field *is*: not a second destination, but the entry to the one
-  // that exists - typing in it leads to the search page rather than doing the searching here. The
-  // rule it was protecting still holds, and the caller keeps it: one visible entry to search on
-  // every width, so a caller that fills this slot takes the destination out of its list.
+  // **The search field is where a search is typed, not where it is built** (design-system.md
+  // §11.4): the `/search` page stays the place a search is built, and the field beside it answers
+  // with a peek of the first hits and the ways on. Both are the caller's, handed in through the
+  // slot. On `compact` there is no field, and search is a destination in the bottom bar.
   //
   // What it still carries **no** slot for is a page *action*. A page's actions belong to
   // `PageHeader`, where one is primary and the rest are a menu — and it is that menu, folded,
@@ -57,11 +56,12 @@
     /** The brand - the wordmark link. Rendered when there is no title. */
     brand?: Snippet;
     /**
-     * The entry to search, between the lead and the end (ADR-0063 decision 4).
+     * The search field, between the lead and the end (design-system.md §11.4).
      *
      * A slot rather than a field, because the bar knows nothing about what is searched - the same
-     * reason `SearchField` knows nothing about when a request is sent. Omitted where there is no
-     * room for it: on a phone the bar is a title and two controls, and search is a destination.
+     * reason `SearchField` knows nothing about when a request is sent. Omitted on `compact`: there
+     * the bar is a title, its marks and the page menu, and search is a destination in the bottom
+     * bar.
      */
     search?: Snippet;
     /** The controls at the end: the account menu. */

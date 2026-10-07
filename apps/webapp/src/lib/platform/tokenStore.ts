@@ -5,12 +5,12 @@
  * Where the browser keeps the session, and the reasoning that decides it.
  *
  * **A pair, not a token.** `POST /auth/sessions` answers an access token of fifteen minutes and a
- * refresh token of thirty days (H-01, security.md §5). The access token is the bearer on every
+ * refresh token of thirty days (security.md §5). The access token is the bearer on every
  * call; the refresh token is presented once, at `/auth/sessions:refresh`, and is retired by that
  * very call.
  *
- * **`sessionStorage`, not `localStorage` and not memory.** F1-11 requires that a valid session
- * survives a reload, which rules memory out; and it requires no more than that, which rules
+ * **`sessionStorage`, not `localStorage` and not memory** (identity.md §14.4). A valid session
+ * has to survive a reload, which rules memory out; and no more than that is required, which rules
  * `localStorage` out - a credential that outlives the tab is a credential still sitting on a
  * shared machine tomorrow morning.
  *
@@ -18,14 +18,11 @@
  * deliberately not used here.** What the refresh token buys this client is not longevity but
  * *rotation*: the access token it keeps alive lives fifteen minutes, so a copy stolen out of this
  * origin is worth a quarter of an hour rather than a month. Persisting the pair past the tab would
- * trade that away for the convenience of not signing in again, and F1-11's answer to that trade
- * has not changed.
+ * trade that away for the convenience of not signing in again.
  *
- * **What F1 predicted, and what actually arrived.** This file used to say the real answer was "a
- * session the browser holds and script cannot read, which is the OIDC connection in `0.6.0`". The
- * contract mints no such thing: `/auth/oidc:callback` answers the same bearer pair a password
- * sign-in does, and every route takes a bearer. So there is no cookie session to move to, and this
- * file is what `0.6.0` produced rather than what it replaced. What protects the pair is what
+ * **No cookie session to move to.** The contract mints no session the browser holds and script
+ * cannot read: `/auth/oidc:callback` answers the same bearer pair a password sign-in does, and
+ * every route takes a bearer. What protects the pair is what
  * protected the token: ADR-0028's content security policy - no `'unsafe-inline'`, no
  * `'unsafe-eval'`, `connect-src 'self'` - and the fact that the bundle is served from the same
  * origin as the API.
@@ -66,7 +63,7 @@ export interface TokenStore {
   write(pair: SessionPair): void;
   /**
    * When this session's elevation to the control plane ends, or `undefined` where it carries none
-   * (SI-17, ADR-0070 §4).
+   * (ADR-0070 §4).
    *
    * Beside the pair, and for the same reason the account is: the elevation belongs to the session
    * and a reload must not lose it. **Losing it is worse than remembering it** — the door would ask
@@ -89,11 +86,11 @@ export const TOKEN_KEY = 'hubtask.bearer';
 export const REFRESH_KEY = 'hubtask.refresh';
 /**
  * The account the pair belongs to, once `/accounts/me` has said. Kept beside the pair for one
- * reason (F6-04): the replica is one store per account, and a tab that reloads while the server
+ * reason: the replica is one store per account, and a tab that reloads while the server
  * cannot be reached has no `/accounts/me` to learn the account from - only this, and the copy.
  */
 export const ACCOUNT_KEY = 'hubtask.account';
-/** When the elevation ends (SI-17). A moment, kept for the tab, cleared with the pair. */
+/** When the elevation ends. A moment, kept for the tab, cleared with the pair. */
 export const ELEVATED_UNTIL_KEY = 'hubtask.elevated_until';
 
 /**

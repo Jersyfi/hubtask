@@ -63,7 +63,7 @@ func demanding(t *testing.T) (*installation, *[]string, *string) {
 	return stub, &paths, &proved
 }
 
-// The round trip that has been refused since 0.4.5, from a terminal: the destructive mode is
+// The round trip from a terminal: the destructive mode is
 // refused for want of a proof, the person proves themselves, and the same call goes again with the
 // token in the field the contract has carried all along.
 func TestADestructiveRestoreIsProvedAgainAndRetried(t *testing.T) {

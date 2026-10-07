@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * What the check found, as words and as marks on the canvas (F8-07, ADR-0060). A finding's
+ * What the check found, as words and as marks on the canvas (ADR-0060). A finding's
  * `path` is the JSON pointer a refusal's field errors already use, so the same translation puts
  * both at the card they are about.
  */

@@ -100,7 +100,7 @@
       icon: 'hub' as const,
       // A hub is a branch until its level says otherwise. Whether it has collections is not known
       // before it is opened, and a hub with no twist is a hub nobody can open to find out - so it
-      // carries one, and **loses it once the level has been read and is empty** (issue 1026): a
+      // carries one, and **loses it once the level has been read and is empty**: a
       // twist that opens nothing is a promise the navigation cannot keep. The row still goes to
       // the hub, which is where a collection is made.
       isBranch:
@@ -121,10 +121,10 @@
    * The three bands, in the one order (ADR-0063 decision 1).
    *
    * `places` first, then the workspace's own structure under its caption, then `keeping` — the
-   * trash, and the archive when F10-03 gives it a screen — pinned to the foot of the column. The
+   * trash and the archive — pinned to the foot of the column. The
    * band is a mark on the first node of each, so the tree stays one list with one keyboard walk
-   * and the drawing still gets the separation: the trash under the last hub read as one more hub,
-   * which is what the owner's walk found.
+   * and the drawing still gets the separation: the trash under the last hub would
+   * otherwise read as one more hub.
    *
    * The `keeping` band is there before the hubs have loaded and when there are none.
    */
@@ -172,9 +172,9 @@
     <ReplicaMark state={containers.hubsState} />
   {/if}
   <!-- `branchLabel` is what makes a hub a place: with a word for the twist, pressing the row goes
-       to the hub and the twist at its end opens and closes it (issue 1022). Without one the row
-       would only fold, which is how the hub's own screen came to be reachable solely through a
-       collection and back up the breadcrumb. -->
+       to the hub and the twist at its end opens and closes it. Without one the row would only
+       fold, and the hub's own screen would be reachable solely through a collection and back up
+       the breadcrumb. -->
   <SideNav
     label={t('app.workspace.title')}
     {nodes}
@@ -215,7 +215,7 @@
     <!-- In a block of its own so that the control keeps its width at the start of the line
          rather than stretching across the column with its label in the middle. Folded, it stands
          in the rail's one column with the marks above it: everything drawn in a rail is in that
-         column, or it is the one thing in the navigation that is not (issue 1011). -->
+         column, or it is the one thing in the navigation that is not. -->
     <div class="create" data-rail={isRail ? '' : undefined}>
       {#if isRail}
         <IconButton icon="plus" label={t('app.workspace.create_hub')} size="sm" onclick={() => (isCreatingHub = true)} />

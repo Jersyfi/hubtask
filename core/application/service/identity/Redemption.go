@@ -23,11 +23,11 @@ import (
 
 const RedeemInvitationName = "RedeemInvitation"
 
-// InvitationRedeemedAction is the moment an invited account becomes a person (audit.md §2). The
+// InvitationRedeemedAction is the moment an invited account becomes a person (audit.md §4). The
 // target type is InviteAccount's accountTarget: redemption is the invitation's other half.
 const InvitationRedeemedAction audit.Action = "auth.invitation_redeemed"
 
-// MintRedemptionToken mints the credential an invitation mail carries (H-01, data-catalog.md
+// MintRedemptionToken mints the credential an invitation mail carries (data-catalog.md
 // §7.5): shown once in the mail, stored only as a hash under its own purpose label, dead on
 // redemption or after its fortnight.
 //
@@ -95,7 +95,7 @@ type RedeemInvitationCommand struct {
 	TenantHeader string
 }
 
-// RedeemInvitation closes the invitation loop (H-01): the token from the mail, a password under
+// RedeemInvitation closes the invitation loop: the token from the mail, a password under
 // the policy, and the account moves from INVITED to ACTIVE - signed in, because making somebody
 // who just proved control of the mailbox type the password again teaches nothing.
 //
@@ -126,12 +126,12 @@ func (h RedeemInvitation) Execute(
 	if cmd.TenantHeader != "" && cmd.TenantHeader != token.TenantID().String() {
 		return SessionPair{}, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
-	// A workspace that switched the password off sets none, however the invitation arrived (SC-24):
+	// A workspace that switched the password off sets none, however the invitation arrived:
 	// the person signs in through the workspace's provider. Asked before the token is looked up -
 	// and once: where the password is open only as the fallback, this answer is what the trail
 	// records, so that a person invited into a workspace with no way in that works (a provisioned
 	// workspace born under an installation default without the password, say) can accept the
-	// invitation, and its administrators can see that they did (E2, #1138).
+	// invitation, and its administrators can see that they did (E2).
 	var fallback FallbackCause
 	if h.Passwords != nil {
 		open, viaFallback, err := h.Passwords.PasswordOpen(ctx, token.TenantID())
@@ -182,7 +182,7 @@ func (h RedeemInvitation) Execute(
 			w.failure(ctx, FailureRedemption)
 			return redemptionRefused()
 		}
-		// The workspace's standing (H-06): an invitation into a suspended workspace waits the
+		// The workspace's standing: an invitation into a suspended workspace waits the
 		// suspension out rather than opening a first session into it.
 		if err := found.TenantStatus.Verify(); err != nil {
 			return err
@@ -298,7 +298,7 @@ func (h RedeemInvitation) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "password", Kind: usecase.KindString, Required: true,
-				Description: "The first password, at least twelve characters (security.md §5).",
+				Description: "The first password, at least twelve characters.",
 			},
 			{
 				Name: "user_agent", Kind: usecase.KindString,

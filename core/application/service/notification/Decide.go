@@ -16,7 +16,7 @@ import (
 // decideFor reads what the person said and asks the domain whether they are told.
 //
 // One function for every path that writes a record - the outbox consumer and the reminder that
-// fires (D-03) - because a preference honoured on one path and forgotten on another is a setting
+// fires - because a preference honoured on one path and forgotten on another is a setting
 // that works until it matters. The invitation is the deliberate exception and does not come
 // through here: it is the one category no preference may switch off, and the setting that would
 // switch it off sits behind the door that message unlocks.

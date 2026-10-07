@@ -30,7 +30,7 @@ func TestTheSourceCatalogueLoads(t *testing.T) {
 
 // Every message in every embedded catalogue is inside the subset the renderer implements - the
 // same subset the client implements, so a construct outside it refuses the file when the
-// catalogue is loaded rather than printing braces at a recipient (i18n-l10n.md §3, M-02). The
+// catalogue is loaded rather than printing braces at a recipient (i18n-l10n.md §3). The
 // refusal is heard here, at build time; an operator's file meets it at start.
 func TestEveryEmbeddedCatalogueLoadsAndIsWithinTheSubset(t *testing.T) {
 	catalogues, err := LoadEmbedded()
@@ -61,7 +61,7 @@ func TestAMessageOutsideTheSubsetRefusesTheCatalogue(t *testing.T) {
 // The subset has no plural, and the catalogue must not fake one either. "schedule(s)" is a
 // plural written by hand, read as a hedge by a person and as nothing by a translator; the shape the
 // file uses instead puts the number last, after a colon ("Days left: {days}."), where it is right
-// for one and for many. Found on the runs screen (issue 547) and once more beside it.
+// for one and for many.
 func TestTheSourceCatalogueDoesNotHedgePlurals(t *testing.T) {
 	catalogue, err := LoadEnglish()
 	if err != nil {

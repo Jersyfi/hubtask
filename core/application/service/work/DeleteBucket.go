@@ -222,7 +222,7 @@ func (h DeleteBucket) recordChange(
 		Op:       changelog.Delete,
 		// The visibility filter a pull applies: the column's own collection, the choice every
 		// change to an entry makes - a grant on the collection alone is on the path of the
-		// collection and not of its hub (#623, offline-sync.md §3.1).
+		// collection and not of its hub (offline-sync.md §3.1).
 		ContainerID: bucket.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         h.Writer.HLC.Next(),

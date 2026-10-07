@@ -15,9 +15,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The deletion journal, read (E-06, backup-restore.md §7). It has been written since B-10 with a
-// comment saying nothing reads it in production; these are the tests of the reader that changes
-// that - the window it reads, the pages it reads in, and the boundary it may not cross (gate SG-3).
+// The deletion journal, read (backup-restore.md §7): the window it reads, the pages it reads in,
+// and the boundary it may not cross (gate SG-3).
 
 func journalRepo(batch int) postgres.DeletionJournalRepository {
 	return postgres.NewDeletionJournalRepository(batch)

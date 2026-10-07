@@ -45,7 +45,7 @@ const (
 //
 // Two records rather than four. There is no reminder event in the §4 catalogue and none is
 // invented here: what consumers react to is the entry moving (`item.due_changed`) and the reminder
-// firing (D-03), not somebody writing one down. And there is no step of the entry's history
+// firing, not somebody writing one down. And there is no step of the entry's history
 // either: a reminder is a person's own arrangement with the clock rather than a change to the work
 // - the history says what happened to the entry, and "Anna set herself a reminder" is not that.
 // Both decisions are recorded in the pull request, because the next reader will ask.
@@ -56,13 +56,13 @@ type ReminderWriter struct {
 	Profiles   metarepo.CapabilityProfiles
 	Authorizer Authorizer
 	// Visibility answers the one question the permission cannot: whether the account somebody
-	// named can see the entry at all. The same question an assignment asks (C-01).
+	// named can see the entry at all. The same question an assignment asks.
 	Visibility Visibility
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
 	// Jobs is where the tenant's next wake-up is asked for. The write that makes something due is
 	// what seeds it, because nothing may enumerate tenants (multi-tenancy.md §2.1) - the same
-	// shape the retention sweep and the media reconciliation already have (D-03).
+	// shape the retention sweep and the media reconciliation already have.
 	Jobs       queue.Queue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -222,7 +222,7 @@ func (w ReminderWriter) readWritableItem(
 	return item, nil
 }
 
-// ensureRecipientsCanSee holds every named recipient to the reach an assignee is held to (C-01):
+// ensureRecipientsCanSee holds every named recipient to the reach an assignee is held to:
 // somebody who cannot see the entry cannot be reminded of it, because the reminder would name
 // something they may not open.
 func (w ReminderWriter) ensureRecipientsCanSee(

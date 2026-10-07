@@ -111,8 +111,8 @@ func flip(cursor string) string {
 	return string(bytes)
 }
 
-// A walk cursor carries the kind being walked and the key it resumes after, inside the signature
-// (N-02); a delta cursor carries neither, and the two decode to what they were.
+// A walk cursor carries the kind being walked and the key it resumes after, inside the
+// signature; a delta cursor carries neither, and the two decode to what they were.
 func TestAWalkCursorRoundTripsAndADeltaCursorStaysOne(t *testing.T) {
 	codec := streamCursors()
 
@@ -146,7 +146,7 @@ func TestAWalkCursorRoundTripsAndADeltaCursorStaysOne(t *testing.T) {
 	}
 }
 
-// The epoch travels inside the signed payload (N-11), in a delta and in a walk cursor alike; a
+// The epoch travels inside the signed payload, in a delta and in a walk cursor alike; a
 // cursor minted before the field existed - two or four fields - reads as epoch zero rather than
 // as invalid, so that the field's arrival sends nobody through a resynchronisation.
 func TestTheEpochRoundTripsAndALegacyCursorReadsAsEpochZero(t *testing.T) {

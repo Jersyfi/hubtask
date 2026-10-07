@@ -21,14 +21,15 @@ import (
 	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// CalDAV, the write half (P-07).
+// CalDAV, the write half.
 //
 // A todo ticked in a client is PUT back with STATUS:COMPLETED; one whose date was dragged with a
 // new DUE; one deleted is DELETEd. The controller reads the VTODO, diffs it against the entry,
 // and performs the ordinary use cases as the token's account through the registry - which is
 // where the input is validated and the permission decided, exactly as a push performs them
-// (N-04). Nothing here is a second write path: a completion over CalDAV is CompleteWorkItem
-// with the same audit entry, the same activity, the same change log entry as a click.
+// (offline-sync.md §3.2). Nothing here is a second write path: a completion over CalDAV is
+// CompleteWorkItem with the same audit entry, the same activity, the same change log entry as a
+// click.
 //
 // Two rules a calendar client would otherwise break silently. A PUT to an existing todo needs
 // If-Match, or it is 428: a client that lost the race must not overwrite a change it never saw.
@@ -101,7 +102,7 @@ func (c *Controller) put(w http.ResponseWriter, r *http.Request, actor appshared
 		// holding the identifier: a todo the client completed leaves a view of open entries,
 		// and one it sent back without a DUE is no longer a moment. The client still holds the
 		// address and PUTs to it, and what it means is an edit of that entry - so the decision
-		// is the entry's, not the view's (issue 720). Only an identifier nothing holds is a
+		// is the entry's, not the view's. Only an identifier nothing holds is a
 		// creation.
 		outside, found, err := c.outsideTheView(r.Context(), actor, calendar, target.member)
 		if err != nil {
@@ -142,7 +143,7 @@ func (c *Controller) put(w http.ResponseWriter, r *http.Request, actor appshared
 // found is the one answer that says the address is free; a refusal says the entry exists and the
 // caller may not touch it, which is the same refusal the update would meet.
 //
-// An address is a client's UID first and an identifier second (issue #721): an entry made
+// An address is a client's UID first and an identifier second: an entry made
 // through the tree lives at the UID its client chose, and the identifier is where every other
 // entry lives. Two reads at most, and the second only for an address that could be an
 // identifier at all.
@@ -256,7 +257,7 @@ func dueInput(parsed ParsedTodo, actor appshared.ActorContext) usecase.Input {
 // The address a client chooses is its UID, and the entry created has to live at that address
 // afterwards or the client will find its todo gone and make it again. So the server mints the
 // identifier, as it does for every creation, and keeps the client's UID as the entry's calendar
-// address (issue #721) - what every CalDAV server does, and what lets Reminders, Thunderbird and
+// address - what every CalDAV server does, and what lets Reminders, Thunderbird and
 // every client following RFC 4791's advice of a random UID make a todo here. The UID inside the
 // document has to be the address: a client keys its todo by the UID it wrote, and one that put
 // a different UID at the address would read back a todo it does not recognise. The collection is

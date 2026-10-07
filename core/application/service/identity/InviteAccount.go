@@ -28,7 +28,7 @@ const (
 	membersWrite      = "members:write"
 
 	// AccountInvitedAction is the audit code. Adding somebody to a workspace is the event an
-	// auditor looks for first when asking how a person got access (audit.md §2).
+	// auditor looks for first when asking how a person got access (audit.md §4).
 	AccountInvitedAction audit.Action = "account.invited"
 )
 
@@ -53,9 +53,9 @@ type InviteAccountCommand struct {
 // InviteAccount adds a person to the workspace.
 //
 // What it does not do is let them in. The account is created in INVITED status, so permissions can
-// be arranged for it straight away and none of them work until the invitation is accepted - which
-// needs the sign-in flow and arrives with it (security.md §5). Until then this is an administrator
-// preparing a seat, and the audit trail records it as exactly that.
+// be arranged for it straight away and none of them work until the invitation is accepted
+// (identity.md §12). Until then this is an administrator preparing a seat, and the audit trail
+// records it as exactly that.
 type InviteAccount struct {
 	Accounts   repository.Accounts
 	Authorizer Authorizer
@@ -65,9 +65,9 @@ type InviteAccount struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	// Domains brings the address's domain to its ASCII form before it is stored or compared, so
-	// that two spellings of one mailbox are one row (i18n-l10n.md §7, M-10).
+	// that two spellings of one mailbox are one row (i18n-l10n.md §7).
 	Domains text.DomainEncoder
-	// Text brings the display name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the display name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -153,7 +153,7 @@ func (h InviteAccount) recordAudit(
 		Action:     AccountInvitedAction,
 		Outcome:    audit.OutcomeSuccess,
 		// Notice rather than info: somebody now has a way into this workspace, which is the class
-		// of event a review looks for (audit.md §2).
+		// of event a review looks for (audit.md §4).
 		Severity:   audit.SeverityNotice,
 		ActorKind:  actor.Kind,
 		ActorID:    actor.AccountID,
@@ -164,7 +164,7 @@ func (h InviteAccount) recordAudit(
 		Changes: audit.Changes(
 			// Sensitive, so the trail carries a hash rather than the address. An auditor needs
 			// to see that an invitation went somewhere and to compare two entries; neither needs
-			// the address readable in a table that outlives the account (ADR-0018, audit.md §2).
+			// the address readable in a table that outlives the account (ADR-0018, audit.md §4).
 			audit.Change{Field: "email", Classification: audit.Sensitive, To: invited.Email},
 			audit.Change{Field: "status", Classification: audit.Open, To: string(invited.Status)},
 		),
@@ -231,7 +231,7 @@ func accountOutput(account domain.Account) usecase.Output {
 			out[field] = value
 		}
 	}
-	// The moments (F6-12): a boolean and an instant, absent while the default applies - the same
+	// The moments: a boolean and an instant, absent while the default applies - the same
 	// distinction as above, kept in the types the contract gives them.
 	if account.Celebrations != nil {
 		out["celebrations"] = *account.Celebrations

@@ -29,9 +29,9 @@ const (
 	AccountActive   AccountStatus = "ACTIVE"
 	AccountInvited  AccountStatus = "INVITED"
 	AccountDisabled AccountStatus = "DISABLED"
-	// AccountRestricted is Art. 18 as a technical state (data-protection.md §4, E-10): the person
-	// still works, and what stops is the *processing* of their data - no automatic decision is
-	// made about them, and no AI is shown their content.
+	// AccountRestricted is Art. 18 as a technical state (data-protection.md §4): the person still
+	// works, and what stops is the *processing* of their data - no automatic decision is made about
+	// them, and no AI is shown their content.
 	//
 	// It is deliberately not a lockout. Restricting somebody's processing and disabling their
 	// account are two different answers to two different situations, and giving the first the
@@ -100,8 +100,8 @@ type NewAccessTokenInput struct {
 	ExpiresAt time.Time
 	Now       time.Time
 
-	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5,
-	// M-07); work.NewWorkItemInput says why it is handed in.
+	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5);
+	// work.NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 
@@ -253,11 +253,11 @@ type Account struct {
 	Locale    string
 	TimeZone  string
 	WeekStart string
-	// Celebrations and OnboardingCompletedAt are the account's moments (F6-12, milestone-F6.md
-	// decision 11), written by the client for itself: whether design-system.md §7's celebrations
-	// are marked - nil is the default, which is on - and when the first-run tour ended, nil while
-	// it has not or was asked for again. The account's rather than the device's for the reason
-	// ADR-0043 gives: a person who has seen the tour has seen it on every screen.
+	// Celebrations and OnboardingCompletedAt are the account's moments (offline-sync.md §4.2),
+	// written by the client for itself: whether design-system.md §7's celebrations are marked - nil
+	// is the default, which is on - and when the first-run tour ended, nil while it has not or was
+	// asked for again. The account's rather than the device's for the reason ADR-0043 gives: a
+	// person who has seen the tour has seen it on every screen.
 	Celebrations          *bool
 	OnboardingCompletedAt *time.Time
 }
@@ -270,7 +270,7 @@ type Account struct {
 //
 // A **restricted** account may act. Art. 18 restricts what the controller does with the person's
 // data, not what the person may do; treating a restriction as a lockout would punish somebody for
-// exercising a right (E-10). An anonymised one may not: there is nobody left to act.
+// exercising a right. An anonymised one may not: there is nobody left to act.
 func (a Account) Verify() error {
 	if !a.Status.MayAct() {
 		return shared.ErrForbidden.

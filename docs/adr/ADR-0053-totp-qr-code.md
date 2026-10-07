@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-09 · **Decided:** 2026-09-11
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §4
+
 ## Context
 
 `POST /auth/mfa/totp:enroll` answers two things about one secret: `secret`, base32, "for typing by
@@ -131,8 +133,8 @@ tests, a real authenticator as the acceptance line.
 ## References
 
 * [`security.md`](../architecture/security.md) §5, §7 — MFA, and the supply-chain questions
-* H-02 in [`backlog/milestone-0.6.0.md`](../backlog/milestone-0.6.0.md) — the server half
-* F4-04 in [`backlog/milestone-F4.md`](../backlog/milestone-F4.md) — the task this opens
+* H-02 in [`backlog/milestone-0.6.0.md`](../archive/backlog/milestone-0.6.0.md) — the server half
+* F4-04 in [`backlog/milestone-F4.md`](../archive/backlog/milestone-F4.md) — the task this opens
 * [ADR-0028](./ADR-0028-embedded-web-ui.md) — the bundle is in the binary
 * [ADR-0030](./ADR-0030-svelte-frontend-framework.md), [ADR-0039](./ADR-0039-overlay-positioning.md)
   — the two precedents for building rather than depending

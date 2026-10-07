@@ -116,7 +116,7 @@ func jobCancel(ctx context.Context, cli *CLI, args []string) error {
 // document the command finally emits, and a script that follows a backup should not have to strip
 // percentages out of it.
 //
-// The wait is bounded by `--wait` rather than by a loop with no end (CLAUDE.md rule 7), and the
+// The wait is bounded by `--wait` rather than by a loop with no end (rule 7), and the
 // message on running out says how to ask again - a command that hung until somebody pressed Ctrl-C
 // would leave a job nobody knows the identifier of.
 func (cli *CLI) followJob(

@@ -1,6 +1,6 @@
 # Blocked: the production namespace
 
-**What this is.** [H-10](./milestone-0.6.0.md) is built and
+**What this is.** [H-10](../archive/backlog/milestone-0.6.0.md) is built and
 proved as far as it can be without a production environment. This file names exactly the part that
 is left, so that "the task is finished" and "the task is proved" stay two different statements —
 and so that the issue staying open is a fact somebody can check rather than an oversight somebody

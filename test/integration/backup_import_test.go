@@ -20,8 +20,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The statements a restore writes a tenant through (E-06): the three outcomes of a collision, the
-// tenant the row lands in whatever the archive says, and the boundary it may not cross (SG-3).
+// The statements a restore writes a tenant through: the three outcomes of a collision, the tenant
+// the row lands in whatever the archive says, and the boundary it may not cross (SG-3).
 
 func importRepo() postgres.BackupImportRepository { return postgres.NewBackupImportRepository() }
 
@@ -71,9 +71,9 @@ func TestAnImportedRowLandsInTheTenantOfTheTransaction(t *testing.T) {
 
 // A row that collides with a living one by name rather than by identity - a second collection
 // called what the hub already holds - is a conflict in the container's own words, never a
-// database error the queue would retry into the same name (issue 766). The index is per tenant and
-// parent, case- and accent-insensitive; two hubs at the top level meet it as two collections under
-// one hub would.
+// database error the queue would retry into the same name. The index is per tenant and parent,
+// case- and accent-insensitive; two hubs at the top level meet it as two collections under one hub
+// would.
 func TestASecondCollectionUnderATakenNameIsAConflict(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -226,8 +226,8 @@ func TestAnImportCannotReachAnotherTenant(t *testing.T) {
 	}
 }
 
-// The freshness question a NEW_TENANT restore asks under real row level security (#206): a tenant
-// sees exactly its own row in `tenant`, so a minted identifier answers "not held" and a living one
+// The freshness question a NEW_TENANT restore asks under real row level security: a tenant sees
+// exactly its own row in `tenant`, so a minted identifier answers "not held" and a living one
 // answers "held" - which is what turns a run row naming a living tenant into a refusal rather than
 // a write into somebody's workspace.
 func TestAFreshTenantScopeHoldsNoTenantRow(t *testing.T) {
@@ -346,12 +346,12 @@ func TestEveryForeignKeyBetweenArchivedEntitiesIsDeclared(t *testing.T) {
 	}
 }
 
-// The rename against the index it exists for (#790).
+// The rename against the index it exists for.
 //
 // The applier's own tests answer with a store that has no unique index, so they prove the copy is
 // renamed and not that the renamed copy lands. This writes both rows the way a DUPLICATE restore
 // writes them: the living hub, then the copy under a minted identity - once carrying the name it
-// used to carry, which is the bug, and once carrying the name the rule gives it.
+// was copied from, which the index refuses, and once carrying the name the rule gives it.
 func TestADuplicatedHubLandsUnderTheNameTheRuleGivesIt(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -378,13 +378,13 @@ func TestADuplicatedHubLandsUnderTheNameTheRuleGivesIt(t *testing.T) {
 	}
 	copyID := backupdomain.DuplicateID(run, "containers", living.String())
 
-	// What `mint` did on its own: a new identity and the name it was copied from.
+	// A new identity alone: the copy still carries the name it was copied from.
 	err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		_, err := importRepo().Write(ctx, "container", containerRow(copyID, authorA, name), false)
 		return err
 	})
 	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "containers.name_taken" {
-		t.Fatalf("a copy under the living name was answered %v, and the whole of #790 is that the "+
+		t.Fatalf("a copy under the living name was answered %v, and the whole point is that the "+
 			"index refuses it", err)
 	}
 
@@ -405,10 +405,9 @@ func TestADuplicatedHubLandsUnderTheNameTheRuleGivesIt(t *testing.T) {
 }
 
 // The uniquenesses a DUPLICATE has to settle have to be the ones the database actually insists
-// on. `mint` gave a copy an identity and changed nothing else, so a duplicated collection arrived
-// under the living one's name and landed nothing (#790) - and the identity was never the only
-// unique index on those tables. A uniqueness nobody declared is that bug again, on a column
-// somebody adds next year.
+// on. A copy given a new identity and nothing else arrives under the living one's name and lands
+// nothing - and the identity is not the only unique index on those tables. A uniqueness nobody
+// declared is that trap again, on a column somebody adds next year.
 func TestEveryUniquenessADuplicateWouldMeetIsDeclared(t *testing.T) {
 	ctx := context.Background()
 	pool := adminPool(ctx, t)

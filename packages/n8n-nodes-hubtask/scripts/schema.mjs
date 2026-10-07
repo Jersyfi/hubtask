@@ -5,8 +5,8 @@
 // describes it, written as a validator (ADR-0058, option A). This is what stands in for a
 // typecheck against `n8n-workflow`, which this workspace does not install: it catches a property
 // without a name, an option without a value, a routing without a request, and the mistakes a
-// generator makes - but not a property n8n renamed last week. That one the walk in P-17 catches,
-// by loading the package into a real n8n.
+// generator makes - but not a property n8n renamed last week. Only loading the package into a
+// real n8n catches that one.
 
 const PROPERTY_TYPES = new Set(['string', 'number', 'boolean', 'options', 'multiOptions', 'collection', 'fixedCollection', 'json', 'dateTime', 'notice', 'hidden']);
 const METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);

@@ -42,7 +42,7 @@ type Template struct {
 	UpdatedAt *time.Time
 	// DeletedAt marks a soft deletion: the trees it has already stamped out are ordinary entries
 	// and outlive it, and a template defined later under the same name is a new one rather than
-	// this one coming back (the C-07 lesson).
+	// this one coming back.
 	DeletedAt *time.Time
 	Version   int
 }
@@ -61,8 +61,8 @@ type TemplateNode struct {
 	// decides about.
 	//
 	// The assignment rule a template carries, and the whole of it: a fixed person. Naming the
-	// collection's own policy instead would name what already happens - a create runs it (C-02) -
-	// and would give a template a second way of saying nothing.
+	// collection's own policy instead would name what already happens - a create runs it - and
+	// would give a template a second way of saying nothing.
 	AssigneeID shared.ID
 	Children   []TemplateNode
 }
@@ -102,10 +102,10 @@ const (
 	// every length in this codebase does (I-W7): a limit in bytes measures the alphabet.
 	MaxTemplateNameLength        = 200
 	MaxTemplateDescriptionLength = 2000
-	// MaxTemplateNodes is the bound the backlog set instead of a /jobs resource: an instantiation
-	// is one synchronous transaction, and this is how large it may be. Enforced at the definition
-	// and again at the instantiation, and published in /meta/capabilities so that a client knows
-	// the number rather than discovering it.
+	// MaxTemplateNodes is what keeps an instantiation off the job queue: it is one synchronous
+	// transaction, and this is how large it may be. Enforced at the definition and again at the
+	// instantiation, and published in /meta/capabilities so that a client knows the number rather
+	// than discovering it.
 	MaxTemplateNodes = 500
 	// MaxTemplateOffset is the longest a relative date may be: ten years, the same plausibility
 	// bound a reminder's offset takes.
@@ -127,8 +127,8 @@ type NewTemplateInput struct {
 	Now      time.Time
 
 	// Text brings the name, the description and every node's title and notes to normal form C
-	// before they are bounded and stored (i18n-l10n.md §5, M-07); NewWorkItemInput says why it
-	// is handed in.
+	// before they are bounded and stored (i18n-l10n.md §5); NewWorkItemInput says why it is handed
+	// in.
 	Text text.Normalizer
 }
 
@@ -146,7 +146,7 @@ type TemplateSpec struct {
 //
 // What it does not check is whether the tree is *possible*: which type may sit under which is the
 // hierarchy's answer and depends on this installation's profiles, so the application asks it (the
-// same division D-04 makes with the recurrence library). Everything that is decidable from the
+// same division the recurrence rule makes with its library). Everything that is decidable from the
 // document alone is decided here.
 func NewTemplate(input NewTemplateInput) (Template, error) {
 	spec, err := validTemplateSpec(input.Spec, input.Text)
@@ -189,7 +189,7 @@ func (p TemplatePatch) IsEmpty() bool {
 // whose root type changed would produce a different kind of thing under the same name. Both are a
 // new template - which costs nothing, since defining one is a single call.
 //
-// The normaliser is handed in for the reason NewTemplate takes one (M-07).
+// The normaliser is handed in for the reason NewTemplate takes one (i18n-l10n.md §5).
 func (t Template) Changed(
 	patch TemplatePatch, form text.Normalizer, at time.Time,
 ) (Template, []FieldChange, error) {

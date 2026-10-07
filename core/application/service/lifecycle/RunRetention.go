@@ -32,7 +32,7 @@ type RunRetention struct {
 	Policies repository.Policies
 	Runs     repository.Runs
 	Purger   Purger
-	// History is the notification record's remover (C-09). A second kind rather than a second job,
+	// History is the notification record's remover. A second kind rather than a second job,
 	// because a tenant's periods are one thing to evaluate: two schedules would mean two leases,
 	// two logs and two ways for one of them to quietly stop running.
 	History NotificationHistory
@@ -40,35 +40,35 @@ type RunRetention struct {
 	// wired without it sweeps exactly what it did before, which is what lets the two land in
 	// separate releases.
 	Events DispatchedEvents
-	// Inbox is the jumble's remover (G-10). Required, not optional, on the notification history's
+	// Inbox is the jumble's remover. Required, not optional, on the notification history's
 	// reasoning exactly: an inbox holds the least trusted text in the system - raw subject, raw
 	// body and the sender's address, all of it PERSONAL_CONTENT - and one that silently stops
 	// being swept is personal data kept past its period (risk R-09) in the one place nobody
 	// looks at afterwards.
 	Inbox JumbleInbox
-	// Proposals is the suggestion store's remover (J-05). Optional for the outbox's reason: an
+	// Proposals is the suggestion store's remover. Optional for the outbox's reason: an
 	// installation wired without it sweeps exactly what it did before, and what it would have
 	// removed is a working note rather than personal content nobody looks at - a suggestion's
 	// payload is a *copy* of fields the entry itself holds, and the entry has its own period.
 	Proposals ExpiringSuggestions
-	// Sessions is the sign-in rows' remover (H-01). Optional for the outbox's reason: an
+	// Sessions is the sign-in rows' remover. Optional for the outbox's reason: an
 	// installation wired without it sweeps exactly what it did before, and the rows it would
 	// have removed are already unusable - the sweep forgets, revocation ends.
 	Sessions ExpiredSessions
-	// Devices is the synchronising devices' remover (N-03). Optional for the session's reason,
+	// Devices is the synchronising devices' remover. Optional for the session's reason,
 	// and with the same shape: a device silent past its period has its sign-in revoked and its
 	// row removed, and an installation wired without it sweeps exactly what it did before.
 	Devices ExpiredDevices
-	// SyncLog is the remover of the synchronisation's records past the offline window (N-09):
+	// SyncLog is the remover of the synchronisation's records past the offline window:
 	// the operation log and the tombstones. Optional for the device's reason. The change log is
-	// not swept here - its months fall as partitions, the leader's duty (H-09).
+	// not swept here - its months fall as partitions, the leader's duty.
 	SyncLog ExpiredSyncLog
 	Clock   clock.Clock
 	IDs     clock.IDGenerator
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
 	// a metrics adapter from being a dependency of the deletion path.
 	Signals RetentionSignals
-	// Rules and Sweeper are the rule-driven half of the engine (E-07). Optional together: an
+	// Rules and Sweeper are the rule-driven half of the engine. Optional together: an
 	// installation wired without them sweeps the trash and the notification history exactly as
 	// before, which is what makes the two halves independently deployable.
 	Rules   repository.Rules
@@ -96,7 +96,7 @@ type NotificationHistory interface {
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
-// DispatchedEvents is the slice of the outbox this run removes through (G-02, ADR-0007's second
+// DispatchedEvents is the slice of the outbox this run removes through (ADR-0007's second
 // countermeasure). The same two methods as the notification history, and deliberately the same
 // shape: the engine treats a third kind exactly as it treats the second.
 //
@@ -113,7 +113,7 @@ type DispatchedEvents interface {
 	DeleteExpiredConsumption(ctx context.Context, cutoff time.Time, batch int) (int, error)
 }
 
-// ExpiredSessions is the slice of the session repository this run removes through (H-01). The
+// ExpiredSessions is the slice of the session repository this run removes through. The
 // same two methods as the notification history, and deliberately the same shape: the engine
 // treats a fifth kind exactly as it treats the second.
 //
@@ -126,22 +126,22 @@ type ExpiredSessions interface {
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
-// ExpiredDevices is the slice of the device repository this run removes through (N-03,
-// offline-sync.md §6): the session's two methods, and the same shape on purpose.
+// ExpiredDevices is the slice of the device repository this run removes through
+// (offline-sync.md §6): the session's two methods, and the same shape on purpose.
 type ExpiredDevices interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
-// ExpiredSyncLog is the slice of the synchronisation's log this run removes through (N-09,
-// offline-sync.md §7): the operation log rows and the tombstones past the window, in one pass
+// ExpiredSyncLog is the slice of the synchronisation's log this run removes through
+// (offline-sync.md §7): the operation log rows and the tombstones past the window, in one pass
 // per batch, the device's two methods and the same shape on purpose.
 type ExpiredSyncLog interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
-// ExpiringSuggestions is the slice of the suggestion store this run removes through (J-05).
+// ExpiringSuggestions is the slice of the suggestion store this run removes through.
 //
 // The same two methods as the jumble, the notification history and the outbox, and deliberately
 // the same shape: the engine treats a fifth kind exactly as it treats the second.
@@ -150,7 +150,7 @@ type ExpiringSuggestions interface {
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
-// JumbleInbox is the slice of the jumble repository this run removes through (G-10).
+// JumbleInbox is the slice of the jumble repository this run removes through.
 //
 // The same two methods as the notification history and the outbox, and deliberately the same
 // shape: the engine treats a fourth kind exactly as it treats the second. Declared here rather
@@ -296,7 +296,7 @@ func (h RunRetention) Execute(
 	return outcome, nil
 }
 
-// sweepProposals removes one batch of suggestions that are over (J-05, data-retention.md §3).
+// sweepProposals removes one batch of suggestions that are over (data-retention.md §3).
 //
 // Thirty days, the shortest default in the catalogue, and both decided states go with the
 // proposals: an accepted suggestion has already become the entry's own history, which is where
@@ -374,7 +374,7 @@ func (h RunRetention) sweepProposals(ctx context.Context, started time.Time) (Ou
 	return outcome, nil
 }
 
-// sweepSessions removes one batch of sessions that are over (H-01, data-retention.md §3).
+// sweepSessions removes one batch of sessions that are over (data-retention.md §3).
 //
 // The refresh family goes with each row by cascade. No tombstone window, no legal hold and no
 // audit entry, on sweepEvents' reasoning: a session is not an object a device holds, a hold is
@@ -422,8 +422,8 @@ func (h RunRetention) sweepSessions(ctx context.Context, started time.Time) (Out
 	return outcome, nil
 }
 
-// sweepDevices removes one batch of synchronising devices silent past their period (N-03,
-// data-retention.md §3, offline-sync.md §6), revoking the session each last synchronised under
+// sweepDevices removes one batch of synchronising devices silent past their period
+// (data-retention.md §3, offline-sync.md §6), revoking the session each last synchronised under
 // first - the adapter does both in one pass.
 //
 // No tombstone window, no legal hold and no audit entry, on sweepSessions' reasoning: a device
@@ -472,8 +472,8 @@ func (h RunRetention) sweepDevices(ctx context.Context, started time.Time) (Outc
 	return outcome, nil
 }
 
-// sweepSyncLog removes one batch of the synchronisation's records past the offline window (N-09,
-// offline-sync.md §7, data-retention.md §4 point 5): operation log rows, whose repeats a device
+// sweepSyncLog removes one batch of the synchronisation's records past the offline window
+// (offline-sync.md §7, data-retention.md §4 point 5): operation log rows, whose repeats a device
 // silent that long will never send because it resynchronises from scratch, and tombstones, which
 // have told every device that could still be told.
 //
@@ -526,7 +526,7 @@ func (h RunRetention) sweepSyncLog(ctx context.Context, started time.Time) (Outc
 	return outcome, nil
 }
 
-// sweepEvents removes one batch of dispatched outbox rows (G-02, data-retention.md §3).
+// sweepEvents removes one batch of dispatched outbox rows (data-retention.md §3).
 //
 // The table the outbox pattern leaves behind: an event's job is done the moment every consumer has
 // had it, and until ADR-0007's second countermeasure existed nothing ever removed the row. Seven
@@ -589,7 +589,7 @@ func (h RunRetention) sweepEvents(ctx context.Context, started time.Time) (Outco
 	return outcome, nil
 }
 
-// sweepHistory removes one batch of expired notification records (C-09, data-retention.md §3).
+// sweepHistory removes one batch of expired notification records (data-retention.md §3).
 //
 // No tombstone window and no legal hold, and neither is an omission. A notification is not an
 // object a device holds and could recreate - offline-sync.md §4 defines no merge rule for one,
@@ -649,10 +649,9 @@ func (h RunRetention) sweepHistory(ctx context.Context, started time.Time) (Outc
 	return outcome, nil
 }
 
-// sweepInbox removes one batch of expired jumble entries (G-10, data-retention.md §3).
+// sweepInbox removes one batch of expired jumble entries (data-retention.md §3).
 //
-// The kind D-06 predicted, arriving one milestone later with the feature it is about. Ninety days
-// from the arrival, and what is due is what was never converted: an entry that became a work item
+// Ninety days from the arrival, and what is due is what was never converted: an entry that became a work item
 // is that item's provenance and stays, which is why no status reaches this method as a parameter.
 //
 // No marking phase, no tombstone window and no audit entry, on sweepHistory's reasoning. Nobody
@@ -742,7 +741,7 @@ func (h RunRetention) sweepInbox(ctx context.Context, started time.Time) (Outcom
 }
 
 // sweepRules is the rule-driven half: the kinds a tenant configures rather than the two the
-// installation always sweeps (E-07, data-retention.md §2, §5).
+// installation always sweeps (data-retention.md §2, §5).
 //
 // The carry-over comes first and runs on every pass, which is what makes an upgrade need no
 // migration over tenant data: a tenant whose period lives in the old table gets a tenant-wide rule
@@ -802,8 +801,8 @@ func (h RunRetention) report(
 	h.Signals.RetentionRun(ctx, kind, took.Seconds())
 	h.Signals.RetentionDeleted(ctx, kind, int64(outcome.Removed))
 
-	// The reasons this kind can be blocked by, from the catalogue rather than from a list here
-	// (E-07). A kind nothing can block reports no series at all - a zero that can never be anything
+	// The reasons this kind can be blocked by, from the catalogue rather than from a list here.
+	// A kind nothing can block reports no series at all - a zero that can never be anything
 	// else is a line on a dashboard that means nothing - and a kind that gains a reason gains its
 	// series without anybody remembering to add it.
 	entry, known := domain.FindKind(dataKind)

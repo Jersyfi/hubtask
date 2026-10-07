@@ -66,16 +66,16 @@ func (s AuditSink) Append(ctx context.Context, entry port.Entry) error {
 	//
 	// `timestamptz` holds microseconds and a clock hands over nanoseconds, so an entry hashed as
 	// it arrived and read back from the row is two different entries: verification recomputes the
-	// hash from what was stored, and every entry written with a finer clock than the column
-	// reported tampering that never happened (E-12 found it; AT-2 builds its entries from a fixed
-	// base plus whole seconds and could not).
+	// hash from what was stored, and every entry written with a finer clock than the column would
+	// report tampering that never happened. AT-2 cannot see it: it builds its entries from a fixed
+	// base plus whole seconds.
 	//
 	// Truncated here rather than in `audit.Canonical`, because this is where the storage's
 	// precision is known: the port and the domain have no business knowing what PostgreSQL keeps.
 	// Rounding would move an instant forwards; truncation cannot.
 	entry.OccurredAt = entry.OccurredAt.UTC().Truncate(time.Microsecond)
 
-	// The client as a first-class actor attribute (H-05): when the request acts under an OAuth
+	// The client as a first-class actor attribute: when the request acts under an OAuth
 	// grant, the correlation context carries the client's identifier, and every entry of the
 	// request records it - here, once, rather than in every service that writes one. An entry
 	// that already names a client keeps its own answer.
@@ -88,8 +88,8 @@ func (s AuditSink) Append(ctx context.Context, entry port.Entry) error {
 	// The same asymmetry as the timestamp, one level deeper: the caller hands over Go values - a
 	// structure, an integer, a slice - and verification recomputes the hash from what came out of
 	// JSONB through `map[string]any`. A structure marshals in *field* order on the way in and in
-	// key order on the way out, so every entry carrying one hashed differently than it read back,
-	// and the trail reported tampering that never happened (E-12).
+	// key order on the way out, so every entry carrying one would hash differently than it reads
+	// back, and the trail would report tampering that never happened.
 	//
 	// One round trip through the same encoder the reader uses settles it: what is hashed is what
 	// any reader will see, whatever the caller built it from.
@@ -204,9 +204,9 @@ func auditInsertParams(id shared.ID, seq int64, hash, previousHash []byte, entry
 // taken over that.
 func storedShape(changes map[string]any) (map[string]any, error) {
 	// An entry that changed nothing - a probe, a read that is recorded, a refusal - is stored as
-	// `{}` and read back as `{}`, and a nil map hashes as `null`. So the chain broke at the first
-	// such entry in it, and only there: everything with a changed field in it verified, which is
-	// why a trail could look sound for forty entries and then not (E-12).
+	// `{}` and read back as `{}`, and a nil map hashes as `null`. So the chain would break at the
+	// first such entry in it, and only there: everything with a changed field in it verifies, which
+	// is how a trail can look sound for forty entries and then not.
 	if len(changes) == 0 {
 		return map[string]any{}, nil
 	}

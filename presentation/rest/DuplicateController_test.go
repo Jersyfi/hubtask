@@ -16,7 +16,7 @@ import (
 )
 
 // The copy route at the mapping layer - the catalogue's answer projected into the contract's
-// schema - because that is the layer where a field quietly goes missing (C-11).
+// schema - because that is the layer where a field quietly goes missing.
 
 func duplicateResult() usecase.Output {
 	return usecase.Output{

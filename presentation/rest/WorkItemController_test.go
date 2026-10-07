@@ -120,7 +120,7 @@ func TestTheRequestIsHandedToTheCatalogueAsItArrived(t *testing.T) {
 	}
 }
 
-// The two assignment fields the create path serves since C-02 reach the catalogue in its words.
+// The two assignment fields the create path serves reach the catalogue in its words.
 func TestTheCreateAssignmentFieldsAreMapped(t *testing.T) {
 	registry := &catalogue{out: createdItem()}
 	postItem(t, registry, `{"type":"TASK","collection_id":"`+collectionID+`",`+
@@ -170,7 +170,7 @@ func TestAFieldThatWasNotSentIsNotInvented(t *testing.T) {
 
 	postItem(t, registry, `{"type":"TASK","collection_id":"`+collectionID+`","title":"Buy milk"}`)
 
-	// `bucket_id` is not in this list any more: it is served since B-09, and travels like
+	// `bucket_id` is not in this list: it is served, and travels like
 	// `parent_id` and `notes` - always sent, as null when the client named none.
 	for _, absent := range []string{
 		"before_item_id", "assignee_id", "auto_assign", "label_ids", "member_ids",
@@ -233,7 +233,7 @@ func TestARefusedPlacementIsReportedAsAProblem(t *testing.T) {
 }
 
 // The column an entry sits in travels like the title: sent when the client sent it, and null and
-// the empty string alike take the entry off the board (B-09).
+// the empty string alike take the entry off the board.
 func TestTheColumnTravelsWithTheItemUpdate(t *testing.T) {
 	for _, c := range []struct {
 		name string

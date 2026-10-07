@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// InboundTokenPrefix marks the address of an INBOUND_WEBHOOK rule (G-08, automation.md §1.1).
+// InboundTokenPrefix marks the address of an INBOUND_WEBHOOK rule (automation.md §1.1).
 //
 // Public and fixed for the reason the feed token's prefix is: secret scanning matches on a prefix,
 // so an inbound URL pasted into an issue is found by somebody other than an attacker

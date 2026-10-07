@@ -33,7 +33,7 @@
     { id: 'b', type: 'WORK_PACKAGE', title: 'Elektroarbeiten im Bereich der Fensterfront', depth: 1, expansion: 'leaf' as const },
   ];
 
-  // The rows issue 838 found broken at 327 px: a deep level with a badge and a menu beside a title
+  // The rows that break at 327 px without the wrap: a deep level with a badge and a menu beside a title
   // that is one word, and one that is many.
   const phone = [
     { id: 'a', type: 'TASK', title: 'The kitchen', depth: 0, expansion: 'expanded' as const },

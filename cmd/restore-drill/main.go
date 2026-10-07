@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Command restore-drill is RT-9: the proof that the installation's point-in-time recovery works,
-// run where the data is (backup-restore.md §8.5, ADR-0046 amended 2026-09-07).
+// run where the data is (backup-restore.md §8.5, ADR-0046).
 //
 // It writes two marker rows with a recorded moment between them, bootstraps a temporary
 // CloudNativePG cluster from the object store to exactly that moment, expects the first marker
@@ -18,8 +18,8 @@
 //     decision for a tool that makes four kinds of request (ADR-0015).
 //   - Not a source of numbers. The measured RPO and RTO go into the evidence, and the evidence
 //     goes where the operator says (an object store, or the record ConfigMap when none is named).
-//     What it prints is a pass/fail line with a run identifier - decision 7 of the 0.6.0 backlog
-//     applies to a log line in Loki as much as to a document in this repository.
+//     What it prints is a pass/fail line with a run identifier - observability-reliability.md
+//     §13.2 applies to a log line in Loki as much as to a document in this repository.
 //   - Not a test of the application. The checks are about the database that came back: the
 //     recovery target, the schema version, the row level security every tenant table has to
 //     carry, the application role's bounds. Whether the application works on top of it is what

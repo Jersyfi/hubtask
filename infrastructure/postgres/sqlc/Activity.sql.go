@@ -107,7 +107,7 @@ type RecordActivityParams struct {
 }
 
 // The item history: what happened to a piece of work, in the words the people working on it read
-// (B-11, domain-model.md §3.5).
+// (domain-model.md §3.5).
 //
 // Append-only. There is deliberately no UPDATE and no DELETE in this file: an entry is not edited,
 // and what removes one is the deletion of the item it belongs to, through the foreign key
@@ -124,7 +124,7 @@ type RecordActivityParams struct {
 // where it was then.
 //
 // The correlation and causation columns stay NULL. They belong to an act caused by another act,
-// and everything this milestone records is something a person asked for directly; filling them
+// and everything recorded here is something a person asked for directly; filling them
 // with a request identifier would be a chain that describes nothing (automation.md §2).
 func (q *Queries) RecordActivity(ctx context.Context, arg RecordActivityParams) error {
 	_, err := q.db.Exec(ctx, recordActivity,

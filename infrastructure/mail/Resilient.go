@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 )
 
-// ResilientSender composes a Sender with the A-05 blocks (ADR-0016): a breaker so a dead mail
+// ResilientSender composes a Sender with the resilience blocks (ADR-0016): a breaker so a dead mail
 // server costs an immediate answer instead of a blocked worker for every queued message, and a
 // bulkhead so the delivery of notifications cannot take more of the process than its share.
 //

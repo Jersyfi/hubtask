@@ -73,7 +73,7 @@ const SECTION = [
   ['/profile', 'How the product speaks to you'],
   ['/profile/appearance', 'On this device'],
   ['/profile/notifications', 'What you are told about'],
-  // Renamed with the sign-in work (SI-15): the screen holds the password, the recovery codes and
+  // Renamed with the sign-in work: the screen holds the password, the recovery codes and
   // the second factor, and was named after the second of the three.
   ['/profile/security', 'Password and sign-in'],
   ['/profile/sessions', 'Where you are signed in'],
@@ -177,7 +177,7 @@ test('chromium: 1280 px — the two lists are tables, this device first and the 
   const devices = page.getByRole('table', { name: 'Devices that synchronise' });
   await devices.waitFor({ timeout: 10_000 });
   assert.equal(await devices.locator('tbody tr').count(), DEVICES.length);
-  // A forgotten device is blocked rather than erased (N-03), and the row says which it is.
+  // A forgotten device is blocked rather than erased, and the row says which it is.
   assert.equal(await devices.getByRole('row').filter({ hasText: 'Old phone' }).getByText('Forgotten').count(), 1);
 
   assert.deepEqual(failures, []);
@@ -325,7 +325,7 @@ test('chromium: 1280 px — a provider-only account is offered no password and a
   assert.equal(await dialog.locator('input[autocomplete="one-time-code"]').count(), 1, 'the dialog does not ask for the code');
 });
 
-// UC-ID-03 check 6, UC-ID-05 check 5 (SC-16): a provider-only member with a factor turns it off. The
+// UC-ID-03 check 6, UC-ID-05 check 5: a provider-only member with a factor turns it off. The
 // profile offers it where nothing requires the factor, asks for no password, and the step-up takes
 // the authenticator's code - the account's own way, named by the refusal.
 test('chromium: 1280 px — a provider-only member turns the factor off with a code', async (t) => {
@@ -381,7 +381,7 @@ test('chromium: 1280 px — a provider-only member turns the factor off with a c
   assert.ok(disables.every((each) => !('password' in (each.body ?? {}))), 'the deprecated password was sent');
 });
 
-// SC-17, UC-ID-03 checks 4-6: under a rule that requires a second factor, the profile offers no way
+// UC-ID-03 checks 4-6: under a rule that requires a second factor, the profile offers no way
 // to turn it off but does offer to replace the authenticator - behind the step-up, confirmed with the
 // new app, and ending in ten new codes shown once.
 test('chromium: 1280 px — under a requiring rule the authenticator is replaced, never turned off', async (t) => {
@@ -478,7 +478,7 @@ test('chromium: 1280 px — every session says how it was opened', async (t) => 
   assert.doesNotMatch(await row('Edge on Windows'), /OIDC|PASSWORD|undefined|null/);
 });
 
-// UC-ID-06 check 4 (SC-23): *Sign out everywhere else* ends every other session and leaves this one -
+// UC-ID-06 check 4: *Sign out everywhere else* ends every other session and leaves this one -
 // the reader stays on the screen, signed in, and the list shows only this device.
 test('chromium: signing out everywhere else keeps this session and shows it alone', async (t) => {
   const browser = await chromium.launch();

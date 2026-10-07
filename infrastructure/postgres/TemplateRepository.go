@@ -24,7 +24,7 @@ import (
 // here so that the one refusal a client can act on is told apart from a database that is unwell.
 const templateNameIndex = "template_name_uq"
 
-// TemplateRepository stores the trees somebody wrote down to stamp out again (D-06).
+// TemplateRepository stores the trees somebody wrote down to stamp out again.
 type TemplateRepository struct {
 	cursors security.CursorCodec
 }

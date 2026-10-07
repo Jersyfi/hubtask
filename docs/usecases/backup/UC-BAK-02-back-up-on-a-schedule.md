@@ -58,9 +58,5 @@ See [backup-restore.md](../../architecture/backup-restore.md) §5–6.
 
 ## Today
 
-* **Check 7 fails.** Expiry removes archives with log lines only
-  (`presentation/worker/BackupRun.go`); no trail entry is written, although
-  [backup-restore.md](../../architecture/backup-restore.md) §6 says deletion is auditable.
-* **Check 8 fails in part.** `hubctl` can list, change and remove schedules but not create one
-  (`cmd/hubctl/BackupSchedule.go`); the web form sets the rule, the zone and the floor only — not
-  the full-backup days, the generation plan or the trial restore.
+* Check 7: not met — expiry removes archives with log lines only; no trail entry is written.
+* Check 8: not met in part — `hubctl` cannot create a schedule, and the web form sets the rule, the zone and the floor only, not the full-backup days, the generation plan or the trial restore.

@@ -1,39 +1,47 @@
 # Contributing
 
-Thanks for your interest. This project has a fully documented architecture — that is not an
-accident, it is the basis you work from.
+Thanks for your interest. Hubtask's architecture is documented in full, and that is the basis you
+work from. The rules for changing anything — for a person and for an AI coding agent of any make —
+are in [`AGENTS.md`](AGENTS.md). This file is the human way in.
 
-## Before you write code
+## Ways to contribute
 
-1. Read `CLAUDE.md`. The fifteen rules it lists apply to humans just the same.
-2. Read the use cases your task names (`docs/usecases/`) and the principles they serve
-   (`docs/vision/principles.md`). They say what must be true for the person; the rest says how.
-3. Read the document under `docs/architecture/` that matches what you are doing, and the ADRs it
-   links to.
-4. Open an issue before starting anything substantial. For architectural changes open an ADR
-   issue, not a pull request presenting a decision as already made.
+- **Report a bug** with the bug form. It becomes a `finding`; the next milestone takes it in.
+- **Propose a feature** as a [discussion](https://github.com/Jersyfi/hubtask/discussions) or an
+  issue. A feature enters the product through a milestone cut ([docs/backlog/README.md](docs/backlog/README.md)).
+- **Fix something** with a pull request from your fork. A fix without a task says
+  `Readiness: n/a — <why>` and `No issue:` or `Closes #n` in its description.
+- **Translate** — see below.
+- **Work closely on a part of Hubtask** with your own tools: you take a milestone of your own, follow
+  `AGENTS.md`, and put questions for the owner as `decision` issues.
 
-## The loop
+## Setting up a machine
+
+Any machine works; nothing depends on one in particular.
+
+- Go (the version in `go.mod`), Docker, `git`, and the GitHub CLI `gh`.
+- Node.js (the version in `.nvmrc`) only for `apps/` and `packages/`.
 
 ```bash
-make tools
+make tools          # the Go tools, pinned, into .tools
+make tools-node     # pnpm into .tools, only for apps/ and packages/
 make db-up && make migrate
-# work
-make verify          # the fast gates, while working
-make verify-pr       # the pull request check, before it leaves draft
+make verify         # the fast gates
 ```
+
+A new worktree has no `.tools`: run `make tools` (and `make tools-node`) in it. A copied
+`.tools/pnpm` is a shim that breaks outside its checkout.
+
+Access to the integration and production environments is the maintainers', and its credentials
+are never in this repository.
 
 ## Signing in locally
 
-`make db-up && make migrate` gives you a database and a schema. It gives you no workspace and
-nobody to be, and until #525 nothing here said how to get either — which is how a whole milestone
-of screens came to be merged without anybody opening one.
-
+`make db-up && make migrate` gives you a database and a schema, but no workspace and nobody to be.
 Four things, once:
 
-**1. The application role needs its login.** `make migrate` runs goose, which creates the role
-without a password because a credential has no business in a migration. The migrator binary is what
-grants it:
+**1. The application role needs its login.** `make migrate` creates the role without a password;
+the migrator binary grants it:
 
 ```bash
 HUBTASK_DB_DSN=postgres://hubtask:hubtask-dev@localhost:5432/hubtask?sslmode=disable \
@@ -41,7 +49,10 @@ HUBTASK_DB_APP_PASSWORD=local-development-only \
 go run ./cmd/migrate up
 ```
 
-**2. Run the server as the application role, never as the database owner.**
+**2. Run the server as the application role, never as the database owner.** The owner role carries
+`BYPASSRLS`: a server connected as it reads every workspace's rows, and the screens fill with other
+people's data while looking entirely plausible. If a listing shows more than you created, check the
+role before the code.
 
 ```bash
 export HUBTASK_DB_DSN=postgres://hubtask_app:local-development-only@localhost:5432/hubtask?sslmode=disable
@@ -51,13 +62,8 @@ export HUBTASK_BASE_URL=http://localhost
 make run
 ```
 
-This one matters more than it looks. The owner role carries `BYPASSRLS`, so a server connected as it
-reads **every** workspace's rows and nothing complains: the screens fill with other people's data
-and look entirely plausible doing it. If a listing shows more than you created, check the role
-before you check the code — that mistake cost an hour and nearly became a bug report.
-
-The mode is `multi` for the same reason the integration environment runs it: single mode resolves
-"the only workspace", and a database with more than one in it then resolves nothing.
+`multi` because single mode resolves "the only workspace", and a database with several resolves
+nothing.
 
 **3. Make a workspace and somebody who can sign in.**
 
@@ -74,166 +80,92 @@ scripts/dev-workspace.sh
 **4. Open the workspace, not the bare host.**
 
 ```bash
-pnpm --filter @hubtask/webapp dev
+.tools/pnpm --filter @hubtask/webapp dev
 # http://demo.localhost:5173/
 ```
 
-`localhost:5173` answers no workspace and never will: an installation that serves several tells
-them apart by the subdomain in the address, which is what it does in production too. `*.localhost`
-resolves to your own machine without any configuration.
+An installation that serves several workspaces tells them apart by the subdomain, here as in
+production; `*.localhost` resolves to your machine without configuration. The same script points
+at the integration environment with `--api`.
 
-The same script points at the integration environment with `--api`; its header says what each
-environment needs.
+## A pull request
 
-Branch names: `feat/short-description`, `fix/…`, `docs/…`, `chore/…`.
+- Start it as a draft (`gh pr create --draft`), its description copied from
+  `.github/PULL_REQUEST_TEMPLATE.md`; `make gate-pr BODY=<file>` checks it.
+- Small commits, one concern each, with a Conventional Commit title in English.
+- `make verify-pr` before `gh pr ready`: a draft runs no CI; CI runs once when it is ready
+  ([ci-cd.md](docs/architecture/ci-cd.md)). Most jobs skip themselves when their part of the tree
+  did not change — that is normal. `CI required` is the one required check.
 
-**Conventional Commits**, in English:
+Everything else — the rules, the loop, the Definition of Done — is in [`AGENTS.md`](AGENTS.md).
 
-```
-feat(workmanagement): add container archiving
+## Merging a stack of pull requests (maintainers)
 
-Archived containers remain restorable indefinitely (F-10).
-Refs #42
-```
+A squash merge rewrites the base of every pull request stacked on it. Merge in order, and after each
+merge bring the next one up to date on the server — `gh api repos/Jersyfi/hubtask/merges -f
+base=<branch> -f head=main` — rather than rebasing locally. Two sessions merging at once race on the
+same `main`: merge from one place at a time. A `BEHIND` or `DIRTY` read right after a push is stale;
+read it again half a minute later.
 
-Scopes correspond to the bounded contexts in `docs/architecture/arc42.md` §5.
+The server merge answers 409 on a conflict, which needs a checkout, and an empty answer when the
+branch already contains `main`. Its commit exists only on the remote: a checkout of that branch
+merges `origin/<branch>` before it pushes, or the push is rejected. A pull request whose base was
+squash-merged is retargeted to `main` and moved with `git rebase --onto origin/main <old-base>
+<branch>` and a force-push. Before calling a push done, `git status -sb` shows no divergence.
 
-## One pull request, one issue
+After a squash, git has no common base for the next branch: every file the previous pull request
+touched comes back as a conflict.
 
-Every task in `docs/backlog/` has an issue (label `task`). Your pull request closes it by naming it
-in the `Closes #` line of the template — otherwise the work is merged and the issue stays open,
-which makes the board lie about what is done. A question that blocks the task belongs in the issue
-rather than in the pull request: the issue outlives the branch.
-
-## One pull request, several commits
-
-A task is one pull request — but not one commit. Split the work into steps of roughly one commit
-each and record the split as a checklist in the pull request body, before you start. Open the pull
-request as a **draft** at that point; it takes the checklist and marks the work as running.
-
-Per step: one commit, pushed straight away, and its box ticked. `make gate-quick` stays green at
-every commit and `make verify-pr` at the last one; only then does the pull request leave draft.
-
-A step is one concern. Tests travel with the code they test, not in a trailing "add tests" commit.
-No `wip` or `fixup` commits: while the pull request is a draft you may rewrite history, once it is
-in review only new commits. The squash merge collapses the chain into a single commit on `main`
-(`docs/architecture/versioning-release.md` §3), so the steps are read in the pull request.
-
-Two reasons this matters more than tidiness: a reviewer follows five small steps and rarely follows
-one large diff, and pushed work survives an interrupted session — including one where an AI
-assistant loses its context mid-task.
-
-## What makes a pull request acceptable
-
-The template lists the Definition of Done, and the job *Pull request description* holds the
-description to it: every section stays, n/a where one does not apply, and a pull request without an
-issue says `No issue: <why>`. Start the description from the template — `gh pr create --body`
-never shows it. `make gate-pr BODY=<file>` checks a draft locally. Two items are missed most often:
-
-* **A cross-tenant negative test** for every new repository method. Without it, gate SG-3 fails.
-* **A merge rule** for every new field on `WorkItem` (LWW, OR-set, fractional index, or
-  server-side) — otherwise the behaviour on offline conflicts is undefined.
-
-## The pipeline: one required check
-
-**A draft runs no CI** ([ADR-0079](docs/adr/ADR-0079-a-draft-is-checked-locally.md)). It is
-checked where it is written: `make verify-pr` runs `make verify`, then every gate the pipeline would
-run for your branch — selected by the same path filters — and the description against the template.
-The pipeline runs when the pull request leaves draft, once. Rework on a pull request that is ready
-goes back to draft first (`gh pr ready --undo`); bringing it up to date with `main` does not.
-
-Once a pull request is ready, every workflow runs, but most jobs decide for themselves that they
-have nothing to do. A documentation change does not run twelve security gates, and a change to the
-design system does not run the Helm chart lint.
-
-**`CI required` is the only required status check.** It waits for every other job and fails if any
-of them failed or was cancelled; a job that was skipped because its part of the tree did not change
-counts as passing. So a green `CI required` means "everything that had something to say about this
-change said it". On a draft the same job reports as `CI not run (draft)`, so a draft can never meet
-the required check.
-
-Two consequences worth knowing:
-
-* A pull request that shows most jobs as *skipped* is normal, not broken.
-* If you add a job to `.github/workflows/ci.yml`, add it to `ci-required`'s `needs` list — and to
-  nothing else. Making a job required on its own re-creates the deadlock this design avoids: a
-  required check that gets skipped never reports, so it stays pending forever and the pull request
-  can never merge. The reasoning is in
-  [ci-cd.md](docs/architecture/ci-cd.md) §3.2.
-
-## Working on the frontend
-
-`apps/` and `packages/` need Node.js and pnpm; `core/`, `cmd/` and the rest of the Go tree do not,
-and must never start to ([ADR-0027](docs/adr/ADR-0027-monorepo-structure.md)).
-
-```bash
-make tools-node                 # pnpm into .tools, from the version package.json pins
-pnpm install --frozen-lockfile
-pnpm -r build
-make tokens                     # regenerate the design tokens after editing tokens.json
-```
-
-Two rules that a gate enforces rather than a reviewer: no colour, spacing, radius or duration value
-is written anywhere but `packages/design-system/tokens/tokens.json`, and the generated
-`core/domain/model/shared/LabelTokens.go` is committed but never edited by hand.
-
-## Language
-
-Everything is in English: documentation, code, identifiers, code comments, commit titles, and
-commit bodies. Message codes and `locales/en.json` are the source for translations — the backend
-never contains display text.
+- Check the cheap case first: if the previous branch was up to date with `main` before it was
+  squashed, `git diff <previous tip> origin/main` is empty, and `git merge -s ours origin/main` on
+  the next branch loses nothing. The previous tip is `refs/pull/<n>/head` — head branches are
+  deleted on merge.
+- Otherwise resolve each file three-way against the fork point (`git merge-file` with
+  `git merge-base <branch> <previous tip>`), never "ours wins": that drops what `main` gained.
+  `rerere` does not replay across a squash, because the base differs.
+- Afterwards `git diff origin/main --stat` shows only the branch's own change.
+- A change that lands on `main` mid-stack (a lint, a catalogue entry) is fixed on every remaining
+  branch at once.
+- `gh pr merge --delete-branch` fails in a worktree while `main` is checked out elsewhere, after
+  the merge already happened: read the pull request's state, not the command's exit status.
 
 ## Translating
 
 A translation is one file: `locales/<tag>.json`, named with a BCP 47 tag (`de`, `pt-BR`,
-`zh-Hans`), a flat JSON object mapping the message codes of `locales/en.json` to sentences. Nothing
-else — no code, no registration, no release step: the binary embeds every file in that directory,
-and `/meta/capabilities` lists a locale the moment its file exists
-([`i18n-l10n.md`](docs/architecture/i18n-l10n.md) §2). An operator can lay a file over an
-installation without waiting for a release, through `HUBTASK_LOCALE_DIR`; a pull request is how it
-reaches everybody.
+`zh-Hans`), mapping the message codes of `locales/en.json` to sentences. The binary embeds every
+file in that directory, and `/meta/capabilities` lists a locale the moment its file exists
+([i18n-l10n.md](docs/architecture/i18n-l10n.md) §2). An operator can lay a file over an
+installation through `HUBTASK_LOCALE_DIR`; a pull request is how it reaches everybody.
 
-**A partial file is welcome.** Every code the file lacks renders in English, which is the fallback
-the product is built on rather than a defect: translate the families people meet first (`email.*`,
-`errors.*`, `seed.*`, `app.*`) and leave the rest for the next pull request. Two things hold a
-file to its source, and both run in `make gate-architecture`:
-
-* a key the source does not have **fails** — it is a translation of a message that was renamed or
-  removed — and so does a placeholder that differs from the source's: `{title}` in the source has
-  to be `{title}` in the translation, neither dropped nor renamed;
-* a missing key is **reported**, by family, and does not fail.
+**A partial file is welcome.** A missing code renders in English. Translate the families people
+meet first (`email.*`, `errors.*`, `seed.*`, `app.*`). Two things hold a file to its source, both
+in `make gate-architecture`: a key the source does not have fails, and so does a placeholder that
+differs from the source's; a missing key is only reported.
 
 ```bash
-make locales                    # how complete each translation is, per family
-make gate-architecture          # what is wrong with it, by key
-pnpm --filter @hubtask/webapp test   # the browser's renderer parses every catalogue too
+make locales                              # how complete each translation is, per family
+make gate-architecture                    # what is wrong with it, by key
+.tools/pnpm --filter @hubtask/webapp test   # the browser's renderer parses every catalogue too
 ```
 
-The third command is the client's half of the gate: since the browser loads every catalogue
-(F5-07), `apps/webapp/src/lib/i18n/catalogue.test.ts` parses each file with the renderer that
-will show it, so a construct the client cannot draw fails there rather than in front of a reader.
-A key beginning with `_` is a note to translators and is never rendered — `_comment` at the top
-of a file is where the register and the decisions behind it are written down.
+Use the ICU subset both renderers implement — simple arguments, `plural` with `offset:` and `=n`,
+`selectordinal`, `select`, `#`, nesting, ICU's apostrophe rule — and nothing else. Write the
+source's register ([voice-and-tone.md](docs/design/voice-and-tone.md)); German is *du*. A key
+beginning with `_` is a note to translators and is never rendered. Edit the file by hand: it is
+grouped, not sorted, and re-dumping it buries the change.
 
-The sentences use the ICU subset both renderers implement — simple arguments, `plural` with
-`offset:` and `=n`, `selectordinal`, `select`, `#`, nesting, and ICU's apostrophe rule (`''` is
-one apostrophe; an apostrophe before `{`, `}` or `#` quotes) — and nothing else: a `{n, number}` or
-a `{d, date}` refuses the file. Write the source's register: second person singular, sentence
-case, no exclamation marks ([`voice-and-tone.md`](docs/design/voice-and-tone.md)); German is *du*.
-Where the source phrases around a plural, a translation may pluralise if its grammar needs to.
+## Language
 
-A translation is a contribution like any other, made under the same licence. The layout is the
-one Weblate reads unchanged, and running an instance is a decision deferred until there is
-somebody to serve ([ADR-0055](docs/adr/ADR-0055-translation-process.md)); until then, a text
-editor and the three commands above are the whole toolchain.
+Everything is in English: documentation, code, identifiers, comments, commits. The backend never
+contains display text; `locales/en.json` is the source for translations.
 
 ## Licence
 
 Hubtask is licensed under the [Apache License 2.0](LICENSE)
 ([ADR-0080](docs/adr/ADR-0080-hubtask-is-apache-2-0.md)). Contributions are inbound = outbound:
-whatever you submit is licensed under Apache-2.0, as section 5 of the licence says. There is no
-Contributor License Agreement to sign and no sign-off required. You keep the copyright in your
-work. The name and the logo are not covered by the licence — see [TRADEMARK.md](TRADEMARK.md).
+what you submit is licensed under Apache-2.0, as section 5 of the licence says. There is no
+Contributor License Agreement and no sign-off. You keep the copyright in your work. The name and
+the logo are not covered by the licence — see [TRADEMARK.md](TRADEMARK.md).
 
 ## Security
 

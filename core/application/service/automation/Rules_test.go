@@ -245,7 +245,7 @@ func defaultCatalogue() catalogue {
 			Name: "CreateBucket", TokenScope: "containers:write",
 			Input: []usecase.Field{{Name: "collection_id"}, {Name: "name"}},
 		},
-		// A destructive one, for the agent guardrail (J-14): a rule is the obvious way to launder
+		// A destructive one, for the agent guardrail: a rule is the obvious way to launder
 		// a right an agent was refused directly.
 		"TRASH_ITEM": {
 			Name: "TrashWorkItem", TokenScope: "items:write", Destructive: true,
@@ -414,7 +414,7 @@ func TestAWriterCannotLaunderARightThroughAServiceAccount(t *testing.T) {
 	}
 }
 
-// The agent's version of the same leak (J-14). A rule runs as an *automation*, not as an agent, so
+// The agent's version of the same leak. A rule runs as an *automation*, not as an agent, so
 // the guardrail that closes a destructive use case to an agent would not fire when the rule fires -
 // and an agent that may not trash an entry could write a rule that trashes entries and have it
 // happen a second later. Asked of the writer at the moment of writing, like everything else here.
@@ -546,8 +546,8 @@ func TestADisabledServiceAccountIsRefused(t *testing.T) {
 	}
 }
 
-// The vocabulary a rule may use is the vocabulary that can be executed, at every commit. G-09's
-// pull request flips this one.
+// The vocabulary a rule may use is the vocabulary that can be executed, at every commit. With no
+// deferred kind there is nothing to run here; the next one the documentation names is checked.
 func TestAnActionNoReleaseServesIsRefusedByName(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -572,7 +572,7 @@ func TestAnActionNoReleaseServesIsRefusedByName(t *testing.T) {
 }
 
 // A kind nobody has ever named is a typo, and gets the code that says so rather than the one that
-// sends its author to the milestone.
+// says it is not available yet.
 func TestAnActionNobodyDeclaresIsRefusedAsUnknown(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -587,7 +587,7 @@ func TestAnActionNobodyDeclaresIsRefusedAsUnknown(t *testing.T) {
 	}
 }
 
-// The same refusal the call itself would give (C-07): a rule saved with a misspelled parameter
+// The same refusal the call itself would give: a rule saved with a misspelled parameter
 // would fail at a moment nobody is watching.
 func TestAParameterTheUseCaseDoesNotDeclareIsRefused(t *testing.T) {
 	h := newHarness()
@@ -959,8 +959,8 @@ func (a answer) Evaluate(context.Context, expression.Activation) (expression.Val
 	return expression.Value{Bool: !a.no}, nil
 }
 
-// The other half of G-06's flip, and the half that proves the language is really wired: a rule's
-// condition is compiled when it is written, against exactly the names automation.md §1.2 declares.
+// The half that proves the language is really wired: a rule's condition is compiled when it is
+// written, against exactly the names automation.md §1.2 declares.
 
 func TestAValidConditionIsAcceptedAndCompiled(t *testing.T) {
 	h := newHarness()

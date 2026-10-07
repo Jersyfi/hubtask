@@ -91,7 +91,7 @@ func TestUpdatingABucketWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 			t.Errorf("the payload carries more than the field that moved: %+v", payload)
 		}
 		if h.changes.recorded[0].ContainerID != collectionID {
-			t.Errorf("the change is filed under %s, want the collection (#623)", h.changes.recorded[0].ContainerID)
+			t.Errorf("the change is filed under %s, want the collection", h.changes.recorded[0].ContainerID)
 		}
 	})
 

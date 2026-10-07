@@ -67,7 +67,7 @@ test('the TypeScript target hands out custom properties, not colours', () => {
   assert.match(tokensBlock, /var\(--accent-primary-hover\)/);
 });
 
-// The two roots F2-01 added. They are mode-independent of the theme, which is exactly the property
+// The two motion roots. They are mode-independent of the theme, which is exactly the property
 // worth testing: a role that quietly acquired a light and a dark value would be a role two themes
 // could disagree about, and that is what putting them under `semantic` would have allowed.
 
@@ -97,7 +97,7 @@ test('every motion role names both a duration and an easing', () => {
   }
 });
 
-// §7's guardrails as tokens (F6-13): a duration per tier, each longer than the one before and
+// §7's guardrails as tokens: a duration per tier, each longer than the one before and
 // none as long as a breath, and the two limits of the slot as dimensions.
 test('the celebration role carries a duration per tier within its guardrails, and the two limits of the slot', () => {
   const role = source.motion.celebration;
@@ -157,7 +157,7 @@ test('no component writes a raw duration or easing where a role exists', () => {
   assert.deepEqual(offenders, []);
 });
 
-// The shell's measures (ADR-0061, F9-01): every leaf under `layout` is a dimension, and the CSS
+// The shell's measures (ADR-0061): every leaf under `layout` is a dimension, and the CSS
 // declares each on `:root` - a bar is the same height in the dark, which is why the root is not
 // under `semantic`.
 test('every layout token is a dimension declared on :root', () => {

@@ -130,7 +130,7 @@ func itemCreate(ctx context.Context, cli *CLI, args []string) error {
 	parent := flags.String("parent", "", "the entry it sits inside")
 	notes := flags.String("notes", "", "the notes body")
 	before := flags.String("before", "", "the sibling to place it before; appended when absent")
-	// The schedule travels with the create rather than needing a second call (D-01): the three
+	// The schedule travels with the create rather than needing a second call: the three
 	// fields dispatch into the same writer either way, and a person creating something they
 	// already know the date of should not have to say it twice.
 	due := flags.String("due", "", "the day (2026-09-10) or the moment it is due")

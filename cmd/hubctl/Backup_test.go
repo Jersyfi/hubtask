@@ -50,7 +50,7 @@ func TestAddingATargetSendsTheConfigurationAsPairsAndTheModeItWasAskedFor(t *tes
 		t.Errorf("encryption mode %v", sent["encryption_mode"])
 	}
 	// The contract has an `encryption_passphrase` and this version refuses it: the key is derived
-	// from the installation's master key (E-02). Sending one would have every target creation
+	// from the installation's master key. Sending one would have every target creation
 	// answer 400.
 	if _, sentAnyway := sent["encryption_passphrase"]; sentAnyway {
 		t.Error("a passphrase was sent to a version that refuses the field")

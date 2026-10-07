@@ -74,7 +74,7 @@ func TestAnEventBecomesADeliveryJobPerInterestedSubscription(t *testing.T) {
 }
 
 // The events of one push that name the same subscription, subject and type owe one delivery
-// for the push, with the last event's payload (N-10, offline-sync.md §8): the pending delivery
+// for the push, with the last event's payload (offline-sync.md §8): the pending delivery
 // is repointed rather than a second one recorded, and its job waits the grace so that the push's
 // events fold before the first attempt. A delivery already attempted stands for what it sent.
 // An event with no push in its cause collapses with nothing.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The overview (F10-04; ADR-0063 decision 1): `/` stops listing the hubs the tree lists and
+// The overview (ADR-0063 decision 1): `/` stops listing the hubs the tree lists and
 // becomes what is on the reader.
 //
 // Three things are walked here. **What it asks for**: every API request the first paint makes is
@@ -105,7 +105,7 @@ test('chromium: the overview says what is on the reader, from one read', async (
   const overviewReads = asked.filter((path) => path === '/search' || path === '/jumble/entries');
   assert.deepEqual(overviewReads, ['/search', '/jumble/entries'], `the overview asked ${JSON.stringify(asked)}`);
   assert.equal(asked.filter((path) => path.startsWith('/containers?type=HUB')).length, 1, `the hubs were read ${asked.filter((p) => p.startsWith('/containers?type=HUB')).length} times`);
-  console.log(`F10-04: the first paint of the overview made ${asked.length} API requests: ${asked.join(', ')}`);
+  console.log(`overview: the first paint of the overview made ${asked.length} API requests: ${asked.join(', ')}`);
 
   // Mine, open, dated — and `@me` resolved on the server rather than by this client.
   assert.equal(searched.q, undefined, `the overview sent words: ${JSON.stringify(searched)}`);
@@ -124,7 +124,7 @@ test('chromium: the overview says what is on the reader, from one read', async (
   assert.equal(await mine.getByRole('heading', { name: 'Overdue (1)' }).count(), 1, 'the overdue band does not count what is in it');
   assert.equal(await mine.getByRole('heading', { name: 'Due next' }).count(), 1, 'nothing is due next');
 
-  // **Measured, not assumed** (issue 1022): the band's word is flush left - the same start as the
+  // **Measured, not assumed**: the band's word is flush left - the same start as the
   // panel's own heading and as the rows' boxes. The text's own box, not the heading's: the heading
   // is as wide as the panel, and padding on it is what would move the word.
   const flush = await mine.evaluate((panel) => {

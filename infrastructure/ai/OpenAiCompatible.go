@@ -53,7 +53,7 @@ type OpenAiCompatible struct {
 	APIKey          secret.Secret
 	CompletionModel string
 	EmbeddingModel  string
-	// Widths is what this process has learned about models' widths (#569). Nil learns nothing.
+	// Widths is what this process has learned about models' widths. Nil learns nothing.
 	Widths *WidthPool
 }
 

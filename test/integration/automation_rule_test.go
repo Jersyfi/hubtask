@@ -18,10 +18,10 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The rules against a real database (G-05). What only PostgreSQL can answer: that the whole
-// definition survives the four jsonb columns, that the version guard in the WHERE is a guard, that
-// the soft delete hides a rule from every read, and that row level security keeps a tenant's rules
-// to itself.
+// The rules against a real database. What only PostgreSQL can answer: that the whole definition
+// survives the four jsonb columns, that the version guard in the WHERE is a guard, that the soft
+// delete hides a rule from every read, and that row level security keeps a tenant's rules to
+// itself.
 
 func automationRules() postgres.AutomationRuleRepository {
 	return postgres.NewAutomationRuleRepository(pageCursors())
@@ -87,8 +87,8 @@ func TestARuleSurvivesTheColumnsItIsStoredIn(t *testing.T) {
 		t.Errorf("read back %+v", stored)
 	}
 	// The tenant is part of what comes back: an update rebuilds the rule whole from the read, and
-	// NewRule refuses one without it. The mapper left it zero from G-05 to F8's walk, and every
-	// edit over the API answered 500 - a fake unit of work shows none of this.
+	// NewRule refuses one without it. A mapper that leaves it zero makes every edit over the API
+	// answer 500 - a fake unit of work shows none of this.
 	if stored.TenantID != tenantA {
 		t.Errorf("read back tenant %q, want %q", stored.TenantID, tenantA)
 	}
@@ -574,7 +574,7 @@ func TestACheckIsRecordedOnTheRuleAndABrokenRuleIsSwitchedOffOnce(t *testing.T) 
 	}
 
 	// An edit leaves the rule unchecked: the findings described the definition the check read,
-	// and this is another one. F8's walk repaired a step and watched the flag stay.
+	// and this is another one - a repaired step must not keep the old flag.
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		return automationRules().RecordCheck(ctx, rule.ID, findings, later.Add(2*time.Minute))
 	}); err != nil {

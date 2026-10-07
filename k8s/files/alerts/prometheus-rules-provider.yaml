@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# The provider alert set (observability-reliability.md §10, H-12): what joins the self-hosting
+# The provider alert set (observability-reliability.md §10): what joins the self-hosting
 # file and the tenant file when this system is operated for other people, with an on-call rota
 # and an error budget. A provider loads all three files; a self-hoster loads only the first and
 # is deliberately never paged by anything in here.
@@ -206,7 +206,7 @@ groups:
           runbook: RB-A15-auth-failures.md
 
       # A-15, second half. One reuse of a rotated refresh token means two holders of one
-      # credential - H-01 already killed the family; this pages the human. No `for`: a single
+      # credential - the server has already revoked the family; this pages the human. No `for`: a single
       # occurrence is the event.
       - alert: HubtaskRefreshTokenReused
         expr: increase(hubtask_auth_failures_total{reason="refresh_reused"}[15m]) > 0
@@ -221,7 +221,7 @@ groups:
           runbook: RB-A15-auth-failures.md
 
       # A-16. The engine's self-protection became visible: a rule failed often enough in a row
-      # to be switched off. The owner was notified through C-09's path; the ticket exists because
+      # to be switched off. The owner was notified by the product; the ticket exists because
       # a pattern of these is a product defect, not a user problem.
       - alert: HubtaskRuleSelfDisabled
         expr: increase(hubtask_rule_disabled_total[1h]) > 0

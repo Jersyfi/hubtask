@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package backup is where an operator says where backups go, and finds out whether they can
-// (E-03, backup-restore.md §2).
+// (backup-restore.md §2).
 //
 // The authorisation shape here is the substance of the task rather than a detail. A backup target
 // is a data egress channel by definition, so `backup-restore.md` §2 makes it a named, narrow
@@ -65,7 +65,7 @@ const (
 )
 
 // credentialPurpose binds a sealed credential to the row it belongs to, so a ciphertext lifted out
-// of one target and written into another no longer opens (E-02).
+// of one target and written into another no longer opens.
 func credentialPurpose(id shared.ID) crypto.Purpose {
 	return crypto.Purpose("backup_target.credential:" + id.String())
 }
@@ -83,7 +83,7 @@ type Authorizer interface {
 type Writer struct {
 	Targets repository.Targets
 	// Schedules is read by the one operation that has to know whether anything points at a
-	// target before it is removed (F4-02). A target is deleted by name and a schedule is what
+	// target before it is removed. A target is deleted by name and a schedule is what
 	// stands in the way, so the check belongs where the deletion is.
 	Schedules  repository.Schedules
 	Opener     backupstorage.Opener
@@ -94,7 +94,7 @@ type Writer struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Config     env.Config
-	// Text brings a target's name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings a target's name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -191,7 +191,7 @@ func (h ListBackupTargets) Execute(
 	// one exists and that its last probe failed.
 	if err := h.Writer.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionStructure,
-		// And the auditor's line beside it (A-4, G-12): where a workspace's data is copied to is
+		// And the auditor's line beside it (A-4): where a workspace's data is copied to is
 		// configuration, and the listing carries no credential - the target's secret is never in
 		// a read, which is what makes this one safe to widen.
 		Alternative: service.PermissionReadConfiguration,
@@ -763,7 +763,7 @@ func scalarText(value any) (string, bool) {
 }
 
 // StoreOpener opens a configured target for somebody who needs to write to one and has no business
-// with its credentials (E-09: the audit export writes its archive to a backup target).
+// with its credentials (the audit export writes its archive to a backup target).
 //
 // The seam is here rather than in the caller because everything it does is this package's: reading
 // the target, unsealing the credential under the purpose it was sealed with, and choosing the

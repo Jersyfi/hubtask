@@ -188,7 +188,7 @@ test('a second factor becomes the second step, with the code field and the ident
   }
 });
 
-// UC-ID-02 check 2 (SC-18): the code step says when its last minute begins - under the countdown and
+// UC-ID-02 check 2: the code step says when its last minute begins - under the countdown and
 // through a live region - and at 0:00 the card returns to step one with the address kept, both code
 // fields emptied, and a sentence saying the sign-in waited too long. The window is not extended.
 test('the code step says its last minute, and at zero returns to step one with the address kept', async () => {
@@ -222,7 +222,7 @@ test('the code step says its last minute, and at zero returns to step one with t
 
 // UC-ID-02 check 4: the recovery code as it was shown - four groups of four letters and digits,
 // pasted in one go with its dashes - reaches the server whole, from a field with a text keyboard.
-// Before SC-03 the field was numeric and eight long, so every recovery code was cut off and refused.
+// A numeric field eight long cuts every recovery code off, and the server refuses what is left.
 test('a recovery code is taken as it was shown, dashes and all, with a text keyboard', async () => {
   const { origin, close } = await serve(DIST);
   const sent = {};
@@ -262,7 +262,7 @@ test('a recovery code is taken as it was shown, dashes and all, with a text keyb
   }
 });
 
-// UC-ID-02 check 6 (SC-18): after a sign-in with a recovery code the first page carries a note -
+// UC-ID-02 check 6: after a sign-in with a recovery code the first page carries a note -
 // how many are left, and the way to set the authenticator up again - which survives a reload, leads
 // to the replacement, and goes when it is closed.
 test('a recovery code leaves a note that survives a reload and leads to the replacement', async () => {
@@ -309,7 +309,7 @@ test('a recovery code leaves a note that survives a reload and leads to the repl
 
 // UC-ID-04 check 5: a reset of an account with a second factor continues on the card into the code
 // step - whose account, how long the step waits, the code field - and only the code signs in.
-// Before SC-03 the reset card stayed on its form after the 202, with the link already spent.
+// A reset card that stays on its form after the 202 offers a link already spent.
 test('a reset of an account with a second factor continues into the code step, to the end', async () => {
   const { origin, close } = await serve(DIST);
   const sent = {};
@@ -405,8 +405,8 @@ test('a setup forced during sign-in confirms in the code field and shows the cod
 });
 
 // Before there is an account, the browser's language decides (i18n-l10n.md §2) - on the signed-out
-// card as much as inside the application. The card used to render the source language whatever the
-// browser asked for, because only the frame read the installation's list of languages.
+// card as much as inside the application. If only the frame read the installation's list of languages,
+// the card would render the source language whatever the browser asked for.
 test('the signed-out card speaks the browser’s language where the installation has it', async () => {
   const { origin, close } = await serve(DIST);
   const browser = await chromium.launch();
@@ -535,7 +535,7 @@ test('every provider is a button of its own, and only the pressed one is working
 
 // UC-ID-08 check 5: the return from the provider is drawn on the signed-out card - one landmark, one
 // heading, no navigation of an application nobody is signed into - and a failure there offers the
-// way back. Before SC-03 it rendered inside the app's frame while signed out.
+// way back.
 test('the return from a provider happens on the card, and a refusal offers the way back', async () => {
   const { origin, close } = await serve(DIST);
   const browser = await chromium.launch();
@@ -674,8 +674,8 @@ test('no provider button before the rules name a provider', async () => {
 });
 
 // UC-ID-18 checks 4 and 5: the footer's links are the operator's, labelled neutrally whatever they
-// point at, and a link nobody set is not shown - the accessibility link included, which used to fall
-// back to hubtask.eu and say so in its label.
+// point at, and a link nobody set is not shown - the accessibility link included, which does not fall
+// back to hubtask.eu.
 test('the footer shows only the links that were set, with neutral labels', async () => {
   const { origin, close } = await serve(DIST);
   const browser = await chromium.launch();
@@ -705,9 +705,9 @@ test('the footer shows only the links that were set, with neutral labels', async
   }
 });
 
-// SC-24: a workspace that switched the password off does not ask an invited person for one - the
+// A workspace that switched the password off does not ask an invited person for one - the
 // server would refuse it. The screen says the invitation is accepted through the provider and offers
-// the providers right there - with the invitation bound to the flow (SC-32, ADR-0078 §1): a person
+// the providers right there - with the invitation bound to the flow (ADR-0078 §1): a person
 // sent on to the sign-in card would arrive at the provider without it.
 test('an invitation in a workspace without the password leads to the provider, not to a password', async () => {
   const { origin, close } = await serve(DIST);
@@ -745,7 +745,7 @@ test('an invitation in a workspace without the password leads to the provider, n
 });
 
 // UC-ID-07 check 5: where the workspace offers a provider, the invitation is accepted through it as
-// well as with a password - from this card, the invitation going with the provider's flow (SC-32).
+// well as with a password - from this card, the invitation going with the provider's flow.
 test('an invitation where a provider is offered can be accepted through it instead of a password', async () => {
   const { origin, close } = await serve(DIST);
   const browser = await chromium.launch();
@@ -799,7 +799,7 @@ test('an invitation the provider start refuses is said on the invitation card', 
   }
 });
 
-// SC-33 (ADR-0078 §1, UC-ID-04 check 8): where the workspace switched the password off, the reset
+// ADR-0078 §1, UC-ID-04 check 8: where the workspace switched the password off, the reset
 // mail links `/reset#connect=…`. The card offers the workspace's providers - no password field, the
 // workspace takes none - and each starts the provider's flow with the link bound to it, the link
 // out of the address before the first request leaves.
@@ -910,7 +910,7 @@ test('a connection by mail that meets a second factor continues into the code st
   }
 });
 
-// SC-33 (ADR-0078 §1): where the workspace switched the password off, the card has no *Forgot your
+// ADR-0078 §1: where the workspace switched the password off, the card has no *Forgot your
 // password?* - and the way back is still on it: "Get a sign-in link by mail" asks for the link that
 // connects the provider, through the same request the password's link uses, answered alike for every
 // address.

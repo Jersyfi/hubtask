@@ -2,6 +2,8 @@
 
 **Status:** accepted (2026-09-21) · **Date:** 2026-09-20
 
+**Rule lives in:** [automation.md](../architecture/automation.md) §2.3, §1.5
+
 ## Context
 
 A rule is data that is executed later, with a service account's rights, without anybody
@@ -149,7 +151,7 @@ author's.
 
 ## Notes
 
-Written for milestone F8 (`docs/backlog/milestone-F8.md`, decision 6) from the prototype the
+Written for milestone F8 (`docs/archive/backlog/milestone-F8.md`, decision 6) from the prototype the
 owner walked on 2026-09-20; built by F8-03 and drawn by F8-07. Put to the owner by name with
 the pull request that builds it; accepted by the owner on 2026-09-21, after the F8-08 walk had
-run the check's ATTENTION level exactly as written (`docs/evidence/F8-2026-09-20.md`).
+run the check's ATTENTION level exactly as written (`docs/archive/evidence/F8-2026-09-20.md`).

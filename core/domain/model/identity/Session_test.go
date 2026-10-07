@@ -393,8 +393,8 @@ func TestProviderProofFreshSince(t *testing.T) {
 	}
 }
 
-// VerifyOpen is the one definition of "open" (SC-19): the session's own bounds first, in Verify's
-// order, then the workspace's cutoff - and a session that passes all of them is open.
+// VerifyOpen is the one definition of "open": the session's own bounds first, in Verify's order,
+// then the workspace's cutoff - and a session that passes all of them is open.
 func TestVerifyOpenAsksEveryComparisonTheNextRequestMakes(t *testing.T) {
 	at := time.Date(2026, 9, 27, 12, 0, 0, 0, time.UTC)
 	open := Session{CreatedAt: at.Add(-time.Hour), LastSeenAt: at.Add(-time.Minute),

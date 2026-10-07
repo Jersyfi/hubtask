@@ -20,6 +20,6 @@ export const row: Story = {
 export const edges: Story = {
   name: 'Against the edge',
   about:
-    'What ADR-0039 bought: the bubble flips to the other side rather than being cut off, during layout, by the engine - every engine on the support row has anchor positioning, and the browser job asks each of them (F6-02).',
+    'What ADR-0039 bought: the bubble flips to the other side rather than being cut off, during layout, by the engine - every engine on the support row has anchor positioning, and the browser job asks each of them.',
   args: { mode: 'edges' },
 };

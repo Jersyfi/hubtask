@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-02
 
+**Rule lives in:** [ci-cd.md](../architecture/ci-cd.md) §10
+
 ## Context
 
 [ADR-0037](./ADR-0037-component-workbench.md) built the component workbench and said, in its own
@@ -28,7 +30,7 @@ on a public URL for the same reason.
 `packages/design-system/`.**
 
 **A subdomain, not a path under `hubtask.eu`.** The website is the product's public face and
-[F1-12](../backlog/milestone-F1.md) deliberately keeps it to what is already true and already
+[F1-12](../archive/backlog/milestone-F1.md) deliberately keeps it to what is already true and already
 checked. The workbench is a development artefact — unfinished components, wave status, an axis bar
 — and it does not belong inside that. A subdomain separates the two without a second host: an
 IONOS webspace serves a subdomain from its own directory in the same account.

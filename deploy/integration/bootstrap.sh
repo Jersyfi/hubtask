@@ -34,8 +34,8 @@ log() { printf '\n=== %s\n' "$*"; }
 
 # Downloads a file and refuses to go on unless it is the one that was reviewed. Both of these are
 # scripts and manifests from other people that run with root or cluster-admin rights; pinning the
-# version is not enough, because a tag can be moved (CLAUDE.md: every dependency is a supply chain
-# decision). When an upgrade is wanted, the hash changes here in the same commit that changes the
+# version is not enough, because a tag can be moved (every dependency is a supply chain decision,
+# security.md §11). When an upgrade is wanted, the hash changes here in the same commit that changes the
 # version, and the diff says a human looked.
 fetch_verified() {
   local url="$1" target="$2" expected="$3" actual
@@ -139,7 +139,7 @@ log "the application's mail server"
 
 # The catcher the application sends through, behind a certificate authority of the cluster's own
 # (smtp.yaml). Not the monitoring namespace's catcher: that one is Alertmanager's, and a reminder
-# in the mailbox the alert check reads would be exactly the noise #310 was about. The pod waits
+# in the mailbox the alert check reads would be noise in the operator's alerts. The pod waits
 # for cert-manager to issue its certificate before it can start, which is what the timeout is for.
 kubectl apply -f "${HERE}/smtp.yaml"
 kubectl -n "$NAMESPACE" rollout status deployment/smtp --timeout=180s

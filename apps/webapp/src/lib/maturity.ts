@@ -18,24 +18,19 @@
 export type MaturityStage = 'experimental' | 'preview' | 'stable';
 
 /**
- * `preview` since F2, and the reason is the evidence rather than the calendar.
+ * `preview`, and the reason is the evidence rather than the calendar.
  *
  * ADR-0035 §2 draws the line at a promise: `experimental` says nothing here is a commitment,
  * `preview` says what is shown is meant to stay and is usable for real work, with the gaps against
  * the capability matrix expected and listed. A day's work was done in this application against
- * this repository's own backlog and written down in `docs/evidence/R-08-2026-09-04.md`: a
+ * this repository's own backlog and written down in `docs/archive/evidence/R-08-2026-09-04.md`: a
  * collection for a milestone, its tasks, one broken into work packages and an activity, labelled,
  * ordered, completed, archived, found by a word in its notes, and its history read.
  *
- * That pass found four writes that existed in the stores and reached no screen — a workspace could
- * be worked in and not *started*, which is what kept the stage where F1 put it. All four are built
- * now: creating a hub and a collection, editing an entry's title and notes, making a collection's
- * labels, and managing a board's columns. So the last argument for `experimental` is gone —
- * nothing in the pass suggested anything here is going to be taken away, and gaps are gaps rather
- * than churn.
- *
- * (The four issues are named in the pull request rather than here. A three-digit issue reference
- * written with a hash is also a valid hex colour, and `lint-no-literals` is right to refuse one.)
+ * Every write that pass needed reaches a screen — creating a hub and a collection, editing an
+ * entry's title and notes, making a collection's labels, and managing a board's columns — so a
+ * workspace can be started as well as worked in. Nothing in the pass suggested anything here is
+ * going to be taken away, and gaps are gaps rather than churn.
  */
 export const MATURITY: MaturityStage = 'preview';
 

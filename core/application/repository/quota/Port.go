@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package quota holds the outbound ports of the §4 limits (multi-tenancy.md, H-08).
+// Package quota holds the outbound ports of the §4 limits (multi-tenancy.md).
 //
 // No method takes a tenant: every read and write is bounded by the transaction it runs in, like
 // every repository (ADR-0010). The quota vocabulary itself - names, defaults, refusals - lives
@@ -72,7 +72,7 @@ type Usage interface {
 	// LiveExports counts the pending and running export jobs.
 	LiveExports(ctx context.Context) (int64, error)
 
-	// MeteredSince sums one metered thing since the instant (J-15).
+	// MeteredSince sums one metered thing since the instant.
 	//
 	// **Read from the billing ledger, which every other quota here refuses to do** - and the
 	// exception is the point rather than an oversight. The ledger is barred as an enforcement

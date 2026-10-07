@@ -11,9 +11,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The workspace's standing gates every credential (H-06, multi-tenancy.md §5): active proceeds,
-// everything else refuses with the code the lifecycle table names, and a standing this build
-// does not know fails closed.
+// The workspace's standing gates every credential (multi-tenancy.md §5): active proceeds,
+// everything else refuses with the code the lifecycle table names, and a standing this build does
+// not know fails closed.
 func TestTenantStandingGatesTheCredential(t *testing.T) {
 	cases := []struct {
 		name     string

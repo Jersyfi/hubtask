@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The step-up, once, for every act that demands one (H-03, security.md §5).
+// The step-up, once, for every act that demands one (security.md §5).
 //
 // The server mints the demand in exactly one place - `stepup.Required`, "so that two operations
 // cannot describe the same demand differently" - and this file is the client's half of that
@@ -23,7 +23,7 @@ import (
 //
 // What differs between the acts is only where the proof travels, and that is the caller's one
 // line: `X-Hubtask-Step-Up` for the operations that take a header, and the request field for the
-// restore, which has carried one since 0.4.5.
+// restore.
 
 // envStepUp carries a proof that was minted elsewhere.
 //

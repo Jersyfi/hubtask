@@ -17,7 +17,7 @@ func children(total, completed int) work.ChildCompletion {
 	return work.ChildCompletion{Total: total, Completed: completed}
 }
 
-// The acceptance criterion of B-07: a table over every policy, with no infrastructure in it.
+// A table over every policy, with no infrastructure in it.
 func TestTheRollUpDecision(t *testing.T) {
 	cases := []struct {
 		name     string

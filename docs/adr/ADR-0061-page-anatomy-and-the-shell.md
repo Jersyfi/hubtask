@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-21 · **Accepted:** 2026-09-21
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §4, §6, §11, [engineering-guidelines.md](../architecture/engineering-guidelines.md) §2
+
 ## Context
 
 The design system's foundations are settled and gated: one source for every value
@@ -244,7 +246,7 @@ says (`THIRD-PARTY-LICENSES.md`); an import format carries the format's name. Th
 
 | Work package | Target |
 |---|---|
-| The ten tasks of the milestone | [`backlog/milestone-F9.md`](../backlog/milestone-F9.md) |
+| The ten tasks of the milestone | [`backlog/milestone-F9.md`](../archive/backlog/milestone-F9.md) |
 | DoR amendment in `engineering-guidelines.md` §2 (the naming rule) | with this ADR |
 | `design-system.md` §4, §6, §9 | with this ADR |
 

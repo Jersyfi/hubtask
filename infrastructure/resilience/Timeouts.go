@@ -21,8 +21,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// Do runs fn under a deadline. It is the answer to rule 7 of CLAUDE.md - no call without a
-// timeout - in the form an adapter can actually use.
+// Do runs fn under a deadline. It is the answer to rule 7 - no call without a timeout - in the
+// form an adapter can actually use.
 //
 // budget bounds this call; an earlier deadline already on ctx wins, because a request that has
 // 200 ms left must not be kept waiting for a second by an adapter's own generosity.

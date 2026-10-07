@@ -1,20 +1,20 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // **One mark in the bar** about the copy and the server (F6-06, offline-sync.md §9, ADR-0063
-  // decision 5): connected, reconnecting or offline; how many changes wait to be sent and how old
+  // **One mark in the bar** about the copy and the server (offline-sync.md §9, design-system.md
+  // §11.6): connected, reconnecting or offline; how many changes wait to be sent and how old
   // the oldest is; when the copy last synchronised. Pressed, it says all of it - and it lists
   // every waiting change as what and where, and every refused one with its reason and a dismiss,
   // because a rejection is shown and never swallowed (§9.5).
   //
-  // It was a line of every page, and at its quietest that line read "Connected": a row of the
-  // screen spent on the ordinary case. Now the ordinary case is a mark that says nothing until it
-  // is asked, and what it used to print is behind it, whole.
+  // A line on every page would read "Connected" at its quietest: a row of the screen spent on the
+  // ordinary case. So the ordinary case is a mark that says nothing until it is asked, and the
+  // whole line is behind it.
   //
   // It renders no sentence of its own: every word arrives resolved, because what "offline" is
   // called and how a moment is spelled are the catalogue's and the formats' (ADR-0011). Rule 3:
   // each state carries a mark beside its word, so the line reads in greyscale and in a screen
-  // reader alike. The connection state is a `status` live region (F5-12): a change the reader
+  // reader alike. The connection state is a `status` live region: a change the reader
   // cannot see is announced, once, when it changes - and nothing else here is, because a count
   // that moved is not news and a heartbeat is not either.
 
@@ -216,7 +216,7 @@
   /* The one control: a mark, a count where anything waits, and a dot where anything was refused.
      Drawn as `IconButton` draws one - the same square target, the same radius, the same hover -
      because it stands in a row with them and a control that is a pill beside two rounded squares
-     is three shapes for one kind of thing (issue 1022). The inline padding is the count's: with
+     is three shapes for one kind of thing. The inline padding is the count's: with
      nothing waiting the control is square, and it grows around a number rather than reserving
      room for one. */
   .trigger {
@@ -248,10 +248,9 @@
      words. Offline is the one state somebody has to see first.
 
      **Connected is coloured, including the quiet case.** ADR-0063 decision 5's table says the
-     quiet state is `status.success.accent`, and this drew it in `text.subtle` instead - so the one
-     state that means *everything is fine* was the one state with no colour at all, which is what
-     the owner's walk found (issue 1017). `data-quiet` stays what it always was: whether there is
-     anything waiting behind the mark. It is not a reason to say nothing in colour. */
+     quiet state is `status.success.accent`; drawn in `text.subtle`, the one state that means
+     *everything is fine* would be the one state with no colour at all. `data-quiet` says only
+     whether there is anything waiting behind the mark. It is not a reason to say nothing in colour. */
   .trigger[data-connection='connected'] { color: var(--status-success-text); }
   .trigger[data-connection='reconnecting'] { color: var(--status-warning-text); }
   .trigger[data-connection='offline'] {
@@ -281,7 +280,8 @@
   .detail .word { margin-inline-start: var(--sp-050); }
 
   /* The `pending` role: a continuous indicator with no beginning and no end, so its easing is
-     linear and it never arrives (design-system.md §9). Transform only; reduced motion stops it. */
+     linear and it never arrives (design-system.md §6 rule 6). Transform only; reduced motion
+     stops it. */
   .mark[data-spin] {
     animation: turn var(--motion-pending-duration) var(--motion-pending-easing) infinite;
   }

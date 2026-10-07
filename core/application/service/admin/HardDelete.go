@@ -34,7 +34,7 @@ type HardDeleteOutcome struct {
 	JobsRemoved  int
 }
 
-// HardDeleteTenant is §5's final act, run by the grace job the deletion request seeded (H-06).
+// HardDeleteTenant is §5's final act, run by the grace job the deletion request seeded.
 //
 // Not a use case in the registry: no credential can ask for it, only the clock. It deletes the
 // media bytes store-first (ReconcileMedia's order), then in one transaction fells the structure,

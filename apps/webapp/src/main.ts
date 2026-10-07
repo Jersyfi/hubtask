@@ -35,20 +35,20 @@ import { device } from './lib/device.svelte.ts';
 
 // Before the first paint: the stylesheet deliberately renders nothing sensible without
 // `data-theme` (ADR-0029), and this is the call that sets it - from what this device kept, else
-// the system's preference (ADR-0043) - and `data-motion` beside it (F5-12).
+// the system's preference (ADR-0043) - and `data-motion` beside it.
 device.start();
 
 // …and the document has to say what language it is in and which way it runs. At boot the browser's
-// own preference is all the client knows; the account's (F1-08) and the installation's supported
-// locales (F1-10) replace it through `messages.adopt`.
+// own preference is all the client knows; the account's and the installation's supported
+// locales replace it through `messages.adopt`.
 startLocale();
 
-// …and the one read the whole application configures itself from (F1-10). Started here rather
+// …and the one read the whole application configures itself from. Started here rather
 // than in a component, because what it answers changes the language of the first paint. The
 // *route* needs no token - the manifest is the one unauthenticated route in the contract - but the
 // *request* carries whatever bearer this tab still holds, and a stale one is answered `401` rather
 // than anonymously. So this is the first read and not the only one: the session reads it again on
-// every change of actor (issue 1020).
+// every change of actor.
 manifest.start();
 
 const root = document.querySelector<HTMLDivElement>('#app');

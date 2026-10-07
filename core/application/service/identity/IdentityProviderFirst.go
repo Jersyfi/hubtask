@@ -15,11 +15,11 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
-// The singular surface, kept (SI-10, the concept's §8 and its first principle).
+// The singular surface, kept: removing a route is a breaking change (api-guidelines.md §8).
 //
-// `/identity-provider` was the whole of the provider surface before SI-10 made them plural. It
-// **stays**: "Keine Funktion verschwindet. Jede Route, jedes Feld, jeder Satz des Vertrags bleibt."
-// A caller written against it — a script, an older client, the documentation somebody has open —
+// `/identity-provider` is the provider surface from when a workspace had one provider. It
+// **stays**: no route, no field and no sentence of the contract disappears. A caller written
+// against it — a script, an older client, the documentation somebody has open —
 // keeps working, and what it works on is the workspace's *first* provider.
 //
 // What it deliberately cannot do is the reason the collection exists: it cannot name a second

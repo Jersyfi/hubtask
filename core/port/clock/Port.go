@@ -4,13 +4,12 @@
 // Package clock is the port for the one thing that makes otherwise pure code untestable: the
 // current time.
 //
-// The domain and the application layer never call time.Now (CLAUDE.md rule 4, arc42 §8.13). A
+// The domain and the application layer never call time.Now (rule 4, arc42 §8.13). A
 // use case that reads the clock directly cannot be tested at a DST boundary, at an expiry
 // boundary, or on 29 February - and those are exactly the cases that produce the bug reports.
 //
-// RandomSource is the third of the trio arc42 §8.13 names. It stayed undeclared until the first
-// code that needs it arrived - the assignment strategies (C-02) - because an interface nobody
-// implements is only a second thing to keep in step.
+// RandomSource is the third of the trio arc42 §8.13 names, and the assignment strategies are what
+// read it.
 package clock
 
 import (
@@ -57,8 +56,8 @@ type RandomSource interface {
 // consequences, and one interface with both would put a method on every double that implements
 // the other for no reason.
 //
-// It is the port a minted token's secret half comes through (D-08), so that a test can fix the
-// credential it is asserting on and production draws from crypto/rand.
+// It is the port a minted token's secret half comes through, so that a test can fix the credential
+// it is asserting on and production draws from crypto/rand.
 type Entropy interface {
 	// Bytes returns n unguessable bytes, or an error if the machine cannot produce them. n must
 	// be positive.

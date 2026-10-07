@@ -16,8 +16,8 @@ const (
 	// ReferenceBucket is a column of the board the entry left.
 	ReferenceBucket ReferenceKind = "BUCKET"
 	// ReferenceMember is an account the destination does not reach, and ReferenceCustomField a
-	// value whose definition it does not define. Both arrive with C-11, which is the first
-	// operation that carries a whole entry from one collection to another.
+	// value whose definition it does not define. Only a copy reports either, because a copy writes
+	// a whole new entry into the other collection (domain-model.md §3.4, I-W6).
 	ReferenceMember      ReferenceKind = "MEMBER"
 	ReferenceCustomField ReferenceKind = "CUSTOM_FIELD"
 	// ReferenceAssignee is the one person an entry was on. Its own kind rather than a member,
@@ -70,7 +70,7 @@ func DroppedBucket(itemID, bucketID shared.ID) DroppedReference {
 
 // DroppedMember and DroppedAssignee are accounts the destination collection does not reach: an
 // entry may only be handed to somebody who can see it, and a copy into another collection is the
-// moment that can stop being true (C-01, C-11).
+// moment that can stop being true (domain-model.md §3.4, I-W6).
 func DroppedMember(itemID, accountID shared.ID) DroppedReference {
 	return DroppedReference{
 		ItemID: itemID, Kind: ReferenceMember, ID: accountID.String(), Code: "items.member_cannot_see_item",
@@ -86,7 +86,7 @@ func DroppedAssignee(itemID, accountID shared.ID) DroppedReference {
 
 // DroppedCustomField is a value whose definition the destination collection does not define, or
 // whose definition there will not accept it - a key that is text in one collection and a number in
-// the other is not the same field (C-07).
+// the other is not the same field.
 func DroppedCustomField(itemID shared.ID, key, code string) DroppedReference {
 	return DroppedReference{ItemID: itemID, Kind: ReferenceCustomField, ID: key, Code: code}
 }

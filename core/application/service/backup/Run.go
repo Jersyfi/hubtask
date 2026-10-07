@@ -39,9 +39,8 @@ const (
 	// leaves, and it is recorded because the answer is evidence.
 	VerifiedAction audit.Action = "backup.verified"
 	// DownloadedAction is fetching an archive, which backup-restore.md §7 calls an auditable data
-	// access in its own right. Nothing emits it yet - there is no route that hands an archive to
-	// a caller until the restore side of the milestone builds one - and the name is fixed here so
-	// that the two halves cannot end up spelling it differently.
+	// access in its own right. Nothing emits it: no route hands an archive to a caller. The name
+	// is fixed here so that the route that does cannot spell it differently.
 	DownloadedAction audit.Action = "backup.downloaded"
 )
 
@@ -199,7 +198,7 @@ func (h GetBackupRun) Execute(
 ) (domain.Run, error) {
 	if err := h.Runner.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionStructure,
-		// Reading whether the backups are running is a configuration read (A-4, G-12). Starting
+		// Reading whether the backups are running is a configuration read (A-4). Starting
 		// one and verifying one are not, and both stay where they were.
 		Alternative: service.PermissionReadConfiguration,
 		Path:        []identity.Scope{identity.TenantScope()},

@@ -16,7 +16,7 @@
  *
  * **What it refuses:** everything else - `{n, number}`, `{d, date, short}`, `{t, time}` and any
  * other argument type - by throwing `MessageSyntaxError` naming what it found. That is the
- * condition F1-07 put on writing this rather than installing it: "a plural rule that silently
+ * condition on writing this rather than installing it: "a plural rule that silently
  * renders the `other` branch is a defect nobody sees in English and everybody sees in Polish". A
  * subset that guessed would be exactly that defect. `catalogue.test.ts` parses every message in
  * `locales/en.json`, so a construct this cannot render turns the build red on the day it is
@@ -193,7 +193,7 @@ class Parser {
       };
     }
 
-    // The refusal F1-07 asked for. Naming the type is the point: "unsupported syntax" sends a
+    // The refusal that condition asks for. Naming the type is the point: "unsupported syntax" sends a
     // reader looking, "{n, number} is not implemented" sends them to the one line to change.
     this.fail(`\`{${name}, ${type}}\` is not implemented by this renderer`);
   }

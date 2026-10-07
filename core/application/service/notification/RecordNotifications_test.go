@@ -91,7 +91,7 @@ func TestTheConsumerWantsOnlyWhatConcernsSomebody(t *testing.T) {
 		event.ItemAssigned, event.ItemMemberAdded, event.CommentCreated,
 	} {
 		if !subscriber.Wants(wanted) {
-			t.Errorf("%s is not wanted, and it is what this milestone tells people about", wanted)
+			t.Errorf("%s is not wanted, and it is what these notifications tell people about", wanted)
 		}
 	}
 	for _, ignored := range []event.Type{
@@ -272,7 +272,7 @@ func TestACommentOnAnEntryThatIsGoneTellsNobody(t *testing.T) {
 	}
 }
 
-// The system acting for nobody - the automatic assignment (C-02) - must not suppress the
+// The system acting for nobody - the automatic assignment - must not suppress the
 // recipient's own notification by matching a zero actor against them.
 func TestAnAssignmentNobodyMadeStillTellsTheAssignee(t *testing.T) {
 	fixture := consumer(t, bert)

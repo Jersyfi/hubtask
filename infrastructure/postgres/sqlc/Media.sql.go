@@ -163,7 +163,7 @@ type InsertMediaObjectParams struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
-// The media objects and what references them (C-06, domain-model.md §3.5).
+// The media objects and what references them (domain-model.md §3.5).
 //
 // The tenant is never a parameter: it comes from the transaction's own context through
 // current_tenant_id(), the same value row level security compares against (ADR-0010).
@@ -371,7 +371,7 @@ FROM (
   SELECT o.id,
     (SELECT count(*) FROM item_attachment a WHERE a.media_id = o.id)
     + (SELECT count(*) FROM work_item w WHERE w.cover_media_id = o.id)
-    -- A jumble entry's attachments are references too (G-10): an object a mail brought in must
+    -- A jumble entry's attachments are references too: an object a mail brought in must
     -- not be reclaimed while the entry that carries it is still readable.
     + (SELECT count(*) FROM jumble_entry j WHERE o.id = ANY(j.attachments)) AS total
   FROM media_object o

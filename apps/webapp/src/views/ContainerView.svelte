@@ -4,7 +4,7 @@
   // A hub or a collection, at its own address.
   //
   // One view for both, because the two differ in what they *hold* rather than in what they are:
-  // a hub holds collections, a collection will hold entries (F2-09). Everything above that line —
+  // a hub holds collections, a collection will hold entries. Everything above that line —
   // the trail, the name, the archive state, the controls — is the same screen, and two files would
   // be two places to fix the same thing.
   //
@@ -137,14 +137,14 @@
   /**
    * Which layout the reader is looking at, and what they have asked of the entries.
    *
-   * Kept on the device, in memory. Saved views are F3's, and writing a `SavedView` here would be
-   * building half of that milestone badly — the choice is the reader's for as long as the screen
-   * is open, and no further claim is made about it.
+   * Kept on the device, in memory. Saving a view is its own act, and a switch here writes no
+   * `SavedView` — the choice is the reader's for as long as the screen is open, and no further
+   * claim is made about it.
    */
   let layout = $state('LIST_COLLAPSED');
   let query = $state<ItemsQuery>({});
 
-  /** The layouts this client can actually draw. `TIMELINE` needs F3's time work and is not here. */
+  /** The layouts this client can actually draw. */
   const DRAWABLE = ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'];
 
   const container = $derived(containers.find(id));
@@ -295,12 +295,11 @@
   /**
    * Ranks this container one place up or down.
    *
-   * The keyboard path, and for now the only one: WCAG 2.2 SC 2.5.7 wants a single-pointer
-   * alternative to every drag, and F2-12 builds the drag **against** this rather than the other way
-   * round. A rank change is a command before it is a gesture.
+   * The keyboard path: WCAG 2.2 SC 2.5.7 wants a single-pointer alternative to every drag, and
+   * the drag is built **against** this rather than the other way round. A rank change is a command before it is a gesture.
    *
    * A **hub** goes through `:reorder`, which is the only operation that can rank one — it sits in
-   * nothing, so `:move`'s required `target_parent_id` has nothing to name (F2-04). A collection
+   * nothing, so `:move`'s required `target_parent_id` has nothing to name. A collection
    * goes through `:move` naming the hub it is already in, which the operation documents as a
    * reorder.
    */
@@ -354,7 +353,7 @@
    * Up and down rank it where it already is; this changes which hub holds it, and `:move`'s
    * `target_parent_id` is required precisely because that is the question it answers. A hub is
    * offered none of this: it sits in nothing, so there is no destination to name — the same reason
-   * F2-04 gave hubs a `:reorder` of their own.
+   * hubs have a `:reorder` of their own.
    *
    * Nothing is lost by it. A collection carries its own labels and its own board, so the losses
    * `MoveResult` reports for an entry (I-W6) have no counterpart here, and the dialog is shown
@@ -400,12 +399,12 @@
    * Moving a container and everything under it to the trash.
    *
    * **Confirmed, although it is reversible.** The trash is a soft delete and a restore brings the
-   * whole batch back (I-C2), so this is not the irreversible act of the milestone — but a hub is
+   * whole batch back (I-C2), so this is not an irreversible act — but a hub is
    * two hundred entries and "one deletion" is the thing worth saying before it happens rather than
    * afterwards. The sentence says what goes with it, which is what a person is actually deciding.
    */
-  // The collection's labels. `labels` has had create, update and remove since F2-10 and no
-  // caller, so the set the picker offers could only be made outside the application.
+  // The collection's labels: create, update and remove, so the set the picker offers can be made
+  // inside the application.
   //
   // No subscription of its own: a collection renders either the list or the board, and both open
   // the level already. A third reader of one list is what the stores exist to avoid.
@@ -413,7 +412,7 @@
   let isManagingFields = $state(false);
   let isUsingTemplates = $state(false);
   let isManagingViews = $state(false);
-  /** The collection's policies (issue 773): how it works, as opposed to what it is called. */
+  /** The collection's policies: how it works, as opposed to what it is called. */
   let isManagingPolicies = $state(false);
   let isManagingFeeds = $state(false);
   /** The view an export or a subscription is about, if either is open. */
@@ -508,7 +507,7 @@
   });
 
   /**
-   * The page menu, in the three groups backlog decision 5 fixed: act on the object, set it up,
+   * The page menu, in the three groups of design-system.md §11.8: act on the object, set it up,
    * and trash - last and alone. A reason stays a reason: the rank at the top of its level and
    * the move of a hub are offered with why they cannot be used, not left out.
    */
@@ -701,7 +700,7 @@
       {#snippet views()}
         {#if container.type === 'COLLECTION'}
           <!-- The three layouts, with "show what is inside" within the list; the star beside them
-               is the saved views where they are used daily (decision 5), the same panel the menu
+               is the saved views where they are used daily (design-system.md §11.8), the same panel the menu
                opens. -->
           <LayoutSwitch {layout} drawable={DRAWABLE} onlayout={(id) => (layout = id)} />
           <IconButton icon="star" label={t('app.views.title')} size="sm" data-opener="views" onclick={() => (isManagingViews = true)} />
@@ -748,8 +747,8 @@
       </Stack>
     {/if}
 
-    <!-- The collection's status, summarised where the manifest says AI is configured here (K-05,
-         F5-04), and absent - not gated - where it is not (milestone-F5.md decision 4). -->
+    <!-- The collection's status, summarised where the manifest says AI is configured here,
+         and absent - not gated - where it is not (design-system.md §4, CapabilityGate). -->
     {#if container.type === 'COLLECTION' && hasAi}
       <CollectionSummary containerId={container.id} />
     {/if}
@@ -898,7 +897,7 @@
     role={structureRole}
     onapply={(asked, appliedLayout, name) => {
       // Both halves: the query the server validated, and the layout only a client knows what to do
-      // with — which is what the `layout` field has been for since it was declared uninterpreted.
+      // with — which is what the `layout` field is for, declared uninterpreted.
       query = asked;
       layout = appliedLayout;
       announcer.say(t('app.views.layout_applied', { name, layout: t(`app.view.${appliedLayout}`) }));

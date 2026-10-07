@@ -251,7 +251,7 @@ func TestAnOperationWithoutATokenScope(t *testing.T) {
 	}
 }
 
-// RoleAlong is the qualifier question (C-03): which role the actor holds, for the rules the
+// RoleAlong is the qualifier question: which role the actor holds, for the rules the
 // permission matrix cannot express - only the author or an administrator may change a comment.
 func TestRoleAlongReportsTheHighestRoleAndItsAbsence(t *testing.T) {
 	authorize, _, trail, _ := serviceWith([]identity.Membership{

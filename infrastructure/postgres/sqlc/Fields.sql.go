@@ -131,7 +131,7 @@ type InsertCustomFieldParams struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
-// Custom field definitions (C-07).
+// Custom field definitions.
 //
 // The values are not here: they live in `work_item.custom_fields`, a jsonb document on the entry,
 // and are written by the statement beside the entry's own attributes (Work.sql,

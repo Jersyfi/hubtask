@@ -15,8 +15,7 @@ import (
 // rather than written down a second time: the headings come from .github/PULL_REQUEST_TEMPLATE.md,
 // so a section added there is required here on the same day.
 //
-// What each rule is for, because each one was skipped at least once (2026-09-30, #1085, #1094,
-// #1095):
+// What each rule is for, because each one has been skipped before:
 //
 //   - Every section of the template is present, in its order. A description written from scratch
 //     drops exactly the sections its author judged irrelevant - and "Does this need an ADR?" is
@@ -40,7 +39,7 @@ var (
 	useCaseID    = regexp.MustCompile(`\bUC-[A-Z]{2,3}-\d{2,3}\b`)
 	checkbox     = regexp.MustCompile(`(?m)^- \[( |x|X)\] (.*)$`)
 	notApplied   = regexp.MustCompile(`(?i)\bn/a\b`)
-	adrNamed     = regexp.MustCompile(`ADR-\d{4}|none by (number|ADR)`)
+	adrNamed     = regexp.MustCompile(`ADR-\d{4}|[a-z0-9-]+\.md §\s?\d+|none by (number|ADR)`)
 	placeholders = []string{
 		"UC-…: check n — met / not met — confirmed by …",
 		"yes / no — if yes: the migration path",
@@ -166,9 +165,9 @@ func check(body string, required []string, useCases map[string]bool) []string {
 				continue
 			}
 			chosen++
-			if strings.Contains(answer[2], "Which one") || strings.Contains(answer[2], "already merged") {
+			if strings.Contains(answer[2], "Which one") || strings.Contains(answer[2], "Where it lives") || strings.Contains(answer[2], "already merged") {
 				if strings.Contains(answer[2], "ADR-….") || !adrNamed.MatchString(answer[2]) {
-					problems = append(problems, "the ADR answer that is ticked does not name the ADR (or say \"none by number\" and why)")
+					problems = append(problems, "the ADR answer that is ticked does not name where the rule lives (a subject-document section, an ADR, or \"none by number\" and why)")
 				}
 			}
 		}

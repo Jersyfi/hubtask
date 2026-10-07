@@ -18,7 +18,7 @@ import (
 // Bounded caps what one request may cost: how much body it may send, and how long it may run.
 //
 // Both are the server's decision, not the client's. A handler that forgets its own deadline still
-// gets one here, which is what rule 7 of CLAUDE.md asks for - no call without a deadline
+// gets one here, which is what rule 7 asks for - no call without a deadline
 // (ADR-0016) - and a body limit is the cheapest defence against T-17 there is.
 type Bounded struct {
 	Next http.Handler
@@ -26,11 +26,11 @@ type Bounded struct {
 	MaxBodyBytes int64
 	// MaxUploadBytes is the limit for the one route the contract declares as a byte stream: the
 	// content route of a local-storage installation, which stands in for the bucket a presigned
-	// upload would have gone to (C-06). Bounding it by MaxBodyBytes would make an attachment on
+	// upload would have gone to. Bounding it by MaxBodyBytes would make an attachment on
 	// such an installation impossible; bounding everything else by this one would hand every JSON
 	// endpoint a sixty-four megabyte budget for a body that is never that big.
 	MaxUploadBytes int64
-	// MaxMailBytes is the limit for the mail intake, whose body is a whole message (G-11). A third
+	// MaxMailBytes is the limit for the mail intake, whose body is a whole message. A third
 	// bound rather than a reuse of either: a mail is far past what a JSON document here ever is,
 	// and far below what an upload may be.
 	MaxMailBytes int64
@@ -40,11 +40,11 @@ type Bounded struct {
 
 // mailIntakePath is the mail door, recognised the way the byte route is: by shape rather than by a
 // list somewhere else, so the bound cannot drift from the contract. The token follows it in the
-// path, which is why this is a contains rather than a suffix (G-11).
+// path, which is why this is a contains rather than a suffix.
 const mailIntakePath = "/jumble/mail/"
 
 // streamSuffix is the one route with no end of its own: a stream is held open until the client
-// leaves or the process drains, which is the opposite of what a request timeout is for (C-10).
+// leaves or the process drains, which is the opposite of what a request timeout is for.
 const streamSuffix = "/stream"
 
 // deadlineFor is how long this request may run.
@@ -119,7 +119,7 @@ func (b Bounded) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type Localised struct {
 	Next   http.Handler
 	Locale env.LocaleConfig
-	// Negotiator reads Accept-Language against the catalogues the installation has (M-04): it is
+	// Negotiator reads Accept-Language against the catalogues the installation has: it is
 	// the i18n adapter, because the matching is a library's and this layer may not import it
 	// (ADR-0056). Nil negotiates nothing, which is the installation default for everybody.
 	Negotiator i18n.Negotiator

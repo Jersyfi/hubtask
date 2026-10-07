@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The installation's workspaces and their whole lifecycle (SI-17, ADR-0070 §5).
+  // The installation's workspaces and their whole lifecycle (ADR-0070 §5).
   //
   // **Everything the control plane can do, this screen can do.** §5.5 lists it: "Liste, Zustand,
   // Anlegen, Sperren, Fortsetzen, Löschen, Export, Quoten: die Steuerungsebene, die es schon gibt,

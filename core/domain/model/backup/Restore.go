@@ -148,8 +148,8 @@ type RestoreRequest struct {
 	// Confirmation is the tenant name, typed. Compared against the name of the tenant being
 	// replaced, exactly.
 	Confirmation string
-	// StepUpToken is the proof of a fresh, stronger authentication: the token
-	// POST /auth/step-up answered (H-03), consumed by this one restore.
+	// StepUpToken is the proof of a fresh, stronger authentication: the token POST /auth/step-up
+	// answered (identity.md §16), consumed by this one restore.
 	StepUpToken string
 }
 
@@ -256,7 +256,7 @@ const (
 	// a whole restore over one missing file would be the wrong trade on the day it is being used.
 	WithheldMediaMissing = "media_missing"
 	// WithheldOrphaned is a row whose parent in its own table is in neither the archive nor the
-	// target (#693): a child the restore cannot point at anything.
+	// target (backup-restore.md §8.3): a child the restore cannot point at anything.
 	WithheldOrphaned = "orphaned"
 )
 
@@ -386,8 +386,7 @@ const MaxDuplicatedName = 200
 //
 // DuplicateID answers what the copy *is*; this answers what it is *called*, and the two are needed
 // together: a copy that got a new identity and kept its name meets `container_name_uq` (and the
-// same index on a bucket and a label) and lands nothing (#790). backup-restore.md §8.3's
-// `duplicate` rule said the first and nothing about the second.
+// same index on a bucket and a label) and lands nothing (backup-restore.md §8.2).
 //
 // Derived from the run, for the reason DuplicateID gives: a resumed restore has to produce the
 // same name, or the half it wrote before it died comes back under a second name nobody asked for.
@@ -452,16 +451,15 @@ const (
 	// CodeRestoreConfirmationRequired is a destructive mode without the tenant's name typed into
 	// it, or with somebody else's name typed into it.
 	CodeRestoreConfirmationRequired = "backup.restore_confirmation_required"
-	// The step-up refusals moved with H-03: a destructive mode without the proof now answers
-	// `auth.step_up_required` from the port, minted in one place for every privileged operation,
-	// and `backup.restore_step_up_unavailable` died with the verifier that made a step-up
-	// satisfiable - see the tombstone in the restore tests.
+	// No step-up refusal is here: a destructive mode without the proof answers
+	// `auth.step_up_required` from the port, minted in one place for every privileged operation
+	// (identity.md §16.3).
 	// CodeRestoreInstanceIsTheOperators is the INSTANCE mode, which stays refused: no archive this
 	// build writes has an instance-wide scope, and a system restore is not this application's to
 	// perform (B-2, ADR-0046). The refusal names the operator procedure rather than a shortcoming
 	// - point-in-time recovery is CloudNativePG's, from the WAL archive, with a person in front of
-	// it (backup-restore.md §8.5). It used to answer `restore_archive_scope_mismatch`, which said
-	// "that archive belongs to another workspace" about an archive that belonged to nobody.
+	// it (backup-restore.md §8.5). Not `restore_archive_scope_mismatch`, which would say "that
+	// archive belongs to another workspace" about an archive that belongs to nobody.
 	CodeRestoreInstanceIsTheOperators = "backup.restore_instance_is_the_operators"
 	// CodeRestoreArchiveScopeMismatch is an archive of one tenant being restored into another,
 	// which is BK-10's refusal. It is the one every mode is checked for, at the listing, at the

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-08 · **Accepted:** 2026-09-09
 
+**Rule lives in:** [support-matrix.md](../architecture/support-matrix.md) §3, [multi-tenancy.md](../architecture/multi-tenancy.md) §2.1
+
 ## Context
 
 An installation is meant to have three ways to get a database, and

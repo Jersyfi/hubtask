@@ -10,8 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The links a sign-in screen may be obliged to show, and who decides them (the concept's §10,
-// SI-12).
+// The links a sign-in screen may be obliged to show, and who decides them (identity.md §18).
 //
 // Two audiences on one installation, which is the whole reason these are settings rather than
 // build-time text. A provider serving consumers has to show an imprint and a privacy notice on the

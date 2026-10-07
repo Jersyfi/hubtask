@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// Deciding a suggestion (J-05), and the body this route ignored until J-16.
+// Deciding a suggestion, and the body the route reads.
 //
 // `SuggestionAcceptance` carries what a person changed or added before accepting, and a proposal
 // about a jumble entry *needs* one: accepting it converts the entry, and `ConvertJumbleEntry`
@@ -127,7 +127,7 @@ func TestAMalformedAcceptanceIsRefused(t *testing.T) {
 	}
 }
 
-// What the narrowing dropped travels on the answer (issue 767), so that a client can say a draft
+// What the narrowing dropped travels on the answer, so that a client can say a draft
 // is not the whole of what the provider answered.
 func TestTheAnswerCarriesWhatTheNarrowingDropped(t *testing.T) {
 	out := acceptedSuggestion()

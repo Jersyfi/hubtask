@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The bulk route (C-11). Nothing here decides anything about an operation: which operations exist,
+// The bulk route. Nothing here decides anything about an operation: which operations exist,
 // what each one may do and what happens when one of them fails are the application layer's, once,
 // whichever channel the call came through (ADR-0005). What this file owns is the one thing that is
 // genuinely HTTP - the status each operation would have answered on its own.

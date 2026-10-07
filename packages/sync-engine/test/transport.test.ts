@@ -209,7 +209,7 @@ test('a refusal the server cannot explain is still retryable when it is a 5xx', 
   );
 });
 
-// ---- The stream (F3-04): a response that does not end, read from the body and never through
+// ---- The stream: a response that does not end, read from the body and never through
 // `EventSource`, which cannot carry a bearer.
 
 /** A body that a test feeds line by line, the way a server's chunks arrive. */
@@ -326,7 +326,7 @@ test('the caller ends the stream through its signal', async () => {
   assert.deepEqual(await drained, []);
 });
 
-// ---- The bytes (F3-04): the one request that leaves for an address the engine did not compose.
+// ---- The bytes: the one request that leaves for an address the engine did not compose.
 
 test('a snapshot is a POST that reads ndjson as it arrives, and ends on the cursor line', async () => {
   const { body, write, close } = feed();
@@ -435,7 +435,7 @@ test('a byte transfer without a deadline is refused, and an aborted one is a tim
   );
 });
 
-test('a streamed transfer the connection refuses is sent once more, whole (issue 756)', async () => {
+test('a streamed transfer the connection refuses is sent once more, whole', async () => {
   // Chromium streams a request body over HTTP/2 only and fails the fetch over HTTP/1.1 before a
   // byte leaves; the feature test cannot see the connection. The first attempt here is whatever
   // the runtime does, and a fake that refuses a streamed body once is the connection saying no.

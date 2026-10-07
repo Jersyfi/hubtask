@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The calendar feeds on the command line (D-08, D-09).
+// The calendar feeds on the command line.
 //
 // This group is the one that handles a credential, so it is the one with a rule of its own: the
 // token is printed exactly once, by the command that mints it, and never again. `ls` shows that a

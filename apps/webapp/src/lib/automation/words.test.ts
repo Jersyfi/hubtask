@@ -32,7 +32,7 @@ test('an event type is read without its namespace', () => {
   assert.equal(eventWord('de.hubtask.jumble.entry.received.v1'), 'jumble entry received');
 });
 
-// The words come from the type's own segments and a table of entities and verbs (decision 13):
+// The words come from the type's own segments and a table of entities and verbs (automation.md §1.5):
 // composed, never listed per type; a segment the table has no word for is said as itself.
 test('eventWords composes the entity and the verb, and falls back to the segments', () => {
   const words = catalogueOf({

@@ -95,8 +95,8 @@ func createStream(ctx context.Context, t *testing.T, url string) {
 	}
 }
 
-// RT-1's discipline, applied to the dependency H-14 added: an optional dependency failing must not
-// block the write path, /meta/health must say so, and recovery must happen without a restart
+// RT-1's discipline, applied to the NATS bus: an optional dependency failing must not block the
+// write path, /meta/health must say so, and recovery must happen without a restart
 // (observability-reliability.md §7, §12).
 //
 // What is under test is the adapter and the breaker in front of it. That the outbox holds the

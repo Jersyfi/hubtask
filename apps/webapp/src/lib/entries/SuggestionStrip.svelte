@@ -1,17 +1,17 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // What AI has proposed about this entry, and the menu that asks for more (F5-02).
+  // What AI has proposed about this entry, and the menu that asks for more.
   //
   // One strip for every kind, rendered through one component: each open suggestion is an
   // `AISuggestion` whose payload is drawn by the shape it carries - the fields beside the entry's
   // own, the labels as chips and the column by name, the breakdown as a list, the look-alikes as
-  // links with nothing to accept (K-04). Nothing AI-shaped is built twice.
+  // links with nothing to accept. Nothing AI-shaped is built twice.
   //
   // **Absent when AI is off.** `ai_suggestions: false` in the manifest means this component is not
   // rendered at all - `ItemView` decides, and `offersFor` answers no operation either way - rather
   // than a gate with a reason: a gate explains a capability to somebody who expected it, and an
-  // installation with AI switched off has a product that never mentioned it (decision 4).
+  // installation with AI switched off has a product that never mentions it (design-system.md §4, CapabilityGate).
   //
   // **A stale proposal is marked before the server refuses it.** `isStale` reads what the client
   // holds; the strip offers the ask and the dismissal, never the apply (voice-and-tone.md §7.3).

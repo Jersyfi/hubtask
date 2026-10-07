@@ -3,9 +3,9 @@
 
 /**
  * Client-side routing over the History API — a minimal in-house module, not a library. The
- * reasoning is recorded in the W-06 pull request: the need is path matching, `pushState` and
+ * need is path matching, `pushState` and
  * link interception against a stable browser API, and a router dependency is a supply-chain
- * decision this small need does not justify (CLAUDE.md).
+ * decision this small need does not justify.
  *
  * Real paths, never `#/`: ADR-0028's `index.html` fallback exists precisely so that a deep link
  * survives a reload, and hash routing would waste it. ADR-0030 fixes both points.
@@ -20,7 +20,7 @@
  * Declared here rather than worked out later, because the mobile shell's one restriction is by
  * area: it ships the end-user features and profile configuration in full, and reaches
  * administration through the web app. A route that carried no area would be a route somebody has
- * to classify by reading it, and ADR-0032's own backlog impact asks for the tagging to exist
+ * to classify by reading it, and ADR-0032 asks for the tagging to exist
  * before the shell needs it.
  *
  * `end-user` is the default because it is the overwhelming majority, and a default that is wrong

@@ -20,9 +20,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The other four triggers against a real database (G-08). What only PostgreSQL can answer: that
+// The triggers beside the event against a real database. What only PostgreSQL can answer: that
 // the due index answers by moment, that the occurrence upsert really is one statement, that a
-// rotation replaces the address rather than adding one, and that every one of the new methods is
+// rotation replaces the address rather than adding one, and that every one of these methods is
 // bounded by the tenant of the transaction (gate SG-3).
 
 func automationInbound() postgres.AutomationInboundRepository {
@@ -53,7 +53,7 @@ func scheduledFixture(
 	return rule
 }
 
-// The due read is the whole of the poller's question, and the index behind it is the one E-05's
+// The due read is the whole of the poller's question, and the index behind it is the one the
 // backup schedules read the same way.
 func TestTheDueScheduleReadAnswersByMoment(t *testing.T) {
 	ctx := context.Background()

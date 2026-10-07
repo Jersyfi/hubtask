@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// BackupRestore is the queue's way into reading an archive back (E-06, backup-restore.md §8.3).
+// BackupRestore is the queue's way into reading an archive back (backup-restore.md §8.3).
 //
 // Detached, and it has to be. The restore streams an archive from somebody else's machine and
 // writes it in batches, each of which is its own transaction - which is what §8.3 step 5 means by
@@ -39,7 +39,7 @@ var (
 	_ queue.Releaser = BackupRestore{}
 )
 
-// Release closes the restore row of a job the queue has given up on (queue.Releaser, #207).
+// Release closes the restore row of a job the queue has given up on (queue.Releaser).
 //
 // The open row holds the one-restore-per-tenant lock, and with the job in the dead letter nothing
 // else will ever close it: every later restore in the tenant would be refused for ever. Closed as

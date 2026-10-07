@@ -106,7 +106,7 @@ test('a validation failure is not the server’s fault', () => {
 });
 
 test('a query the server refuses by name still reads as a sentence', () => {
-  // The other half of F2-13's acceptance. `query.ts` is what stops this client from sending a
+  // The other half. `query.ts` is what stops this client from sending a
   // field the manifest does not report; this is what happens when a refusal arrives anyway —
   // a manifest read before the installation changed, an automation that wrote the view, a filter
   // that came from somewhere this client cannot see. The reader is told which field and why,
@@ -132,7 +132,7 @@ test('a query the server refuses by name still reads as a sentence', () => {
 });
 
 test('a legal hold reads as its own sentence, not as a generic failure', () => {
-  // F2-14's acceptance. A hold is the one refusal on this screen a person can act on — by asking
+  // A hold is the one refusal on this screen a person can act on — by asking
   // whoever placed it — and "something went wrong" would tell them nothing to act on. The scope
   // travels as a parameter because *where* the hold is placed is what decides who to ask.
   const rendered = renderProblem(

@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/intake"
 )
 
-// The mail parser (G-11), the one boundary in this system that eats bytes nobody wrote for it.
+// The mail parser, the one boundary in this system that eats bytes nobody wrote for it.
 // Every test here is either "an ordinary mail arrives whole" or "a crafted one costs a refusal".
 
 // The ordinary mail: a text, an HTML alternative and two files. One entry's worth of everything.
@@ -405,7 +405,7 @@ func expectCode(t *testing.T, err error, want string) {
 	}
 }
 
-// The seam between the two halves (G-11): a payload the parser could not read still reaches the
+// The seam between the two halves: a payload the parser could not read still reaches the
 // use case, and one that broke a bound does not.
 func TestTheIntakeDeliversWhatItCouldParseAndWhatItCouldNot(t *testing.T) {
 	t.Run("an ordinary mail arrives parsed", func(t *testing.T) {

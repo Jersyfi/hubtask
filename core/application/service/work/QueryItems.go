@@ -21,11 +21,11 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// QueryItemsName is the catalogue name, as domain-model.md §5 writes it under "Views & query".
+// QueryItemsName is the catalogue name (core/application/catalogue).
 const QueryItemsName = "QueryItems"
 
 // QueryItems answers the query language: one filter over one anchored scope, sorted, paged, and
-// optionally grouped into the columns a board draws (api-guidelines.md §3, B-12).
+// optionally grouped into the columns a board draws (api-guidelines.md §3).
 //
 // It lives in this package rather than in a `view` one of its own, although the catalogue groups it
 // with the saved views. What it reads is work items, and it answers them through this package's
@@ -48,7 +48,7 @@ type QueryItems struct {
 // query that cannot be resolved is one nobody should read a row for. The anchor is then read and
 // the permission asked about it - once, for the whole result, exactly as ListWorkItems asks about
 // the collection it was given: the client named the scope, so a refusal is a refusal rather than an
-// empty page - and somebody who holds only individual shares inside it queries those (C-04). Only
+// empty page - and somebody who holds only individual shares inside it queries those. Only
 // then does the compiled statement run.
 func (h QueryItems) Execute(
 	ctx context.Context, actor appshared.ActorContext, spec view.Spec,
@@ -106,12 +106,11 @@ func (h QueryItems) resolvePlaceholders(
 
 // resolveFilter replaces `@me` and the date anchors with the values only the server knows.
 //
-// **One grammar read twice has to mean one resolution too** (ADR-0064). The query resolved its
-// placeholders and the search did not, so `assignee_id EQ @me` parsed, validated, and reached the
-// compiler unresolved - where it is `ErrInternal` with `query.placeholder_unresolved`, because a
-// placeholder at the adapter is a defect in the use case. The overview's one read is exactly that
-// filter, so the first panel of the first screen after signing in answered a 500 with a reference
-// (issue 1018).
+// **One grammar read twice has to mean one resolution too** (ADR-0064): the query and the search
+// both call this. A reader that skipped it would let `assignee_id EQ @me` parse, validate, and
+// reach the compiler unresolved - where it is `ErrInternal` with `query.placeholder_unresolved`,
+// because a placeholder at the adapter is a defect in the use case, and a filter as ordinary as
+// "mine" would answer a 500.
 //
 // The zone is the actor's, which is what api-guidelines.md §3 means by "resolved server-side in the
 // actor's time zone": somebody in Auckland asking for what is due today is asking about their day.

@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The devices that synchronise (N-03, offline-sync.md §6): registration by turning up, the
+// The devices that synchronise (offline-sync.md §6): registration by turning up, the
 // refusals, forgetting, the sweep that revokes what a stale device held - and a cross-tenant
 // negative for every method (gate SG-3).
 

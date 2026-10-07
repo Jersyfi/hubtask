@@ -238,7 +238,7 @@ func (w AssignmentWriter) change(
 }
 
 // byHand is the absent strategy: the assignment was somebody's decision, not a policy's. The
-// distinction reaches the event, where a rule tells the two apart by the `strategy` key (C-02).
+// distinction reaches the event, where a rule tells the two apart by the `strategy` key.
 const byHand = domain.AutoAssignStrategy("")
 
 // write stores the assignee and records what the change owes: the event outwards, the change log

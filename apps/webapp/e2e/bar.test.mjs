@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The compact bar's contract (F10-16; ADR-0061 decision 1's table, issue 904): at 375 px the bar
+// The compact bar's contract (ADR-0061 decision 1's table): at 375 px the bar
 // holds ☰ · the page's title · the page's menu.
 //
 // Two halves, and the walk proves both. **The title**: every route a signed-in reader can reach
@@ -32,8 +32,8 @@ const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false }
 async function stub(route) {
   const url = new URL(route.request().url());
   const path = url.pathname.replace(/^.*\/api\/v1/, '');
-  // The stream, **accepted and empty**: the connection is what the mark in the bar reads since
-  // issue 1017, so a walk that refused it would draw *Reconnecting…* on every screenshot of every
+  // The stream, **accepted and empty**: the connection is what the mark in the bar reads,
+  // so a walk that refused it would draw *Reconnecting…* on every screenshot of every
   // screen. It carries the server's own reconnect suggestion and no records; what a walk needs
   // from the stream is that it was opened.
   if (path === '/stream') {
@@ -89,7 +89,7 @@ async function open(browser, width = 375) {
  */
 const ROUTES = [
   '/', '/search', '/jumble', '/archive', '/trash', '/installation',
-  // Your settings, which is a section of eight screens since ADR-0065 decision 3.
+  // Your settings, which is a section of eight screens (ADR-0065 decision 3).
   '/profile', '/profile/appearance', '/profile/notifications', '/profile/security',
   '/profile/sessions', '/profile/devices', '/profile/apps', '/profile/tokens',
   '/administration', '/administration/workspace', '/administration/people',
@@ -149,7 +149,7 @@ test('chromium: the administration is a section, and the tree is not in it', asy
   // The way out is the first row, and the row the reader is on is announced as current.
   const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
-  // Nineteen since the sign-in work put "Sign-in" beside the identity provider (SI-16): the
+  // Nineteen, "Sign-in" beside the identity provider among them: the
   // number moves when the section gains a screen, which is what this assertion is for.
   assert.equal(rows.length, 19, `the section holds ${rows.length} rows`);
   // Exact again: "People" and "People's requests" are both rows of this list.

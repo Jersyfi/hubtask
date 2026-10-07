@@ -10,7 +10,7 @@
  * comment nobody can answer.
  *
  * **A removed comment keeps its place.** The server sends the identifier, the author and the times
- * with `body: null` — the tombstone C-03 built — and rendering it in place is what stops a reply
+ * with `body: null` — the tombstone — and rendering it in place is what stops a reply
  * from dangling under a comment that vanished.
  *
  * **Who may change one is the author or an administrator**, which is the server's own rule
@@ -79,7 +79,7 @@ const ADMINISTRATIVE = new Set(['OWNER', 'ADMIN']);
  * Whether this reader may edit or delete a comment.
  *
  * The author always may. Otherwise it takes a role the server would accept, and the roles the
- * actor holds along the path are what F3-07 already reads. A role this client has never heard of
+ * actor holds along the path are what the client already reads. A role this client has never heard of
  * is **not** administrative: guessing in the permissive direction is what the manifest exists to
  * prevent, and the cost of guessing low is a control that is off and a server that would have
  * allowed it — which is a worse offer, not a wrong one.

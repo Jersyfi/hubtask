@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// SnapshotRepository reads the current state for an initial synchronisation (N-02): every kind
+// SnapshotRepository reads the current state for an initial synchronisation: every kind
 // the change log records, in pages by identifier, live rows only.
 //
 // Every statement runs inside the caller's transaction and therefore under `SET LOCAL

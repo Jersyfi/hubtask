@@ -39,7 +39,7 @@ const (
 	subjectReminder    = "email.reminder.subject"
 	subjectIntegration = "email.integration.subject"
 	subjectRetention   = "email.retention.subject"
-	// A rule that was switched off (issue 814): INTEGRATION's category, its own sentence, because
+	// A rule that was switched off: INTEGRATION's category, its own sentence, because
 	// "we stopped calling your server" is the wrong news about a rule.
 	subjectRuleDisabled = "email.rule_disabled.subject"
 	bodyRuleDisabled    = "email.rule_disabled.body"
@@ -76,7 +76,7 @@ type DeliverNotification struct {
 	Preferences   repository.Preferences
 	Accounts      identityrepo.Accounts
 	Items         Entries
-	// Rules and Subscriptions name the subjects that are not an entry (issue 814): the rule the
+	// Rules and Subscriptions name the subjects that are not an entry: the rule the
 	// message says was switched off, the subscription it says is no longer called. Optional -
 	// nil leaves the title out, which is the withheld sentence rather than a wrong one.
 	Rules         RuleReader
@@ -88,14 +88,14 @@ type DeliverNotification struct {
 	// Workspaces answers the workspace's own default language, the second link of the chain a
 	// recipient's locale is resolved down (i18n-l10n.md §2) - an invited person has not chosen
 	// one yet, by definition, and the invitation is the first thing they read. Optional: nil
-	// skips to the installation's default (#603).
+	// skips to the installation's default.
 	Workspaces WorkspaceReader
 	// FallbackLocale is the installation's default, the last link of the same chain.
 	FallbackLocale string
 	// BaseURL is where this installation lives, so an email can carry a link somebody can click. A
 	// relative path in an email is a dead link.
 	BaseURL string
-	// Redemptions mints the credential an invitation mail carries (H-01): minted here, at
+	// Redemptions mints the credential an invitation mail carries: minted here, at
 	// delivery, so the queue's payload stays identifiers-only and the plaintext exists exactly
 	// once, in the message on its way out. Nil composes the plain link, which is what an
 	// installation without the sign-in flow sent before the flow existed.
@@ -245,7 +245,7 @@ func (d DeliverNotification) load(
 			}
 		}
 
-		// What the message is about, by which subject the record names (issue 814). Gone is not
+		// What the message is about, by which subject the record names. Gone is not
 		// an error for any of them: the message becomes the one without a title rather than no
 		// message - somebody was told about something, and the link will tell them it is gone.
 		switch {
@@ -284,7 +284,7 @@ func (d DeliverNotification) load(
 func (d DeliverNotification) send(ctx context.Context, loaded subject) error {
 	message := d.compose(loaded)
 
-	// The invitation's link is the redemption token (H-01): minted now, shown in this one
+	// The invitation's link is the redemption token: minted now, shown in this one
 	// message, stored only as a hash. In the fragment rather than the query, so a proxy or a
 	// server log between the mail client and the interface never sees it.
 	if loaded.record.Category == domain.CategoryInvitation && d.Redemptions != nil {
@@ -357,10 +357,8 @@ func codesFor(category domain.Category) (subjectCode, bodyCode string) {
 		// is not there would print the placeholder at somebody.
 		return subjectReminder, bodyReminder
 	case domain.CategoryIntegration:
-		// Missing until G-12, which is why this switch now has every category rather than most of
-		// them: an INTEGRATION record fell through to the assignment pair, so "we stopped calling
-		// your server" arrived as "somebody gave you something" (G-03's category, C-09's renderer,
-		// and nothing between them saying so).
+		// Every category has its own case: a record that fell through to the assignment pair
+		// would turn "we stopped calling your server" into "somebody gave you something".
 		return subjectIntegration, bodyIntegration
 	case domain.CategoryRetention:
 		return subjectRetention, bodyRetention
@@ -432,7 +430,7 @@ type WorkspaceReader interface {
 // recipientLocale is §2's chain for a recipient: the account's own language, otherwise the
 // workspace's default, otherwise the installation's - read inside the delivery's own transaction,
 // which is bound to the workspace the record belongs to. An empty answer at the end is the
-// renderer's fallback to the source language, which is where it was for everybody until #603.
+// renderer's fallback to the source language.
 func (d DeliverNotification) recipientLocale(ctx context.Context, own string) (string, error) {
 	if own != "" {
 		return own, nil

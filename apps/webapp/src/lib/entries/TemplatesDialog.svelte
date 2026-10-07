@@ -93,8 +93,8 @@
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
   /**
-   * Generate from a description… (P-11, F6-10): present exactly when the manifest says AI is on
-   * (milestone-F5.md decision 4 - absence is absence, not a disabled control). The draft is a
+   * Generate from a description…: present exactly when the manifest says AI is on
+   * (design-system.md §4, CapabilityGate - absence is absence, not a disabled control). The draft is a
    * suggestion targeting the collection, so it arrives in the collection's strip behind this
    * dialog, where accepting it is `CreateTemplate` and this list then shows it.
    */

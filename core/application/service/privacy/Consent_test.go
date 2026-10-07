@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// Objection, as the one thing it can technically be (E-10, Art. 21): the optional processing stops
+// Objection, as the one thing it can technically be (Art. 21): the optional processing stops
 // and the core features keep working.
 
 type consentStore struct {

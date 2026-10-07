@@ -78,7 +78,7 @@ func TestAnUnanchoredSearchIsNarrowedRatherThanRefused(t *testing.T) {
 
 // The path a hit is judged against ends on the entry, and that is not a detail: an entry shared
 // with somebody individually is reachable through no other scope, so a path stopping at the
-// collection would hide exactly the entries C-04 exists to show.
+// collection would hide exactly the entries sharing exists to show (domain-model.md §3.2).
 func TestAHitIsJudgedByThePathThatEndsOnTheEntry(t *testing.T) {
 	handler, _, _, permitted := searchHarness(hitOf(taskID, collectionID, hubID, 0.9))
 
@@ -253,7 +253,7 @@ func TestASearchOpensNoWriteTransaction(t *testing.T) {
 	}
 }
 
-// The mode is the caller's one control over the second half (J-10). LEXICAL asks no provider at
+// The mode is the caller's one control over the second half. LEXICAL asks no provider at
 // all, which is what a caller in a loop - an automation, an import, a type-ahead - wants, and AUTO
 // is what everybody else gets without saying anything.
 func TestTheSearchModeDecidesWhetherAProviderIsAsked(t *testing.T) {
@@ -320,8 +320,8 @@ func TestALexicalSearchStillAnswers(t *testing.T) {
 }
 
 // The third degradation: a provider that will not answer leaves the search entirely intact. It is
-// the same page the search would have answered before J-10 existed, which is what makes the
-// semantic half safe to switch on.
+// the same page the full text search alone answers, which is what makes the semantic half safe
+// to switch on.
 func TestASearchSurvivesAProviderThatWillNotAnswer(t *testing.T) {
 	handler, store, _, permitted := searchHarness(hitOf(taskID, collectionID, hubID, 0.9))
 	handler.Meaning = meaningHarness(&embeddingWorld{
@@ -343,12 +343,10 @@ func TestASearchSurvivesAProviderThatWillNotAnswer(t *testing.T) {
 
 // The placeholders, which is what one grammar read twice costs when only one reader resolves them.
 //
-// `POST /search` takes a filter since ADR-0064, and a filter may carry `@me` or a date anchor. The
-// query has resolved them since it was written; this did not, so the value travelled to the
-// compiler as a placeholder - where it is `ErrInternal`, because a placeholder at the adapter is a
-// defect in the use case rather than a bad request. The overview's one read is exactly this
-// filter, so the first panel of the first screen after signing in answered a 500 with a reference
-// (issue 1018).
+// `POST /search` takes a filter (ADR-0064), and a filter may carry `@me` or a date anchor. A value
+// that travelled to the compiler as a placeholder is `ErrInternal`, because a placeholder at the
+// adapter is a defect in the use case rather than a bad request - and the overview's one read is
+// exactly this filter.
 func TestSearchResolvesThePlaceholdersItParses(t *testing.T) {
 	handler, store, _, permitted := searchHarness(hitOf(taskID, collectionID, hubID, 0.9))
 	handler.Clock = clock.Fixed(now)

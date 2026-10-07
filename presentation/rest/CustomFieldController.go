@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The vocabulary a workspace adds to its entries (C-07). A top-level resource rather than a
+// The vocabulary a workspace adds to its entries. A top-level resource rather than a
 // sub-resource of a collection, because a definition has two scopes: one collection's, or the
 // whole workspace's, and a path that named a collection could not express the second.
 
@@ -248,7 +248,7 @@ func (c *RestController) SetCustomField(
 
 	// The value travels as it arrived. What shape it may have is the definition's answer and the
 	// application layer's to ask; an adapter that coerced it here would be deciding a rule
-	// (presentation/CLAUDE.md, ADR-0005).
+	// (rule 2, ADR-0005).
 	in := usecase.Input{"item_id": itemID.String(), "key": string(key), "value": body.Value}
 	if version, ok := versionFromIfMatch(params.IfMatch); ok {
 		in["expected_version"] = version

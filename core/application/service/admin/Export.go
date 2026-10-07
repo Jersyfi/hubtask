@@ -49,13 +49,13 @@ type ExportAccepted struct {
 	ExportID shared.ID
 }
 
-// ExportQuota is the §4 concurrency ceiling, resolved per workspace since H-08 - the quota
-// engine replaced this use case's own constants, as H-07 said it would.
+// ExportQuota is the concurrency ceiling of multi-tenancy.md §4, resolved per workspace by the
+// quota engine rather than held as this use case's own constants.
 type ExportQuota interface {
 	ExportJobs(ctx context.Context, tenant string) error
 }
 
-// ExportTenant accepts one workspace export (H-07): a job that writes the complete, documented
+// ExportTenant accepts one workspace export: a job that writes the complete, documented
 // archive of tenant-export.md to a configured backup target. It works for ACTIVE, SUSPENDED and
 // PENDING_DELETION workspaces alike - the suspended and the leaving are exactly who needs it -
 // and it is audited with its target, never its content.
@@ -146,7 +146,7 @@ func (h ExportTenant) Descriptor() usecase.Descriptor {
 		Name: ExportTenantName,
 		Summary: "Exports one workspace whole: a complete, documented JSON Lines archive plus " +
 			"media, written as a job to a configured backup target. Works for active, suspended " +
-			"and leaving workspaces alike; the format is docs/architecture/tenant-export.md.",
+			"and leaving workspaces alike, in the documented tenant export format.",
 		SideEffects: "Enqueues the export job and records the act - with its target, never its " +
 			"content - in the exported workspace's audit trail.",
 		TokenScope: adminTenantsScope,
@@ -162,7 +162,7 @@ func (h ExportTenant) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityWarning, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "the control plane acts on workspaces, not on items (domain-model.md §3.5).",
+			Exempt: "the control plane acts on workspaces, not on items.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

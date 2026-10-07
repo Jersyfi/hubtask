@@ -12,9 +12,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The address an INBOUND_WEBHOOK rule answers on (G-08). The same shape as the calendar feed's
-// token and the same tests, because the two credentials make the same promises - and the day one
-// of them stops making one, this is where it shows.
+// The address an INBOUND_WEBHOOK rule answers on. The same shape as the calendar feed's token and
+// the same tests, because the two credentials make the same promises - and the day one of them
+// stops making one, this is where it shows.
 
 var inboundTenant = shared.ID("018f2a1b-0000-7000-8000-0000000000ab")
 

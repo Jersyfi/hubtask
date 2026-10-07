@@ -1,12 +1,12 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // One list of steps on the canvas: the chain, or one arm of a branch (F8-04, decision 1).
+  // One list of steps on the canvas: the chain, or one arm of a branch (automation.md §1.5).
   //
   // Recursive, because a branch's arm is a list of steps like the chain is - the self-import is
   // how Svelte 5 recurses. Every gap carries one insertion point; a step that ends the run on
   // every path draws no gap after it but the end mark, because nothing runs after it
-  // (decision 19). A branch whose else arm holds only another branch is a ladder - if, else if,
+  // (automation.md §1.5). A branch whose else arm holds only another branch is a ladder - if, else if,
   // else - and is drawn as rungs rather than as arms inside arms; *+ Else if* under a branch
   // appends one.
 
@@ -23,7 +23,7 @@
 
   interface Props {
     steps: readonly Step[];
-    /** The whole chain, for the gaps to know what they may take (decision 14). */
+    /** The whole chain, for the gaps to know what they may take (automation.md §1.5). */
     actions: readonly Step[];
     /** The list's own path: `''` for the chain, `2/then` for an arm. */
     prefix: string;
@@ -40,17 +40,17 @@
     oninsert: (list: string, index: number, kind: string) => void;
     onremove: (path: string) => void;
     onfold: (path: string) => void;
-    /** Move one place up or down inside its list - what the drag does, by keyboard (F8-05). */
+    /** Move one place up or down inside its list - what the drag does, by keyboard. */
     onnudge: (path: string, direction: -1 | 1) => void;
-    /** Append a rung - an *else if* - under the ladder that starts at the branch (decision 19). */
+    /** Append a rung - an *else if* - under the ladder that starts at the branch (automation.md §1.5). */
     onaddrung: (path: string) => void;
-    /** Remove one rung of a ladder, its *otherwise* going to the rung above (decision 28). */
+    /** Remove one rung of a ladder, its *otherwise* going to the rung above (automation.md §1.5). */
     onremoverung: (path: string) => void;
     /** The drag in flight, and what happens when it starts, ends, or lands on a gap. */
     drag?: Drag;
     ondragchange: (drag: Drag | undefined) => void;
     ondrop: (list: string, index: number, drag: Drag) => void;
-    /** One arm at a time (decision 8): on a narrow screen, and from the second nesting depth. */
+    /** One arm at a time (automation.md §1.5): on a narrow screen, and from the second nesting depth. */
     segmented: boolean;
     armChoice: ReadonlyMap<string, 'then' | 'else'>;
     onpickarm: (path: string, arm: 'then' | 'else') => void;
@@ -119,7 +119,7 @@
 
 {#if prefix !== '' && steps.length > 0}
   <!-- A gap before an arm's first card too, so that a card can be dropped first without a
-       second move (the final check of F8-20); the chain's own leading gap is the canvas's. -->
+       second move; the chain's own leading gap is the canvas's. -->
   <InsertMenu {kinds} {summaries} {usage} {actions} list={prefix} index={0} onpick={oninsert} {drag} {ondrop} />
 {/if}
 {#each steps as step, index (pathOf(index))}
@@ -129,7 +129,7 @@
   {@const unreachable = unreachableFrom(steps) !== -1 && index >= unreachableFrom(steps)}
   {#if unreachable && index === unreachableFrom(steps)}
     <!-- A stored rule may hold steps after a stop (the server accepts one); the run never reaches
-         them, and the canvas says so once rather than drawing them as though it did (decision 14). -->
+         them, and the canvas says so once rather than drawing them as though it did (automation.md §1.5). -->
     <span class="never" role="note">{t('app.flow.card_never_reached')}</span>
   {/if}
   <div
@@ -223,7 +223,7 @@
         <span>
           <!-- A ladder folded says how many conditions it asks and how many steps hang off them:
                counting the next rung as one step of *otherwise* was the line the owner read as
-               wrong, and it was (decision 28). -->
+               wrong, and it was (automation.md §1.5). -->
           {#if isRung(step)}
             {@const ladder = rungsOf(step, path)}
             {t('app.flow.card_folded_ladder', {
@@ -238,7 +238,7 @@
     {:else if isRung(step)}
       <!-- The ladder: if / else if / … / else. Every rung but the first is the branch that is the
            sole step of the previous else arm; its condition is a card of its own, selected like
-           any card and edited in the panel (decision 19). -->
+           any card and edited in the panel (automation.md §1.5). -->
       {@const rungs = rungsOf(step, path)}
       {@const last = rungs[rungs.length - 1]!}
       <span class="stub"></span>
@@ -260,7 +260,7 @@
                   {#if verdicts?.get(rung.path)}{@const v = verdicts.get(rung.path)!}<span class="verdict inline" class:yes={v.state === 'yes'} class:no={v.state === 'no'}><Icon name={v.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(v)}</span>{/if}
                 </button>
                 <!-- A rung is removed where every other card is removed: by its own trash. What
-                     it held as *otherwise* goes to the rung above (decision 28). -->
+                     it held as *otherwise* goes to the rung above (automation.md §1.5). -->
                 <button
                   class="rtool"
                   type="button"
@@ -342,7 +342,7 @@
   {/if}
 
   {#if step.kind === 'BRANCH' && endsAllPaths(step)}
-    <!-- Every arm ends the run: the list ends here, and nothing may follow (decision 19). -->
+    <!-- Every arm ends the run: the list ends here, and nothing may follow (automation.md §1.5). -->
     <span class="endcap" data-end={path}><i></i>{t('app.flow.run_ends_every_path')}</span>
   {:else if !endsAllPaths(step)}
     <InsertMenu
@@ -367,7 +367,7 @@
 <style>
   .card {
     position: relative;
-    /* The border box is the width (decision 25), here as in `RuleCanvas`. */
+    /* The border box is the width (design-system.md §6), here as in `RuleCanvas`. */
     box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
@@ -477,7 +477,7 @@
   /* The fork: one column per arm with a gap between them, so the arms never touch. The bar runs
      from the one arm's centre to the other's - (W - gap) / 4 in from each edge - with a corner
      turning down at each end; the join is the same bar drawn per arm; the stem after it carries
-     on to the chain (decision 20). `grid-column: 1 / -1` on every line, or it sits in a column. */
+     on to the chain (automation.md §1.5). `grid-column: 1 / -1` on every line, or it sits in a column. */
   .arms {
     position: relative;
     box-sizing: border-box;
@@ -540,7 +540,7 @@
      an else-if rung's condition is a card of its own in the gate's notation. */
   .ladder { box-sizing: border-box; width: min(56ch, 100%); display: flex; flex-direction: column; gap: var(--sp-050); }
 
-  /* The gap is the room the selected condition's ring needs (decision 25): at `--sp-050` the
+  /* The gap is the room the selected condition's ring needs (design-system.md §6): at `--sp-050` the
      ring met the rail of the steps underneath. */
   .rung { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--sp-100); padding: var(--sp-100); border: var(--bw-hairline) solid var(--label-violet-fg); border-radius: var(--r-md); background: var(--bg-surface); }
 

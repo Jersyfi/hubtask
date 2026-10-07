@@ -221,7 +221,7 @@ func (o Outbox) CountPending(ctx context.Context) (int, error) {
 // way out it would mean that during a rolling update the old pod dead-letters the events the new
 // pod writes (ADR-0003, expand/contract). What is in the table was validated when it was written;
 // reading it back is not the place to have second thoughts.
-// FindEvent reads one event as it was written (G-03). The webhook deliverer renders its body from
+// FindEvent reads one event as it was written. The webhook deliverer renders its body from
 // this rather than from a copy in the job payload, so a retry two days later sends what the first
 // attempt would have.
 func (o Outbox) FindEvent(ctx context.Context, eventID shared.ID) (event.Envelope, error) {
@@ -248,7 +248,7 @@ func (o Outbox) FindEvent(ctx context.Context, eventID shared.ID) (event.Envelop
 	return envelopeFrom(sqlc.ClaimPendingEventsRow(row))
 }
 
-// Poll answers one type's events after a position, for an external trigger (G-04).
+// Poll answers one type's events after a position, for an external trigger.
 //
 // No tenant parameter and no tenant predicate, like every other read here: row level security has
 // already narrowed the table to the transaction's tenant, and a poller reading another workspace's
@@ -365,7 +365,7 @@ type Consumption struct {
 }
 
 // DispatchedEvents is the outbox as the retention engine sees it: what is due, and one batch of
-// it removed (G-02, ADR-0007's second countermeasure).
+// it removed (ADR-0007's second countermeasure).
 //
 // A type of its own rather than two more methods on Outbox, because the two have nothing to do
 // with each other beyond the table. Outbox is the write path and the dispatcher; this is the

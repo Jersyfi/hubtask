@@ -18,7 +18,7 @@
   // `validation_failed` on that request is about that key whatever path it names — a `SELECT`
   // outside its options and a `NUMBER` that is not one both arrive this way.
   //
-  // **`USER` is F3-07's picker, handed into the slot F3-05 left for it.** Who may be named is the
+  // **`USER` is the member picker, handed into the renderer's slot for it.** Who may be named is the
   // memberships along the entry's path, which is the same list the assignee picker offers.
 
   import { AssigneeControl, CapabilityGate, Stack, CustomFieldRenderer } from '@hubtask/design-system/components';
@@ -40,7 +40,7 @@
     item: WorkItem;
     path: Path;
     /**
-     * One definition's key, when the panel is a details row's editor (F9-08): the entry page
+     * One definition's key, when the panel is a details row's editor: the entry page
      * shows one row per definition, and each opens this panel for its own field alone. Without
      * it the panel draws every definition in force, as the section always did.
      */
@@ -49,7 +49,7 @@
 
   const { item, path, only }: Props = $props();
 
-  // A NUMBER field is written and read the way the reader's locale writes numbers (F5-09):
+  // A NUMBER field is written and read the way the reader's locale writes numbers:
   // the decimal mark is the manifest's for the resolved locale, else Intl's, and the text is
   // parsed before it reaches the contract.
   const separator = $derived(decimalSeparatorOf(messages.locale, manifest.supportedLocales));

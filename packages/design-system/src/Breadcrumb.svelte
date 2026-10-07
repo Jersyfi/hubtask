@@ -101,7 +101,8 @@
   }
 
   /* `start`/`end` and never left/right: the separator points the way the text runs, and the
-     chevron turns round with the direction by itself (`Icon`'s mirrored set, F5-10). */
+     chevron turns round with the direction by itself (`Icon`'s mirrored set, design-system.md
+     §3). */
   .separator {
     display: inline-flex;
     flex: none;

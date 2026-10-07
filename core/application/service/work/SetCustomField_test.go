@@ -237,8 +237,8 @@ func TestAKeyNothingDefinesIsRefused(t *testing.T) {
 	}
 }
 
-// The acceptance C-07 names by hand: a collection-scoped field is refused on an entry in another
-// collection. The definition exists; it is simply not in this entry's scope.
+// A collection-scoped field is refused on an entry in another collection. The definition exists; it
+// is simply not in this entry's scope.
 func TestACollectionScopedFieldIsOutOfScopeElsewhere(t *testing.T) {
 	h := newValueHarness(t)
 	h.withItem(domain.ItemTask)

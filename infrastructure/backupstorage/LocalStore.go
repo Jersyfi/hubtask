@@ -243,7 +243,7 @@ func (s LocalStore) Delete(_ context.Context, key string) error {
 // per archive accumulate for ever - and, with content-addressed media, two hundred and fifty-six
 // empty prefix directories under each. It is best-effort: a directory that will not go is a
 // directory somebody else put something in, which is exactly the case where leaving it is right
-// (E-05, backup-restore.md §6).
+// (backup-restore.md §6).
 func (s LocalStore) pruneEmpty(from string) {
 	for path := from; ; path = filepath.Dir(path) {
 		if inside, err := filepath.Rel(s.root, path); err != nil || inside == "." || strings.HasPrefix(inside, "..") {

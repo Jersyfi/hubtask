@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The statements the reminders run on, against a real database (D-02): the round trip through the
+// The statements the reminders run on, against a real database: the round trip through the
 // two array columns, the bound, the recomputation a moved due date causes, the purge that takes
 // the reminders with the entry, and a cross-tenant negative for every method (gate SG-3).
 
@@ -403,7 +403,7 @@ func TestRemindersAreInvisibleFromAnotherTenant(t *testing.T) {
 		}
 	})
 
-	// The three the firing pass runs on (D-03). A pass in the wrong tenant claims nothing, settles
+	// The three the firing pass runs on. A pass in the wrong tenant claims nothing, settles
 	// nothing and is told the tenant owes nothing - which is what keeps one tenant's scheduler
 	// from firing another's reminders.
 	t.Run("claim due", func(t *testing.T) {
@@ -463,7 +463,7 @@ func TestRemindersAreInvisibleFromAnotherTenant(t *testing.T) {
 	})
 }
 
-// Gate SG-3 for the scheduling scan (D-03): one negative per method. A pass in the wrong tenant
+// Gate SG-3 for the scheduling scan: one negative per method. A pass in the wrong tenant
 // announces nothing, and the entry it could not see keeps its deadline unannounced.
 func TestTheDueAnnouncementScanStopsAtTheTenantBoundary(t *testing.T) {
 	ctx := context.Background()
@@ -543,9 +543,9 @@ func TestTheDueAnnouncementScanStopsAtTheTenantBoundary(t *testing.T) {
 	}
 }
 
-// The merge rule offline-sync.md §4.2 gains for a reminder, proved the way D-01 proved the due
-// trio's: two devices editing two different fields converge to both, because each field is its own
-// change log entry and the version predicate makes the loser re-read rather than overwrite.
+// The merge rule offline-sync.md §4.2 gives a reminder, proved the same way as the due trio's: two
+// devices editing two different fields converge to both, because each field is its own change log
+// entry and the version predicate makes the loser re-read rather than overwrite.
 //
 // The second field is the recipients rather than the channels: this installation sends on one
 // channel, so a channel list has nothing to change to, and the rule under test is per field rather

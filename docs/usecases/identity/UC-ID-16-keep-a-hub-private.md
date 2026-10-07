@@ -58,5 +58,10 @@ administrator decided private hubs are not allowed; nobody there can make one.
 
 ## Today
 
-* **Not built.** Rights only add up in the authorization model today. Decided 2026-09-30 as
-  ADR-0073; milestone PH, tasks PH-04 and PH-05.
+* Check 1: not met — there are no private hubs; rights only add up in the authorisation model, tracked in #1089.
+* Check 2: not met — nothing hides a hub from the workspace's owners and administrators, tracked in #1089.
+* Check 3: not met — there is no per-hub overview without the name for administrators, tracked in #1089.
+* Check 4: not met — there is no emergency access, tracked in #1090.
+* Check 5: not met — backups, the export and a restore know no private hubs, tracked in #1089.
+* Check 6: not met — nothing handles the last member leaving a private hub, tracked in #1089.
+* Check 7: not met — there is no *Private hubs allowed* setting, tracked in #1090.

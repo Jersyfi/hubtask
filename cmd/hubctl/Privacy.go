@@ -166,7 +166,7 @@ func dsrList(ctx context.Context, cli *CLI, args []string) error {
 }
 
 // casePage is the answer to `GET /privacy/requests`: `data` and a `PageInfo`, as every listing in
-// this API has, and inline in the contract like the others of this milestone.
+// this API has, and inline in the contract like the other privacy schemas.
 type casePage struct {
 	Data []openapi.DataSubjectRequest `json:"data"`
 	Page openapi.PageInfo             `json:"page"`

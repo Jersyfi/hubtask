@@ -168,7 +168,7 @@ func TestACreationOutOfReachStaysForbidden(t *testing.T) {
 	}
 }
 
-// A request that names no entry is decided by the permission alone, exactly as before C-04.
+// A request that names no entry is decided by the permission alone.
 func TestAContainerRequestIsUnchanged(t *testing.T) {
 	authorize, store, _, _ := serviceWith(held(identity.TenantScope(), identity.RoleAdmin))
 
@@ -197,7 +197,7 @@ func changeTo(entry audit.Entry, field string) string {
 }
 
 // A list anchored to a container has two right answers rather than one, and ReachInto is where
-// that is decided (C-04).
+// that is decided.
 func TestAListReachesTheWholeContainerOrOnlyWhatWasShared(t *testing.T) {
 	listRequest := Request{
 		Permission: service.PermissionRead,

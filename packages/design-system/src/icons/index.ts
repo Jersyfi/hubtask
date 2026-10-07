@@ -36,7 +36,7 @@ export const ICON_NAMES = Object.keys(ICONS).sort() as IconName[];
  * The icons that turn round with the writing direction: the base set's arrows and chevrons, and
  * the two marks that draw a flow - an automation runs from its trigger to its action, a
  * dependency hangs off what it waits for - which reads the other way in Arabic. A clock, a
- * check, a calendar and every noun stay as drawn (i18n-l10n.md §6 line 6, F5-10).
+ * check, a calendar and every noun stay as drawn (i18n-l10n.md §6 line 6).
  */
 export const MIRRORED: ReadonlySet<IconName> = new Set<IconName>([...BASE_MIRRORED, 'automation', 'dependency']);
 

@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// MOVE (N-06, offline-sync.md §4.2's hierarchy row): where an entry sits. The payload names the
+// MOVE (offline-sync.md §4.2's hierarchy row): where an entry sits. The payload names the
 // destination - `parent_id` (null for the top level), and optionally `collection_id`, `bucket_id`
 // and the `order_key` the device computed there - and the mutation's reading is the hierarchy's.
 // Last writer wins on the parent's clock; a move the clock accepts but that would close a cycle

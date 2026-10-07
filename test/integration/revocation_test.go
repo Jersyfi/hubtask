@@ -22,7 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// revocationsFor is the revocation service against the real repositories (N-08), the way
+// revocationsFor is the revocation service against the real repositories, the way
 // cmd/server/main.go builds it.
 func revocationsFor(t *testing.T, permits access.Permitter) access.Revocations {
 	t.Helper()

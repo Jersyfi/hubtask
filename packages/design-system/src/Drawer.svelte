@@ -15,11 +15,11 @@
   //
   // The **edge** is `inline-start`/`inline-end`, never left and right. A drawer that opened from
   // the left in Arabic would be a drawer opening from the far side of the reading direction, and
-  // that is what the direction axis exists to catch. `block-end` is the third edge (F8-05): a
+  // that is what the direction axis exists to catch. `block-end` is the third edge: a
   // sheet that rises from the bottom over a canvas that stays where it was, for a screen too
   // narrow to hold a panel beside it - the same one glass surface at a time (rule 2).
   //
-  // A sheet **keeps its head and is sized by the reader** (F8-24, `milestone-F8.md` decision 27).
+  // A sheet **keeps its head and is sized by the reader** (design-system.md §4, Wave 2).
   // Its head - the title and the close - stays put and only the body scrolls, because a sheet
   // whose close scrolls away is a sheet that cannot be closed without scrolling back up. With
   // `isResizable` it carries a handle above the head: dragged, or moved by the arrow keys, it sizes
@@ -44,7 +44,7 @@
     onClose?: () => void;
     /** The controls that belong to the panel rather than to its content. */
     actions?: Snippet;
-    /** A sheet the reader sizes by a handle (F8-24): `block-end` only, where a sheet is what this is. */
+    /** A sheet the reader sizes by a handle: `block-end` only, where a sheet is what this is. */
     isResizable?: boolean;
     /** The sheet's share of the screen while it is resizable, between `MIN_SIZE` and `MAX_SIZE`. */
     size?: number;
@@ -283,8 +283,8 @@
   :global([dir='rtl']) .drawer[data-edge='inline-start'] { --slide-from: 100%; }
 
   /* A sheet the reader sizes: exactly the share it was dragged to, its head staying while the
-     body scrolls (decision 27). `block-size` rather than `max-block-size`, or a short panel would
-     shrink back and the handle would jump under the finger. */
+     body scrolls (design-system.md §4, Wave 2). `block-size` rather than `max-block-size`, or a
+     short panel would shrink back and the handle would jump under the finger. */
   .drawer.sized {
     block-size: calc(var(--sheet-share, 0.5) * 100%);
     max-block-size: 100%;

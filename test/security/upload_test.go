@@ -8,8 +8,8 @@
 // decided - with the files the threat model names: SVG, HTML, a polyglot, a lying content type,
 // and a body past the limit. Each is refused, or comes out the other end inert: a download from
 // a separate origin, never a rendering path (delivery adds `Content-Disposition: attachment` and
-// `Content-Security-Policy: sandbox` in C-06; what this gate pins is that nothing upstream ever
-// classifies such a file as inline-renderable).
+// `Content-Security-Policy: sandbox`; what this gate pins is that nothing upstream ever classifies
+// such a file as inline-renderable).
 package security
 
 import (

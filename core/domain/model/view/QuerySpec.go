@@ -12,10 +12,10 @@ import (
 
 // Spec is one query: where to look, what to keep, in which order, how grouped, and how much.
 //
-// It is the whole of what `POST /items:query` means, and what a saved view will store when 0.5.0
-// gets one (domain-model.md §5). Everything in it has been through the grammar - a Spec that a use
-// case handed to an adapter names only fields this installation serves, only operators those
-// fields permit, and only values of the kind they hold.
+// It is the whole of what `POST /items:query` means, and what a saved view stores (domain-model.md
+// §5). Everything in it has been through the grammar - a Spec that a use case handed to an adapter
+// names only fields this installation serves, only operators those fields permit, and only values
+// of the kind they hold.
 type Spec struct {
 	Scope  Scope
 	Filter *Node
@@ -33,10 +33,10 @@ type Spec struct {
 	Count           CountMode
 }
 
-// MaxExportRows bounds one export of a view (D-08). Ten times the bulk bound of 500, and the
-// largest answer this API composes in one piece: a spreadsheet of five thousand rows is a real
-// export, and a person who needs more than that wants a job with a file at the end of it rather
-// than a request that holds a connection open (api-guidelines.md §5, T-17).
+// MaxExportRows bounds one export of a view. Ten times the bulk bound of 500, and the largest
+// answer this API composes in one piece: a spreadsheet of five thousand rows is a real export, and
+// a person who needs more than that wants a job with a file at the end of it rather than a request
+// that holds a connection open (api-guidelines.md §5, T-17).
 //
 // A bound rather than a silence: a result that reached it is answered whole up to here and says
 // so, in the projection and in the response header alike. It lives here beside the query's own

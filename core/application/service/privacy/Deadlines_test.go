@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// The deadline watch (E-10, alert A-19). "Without deadline monitoring, the right gets violated in
+// The deadline watch (alert A-19). "Without deadline monitoring, the right gets violated in
 // practice even though the feature exists" - so what is under test is that a case near its deadline
 // is reported, that a late one keeps being reported, and that a quiet workspace costs nothing.
 

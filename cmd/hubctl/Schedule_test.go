@@ -10,7 +10,7 @@ import (
 )
 
 // The one piece of grammar the CLI adds on top of the contract: --at takes a day or a moment, and
-// which one was typed decides whether the entry is due all day or at a time (D-01, D-09).
+// which one was typed decides whether the entry is due all day or at a time.
 
 const datedItem = `{"id":"` + itemID + `","type":"TASK","title":"Buy milk","version":3,
   "collection_id":"` + collectionID + `","completion":{"is_completed":false},

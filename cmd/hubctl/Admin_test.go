@@ -180,7 +180,7 @@ func TestExportingAWorkspaceFollowsTheJobItBecame(t *testing.T) {
 	}
 }
 
-// The archive goes to a configured target and nowhere else - E-09's one discipline for "bytes
+// The archive goes to a configured target and nowhere else - the one discipline for "bytes
 // leave the installation" - so a request without one is refused before the round trip.
 func TestExportingNeedsATarget(t *testing.T) {
 	stub := serve(t, func(http.ResponseWriter, *http.Request) {
@@ -252,7 +252,7 @@ func TestResealingSaysWhereToWatchTheRounds(t *testing.T) {
 	}
 }
 
-// ADR-0078 §3 (SC-34): the operator's lever, from the terminal. Who asked and why travel with the
+// ADR-0078 §3: the operator's lever, from the terminal. Who asked and why travel with the
 // hours, and the proof in the header the act takes it in - as the dashboard sends it.
 func TestOpeningThePasswordProvesAgainAndSaysUntilWhen(t *testing.T) {
 	var proofHeader string

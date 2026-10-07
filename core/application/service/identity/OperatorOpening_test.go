@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// ADR-0078 §3 (SC-34): for a provider that is switched on but broken, an operator opens the password
+// ADR-0078 §3: for a provider that is switched on but broken, an operator opens the password
 // for one workspace for a limited time. It is the fallback with the cause OPERATOR: the workspace's
 // own switch and any installation lock give way to it, it ends on its own, and under it an account
 // without a password is mailed a link to set one.
@@ -142,9 +142,9 @@ func TestAnOpeningWhereThePasswordIsOnIsNoFallback(t *testing.T) {
 	}
 }
 
-// Under the opening, SC-25's first-password link applies to an account connected only to a provider:
-// the provider is on, so without the opening the mail points to it - and under the opening, which
-// exists because that provider is broken, it carries a link to set a password.
+// Under the opening, the first-password link (ADR-0077 §3) applies to an account connected only to
+// a provider: the provider is on, so without the opening the mail points to it - and under the
+// opening, which exists because that provider is broken, it carries a link to set a password.
 func TestUnderAnOpeningAProviderOnlyAccountIsMailedAFirstPassword(t *testing.T) {
 	f := fallbackFixture(t)
 	withoutPassword(f)
@@ -187,9 +187,9 @@ func TestUnderAnOpeningAProviderOnlyAccountIsMailedAFirstPassword(t *testing.T) 
 	}
 }
 
-// SC-33's connect link is for a workspace whose password is shut: the mailbox stands in for it there.
+// The connect link is for a workspace whose password is shut: the mailbox stands in for it there.
 // Under an operator's opening the password is open, so the reset mails what it mails wherever the
-// password is open - the reset link to a password holder, SC-25's first-password link to an account
+// password is open - the reset link to a password holder, the first-password link to an account
 // without one - and never a link to connect a provider (ADR-0078 §1, §3, §4).
 func TestUnderAnOpeningNoConnectLinkIsMailed(t *testing.T) {
 	for name, arrange := range map[string]func(*stepFixture){
@@ -217,7 +217,7 @@ func TestUnderAnOpeningNoConnectLinkIsMailed(t *testing.T) {
 }
 
 // A connect link mailed before the operator opened the password is refused at the start while the
-// opening stands: the password is open, and the reset link is the way in there (SC-33's door).
+// opening stands: the password is open, and the reset link is the way in there.
 func TestUnderAnOpeningAConnectLinkStartsNoFlow(t *testing.T) {
 	f := connectFixture(t)
 	f.writer.Session.Rule = shutDoor{open: true, cause: FallbackCauseOperator}

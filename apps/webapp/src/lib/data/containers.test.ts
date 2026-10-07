@@ -11,8 +11,8 @@ import { archivalOf } from './containers.ts';
 const collection = (id: string, name: string, parent: string, extra: Partial<Container> = {}): Container =>
   ({ id, type: 'COLLECTION', name, parent_id: parent, order_key: 'a0', version: 1, ...extra }) as Container;
 
-// The tree-shaping tests that used to sit here went with `groupByHub`. The API reads one level at
-// a time, so there is no flat list to group and nothing to assert about grouping one.
+// No tree-shaping test here: the API reads one level at a time, so there is no flat list to group
+// and nothing to assert about grouping one.
 
 // --- the archive ------------------------------------------------------------------------------
 

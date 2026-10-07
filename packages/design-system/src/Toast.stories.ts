@@ -14,7 +14,7 @@ export default {
 export const tones: Story = {
   name: 'The four tones',
   about:
-    'Switch Motion to Reduced and raise one again: the slide becomes an appearance, which is rule 6’s floor. Where the stack sits is the frame’s decision (F1-10) — a toast that positioned itself would put the second one on top of the first.',
+    'Switch Motion to Reduced and raise one again: the slide becomes an appearance, which is rule 6’s floor. Where the stack sits is the frame’s decision — a toast that positioned itself would put the second one on top of the first.',
 };
 
 export const focus: Story = {

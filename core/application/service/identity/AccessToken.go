@@ -37,7 +37,7 @@ const (
 	accountsRead = "accounts:read"
 
 	// The audit codes. A credential is an asset in its own right, so both its minting and its
-	// withdrawal are auditable acts (audit.md §2).
+	// withdrawal are auditable acts (audit.md §4).
 	TokenCreatedAction audit.Action = "access.token_created"
 	TokenRevokedAction audit.Action = "access.token_revoked"
 	// TokenReadAction is what a listing performs. Declared so that the three share one target
@@ -63,21 +63,20 @@ type AccessTokenWriter struct {
 	// Entropy is where the secret half comes from. A port, so that production draws from
 	// crypto/rand and a test can fix the credential it asserts on (rule 4).
 	Entropy clock.Entropy
-	// Text brings the token's name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the token's name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 	// KnownScopes is every scope this build declares, which is the union of the descriptors'.
 	// It is passed in rather than read, because the catalogue is assembled from these very use
 	// cases and a package that imported it would close the circle (ADR-0001).
 	KnownScopes []string
-	// StepUp judges the fresh proof an admin-scoped mint demands (H-03, security.md §5).
+	// StepUp judges the fresh proof an admin-scoped mint demands (identity.md §16.3).
 	StepUp stepup.Verifier
-	// Operators is the register of ADR-0070 §1. Nil is an installation wired before it, where the
-	// proof alone is the whole of the check - which is what this route did until the register
-	// existed, and what a private installation's empty register answers anyway.
+	// Operators is the register of ADR-0070 §1. Nil leaves the proof alone as the whole of the
+	// check, which is what a private installation's empty register answers anyway.
 	Operators repository.Operators
 }
 
-// adminScopes are the scopes whose minting is a privileged action (security.md §5): the control
+// adminScopes are the scopes whose minting is a privileged action (identity.md §16.3): the control
 // plane's. A set here rather than a naming convention, so a future scope joins it deliberately.
 var adminScopes = map[string]bool{"admin:tenants": true}
 
@@ -114,7 +113,7 @@ type CreateAccessTokenCommand struct {
 	Name      string
 	Scopes    []string
 	ExpiresAt time.Time
-	// StepUpToken is the fresh proof an admin-scoped mint demands (H-03).
+	// StepUpToken is the fresh proof an admin-scoped mint demands.
 	StepUpToken string
 }
 
@@ -128,7 +127,7 @@ type MintedToken struct {
 	Secret secret.Secret
 }
 
-// CreateAccessToken mints a personal access token and answers it once (G-01).
+// CreateAccessToken mints a personal access token and answers it once.
 type CreateAccessToken struct{ Writer AccessTokenWriter }
 
 // Execute mints the credential.
@@ -153,11 +152,10 @@ func (h CreateAccessToken) Execute(
 	for _, scope := range cmd.Scopes {
 		if adminScopes[scope] {
 			// A token that could reach the control plane is minted behind a fresh proof
-			// (security.md §5), consumed by this one mint - **and** by somebody the register
-			// names. The proof alone was the whole of it until ADR-0070 §1, which made it true
-			// that anybody who could pass a step-up could provision, suspend and delete every
-			// workspace on the installation. The register is checked here and again where the
-			// scope is exercised, because either alone is a hole.
+			// (identity.md §16.3), consumed by this one mint - **and** by somebody the register
+			// names. The proof alone would let anybody who could pass a step-up provision, suspend
+			// and delete every workspace on the installation (ADR-0070 §1). The register is
+			// checked here and again where the scope is exercised, because either alone is a hole.
 			if err := w.requireOperator(ctx, actor); err != nil {
 				return MintedToken{}, err
 			}
@@ -408,7 +406,7 @@ func (w AccessTokenWriter) recordAudit(
 		Outcome:    audit.OutcomeSuccess,
 		// Notice rather than info, on InviteAccount's reasoning: somebody now has a way into this
 		// workspace, or one has just been taken away. Both are the class of event a review looks
-		// for, and a listing is not (audit.md §2).
+		// for, and a listing is not (audit.md §4).
 		Severity:   audit.SeverityNotice,
 		ActorKind:  actor.Kind,
 		ActorID:    actor.AccountID,
@@ -511,7 +509,7 @@ func (h CreateAccessToken) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "step_up_token", Kind: usecase.KindString,
-				Description: "The fresh proof an admin-scoped mint demands (security.md §5).",
+				Description: "The fresh proof an admin-scoped mint demands.",
 			},
 		},
 		StepUp: "asking for an admin scope",

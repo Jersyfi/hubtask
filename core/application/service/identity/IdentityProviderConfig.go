@@ -44,7 +44,7 @@ const (
 // to be limited by.
 const MaxProvidersPerWorkspace = 10
 
-// The audit codes of the relying party (H-04). Pointing a workspace at a provider, and taking
+// The audit codes of the relying party. Pointing a workspace at a provider, and taking
 // the pointer away, are both events a review looks for by name.
 const (
 	IdentityProviderConfiguredAction audit.Action = "identity.provider_configured"
@@ -53,7 +53,7 @@ const (
 )
 
 // ClientSecretPurpose binds a sealed client secret to the level it belongs to, so a ciphertext
-// lifted from one workspace's row into another's does not open (E-02, mfaSecretPurpose's reasoning).
+// lifted from one workspace's row into another's does not open (mfaSecretPurpose's reasoning).
 //
 // The level rather than the row, and a zero tenant is the installation's own - which is what lets
 // the control plane's providers use the same function as a workspace's. Exported for the one caller
@@ -87,7 +87,7 @@ type IdentityProviderWriter struct {
 // sentence a client reads beside the field is one sentence.
 var ProviderStepUpField = usecase.Field{
 	Name: "step_up_token", Kind: usecase.KindString,
-	Description: "The fresh proof a change to a way in demands (ADR-0071's addendum): the " +
+	Description: "The fresh proof a change to a way in demands: the " +
 		"X-Hubtask-Step-Up header.",
 }
 
@@ -168,9 +168,10 @@ func (w IdentityProviderWriter) withOffers(
 
 // ConfigureIdentityProvider writes one, new or existing.
 //
-// **One use case for both**, which is decision 2's reasoning applied to a second thing that has a
-// rule: the preset's refusals, the discovery check and the audit entry would otherwise be written
-// twice and drift once. Which of the two it is, is whether an identifier came with it.
+// **One use case for both**, the reasoning of the one use case that sets every password
+// (identity.md §6) applied to a second thing that has a rule: the preset's refusals, the discovery
+// check and the audit entry would otherwise be written twice and drift once. Which of the two it
+// is, is whether an identifier came with it.
 type ConfigureIdentityProvider struct{ Writer IdentityProviderWriter }
 
 // ConfigureIdentityProviderCommand is the input, typed.
@@ -191,7 +192,7 @@ type ConfigureIdentityProviderCommand struct {
 	// Enabled is the deprecated switch on the form (ADR-0076 §5). Nil is "not given". At a
 	// workspace's own doors it may only repeat what the row holds - see switchInList. At the
 	// installation it says at creation whether the provider is offered, absent being on; afterwards
-	// an offer ends through the withdrawal (§2) and a changed value is refused.
+	// an offer ends through the withdrawal (ADR-0076 §2) and a changed value is refused.
 	Enabled *bool
 	// StepUpToken is the fresh proof the change carries (the X-Hubtask-Step-Up header).
 	StepUpToken string
@@ -531,8 +532,8 @@ func (w IdentityProviderWriter) record(
 		ActorID:    actor.AccountID,
 		ActorLabel: actor.AccountName,
 		TargetType: identityProviderTarget,
-		// The row is the target since SI-10: there are several, and which one changed is the
-		// first thing a reader of the trail needs.
+		// The row is the target: there are several, and which one changed is the first thing a
+		// reader of the trail needs.
 		TargetID: configured.ID,
 		Context:  audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		Changes:  audit.Changes(changes...),

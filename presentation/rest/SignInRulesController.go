@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The rules a signed-out visitor may read (ADR-0068 §7, SI-02).
+// The rules a signed-out visitor may read (ADR-0068 §7).
 //
 // The controller holds no rules, as ever: what a workspace demands of a password is resolved
 // inwards of here, and this layer maps a request to an input and an answer to a document. The one

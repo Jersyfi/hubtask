@@ -22,8 +22,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The jumble against a real database (G-10): the row survives whole, the settlement is a single
-// raced statement, and a cross-tenant negative for every method (gate SG-3).
+// The jumble against a real database: the row survives whole, the settlement is a single raced
+// statement, and a cross-tenant negative for every method (gate SG-3).
 
 func jumbleRepo() postgres.JumbleRepository {
 	return postgres.NewJumbleRepository(pageCursors())
@@ -86,14 +86,13 @@ func TestAJumbleEntrySurvivesTheRowWhole(t *testing.T) {
 	if stored.SettledAt != nil {
 		t.Error("a fresh entry claims a settlement")
 	}
-	// The tenant, which the projection did not carry until J-16 (found by the end-to-end session).
+	// The tenant, which the projection can leave out without anything noticing.
 	//
-	// Row level security bounds the read, so nothing about the *query* needed it and nothing
-	// noticed - but the events a settlement announces are built from this projection, and an entry
-	// with no tenant cannot be the subject of one. Every conversion refused
-	// `events.envelope_incomplete`: through a rule, through the API, and through an accepted
-	// suggestion. The service tests could not see it, because their fixtures set the field the
-	// adapter was leaving empty.
+	// Row level security bounds the read, so nothing about the *query* needs it - but the events a
+	// settlement announces are built from this projection, and an entry with no tenant cannot be
+	// the subject of one. Without it every conversion is refused `events.envelope_incomplete`:
+	// through a rule, through the API, and through an accepted suggestion. The service tests cannot
+	// see it, because their fixtures set the field the adapter would leave empty.
 	if stored.TenantID != tenantA {
 		t.Errorf("the entry came back belonging to %q, want its own workspace - an entry with no "+
 			"tenant cannot be the subject of the event its settlement announces", stored.TenantID)
@@ -228,7 +227,7 @@ func TestAJumbleEntryCannotBeReachedFromAnotherTenant(t *testing.T) {
 	}
 }
 
-// The recount counts a jumble entry's attachments as references (G-10): an object a mail brought
+// The recount counts a jumble entry's attachments as references: an object a mail brought
 // in must not be reclaimed while the entry that carries it is still readable.
 func TestARecountCountsJumbleAttachments(t *testing.T) {
 	ctx := context.Background()
@@ -314,7 +313,7 @@ func TestAnOriginIsRecordedOnceAndInsideTheTenant(t *testing.T) {
 	}
 }
 
-// The intake credential against the real database (G-10): minting replaces in one statement, the
+// The intake credential against the real database: minting replaces in one statement, the
 // lookup answers only under the tenant the token names, and the hash store never says more than a
 // moment.
 func TestTheIntakeTokenRotatesAndStaysInsideItsTenant(t *testing.T) {
@@ -389,7 +388,7 @@ func bytesOf(fill byte) []byte {
 	return drawn
 }
 
-// The retention sweep against a real database (G-10, data-retention.md §3): what was never
+// The retention sweep against a real database (data-retention.md §3): what was never
 // converted ages out, what became a work item stays, and one tenant's cutoff never reaches
 // another tenant's inbox (gate SG-3, RE-8).
 func TestTheJumbleSweepTakesWhatWasNeverConverted(t *testing.T) {

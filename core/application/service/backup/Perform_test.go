@@ -598,7 +598,7 @@ func TestAChainWhoseParentIsGoneIsRefused(t *testing.T) {
 	}
 }
 
-// The trial restore (B-4, P-14): a FULL run with the flag on reads its own archive back and the
+// The trial restore (B-4, backup-restore.md §5): a FULL run with the flag on reads its own archive back and the
 // run carries what the trial found; an archive damaged between the write and the trial fails the
 // run with the code and the member.
 

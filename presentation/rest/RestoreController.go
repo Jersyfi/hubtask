@@ -171,7 +171,7 @@ func (c *RestController) StartRestore(w http.ResponseWriter, r *http.Request) {
 	// The one field of the contract this installation does not serve, and it is refused rather
 	// than ignored. A passphrase that had no effect would leave somebody believing the archive
 	// they are restoring was protected by one - and the key an archive is written under is derived
-	// from the installation's master key rather than from anything a caller sends (E-02).
+	// from the installation's master key rather than from anything a caller sends.
 	if body.DecryptionPassphrase != nil && *body.DecryptionPassphrase != "" {
 		WriteProblem(w, shared.ErrValidation.
 			WithDetail("backup.encryption_passphrase_not_available").

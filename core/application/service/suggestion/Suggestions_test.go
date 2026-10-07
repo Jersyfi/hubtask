@@ -300,7 +300,7 @@ var (
 	tenantID   = shared.MustParseID("0192f000-0000-7000-8000-0000000000f3")
 	accountID  = shared.MustParseID("0192f000-0000-7000-8000-0000000000f4")
 	now        = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
-	// containerTargetID is the collection a summary of how it stands is about (K-05).
+	// containerTargetID is the collection a summary of how it stands is about.
 	containerTargetID = shared.MustParseID("0192f000-0000-7000-8000-0000000000f5")
 )
 
@@ -345,7 +345,7 @@ type world struct {
 	// convertedItemID is the item a conversion answers, which is the only place the walk under it
 	// may read its parent from.
 	convertedItemID shared.ID
-	// The material a summary is made from (K-05): a collection's name, the discussion on an entry,
+	// The material a summary is made from: a collection's name, the discussion on an entry,
 	// and the entries directly in a collection.
 	containerName string
 	comments      []usecase.Output
@@ -423,7 +423,7 @@ func (w *world) Invoke(
 		// it and a test about the *applier* is not stopped by the fingerprint.
 		// `data`, which is the key ListJumbleEntries actually answers under. A fake that invented
 		// `items` is how the wrong key survived until an end-to-end session asked for a
-		// suggestion (J-16).
+		// suggestion.
 		return usecase.Output{"data": []usecase.Output{{
 			"id": targetID.String(), "raw_subject": w.title, "raw_body": "",
 		}}}, nil
@@ -783,7 +783,7 @@ func TestOverridesApplyToEveryPieceOfABreakdown(t *testing.T) {
 	}
 }
 
-// The subtasks a note implied, once somebody accepts it (K-01). The entry is converted by the use
+// The subtasks a note implied, once somebody accepts it. The entry is converted by the use
 // case that owns converting, and each title becomes a child through the use case that owns
 // creating - in the order a person read them.
 func TestAcceptingAJumbleProposalGrowsTheWorkItImplied(t *testing.T) {
@@ -810,7 +810,7 @@ func TestAcceptingAJumbleProposalGrowsTheWorkItImplied(t *testing.T) {
 		t.Fatal("the entry was not converted")
 	}
 	// The titles are the walk's, not the conversion's: a key ConvertJumbleEntry does not declare
-	// would be refused by the registry, which is the defect J-16 fixed from the other side.
+	// would be refused by the registry, and the whole acceptance with it.
 	if _, held := converted["subtasks"]; held {
 		t.Errorf("the titles were handed to the conversion: %v", converted)
 	}
@@ -943,7 +943,7 @@ func TestASubtaskTitleThatIssuesInstructionsIsATitle(t *testing.T) {
 }
 
 // Accepting a classification puts the entry in the column it chose - through the use case that
-// owns moving, as the accepting person (K-02).
+// owns moving, as the accepting person.
 func TestAcceptingAClassificationMovesTheEntryThroughTheOrdinaryUseCase(t *testing.T) {
 	cases, world := newWorld()
 	world.store.proposals[proposalID] = classified()
@@ -964,7 +964,7 @@ func TestAcceptingAClassificationMovesTheEntryThroughTheOrdinaryUseCase(t *testi
 		case "UpdateWorkItem":
 			// Every key a classification proposes is grown - the labels, the column and the
 			// fields are each their own use case - so the applier would be asked to update
-			// nothing, and the real one refuses that (#696). It is not called.
+			// nothing, and the real one refuses that. It is not called.
 			t.Errorf("the applier was asked to update nothing: %v", call.in)
 		}
 	}
@@ -982,9 +982,9 @@ func TestAcceptingAClassificationMovesTheEntryThroughTheOrdinaryUseCase(t *testi
 	}
 }
 
-// The defect #696 records, as the walk found it: a classification that chose labels and nothing
-// else - the collection had no columns - was refused as an empty update, because the applier was
-// called with nothing but the target. The double refuses an empty update the way UpdateWorkItem
+// A classification that chose labels and nothing else - the collection had no columns - must not
+// be refused as an empty update, which is what calling the applier with nothing but the target
+// produces. The double refuses an empty update the way UpdateWorkItem
 // does, so the test fails on the code it was written against.
 func TestAcceptingLabelsAloneMakesNoEmptyUpdate(t *testing.T) {
 	cases, world := newWorld()
@@ -1047,7 +1047,7 @@ func TestAClassificationWithNoColumnMovesNothing(t *testing.T) {
 	}
 }
 
-// A summary of how a collection stands is read and dismissed (K-05). There is nowhere to put it,
+// A summary of how a collection stands is read and dismissed. There is nowhere to put it,
 // and the refusal says so rather than saying the feature is missing.
 func TestACollectionSummaryIsReadAndDismissedRatherThanApplied(t *testing.T) {
 	cases, world := newWorld()
@@ -1095,7 +1095,7 @@ func classified() domain.Suggestion {
 
 // Each proposed value is written by the use case that owns a custom field: one key per call,
 // because the merge rule is per key, and in key order so that two acceptances of one proposal read
-// the same afterwards (K-03).
+// the same afterwards.
 func TestAcceptingAClassificationWritesTheValuesItProposed(t *testing.T) {
 	cases, world := newWorld()
 	world.store.proposals[proposalID] = classified()
@@ -1145,7 +1145,7 @@ func TestAClassificationIsRefusedWhenAValueIs(t *testing.T) {
 const doingColumn = "0192f000-0000-7000-8000-0000000000b2"
 
 // Each chosen label is put on the entry through the use case that owns a label: a label is a set
-// entry and not a field, which is why `UpdateWorkItem` has no such input and never should (K-02).
+// entry and not a field, which is why `UpdateWorkItem` has no such input and never should.
 func TestAcceptingAClassificationPutsTheChosenLabelsOnTheEntry(t *testing.T) {
 	cases, world := newWorld()
 	world.store.proposals[proposalID] = classified()
@@ -1219,9 +1219,10 @@ func breakdown() domain.Suggestion {
 	return stored
 }
 
-// A proposed due date used to be dropped before the write: `ConvertJumbleEntry` declares no due
-// date at all, so the narrowing threw the key away and a provider was paid for an answer nobody
-// read. It is applied by the use case that owns due dates, on the item the conversion made.
+// A proposed due date is not dropped before the write: `ConvertJumbleEntry` declares no due date
+// at all, so the narrowing alone would throw the key away and a provider would be paid for an
+// answer nobody reads. It is applied by the use case that owns due dates, on the item the
+// conversion made.
 func TestAcceptingAJumbleProposalPutsTheDueDateOnTheItemItMade(t *testing.T) {
 	cases, world := newWorld()
 	stored := proposal()

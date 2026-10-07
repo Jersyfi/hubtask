@@ -15,9 +15,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The statement the due date pair writes with, against a real database (D-01): the trio round
-// trips whole, the constraint holds the qualifiers to their date, and the tenant boundary answers
-// a foreign write the way it answers every other (gate SG-3).
+// The statement the due date pair writes with, against a real database: the trio round trips
+// whole, the constraint holds the qualifiers to their date, and the tenant boundary answers a
+// foreign write the way it answers every other (gate SG-3).
 
 func TestTheDueDateRoundTripsWhole(t *testing.T) {
 	ctx := context.Background()
@@ -93,8 +93,8 @@ func TestTheDatabaseRefusesAQualifierWithoutItsDate(t *testing.T) {
 	}
 }
 
-// TestTwoDevicesMovingDateAndZoneConvergeToBoth is the acceptance sentence about the merge rule,
-// at the level this milestone owns: the trio merges as scalars per field (offline-sync.md §4.2),
+// TestTwoDevicesMovingDateAndZoneConvergeToBoth is the merge rule for the due date, at the level
+// of the server's write: the trio merges as scalars per field (offline-sync.md §4.2),
 // and the version predicate is what turns a concurrent write into a re-read and a retry rather
 // than an overwrite. Device A moves the date, device B the zone; B is told the row moved, re-reads
 // - the merge onto what A left - and nothing of either device's field is lost.

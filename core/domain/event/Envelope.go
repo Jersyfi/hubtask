@@ -68,9 +68,7 @@ type Envelope struct {
 	//
 	// It exists so that the rule engine can ignore these, which is the whole of §8.4's first
 	// prohibition: a restore would otherwise trigger hundreds of webhooks and emails reporting
-	// states that are a month old. The engine arrives in 0.5.0 and finds the field already here -
-	// a flag introduced alongside the consumer that reads it would have a window in which the
-	// consumer did not know about it, and that window is a restore.
+	// states that are a month old.
 	//
 	// It travels on the envelope rather than in the payload because it is routing: the dispatcher
 	// decides what to hand a subscriber before anything parses the payload.

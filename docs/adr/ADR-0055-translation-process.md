@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-13
 
+**Rule lives in:** [i18n-l10n.md](../architecture/i18n-l10n.md) §3
+
 ## Context
 
 [i18n-l10n.md](../architecture/i18n-l10n.md) §3 has said since the first day that the translation
@@ -87,5 +89,5 @@ rewrite. This ADR keeps that day open rather than closing it.
 ## Notes
 
 Related: [ADR-0011](ADR-0011-i18n-message-codes.md), [ADR-0013](ADR-0013-licensing.md),
-[i18n-l10n.md](../architecture/i18n-l10n.md) §3, `docs/backlog/milestone-0.8.0.md` (M-01, M-03,
+[i18n-l10n.md](../architecture/i18n-l10n.md) §3, `docs/archive/backlog/milestone-0.8.0.md` (M-01, M-03,
 M-12). The owner's delegation is recorded in the backlog's decisions.

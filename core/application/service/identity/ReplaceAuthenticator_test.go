@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// SC-17, UC-ID-03 checks 4-6: the authenticator is replaced without a moment with no factor. The new
+// UC-ID-03 checks 4-6: the authenticator is replaced without a moment with no factor. The new
 // secret waits beside the armed one; the old factor and its codes keep working until a code from the
 // new app confirms the swap, and then the old ones stop at once.
 

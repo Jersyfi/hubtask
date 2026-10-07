@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 )
 
-// M-01's acceptance, end to end: two recipients in one workspace, one speaking German and one
+// UC-NOT-01 check 4, end to end: two recipients in one workspace, one speaking German and one
 // English, receive the same notification in two languages - rendered by the real catalogues,
 // delivered through the real SMTP adapter, read back from the wire.
 //

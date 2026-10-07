@@ -24,7 +24,7 @@ import (
 	porttext "github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// Providers answers which provider a workspace uses (J-03). An interface here rather than the
+// Providers answers which provider a workspace uses. An interface here rather than the
 // adapter, because the application layer may not import one (ADR-0001).
 type Providers interface {
 	For(ctx context.Context, actor appshared.ActorContext) (aiprovider.Provider, error)
@@ -42,16 +42,16 @@ type Material struct {
 	Content string
 	// Digest is the fingerprint of the state Content was read from.
 	Digest []byte
-	// Declared are the custom fields the entry's container asks for, as an answer may fill them
-	// (K-03). Empty for a workspace that declared none, which is every workspace until somebody
+	// Declared are the custom fields the entry's container asks for, as an answer may fill them.
+	// Empty for a workspace that declared none, which is every workspace until somebody
 	// declares one.
 	Declared []Declared
-	// Hierarchy is the shape a template may take in this installation (P-11): read for the one
-	// prompt that asks for a tree to be defined rather than created, so that what the material
-	// tells a model and what the narrowing checks the answer against are the same profiles.
+	// Hierarchy is the shape a template may take in this installation: read for the one prompt that
+	// asks for a tree to be defined rather than created, so that what the material tells a model
+	// and what the narrowing checks the answer against are the same profiles.
 	Hierarchy *service.Hierarchy
 	// Choices are the closed sets this answer may pick from, already narrowed to what the person
-	// asking may see (K-02).
+	// asking may see.
 	//
 	// They are the whole difference between a model *choosing* and a model *naming*.
 	// `collection_id` stays filtered out of every answer because a model cannot know which
@@ -62,7 +62,7 @@ type Material struct {
 	Choices []Choices
 }
 
-// Declared is one custom field definition, with the entry's own value beside it (K-03).
+// Declared is one custom field definition, with the entry's own value beside it.
 //
 // §2's Classification row has said "priority" since before this repository had custom fields, and
 // the item model has never had such a column. What a workspace that works with priority does is
@@ -120,7 +120,7 @@ type Sources interface {
 	Material(ctx context.Context, actor appshared.ActorContext, targetType domain.TargetType, targetID shared.ID, promptID string) (Material, error)
 }
 
-// Produce asks a provider and records what it answered (J-06).
+// Produce asks a provider and records what it answered.
 //
 // It is not a use case and is deliberately not in the catalogue: nobody asks for a suggestion to be
 // *recorded*, they ask for one to be *made* (`SuggestFromJumbleEntry`), and this is the job that
@@ -134,18 +134,17 @@ type Produce struct {
 	// Catalogue is how an applied answer is accepted: through the use case, never around it.
 	Catalogue Catalogue
 	// Fields narrows a proposal to what the use case that would apply it declares. Nil narrows
-	// nothing, which is what a build wired before J-16 did - and what it produced was a suggestion
-	// nobody could accept.
+	// nothing - and what that produces is a suggestion nobody can accept.
 	Fields     Fields
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	// Text brings a model's answer for a declared field to the form the definition stores it in
-	// (i18n-l10n.md §5, M-07): what is proposed is what would be written.
+	// (i18n-l10n.md §5): what is proposed is what would be written.
 	Text porttext.Normalizer
-	// Requests answers the words a question was asked with, where the job names a row (P-11),
-	// and is where they are deleted once the job is over. Nil in a build that asks no such
-	// question, and a job naming a row then fails by name.
+	// Requests answers the words a question was asked with, where the job names a row, and is where
+	// they are deleted once the job is over. Nil in a build that asks no such question, and a job
+	// naming a row then fails by name.
 	Requests repository.Requests
 }
 
@@ -168,10 +167,10 @@ var promptFields = map[string]map[string]bool{
 	// No `labels`. A label is a word a collection agreed on, and a jumble entry is in no
 	// collection: the person converting names the destination, so at the moment the question is
 	// asked there is no vocabulary to choose from. Words a model invented instead would be
-	// vocabulary a model invented, which is the naming this milestone's second decision keeps a
-	// model out of - the same reasoning `classify` states from the other side, where the set does
-	// exist and the answer is a choice from it. A converted entry is classified the moment it is
-	// in a collection, which is where labels live.
+	// vocabulary a model named, and a model may pick from a set it was shown but may not name one
+	// (ai-first.md §2) - the same reasoning `classify` states from the other side, where the set
+	// does exist and the answer is a choice from it. A converted entry is classified the moment it
+	// is in a collection, which is where labels live.
 	"suggest-fields": {
 		"title": true, "notes": true, dueKey: true, "subtasks": true,
 	},
@@ -183,32 +182,32 @@ var promptFields = map[string]map[string]bool{
 	// says a question about an existing entry has no business asking for titles nobody will read.
 	"suggest-item-fields": {"title": true, "notes": true, dueKey: true},
 	"summarize":           {"notes": true},
-	// The other two thirds of §2's Summarisation row (K-05). Same answer shape, different
+	// The other two thirds of §2's Summarisation row. Same answer shape, different
 	// material: a discussion rather than an entry, and a collection rather than either.
 	"summarize-thread":     {"notes": true},
 	"summarize-collection": {"notes": true},
-	// All three chosen from what the material carried, never named freely (K-02, K-03): the
+	// All three chosen from what the material carried, never named freely: the
 	// columns of the entry's board, the vocabulary its collection agreed on, and the values of the
 	// fields that collection declared.
 	//
-	// `labels` was here until K-02 and could not be applied by anything: a label is a set entry
-	// added by identifier through `AddLabel`, not a field of the item, so `UpdateWorkItem` - the
-	// use case that applies a FIELDS proposal about an entry - declares no such input. J-16's
-	// narrowing therefore dropped the key, and every classification since has recorded an empty
-	// payload, which is to say nothing at all. Words a model invented could not have been applied
-	// anyway: a label a workspace has not agreed on is vocabulary, and inventing vocabulary is the
-	// naming this milestone's second decision keeps a model out of.
+	// `label_ids` rather than `labels`, which nothing could apply: a label is a set entry added by
+	// identifier through `AddLabel`, not a field of the item, so `UpdateWorkItem` - the use case
+	// that applies a FIELDS proposal about an entry - declares no such input, the narrowing to
+	// declared inputs drops the key, and every classification would record an empty payload. Words
+	// a model invented could not be applied anyway: a label a workspace has not agreed on is
+	// vocabulary, and a model may pick from a set it was shown but may not name one
+	// (ai-first.md §2).
 	"classify": {"label_ids": true, "bucket_id": true, "custom_fields": true},
 	// A decomposition's answer is one key at its own level and a tree underneath it, and what a
 	// *node* may carry is `keptTree`'s business rather than this map's.
 	"decompose": {"children": true},
-	// A template's answer is its input for CreateTemplate, less the scope - which is the
-	// target's and is written by the producer, never read from a model (P-11). What a *node* may
-	// carry is `keptTemplateNode`'s business.
+	// A template's answer is its input for CreateTemplate, less the scope - which is the target's
+	// and is written by the producer, never read from a model. What a *node* may carry is
+	// `keptTemplateNode`'s business.
 	templatePrompt: {"name": true, "description": true, "nodes": true},
 }
 
-// choiceSets names, per prompt, which of its answer keys are chosen from a closed set (K-02).
+// choiceSets names, per prompt, which of its answer keys are chosen from a closed set.
 //
 // A key named here is refused unless the answer copies one of the options the material carried -
 // so a model that invents an identifier, or names a column from a board nobody showed it, proposes
@@ -308,12 +307,12 @@ func AcceptedBy(target domain.TargetType, kind domain.Kind) (applier string, wal
 	return how.Applier, how.Walk, how.Refusal, known
 }
 
-// AnswerKeys is this map, for the gate that reads it beside the prompt store (K-01).
+// AnswerKeys is this map, for the gate that reads it beside the prompt store.
 //
 // Exported for one caller and named for what it is: `test/architecture` compares what a prompt asks
 // a provider for against what the code keeps, because the two are a markdown file and a Go map and
-// nothing else reads both. That is how `subtasks` came to be asked for and discarded from J-06
-// until 0.7.5 - a defect no compiler can see and no review reliably catches.
+// nothing else reads both. A key asked for and discarded is a defect no compiler can see and no
+// review reliably catches.
 func AnswerKeys() map[string][]string {
 	keys := make(map[string][]string, len(promptFields))
 	for prompt, fields := range promptFields {
@@ -334,8 +333,8 @@ func AnswerKeys() map[string][]string {
 // for another. `subtasks` under a jumble entry is the walk in `apply`: the entry is converted, and
 // each title becomes a child through `CreateWorkItem`. The same key proposed about a work item
 // would be handed to `UpdateWorkItem`, which declares no such input, and the registry would refuse
-// the whole acceptance - J-16's defect from the other side. Breaking a work item down is what
-// KindDecomposition is for.
+// the whole acceptance - the unacceptable suggestion `payloadFrom` describes, from the other side.
+// Breaking a work item down is what KindDecomposition is for.
 var grown = map[applierKey]map[string]bool{
 	// `due_date` is here for both targets, and for one reason rather than two. `ConvertJumbleEntry`
 	// declares no due date at all, so a proposed one can only be written by a second call - and
@@ -354,7 +353,7 @@ var grown = map[applierKey]map[string]bool{
 	},
 	// `UpdateWorkItem` declares `bucket_id` and would take it, which is exactly why this entry is
 	// here rather than absent: putting a card in another column is a *move*, and the history entry
-	// and the event a person reads should say so (K-02). The acceptance calls `MoveWorkItem`.
+	// and the event a person reads should say so. The acceptance calls `MoveWorkItem`.
 	{domain.TargetWorkItem, domain.KindFields}: {
 		"bucket_id": true, "label_ids": true, "custom_fields": true, dueKey: true,
 	},
@@ -467,9 +466,9 @@ func (h Produce) ask(
 			if err != nil {
 				return err
 			}
-			// The words the question was asked with, where it has any (P-11): read in the same
-			// transaction as the rest of the material and appended as content, after it, so
-			// that a model reads the shape it is held to before the request it is answering.
+			// The words the question was asked with, where it has any: read in the same transaction
+			// as the rest of the material and appended as content, after it, so that a model reads
+			// the shape it is held to before the request it is answering.
 			if !request.RequestID.IsZero() {
 				if h.Requests == nil {
 					return shared.ErrInternal.WithDetail("suggestions.requests_not_wired")
@@ -554,7 +553,7 @@ func (h Produce) ask(
 // The allow list is the security half of parsing an answer, and `promptFields` is where it lives.
 //
 // The payload is later merged into a use case's input, so a key nobody expected would be a field a
-// model chose to set. The registry would refuse an *undeclared* one (C-07) - but it would accept a
+// model chose to set. The registry would refuse an *undeclared* one - but it would accept a
 // *declared* one nobody meant to offer, and `collection_id` is exactly such a field. Filtering is
 // what keeps "a model proposes text" from becoming "a model proposes a destination".
 
@@ -576,8 +575,8 @@ type Request struct {
 	// applied answer is therefore not a shortcut past any of it - it is the same path with nobody
 	// pausing in the middle.
 	Apply bool
-	// RequestID names the words the question was asked with, where it has any (P-11). Zero for
-	// every question that reads its material from the target.
+	// RequestID names the words the question was asked with, where it has any. Zero for every
+	// question that reads its material from the target.
 	RequestID shared.ID
 }
 
@@ -670,13 +669,13 @@ func (h Produce) applicable(request Request) map[string]bool {
 // payloadFrom reads a model's answer in the shape its kind fixes, its prompt narrows, and - for a
 // field set - the use case that would apply it can actually take.
 //
-// That last narrowing was missing until J-16, and what it produced was a suggestion nobody could
-// ever accept. `suggest-fields` proposes a title, notes, a due date and labels; a proposal about a
-// jumble entry is applied by `ConvertJumbleEntry`, which declares `title` and not the other three -
-// and the registry refuses an input a descriptor does not declare. So the record was produced,
-// stored and listed, and every acceptance of it answered `validation_failed`. Narrowing here rather
-// than dropping fields at acceptance is the honest half of the choice: a person reading a proposal
-// should be reading what they could actually accept.
+// Without that last narrowing the product makes a suggestion nobody can ever accept.
+// `suggest-fields` proposes a title, notes, a due date and subtasks; a proposal about a jumble
+// entry is applied by `ConvertJumbleEntry`, which declares `title` and not the other three - and
+// the registry refuses an input a descriptor does not declare. So the record would be produced,
+// stored and listed, and every acceptance of it would answer `validation_failed`. Narrowing here
+// rather than dropping fields at acceptance is the honest half of the choice: a person reading a
+// proposal should be reading what they could actually accept.
 func payloadFrom(
 	kind domain.Kind, promptID, text string, applicable map[string]bool, material Material,
 	form porttext.Normalizer,
@@ -820,7 +819,7 @@ func shown(value any) string {
 }
 
 // keptDeclared refuses a field the container did not declare, and a value the declaration does not
-// allow (K-03).
+// allow.
 //
 // The refusal is the definition's own - `ValidateValue` is the code `SetCustomField` runs - so a
 // value this keeps is one the acceptance can write, and a value it drops is one that would have
@@ -864,7 +863,7 @@ func keptDeclared(payload map[string]any, declared []Declared, form porttext.Nor
 	return payload
 }
 
-// keptChoices refuses a choice that was not offered (K-02).
+// keptChoices refuses a choice that was not offered.
 //
 // Both halves of the same rule: an answer naming something outside the set is dropped, and so is
 // one answering a key whose set was never offered at all - an entry with no board is not an entry
@@ -1057,11 +1056,6 @@ func keptChildren(value any, depth int) ([]any, int, bool) {
 	return kept, total, true
 }
 
-// keptFields reads a model's answer as the fields it was asked for.
-//
-// Tolerant of the two things every model does - a fenced code block around the JSON, and prose
-// before it - and intolerant of everything else. What it will not do is repair: a half-formed
-// answer produces no suggestion rather than a suggestion with a guess in it.
 // Narrowed intersects the prompt's allow list with what the applier declares.
 //
 // An applier this build does not serve, or one whose declared inputs cannot be read, narrows
@@ -1080,6 +1074,7 @@ func Narrowed(allowed, applicable map[string]bool) map[string]bool {
 	return both
 }
 
+// keptFields reads a model's answer as the fields it was asked for.
 func keptFields(answered map[string]any, allowed map[string]bool) map[string]any {
 	kept := make(map[string]any, len(answered))
 	for key, value := range answered {

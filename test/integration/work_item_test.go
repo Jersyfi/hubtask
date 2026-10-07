@@ -97,7 +97,7 @@ func TestAnItemIsWrittenAndReadBack(t *testing.T) {
 }
 
 // An identifier the workspace already holds is a conflict the caller can act on - a CalDAV client
-// PUTting to an address it remembers (issue 720), a device repeating a create - and not a
+// PUTting to an address it remembers, a device repeating a create - and not a
 // dependency failure. Only the primary key is translated; every other unique violation stays what
 // it is.
 func TestInsertingATakenIdentifierIsAConflict(t *testing.T) {
@@ -187,13 +187,13 @@ func TestAnItemIsInvisibleFromAnotherTenant(t *testing.T) {
 
 // The cross-tenant negative test for Insert, and the measurement ADR-0024 turned around.
 //
-// Until the composite foreign keys landed, this write succeeded: a foreign key is checked by
-// triggers that run as the table owner, which row level security does not reach, so a row could be
-// written naming a collection its own tenant cannot see. The row was still tenant B's and tenant A
-// could not read it - but the reference dangled, and a cascade from tenant A's own deletion took
-// tenant B's row with it.
+// Without the composite foreign keys this write succeeds: a foreign key is checked by triggers that
+// run as the table owner, which row level security does not reach, so a row can be written naming
+// a collection its own tenant cannot see. The row is still tenant B's and tenant A cannot read it -
+// but the reference dangles, and a cascade from tenant A's own deletion takes tenant B's row with
+// it.
 //
-// Now the tenant is part of the key, so the reference cannot leave the tenant at all.
+// The tenant is part of the key, so the reference cannot leave the tenant at all.
 func TestInsertCannotWriteAnItemIntoAnotherTenant(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
@@ -217,9 +217,9 @@ func TestInsertCannotWriteAnItemIntoAnotherTenant(t *testing.T) {
 // The existence oracle ADR-0024 measured, closed.
 //
 // The refusal above must be indistinguishable from one naming an identifier that exists nowhere.
-// While the key was single-column the two differed - a foreign identifier succeeded where a
-// nonexistent one failed - and that difference answered "does this exist in this installation"
-// across the tenant boundary, which multi-tenancy.md §2 forbids.
+// With a single-column key the two differ - a foreign identifier succeeds where a nonexistent one
+// fails - and that difference answers "does this exist in this installation" across the tenant
+// boundary, which multi-tenancy.md §2 forbids.
 func TestAForeignReferenceIsIndistinguishableFromANonexistentOne(t *testing.T) {
 	ctx := context.Background()
 	foreign := collectionFor(ctx, t, tenantA, authorA)
@@ -398,7 +398,7 @@ func TestTitlesAreNormalisedOnTheWayIn(t *testing.T) {
 	}
 }
 
-// The calendar UID round trip (P-07, issue #721): a client's UID is stored as it was chosen,
+// The calendar UID round trip: a client's UID is stored as it was chosen,
 // read back on the row and by itself, and a second entry under the same UID is the other taken
 // identity - a conflict, for the same reason the identifier is one.
 func TestACalendarUIDIsStoredAndLooksTheEntryUp(t *testing.T) {

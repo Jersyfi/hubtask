@@ -34,8 +34,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// Reading the trail against a real PostgreSQL (E-09). Row level security, the partitions and the
-// chain are the subject here, and none of the three can be tested against a fake of themselves.
+// Reading the trail against a real PostgreSQL. Row level security, the partitions and the chain
+// are the subject here, and none of the three can be tested against a fake of themselves.
 
 // Every test here makes its own tenant. The assertions count entries and walk chains, and a trail
 // that a neighbouring test also appends to is not one those assertions can be written against -
@@ -305,8 +305,9 @@ func TestTheFiltersNarrowTheTrail(t *testing.T) {
 	}
 }
 
-// SC-29: a renamed action is one action under two names. The stored entry keeps the name it was
-// written with - the hash covers it - and a search by the family finds the old name and the new.
+// A renamed action is one action under two names (audit.md §5). The stored entry keeps the name it
+// was written with - the hash covers it - and a search by the family finds the old name and the
+// new.
 func TestARenamedActionIsFoundUnderEitherName(t *testing.T) {
 	ctx := context.Background()
 	tenant := auditTenant(ctx, t)
@@ -511,7 +512,7 @@ func TestTheAnchorIsReadPerTenantAndIsEmptyUntilAnchored(t *testing.T) {
 	}
 }
 
-// The partition duty (E-09, audit.md §3): a partition created later carries its own policy and its
+// The partition duty (audit.md §3): a partition created later carries its own policy and its
 // own revoked grants, because a partition addressed directly is a table of its own.
 func TestAFreshPartitionCarriesItsPolicyAndItsRevokes(t *testing.T) {
 	ctx := context.Background()
@@ -644,11 +645,11 @@ func TestThePartitionDutyRepairsWhatItFinds(t *testing.T) {
 	}
 }
 
-// The export, over real rows (E-09, audit.md §5). The format is tested with fakes where it is
-// decided; what this asks is whether the walk, the projection and the archive fit together over a
-// trail a database actually wrote.
+// The export, over real rows (audit.md §5). The format is tested with fakes where it is decided;
+// what this asks is whether the walk, the projection and the archive fit together over a trail a
+// database actually wrote.
 
-// memoryTarget stands in for a backup target. Writing to a real one is E-03's and E-05's subject;
+// memoryTarget stands in for a backup target. Writing to a real one is the backup tests' subject;
 // what matters here is which members an export produces and what is in them.
 type memoryTarget struct{ written map[string][]byte }
 
@@ -748,7 +749,7 @@ func (keylessInstallation) Rewrap(context.Context, crypto.Sealed, crypto.Purpose
 	return crypto.Sealed{}, shared.ErrUnavailable.WithDetail(crypto.CodeNoEncryptionKey)
 }
 
-// The `AUDITOR` role, tried against the database (E-09, audit.md §5): the trail and no content.
+// The `AUDITOR` role, tried against the database (audit.md §5): the trail and no content.
 //
 // It is asked of the real authorisation service and a real membership row, because the role has
 // three halves that have to agree - the enum value the column constrains, the resolution that finds
@@ -797,8 +798,8 @@ func TestAnAuditorReadsTheTrailAndNoContent(t *testing.T) {
 	if !permits(domainservice.PermissionAuditRead) {
 		t.Error("an AUDITOR cannot read the trail, which is the whole of what the role is for")
 	}
-	// The second half of the role since G-12 (audit.md §9, A-4): an entry saying a retention rule
-	// removed four hundred objects is a fact nobody can judge without being able to read the rule.
+	// The second half of the role (audit.md §5, A-4): an entry saying a retention rule removed
+	// four hundred objects is a fact nobody can judge without being able to read the rule.
 	if !permits(domainservice.PermissionReadConfiguration) {
 		t.Error("an AUDITOR cannot read the configuration the trail is about")
 	}
@@ -1141,10 +1142,10 @@ func TestAnEntryThatChangedNothingStillVerifies(t *testing.T) {
 	}
 }
 
-// The anchoring's own reads and its one write (A-2, P-13), against the real boundary: the chain's
-// end is the sink's tail, a hash is read by its sequence number, an anchor is recorded once per
-// sequence number and only under the tenant's own policy - and the application role cannot change
-// or remove one.
+// The anchoring's own reads and its one write (A-2), against the real boundary: the chain's end is
+// the sink's tail, a hash is read by its sequence number, an anchor is recorded once per sequence
+// number and only under the tenant's own policy - and the application role cannot change or remove
+// one.
 func TestAnAnchorIsRecordedOncePerSequenceAndCannotBeChanged(t *testing.T) {
 	ctx := context.Background()
 	tenant, other := auditTenant(ctx, t), auditTenant(ctx, t)

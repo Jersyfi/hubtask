@@ -40,8 +40,7 @@ const (
 	privacyRead   = "privacy:read"
 	privacyManage = "privacy:manage"
 	// instanceScope is the credential bound on the one operation that crosses the tenant
-	// boundary. It is the scope api-guidelines.md §7 has listed since phase 0 for exactly this
-	// kind of act.
+	// boundary. It is the scope api-guidelines.md §7 lists for exactly this kind of act.
 	instanceScope = "admin:tenants"
 
 	requestTarget = "data_subject_request"
@@ -79,7 +78,7 @@ type Cases struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	// Text brings the notes and a rejection's reason to normal form C on the way in
-	// (i18n-l10n.md §5, M-07).
+	// (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -145,7 +144,7 @@ func (h CreateDataSubjectRequest) Execute(
 
 		// The deadline watch is seeded by the write that creates the case, because nothing in
 		// this system may enumerate tenants: a scheduler cannot create one of these per tenant,
-		// and a workspace with no open case should cost nothing (E-10, alert A-19). The dedupe key
+		// and a workspace with no open case should cost nothing (alert A-19). The dedupe key
 		// is the tenant, so a second case joins the watch that is already running.
 		if _, err := h.Cases.Jobs.Enqueue(ctx, queue.Request{
 			Kind:      queue.KindPrivacyDeadlines,
@@ -459,9 +458,9 @@ func PageSize(requested int) int {
 
 // record writes the entry a case owes.
 //
-// `legal_basis` is set on every one of them, which is the field `audit.md` §2 has carried for this
-// since phase 0 and nothing has ever written: a privacy-relevant entry names its occasion, and the
-// occasion of these is the right that was exercised.
+// `legal_basis` is set on every one of them, the field `audit.md` §2 carries for this: a
+// privacy-relevant entry names its occasion, and the occasion of these is the right that was
+// exercised.
 func (c Cases) record(
 	ctx context.Context, actor appshared.ActorContext, action audit.Action,
 	request domain.Request, severity audit.Severity, changes []audit.Change,
@@ -673,8 +672,7 @@ func (h UpdateDataSubjectRequest) Descriptor() usecase.Descriptor {
 				Name: "status", Kind: usecase.KindString,
 				// RECEIVED is where a case starts and nothing moves back to it. It is in the set
 				// anyway, because refusing it here would answer a generic validation code where
-				// `privacy.transition_refused` names both ends of the step somebody tried to take
-				// (issue #427).
+				// `privacy.transition_refused` names both ends of the step somebody tried to take.
 				Enum: []string{
 					string(domain.StatusReceived), string(domain.StatusInProgress),
 					string(domain.StatusCompleted), string(domain.StatusRejected),

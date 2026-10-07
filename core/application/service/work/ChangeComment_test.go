@@ -74,7 +74,7 @@ func TestTheAuthorEditsTheirComment(t *testing.T) {
 	}
 }
 
-// The acceptance criterion of C-03: a third party is refused with access.not_permitted - the same
+// A third party is refused with access.not_permitted - the same
 // code and status as any other missing permission - and an administrator succeeds.
 func TestOnlyTheAuthorOrAnAdministratorChangesAComment(t *testing.T) {
 	h := newCommentHarness(t)

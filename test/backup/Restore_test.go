@@ -37,7 +37,7 @@ import (
 	cryptoadapter "github.com/Jersyfi/hubtask/infrastructure/crypto"
 )
 
-// The restore against a real local target, a real cipher and the real archive format (E-06).
+// The restore against a real local target, a real cipher and the real archive format.
 //
 // BK-5: a restore fires no automation, sends no webhook and no email, and restores no token or
 // session. BK-6: an object deleted after the archive was taken does not come back, for a row and
@@ -299,7 +299,7 @@ func (h *restoreHarness) applier(t *testing.T) service.Applier {
 	}
 }
 
-// epochCounter is the synchronisation epoch a restore advances (N-11), counted.
+// epochCounter is the synchronisation epoch a restore advances (B-5), counted.
 type epochCounter struct{ advanced int }
 
 func (e *epochCounter) Advance(context.Context) (int64, error) {
@@ -386,7 +386,7 @@ func TestARestoreFiresNothingAndRestoresNoCredential(t *testing.T) {
 	if len(h.events.appended) != 0 {
 		t.Errorf("a restore wrote %d events: %+v", len(h.events.appended), h.events.appended)
 	}
-	// What it did tell is the devices, through the epoch (N-11, B-5): once, as it succeeded.
+	// What it did tell is the devices, through the epoch (B-5): once, as it succeeded.
 	if h.epochs.advanced != 1 {
 		t.Errorf("the synchronisation epoch was advanced %d times, want once", h.epochs.advanced)
 	}
@@ -504,7 +504,7 @@ func TestADryRunChangesNothingAtAll(t *testing.T) {
 // BK-10: another tenant's archive is refused at the dry run and at the execution, not only at the
 // listing - and refused before anything is written. The manifest is compared against the tenant
 // that asked - the archive's owner - not against the destination, which for NEW_TENANT is a
-// workspace minted a moment ago and could never match (#206).
+// workspace minted a moment ago and could never match.
 func TestAnotherTenantsArchiveIsRefusedAtEveryStage(t *testing.T) {
 	other := shared.MustParseID("0198f0a0-0000-7000-8000-0000000000ee")
 

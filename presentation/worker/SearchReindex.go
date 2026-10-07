@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// SearchReindex rewrites one workspace's stale search documents, batch by batch (M-09).
+// SearchReindex rewrites one workspace's stale search documents, batch by batch.
 //
 // The embedding pass's shape without the provider: a batch in its own transaction, then a
 // decision about whether to come straight back - and unlike the embedding pass it *finishes*,

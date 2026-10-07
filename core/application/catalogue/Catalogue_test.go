@@ -95,11 +95,11 @@ func TestScopesAreTheDescriptorsOwnSetSortedAndUnique(t *testing.T) {
 	}
 }
 
-// Sessions never carry the control plane (H-06, 0.6.0 decision 6), nor the agent capability
-// (J-14): whatever this build declares, SessionScopes leaves those two out - and changes nothing
+// Sessions never carry the control plane (identity.md §15.4), nor the agent capability:
+// whatever this build declares, SessionScopes leaves those two out - and changes nothing
 // else.
 // The action kinds the manifest answers are exactly the ones the rule writer accepts: one name
-// per use case, sorted, and each resolvable through the lookup the writer uses (issue 542).
+// per use case, sorted, and each resolvable through the lookup the writer uses.
 func TestAutomationActionsAreTheDescriptorsOwnKindsSortedAndUnique(t *testing.T) {
 	actions := catalogue.AutomationActions()
 	if len(actions) != len(catalogue.Descriptors()) {
@@ -164,7 +164,7 @@ func TestTheAgentCapabilityCanBeMinted(t *testing.T) {
 	}
 }
 
-// A hint can never say safe where the server would say no (J-14). `readOnlyHint` and
+// A hint can never say safe where the server would say no. `readOnlyHint` and
 // `destructiveHint` are what an agent's client decides whether to ask for confirmation on, so a
 // descriptor claiming both would be one whose client asks nothing and whose server refuses.
 func TestNoDescriptorIsBothReadOnlyAndDestructive(t *testing.T) {
@@ -235,7 +235,7 @@ func TestEveryReferenceFieldIsDeclaredAsAnIdentifierBySomeUseCase(t *testing.T) 
 	}
 }
 
-// The fields the manifest publishes per action are the use case's own declaration (F8-01): one
+// The fields the manifest publishes per action are the use case's own declaration: one
 // entry per action kind - the same key set as AutomationActions, so a client never meets a kind
 // it has no form for - and each entry equal to what the descriptor declares, which is also what
 // the MCP tool schema is derived from. A kind that takes nothing maps to an empty slice.
@@ -280,7 +280,7 @@ func TestAutomationActionFieldsAreTheDescriptorsOwnInputs(t *testing.T) {
 	}
 }
 
-// The caller's plumbing is marked wherever it is declared (F8-15): a caller-minted identifier, a
+// The caller's plumbing is marked wherever it is declared: a caller-minted identifier, a
 // version read for If-Match, a reserved switch. The three names carry the same meaning in every
 // use case, so a descriptor that declares one unmarked is a form that would ask a rule's writer
 // about If-Match headers - which is what the second F8 walk read. And a string the description
@@ -310,7 +310,7 @@ func TestPlumbingAndDatesAreMarkedOnEveryDescriptor(t *testing.T) {
 }
 
 // The summaries are the descriptors' own, one per action kind - the same key set as the actions,
-// so a catalogue in a rule editor never meets a kind it has no sentence for (F8-15).
+// so a catalogue in a rule editor never meets a kind it has no sentence for.
 func TestAutomationActionSummariesAreTheDescriptorsOwn(t *testing.T) {
 	summaries := catalogue.AutomationActionSummaries()
 	actions := catalogue.AutomationActions()
@@ -332,7 +332,7 @@ func TestAutomationActionSummariesAreTheDescriptorsOwn(t *testing.T) {
 	}
 }
 
-// A rename is checked against what the catalogue declares (SC-29): every current name in the table
+// A rename is checked against what the catalogue declares: every current name in the table
 // of renamed actions is an action a use case writes, and no use case writes a former one - a former
 // name written again would be two actions under one name, which the table exists to prevent.
 func TestRenamedActionsAgreeWithTheCatalogue(t *testing.T) {

@@ -16,9 +16,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The three placement methods against a real database (B-08). Each gets a cross-tenant negative, because the
-// tenant boundary is row level security underneath and the only way to know it reaches a new statement is to
-// try it (gate SG-3).
+// The three placement methods against a real database. Each gets a cross-tenant negative, because the tenant
+// boundary is row level security underneath and the only way to know it reaches a new statement is to try it
+// (gate SG-3).
 
 // movableSubtree writes a task, a work package under it and an activity under that, and returns the three.
 // Written directly rather than through the create use case, because these tests are about the statements and
@@ -79,13 +79,13 @@ func seedRootTask(ctx context.Context, t *testing.T, tenant, author, collection 
 }
 
 // stampItemColumn sets a lifecycle column the repository does not write. InsertWorkItem writes neither
-// archived_at nor deleted_at - those are use cases of their own (B-06, B-10) - so a fixture that set the field
-// on the struct would be silently dropped, and a test concluding anything from it would prove nothing.
+// archived_at nor deleted_at - those are use cases of their own - so a fixture that set the field on the
+// struct would be silently dropped, and a test concluding anything from it would prove nothing.
 func stampItemColumn(ctx context.Context, t *testing.T, id shared.ID, column string) {
 	t.Helper()
 
 	// The column name is a constant of this test and never a value from anywhere else, which is what keeps
-	// CLAUDE.md rule 9 intact here, where sqlc cannot express "either of two columns".
+	// rule 9 intact here, where sqlc cannot express "either of two columns".
 	switch column {
 	case "archived_at", "deleted_at":
 	default:
@@ -325,7 +325,7 @@ func TestReorderingBetweenTwoNeighboursTouchesOneRow(t *testing.T) {
 	}
 
 	// And what a *create* asks, which is the same question with nothing to leave out: the entry
-	// being placed is not in the table yet (issue 992). The empty identifier has to mean "leave
+	// being placed is not in the table yet. The empty identifier has to mean "leave
 	// every row in the level" rather than emptying it, or every anchored create is refused with
 	// `items.before_item_not_in_level` - an anchor that is present, reported as missing.
 	if err := read(ctx, t, tenantA, func(ctx context.Context) error {

@@ -1,6 +1,7 @@
 # ADR-0070 — The instance layer: operators, instance settings, and the elevated session
 
 **Status:** accepted · **Date:** 2026-09-26
+**Rule lives in:** [identity.md](../architecture/identity.md) §19, [multi-tenancy.md](../architecture/multi-tenancy.md) §4.1
 
 ## Context
 

@@ -13,9 +13,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The three flow kinds are the one place the aggregate checks an action's *parameters* (G-09).
-// Every other kind is a use case and the catalogue answers for it; these three are the engine's own
-// control structures and have nobody else to be checked by.
+// The three flow kinds are the one place the aggregate checks an action's *parameters*. Every other
+// kind is a use case and the catalogue answers for it; these three are the engine's own control
+// structures and have nobody else to be checked by.
 
 func branchAction(params map[string]any) automation.Action {
 	return automation.Action{Kind: automation.ActionBranch, Params: params}

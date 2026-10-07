@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-23 · **Accepted:** 2026-09-23
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §11
+
 ## Context
 
 The owner walked the shell that [ADR-0063](./ADR-0063-navigation-and-the-working-surface.md) built

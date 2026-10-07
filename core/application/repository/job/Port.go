@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package job is the outbound port for background work as a caller sees it (E-01).
+// Package job is the outbound port for background work as a caller sees it.
 //
 // It sits beside core/port/queue rather than inside it, and the split is the point: the queue port
 // is how a worker claims, leases, retries and finishes work, and this one is how the person who

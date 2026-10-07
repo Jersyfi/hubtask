@@ -113,7 +113,7 @@
      asked for by name - and asked of the `dir` attribute, not of `:dir(rtl)`: Chromium does not
      match `:dir()` on an element inserted after its ancestor's `dir` was set, which is every
      element the workbench renders into a pane and every element the app renders after the
-     manifest turns the document round (F5-10). */
+     manifest turns the document round. */
   :global([dir='rtl']) .native:checked + .track .knob {
     translate: calc(-1 * var(--travel)) 0;
   }

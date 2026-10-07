@@ -43,7 +43,7 @@ const (
 	oauthGrantTarget  = "oauth_grant"
 )
 
-// The audit codes of the provider (H-05). Registering a door, opening it, and closing it are all
+// The audit codes of the provider. Registering a door, opening it, and closing it are all
 // the class of event a review looks for.
 const (
 	OauthClientRegisteredAction audit.Action = "oauth.client_registered"
@@ -65,13 +65,13 @@ type OauthWriter struct {
 	// for access, the service accounts' permission.
 	Authorizer Authorizer
 	// KnownScopes bounds what a person can consent to: the catalogue's own vocabulary, no
-	// parallel one (decision 5).
+	// parallel one (identity.md §15.3).
 	KnownScopes []string
-	// Text brings a client's name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings a client's name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
-// RegisterOauthClient registers a third-party app (H-05).
+// RegisterOauthClient registers a third-party app.
 type RegisterOauthClient struct{ Writer OauthWriter }
 
 // RegisterOauthClientCommand is the input, typed.
@@ -269,7 +269,7 @@ type AuthorizedCode struct {
 	State     string
 }
 
-// AuthorizeOauthClient records a person's consent and mints the code (H-05, headless).
+// AuthorizeOauthClient records a person's consent and mints the code (headless).
 type AuthorizeOauthClient struct{ Writer OauthWriter }
 
 // Execute consents. The consent is a person's act: it demands a session, StepUp's reasoning - a
@@ -383,7 +383,7 @@ type ExchangeOauthCodeCommand struct {
 	TenantHeader string
 }
 
-// ExchangeOauthCode is the token endpoint (H-05): the code, the PKCE verifier and - for a
+// ExchangeOauthCode is the token endpoint: the code, the PKCE verifier and - for a
 // confidential client - the secret, exchanged for the pair sign-in mints, leashed to the grant.
 type ExchangeOauthCode struct{ Writer OauthWriter }
 
@@ -554,7 +554,7 @@ func (h RevokeOauthGrant) Execute(
 	})
 }
 
-// openLeashedSession opens the pair for a grant (H-05): the session carries the grant's scopes
+// openLeashedSession opens the pair for a grant: the session carries the grant's scopes
 // and dies with the grant's revocation.
 func (w SessionWriter) openLeashedSession(
 	ctx context.Context, scope persistence.Scope, tenantID shared.ID,
@@ -654,7 +654,7 @@ func (w OauthWriter) recordClientAudit(
 	})
 }
 
-// recordGrantAudit writes a grant event with the client as a first-class actor attribute (H-05):
+// recordGrantAudit writes a grant event with the client as a first-class actor attribute:
 // "which app did this" is the question this feature exists to answer.
 func (w OauthWriter) recordGrantAudit(
 	ctx context.Context, kind appshared.ActorKind, actorID shared.ID, actorLabel string,

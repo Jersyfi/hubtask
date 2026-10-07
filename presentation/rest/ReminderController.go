@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The reminders beside the entries (D-02): a sub-resource of the item, because a reminder is not a
+// The reminders beside the entries: a sub-resource of the item, because a reminder is not a
 // field of its row - it has its own moment, its own channels and its own recipients.
 
 const (

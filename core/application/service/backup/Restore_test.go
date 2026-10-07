@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/stepup"
 )
 
-// The listing at the target (E-06, backup-restore.md §8.1). What it is judged by is what it does
+// The listing at the target (backup-restore.md §8.1). What it is judged by is what it does
 // *not* read: no run row, no schedule, nothing in the database beyond the target's own row and its
 // credential - because the day this matters is the day the database is a fresh empty one.
 
@@ -307,12 +307,9 @@ func TestStartingARestoreWritesTheRunAndEnqueuesTheJob(t *testing.T) {
 	}
 }
 
-// The tombstone of `backup.restore_step_up_unavailable` (E-06 → H-03): from 0.4.5 until 0.6.0
-// this test asserted that a destructive mode was refused because *nothing here could prove* a
-// step-up. H-03 built the verifier, so the honest refusal of an installation that cannot ask is
-// gone from the codebase - what remains is the demand itself, which is every caller's to
-// satisfy. An unwired or unavailable verifier still refuses rather than permits: fail closed is
-// the seam's own rule, and this is the test that keeps it.
+// A destructive mode demands a step-up, which every caller can satisfy. An unwired or unavailable
+// verifier refuses rather than permits: fail closed is the seam's own rule, and this is the test
+// that keeps it.
 func TestADestructiveModeWithoutAProofIsRefusedNotPermitted(t *testing.T) {
 	h := newStartHarness(t)
 	h.stepUp.available = false

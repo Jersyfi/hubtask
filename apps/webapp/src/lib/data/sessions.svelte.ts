@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The sessions somebody's own account holds (F4-03, H-01).
+ * The sessions somebody's own account holds.
  *
  * **One's own, and never anybody else's** — that is the route's own decision, not this module's:
  * "a session is the person's, and an administrator who suspects one acts by disabling the account,

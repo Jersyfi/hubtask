@@ -5,9 +5,9 @@ package shared
 
 import "github.com/Jersyfi/hubtask/core/port/text"
 
-// NFC brings the input to normal form C through the port (i18n-l10n.md §5, M-07), and does
-// nothing else: whether a text is trimmed is each kind's own rule - a title is, a comment is
-// prose and is stored as sent - and this is the one thing every kind shares.
+// NFC brings the input to normal form C through the port (i18n-l10n.md §5), and does nothing else:
+// whether a text is trimmed is each kind's own rule - a title is, a comment is prose and is stored
+// as sent - and this is the one thing every kind shares.
 //
 // Every constructor that stores user text calls this before it bounds and checks the value, so
 // that the length is counted, the uniqueness index compares, and the search document indexes

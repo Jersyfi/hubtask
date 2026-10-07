@@ -26,9 +26,10 @@ type SchedulerSignals interface {
 	QueueDepth(ctx context.Context, kind string, pending int64)
 	SchedulerTickLag(ctx context.Context, seconds float64)
 	// BackupLastSuccess is when a target last had a backup that worked - alert A-12's number
-	// (E-05, observability-reliability.md §10).
+	// (observability-reliability.md §10).
 	BackupLastSuccess(ctx context.Context, targetID string, at time.Time)
-	// WebhookRetryBacklog is the deliveries waiting out their backoff (§4, H-12).
+	// WebhookRetryBacklog is the deliveries waiting out their backoff
+	// (observability-reliability.md §4).
 	WebhookRetryBacklog(ctx context.Context, waiting int64)
 }
 
@@ -50,7 +51,7 @@ type BackupFreshness interface {
 	LastSuccessPerTarget(ctx context.Context) (map[shared.ID]time.Time, error)
 }
 
-// AuditPartitions keeps the audit trail's partitions conforming (E-09, audit.md §3).
+// AuditPartitions keeps the audit trail's partitions conforming (audit.md §3).
 type AuditPartitions interface {
 	Ensure(ctx context.Context, month time.Time) (string, error)
 }
@@ -78,7 +79,7 @@ type Scheduler struct {
 	// (observability-reliability.md §4, alert A-06). The same reasoning seeds the panic counter.
 	Kinds []queue.Kind
 
-	// Backlog is where the webhook retry ladder is counted (H-12). Optional, like everything
+	// Backlog is where the webhook retry ladder is counted. Optional, like everything
 	// below: a build without it publishes no backlog series rather than a wrong one.
 	Backlog RetryBacklog
 
@@ -91,13 +92,13 @@ type Scheduler struct {
 	// entry of it does, and carries its own policy and its own revokes. Optional, like the two
 	// above: an installation without it keeps writing into the default partition, which has both.
 	AuditPartitions AuditPartitions
-	// StreamPartitions is the same duty for the four monthly streams (H-09, N-09): activity
+	// StreamPartitions is the same duty for the four monthly streams: activity
 	// entries, outbox events, rule runs and the change log. Nil skips, ensureAuditPartitions'
 	// contract.
 	StreamPartitions streams.Partitions
 	// OfflineWindow is the installation's offline window (RetentionConfig.TombstoneWindow), the
 	// floor of the change log's drop: a month of it falls only once every device that was offline
-	// could have pulled it (N-09, offline-sync.md §7). Zero leaves the catalogue's default as the
+	// could have pulled it (offline-sync.md §7). Zero leaves the catalogue's default as the
 	// floor.
 	OfflineWindow time.Duration
 	// StreamEvidence records a dropped partition where a per-tenant trail cannot: a partition
@@ -188,7 +189,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	return true
 }
 
-// fireInstanceBackups is the leader's one duty beyond measurement (E-05).
+// fireInstanceBackups is the leader's one duty beyond measurement.
 //
 // An instance-wide backup schedule - `scope_kind = 'INSTANCE'`, `tenant_id IS NULL`, which
 // `0001_init`'s check constraint ties together - is not a tenant's work at all, so nothing seeds a
@@ -201,9 +202,8 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 // It cannot, and the reason is worth writing down where the code is. The pass runs under a system
 // scope, which sets an empty tenant context; every tenant-scoped table compares `tenant_id =
 // current_tenant_id()` and NULL matches nothing, so the only rows this could reach are the ones
-// with no tenant. Today there are none: E-03 found the same for instance-wide *targets*, and until
-// instance administration has a surface, nothing can create either. So this duty is correct, cheap,
-// and finds nothing - which is the honest state rather than a stub.
+// with no tenant. Where there are none, this duty is correct, cheap, and finds nothing - which is
+// the honest state rather than a stub.
 func (s Scheduler) fireInstanceBackups(ctx context.Context) {
 	if s.InstanceBackups == nil {
 		return
@@ -225,7 +225,7 @@ func (s Scheduler) fireInstanceBackups(ctx context.Context) {
 }
 
 // ensureAuditPartitions is the leader's second real duty, and it is a correctness matter rather
-// than housekeeping (E-09, audit.md §3).
+// than housekeeping (audit.md §3).
 //
 // A partition of `audit_log` does not inherit the parent's row level security policy when it is
 // addressed directly, and `REVOKE UPDATE, DELETE, TRUNCATE` on the parent does not reach it either
@@ -265,7 +265,7 @@ func (s Scheduler) ensureAuditPartitions(ctx context.Context) {
 	}
 }
 
-// ensureStreamPartitions is the audit duty for the three partitioned streams (H-09):
+// ensureStreamPartitions is the audit duty for the three partitioned streams:
 // activity_entry, outbox_event and rule_run get this month and next kept existing, policies and
 // grants repaired - ensureAuditPartitions' reasoning verbatim, over ensure_stream_partition.
 func (s Scheduler) ensureStreamPartitions(ctx context.Context) {
@@ -302,8 +302,8 @@ type StreamEvidence interface {
 	PartitionDropped(ctx context.Context, table, partition string, rows int64) error
 }
 
-// dropAgedStreamPartitions is the retention half of H-09: an aged-out month of a partitioned
-// stream is a dropped partition, not a million-row DELETE. The leader's act, not a tenant
+// dropAgedStreamPartitions is the retention half of the stream duty: an aged-out month of a
+// partitioned stream is a dropped partition, not a million-row DELETE. The leader's act, not a tenant
 // sweep's - a partition holds every tenant's rows, and the drop function holds a month back
 // until every tenant's configured retention for the kind has passed. The tenant sweeps keep
 // deleting rows inside the newest months exactly as before; what changes is that a month whose
@@ -362,7 +362,7 @@ func (s Scheduler) floorOf(table string) int {
 }
 
 // sampleBackupFreshness publishes when each target last had a backup that worked - the number alert
-// A-12 has been watching since 0.2.0 with nothing behind it (observability-reliability.md §10).
+// A-12 watches (observability-reliability.md §10).
 //
 // The leader takes it for the reason it takes the queue depth: it is a measurement of the
 // installation rather than of a process, and every replica reporting the same value would leave a

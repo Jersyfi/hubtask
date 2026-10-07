@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// Accepting an export (E-09, audit.md §5). The archive itself is written by the job; what is under
+// Accepting an export (audit.md §5). The archive itself is written by the job; what is under
 // test here is who may ask for one, what is refused, and the entry §5's last line requires.
 
 type queueDouble struct {

@@ -44,4 +44,8 @@ whom to contact.
 
 ## Today
 
-* **Not built.** The concept's §5.6 and §11 describe it; only the footer link exists.
+* Check 1: not met — there is no terms agreement when an invitation is accepted, and nothing stores a version or a time, tracked in #1066.
+* Check 2: not met — there is no agreement step on the sign-in card when the terms' version changes, tracked in #1066.
+* Check 3: not met — there is no step to decline, tracked in #1066.
+* Check 4: not met — the trail records no agreement, tracked in #1066.
+* Check 6: not met — there is no step for provider sign-ins, tracked in #1066.

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * Signing in through the workspace's own provider (H-04): the two calls, and what is held between
+ * Signing in through the workspace's own provider: the two calls, and what is held between
  * them, which is nothing.
  *
  * **The flow's memory is the server's.** `:start` answers a `state`, and the verifier and the nonce

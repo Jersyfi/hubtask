@@ -114,7 +114,7 @@
     role="presentation"
   >
     <!-- Out of the tab order: the input is transparent, so its ring is transparent too, and a
-         keyboard reader would land on a stop that shows nothing (2.4.7 - the F5-11 walk). The
+         keyboard reader would land on a stop that shows nothing (2.4.7). The
          button beside it is the keyboard's way in; the input keeps the pointer's click and the
          drop. -->
     <input

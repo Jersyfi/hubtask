@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The level above the workspaces, as the dashboard reads and writes it (SI-17, ADR-0070 §5).
+ * The level above the workspaces, as the dashboard reads and writes it (ADR-0070 §5).
  *
  * **The elevation is the door, and it is visible.** `admin:tenants` is carried by no session until a
  * registered operator raises their own for an hour by passing a fresh step-up. So this module holds
@@ -60,7 +60,7 @@ const TICK_MS = 1_000;
 class Instance {
   // Read from the seam rather than started empty: the elevation belongs to the session, and a
   // reload that forgot it would send the reader back to the door while the hour still stands at the
-  // server - where passing it again would start a *new* hour (SI-17, ADR-0070 §4).
+  // server - where passing it again would start a *new* hour (ADR-0070 §4).
   #until = $state<string | undefined>(platform.elevatedUntil());
   #now = $state(Date.now());
   #ticking: ReturnType<typeof setInterval> | undefined;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Search from the bar, and a search that narrows (F10-05; ADR-0063 decision 4, ADR-0064).
+// Search from the bar, and a search that narrows (ADR-0063 decision 4, ADR-0064).
 //
 // Three things this proves that no unit test can. The bar's field **leads** rather than searches:
 // Enter navigates to `/search` and the words arrive in the field there, having travelled in memory
@@ -127,7 +127,7 @@ test('chromium: the bar leads to the search, and the words are not in the addres
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => location.pathname === '/search', null, { timeout: 5_000 });
 
-  // The words arrived, and the address carries a handle rather than them (issue 997).
+  // The words arrived, and the address carries a handle rather than them.
   assert.equal(new URL(page.url()).searchParams.get('q'), null, 'the term reached the address bar');
   assert.equal(page.url().includes('milk'), false, `the term is in the address: ${page.url()}`);
   await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
@@ -276,9 +276,9 @@ test('chromium: a narrowing pressed in the bar reaches a screen already standing
   await page.locator('#search-menu').getByRole('option', { name: 'Mine, open' }).click();
   await page.waitForFunction(() => new URL(location.href).searchParams.get('f') === 'who:me is:open', null, { timeout: 5_000 });
 
-  // The address moved, and so did the question. It used to move alone: the URL changed, the chips
-  // kept their old answers and the same filter was asked again, which reads as a screen that did
-  // not load.
+  // The address moved, and so did the question. Had the address moved alone - the URL changed, the
+  // chips keeping their old answers and the same filter asked again - it would read as a screen
+  // that did not load.
   await waitForAsked(answered + 1);
   assert.deepEqual(
     asked.at(-1).filter,
@@ -301,7 +301,7 @@ test('chromium: Enter with nothing typed does what the menu says it does', async
   t.after(close);
 
   // The menu draws the word "Enter" against "Open search" before a single character is typed, so
-  // that is what the key has to mean there. It used to only open the menu - the one thing it
+  // that is what the key has to mean there. Opening the menu is the one thing it
   // cannot mean, because the menu is already open: it is where the reader read the word.
   await page.getByRole('combobox', { name: 'Search everything' }).click();
   await page.locator('#search-menu').waitFor({ timeout: 10_000 });

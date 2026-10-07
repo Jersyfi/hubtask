@@ -1,0 +1,29 @@
+name: Finding
+description: Something found outside the task at hand — a gap, a defect, a stale document. The next milestone cut takes it in or closes it.
+title: "[Finding] "
+labels: ["finding"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What was found
+      description: The fact, with evidence (file:line, a request and its answer, a test run).
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+      description: Which use case check, principle or rule it touches, if any (UC-…, P-…, rule N).
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What would fix it, and roughly how large it is.
+  - type: input
+    id: found-in
+    attributes:
+      label: Found while
+      placeholder: "working on PH-02 / a nightly run / using the app"

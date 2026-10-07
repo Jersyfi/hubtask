@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The slot a screen mounts the moment in (F6-13): the component at the tier the table said,
+  // The slot a screen mounts the moment in: the component at the tier the table said,
   // with the one sentence resolved here in voice-and-tone.md §7's voice - what happened, no
   // exclamation mark doing the work. Mounted only while the switch is on and a moment stands;
   // `onDone` lets it go, and the screen's own token keeps two screens from showing one moment.

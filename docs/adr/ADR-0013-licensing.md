@@ -4,6 +4,8 @@
 **Superseded by:** [ADR-0059](./ADR-0059-licensing-phases-and-licensing-start.md) on 2026-09-17, and by
 [ADR-0080](./ADR-0080-hubtask-is-apache-2-0.md) on 2026-10-07 — Hubtask is Apache-2.0
 
+**Rule lives in:** nowhere — superseded by ADR-0080; the current licence is in [licensing-editions.md](../architecture/licensing-editions.md)
+
 > The revisit before `1.0.0` that the last paragraph of *Consequences* asks for has happened: it is
 > ADR-0059. The context, the options and the reasoning below are kept as they were written; what
 > ADR-0059 replaces is the Additional Use Grant, the "all versions" parameter, and the freelancer

@@ -84,7 +84,7 @@ type PutAiRequestParams struct {
 	CreatedAt pgtype.Timestamptz
 }
 
-// The words a person asked a template to be drafted from (P-11).
+// The words a person asked a template to be drafted from.
 //
 // Every statement runs inside the transaction wrapper that sets `app.tenant_id`; the policy
 // underneath answers "which workspace", and `current_tenant_id()` is written on insert.

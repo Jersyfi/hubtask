@@ -1,6 +1,5 @@
 -- Hubtask - the reference schema.
--- Was the target state while the model was designed; since db/migrations/0001_init.sql exists,
--- the migrations are the source and this file is the readable reference of the same state.
+-- The migrations are the source; this file is the readable reference of the same state.
 -- Creates the core tables including tenant isolation through row level security.
 -- Conventions: UUIDv7 (generated in the application), timestamptz in UTC, tenant_id in every
 -- business table, soft delete through deleted_at, optimistic locking through version.
@@ -31,8 +30,8 @@ CREATE OR REPLACE FUNCTION current_tenant_id() RETURNS uuid
   LANGUAGE sql STABLE AS
 $$ SELECT nullif(current_setting('app.tenant_id', true), '')::uuid $$;
 
--- The text search configuration one item's language is indexed and searched under (C-08,
--- ADR-0034). STABLE rather than IMMUTABLE - which is what a trigger permits and a generated column
+-- The text search configuration one item's language is indexed and searched under (ADR-0034).
+-- STABLE rather than IMMUTABLE - which is what a trigger permits and a generated column
 -- does not - so that the catalogue can be asked what it has and anything it has not falls back to
 -- `simple` instead of failing the write.
 -- The mapping, and the one place it is written down: /meta/capabilities answers this same
@@ -91,7 +90,7 @@ $$
     FROM hubtask_text_config(language) AS cfg
 $$;
 
--- The collation names sort under (M-08, i18n-l10n.md §5, migration 0080): the ICU root collation
+-- The collation names sort under (i18n-l10n.md §5, migration 0080): the ICU root collation
 -- where PostgreSQL has it, the database's own locale where it does not. The queries say
 -- `COLLATE hubtask_name` either way; /meta/capabilities answers which of the two an installation
 -- got. No index is built on it, so its ICU version is nobody's to track.
@@ -113,7 +112,7 @@ CREATE OR REPLACE FUNCTION work_item_search_document() RETURNS trigger
 $$
 BEGIN
   NEW.search_document := hubtask_search_document(NEW.content_language, NEW.title, NEW.notes);
-  -- Which configuration built it (M-09): a row whose stored name differs from what
+  -- Which configuration built it: a row whose stored name differs from what
   -- hubtask_search_recipe() answers today is stale, and the reindex rewrites exactly those.
   NEW.search_configuration := hubtask_search_recipe(NEW.content_language);
   RETURN NEW;
@@ -135,17 +134,16 @@ CREATE TABLE tenant (
   updated_at         timestamptz NOT NULL DEFAULT now(),
   deleted_at         timestamptz,
   version            integer NOT NULL DEFAULT 1,
-  -- When the 30-day grace after a deletion request runs out (H-06); the hard-delete job waits
+  -- When the 30-day grace after a deletion request runs out; the hard-delete job waits
   -- for this moment.
   purge_after        timestamptz,
-  -- The synchronisation epoch (0087, N-11): every cursor carries the epoch it was minted under,
+  -- The synchronisation epoch (0087): every cursor carries the epoch it was minted under,
   -- and a restore into the workspace advances it, so that a cursor minted before is refused.
   sync_epoch         bigint NOT NULL DEFAULT 0,
-  -- The plan this workspace is on (ADR-0070 §3, migration 0099). Nullable and unread: plans are
-  -- their own milestone, and the column exists now so that the layer arrives without a migration
-  -- through the sign-in path.
+  -- The plan this workspace is on (ADR-0070 §3, migration 0099). Nullable and unread: the column
+  -- exists so that plans need no migration through the sign-in path.
   plan_id            uuid,
-  -- An operator's opening of the password for this workspace (0118, ADR-0078 §3, SC-34): when it
+  -- An operator's opening of the password for this workspace (0118, ADR-0078 §3): when it
   -- ends, who asked and why. Honoured where it is read - past the end it is over, whatever the row
   -- still says - and cleared with the opening. Not in `settings`, so the workspace's own PATCH cannot
   -- reach it.
@@ -174,11 +172,11 @@ CREATE TABLE account (
   week_start        text,
   status            account_status NOT NULL DEFAULT 'ACTIVE',
   ai_consent        boolean NOT NULL DEFAULT false,
-  -- The account's moments (F6-12): NULL is "the default, on" for the first and "the tour has not
+  -- The account's moments: NULL is "the default, on" for the first and "the tour has not
   -- been taken" for the second (migration 0093).
   celebrations      boolean,
   onboarding_completed_at timestamptz,
-  -- The redemption token the invitation mints (H-01): hashed under its own purpose label, shown
+  -- The redemption token the invitation mints: hashed under its own purpose label, shown
   -- once, dead on redemption. One open invitation per invited account, so it lives on the row.
   redemption_token_hash bytea,
   redemption_expires_at timestamptz,
@@ -265,7 +263,7 @@ CREATE TABLE access_token (
 CREATE UNIQUE INDEX access_token_hash_uq ON access_token (token_hash);
 CREATE INDEX access_token_account_idx ON access_token (tenant_id, account_id, created_at DESC);
 
--- A sign-in (H-01, security.md §5): the row /auth/sessions lists and revocation stamps. Both
+-- A sign-in (security.md §5): the row /auth/sessions lists and revocation stamps. Both
 -- tokens of the pair point at it, so ending it ends them together. `last_seen_at` is the
 -- retention anchor of the SESSION data kind; `user_agent` and `ip_class` are the client-binding
 -- hint T-01 asks to log - the network coarsened at recording time, never the full address.
@@ -279,13 +277,13 @@ CREATE TABLE session (
   ip_class     text,
   expires_at   timestamptz NOT NULL,
   revoked_at   timestamptz,
-  -- The step-up (H-03): a fresh re-authentication recorded on the session, one live proof at a
+  -- The step-up: a fresh re-authentication recorded on the session, one live proof at a
   -- time, consumed by the one privileged action it is presented to.
   step_up_token_hash  bytea,
   step_up_at          timestamptz,
   step_up_method      text,
   step_up_consumed_at timestamptz,
-  -- The leash (H-05): a session issued through an OAuth exchange names its grant and carries
+  -- The leash: a session issued through an OAuth exchange names its grant and carries
   -- the grant's scopes. NULL scopes is a person's own session. The foreign key is added after
   -- oauth_grant below, the order the migrations built it in.
   grant_id uuid,
@@ -337,7 +335,7 @@ CREATE TABLE session_refresh_token (
 CREATE UNIQUE INDEX session_refresh_token_hash_uq ON session_refresh_token (token_hash);
 CREATE INDEX session_refresh_token_session_idx ON session_refresh_token (session_id);
 
--- One TOTP enrolment per account (H-02, security.md §5): the secret sealed through the envelope
+-- One TOTP enrolment per account (security.md §5): the secret sealed through the envelope
 -- encryption, armed only once `confirmed_at` is set, `last_step` as the replay refusal.
 CREATE TABLE account_mfa (
   account_id    uuid PRIMARY KEY,
@@ -348,7 +346,7 @@ CREATE TABLE account_mfa (
   last_step     bigint,
   created_at    timestamptz NOT NULL,
   updated_at    timestamptz NOT NULL,
-  -- The authenticator's replacement (SC-17, migration 0113): a second, unconfirmed secret beside
+  -- The authenticator's replacement (migration 0113): a second, unconfirmed secret beside
   -- the armed one, the session that began it and the end of its window. All four or none.
   replacement_secret_enc    bytea,
   replacement_secret_key_id text,
@@ -393,7 +391,7 @@ CREATE TABLE account_password_history (
 CREATE INDEX account_password_history_account_idx
   ON account_password_history (tenant_id, account_id, set_at DESC);
 
--- The pending credential of a two-step sign-in (H-02): short-lived, single-use, hashed under
+-- The pending credential of a two-step sign-in: short-lived, single-use, hashed under
 -- its own purpose label - a row with the session machinery's discipline, not a session.
 CREATE TABLE auth_pending (
   id          uuid PRIMARY KEY,
@@ -429,7 +427,7 @@ CREATE UNIQUE INDEX auth_pending_token_uq ON auth_pending (token_hash);
 -- What a sign-in flow's key to its CONNECT link points at (migration 0117).
 CREATE UNIQUE INDEX auth_pending_tenant_id_uq ON auth_pending (tenant_id, id);
 
--- A registered third-party app (H-05). Redirect URIs match exactly, byte for byte.
+-- A registered third-party app. Redirect URIs match exactly, byte for byte.
 CREATE TABLE oauth_client (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -444,7 +442,7 @@ CREATE TABLE oauth_client (
 );
 CREATE UNIQUE INDEX oauth_client_tenant_id_uq ON oauth_client (tenant_id, id);
 
--- What a person allowed one app (H-05): the row they see and revoke beside their sessions.
+-- What a person allowed one app: the row they see and revoke beside their sessions.
 CREATE TABLE oauth_grant (
   id         uuid PRIMARY KEY,
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -463,7 +461,7 @@ CREATE UNIQUE INDEX oauth_grant_live_uq ON oauth_grant (account_id, client_id)
   WHERE revoked_at IS NULL;
 CREATE INDEX oauth_grant_account_idx ON oauth_grant (account_id, created_at DESC);
 
--- A single-use authorization code (H-05), kept briefly after consumption as the replay signal.
+-- A single-use authorization code, kept briefly after consumption as the replay signal.
 CREATE TABLE oauth_code (
   id             uuid PRIMARY KEY,
   tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -481,10 +479,9 @@ CREATE TABLE oauth_code (
 );
 CREATE UNIQUE INDEX oauth_code_hash_uq ON oauth_code (code_hash);
 
--- The hosts a workspace answers at (SI-12, migration 0104). The model custom domains need, without
--- the feature: nothing resolves through this table yet - `resolve_tenant` still reads the slug - and
--- what it buys is that the milestone which adds custom domains adds no column to the table every
--- request touches. The canonical row is derived from the slug under the installation's own domain
+-- The hosts a workspace answers at (migration 0104). The model custom domains need, without
+-- the feature: nothing resolves through this table - `resolve_tenant` reads the slug - and what it
+-- buys is that custom domains need no column on the table every request touches. The canonical row is derived from the slug under the installation's own domain
 -- and is verified by construction; the verification mark of any other row is published in a DNS
 -- record, which is why it is the one presented value here that is not a digest.
 CREATE TABLE tenant_host (
@@ -506,9 +503,10 @@ CREATE UNIQUE INDEX tenant_host_host_uq ON tenant_host (host);
 -- One canonical host per workspace. A mail, a redirect and an invitation link have to name one.
 CREATE UNIQUE INDEX tenant_host_canonical_uq ON tenant_host (tenant_id) WHERE is_canonical;
 
--- The providers a workspace signs its people in through (H-04, SI-10, migration 0103). Plural,
+-- The providers a workspace signs its people in through (migration 0103). Plural,
 -- and `tenant_id` is nullable: NULL is the installation's own, which every workspace reads and
--- none writes - see the two policies below. The client secret is sealed under E-02's envelope - a
+-- none writes - see the two policies below. The client secret is sealed under the envelope
+-- encryption of security.md §8 - a
 -- token exchange needs the plaintext, which is why this is not a hash.
 CREATE TABLE identity_provider (
   id                    uuid PRIMARY KEY,
@@ -546,7 +544,7 @@ CREATE UNIQUE INDEX identity_provider_issuer_uq
 CREATE INDEX identity_provider_tenant_idx
   ON identity_provider (tenant_id, position, created_at);
 
--- Which provider vouched for a subject, and which account it became (SI-10, migration 0103).
+-- Which provider vouched for a subject, and which account it became (migration 0103).
 -- `account.external_subject` held one subject per account and could not say which provider; this
 -- can. One account holds at most one subject per provider, and one subject names at most one
 -- account per provider per workspace - the workspace is in that key because an installation-wide
@@ -572,9 +570,9 @@ ALTER TABLE auth_pending ADD CONSTRAINT auth_pending_link_provider_id_fkey
 -- presents it back; the verifier and the nonce are kept as they are because one travels to the
 -- provider and the other is compared with a claim - and neither completes a flow without the
 -- sealed client secret.
--- The workspace's AI provider (J-02, ADR-0012, ADR-0049): which provider it would ask, under
+-- The workspace's AI provider (ADR-0012, ADR-0049): which provider it would ask, under
 -- which models, in which jurisdiction, and whether it consents to being asked at all. One row per
--- workspace. The API key is sealed under E-02's envelope, never hashed - the adapter needs the
+-- workspace. The API key is sealed under the envelope encryption (security.md §8), never hashed - the adapter needs the
 -- plaintext to sign a request - and the two envelope columns are all-or-nothing.
 CREATE TABLE ai_provider (
   tenant_id        uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
@@ -601,7 +599,7 @@ CREATE TABLE ai_provider (
 
 CREATE TABLE oidc_flow (
   id            uuid PRIMARY KEY,
-  -- Which provider this sign-in left through (SI-10, migration 0103). The state names the
+  -- Which provider this sign-in left through (migration 0103). The state names the
   -- workspace and a workspace has several ways in, so the flow remembers the one it used - or the
   -- exchange would be signed with the wrong client secret. Nullable for the rolling window: a flow
   -- opened by the previous binary carries none.
@@ -663,16 +661,16 @@ CREATE TABLE container (
   icon         text,
   color_token  text,
   order_key    text NOT NULL,
-  -- policies keys (domain-model.md §3.3): completion_policy (MANUAL | ROLLUP, read since B-07),
+  -- policies keys (domain-model.md §3.3): completion_policy (MANUAL | ROLLUP),
   -- default_bucket_id, capability_overrides, auto_assign. An absent key means the default; the column
-  -- starts as {} and UpdateContainerPolicies (B-06) is what writes into it.
+  -- starts as {} and UpdateContainerPolicies is what writes into it.
   --
-  -- auto_assign is a key of the policies *document*, not of this column: C-02 stores it in
+  -- auto_assign is a key of the policies *document*, not of this column: it is stored in
   -- auto_assign_policy, because ROUND_ROBIN's cursor has to be lockable, and the container queries
   -- join it back so every read still carries the whole document.
   --
-  -- default_bucket_id has no writer and is not read. B-09 needed a column for a deleted bucket's
-  -- items to fall back to and derived it instead - the collection's leftmost remaining bucket -
+  -- default_bucket_id has no writer and is not read. A deleted bucket's items need a bucket to fall
+  -- back to, and it is derived instead - the collection's leftmost remaining bucket -
   -- because a stored default is a value nothing keeps up to date: a column deleted while the key
   -- still named it would send items into a bucket that is no longer on the board.
   policies     jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -700,7 +698,7 @@ CREATE UNIQUE INDEX container_name_uq
 CREATE INDEX container_parent_idx ON container (tenant_id, parent_id, order_key)
   WHERE deleted_at IS NULL;
 -- The trash view and the way back out of it. Every other index on this table is partial on
--- `deleted_at IS NULL` and therefore describes exactly what the trash is not (B-10).
+-- `deleted_at IS NULL` and therefore describes exactly what the trash is not.
 CREATE INDEX container_trash_idx ON container (tenant_id, deleted_at)
   WHERE deleted_at IS NOT NULL;
 CREATE INDEX container_trash_batch_idx ON container (tenant_id, trash_batch_id)
@@ -781,7 +779,7 @@ CREATE TABLE work_item (
   custom_fields      jsonb NOT NULL DEFAULT '{}'::jsonb,
   -- Which definition each custom field value was written under: {key: definition id}. A value is
   -- visible only while exactly that definition lives, which is what keeps a deleted-and-recreated
-  -- key from resurrecting the old value (C-07, migration 0018).
+  -- key from resurrecting the old value (migration 0018).
   custom_field_refs  jsonb NOT NULL DEFAULT '{}'::jsonb,
   recurrence_rule_id uuid,
   recurrence_source_id uuid,
@@ -791,9 +789,9 @@ CREATE TABLE work_item (
   search_vector      tsvector GENERATED ALWAYS AS
                        (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(notes, ''))) STORED,
   -- The language-dependent document the search reads, maintained by the trigger below and dropping
-  -- the generated column above in a later migration (C-08, migration 0019, ADR-0034).
+  -- the generated column above in a later migration (migration 0019, ADR-0034).
   search_document    tsvector,
-  search_configuration text,             -- the configuration that built the document (M-09)
+  search_configuration text,             -- the configuration that built the document
   due_soon_announced_at timestamptz,
   overdue_announced_at  timestamptz,
   -- What a marked object carries between the two phases of a retention run (migration 0038,
@@ -818,7 +816,7 @@ CREATE TABLE work_item (
   CHECK (is_completed = (completed_at IS NOT NULL)),
   CHECK ((type = 'TASK') = (parent_id IS NULL)),
   CHECK (bucket_id IS NULL OR type = 'TASK'),
-  -- The cover's integrity (C-06, migration 0013). No TASK tie: which types carry COVER is the
+  -- The cover's integrity (migration 0013). No TASK tie: which types carry COVER is the
   -- capability matrix, which is data per tenant.
   CONSTRAINT work_item_cover_consistent CHECK (
     (cover_kind IS NULL AND cover_color_token IS NULL AND cover_media_id IS NULL)
@@ -842,7 +840,7 @@ CREATE INDEX wi_board_idx    ON work_item (tenant_id, collection_id, bucket_id, 
 CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
   WHERE deleted_at IS NULL AND archived_at IS NULL AND is_completed = false;
 -- The occurrences of one series: what an ON_COMPLETION series is waiting for, and when it was
--- last done (D-05).
+-- last done.
 CREATE INDEX wi_recurrence_idx ON work_item (recurrence_rule_id)
   WHERE recurrence_rule_id IS NOT NULL;
 CREATE INDEX wi_due_announce_idx ON work_item (tenant_id, due_at)
@@ -854,13 +852,13 @@ CREATE INDEX wi_assignee_idx ON work_item (tenant_id, assignee_id, is_completed,
 CREATE INDEX wi_parent_idx   ON work_item (tenant_id, parent_id, order_key);
 CREATE INDEX wi_cover_media_idx ON work_item (tenant_id, cover_media_id) WHERE cover_media_id IS NOT NULL;
 -- The plain item list of GET /items: one level of one collection, in its manual order. `id` last,
--- because the cursor is a keyset over (order_key, id) (B-04, api-guidelines.md §4).
+-- because the cursor is a keyset over (order_key, id) (api-guidelines.md §4).
 CREATE INDEX wi_level_order_idx
   ON work_item (tenant_id, collection_id, parent_id, order_key COLLATE "C", id)
   WHERE deleted_at IS NULL;
 -- The query language's default order: one whole collection, in its manual order. Without the
 -- `parent_id` column of the index above, which a query spanning a collection does not constrain
--- (B-12, ADR-0026).
+-- (ADR-0026).
 CREATE INDEX wi_query_order_idx
   ON work_item (tenant_id, collection_id, order_key COLLATE "C", id)
   WHERE deleted_at IS NULL;
@@ -878,7 +876,7 @@ CREATE INDEX wi_search_trgm_idx ON work_item
   USING gin ((coalesce(title, '') || ' ' || coalesce(notes, '')) gin_trgm_ops);
 CREATE INDEX wi_custom_idx   ON work_item USING gin (custom_fields jsonb_path_ops);
 CREATE INDEX wi_trash_idx    ON work_item (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
--- Restoring a deletion is one statement keyed on the batch every row of it shares (B-10, I-C2).
+-- Restoring a deletion is one statement keyed on the batch every row of it shares (I-C2).
 CREATE INDEX wi_trash_batch_idx ON work_item (tenant_id, trash_batch_id)
   WHERE trash_batch_id IS NOT NULL;
 
@@ -935,7 +933,7 @@ CREATE TABLE comment (
   author_id         uuid NOT NULL,
   parent_comment_id uuid,
   -- Conditional since migration 0012: a tombstone's body is empty - deletion clears the text
-  -- rather than hiding it (C-03) - while a living comment carries 1 to 20000 characters.
+  -- rather than hiding it - while a living comment carries 1 to 20000 characters.
   body              text NOT NULL CHECK (deleted_at IS NOT NULL OR length(body) BETWEEN 1 AND 20000),
   created_at        timestamptz NOT NULL DEFAULT now(),
   edited_at         timestamptz,
@@ -955,7 +953,7 @@ ALTER TABLE comment ADD CONSTRAINT comment_parent_comment_id_fkey
     FOREIGN KEY (tenant_id, parent_comment_id) REFERENCES comment (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX comment_item_idx ON comment (tenant_id, item_id, created_at);
 
--- Partitioned by month since H-09 (multi-tenancy.md §7), constructed exactly as migration 0068
+-- Partitioned by month (multi-tenancy.md §7), constructed exactly as migration 0068
 -- leaves a converted installation: a standalone history partition carrying the old shapes, a
 -- partitioned parent under the working name, a default catch-all, and the coming month through
 -- ensure_stream_partition below. The history is empty on a fresh install and holds everything
@@ -1024,11 +1022,11 @@ CREATE TABLE media_object (
   ref_count   integer NOT NULL DEFAULT 0,
   -- NULL where nobody uploaded it: a mail attachment arrives over an intake that authenticates the
   -- tenant and no person, and an account here would be an uploader this system invented
-  -- (migration 0061, G-11).
+  -- (migration 0061).
   created_by  uuid,
   created_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz,
-  -- The upload life (C-06, migration 0013): PENDING between staging and confirmation, READY once
+  -- The upload life (migration 0013): PENDING between staging and confirmation, READY once
   -- the bytes were read back, judged and sealed. Fail-closed default.
   status      text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READY')),
   file_name   text,
@@ -1077,7 +1075,7 @@ CREATE TABLE recurrence_rule (
     FOREIGN KEY (tenant_id, source_item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
 -- One series per entry: the entry points at its rule and the rule points back, and without this
--- the two could disagree about which rule an entry repeats by (D-04).
+-- the two could disagree about which rule an entry repeats by.
 CREATE UNIQUE INDEX recurrence_rule_source_idx ON recurrence_rule (source_item_id);
 
 CREATE TABLE reminder (
@@ -1135,7 +1133,7 @@ CREATE TABLE template (
   version     integer NOT NULL DEFAULT 1
 );
 CREATE UNIQUE INDEX template_tenant_id_uq ON template (tenant_id, id);
--- Two live templates in one scope may not share a name; a deleted one frees it (D-06).
+-- Two live templates in one scope may not share a name; a deleted one frees it.
 CREATE UNIQUE INDEX template_name_uq ON template (
     tenant_id, scope_type,
     coalesce(scope_id, '00000000-0000-0000-0000-000000000000'::uuid),
@@ -1152,10 +1150,10 @@ CREATE TABLE jumble_entry (
   raw_subject  text,
   raw_body     text,
   attachments  uuid[] NOT NULL DEFAULT '{}',
-  -- Superseded by `ai_suggestion` (J-05). A proposal is a record with provenance, a decision
+  -- Superseded by `ai_suggestion`. A proposal is a record with provenance, a decision
   -- and a period, and none of that fits a column; nothing has ever written this one. Kept for
   -- one release because a rolling update's old pods still select it, and dropped by the
-  -- contract half of expand/contract once they are gone (CLAUDE.md rule 12).
+  -- contract half of expand/contract once they are gone (rule 12).
   suggestion   jsonb,
   status       text NOT NULL DEFAULT 'NEW' CHECK (status IN ('NEW','PROCESSED','DISMISSED')),
   target_item_id uuid,
@@ -1164,7 +1162,7 @@ CREATE TABLE jumble_entry (
 );
 CREATE INDEX jumble_status_idx ON jumble_entry (tenant_id, status, received_at DESC);
 
--- The jumble's webhook intake (G-10, migration 0060): one token-protected address per tenant,
+-- The jumble's webhook intake (migration 0060): one token-protected address per tenant,
 -- stored as a hash under the intake's own purpose label. Rotating replaces it in one statement.
 CREATE TABLE jumble_intake (
   tenant_id  uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1184,7 +1182,7 @@ CREATE TABLE auto_assign_policy (
   enabled     boolean NOT NULL DEFAULT true,
   version     integer NOT NULL DEFAULT 1
 );
--- One policy per scope (C-02, migration 0011): the auto_assign key of one container's policies
+-- One policy per scope (migration 0011): the auto_assign key of one container's policies
 -- document is one row, and the upsert that writes the key conflicts on this.
 CREATE UNIQUE INDEX auto_assign_policy_scope_uq ON auto_assign_policy (tenant_id, scope_type, scope_id);
 
@@ -1209,10 +1207,10 @@ CREATE TABLE automation_rule (
   updated_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz,
   version     integer NOT NULL DEFAULT 1,
-  -- When a SCHEDULE rule next fires (G-08, migration 0055). NULL for the five triggers that are
+  -- When a SCHEDULE rule next fires (migration 0055). NULL for the five triggers that are
   -- not a schedule, and for a schedule whose rule is exhausted.
   next_run_at timestamptz,
-  -- The address an INBOUND_WEBHOOK rule answers on (G-08, migration 0057). D-08's discipline: the
+  -- The address an INBOUND_WEBHOOK rule answers on (migration 0057, automation.md §1.1): the
   -- token is hashed, answered once, and revoked by rotating; the moment is the only thing about
   -- it a listing may show.
   inbound_token_hash bytea,
@@ -1227,7 +1225,7 @@ CREATE TABLE automation_rule (
 CREATE UNIQUE INDEX automation_rule_tenant_id_uq ON automation_rule (tenant_id, id);
 CREATE INDEX rule_trigger_idx ON automation_rule (tenant_id, enabled)
   WHERE deleted_at IS NULL;
--- What the dispatcher asks per event (G-07, migration 0053): the enabled rules whose trigger is
+-- What the dispatcher asks per event (migration 0053): the enabled rules whose trigger is
 -- this event type. An expression index, because the trigger is a document - which is the right
 -- shape, and this is what the shape costs.
 CREATE INDEX rule_event_trigger_idx
@@ -1242,13 +1240,13 @@ CREATE INDEX automation_rule_due_idx ON automation_rule (next_run_at)
 CREATE UNIQUE INDEX automation_rule_inbound_token_uq ON automation_rule (inbound_token_hash)
   WHERE inbound_token_hash IS NOT NULL;
 
--- Partitioned by month since H-09 (range on started_at), activity_entry's construction.
+-- Partitioned by month (range on started_at), activity_entry's construction.
 CREATE TABLE rule_run_history (
   id           uuid NOT NULL,
   tenant_id    uuid NOT NULL CONSTRAINT rule_run_tenant_id_fkey REFERENCES tenant(id) ON DELETE CASCADE,
   rule_id      uuid NOT NULL,
   event_id     uuid,
-  -- What started the run (G-08, migration 0054). On the run rather than read back from the rule,
+  -- What started the run (migration 0054). On the run rather than read back from the rule,
   -- because a rule can be edited from one kind into another and a log that resolved the kind at
   -- read time would rewrite its own history.
   trigger      text NOT NULL DEFAULT 'EVENT',
@@ -1258,13 +1256,13 @@ CREATE TABLE rule_run_history (
   -- The entry the run is about when no event names it - a RELATIVE_DATE run measured from one
   -- entry's due date.
   subject_id   uuid,
-  -- 'WAITING' is a run parked on a WAIT action (G-09, migration 0058): its results so far are
+  -- 'WAITING' is a run parked on a WAIT action (migration 0058): its results so far are
   -- written and a scheduled job holds the resume point. Its own status, because a row left in
   -- RUNNING is how a crash is recognised.
   status       text NOT NULL CONSTRAINT rule_run_status_check CHECK (status IN ('RUNNING','WAITING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
   condition_results jsonb NOT NULL DEFAULT '[]'::jsonb,
   action_results    jsonb NOT NULL DEFAULT '[]'::jsonb,
-  -- What made this run one occurrence (G-09, migration 0059): the idempotency key's middle third,
+  -- What made this run one occurrence (migration 0059): the idempotency key's middle third,
   -- kept so a replay can complete a half-finished run around the keys its actions claimed. NULL
   -- on rows written before the column existed.
   occasion     text,
@@ -1316,9 +1314,8 @@ BEGIN
 END $rule_run_attach$;
 CREATE TABLE rule_run_default PARTITION OF rule_run DEFAULT;
 
--- What a RELATIVE_DATE rule owes for one entry, and when (G-08, migration 0056). D-02's shape
--- rather than a new one: `reminder` has carried "this entry, this moment" since phase 0, and a
--- relative-date rule is the same fact with a rule in place of a person.
+-- What a RELATIVE_DATE rule owes for one entry, and when (migration 0056). The reminder's shape
+-- rather than a new one: `reminder` carries "this entry, this moment", and a relative-date rule is the same fact with a rule in place of a person.
 CREATE TABLE rule_occurrence (
   id         uuid PRIMARY KEY,
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1348,9 +1345,9 @@ CREATE TABLE webhook_subscription (
   state         text NOT NULL DEFAULT 'ACTIVE' CHECK (state IN ('ACTIVE','PAUSED','DISABLED')),
   failure_count integer NOT NULL DEFAULT 0,
   -- The key a sealed value opens under. An installation that has rotated its keyring holds
-  -- several, so the ciphertext alone is not enough (E-02).
+  -- several, so the ciphertext alone is not enough.
   secret_key_id         text,
-  -- The rotation grace (G-03): one previous secret, verifying until this moment. A pair rather
+  -- The rotation grace: one previous secret, verifying until this moment. A pair rather
   -- than a table, because a history of retired secrets is a history of values that must not be
   -- readable.
   previous_secret_enc    bytea,
@@ -1408,7 +1405,7 @@ CREATE INDEX calendar_feed_account_idx ON calendar_feed (tenant_id, account_id, 
 
 -- ============================== Notification ===============================
 
--- What somebody is to be told, and how far that got (C-09). References and no content: what an
+-- What somebody is to be told, and how far that got. References and no content: what an
 -- email says is read from the entry when it is rendered, never copied here.
 CREATE TABLE notification (
   id           uuid PRIMARY KEY,
@@ -1425,7 +1422,7 @@ CREATE TABLE notification (
   created_at   timestamptz NOT NULL DEFAULT now(),
   sent_at      timestamptz,
   attempts     integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
-  -- The subjects that are not an entry (migration 0096, issue 814): the rule that was switched
+  -- The subjects that are not an entry (migration 0096): the rule that was switched
   -- off, the subscription that stopped being called. At most one of the three is set.
   rule_id         uuid,
   subscription_id uuid,
@@ -1469,7 +1466,7 @@ CREATE TABLE notification_preference (
 
 -- ========================= Events, jobs, idempotency =======================
 
--- Partitioned by month since H-09, activity_entry's construction: history + parent + default,
+-- Partitioned by month, activity_entry's construction: history + parent + default,
 -- one shape for the schema reference and the migrations.
 CREATE TABLE outbox_event_history (
   id              uuid NOT NULL,
@@ -1490,7 +1487,7 @@ CREATE TABLE outbox_event_history (
   -- 0033). Outward-facing subscribers are not given these: a restore would otherwise report last
   -- month's states to every webhook and every rule.
   replay          boolean NOT NULL DEFAULT false,
-  -- The two clocks of an event a device brought in, and the push it arrived with (0086, N-10).
+  -- The two clocks of an event a device brought in, and the push it arrived with (0086).
   received_at     timestamptz,
   push_id         uuid
 );
@@ -1523,7 +1520,7 @@ CREATE TABLE outbox_event (
 ) PARTITION BY RANGE (occurred_at);
 CREATE INDEX outbox_event_pending_idx ON outbox_event (occurred_at)
   WHERE dispatched_at IS NULL;
--- The polling trigger's walk (G-04, migration 0052): one type, in the outbox's own order. The
+-- The polling trigger's walk (migration 0052): one type, in the outbox's own order. The
 -- tenant leads because row level security puts it in front of every predicate; the ordering pair
 -- comes last so a page is a range read rather than a sort. Partial, because a poll never answers a
 -- replayed event.
@@ -1643,7 +1640,7 @@ CREATE INDEX audit_actor_idx      ON audit_log (tenant_id, actor_id, occurred_at
 CREATE INDEX audit_target_idx     ON audit_log (tenant_id, target_id, occurred_at DESC);
 
 -- Immutability, level 2 (level 1 = the absent GRANTs, level 3 = the hash chain).
--- The one exception (H-06, migration 0067): a row may fall only while the transaction-scoped
+-- The one exception (migration 0067): a row may fall only while the transaction-scoped
 -- purge marker names exactly its tenant - and the only writer of that marker is
 -- purge_tenant_trail, which closes the window before it returns. UPDATE stays impossible
 -- unconditionally.
@@ -1720,7 +1717,7 @@ CREATE INDEX dsr_open_idx ON data_subject_request (tenant_id, status, due_at)
 
 -- The pseudonyms an erasure leaves behind for the audit trail. The trail cannot be edited in place
 -- - the grants, the trigger and the hash chain all refuse it - so the substitution happens at the
--- boundary and this is what the boundary reads (audit.md §6, E-10).
+-- boundary and this is what the boundary reads (audit.md §6).
 CREATE TABLE audit_pseudonym (
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   actor_id    uuid NOT NULL,
@@ -1916,7 +1913,7 @@ CREATE TABLE retention_rule (
   scope_kind      text NOT NULL CHECK (scope_kind IN ('TENANT','HUB','COLLECTION')),
   scope_id        uuid,                              -- NULL exactly when the scope is the tenant
   data_kind       text NOT NULL,                     -- the catalogue of §3; no constraint, see 0038
-  condition       text,                              -- CEL, stored and not yet evaluated (0.5.0)
+  condition       text,                              -- CEL, stored and not evaluated
   retain_days     integer NOT NULL CHECK (retain_days >= 0),
   action          text NOT NULL
                     CHECK (action IN ('ARCHIVE','TRASH','ANONYMIZE','HARD_DELETE',
@@ -2003,7 +2000,7 @@ CREATE TABLE change_log_2026_08 PARTITION OF change_log
 CREATE TABLE change_log_default PARTITION OF change_log DEFAULT;
 CREATE INDEX change_log_pull_idx ON change_log (tenant_id, seq) INCLUDE (entity, entity_id, op);
 
--- The wake-up for the change stream (C-10, ADR-0007). A trigger rather than a NOTIFY in the
+-- The wake-up for the change stream (ADR-0007). A trigger rather than a NOTIFY in the
 -- application: every path that records a change would otherwise have to remember to announce it,
 -- and the one that forgets produces a change no connected client is told about. The payload is the
 -- tenant and nothing else - a doorbell, not a letter (rule 10).
@@ -2020,7 +2017,7 @@ CREATE TRIGGER change_log_notify
   AFTER INSERT ON change_log
   FOR EACH ROW EXECUTE FUNCTION hubtask_notify_change();
 
--- The wake-up for the dispatcher (G-02, ADR-0007). The queue rather than outbox_event: an event is
+-- The wake-up for the dispatcher (ADR-0007). The queue rather than outbox_event: an event is
 -- written together with its dispatch job in one transaction, so the row the worker waits for is the
 -- job. No payload - `job` has no tenant column and none is needed, and an empty payload is what
 -- lets PostgreSQL collapse a transaction that enqueued five jobs into one ring of the bell.
@@ -2049,7 +2046,7 @@ CREATE TABLE tombstone (
 );
 CREATE INDEX tombstone_purge_idx ON tombstone (purge_after);
 
--- The server's clock per field (migration 0083, N-05, offline-sync.md §4.2, §10): the reading of
+-- The server's clock per field (migration 0083, offline-sync.md §4.2, §10): the reading of
 -- the write that landed, which a push's reading is compared against per field. Not backfilled -
 -- a field written before the migration has no row and loses to the first device that writes it.
 -- Keyed by entity rather than tied to one table, because the rule applies to more than entries;
@@ -2063,7 +2060,7 @@ CREATE TABLE field_clock (
   PRIMARY KEY (tenant_id, entity, entity_id, field)
 );
 
--- An import from another system (P-08, backup-restore.md §9): what was asked, where it stands,
+-- An import from another system (backup-restore.md §9): what was asked, where it stands,
 -- and the report the applier wrote in the restore's shape. Not a restore_run, which names a
 -- target and an archive at it; an import's file is a media object deleted when the job ends.
 CREATE TABLE import_run (
@@ -2102,7 +2099,7 @@ CREATE TABLE sync_device (
   push_token    text,
   blocked       boolean NOT NULL DEFAULT false,
   created_at    timestamptz NOT NULL DEFAULT now(),
-  -- The credential of the request that last touched the device (migration 0082, N-03): what
+  -- The credential of the request that last touched the device (migration 0082): what
   -- forgetting the device revokes. A token's identifier matches no session and revokes nothing.
   credential_id uuid,
   CONSTRAINT sync_device_account_id_fkey
@@ -2137,7 +2134,7 @@ CREATE TABLE set_element (
   PRIMARY KEY (tenant_id, item_id, set_name, element_id)
 );
 
--- What AI proposed, and did not do (J-05, ADR-0012). A suggestion is a record: it becomes a change
+-- What AI proposed, and did not do (ADR-0012). A suggestion is a record: it becomes a change
 -- when somebody accepts it, as their own write with their own rights. The provenance columns are
 -- why the table exists rather than the answer being applied and forgotten - "why does this task say
 -- that" has to be answerable a year later.
@@ -2165,7 +2162,7 @@ CREATE TABLE ai_suggestion (
   decided_by    uuid,
   version       integer NOT NULL DEFAULT 1,
   -- How many parts of the provider's answer the narrowing dropped before the payload was stored:
-  -- for TEMPLATE the nodes the profile refused, each with its subtree (0094, issue 767).
+  -- for TEMPLATE the nodes the profile refused, each with its subtree (migration 0094).
   dropped_nodes integer NOT NULL DEFAULT 0 CHECK (dropped_nodes >= 0),
   CONSTRAINT ai_suggestion_decision CHECK (
     (status = 'PROPOSED' AND decided_at IS NULL AND decided_by IS NULL) OR
@@ -2176,7 +2173,7 @@ CREATE INDEX ai_suggestion_target_idx
   ON ai_suggestion (tenant_id, target_type, target_id, status, created_at DESC, id DESC);
 CREATE INDEX ai_suggestion_age_idx ON ai_suggestion (tenant_id, created_at);
 
--- The words a person asked a template to be drafted from (P-11, migration 0089). Held under row
+-- The words a person asked a template to be drafted from (migration 0089). Held under row
 -- level security for the minutes between the asking and the answer, because every other question
 -- reads its material from a row the workspace already holds and the queue's payloads carry
 -- identifiers only; the job that reads it deletes it when it ends.
@@ -2189,7 +2186,7 @@ CREATE TABLE ai_request (
 );
 CREATE INDEX ai_request_age_idx ON ai_request (tenant_id, created_at);
 
--- Semantic search's store (J-09, ADR-0050), where the database can carry it.
+-- Semantic search's store (ADR-0050), where the database can carry it.
 --
 -- **Conditional.** Migration 0075 creates this table only where `pg_available_extensions` offers
 -- `vector`; an installation without pgvector has no such table and a search that is lexical,
@@ -2215,7 +2212,7 @@ CREATE TABLE item_embedding (
 );
 CREATE INDEX item_embedding_vector_idx ON item_embedding USING hnsw (embedding vector_cosine_ops);
 
--- The fingerprint of an entry's text, computed where the entries are (J-10, migration 0076).
+-- The fingerprint of an entry's text, computed where the entries are (migration 0076).
 --
 -- The same function as `core/domain/model/suggestion.Digest` - the parts joined by a byte no UTF-8
 -- text contains, then SHA-256 - because "the same text" has to mean the same thing to whatever
@@ -2288,8 +2285,8 @@ CREATE POLICY tenant_isolation ON audit_log
   USING (tenant_id = current_tenant_id())
   WITH CHECK (tenant_id = current_tenant_id());
 
--- identity_provider is read by every workspace and written by one level only (SI-10, migration
--- 0103). A NULL row is the installation's: every workspace has to be able to draw its button, and
+-- identity_provider is read by every workspace and written by one level only (migration 0103).
+-- A NULL row is the installation's: every workspace has to be able to draw its button, and
 -- no workspace may change it. The standard policy would make such a row invisible to everybody,
 -- so the read admits it and the write does not - and the third policy is the installation's own
 -- scope, where `app.tenant_id` is the empty string and `current_tenant_id()` is therefore NULL.
@@ -2387,11 +2384,11 @@ GRANT  SELECT, INSERT ON audit_log TO hubtask_app;
 
 -- The pseudonyms an erasure leaves for the trail are append-only for the same reason the trail is:
 -- one that could be updated is a name that could come back, and one that could be deleted is an
--- erasure that could be undone (E-10, audit.md §6).
+-- erasure that could be undone (audit.md §6).
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_pseudonym FROM hubtask_app;
 GRANT  SELECT, INSERT ON audit_pseudonym TO hubtask_app;
 
--- And the anchors (migration 0090, A-2): the chain's end exported outside the database is the one
+-- And the anchors (migration 0090, audit.md §3): the chain's end exported outside the database is the one
 -- thing that says anything against somebody who can rewrite the trail, and the row that says where
 -- it went must not be one the application can rewrite or remove.
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_anchor FROM hubtask_app;
@@ -2412,7 +2409,7 @@ BEGIN
   END LOOP;
 END $audit_partitions$;
 
--- ============== The partition duty (audit.md §3, E-09) ======================
+-- ============== The partition duty (audit.md §3) ======================
 -- Every partition created later has to carry the policy and the revokes above, because neither is
 -- inherited when a partition is addressed directly - a measured finding, recorded where the
 -- partitions are created. This function is what a scheduled duty calls; it creates the month's
@@ -2478,7 +2475,7 @@ GRANT EXECUTE ON FUNCTION ensure_audit_partition(date) TO hubtask_app;
 SELECT ensure_audit_partition(date_trunc('month', now())::date);
 SELECT ensure_audit_partition((date_trunc('month', now()) + interval '1 month')::date);
 
--- ============ The one cross-tenant question (data-protection.md §4, E-10) ===
+-- ============ The one cross-tenant question (data-protection.md §4) ===
 -- Which workspaces a person is a member of. It answers tenant identifiers and nothing else; the
 -- collection that follows opens one ordinary transaction per tenant under that tenant's own
 -- context. See db/migrations/0044_privacy_requests.sql for the whole reasoning.
@@ -2535,7 +2532,7 @@ CREATE TABLE instance_setting (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- The installation at a glance (SI-17, migration 0105). Counts, states and limits - never rows,
+-- The installation at a glance (migration 0105). Counts, states and limits - never rows,
 -- which is ADR-0070 §5 in its own words. SECURITY DEFINER for `is_operator`'s reason: `account` is
 -- behind row level security and FORCE, so the application role cannot count across workspaces at
 -- all, and narrow by construction is what makes the exception acceptable - five integers, and no way
@@ -2559,7 +2556,7 @@ $$;
 REVOKE ALL ON FUNCTION instance_census() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION instance_census() TO hubtask_app;
 
--- ============ The instance's own journal (H-06) ============================
+-- ============ The instance's own journal ============================
 -- Evidence of acts whose per-tenant trail cannot hold them - above all a hard delete, after
 -- which the tenant's own audit chain is gone by design. Identifiers, a slug, counts and
 -- moments; never content. Deliberately without a row-level-security policy (the job table's
@@ -2672,8 +2669,8 @@ GRANT EXECUTE ON FUNCTION operator_register() TO hubtask_app;
 GRANT EXECUTE ON FUNCTION add_operator(uuid, uuid) TO hubtask_app;
 GRANT EXECUTE ON FUNCTION drop_operator(uuid) TO hubtask_app;
 
--- ============ Tenant resolution before a credential exists (H-01) ==========
--- Sign-in needs a tenant before it can check a password (0.6.0 decision 3). One identifier or
+-- ============ Tenant resolution before a credential exists ==========
+-- Sign-in needs a tenant before it can check a password (multi-tenancy.md §3). One identifier or
 -- none, never a listing: a slug names its tenant, NULL answers the single-mode installation's
 -- only row. See db/migrations/0063_auth_sessions.sql for the whole reasoning.
 CREATE OR REPLACE FUNCTION resolve_tenant(tenant_slug text) RETURNS uuid
@@ -2705,7 +2702,7 @@ GRANT EXECUTE ON FUNCTION move_provider_offer(uuid, integer) TO hubtask_app;
 
 -- Counted where it is read, since 0115 (ADR-0077 §1): how many live workspaces name the provider among
 -- their own switches - a number, never which, and only outside a workspace. The column and the
--- function above stay for one release (SC-30, issue #1134).
+-- function above stay for one release.
 CREATE OR REPLACE FUNCTION count_provider_offers(provider uuid) RETURNS integer
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT count(*)::integer FROM tenant
@@ -2717,12 +2714,12 @@ $$;
 REVOKE ALL ON FUNCTION count_provider_offers(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION count_provider_offers(uuid) TO hubtask_app;
 
--- ============ The control plane's two narrow acts (H-06) ====================
--- The one legitimate tenant enumerator (0.6.0 decision 6): provisioning and lifecycle are the
+-- ============ The control plane's two narrow acts ====================
+-- The one legitimate tenant enumerator (multi-tenancy.md §2.1): provisioning and lifecycle are the
 -- control plane's job, and the control plane must see its rows. SECURITY DEFINER for
 -- resolve_tenant's reason; what bounds it is the application - the use case behind it demands
 -- the admin:tenants scope, which no session carries.
--- Since 0118 it answers an operator's opening of the password beside the lifecycle (SC-34).
+-- It answers an operator's opening of the password beside the lifecycle (migration 0118).
 CREATE OR REPLACE FUNCTION admin_tenants()
 RETURNS TABLE (
   id uuid, slug text, display_name text, status text,
@@ -2765,7 +2762,7 @@ END $$;
 REVOKE ALL ON FUNCTION purge_tenant_trail(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION purge_tenant_trail(uuid) TO hubtask_app;
 
--- ============ The stream partitions' duty (H-09) ============================
+-- ============ The stream partitions' duty ============================
 -- ensure_audit_partition's shape for the three monthly streams, one function rather than three
 -- copies: a month's partition, RLS carried, and - unlike the trail - the full grant, since
 -- these tables are legitimately updated and swept. See db/migrations/0068_stream_partitions.sql
@@ -2904,7 +2901,7 @@ SELECT ensure_stream_partition('outbox_event', (date_trunc('month', now()) + int
 SELECT ensure_stream_partition('rule_run', (date_trunc('month', now()) + interval '1 month')::date);
 SELECT ensure_stream_partition('change_log', (date_trunc('month', now()) + interval '1 month')::date);
 
--- ============================ Restore drill (H-10) ==========================
+-- ============================ Restore drill ==========================
 -- Two marker rows per drill run, written by the owner at a recorded moment; the drill restores to
 -- a point between them and expects the first and not the second (backup-restore.md §8.5).
 -- Installation-scoped, no tenant column, and the application role has no access at all.

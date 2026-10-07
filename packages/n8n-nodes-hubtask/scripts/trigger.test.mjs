@@ -3,7 +3,7 @@
 
 // The trigger's webhook half against a delivery as the installation sends one: a CloudEvents
 // document under `application/cloudevents+json`, which n8n's body parser leaves unread, signed
-// over its bytes (automation.md §3.1, issue 723).
+// over its bytes (automation.md §3.1).
 
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';

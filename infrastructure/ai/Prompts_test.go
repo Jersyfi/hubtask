@@ -36,7 +36,7 @@ func TestEveryShippedPromptParsesAndCarriesItsVersion(t *testing.T) {
 	}
 }
 
-// What a prompt asks a provider to answer with, read off the prompt itself (K-01).
+// What a prompt asks a provider to answer with, read off the prompt itself.
 //
 // The comparison against what the code keeps is `test/architecture`'s, because that gate needs the
 // application layer's allow list beside this. Here it is the parsing: a shape a model would be
@@ -52,7 +52,7 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 		// from, and words a model invented would be vocabulary it invented. Labels are the
 		// classifier's, chosen from the set it was shown.
 		"suggest-fields": {"title", "notes", "due_date", "subtasks"},
-		// All three chosen from what the material carried (K-02, K-03): the collection's
+		// All three chosen from what the material carried: the collection's
 		// vocabulary, the columns of the entry's board, and the values of the fields it declared.
 		// The keys inside `custom_fields` are the workspace's own and belong to no shape.
 		"classify":             {"label_ids", "bucket_id", "custom_fields"},
@@ -62,7 +62,7 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 		// The nodes' own keys belong to a node, not to the answer: only `children` is at the
 		// answer's level, and what a node may carry is `keptTree`'s business.
 		"decompose": {"children"},
-		// The one prompt written for an agent rather than for this product's provider (J-12). It
+		// The one prompt written for an agent rather than for this product's provider. It
 		// asks for prose, so there is no shape to read.
 		"weekly-review": nil,
 	} {
@@ -149,7 +149,7 @@ func TestEveryShippedPromptFencesTheContentItIsGiven(t *testing.T) {
 	}
 }
 
-// The two kinds of prompt in one store (J-12). What the product asks its own provider carries no
+// The two kinds of prompt in one store. What the product asks its own provider carries no
 // title; what an agent may ask for describes itself, because that description is what a client
 // lists. One store, because two is how one prompt comes to exist in two versions.
 func TestOnlyThePromptsWrittenForAnAgentArePublished(t *testing.T) {

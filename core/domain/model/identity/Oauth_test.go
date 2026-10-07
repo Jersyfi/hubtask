@@ -46,7 +46,7 @@ func TestNewOauthClientValidatesAndDeduplicates(t *testing.T) {
 	}
 }
 
-// The name is stored in normal form C (i18n-l10n.md §5, M-07), like every label a person types.
+// The name is stored in normal form C (i18n-l10n.md §5), like every label a person types.
 func TestAClientNameIsStoredInNormalFormC(t *testing.T) {
 	in := validClientInput()
 	in.Name, in.Text = "Bu\u0308ro-Automat", text.Composing{}

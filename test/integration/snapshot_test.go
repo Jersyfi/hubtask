@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The initial synchronisation's reader (N-02): every kind the change log records, paged by
+// The initial synchronisation's reader: every kind the change log records, paged by
 // identifier across the whole workspace, live rows only - and a cross-tenant negative for every
 // method (gate SG-3). The database is shared across files, so every assertion is by identity:
 // the rows this test seeded are found in the walk, or they are not, whatever else is there.

@@ -75,9 +75,9 @@ See [data-protection.md](../../architecture/data-protection.md) §4–5.
 
 ## Today
 
-* **Check 8 fails.** *Start answering it* on an erasure case starts the job at once, with no
-  confirmation naming the person or the loss (`apps/webapp/src/views/PrivacyView.svelte`, the
-  start button). The mode's explanation is shown beside the choice, which is not the same.
-* **Checks 9–13 fail: the erasure reads no legal hold at all**, not even one on the whole workspace
-  (`core/application/service/privacy/Erasure.go`), and a hold on an account is refused. Milestone PH,
-  task PH-01.
+* Check 8: not met — *Start answering it* on an erasure case starts the job at once, without a confirmation naming the person or what the mode removes, tracked in #1077.
+* Check 9: not met — the erasure reads no legal hold, so it does not keep what a hold covers, tracked in #1086.
+* Check 10: not met — the erasure reads no legal hold, not even one on the whole workspace, and a hold on an account is refused, tracked in #1086.
+* Check 11: not met — a case never closes as partly completed, and the confirmation says nothing about holds, tracked in #1086.
+* Check 12: not met — releasing a hold carries out nothing, tracked in #1086.
+* Check 13: not met — a hold on an account is refused, tracked in #1086.

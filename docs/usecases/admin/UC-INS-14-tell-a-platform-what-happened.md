@@ -41,4 +41,8 @@ platform reads the use per workspace and metric for the period.
 
 ## Today
 
-* **Not built.** Named by the concept's §6.2; belongs to the plans milestone.
+* Check 1: not met — there are no installation-level webhook subscriptions.
+* Check 2: not met — none of the events in the goal is delivered to the installation.
+* Check 3: not met — there are no installation events whose content could be checked.
+* Check 4: not met — use per workspace, per metric and per period cannot be read in one request.
+* Check 5: not met — there are no installation subscriptions or deliveries to see or retry.

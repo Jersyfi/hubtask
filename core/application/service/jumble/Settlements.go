@@ -56,7 +56,7 @@ type ItemOrigins interface {
 	RecordOrigin(ctx context.Context, itemID, entryID shared.ID) (bool, error)
 }
 
-// ConvertJumbleEntry turns an entry into work (G-10).
+// ConvertJumbleEntry turns an entry into work.
 //
 // The item write goes through CreateWorkItem - the same use case a plain create goes through, as
 // the same actor, with the destination's rights checked there (rule 2). What this use case owns
@@ -208,7 +208,7 @@ func (w Writer) announceConversion(
 	return w.Events.Append(ctx, envelope)
 }
 
-// DismissJumbleEntry decides against an entry (G-10). A state, not a deletion: the entry stays
+// DismissJumbleEntry decides against an entry. A state, not a deletion: the entry stays
 // readable, and the retention engine ages it out by rule rather than by hand.
 type DismissJumbleEntry struct{ Writer Writer }
 

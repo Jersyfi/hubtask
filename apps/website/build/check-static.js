@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Fails when the prerendered output is not the plain static site F1-12 promises: no inline
+// Fails when the prerendered output is not the plain static site it has to be: no inline
 // <script>, no <style> element, no style attribute, no inline event handler - and, because the
 // layout switches client-side rendering off entirely, no script at all, inline or not.
 //

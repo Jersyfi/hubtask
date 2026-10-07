@@ -269,7 +269,7 @@ func TestATenantHeaderAgreeingWithTheTokenPassesThrough(t *testing.T) {
 }
 
 // The chain in full: what the client asked for reaches the use case, where it stands after the
-// account's own preference and before the workspace's default (i18n-l10n.md §2, M-04).
+// account's own preference and before the workspace's default (i18n-l10n.md §2).
 func TestTheRequestedLocaleReachesTheUseCase(t *testing.T) {
 	auth := &authenticator{actor: authenticatedActor()}
 
@@ -324,7 +324,7 @@ func TestNoAcceptLanguageMeansNoRequestPreference(t *testing.T) {
 }
 
 // The subdomain is §3's second source: it may confirm the credential's workspace, never overrule
-// it (H-06, multi-tenancy.md §3).
+// it (multi-tenancy.md §3).
 func TestASubdomainContradictingTheCredentialIsRefused(t *testing.T) {
 	auth := &authenticator{actor: authenticatedActor()}
 	r := request(t, "/containers")
@@ -392,7 +392,7 @@ func TestTenantLabelReadsExactlyOneSubdomain(t *testing.T) {
 	}
 }
 
-// The CalDAV tree takes HTTP Basic with the token as the password (P-06): a calendar client can
+// The CalDAV tree takes HTTP Basic with the token as the password: a calendar client can
 // send nothing else. Everywhere else Basic stays refused, and the challenge on the tree is the
 // Basic one, because a client prompts on that and shows an error on a Bearer one.
 func TestBasicIsTakenOnTheCalDavTreeAndNowhereElse(t *testing.T) {
@@ -435,7 +435,7 @@ func TestBasicIsTakenOnTheCalDavTreeAndNowhereElse(t *testing.T) {
 // The discovery address is asked before a client has presented anything (RFC 6764 §5) and by
 // some clients with the credential they were configured with, which is Basic: both reach the
 // redirect, a wrong Basic credential is a Basic challenge, and no lookup happens for the
-// anonymous ask (issue 719).
+// anonymous ask.
 func TestTheCalDavDiscoveryAddressNeedsNoCredentialAndTakesBasic(t *testing.T) {
 	auth := &authenticator{}
 	bare := httptest.NewRequestWithContext(t.Context(), http.MethodGet, calendar.WellKnown, nil)

@@ -103,7 +103,7 @@ func TestAPullAnswersPagesInCursorOrderAndSaysWhetherThereIsMore(t *testing.T) {
 	}
 }
 
-// The C-10 criterion, again: a record the caller may not read is not in the page, and the cursor
+// A record the caller may not read is not in the page, and the cursor
 // advances past it rather than stalling on it.
 func TestAPullWithholdsWhatTheCallerMayNotReadAndAdvancesPastIt(t *testing.T) {
 	pull, f := pulling(t, entry(1, readable), entry(2, hidden), entry(3, readable))
@@ -217,7 +217,7 @@ func TestAScopeNarrowsAfterThePermissionCheckNotInsteadOfIt(t *testing.T) {
 }
 
 // A revocation at the hub reaches a device holding one of its collections: the device drops what
-// it holds under the root, and a scope does not stand in the way (N-08).
+// it holds under the root, and a scope does not stand in the way.
 func TestARevocationIsNotNarrowedByAScope(t *testing.T) {
 	revoked := entry(1, hub)
 	revoked.Op, revoked.ActorID = repository.AccessRevoked, account
@@ -234,7 +234,7 @@ func TestARevocationIsNotNarrowedByAScope(t *testing.T) {
 	}
 }
 
-// A workspace-wide template (#626) reaches a device through the pull, and under a scope too: it
+// A workspace-wide template reaches a device through the pull, and under a scope too: it
 // stands above every hub, so a device holding one hub still receives the templates it can apply.
 func TestAWorkspaceWideTemplateIsAnsweredWithAndWithoutAScope(t *testing.T) {
 	template := entry(1, "")
@@ -307,8 +307,9 @@ func TestAPullValidatesItsRequest(t *testing.T) {
 	}
 }
 
-// Until N-02, a device with no cursor is told the initial synchronisation is not served rather
-// than handed an empty page and a fresh cursor - which would be a client believing it is current.
+// Where the initial synchronisation is not wired, a device with no cursor is told it is not served
+// rather than handed an empty page and a fresh cursor - which would be a client believing it is
+// current.
 func TestANullCursorIsRefusedUntilTheInitialSynchronisationExists(t *testing.T) {
 	pull, _ := pulling(t, entry(1, readable))
 

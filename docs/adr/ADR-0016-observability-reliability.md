@@ -1,7 +1,9 @@
 # ADR-0016: Self-diagnosis, controlled degradation, and SLO-based operation
 
-* **Status:** accepted
-* **Date:** 2026-08-14
+**Status:** accepted · **Date:** 2026-08-14
+
+**Rule lives in:** [observability-reliability.md](../architecture/observability-reliability.md) §1, §2, §5, §6, §7, §10
+
 * **Concerns:** operations, reliability, observability
 * **Related:** [ADR-0002](./ADR-0002-modular-monolith.md), [ADR-0008](./ADR-0008-jobs-and-scheduling.md), [ADR-0014](./ADR-0014-single-image-multi-role.md), [observability-reliability.md](../architecture/observability-reliability.md)
 

@@ -2,13 +2,13 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The tour, walked (F6-14): which step stands, the element it points at, and the three verbs.
+ * The tour, walked: which step stands, the element it points at, and the three verbs.
  *
  * **It starts on the first sign-in of an account whose `onboarding_completed_at` is null**, once
  * the account has arrived; the help menu restarts it by clearing the field. **Skipping writes the
  * field**: a tour that came back on every sign-in would teach people to skip. The seventh step
  * does not write it - it leads to the creation dialog, and the field is written when the entry is
- * completed, which is decision 11's first celebration; until then this tab remembers that the
+ * completed, which is the first celebration (design-system.md §7); until then this tab remembers that the
  * tour was walked so it does not start again on the next screen.
  *
  * Each step is a route and an element: the tour navigates, waits for the element to be drawn,
@@ -112,7 +112,7 @@ class TourStore {
     await this.#write();
   }
 
-  /** The first completion (F6-13): the tour's end and the first moment coincide (§8). */
+  /** The first completion: the tour's end and the first moment coincide (§8). */
   async complete(): Promise<void> {
     this.#close();
     session()?.setItem(TOUR_SESSION_KEY, 'walked');
@@ -178,7 +178,7 @@ class TourStore {
    * Any collection and any entry the workspace holds, for the steps that need one. Asked of the
    * server through the engine rather than of the copy: the tour starts on the first sign-in,
    * which is before the copy has been synchronised, and the engine answers from the copy anyway
-   * where the server is away (F6-04).
+   * where the server is away.
    */
   async #workspace(): Promise<{ collectionId?: string; itemId?: string }> {
     try {

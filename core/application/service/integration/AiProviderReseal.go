@@ -64,7 +64,7 @@ func (r AiProviderResealer) Reseal(
 }
 
 // AiKeyPurpose binds the sealed key to the workspace it belongs to, so a ciphertext lifted into
-// another workspace's row does not open (E-02, the identity provider's client secret).
+// another workspace's row does not open (the identity provider's client secret).
 func AiKeyPurpose(tenantID shared.ID) crypto.Purpose {
 	return crypto.Purpose("ai_provider.api_key:" + tenantID.String())
 }

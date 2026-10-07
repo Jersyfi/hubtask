@@ -5,10 +5,9 @@
  * Who is signed in, and the four things that change it: a sign-in, a redeemed invitation, a
  * sign-out, and a refusal the seam could not exchange away.
  *
- * **What `0.6.0` actually brought, and what it did not.** H-01 minted a session: `POST
- * /auth/sessions` takes an email and a password and answers an access token of fifteen minutes
- * beside a refresh token of thirty days. What it did not bring is a session the browser holds and
- * script cannot read — every route in this contract takes a bearer, and `/auth/oidc:callback`
+ * **A bearer pair, not a cookie.** `POST /auth/sessions` takes an email and a password and
+ * answers an access token of fifteen minutes beside a refresh token of thirty days. There is no
+ * session the browser holds and script cannot read — every route in this contract takes a bearer, and `/auth/oidc:callback`
  * answers the same pair. So the pair goes where the token went, and `platform/tokenStore.ts`
  * carries the reasoning for that.
  *
@@ -25,9 +24,9 @@
  * who is asking. `/meta/capabilities` is scoped by the caller — the installation's answer when
  * nobody is signed in, the actor's when somebody is — so the manifest read before a sign-in is not
  * the manifest that applies after it; and `engine.reset()`, which each of the four goes through,
- * clears the subscription that would otherwise deliver the new one. Issue 1020 is what the missing
- * line looked like: a 401 on the boot read signed the reader out, the sign-in that followed left
- * the manifest `failed`, and every entry screen drew as though no type carried anything.
+ * clears the subscription that would otherwise deliver the new one. Without that line a 401 on
+ * the boot read signs the reader out, the sign-in that follows leaves the manifest `failed`, and
+ * every entry screen draws as though no type carried anything.
  */
 
 import { TransportError } from '@hubtask/sync-engine';
@@ -62,7 +61,7 @@ interface SessionTokens {
 }
 
 /**
- * The second step a two-step sign-in owes (H-02), as the `202` carries it.
+ * The second step a two-step sign-in owes, as the `202` carries it.
  *
  * The pending credential is deliberately **not** a member of this: it can do nothing but complete
  * this sign-in, and it is held privately by the module that presents it rather than handed to a
@@ -114,8 +113,8 @@ class Session {
   /**
    * How many recovery codes are left, answered exactly when one completed this sign-in.
    *
-   * `SessionTokens.recovery_codes_remaining` has been in the contract since H-02 with "zero is the
-   * number to act on" written beside it, and no client had ever read it. Held until it is said,
+   * `SessionTokens.recovery_codes_remaining` carries "zero is the number to act on" in the
+   * contract. Held until it is said,
    * then taken: an announcement that repeats on every navigation is noise.
    */
   #recoveryLeft = $state<number | undefined>(undefined);

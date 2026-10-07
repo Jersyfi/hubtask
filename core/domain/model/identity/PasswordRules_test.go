@@ -35,7 +35,7 @@ func TestAViolationCarriesTheParameterItsSentenceTakes(t *testing.T) {
 }
 
 // One field error per rule, all against the password itself: the field is the password, and the
-// list under it is what says which rule refused (milestone decision 7).
+// list under it is what says which rule refused (design-system.md §10, 3.3.1).
 func TestARefusedPasswordNamesEveryRuleAgainstTheOneField(t *testing.T) {
 	err := PasswordRefused([]PasswordViolation{
 		{Rule: RuleMinLength, Params: map[string]string{"minimum": "12"}},

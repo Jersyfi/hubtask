@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Command deprecations writes the table of deprecated request fields from api/openapi.yaml (SC-28).
+// Command deprecations writes the table of deprecated request fields from api/openapi.yaml.
 //
 // The contract marks a field `deprecated: true` with `x-deprecated-since`, `x-removed-in`,
 // `x-replaced-by` and an optional `x-sunset`; this reads every operation whose JSON request body

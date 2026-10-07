@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The schedules and the runs against a real database (E-05): the claim that is a statement, the
+// The schedules and the runs against a real database: the claim that is a statement, the
 // resumption that is the same claim, and the tenant boundary per method (gate SG-3).
 
 func runRepo() postgres.BackupRunRepository           { return postgres.NewBackupRunRepository() }
@@ -104,9 +104,9 @@ func TestARunThatDiedContinuesItsOwnClaim(t *testing.T) {
 	}
 }
 
-// The stuck-target defect of #207, proved against the statements: a run left RUNNING blocks every
-// later run at its target, and closing it the way the dead letter now does - FAILED under its own
-// code - is exactly what frees the target again.
+// The stuck target, proved against the statements: a run left RUNNING blocks every later run at
+// its target, and closing it the way the dead letter does - FAILED under its own code - is exactly
+// what frees the target again.
 func TestClosingAnAbandonedRunFreesItsTarget(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

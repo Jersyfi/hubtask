@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-08-22
 
+**Rule lives in:** [design-system.md](../design/design-system.md) §0, §1
+
 ## Context
 
 [ADR-0027](./ADR-0027-monorepo-structure.md) gives the design system a home in

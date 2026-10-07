@@ -14,8 +14,7 @@ import (
 	"context"
 )
 
-// RecordReminder turns a reminder that has come due into records and the jobs that send them
-// (D-03).
+// RecordReminder turns a reminder that has come due into records and the jobs that send them.
 //
 // Deliberately not a second delivery path, for the reason the invitation is not one: it writes the
 // same record every other notification writes and queues the same `notification.deliver` job, so

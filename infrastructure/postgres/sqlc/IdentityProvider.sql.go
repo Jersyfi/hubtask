@@ -142,7 +142,7 @@ WHERE a.kind = 'USER' AND a.status = 'ACTIVE' AND a.deleted_at IS NULL
   )
 `
 
-// How many people of this workspace no provider in the list signs in (ADR-0078 §1, SC-33): the
+// How many people of this workspace no provider in the list signs in (ADR-0078 §1): the
 // number the password switch says before the password is switched off. Active people only - an
 // invited account has not chosen a way in yet, and a service account signs in with a token - and a
 // number, never a list (P-01's discipline inside the workspace too: the screen needs how many, not
@@ -500,7 +500,7 @@ type InsertOidcFlowParams struct {
 // A NULL session is a sign-in flow; a session is the step-up at the provider it belongs to
 // (ADR-0075 §2). An invited account is the invitation a sign-in started from (ADR-0078 §1) - and the
 // foreign key on (tenant, account) is what keeps it this workspace's. A pending credential is the
-// CONNECT link a sign-in started from (ADR-0078 §1, SC-33), kept this workspace's the same way.
+// CONNECT link a sign-in started from (ADR-0078 §1), kept this workspace's the same way.
 func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) error {
 	_, err := q.db.Exec(ctx, insertOidcFlow,
 		arg.ID,
@@ -620,7 +620,7 @@ type ListIdentityProvidersRow struct {
 	OfferedWorkspaces   int32
 }
 
-// The relying-party surface (H-04, SI-10): the providers a workspace signs in through, and the
+// The relying-party surface: the providers a workspace signs in through, and the
 // flows of one sign-in.
 //
 // Every statement here runs inside the transaction wrapper that sets `app.tenant_id`, so the

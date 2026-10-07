@@ -46,6 +46,7 @@ and lands in the instance journal.
 
 ## Today
 
-* **Checks 1 and 2 fail:** the screen shows raw keys in text boxes; a value that was not set before
-  is sent as text and refused by the server, so most values cannot be saved from the screen.
-* **Check 3 fails:** one label ("A workspace may change it: Yes / No, this applies") for every kind.
+* Check 1: not met — the screen shows raw keys in text boxes, tracked in #1063.
+* Check 2: not met — a value that was not set before is sent as text and refused by the server, so most values cannot be saved from the screen, tracked in #1063.
+* Check 3: not met — one label ("A workspace may change it: Yes / No, this applies") for every kind of value, tracked in #1063.
+* Check 5: not met — the workspace's screens show neither the installation's legal links nor its language, time zone and week start, only a lock, tracked in #1063.

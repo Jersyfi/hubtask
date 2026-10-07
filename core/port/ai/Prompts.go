@@ -22,9 +22,9 @@ type Prompt struct {
 	// is the same reason a tool description is not display text (rule 8, ADR-0011).
 	Instruction string
 	// Title and Description are what an agent's client shows for this prompt, and they are the
-	// reason a prompt is published at all (J-12): a prompt that describes itself is one somebody
-	// wrote for an agent to use, and one that does not is the product's own instruction to its own
-	// provider. Empty in the second case, and `Published` is what asks.
+	// reason a prompt is published at all: a prompt that describes itself is one somebody wrote for
+	// an agent to use, and one that does not is the product's own instruction to its own provider.
+	// Empty in the second case, and `Published` is what asks.
 	//
 	// They are protocol documentation, exactly like a tool's description and for exactly the same
 	// reason: rule 8 forbids *display text* - what a person reads in their own language, rendered
@@ -41,12 +41,12 @@ type Prompt struct {
 	// Answers are the top-level keys of the answer shape this prompt documents, in the order it
 	// documents them. Empty for a prompt that asks for prose - which is every published one.
 	//
-	// It is here so that what a prompt *asks for* and what the code *keeps* can be compared, and
-	// it is emphatically not the allow list itself (K-01). The allow list is a security control: a
-	// declared key is one somebody decided the code may accept, and deriving it from the prompt
-	// text would mean a prompt edit widened the filter. What this makes possible is the other
-	// direction - a gate that reads both and refuses a prompt asking a provider for a key the code
-	// discards, which is the defect that paid for an answer nobody read from J-06 until 0.7.5.
+	// It is here so that what a prompt *asks for* and what the code *keeps* can be compared, and it
+	// is emphatically not the allow list itself. The allow list is a security control: a declared
+	// key is one somebody decided the code may accept, and deriving it from the prompt text would
+	// mean a prompt edit widened the filter. What this makes possible is the other direction - a
+	// gate that reads both and refuses a prompt asking a provider for a key the code discards,
+	// which is an answer paid for that nobody reads.
 	Answers []string
 }
 
@@ -58,7 +58,8 @@ type Prompt struct {
 //   - Text: the value is material, and becomes a user message. It is the shape `Ask` already has,
 //     and it carries the same guardrail - the instruction is the system message, the material is
 //     the user message, and nothing concatenates the two (ai-first.md §1.3).
-//   - A resource: the value is an identifier, and becomes a link into the URI space J-11 published.
+//   - A resource: the value is an identifier, and becomes a link into the MCP resource URI space
+//     (ai-first.md §1.1).
 //     The client fetches it through `resources/read`, which is where the permission is asked - so a
 //     prompt naming a collection cannot hand out a collection the caller may not open.
 type PromptArgument struct {
@@ -105,9 +106,9 @@ var ErrPromptUnknown = shared.ErrInternal.WithDetail("ai.prompt_unknown")
 
 // Prompts is where the instructions live.
 //
-// One store, read by whatever asks a model something and published by the MCP prompts endpoint
-// (J-12): two stores would be how one prompt comes to exist in two versions, and a suggestion's
-// recorded prompt version would then name a text that depends on who is reading it.
+// One store, read by whatever asks a model something and published by the MCP prompts endpoint: two
+// stores would be how one prompt comes to exist in two versions, and a suggestion's recorded prompt
+// version would then name a text that depends on who is reading it.
 type Prompts interface {
 	// Get answers the newest version of one prompt.
 	Get(id string) (Prompt, error)

@@ -57,7 +57,7 @@
 
   let verifyFrom = $state('');
   let verifyTo = $state('');
-  /** Whether the check also reads the last anchor back from the target (issue 774). */
+  /** Whether the check also reads the last anchor back from the target. */
   let verifyAnchors = $state(false);
 
   // Where the chain's end is anchored, read from the workspace - the one place it is read back
@@ -508,8 +508,8 @@
 <style>
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). The 60ch column that stood here was a document's measure around a
-     screen that is not a document. */
+     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
+     around a screen that is not a document. */
 
   .section {
     margin: 0;

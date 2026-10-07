@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// Acceptance criterion of task A-02: every error category has a test.
+// Every error category has a test.
 func TestEveryCategoryIsValidAndCarriesASentinel(t *testing.T) {
 	cases := []struct {
 		category Category

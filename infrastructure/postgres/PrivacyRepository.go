@@ -17,8 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// Data subject rights, stored (E-10, data-protection.md §4). The tables have stood since
-// `0001_init` and these are the first statements over them.
+// Data subject rights, stored (data-protection.md §4).
 //
 // Nothing here names a tenant: the transaction the caller opened decided that, and row level
 // security applies it to every statement (ADR-0010). That holds for the installation-wide case as
@@ -490,7 +489,7 @@ func optionalInstant(value time.Time) pgtype.Timestamptz {
 	return timestampOf(value)
 }
 
-// The erasure, one storage location at a time (E-10, data-protection.md §5).
+// The erasure, one storage location at a time (data-protection.md §5).
 
 // Anonymise keeps the row and takes everything of the person's out of it.
 func (r PrivacyRepository) Anonymise(
@@ -612,7 +611,7 @@ func (r PrivacyRepository) AuthoredComments(
 }
 
 // DeleteAuthoredComments removes them.
-// DiscardIntake removes what the person sent in by mail (E-11).
+// DiscardIntake removes what the person sent in by mail.
 func (r PrivacyRepository) DiscardIntake(ctx context.Context, accountID shared.ID) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)
 	if err != nil {
@@ -640,7 +639,7 @@ func (r PrivacyRepository) ReleaseIntake(ctx context.Context, accountID shared.I
 	return int(rows), nil
 }
 
-// AutomationsRunningAs counts the rules that act as the person (E-11).
+// AutomationsRunningAs counts the rules that act as the person.
 func (r PrivacyRepository) AutomationsRunningAs(
 	ctx context.Context, accountID shared.ID,
 ) (int, error) {

@@ -54,7 +54,4 @@ exist or do not apply in the destination are listed by kind.
 
 ## Today
 
-* **Check 1 fails on the entry page.** The row menu of an entry's subtree offers *Duplicate*, but
-  the page does not pass the handler to the list, so the choice does nothing
-  (`apps/webapp/src/views/ItemView.svelte:825`, `apps/webapp/src/lib/entries/EntryList.svelte:917`).
-  From the collection's list and the board it works.
+* Check 1: not met on the entry page — the subtree's row menu offers *Duplicate*, but the page passes no handler, so the choice does nothing, tracked in #1082.

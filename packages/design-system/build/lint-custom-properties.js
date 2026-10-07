@@ -6,7 +6,7 @@
 // lint-no-literals.js refuses a value written outside tokens.json; this is its other half. A
 // reference to a property the generated layer does not carry is not an error the browser reports
 // - the declaration is invalid at computed-value time and the background is simply transparent -
-// which is how six components came to paint nothing where they meant to paint a lift (issue 711).
+// which is how a component paints nothing where it meant to paint a lift.
 //
 // A property counts as defined when tokens.json generates it - the names are derived here through
 // the same table the build uses, so the check needs no build to have run - or when a file in the

@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The series beside the entries (D-04): a sub-resource of the entry, because a rule is one thing
+// The series beside the entries: a sub-resource of the entry, because a rule is one thing
 // an entry either carries or does not - which is also why one PUT sets and changes it.
 
 const (

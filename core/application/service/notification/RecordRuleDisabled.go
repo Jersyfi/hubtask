@@ -16,7 +16,7 @@ import (
 )
 
 // RecordRuleDisabled tells the writer of an automation rule that it has switched itself off after a
-// run of failures (G-07, automation.md §2).
+// run of failures (automation.md §2).
 //
 // The same path RecordWebhookDisabled takes, and for the same reasons: the preference is honoured,
 // the record is deduplicated, and the send is a job like every other. A rule that stopped acting and
@@ -27,7 +27,7 @@ import (
 // behind it to read a message; the person who wrote the rule is the one who can fix it.
 //
 // It carries no event, exactly as the webhook's does. The trigger is the fifth consecutive failed
-// run, and there is no envelope that says so - the column has allowed a null since C-09. The
+// run, and there is no envelope that says so - the column allows a null. The
 // deduplication index therefore does not apply, which is right: a rule disables itself once, so the
 // caller is already the thing that happens once.
 type RecordRuleDisabled struct {
@@ -60,7 +60,7 @@ func (r RecordRuleDisabled) RuleDisabled(
 		RecipientID: rule.CreatedBy,
 		Category:    domain.CategoryIntegration,
 		Channel:     domain.ChannelEmail,
-		// The rule is the subject (issue 814) - what the message is about, and what a renderer
+		// The rule is the subject - what the message is about, and what a renderer
 		// needs to name. Never its name - a title is user content, and the record is read by a
 		// renderer that looks the rule up (rule 10).
 		RuleID: rule.ID,

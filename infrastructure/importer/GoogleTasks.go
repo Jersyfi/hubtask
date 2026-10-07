@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// GoogleTasks is Takeout's `Tasks.json` (P-10): every task list of the account, each with its
+// GoogleTasks is Takeout's `Tasks.json`: every task list of the account, each with its
 // items. One collection per list, one entry per item, a child under its parent - Google Tasks
 // nests one level, which is a task under a task here. A due date is a date and never a time, so
 // it lands as an all-day date in the importing person's zone; `completed` is the moment, and an

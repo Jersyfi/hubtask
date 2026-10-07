@@ -20,12 +20,10 @@ import (
 // thing that decides, which is what "checked by the authoriser exactly as a person's would be"
 // means (ADR-0005).
 //
-// It exists because it was missing. `AiSuggestion` built the asking person's actor with no scopes
-// at all, so every read the job made was refused `access.insufficient_scope` - which means no
-// suggestion could ever be produced against a running installation. Nothing caught it: the use case
-// tests hand `Produce` an actor they built themselves, and the worker's own actor was never put in
-// front of a real registry until J-16's end-to-end session asked for a suggestion and waited a
-// minute for one that was never coming.
+// Without it the asking person's actor carries no scopes at all, so every read the job makes is
+// refused `access.insufficient_scope` - and no suggestion can ever be produced against a running
+// installation. No use case test can see that: they hand `Produce` an actor they built themselves,
+// and only the worker's own actor in front of a real registry shows it.
 type Scopes interface {
 	ForUseCase(name string) (string, bool)
 }

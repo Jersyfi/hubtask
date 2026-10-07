@@ -13,9 +13,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// SET_ADD and SET_REMOVE (N-07, offline-sync.md §4.2's sets row): the OR-set on the request path.
+// SET_ADD and SET_REMOVE (offline-sync.md §4.2's sets row): the OR-set on the request path.
 // The mutation names the set, the element and the device's tag; the server reads the element's
-// stored tags, merges the device's in with the rule SetElement.go has held since C-03, and applies
+// stored tags, merges the device's in with the rule SetElement.go holds, and applies
 // whatever the merged element says through the use case that owns the set - under the device's
 // tag, so the row carries the reading that decided. An addition a later removal already undid,
 // and a removal of an element that was never there, change nothing and answer MERGED.
@@ -36,7 +36,7 @@ type setOwner struct {
 	element  string
 }
 
-// Sets is the table of sets a device may change (N-07). `watchers` is in the contract's enum and
+// Sets is the table of sets a device may change. `watchers` is in the contract's enum and
 // no use case writes a watcher; it stays out of this table until one does, and the frame refuses
 // it by name.
 type Sets struct {

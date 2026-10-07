@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// Moving and reordering (B-08). Neither holds a rule: the cycle check, the re-checked placement, the rank and
+// Moving and reordering. Neither holds a rule: the cycle check, the re-checked placement, the rank and
 // the subtree rewrite all happen in the application and domain layers, once, whichever channel the call came
 // through (ADR-0005, arc42 §4).
 

@@ -58,7 +58,4 @@ off and the administrator is told.
 
 ## Today
 
-* **Check 9 fails.** A condition (`filter`) is refused with `webhooks.filter_not_supported`
-  (`core/domain/model/integration/WebhookSubscription.go:215`), and a subscription takes no scope
-  at all — both promised in [automation.md](../../architecture/automation.md) §3.1. Every
-  subscription receives every event of its types in the whole workspace.
+* Check 9: not met — a condition (`filter`) is refused with `webhooks.filter_not_supported`, and a subscription takes no hub or collection scope, tracked in #1084.

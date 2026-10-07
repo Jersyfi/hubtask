@@ -1,7 +1,9 @@
 # ADR-0020: Retention rules as configurable data, with a grace period
 
-* **Status:** accepted
-* **Date:** 2026-08-14
+**Status:** accepted · **Date:** 2026-08-14
+
+**Rule lives in:** [data-retention.md](../architecture/data-retention.md) §2, §3, §4, §5
+
 * **Concerns:** domain, data protection, operations
 * **Related:** [ADR-0018](./ADR-0018-privacy-by-design.md), [ADR-0021](./ADR-0021-offline-sync.md), [data-retention.md](../architecture/data-retention.md)
 

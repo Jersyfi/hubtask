@@ -56,8 +56,8 @@ func TestADisabledRuleTellsItsAuthor(t *testing.T) {
 	if record.Category != domain.CategoryIntegration {
 		t.Errorf("category %q", record.Category)
 	}
-	// The rule is the subject, in its own column (issue 814): a rule in item_id met work_item's
-	// foreign key, and the check's whole transaction failed on it.
+	// The rule is the subject, in its own column: a rule in item_id would meet work_item's
+	// foreign key, and the check's whole transaction would fail on it.
 	if record.RuleID != disabledRule(anna).ID || !record.ItemID.IsZero() {
 		t.Errorf("the record is about rule %s, item %s", record.RuleID, record.ItemID)
 	}

@@ -39,10 +39,10 @@ type ReminderSignals interface {
 	ReminderFired(ctx context.Context, channel string, delaySeconds float64)
 }
 
-// FireReminders turns the reminders whose moment has come into notifications (D-03).
+// FireReminders turns the reminders whose moment has come into notifications.
 //
 // Internal, and deliberately absent from the catalogue in domain-model.md §5, for the reason
-// ReconcileMedia is absent from it (C-06): the catalogue is what a person, an agent or a rule can
+// ReconcileMedia is absent from it: the catalogue is what a person, an agent or a rule can
 // ask for, and "fire everybody's reminders now" is not something anybody should be able to ask
 // for - the way to influence when a reminder fires is the reminder.
 //
@@ -60,12 +60,12 @@ type FireReminders struct {
 	ItemMembers repository.ItemMembers
 	// Visibility answers whether a named recipient can still see the entry. A membership revoked
 	// since the reminder was written is not survived by a reminder that remembers better days -
-	// the same question D-02 asked at the write, asked again at the moment it matters.
+	// the same question the write asked, asked again at the moment it matters.
 	Visibility Visibility
 	Notifier   ReminderNotifier
 	// Events is where the two scheduling announcements go: item.due_soon and item.overdue are
 	// facts about a deadline rather than messages to a person, and what reacts to them is
-	// automation (D-03, domain-model.md §4).
+	// automation (domain-model.md §4).
 	Events outbox.Events
 	// Changes is how a device learns that a reminder fired. offline-sync.md §8 requires a client
 	// to reconcile the local notification it scheduled, and it can only do that if the server's
@@ -160,7 +160,7 @@ func (h FireReminders) Execute(
 // lead, and one that has passed with the work not done.
 //
 // Both are claimed and stamped in one statement, which is what makes each of them happen once per
-// due date (D-03): a second pass finds nothing left to claim. A date that moves clears the stamps
+// due date: a second pass finds nothing left to claim. A date that moves clears the stamps
 // where it is written, because a new deadline may be approached and missed again.
 //
 // The order matters for an entry whose deadline is already past: due_soon is claimed first, so a
@@ -320,10 +320,10 @@ func (h FireReminders) recipients(
 // everybodyOn is what an empty recipient list means: the entry's assignee and its member list,
 // read now rather than when the reminder was written.
 //
-// Not its watchers, for the reason the comment notification does not use them (C-09): the schema
+// Not its watchers, for the reason the comment notification does not use them: the schema
 // reserves the set name and nothing writes it yet. No authorisation question either, and for the
 // same reason - every recipient here is derived from a membership of the entry itself, which is
-// the narrowing C-04 built.
+// the narrowing the role matrix applies (domain-model.md §3.2).
 func (h FireReminders) everybodyOn(
 	ctx context.Context, item domain.WorkItem,
 ) ([]shared.ID, error) {

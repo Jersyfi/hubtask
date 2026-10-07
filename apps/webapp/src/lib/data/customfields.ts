@@ -154,7 +154,7 @@ export const FILTER_PREFIX = 'custom_fields.';
 /**
  * The definitions as fields a filter editor can offer.
  *
- * They are **not** in `query_fields` and that is deliberate on the server's side (C-07: "which
+ * They are **not** in `query_fields` and that is deliberate on the server's side ("which
  * keys exist is `/custom-fields`' answer"), so they are composed here from the definitions in
  * force for the collection on screen rather than read from the manifest.
  *

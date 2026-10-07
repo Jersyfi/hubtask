@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// A wrong second-factor proof advances the attempt ledger at every door (T-02, #1117, SC-22), so
+// A wrong second-factor proof advances the attempt ledger at every door (T-02), so
 // that guessing six digits meets the lockout curve. The fixture's unit of work rolls the ledger back
 // when the work fails, as the database does - a failure recorded inside the refusing transaction is
 // a failure that never lands, and every test here would have shown it.

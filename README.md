@@ -19,39 +19,11 @@ Go, PostgreSQL, hexagonal architecture.
 
 ## Documentation
 
-The architecture is fully documented and ready to implement. Start here:
-
-| Document | Contents |
-|---|---|
-| [docs/vision/README.md](./docs/vision/README.md) | **Why**: the vision, fifteen product principles, personas, the seven deployments, non-goals |
-| [docs/usecases/README.md](./docs/usecases/README.md) | **What**: every use case in plain language, by bounded context, with the checks that prove it and its state |
-| [docs/architecture/arc42.md](./docs/architecture/arc42.md) | **Main document**, following arc42: goals, constraints, context, solution strategy, building blocks, runtime, deployment, cross-cutting concepts, quality, risks, glossary |
-| [docs/architecture/domain-model.md](./docs/architecture/domain-model.md) | Aggregates, capability matrix, invariants, events, use case catalogue |
-| [docs/architecture/project-structure.md](./docs/architecture/project-structure.md) | Go directory tree, dependency rules, conventions |
-| [docs/architecture/api-guidelines.md](./docs/architecture/api-guidelines.md) | Resources, query DSL, errors, idempotency, versioning |
-| [docs/architecture/multi-tenancy.md](./docs/architecture/multi-tenancy.md) | Tenant isolation, RLS, quotas, GDPR |
-| [docs/architecture/security.md](./docs/architecture/security.md) | Threat model (STRIDE), hardening, crypto, supply chain, security gates |
-| [docs/architecture/audit.md](./docs/architecture/audit.md) | Tamper-evident audit trail, catalogue, verification, SIEM export |
-| [docs/architecture/data-protection.md](./docs/architecture/data-protection.md) | GDPR: roles, data subject rights, deletion concept, data residency |
-| [docs/architecture/backup-restore.md](./docs/architecture/backup-restore.md) | Backup targets, schedules, encryption, restore, import |
-| [docs/architecture/data-retention.md](./docs/architecture/data-retention.md) | Configurable retention periods for business data |
-| [docs/architecture/offline-sync.md](./docs/architecture/offline-sync.md) | Offline operation, conflict resolution, client requirements |
-| [docs/privacy/data-catalog.md](./docs/privacy/data-catalog.md) | Record of processing activities with deletion paths per storage location |
-| [docs/architecture/observability-reliability.md](./docs/architecture/observability-reliability.md) | SLOs, metric and alert catalogue, resilience patterns, self-diagnosis |
-| [docs/architecture/i18n-l10n.md](./docs/architecture/i18n-l10n.md) | Languages, time zones, search, RTL |
-| [docs/architecture/automation.md](./docs/architecture/automation.md) | Rule engine, triggers/actions, webhooks, n8n/Zapier |
-| [docs/architecture/ai-first.md](./docs/architecture/ai-first.md) | MCP, agent security, AI features |
-| [docs/architecture/versioning-release.md](./docs/architecture/versioning-release.md) | Semantic versioning, releases, migrations |
-| [docs/architecture/licensing-editions.md](./docs/architecture/licensing-editions.md) | Licence (Apache-2.0), trademark, one edition, funding |
-| [docs/architecture/engineering-guidelines.md](./docs/architecture/engineering-guidelines.md) | Test strategy, Definition of Ready/Done, operations |
-| [docs/architecture/deployment.md](./docs/architecture/deployment.md) | Environments, rollout, the integration environment, self-hosting |
-| [docs/architecture/ci-cd.md](./docs/architecture/ci-cd.md) | GitHub Actions pipeline, quality gates, release automation |
-| [docs/architecture/support-matrix.md](./docs/architecture/support-matrix.md) | What is supported, with the CI job that proves every row |
-| [docs/design/design-system.md](./docs/design/design-system.md) | Design system specification: tokens, themes, foundations |
-| [docs/adr/README.md](./docs/adr/README.md) | The architecture decision records with their reasoning |
-| [docs/roadmap.md](./docs/roadmap.md) | Milestones `0.1.0` through `1.0.0` |
-| [api/openapi.yaml](./api/openapi.yaml) | API contract (skeleton) |
-| [db/schema.sql](./db/schema.sql) | Reference database schema |
+The architecture is fully documented. [`docs/README.md`](./docs/README.md) says where each kind of
+knowledge lives; start with the [vision](./docs/vision/README.md) (why), the
+[use cases](./docs/usecases/README.md) (what must be true for a person) and
+[arc42](./docs/architecture/arc42.md) (how it is built). [`AGENTS.md`](./AGENTS.md) is how to work
+here, for a person or a coding agent.
 
 ---
 

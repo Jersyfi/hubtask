@@ -76,7 +76,7 @@ type StoredEmbedding struct {
 	UpdatedAt    time.Time
 }
 
-// Embeddings is semantic search's store (J-09, J-10, ADR-0050).
+// Embeddings is semantic search's store (ADR-0050).
 //
 // **Every method may be called against a table that does not exist.** pgvector is detected rather
 // than demanded, so an installation without it has no store at all - and the thing that stops these
@@ -97,7 +97,7 @@ type Embeddings interface {
 	// Store writes one entry's vector, replacing whatever was there.
 	Store(ctx context.Context, embedding StoredEmbedding) error
 
-	// Near answers the entries closest to one entry in the embedding space, nearest first (K-04).
+	// Near answers the entries closest to one entry in the embedding space, nearest first.
 	//
 	// `floor` is the similarity below which two entries are not near each other, and `limit`
 	// bounds the answer. What comes back is candidates rather than results: the rows come from
@@ -106,7 +106,7 @@ type Embeddings interface {
 	//
 	// An entry with no vector answers `Embedded: false` and no candidates, which is not an error:
 	// the pass has not reached it, it is found by nobody and finds nobody until it has, and that
-	// is J-10's degradation rather than a gap.
+	// is the semantic search's degradation rather than a gap (ai-first.md §2).
 	Near(ctx context.Context, itemID shared.ID, floor float64, limit int) (Nearby, error)
 }
 

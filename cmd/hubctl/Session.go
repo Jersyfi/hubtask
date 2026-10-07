@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The sign-ins a person can see and end (H-01).
+// The sign-ins a person can see and end.
 //
 // One's own and nobody else's, whatever the role - "an administrator who suspects one acts by
 // disabling the account, not by reading its sessions". So this group needs no scope and no

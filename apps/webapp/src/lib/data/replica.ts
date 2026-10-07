@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * What the replica answers while the server cannot be reached (F6-04), in this application's own
+ * What the replica answers while the server cannot be reached, in this application's own
  * paths — the shape `live.ts` follows for the other direction.
  *
  * **The engine does not learn which path is a list of what.** It hands the request and the store
@@ -69,7 +69,7 @@ async function one(storage: Storage, collection: string, id: string): Promise<Do
 
 /**
  * The plain level question - or an entry's whole subtree, which the entry page asks for in one
- * read (issue 877) - or nothing for one the copy would have to understand.
+ * read - or nothing for one the copy would have to understand.
  */
 function levelScope(body: unknown): { container_id?: string; item_id?: string; group?: boolean; descendants?: boolean } | undefined {
   if (body === null || typeof body !== 'object') return undefined;
@@ -217,7 +217,7 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
 }
 
 // ---------------------------------------------------------------------------------------------
-// The other direction (F6-05): what a write becomes when it has to be queued.
+// The other direction: what a write becomes when it has to be queued.
 // ---------------------------------------------------------------------------------------------
 
 /**
@@ -272,7 +272,7 @@ export async function mutationFor(
         return { kind: 'ITEM_PATCH', itemId, fields: { completion: { is_completed: false } } };
       case 'assign':
         // The body names the account (`Assignment.account_id`); the field it sets on the entry
-        // is `assignee_id` (issue 876).
+        // is `assignee_id`.
         return typeof fields.account_id === 'string'
           ? { kind: 'ITEM_PATCH', itemId, fields: { assignee_id: fields.account_id } }
           : undefined;
@@ -324,7 +324,7 @@ export async function mutationFor(
  * one list keep both insertions (§4.2). A destination the copy does not hold cannot name a rank,
  * and the write then goes directly.
  *
- * The payload always names the collection (issue 777): the server's applier requires a destination -
+ * The payload always names the collection: the server's applier requires a destination -
  * a collection or a parent - and a reorder at a collection's top level is a move to the same
  * place, which only the collection can name. A move names the collection it was asked for; a
  * reorder names the one the entry is in, which its parent's, where it has one, agrees with.

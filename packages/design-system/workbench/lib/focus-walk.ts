@@ -14,7 +14,7 @@
 // does not move focus in any browser - only the browser's own key handling does, and it is not
 // scriptable. That is a real limitation and the honest consequence is stated: this finds an order
 // that disagrees with the layout, and it does not find a focus trap. A trap needs a driven
-// browser, which is F5's decision (ADR-0037).
+// browser (ADR-0037).
 
 const FOCUSABLE = [
   'a[href]',

@@ -77,9 +77,9 @@ type Config struct {
 	InstanceFileMode string
 
 	// StepUpWindow is how long a fresh re-authentication covers the one privileged action it is
-	// presented to (H-03, security.md §5). Minutes, deliberately: long enough to type the typed
-	// tenant name after proving oneself, short enough that a walked-away terminal is not a
-	// standing authorisation.
+	// presented to (identity.md §16.2, security.md §5). Minutes, deliberately: long enough to type
+	// the typed tenant name after proving oneself, short enough that a walked-away terminal is not
+	// a standing authorisation.
 	StepUpWindow time.Duration
 
 	Database   DatabaseConfig
@@ -146,7 +146,7 @@ type DatabaseConfig struct {
 	WorkerStatementTimeout time.Duration
 }
 
-// BackupConfig is the operator's say over where backups may go (backup-restore.md §2, E-03).
+// BackupConfig is the operator's say over where backups may go (backup-restore.md §2).
 type BackupConfig struct {
 	// LocalRoot is the volume a `local` target writes inside. A target's own path is relative to
 	// it and cannot leave it, which is what keeps "write my backups to /etc" out of reach of
@@ -175,7 +175,7 @@ type EncryptionKey struct {
 	Material secret.Secret
 }
 
-// EncryptionConfig is the installation's master keys, current first (E-02, security.md §3).
+// EncryptionConfig is the installation's master keys, current first (security.md §8).
 //
 // A list rather than one key, because rotation without a readable predecessor is not rotation: a
 // single key that could be changed would make every value sealed under the old one unreadable at
@@ -222,7 +222,7 @@ type BusConfig struct {
 // Enabled reports whether this installation has a bus.
 func (b BusConfig) Enabled() bool { return b.URL != "" }
 
-// SyncConfig is the offline synchronisation's operational surface (offline-sync.md §4.1, N-04).
+// SyncConfig is the offline synchronisation's operational surface (offline-sync.md §4.1).
 type SyncConfig struct {
 	// ClockSkew is how far a device's clock reading may stand from server time before a push
 	// replaces it with a server reading. Five minutes by default: wider than any network delay
@@ -252,7 +252,7 @@ type RetentionConfig struct {
 	Interval time.Duration
 }
 
-// MediaConfig is what the reconciliation of uploaded files runs on (C-06, data-protection.md §5).
+// MediaConfig is what the reconciliation of uploaded files runs on (data-protection.md §5).
 //
 // The operator's rather than the tenant's, exactly as RetentionConfig is: how long an abandoned
 // upload is given before it counts as abandoned is about the lines this installation's people are
@@ -313,8 +313,7 @@ type QueueConfig struct {
 	// maximum is the worst case for SLO-4, so it stays well under thirty seconds.
 	OutboxMinInterval time.Duration
 	OutboxMaxInterval time.Duration
-	// TriggerPollLag is how far behind the present the polling trigger reads (G-04,
-	// automation.md §3.2).
+	// TriggerPollLag is how far behind the present the polling trigger reads (automation.md §3.2).
 	//
 	// The endpoint pages the outbox in `(occurred_at, id)` order, and `occurred_at` is stamped by
 	// the writing transaction rather than by its commit. A transaction that began before one
@@ -367,12 +366,11 @@ type MailConfig struct {
 	Timeout  time.Duration
 }
 
-// AIConfig is the installation's own say over the AI surface (J-02).
+// AIConfig is the installation's own say over the AI surface.
 //
-// It carries one field and will carry more as 0.7.0's adapters land. What it deliberately does
-// *not* carry is a provider: which provider a workspace uses, under which models, is that
-// workspace's configuration and lives in its own row - an installation-wide provider would make
-// one operator's choice everybody's.
+// What it deliberately does *not* carry is a provider: which provider a workspace uses, under which
+// models, is that workspace's configuration and lives in its own row - an installation-wide
+// provider would make one operator's choice everybody's.
 type AIConfig struct {
 	// AllowThirdCountryTransfer is HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER, the confirmation
 	// ADR-0018 decision 7 requires before a provider outside the EEA may be configured
@@ -385,7 +383,7 @@ type AIConfig struct {
 	// what makes it the deliberate friction the ADR asks for rather than a formality.
 	AllowThirdCountryTransfer bool
 	// DuplicateThreshold is HUBTASK_AI_DUPLICATE_THRESHOLD: the cosine similarity two entries have
-	// to reach before either is proposed as the other's duplicate (K-04).
+	// to reach before either is proposed as the other's duplicate (ai-first.md §2).
 	//
 	// Configuration rather than a constant because it is a number somebody has to choose, and a
 	// number chosen by whoever wrote the feature is one nobody can defend later: what counts as
@@ -431,9 +429,9 @@ type RequestConfig struct {
 	MaxBodyBytes   int64
 	MaxUploadBytes int64
 	// MaxMailBytes is the limit for the mail intake, whose body is a whole message rather than a
-	// document (G-11). Its own bound because it is its own shape: a mail with two attachments is
-	// far past what any JSON endpoint here ever carries, and far below what an upload may be -
-	// bounding it by either would make the route useless or make it a way to store files.
+	// document. Its own bound because it is its own shape: a mail with two attachments is far past
+	// what any JSON endpoint here ever carries, and far below what an upload may be - bounding it
+	// by either would make the route useless or make it a way to store files.
 	MaxMailBytes int64
 	// Timeout is the server-side deadline every handler inherits. No call without a deadline
 	// (ADR-0016).

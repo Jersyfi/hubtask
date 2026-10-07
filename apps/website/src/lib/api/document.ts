@@ -5,7 +5,7 @@
  * The contract, read once at build time.
  *
  * `@hubtask/api-client` is the one workspace member the site may take the document from
- * (project-structure.md §2.1, P-01): `make api-client` copies `api/openapi.json` into it, and the
+ * (project-structure.md §2.1): `make api-client` copies `api/openapi.json` into it, and the
  * site imports the copy. This is a build-time read - every page is prerendered and nothing here
  * runs in a browser - which is what keeps the site's own rule intact: no API call, ever.
  */

@@ -30,7 +30,7 @@ const (
 	ViewExportedAction audit.Action = "view.exported"
 )
 
-// ExportView renders a saved view's result whole (D-08).
+// ExportView renders a saved view's result whole.
 //
 // The rows are selected here and rendered by whichever channel asked: a wire format is an
 // adapter's business (project-structure.md §3), and the backend composes no document text of its
@@ -120,10 +120,10 @@ func (h ExportView) Execute(
 }
 
 // Select is the selection without the audit entry, for a caller that polls: the CalDAV calendar
-// (P-06) fetches a view every quarter of an hour as its owner, exactly as the ICS feed does, and
-// an audit row per poll would bury the entries somebody actually looks for (audit.md §2). The
-// same visibility rule, the same walk, the same cap - only the record differs, which is why
-// this is a method on the export rather than a second selection.
+// fetches a view every quarter of an hour as its owner, exactly as the ICS feed does, and an audit
+// row per poll would bury the entries somebody actually looks for (audit.md §2). The same
+// visibility rule, the same walk, the same cap - only the record differs, which is why this is a
+// method on the export rather than a second selection.
 func (h ExportView) Select(
 	ctx context.Context, actor appshared.ActorContext, viewID shared.ID,
 ) (ExportedView, error) {
@@ -187,7 +187,7 @@ func (h ExportView) walk(
 	spec, err := specOf(usecase.Input(saved.Query))
 	if err != nil {
 		// A stored query that no longer parses is a broken bookmark. It answers the grammar's own
-		// code, which is what a client needs in order to say which field is the problem (D-07).
+		// code, which is what a client needs in order to say which field is the problem.
 		return nil, false, err
 	}
 	// The grouping a client draws with is not an export's business: a file is rows, and a query

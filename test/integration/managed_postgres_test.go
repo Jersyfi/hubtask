@@ -21,14 +21,14 @@ import (
 
 // The third way an installation gets a database: one the operator brings and hands over as a
 // connection string (ADR-0052). `database.enabled` is off in the chart by default, and every
-// deployment reads its DSN from a Secret, so the chart has always supported it. The *migrations*
-// did not.
+// deployment reads its DSN from a Secret, so the chart supports it. The *migrations* have to as
+// well.
 //
-// The reason this suite never noticed is the reason it exists now: Compose, CI and the integration
+// Nothing else in the suite would notice if they did not: Compose, CI and the integration
 // environment all migrate as the PostgreSQL **superuser**, and a superuser ignores
 // `FORCE ROW LEVEL SECURITY`. A managed service hands out an owner with `CREATEROLE` and no
-// superuser, and under that role migration 0002 could not seed the system defaults its own policy
-// forbids anybody to write.
+// superuser, and under that role a migration cannot seed rows its own policy forbids anybody to
+// write - migration 0002's system defaults are such rows.
 //
 // So this test migrates the way a managed service would, in a database of its own on the shared
 // container. What it guards is not a feature but an absence of privilege: the day somebody writes a
@@ -158,8 +158,8 @@ func TestTheMigrationsApplyWithoutASuperuser(t *testing.T) {
 	}
 }
 
-// And the claim ADR-0052 turns on: freeing the owner freed nobody else. This is the test that has
-// to fail if the correction is ever widened into a hole.
+// And the claim ADR-0052 turns on: freeing the owner frees nobody else. This is the test that has
+// to fail if freeing the owner is ever widened into a hole.
 func TestTheBoundaryHoldsOnADatabaseWithoutASuperuser(t *testing.T) {
 	ctx := context.Background()
 	ownerDSN, appDSN := managedDatabase(ctx, t, "hubtask_managed_boundary")

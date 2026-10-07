@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Command sdkgen generates the TypeScript and the Python client from api/openapi.yaml (P-03).
+// Command sdkgen generates the TypeScript and the Python client from api/openapi.yaml.
 //
 //	sdkgen <openapi.yaml> <client.gen.ts> <python package dir>
 //

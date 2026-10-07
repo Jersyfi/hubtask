@@ -3,7 +3,7 @@
 
 package event
 
-// ReadScope is the token scope that may read an event of this type (G-04).
+// ReadScope is the token scope that may read an event of this type (automation.md §3.2).
 //
 // The pull half of the stream is authorised per event type, not per endpoint: a token scoped to
 // read items polls item events and is refused audit events, and that falls out of the scopes the

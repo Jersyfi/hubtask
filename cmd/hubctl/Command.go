@@ -31,7 +31,7 @@ const (
 	exitUsage = 2
 )
 
-// defaultTimeout bounds every call the CLI makes (CLAUDE.md rule 7). Generous, because a create
+// defaultTimeout bounds every call the CLI makes (rule 7). Generous, because a create
 // against a cold installation is slower than a get, and still short enough that a wrong address
 // fails rather than hangs.
 const defaultTimeout = 30 * time.Second

@@ -50,7 +50,7 @@ export type {
   TransportDocument,
 } from './ports.ts';
 
-// The two stores (F6-03): the browser's, which the platform seam of a client opens per API origin
+// The two stores: the browser's, which the platform seam of a client opens per API origin
 // and account, and the memory one the tests and the conformance runner use.
 export { IndexedDbStorage, databaseNameFor } from './storage/IndexedDbStorage.ts';
 export { MemoryStorage } from './storage/MemoryStorage.ts';

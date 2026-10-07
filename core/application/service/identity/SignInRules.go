@@ -132,7 +132,7 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 }
 
 // Legal answers the links in force for a workspace, or the installation's own where the identifier
-// is zero (SI-12).
+// is zero.
 //
 // The manifest's own question, answered by the one resolver rather than by a second read: a footer
 // inside the application needs the same four links the signed-out card shows, and two resolutions of
@@ -166,7 +166,7 @@ type SignInRules struct {
 	Password      PasswordRulesView
 	Legal         domain.LegalLinks
 	// PasswordFallback is true while the password is among the methods only because no other way
-	// into the workspace works, whatever the cause (ADR-0076 §4; E2, #1138), or because an operator
+	// into the workspace works, whatever the cause (ADR-0076 §4; E2), or because an operator
 	// opened it here (ADR-0078 §3). The public card does not say which.
 	PasswordFallback bool
 }
@@ -244,11 +244,10 @@ type GetSignInRules struct {
 
 	UnitOfWork persistence.UnitOfWork
 	// Clock is the moment an offer is read at: an installation's provider whose withdrawal has
-	// come is not a button (ADR-0076 §2). Nil reads every announced withdrawal as still ahead,
-	// which is the shape before the date existed.
+	// come is not a button (ADR-0076 §2). Nil reads every announced withdrawal as still ahead.
 	Clock clock.Clock
-	// Multi is decision 3's mode switch, SessionWriter's: in single mode there is one workspace
-	// and no subdomain to read.
+	// Multi is tenant resolution's mode switch (multi-tenancy.md §3), SessionWriter's: in single
+	// mode there is one workspace and no subdomain to read.
 	Multi bool
 }
 
@@ -338,7 +337,7 @@ func (h GetSignInRules) resolveTenant(ctx context.Context, slug, header string) 
 // fallback, if it does: none of them works (ADR-0076 §4), or an operator opened it (ADR-0078 §3) -
 // read from the same rows at the same moment.
 //
-// Plural since SI-10, and both levels: what a workspace configured and what its installation offers
+// Plural, and both levels: what a workspace configured and what its installation offers
 // every workspace, which is what the read policy admits together (migration 0103). A provider that
 // is switched off is not a way in and is not in the answer - a button that leads to a refusal is
 // worse than no button.
@@ -387,7 +386,7 @@ func (h GetSignInRules) providersOf(
 	summaries := make([]ProviderSummary, 0, len(inForce))
 	for _, configured := range inForce {
 		// A provider the installation offers is not a button until this workspace took it: "für
-		// alle Arbeitsbereiche angeboten, nirgends an" (SI-10). A button that led to a way in
+		// alle Arbeitsbereiche angeboten, nirgends an". A button that led to a way in
 		// nobody here chose would be the installation deciding for the workspace.
 		if configured.Issuer == "" || !offeredHere(configured, settings, now) {
 			continue

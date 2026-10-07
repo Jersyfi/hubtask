@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// pgvector is a capability, not a requirement (J-09, ADR-0050), and this is the half of that claim
+// pgvector is a capability, not a requirement (ADR-0050), and this is the half of that claim
 // the ordinary gate cannot make: every gate runs a database that *has* the extension, which is what
 // lets `support-matrix.md` §1 call semantic search supported at all - so the absence path needs a
 // database of its own.
@@ -76,10 +76,9 @@ func TestWhereTheExtensionIsThereTheStoreIsBehindTheBoundary(t *testing.T) {
 // point of the capability being detected: an installation says what it has rather than what the
 // build can do.
 //
-// This is the repository compared with the database, and it is deliberately no more than that. It
-// used to be named for the manifest and it was not one: the manifest also needs a provider that
-// embeds, and this test could not have noticed that it did not ask for one (issue 502). The
-// manifest's own claim is in `manifest_ai_test.go`.
+// This is the repository compared with the database, and it is deliberately no more than that: it
+// is not the manifest's claim, which also needs a provider that embeds - something this test cannot
+// notice the absence of. The manifest's own claim is in `manifest_ai_test.go`.
 func TestTheEmbeddingStoreIsDetectedRatherThanConfigured(t *testing.T) {
 	ctx := context.Background()
 	uow := postgres.NewUnitOfWork(appPool(ctx, t))

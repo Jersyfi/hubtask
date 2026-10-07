@@ -23,12 +23,12 @@ import (
 //
 // When the ways in a workspace's rule resolves to leave none that works - the password is not among
 // them and no provider is switched on here - the password opens again: for the accounts that hold
-// one, under the workspace's own password and second-factor rules. **Whatever the cause** (the
-// owner's decision of 2026-10-04, E2, #1138): an offer that ended, which is where ADR-0076 §4 began,
-// but just as much an installation default or lock without the password, a rescue lock lifted after
-// the provider went, a restore or an import that brought the settings without the providers, or two
-// administrators switching off the last two ways at once. The guards at the doors (the last way in,
-// SC-06) refuse what they can see; this is the net under all of them, so nothing else has to be
+// one, under the workspace's own password and second-factor rules. **Whatever the cause**
+// (identity.md §17.1): an offer that ended, which is where ADR-0076 §4 began, but just as much an
+// installation default or lock without the password, a rescue lock lifted after the provider went,
+// a restore or an import that brought the settings without the providers, or two administrators
+// switching off the last two ways at once. The guards at the doors (the last way in, identity.md
+// §4.1) refuse what they can see; this is the net under all of them, so nothing else has to be
 // perfect - no row lock for the race, no job on the day an offer ends. It is read wherever the ways
 // in are resolved, and it ends the moment an administrator switches on a way in, which is what the
 // screen asks them to do. An account without a password is let back in through its mailbox: the
@@ -45,10 +45,10 @@ type FallbackCause string
 
 const (
 	// FallbackCauseNoWayIn is the workspace's methods leaving no way in that works, whatever brought
-	// them there. One cause for all of those, because the predicate does not ask which (E2, #1138).
+	// them there. One cause for all of those, because the predicate does not ask which (E2).
 	FallbackCauseNoWayIn FallbackCause = "NO_WAY_IN"
 	// FallbackCauseOperator is an operator's opening of the password for this one workspace
-	// (ADR-0078 §3, SC-34): a person's decision, for a provider that is switched on but broken - the
+	// (ADR-0078 §3): a person's decision, for a provider that is switched on but broken - the
 	// case NO_WAY_IN cannot see, because a provider is on. Told apart in the trail, so an
 	// administrator reading it knows the installation opened the door rather than the rules.
 	FallbackCauseOperator FallbackCause = "OPERATOR"
@@ -61,7 +61,7 @@ func (c FallbackCause) Opens() bool { return c != "" }
 // the workspace's methods leave it out, and either an operator opened it here or no provider is a way
 // in here now. The operator's opening comes first, because it is the one that holds while a provider
 // is switched on: what it answers is a provider that is on and broken. Nothing asks why the methods
-// left no way in (E2, #1138) - a cause the predicate had to recognise is a cause it could miss, and
+// left no way in (E2) - a cause the predicate had to recognise is a cause it could miss, and
 // every miss is a lockout.
 func fallbackOpens(
 	methods []string, inForce []domain.IdentityProvider, workspace domain.Workspace, now time.Time,

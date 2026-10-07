@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The notification record and the preferences against a real database (C-09): the deduplication
+// The notification record and the preferences against a real database: the deduplication
 // the outbox's at-least-once delivery needs, the outcome a delivery writes back, the retention
 // batch, and a cross-tenant negative for every method (gate SG-3).
 
@@ -399,7 +399,7 @@ func TestNoNotificationMethodReachesIntoAnotherTenant(t *testing.T) {
 	}
 }
 
-// The read behind the settings form (F3-02): what the account wrote comes back, and nothing
+// The read behind the settings form: what the account wrote comes back, and nothing
 // about what it did not - the default is the use case's to fill in, not the repository's.
 func TestThePreferencesAnAccountWroteAreListed(t *testing.T) {
 	ctx := context.Background()

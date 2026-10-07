@@ -106,7 +106,7 @@ func (s *storeFake) SetOverrides(
 type usageFake struct {
 	items, media, webhooks, runs, exports int64
 	// metered is what the ledger holds, and the three below record how it was asked - which is
-	// the interesting half for a budget measured over a period (J-15).
+	// the interesting half for a budget measured over a period.
 	metered       int64
 	meteredCalls  int
 	meteredMetric string
@@ -331,7 +331,7 @@ func TestTheQuotasRoundTripThroughTheRegistry(t *testing.T) {
 	}
 }
 
-// The AI budget (J-15): §4's newest row, resolved and enforced by the same machinery as the rest.
+// The AI budget: §4's newest row, resolved and enforced by the same machinery as the rest.
 func TestTheAiBudgetDefaultsToTheModesNumber(t *testing.T) {
 	if single := Defaults(env.TenancySingle).AiTokensPerDay; single != Unlimited {
 		t.Errorf("single mode defaults the AI budget to %d, want unlimited - a self-hoster's "+
@@ -344,7 +344,7 @@ func TestTheAiBudgetDefaultsToTheModesNumber(t *testing.T) {
 }
 
 // The guard reports room against what the day has spent, and reports the ratio on the way - the
-// same metric A-18 watches for every other quota, which is why the alert needed no new rule.
+// same metric A-18 watches for every other quota, so the alert needs no new rule.
 func TestTheAiBudgetIsMeasuredAgainstTheDaysSpend(t *testing.T) {
 	for name, c := range map[string]struct {
 		limit, spent int64

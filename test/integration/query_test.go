@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
-// The query language against a real database (B-12).
+// The query language against a real database.
 //
 // This is where the compiler is actually proved. FuzzCompile shows that no request can reach the
 // statement's text; only PostgreSQL can say whether the statement it produces is valid SQL, uses
@@ -152,7 +152,7 @@ func queryFixture(ctx context.Context, t *testing.T) fixture {
 
 		// The completion and the archive stamp are written afterwards rather than in the insert,
 		// because that is how they are written in production: the insert takes the fields
-		// CreateWorkItem owns, and the lifecycle is a transition of its own (B-07, B-10).
+		// CreateWorkItem owns, and the lifecycle is a transition of its own.
 		completed := built.tasks[1].Completed(authorA, created)
 		if err := items.SetCompletion(ctx, completed, built.tasks[1].Version); err != nil {
 			return err
@@ -293,7 +293,7 @@ func TestEveryOperatorAnswersAgainstTheDatabase(t *testing.T) {
 // withFixtureIDs replaces the empty identifier placeholders in a filter document with the fixture's
 // own. Written this way so that the table above reads as a list of filters rather than as a list of
 // closures.
-// The two fields C-01 gave use cases, asked of a real column and a real join table. The assignee is
+// The assignee and the members, asked of a real column and a real join table. The assignee is
 // a scalar and the members are a relation, which is the whole difference between them - and a
 // filter that compiles and then fails to plan shows up here and nowhere earlier.
 func TestTheAssigneeAndTheMembersAnswerAgainstTheDatabase(t *testing.T) {
@@ -357,7 +357,7 @@ func TestTheAssigneeAndTheMembersAnswerAgainstTheDatabase(t *testing.T) {
 	}
 }
 
-// The two fields D-01 gave use cases: answerable, sortable with the nulls placed, asked of the
+// The schedule's two fields: answerable, sortable with the nulls placed, asked of the
 // real columns and wi_due_idx - a filter that compiles and then fails to plan shows up here and
 // nowhere earlier.
 func TestTheScheduleAnswersAgainstTheDatabase(t *testing.T) {

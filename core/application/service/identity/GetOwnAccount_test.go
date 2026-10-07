@@ -130,7 +130,7 @@ func TestAnActorWithoutAnAccountHasNoSelfToRead(t *testing.T) {
 
 // The tenant boundary is the transaction's, not this use case's: an actor of another tenant reads
 // through a scope that does not contain the row, and row level security answers not-found rather
-// than forbidden - anything else confirms the account exists (multi-tenancy.md §2).
+// than forbidden - anything else confirms the account exists (T-04).
 //
 // The negative test against the real database is in test/integration; this asserts the half that
 // is this layer's: the scope handed to the unit of work is the actor's tenant and never the

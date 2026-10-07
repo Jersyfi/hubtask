@@ -49,6 +49,6 @@ export const motion: Story = {
 export const mark: Story = {
   name: 'The wordmark, unfinished',
   about:
-    'Three nested planes, the innermost in bordeaux. It is not a finished mark — §9 lists it as missing — and it lives here because this is where the page that used to hold it went.',
+    'Three nested planes, the innermost in bordeaux. It is not a finished mark — §9 lists it as missing — and it lives here because it is the only drawn record of the idea.',
   args: { section: 'mark' },
 };

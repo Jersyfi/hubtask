@@ -146,8 +146,8 @@ func TestOnlyWhatCouldApplyToThePathComesBack(t *testing.T) {
 	}
 }
 
-// The read half of C-04: a membership on an entry is what "shared with me" means, and the query
-// answers which entries of one collection an account holds one on.
+// The read half of sharing an entry: a membership on an entry is what "shared with me" means, and
+// the query answers which entries of one collection an account holds one on.
 func TestSharedEntriesOfACollectionComeBack(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
@@ -248,7 +248,7 @@ func sharedItemsIn(
 	return shares
 }
 
-// administratorsAlong is the reverse question against a real database (R-1, G-12).
+// administratorsAlong is the reverse question against a real database (R-1).
 func administratorsAlong(
 	ctx context.Context, t *testing.T, tenant shared.ID, path []identity.Scope,
 ) []shared.ID {

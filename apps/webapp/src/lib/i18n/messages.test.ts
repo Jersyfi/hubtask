@@ -59,8 +59,8 @@ test('has answers for the two codes a problem document carries', () => {
 });
 
 test('a verb from a newer server reads as words rather than as a key', () => {
-  // F2-15's acceptance, and the case that is normal rather than exceptional on this track: the
-  // client runs one milestone behind the server, so it *will* meet a verb its catalogue has not
+  // The case that is normal rather than exceptional: the
+  // client runs one release behind the server, so it *will* meet a verb its catalogue has not
   // got yet. `0.3.0`'s five are already in `locales/en.json`; the one after that is not, and it
   // still has to render.
   const messages = createMessages({ locale: 'en', onProblem: () => {} });
@@ -69,8 +69,8 @@ test('a verb from a newer server reads as words rather than as a key', () => {
   assert.ok(!messages.t('activity.item_delegated').includes('activity.'), 'a key reached a reader');
 });
 
-test('and the twelve verbs this milestone renders are all in the catalogue', () => {
-  // The other half: what F2-15 claims to render, it renders from the catalogue rather than from a
+test('and the twelve verbs the history renders are all in the catalogue', () => {
+  // The other half: what the history claims to render, it renders from the catalogue rather than from a
   // fallback that happens to read well.
   const messages = createMessages({ locale: 'en', onProblem: () => {} });
   for (const verb of [

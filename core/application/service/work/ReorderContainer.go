@@ -242,8 +242,8 @@ func (h ReorderContainer) Descriptor() usecase.Descriptor {
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "a container is not an item, and the history is an item's: `ActivityEntry` is " +
-				"keyed on `itemId` (domain-model.md §3.5) and `/items/{id}/activity` is its only " +
-				"reader. A container's own history has nowhere to be read from yet.",
+				"keyed on `itemId` and `/items/{id}/activity` is its only reader. A container's " +
+				"own history has nowhere to be read from.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

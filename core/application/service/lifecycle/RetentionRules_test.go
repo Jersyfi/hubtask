@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// The three rule use cases (E-07): what a rule costs to write down, what a preview says, and the
+// The three rule use cases: what a rule costs to write down, what a preview says, and the
 // switch that makes a broad first run an announcement rather than a mass deletion.
 
 // ruleStore is the rules, in memory, with the unique index the schema has.

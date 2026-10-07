@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/recurrence"
 )
 
-// SchedulePass turns the schedules whose moment has come into backup jobs (E-05).
+// SchedulePass turns the schedules whose moment has come into backup jobs.
 //
 // One pass per scope, and the scope is what the caller opens it under: a tenant's poller runs it
 // for that tenant, and the leader runs it for the instance-wide schedules that belong to no tenant.
@@ -33,7 +33,7 @@ type SchedulePass struct {
 	IDs        clock.IDGenerator
 }
 
-// Hold takes the row lock on the pass's own job, for the reason D-03's reminders take one: the pass
+// Hold takes the row lock on the pass's own job, for the reason the reminders take one: the pass
 // decides when it next runs from the data, and a write committing between that read and the
 // reschedule would find the row RUNNING - where the queue's conflict clause cannot pull a wake-up
 // forward - and its schedule would wait for a wake-up nobody scheduled.

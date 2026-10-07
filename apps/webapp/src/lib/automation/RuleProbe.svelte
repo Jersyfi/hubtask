@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The probe (F8-06, decision 9): the sample event a dry run takes - the event type, a real entry
+  // The probe (automation.md §1.5): the sample event a dry run takes - the event type, a real entry
   // as its subject found through the client's own search, and the body an inbound delivery would
   // have carried - and the button that runs the canvas's definition through `rules:test`.
   //
@@ -9,7 +9,7 @@
   // frame by frame. What this panel owns is the sample, and the honest sentence that nothing is
   // written.
   //
-  // Above the button stands what the draft is missing (F8-26, decision 29): the review's notes,
+  // Above the button stands what the draft is missing (automation.md §1.5): the review's notes,
   // each pressing through to the card it is about, and the sample's own mismatch where it is not
   // the event the rule starts on. Nothing here refuses the run - a probe of a rule with something
   // missing is exactly how one finds out what it does.
@@ -25,7 +25,7 @@
     /** The event types this installation publishes, and the trigger's own where it has one. */
     eventTypes: readonly string[];
     defaultType: string;
-    /** What the draft is missing (decision 29), in the order the canvas draws the cards. */
+    /** What the draft is missing (automation.md §1.5), in the order the canvas draws the cards. */
     notes?: readonly { level: 'broken' | 'attention'; card: string; text: string }[];
     /** The card a note is about, pressed. */
     onpick?: (card: string) => void;
@@ -81,7 +81,7 @@
   <h3>{t('app.flow.tab_probe')}</h3>
   <p class="quiet">{t('app.flow.probe_intro')}</p>
 
-  <!-- What is missing, before the button (decision 29): the rule's own reading of the draft,
+  <!-- What is missing, before the button (automation.md §1.5): the rule's own reading of the draft,
        each line the card it is about. -->
   {#if notes.length > 0}
     <Callout tone={notes.some((note) => note.level === 'broken') ? 'warning' : 'info'} title={t('app.flow.review_title')}>

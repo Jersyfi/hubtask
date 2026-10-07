@@ -35,15 +35,15 @@ type EventSource interface {
 	FindEvent(ctx context.Context, id shared.ID) (event.Envelope, error)
 }
 
-// SendWebhook delivers one event to one named subscription (G-09, automation.md §1.3).
+// SendWebhook delivers one event to one named subscription (automation.md §1.3).
 //
-// Through G-03's one pipeline: the same delivery table, the same signature, the same retry ladder
-// and the same dead letter. It enqueues rather than calls - the actual HTTP happens on the
-// delivery job, outside any transaction, because an external call from inside one holds a database
-// connection for as long as somebody else's server feels like taking
+// Through the subscriptions' one pipeline (automation.md §3.1): the same delivery table, the same
+// signature, the same retry ladder and the same dead letter. It enqueues rather than calls - the
+// actual HTTP happens on the delivery job, outside any transaction, because an external call from
+// inside one holds a database connection for as long as somebody else's server feels like taking
 // (observability-reliability.md §8). That is also what makes this safe as a rule action: the
-// engine's handler runs inside the queue runner's transaction, and what this use case does there
-// is two inserts.
+// engine's handler runs inside the queue runner's transaction, and what this use case does there is
+// two inserts.
 //
 // The subscription's own event-type filter is deliberately not consulted. The fan-out's filter
 // answers "what did this subscription ask to receive"; a send answers "what did this caller decide

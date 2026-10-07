@@ -2,6 +2,8 @@
 
 **Status:** accepted (amended by [ADR-0066](./ADR-0066-search-is-one-question.md)) · **Date:** 2026-08-24
 
+**Rule lives in:** [i18n-l10n.md](../architecture/i18n-l10n.md) §5
+
 ## Context
 
 C-08 gives the product `SearchItems`. Half of it is already in the schema: `work_item.search_vector` is a

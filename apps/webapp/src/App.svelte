@@ -9,7 +9,7 @@
   // unknown one renders the not-found view below rather than a 404.
   //
   // No sentence is written in this file. `Hubtask` is a name rather than a message, and everything
-  // else is a code rendered from `locales/en.json` (ADR-0011, F1-07).
+  // else is a code rendered from `locales/en.json` (ADR-0011).
   import AppFrame from './lib/frame/AppFrame.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
@@ -100,8 +100,8 @@ import ContainerView from './views/ContainerView.svelte';
    * A section's own address opens its first screen (ADR-0065 decision 1).
    *
    * `/administration` is linked from the account menu and from the trail of every screen under it,
-   * so it keeps its address; what it no longer has is an index, which was the column's list drawn
-   * a second time. `replace` rather than `navigate`, for the reason the pane's redirect uses it:
+   * so it keeps its address; what it does not have is an index, which would be the column's list
+   * drawn a second time. `replace` rather than `navigate`, for the reason the pane's redirect uses it:
    * the address the reader came from is the one the back button should return to, not the door
    * they were sent through.
    */
@@ -116,8 +116,8 @@ import ContainerView from './views/ContainerView.svelte';
    * account wins over `Accept-Language`, which is what answers before there is an account.
    *
    * Here rather than in the frame, because the signed-out card is not inside the frame: decided
-   * there, the card, the reset and the provider's return rendered the source language whatever the
-   * browser asked for, which is exactly the half of the table that speaks before an account does.
+   * there, the card, the reset and the provider's return would render the source language whatever
+   * the browser asked for, which is exactly the half of the table that speaks before an account does.
    *
    * It runs again whenever either half changes, which is what makes the manifest's arrival turn
    * the document round on an installation that serves a right-to-left locale.
@@ -156,7 +156,7 @@ import ContainerView from './views/ContainerView.svelte';
 
   /**
    * The one stream this tab keeps, opened once there is a credential to open it with and an
-   * account to hold the copy for - the replica is one store per account (F6-03), so the stream
+   * account to hold the copy for - the replica is one store per account, so the stream
    * waits for `/accounts/me` rather than for the bearer alone.
    *
    * Here rather than in a view, because it belongs to the session rather than to a screen: a
@@ -164,15 +164,15 @@ import ContainerView from './views/ContainerView.svelte';
    * again. `live.stop()` is called by the sign-out itself, so the teardown here is only for a tab
    * that closes.
    *
-   * The effect follows the account's **id** and nothing else about it (issue 881). It used to read
-   * `actor.account` directly, and so re-ran on every state the account passed through - and with
-   * the server away, each re-run tore the stream down and attached the store again, each attach
-   * read the failed account again, each failure was a new state: a loop as tight as the network
-   * let it be, nine hundred reads of `/accounts/me` in the seconds an outage lasted in the walk.
+   * The effect follows the account's **id** and nothing else about it. Reading `actor.account`
+   * directly would re-run it on every state the account passes through - and with the server
+   * away, each re-run tears the stream down and attaches the store again, each attach reads the
+   * failed account again, each failure is a new state: a loop as tight as the network lets it be,
+   * hundreds of reads of `/accounts/me` in the seconds an outage lasts.
    */
   const liveAccountId = $derived(
     // The account from `/accounts/me`, or the one remembered beside the pair when the server
-    // cannot be reached: a tab reloading offline still opens its replica (F6-04).
+    // cannot be reached: a tab reloading offline still opens its replica.
     session.isSignedIn ? (actor.account?.id ?? platform.lastAccount()) : undefined,
   );
   $effect(() => {
@@ -189,7 +189,7 @@ import ContainerView from './views/ContainerView.svelte';
      nobody can navigate away from is not wrapped in the furniture of navigating.
      The two link screens are here whether or not somebody is signed in: an invitation and a reset
      link are proof about an account that need not be the one in this tab, and a person who opened
-     one from their mail while signed in used to meet "there is nothing at this address". -->
+     one from their mail while signed in would otherwise meet "there is nothing at this address". -->
 {#if route.name === 'oidc-callback'}
   <!-- The provider's return, on the card and never in the frame (UC-ID-08 check 5): this address
        is reached by a redirect into a fresh document, before there is a session, and the frame of
@@ -320,7 +320,7 @@ import ContainerView from './views/ContainerView.svelte';
     {/key}
   {:else}
     <!-- The server's own code for a path that reaches nothing, at the same address - as the
-         page's heading, because a screen without one is a screen a reader cannot name (F5-11). -->
+         page's heading, because a screen without one is a screen a reader cannot name. -->
     <h1>{t('route.unknown')}</h1>
     <p><code>{route.path}</code></p>
     <p><a href="/">{t('app.back_to_start')}</a></p>

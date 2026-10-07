@@ -15,8 +15,8 @@ import (
 // A minimal SFTP version 3 client, over the SSH transport golang.org/x/crypto/ssh provides.
 //
 // Hand-written for the reason SigV4 is: an SFTP library is a new third-party dependency, and the
-// milestone allowed exactly one new direct dependency - golang.org/x/crypto, whose ssh package is
-// what carries the bytes here (milestone decision 3). What is implemented is the eleven packet
+// one dependency this target adds is golang.org/x/crypto, whose ssh package is what carries the
+// bytes here (security.md §11, backup-restore.md §2). What is implemented is the eleven packet
 // types a backup target needs and nothing else: no symbolic links, no permissions, no rename, no
 // version 4, 5 or 6 extensions. Version 3 is what every server in the field speaks, and the parts
 // used here have not changed since 2001.

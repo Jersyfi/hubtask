@@ -16,15 +16,15 @@ type DataKind string
 // KindTrash is the period a deletion waits out before it becomes permanent (F-09).
 const KindTrash DataKind = "TRASH"
 
-// KindNotification is how long the record of somebody having been told is kept (C-09).
+// KindNotification is how long the record of somebody having been told is kept.
 const KindNotification DataKind = "NOTIFICATION"
 
 // Policy is one tenant's period for one kind of data, as `retention_policy` holds it.
 //
-// Superseded by Rule (E-07) and kept for the length of one release: the old table's key allows one
-// period per kind per tenant, and the rule model is scoped. Its rows are carried into
-// `retention_rule` by the first sweep after the upgrade, and a later release contracts it away -
-// which is what expand-before-contract means for a table an old pod is still writing to.
+// Superseded by Rule, and kept because an old pod may still write the table (versioning-release.md
+// §4, expand before contract): the old table's key allows one period per kind per tenant, and the
+// rule model is scoped. Its rows are carried into `retention_rule` by the first sweep after the
+// upgrade.
 type Policy struct {
 	DataKind DataKind
 	// RetainDays is the period from the kind's time anchor, which for the trash is when the row went
@@ -62,27 +62,27 @@ func DefaultPolicies() []Policy {
 		// due, whatever the period says - because that is a correctness rule rather than a
 		// retention one.
 		{DataKind: KindOutboxEvent, RetainDays: 7},
-		// The jumble (G-10). Ninety days, as data-retention.md §3 gives it, and no lower bound for
-		// the notification history's reason: no document sets one, and a tenant asking for a
-		// shorter inbox is asking for less of the least trusted text in the system to be kept.
+		// The jumble. Ninety days, as data-retention.md §3 gives it, and no lower bound for the
+		// notification history's reason: no document sets one, and a tenant asking for a shorter
+		// inbox is asking for less of the least trusted text in the system to be kept.
 		{DataKind: KindJumbleEntry, RetainDays: 90},
-		// What AI proposed (J-05). Thirty days, and no lower bound for the jumble's reason: no
-		// document sets one, and a tenant asking to keep proposals for less time is asking for
-		// less of a working note about their own entries to be kept.
+		// What AI proposed. Thirty days, and no lower bound for the jumble's reason: no document
+		// sets one, and a tenant asking to keep proposals for less time is asking for less of a
+		// working note about their own entries to be kept.
 		{DataKind: KindAiSuggestion, RetainDays: 30},
-		// Sessions (H-01). Thirty days from the last use, the period the schema comment promised
-		// in 0001_init and security.md §5's refresh lifetime made natural: a session idle that
-		// long has run out with the token that could have renewed it. No lower bound, for the
-		// notification history's reason - the sweep's own guard only ever removes what is already
-		// over, so a shorter period keeps less client-hint data and ends nothing.
+		// Sessions. Thirty days from the last use, the period the refresh lifetime of identity.md
+		// §14.1 makes natural: a session idle that long has run out with the token that could have
+		// renewed it. No lower bound, for the notification history's reason - the sweep's own guard
+		// only ever removes what is already over, so a shorter period keeps less client-hint data
+		// and ends nothing.
 		{DataKind: KindSession, RetainDays: 30},
-		// Devices (N-03). Thirty days from the last contact, offline-sync.md §6's period, and no
-		// lower bound for the session's reason: a device forgotten sooner is a device that has to
-		// sign in again, which ends nothing a person cannot repeat.
+		// Devices. Thirty days from the last contact, offline-sync.md §6's period, and no lower
+		// bound for the session's reason: a device forgotten sooner is a device that has to sign in
+		// again, which ends nothing a person cannot repeat.
 		{DataKind: KindDevice, RetainDays: 30},
-		// The synchronisation's records (N-09). Ninety days, the offline window, and the window
-		// is the lower bound too: kept shorter, a device that was offline would recreate what
-		// was deleted and a first push that half-succeeded would apply twice (offline-sync.md §7).
+		// The synchronisation's records. Ninety days, the offline window, and the window is the
+		// lower bound too: kept shorter, a device that was offline would recreate what was deleted
+		// and a first push that half-succeeded would apply twice (offline-sync.md §7).
 		{DataKind: KindSyncLog, RetainDays: 90, MinDays: 90},
 	}
 }

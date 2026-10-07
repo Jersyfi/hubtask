@@ -127,8 +127,8 @@ func ParseFilter(raw any, path string) (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Priced after the grammar (H-08): the tree is already bounded, and the estimate refuses
-	// the shapes the caps alone cannot - fifty text scans fit the node cap and no plan.
+	// Priced after the grammar (multi-tenancy.md §4): the tree is already bounded, and the estimate
+	// refuses the shapes the caps alone cannot - fifty text scans fit the node cap and no plan.
 	if err := checkCost(&node, path); err != nil {
 		return nil, err
 	}
@@ -455,7 +455,7 @@ func numberTextOf(raw any) (string, bool) {
 }
 
 // typeError says what shape the field wanted, without echoing what arrived: the value is content
-// (CLAUDE.md rule 10), and the field's kind is what a client needs in order to correct itself.
+// (rule 10), and the field's kind is what a client needs in order to correct itself.
 func typeError(path string, target Field) error {
 	return fieldError(path, "query.value_type_invalid", map[string]string{
 		"field": target.Name, "kind": string(target.Kind),

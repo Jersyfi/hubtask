@@ -26,7 +26,7 @@ import (
 //
 // The set the tags are written under is `members` rather than `labels`, which is the whole of the
 // difference between this type and that one - the statements behind both are the same three, and
-// `set_name` has been a parameter of them since B-09 for exactly this second caller.
+// `set_name` is a parameter of them for exactly this second caller.
 type ItemMemberRepository struct{}
 
 func NewItemMemberRepository() ItemMemberRepository { return ItemMemberRepository{} }

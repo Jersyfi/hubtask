@@ -18,7 +18,7 @@ import (
 )
 
 // ADR-0076 §4: no workspace is left without a way in. When no way into a workspace works - an offer
-// that ended, or any other cause (E2, #1138) - the password opens again, for the accounts that hold
+// that ended, or any other cause (E2) - the password opens again, for the accounts that hold
 // one, under the workspace's own rules, until an administrator switches on another way. Nothing is
 // weakened for an account without a password.
 
@@ -80,7 +80,7 @@ func TestAWorkspaceWhoseLastWayWasWithdrawnShowsThePasswordAgain(t *testing.T) {
 	}
 }
 
-// The owner's decision of 2026-10-04 (E2, #1138): the fallback answers a workspace with no way in
+// The owner's decision of 2026-10-04 (E2): the fallback answers a workspace with no way in
 // that works, whatever brought it there - not only an offer that ended. Each cause below is one the
 // guards at the workspace's own doors cannot see, because nobody in the workspace made the change.
 func TestThePasswordOpensWheneverNoWayInWorks(t *testing.T) {
@@ -181,7 +181,7 @@ func TestARescueLockLiftedAfterTheProviderWentLeavesThePasswordOpen(t *testing.T
 // A workspace provisioned under an installation default without the password, whose owner is still
 // invited: nobody has switched a provider on yet, because nobody is in to switch it. The owner accepts
 // the invitation with a password under the fallback, and the trail says so - in the redemption's own
-// transaction, beside the redemption (E2, #1138).
+// transaction, beside the redemption (E2).
 func TestAnInvitedOwnerOfAWorkspaceWithNoWayInAcceptsWithAPassword(t *testing.T) {
 	f := newWayInFixture()
 	f.passwords.instance.level.Policy.Patch.Methods = providersAlone()
@@ -319,7 +319,7 @@ func TestAPasswordSignInThroughTheFallbackIsRecordedInTheWorkspacesTrail(t *test
 }
 
 // One sign-in asks once whether the password is open as the fallback, and records what that one read
-// answered: the door's read and the trail's cannot disagree, because there is no second (E2, #1138).
+// answered: the door's read and the trail's cannot disagree, because there is no second (E2).
 func TestASignInReadsTheFallbackOnce(t *testing.T) {
 	f := fallbackFixture(t)
 

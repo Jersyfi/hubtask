@@ -3,9 +3,9 @@
 
 import { canPlace, parentOf, removeAt, shiftedList, stepAt, type Step } from './model.ts';
 
-/** What is selected on the canvas, and therefore what the inspector shows (F8-04). */
+/** What is selected on the canvas, and therefore what the inspector shows. */
 export type Selection =
-  /** Nothing is selected: the canvas's background was clicked, or Escape was pressed on it (decision 26). */
+  /** Nothing is selected: the canvas's background was clicked, or Escape was pressed on it (automation.md §1.5). */
   | { kind: 'none' }
   | { kind: 'rule' }
   | { kind: 'trigger' }
@@ -17,7 +17,7 @@ export type Selection =
   | { kind: 'guardrails' };
 
 /**
- * What is being dragged, while it is (F8-05, decision 7): a piece from the palette - a trigger,
+ * What is being dragged, while it is (automation.md §1.5): a piece from the palette - a trigger,
  * a condition, or an action kind - or a card of the chain by its path. Only what can take it is a
  * target while it is lifted; everything else is inert and refuses the drop.
  */
@@ -25,7 +25,7 @@ export type Drag = { src: 'trigger'; kind: string } | { src: 'condition' } | { s
 
 /**
  * Whether a gap of the chain may take what is being dragged: a step, unless into its own arm and
- * unless where an end forbids it (decision 19).
+ * unless where an end forbids it (automation.md §1.5).
  */
 export function gapTakes(drag: Drag | undefined, list: string, index: number, actions: readonly Step[]): boolean {
   if (!drag) return false;

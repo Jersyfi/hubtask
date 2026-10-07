@@ -46,5 +46,5 @@ health report lists the ones still waiting.
 
 ## Today
 
-* **Checks 4 and 5 fail:** `HUBTASK_OPERATORS` was left out of SI (ADR-0070 "does differently");
-  the register can only be filled through the API by somebody already in it, or by SQL.
+* Check 4: not met — `HUBTASK_OPERATORS` does not exist; the register is filled only through the API by somebody already in it, or by SQL, tracked in #1060.
+* Check 5: not met — `HUBTASK_OPERATORS` does not exist, tracked in #1060.

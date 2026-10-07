@@ -16,9 +16,8 @@ import (
 )
 
 // UC-ID-08 check 4: a session a provider opened answers to the workspace's session rules - the
-// maximum age and the idle time - like every other session. Before SC-03 it opened with no bounds
-// at all, so a workspace that ends idle sessions after thirty minutes kept a provider's open for a
-// month.
+// maximum age and the idle time - like every other session. Opened with no bounds at all, it would
+// let a workspace that ends idle sessions after thirty minutes keep a provider's open for a month.
 
 // boundedRule is a workspace rule with both session bounds set, as the rule reader answers it.
 func boundedRule(at time.Time) PasswordWriter {

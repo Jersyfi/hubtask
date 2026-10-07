@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// RestoreRunRepository stores what a restore did (E-06).
+// RestoreRunRepository stores what a restore did.
 type RestoreRunRepository struct{}
 
 func NewRestoreRunRepository() RestoreRunRepository { return RestoreRunRepository{} }
@@ -379,7 +379,7 @@ func restoreFrom(row sqlc.FindRestoreRunRow) (domain.Restore, error) {
 	}, nil
 }
 
-// WorkspaceRepository answers what the tenant is called (E-06, backup-restore.md §8.3 step 3).
+// WorkspaceRepository answers what the tenant is called (backup-restore.md §8.3 step 3).
 //
 // Its own type rather than a method on the restore log, because it reads a different table for a
 // different reason - and because a repository that could read the tenant row while also writing

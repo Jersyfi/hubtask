@@ -38,7 +38,7 @@ const (
 	CategoryMembership Category = "MEMBERSHIP"
 	// CategoryComment is somebody writing on an entry: `comment.created`.
 	CategoryComment Category = "COMMENT"
-	// CategoryReminder is a moment somebody asked to be told about: a reminder firing (D-03).
+	// CategoryReminder is a moment somebody asked to be told about: a reminder firing.
 	//
 	// Its own category rather than a shade of assignment or membership, because the switch is a
 	// different one: somebody who does not want to hear that a comment arrived may still want to
@@ -49,7 +49,7 @@ const (
 	// at all, and a preference switching it off would be a preference locking somebody out.
 	CategoryInvitation Category = "INVITATION"
 	// CategoryIntegration is what an integration has to tell its owner: today, that a webhook
-	// subscription was disabled because its target stopped answering (G-03).
+	// subscription was disabled because its target stopped answering (automation.md §3.1).
 	//
 	// Its own category on CategoryReminder's reasoning - the switch is a different switch.
 	// Somebody who does not want to hear about comments still wants to hear that this system
@@ -57,7 +57,7 @@ const (
 	// nobody set for this purpose silence it.
 	CategoryIntegration Category = "INTEGRATION"
 	// CategoryRetention is the advance warning of data-retention.md §6: something a rule is about
-	// to act on, told to the people who can stop it (R-1, G-12).
+	// to act on, told to the people who can stop it.
 	//
 	// Its own category on CategoryReminder's reasoning, and more sharply. Somebody who has
 	// switched off every other kind of message still needs this one: it is the only notification
@@ -96,15 +96,15 @@ func (c Category) String() string { return string(c) }
 // switchable notifications, not for an unreachable workspace).
 func (c Category) Suppressible() bool { return c != CategoryInvitation }
 
-// Channel is what carries a notification. Email is the only one that sends in this milestone;
-// webhook and push are named in arc42 §5.2 and arrive with the tasks that own them.
+// Channel is what carries a notification. Email is the only one that sends; webhook and push are
+// named in arc42 §5.2 and are not built.
 //
 // The channel is on the record rather than implied by it because the preference is per channel: a
 // person who wants comments in their inbox but not on their phone is expressing two decisions, and
 // a record that could not say which channel it was written for could not honour either.
 type Channel string
 
-// ChannelEmail is the only channel this milestone sends on.
+// ChannelEmail is the only channel that sends.
 const ChannelEmail Channel = "EMAIL"
 
 // Channels is the closed set.
@@ -178,14 +178,14 @@ type Notification struct {
 	// event (ADR-0007 delivers at-least-once, so a consumer may see the same event twice).
 	EventID shared.ID
 	// ItemID is the entry this is about, zero where there is none - an invitation is about the
-	// workspace. RuleID and SubscriptionID are the subjects that are not an entry (issue 814):
-	// the rule the check or the failure streak switched off, the subscription the engine stopped
-	// calling. At most one of the three is set, and the table holds the same rule.
+	// workspace. RuleID and SubscriptionID are the subjects that are not an entry: the rule the
+	// check or the failure streak switched off, the subscription the engine stopped calling. At
+	// most one of the three is set, and the table holds the same rule.
 	ItemID         shared.ID
 	RuleID         shared.ID
 	SubscriptionID shared.ID
-	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the
-	// system rather than for a person (C-02).
+	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
+	// rather than for a person.
 	ActorID   shared.ID
 	CreatedAt time.Time
 	// SentAt is when it left, and is set only in SENT.
@@ -234,7 +234,7 @@ func New(in NewInput) (Notification, error) {
 			WithParams(map[string]string{"value": string(in.Channel)})
 	case subjectsNamed(in) > 1:
 		// A message is about one thing; a record naming two would be rendered as whichever the
-		// renderer read first, and the table refuses it anyway (issue 814).
+		// renderer read first, and the table refuses it anyway.
 		return Notification{}, shared.ErrInternal.WithDetail("notifications.subject_ambiguous")
 	}
 

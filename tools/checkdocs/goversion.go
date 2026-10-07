@@ -50,8 +50,8 @@ type goVersionSource struct {
 }
 
 var goVersionSources = []goVersionSource{
-	// Eight since the delegation workflow stopped building anything: it answers that delegation is
-	// off and needs no Go toolchain to do it (C-10's follow-up). The number is a floor rather than
+	// Eight: the delegation workflow answers that delegation is off and needs no Go toolchain to
+	// do it. The number is a floor rather than
 	// an equality for exactly this reason - it catches a pin that was reworded, not a step that was
 	// deliberately removed.
 	{dir: ".github/workflows", pattern: regexp.MustCompile(`go-version:\s*"(\d+\.\d+)(?:\.\d+)?"`), atLeast: 8, what: "go-version:"},

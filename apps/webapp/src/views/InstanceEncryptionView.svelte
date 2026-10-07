@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The keyring, and what still names each key (SI-12, ADR-0045, security.md §8.1).
+  // The keyring, and what still names each key (ADR-0045, security.md §8.1).
   //
   // **This screen reads and does not turn.** It is the concept's own exception to the parity rule:
   // "der Schlüsselring bleibt in der Umgebung und in `/admin/encryption`; ein Dashboard zeigt seinen

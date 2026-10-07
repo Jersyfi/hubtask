@@ -3,8 +3,8 @@
 
 // Package automation runs what a rule decided to do.
 //
-// The rule engine itself - triggers, CEL conditions, throttling, the run log - arrives with its
-// own task. What is here is the half that matters for parity: every action of a rule is an
+// The rule engine itself - triggers, CEL conditions, throttling, the run log - lives in the
+// application layer. What is here is the half that matters for parity: every action of a rule is an
 // adapter over a use case, so the list of available actions grows with the catalogue rather than
 // with a table somebody maintains (automation.md §1.3).
 package automation
@@ -64,7 +64,7 @@ func (d ActionDispatcher) Actions() []string {
 // happens after the rule is written (automation.md §2.2). A supplied value is merged only where
 // the use case declares the field and the rule's own parameters left it unset: the rule's explicit
 // choice always wins, and a use case that never asked for a name never sees it, because the
-// registry refuses undeclared input keys (C-07) and an unconditional merge would fail every action
+// registry refuses undeclared input keys and an unconditional merge would fail every action
 // on exactly the runs that carry an event.
 //
 // What it deliberately does not do: derive the idempotency key, count the causal depth, and record

@@ -447,7 +447,7 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 		"updated_at":    rule.UpdatedAt,
 		"version":       rule.Version,
 		// The two moments this installation worked out for the rule rather than read from its
-		// definition (G-08). Absent where they mean nothing, which is what an absent key says.
+		// definition. Absent where they mean nothing, which is what an absent key says.
 		"next_run_at":        nil,
 		"inbound_rotated_at": nil,
 	}
@@ -473,7 +473,7 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 	if !rule.CheckedAt.IsZero() {
 		out["checked_at"] = rule.CheckedAt
 	}
-	// The last run, where there was one (F8-21): the list card's line under the word.
+	// The last run, where there was one: the list card's line under the word.
 	out["last_run"] = nil
 	if rule.LastRun != nil {
 		out["last_run"] = map[string]any{"at": rule.LastRun.At, "status": string(rule.LastRun.Status)}

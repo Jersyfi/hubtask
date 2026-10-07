@@ -16,9 +16,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The statements an archive reads a tenant through (E-05): they page on a key rather than an
-// offset, they answer only the tenant the transaction is bound to, and a table that cannot date a
-// change answers everything.
+// The statements an archive reads a tenant through: they page on a key rather than an offset, they
+// answer only the tenant the transaction is bound to, and a table that cannot date a change answers
+// everything.
 
 func exportRepo(batch int) postgres.BackupExportRepository {
 	return postgres.NewBackupExportRepository(batch)

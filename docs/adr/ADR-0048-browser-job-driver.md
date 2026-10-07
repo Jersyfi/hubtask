@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-08 · **Accepted:** 2026-09-17
 
+**Rule lives in:** [ci-cd.md](../architecture/ci-cd.md) §3, [support-matrix.md](../architecture/support-matrix.md) §5
+
 ## Context
 
 [`support-matrix.md`](../architecture/support-matrix.md) §1 defines `supported` as **"a CI job runs

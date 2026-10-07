@@ -28,7 +28,7 @@ func viewInput() NewSavedViewInput {
 		Name: "Due this week", Layout: "KANBAN",
 		Query: map[string]any{
 			// Anchored, in the shape the use case takes: a view whose query names no scope is one
-			// `:export` refuses (issue #431).
+			// `:export` refuses.
 			"scope_container_id": viewCollection.String(),
 			"filter":             map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P7D"},
 		},
@@ -238,7 +238,7 @@ func TestUpdatedMovesOnlyWhatWasSent(t *testing.T) {
 	}
 }
 
-// The name is stored in normal form C, on creation and on update (i18n-l10n.md §5, M-07).
+// The name is stored in normal form C, on creation and on update (i18n-l10n.md §5).
 func TestAViewNameIsStoredInNormalFormC(t *testing.T) {
 	in := viewInput()
 	in.Name = "U\u0308berfa\u0308llig"

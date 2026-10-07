@@ -224,14 +224,14 @@ type Entity struct {
 	// and a configuration row that carries a creation stamp and no change stamp cannot tell an
 	// edit from silence. Deriving "unchanged" from a column that does not move is how an
 	// incremental chain quietly loses an edit, and there is no column to add here that would not
-	// be a lie until every writer maintained it (E-05).
+	// be a lie until every writer maintained it.
 	//
 	// All of them are small by nature - the join tables and the configuration - so writing them
 	// whole costs little, and it is the reading that has to be right.
 	Whole bool
 	// Keys are the columns that make up a record's identity, in the order Record.ID joins them
 	// with "/" - the primary key without `tenant_id`, because the tenant comes from the scope a
-	// restore runs in rather than from the archive (E-06).
+	// restore runs in rather than from the archive.
 	//
 	// Declared rather than derived. A restore has to be able to say what a line identifies
 	// without a database to ask, which is the whole premise of §8.1, and a build that read the
@@ -254,8 +254,8 @@ type Entity struct {
 	Duplicable bool
 	// Unique are the columns, other than the identity, that carry a uniqueness a copy would meet.
 	//
-	// A DUPLICATE gives the copy an identity of its own and used to change nothing else, which is
-	// how a duplicated collection arrived under the living one's name and landed nothing (#790).
+	// A DUPLICATE gives the copy an identity of its own, and changing nothing else would make a
+	// duplicated collection arrive under the living one's name and land nothing.
 	// The identity is not the only thing the schema insists is unique, and what is left is not a
 	// special case each: it is a property of the entity, declared here beside Keys and References
 	// and kept honest by a test that compares it against the unique indexes the database has.
@@ -382,7 +382,7 @@ var entities = []Entity{
 			{Field: "recurrence_rule_id", Table: "recurrence_rule"},
 			// A work item's identity, with no foreign key either, and the same reason to remap it:
 			// a duplicate whose occurrences kept the original's source would name entries in the
-			// workspace they were copied out of (issue #428).
+			// workspace they were copied out of.
 			{Field: "recurrence_source_id", Table: "work_item"},
 			{Field: "origin_jumble_id", Table: "jumble_entry"},
 		},
@@ -470,7 +470,7 @@ var entities = []Entity{
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a
-	// rewrite (E-06, audit.md §4).
+	// rewrite (audit.md §4).
 	{Name: "audit", Table: "audit_log", Optional: true, Keys: []string{"seq"}},
 }
 
@@ -478,19 +478,19 @@ var entities = []Entity{
 func Entities() []Entity { return slices.Clone(entities) }
 
 // notRestored is every entity an archive carries and a restore deliberately does not write back,
-// and why (E-06).
+// and why.
 //
 // A map rather than a comment, for the reason `excluded` is one: the reasons are read by the test
 // beside it and by anybody wondering where their data went. The difference between this list and
 // that one is what happened at the other end - `excluded` is not in the archive at all, and this
 // is in the archive and stays there.
 var notRestored = map[string]string{
-	// audit.md §4 makes the trail a hash chain: each entry carries the digest of the one before
-	// it, and E-09's `:verify` walks that chain. Inserting last month's entries into the middle of
+	// audit.md §3 makes the trail a hash chain: each entry carries the digest of the one before
+	// it, and `:verify` walks that chain. Inserting last month's entries into the middle of
 	// a live chain is not a restore, it is a rewrite - and "the trail cannot be rewritten" is the
 	// property the whole audit surface rests on. The archive still carries it, which is what
 	// `include_audit` was for: the evidence is readable where it was written down.
-	"audit_log": "audit.md §4 - the live trail is a hash chain, and an insert into one is a rewrite",
+	"audit_log": "audit.md §3 - the live trail is a hash chain, and an insert into one is a rewrite",
 }
 
 // NotRestored answers what a restore reads and does not write back, and why.
@@ -577,24 +577,24 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"oauth_client":             "half a credential: its secret hash is keyed on a live pepper, and a restore must not silently re-open a third-party door (§8.4)",
 	"oauth_grant":              "what somebody allowed an app is consent to a live door, not workspace content; the door is not restored, so neither is the consent",
 	"oauth_code":               "a single-use credential with minutes of life, §8.4's reasoning verbatim",
-	// The relying party (H-04), and oauth_client's reasoning in the other direction. The row
+	// The relying party, and oauth_client's reasoning in the other direction. The row
 	// holds a client secret sealed under the source installation's key, which a restore
 	// elsewhere cannot open - and restoring it silently would point a recovered workspace at a
 	// live provider, so people could sign in to a copy nobody meant to be signed in to. An
 	// administrator reconfigures it, which they must do anyway to type a secret nobody can read
 	// back. The configuration events are in the trail, which is archived.
 	"identity_provider": "§8.4 - a sealed client secret and a live door; a restore must not silently re-open somebody's single sign-on",
-	// identity_provider's reasoning, one table further out (SI-10): the link says which provider
+	// identity_provider's reasoning, one table further out: the link says which provider
 	// vouched for a person, and a restore that re-created it while the provider itself was left out
 	// would leave accounts bound to a door that is not there.
 	"account_identity": "the link to a provider that a restore deliberately does not bring back",
 	"oidc_flow":        "one browser round trip with minutes of life, oauth_code's reasoning verbatim",
 	// Which hosts a workspace answers at is the installation's arrangement rather than the
-	// workspace's data (SI-12): restoring a workspace elsewhere must not claim a host the
+	// workspace's data: restoring a workspace elsewhere must not claim a host the
 	// installation it lands on does not answer at, and the canonical one is derived from the slug
 	// there anyway.
 	"tenant_host": "hosts belong to the installation that answers at them, not to the archive",
-	// identity_provider's reasoning, pointing outwards instead of inwards (J-02). The row holds a
+	// identity_provider's reasoning, pointing outwards instead of inwards. The row holds a
 	// sealed API key a restore elsewhere cannot open, and - the worse half - a restored workspace
 	// would start sending its content to a provider under a consent nobody gave again. Whether an
 	// installation may transfer at all is the operator's confirmation, and a restore is exactly
@@ -602,16 +602,16 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// must do anyway to type a key nobody can read back; the configuration events are in the
 	// trail, which is archived.
 	"ai_provider": "§8.4 - a sealed key and a live outbound door; a restore must not resume sending a workspace's content to a provider under a consent nobody gave again",
-	// A working note rather than a record (J-05). What an accepted suggestion did is in the
+	// A working note rather than a record. What an accepted suggestion did is in the
 	// entry's own history, which the archive carries; what a proposal was about is a state of an
 	// entry that a restore months later has anyway replaced. Restoring one would offer somebody a
 	// proposal about text that no longer says what it said - and it ages out in thirty days in the
 	// live system for that same reason.
 	"ai_suggestion": "a proposal about a state of an entry, which a restore has already replaced; the entry's own history carries what was accepted",
-	// The material of one job, held for minutes (P-11): the job that reads it deletes it, and a
+	// The material of one job, held for minutes: the job that reads it deletes it, and a
 	// restore that brought one back would revive a question nobody is waiting on the answer to.
 	"ai_request": "a job's material with minutes of life, deleted by the job that reads it; a restored one would be a question nobody asked twice",
-	// Derived, and derived from something the archive does carry (J-09). An embedding is a
+	// Derived, and derived from something the archive does carry. An embedding is a
 	// function of an entry's title and notes under one model; restoring vectors would restore
 	// them under whatever model produced them, into an installation that may run another - and
 	// vectors from two models are not comparable, which is the one failure the store exists to
@@ -622,7 +622,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// §8.4, the automation half. A restored run log would describe runs of a period that is being
 	// replayed without firing anything, which is a record of things that did not happen.
 	"rule_run": "§8.4 - no automation fires during a restore, so its run log would be fiction",
-	// The moments the relative-date rules owe (G-08). Derived from the entries and the rules, both
+	// The moments the relative-date rules owe. Derived from the entries and the rules, both
 	// of which the archive carries, and every one of them is a moment in the *source* system's
 	// future - a restore months later would owe a night that has long passed. The rules themselves
 	// are restored; what they owe is worked out again from the anchors, as it always is.
@@ -638,17 +638,17 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// The cursor and the markers of the live system. Restoring them would hand devices numbers
 	// that no longer mean anything.
 	"change_log": "the offline cursor; its sequence numbers belong to the database that issued them",
-	// The clock each field was last written under (N-05). A restore rewrites every row without
-	// change log entries and forces every device to resynchronise from scratch (B-5, N-11), and a
+	// The clock each field was last written under. A restore rewrites every row without
+	// change log entries and forces every device to resynchronise from scratch (B-5), and a
 	// field with no clock loses to the first device that writes it - which is the rule for a
 	// field nobody stamped, and the right one for a workspace whose history was just replaced.
 	"field_clock": "the merge's bookkeeping; a restored workspace starts unstamped, as an installation does",
 	"tombstone":   "carried as DELETE lines inside each entity's file, which is what makes a chain complete",
 	// The compliance machinery. Each of these is a live case with a deadline or an attestation,
 	// and a restored copy would revive a clock that has already run out.
-	"audit_anchor":         "it attests to the chain in the live audit log, not to a copy of one (E-09)",
-	"audit_pseudonym":      "the result of an erasure over a trail that is never written back; carrying it would let a restore reinstate a name, or remove one it did not (E-10)",
-	"data_subject_request": "a case with a legal deadline; a restored one revives a deadline that has passed (E-10)",
+	"audit_anchor":         "it attests to the chain in the live audit log, not to a copy of one",
+	"audit_pseudonym":      "the result of an erasure over a trail that is never written back; carrying it would let a restore reinstate a name, or remove one it did not",
+	"data_subject_request": "a case with a legal deadline; a restored one revives a deadline that has passed",
 	"privacy_incident":     "the same reasoning: an incident is handled once",
 	// The backup system's own bookkeeping. An archive describing the runs that produced it would
 	// be a mirror facing a mirror.
@@ -656,13 +656,13 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"backup_schedule": "the backup system's own bookkeeping",
 	"backup_run":      "the backup system's own bookkeeping",
 	"restore_run":     "the backup system's own bookkeeping",
-	"import_run":      "the import's own bookkeeping (P-08): what was asked and reported, never what landed - that is in the rows",
-	"retention_run":   "the retention engine's own bookkeeping (E-07)",
+	"import_run":      "the import's own bookkeeping: what was asked and reported, never what landed - that is in the rows",
+	"retention_run":   "the retention engine's own bookkeeping",
 	// A rule that says EXPORT_THEN_DELETE names a backup target, and a backup target is
 	// deliberately not restored - "an egress channel and a sealed credential; a restore must not
 	// silently recreate one". A rule carried back without it would either refuse the insert or,
 	// worse, become a plain deletion whose export half is gone. `retention_policy` is archived
-	// because it is only a period: it removes nothing on its own (E-07).
+	// because it is only a period: it removes nothing on its own.
 	"retention_rule":   "a rule that can delete, pointing at an egress channel a restore does not recreate",
 	"deletion_journal": "§7 - the journal is applied to a restore rather than restored by one",
 	// And the one row-level-secured table that is nobody's data: the system-defined capability

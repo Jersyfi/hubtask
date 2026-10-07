@@ -120,12 +120,11 @@ func ProblemFrom(err error, requestID string) Problem {
 		// An internal error says what happened by its code and by the request ID. Parameters
 		// come from the place that raised it, and that place may be a driver.
 		//
-		// The internal error and *only* it. This read `>= 500` until #500, which swept up every
-		// `503` with it - and a 503 is the opposite kind of answer: a deliberate, documented
-		// refusal whose whole purpose is to say which dependency is out of reach and what the
-		// caller should do about it. Stripped of its detail code, "AI is switched off in this
-		// workspace" and "the object store is down" reached a client as the same sentence, and
-		// `sync-engine` had a test asserting a payload the server could not send.
+		// The internal error and *only* it, not `>= 500`: that would sweep up every `503` - and a
+		// 503 is the opposite kind of answer: a deliberate, documented refusal whose whole purpose
+		// is to say which dependency is out of reach and what the caller should do about it.
+		// Stripped of its detail code, "AI is switched off in this workspace" and "the object store
+		// is down" would reach a client as the same sentence.
 		problem.Params = nil
 		problem.DetailCode = ""
 	}

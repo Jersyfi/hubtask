@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The AI provider's configuration use cases (J-02).
+// The AI provider's configuration use cases.
 const (
 	readAiProviderUseCase      = "ReadAiProvider"
 	configureAiProviderUseCase = "ConfigureAiProvider"
@@ -113,8 +113,7 @@ func aiProviderResponse(out usecase.Output) openapi.AiProvider {
 	if model := out.String("embedding_model"); model != "" {
 		answer.EmbeddingModel = &model
 	}
-	// Whether a key is stored, which the use case has always answered and the contract did not
-	// declare until J-16. Not the key: there is no call that answers that one.
+	// Whether a key is stored. Not the key: there is no call that answers that one.
 	if held, present := out["has_api_key"].(bool); present {
 		answer.HasApiKey = held
 	}

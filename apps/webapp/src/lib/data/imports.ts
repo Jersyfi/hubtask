@@ -2,12 +2,12 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The import, the parts that need no engine (F6-09, decision 15).
+ * The import, the parts that need no engine (design-system.md §11.8).
  *
  * **The kinds come from the contract.** `ImportKind` is generated from `api/openapi.yaml`, and the
  * list here is checked against it at compile time: a kind added to the contract and not to this
  * list is a type error, not a control that quietly never appears. The manifest declares no import
- * capability and nothing here adds one - a kind this build refuses answers by name (P-08), and the
+ * capability and nothing here adds one - a kind this build refuses answers by name, and the
  * dialog shows that answer.
  *
  * **The header row is read in the browser** so that the mapping can offer the file's own columns.

@@ -13,8 +13,8 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The lifecycle F4-02 completed: three pieces of operational configuration that could be created
-// and never revised, and one that could not even be listed.
+// The lifecycle of operational configuration: listed, revised and removed through the same
+// catalogue that creates it.
 const (
 	listBackupSchedulesUseCase   = "ListBackupSchedules"
 	updateBackupScheduleUseCase  = "UpdateBackupSchedule"

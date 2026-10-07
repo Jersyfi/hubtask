@@ -65,11 +65,11 @@ type Rules struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Conditions compiles a rule's expression when it is written (G-06). A port, so this layer
+	// Conditions compiles a rule's expression when it is written. A port, so this layer
 	// never learns which engine evaluates one - and the same port the automation rules use, which is
 	// what makes "the same expression language" one statement rather than two.
 	Conditions expression.Compiler
-	// Text brings a justification to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings a justification to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -231,8 +231,7 @@ func (r Rules) ceilingFor(
 //
 // The second consumer of the expression port, and the reason it is a port rather than a helper
 // private to the rule engine: two engines read one language, and a check written twice would be two
-// dialects. E-07 refused a condition outright because there was nothing that could evaluate one -
-// this is what replaced the refusal, and RE's tests flip rather than disappear.
+// dialects.
 func (r Rules) checkCondition(text string) error {
 	if strings.TrimSpace(text) == "" {
 		return nil
@@ -274,7 +273,7 @@ func (h ListRetentionPolicies) Execute(
 		Permission: service.PermissionStructure,
 		// What this workspace deletes and when is the configuration read an auditor most needs:
 		// an entry saying a rule removed four hundred objects cannot be judged without it
-		// (A-4, G-12). Writing a rule stays where it was - it is a standing instruction to
+		// (A-4). Writing a rule stays where it was - it is a standing instruction to
 		// destroy work, and it asks the owner's line.
 		Alternative: service.PermissionReadConfiguration,
 		Path:        []identity.Scope{identity.TenantScope()},

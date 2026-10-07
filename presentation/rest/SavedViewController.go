@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The saved views (D-07). The controller holds no rules, as ever: it reads the request, hands it
+// The saved views. The controller holds no rules, as ever: it reads the request, hands it
 // to the catalogue, and maps the result - what a layout means, who sees a shared view and whether
 // a stored query parses are all decided inwards of here.
 

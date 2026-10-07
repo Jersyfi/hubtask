@@ -59,8 +59,5 @@ refused with a note that it needs the connection.
 
 ## Today
 
-* **Check 6 fails in the web app.** Reminders, recurrence, templates and attachment capture are
-  refused offline with `sync.needs_connection`; carrying them in the push is F7's task
-  ([offline-sync.md](../../architecture/offline-sync.md) §1).
-* **Check 7 fails: there is no installed app.** Only the browser client exists (`apps/webapp`);
-  the Tauri shells that carry the offline promise are decided in ADR-0031 and not built.
+* Check 6: not met in the web app — reminders, recurrence, templates and attachment capture are refused offline with `sync.needs_connection` instead of being kept.
+* Check 7: not met — there is no installed desktop or mobile app; only the browser client exists.

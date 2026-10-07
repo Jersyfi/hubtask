@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// MicrosoftTodo is the Graph API's JSON (P-10, decision 8): the `todoTaskList` collection as
+// MicrosoftTodo is the Graph API's JSON (backup-restore.md §9): the `todoTaskList` collection as
 // `GET /me/todo/lists` answers it, each list carrying the `todoTask` items its own `/tasks`
 // request answered, attached under `tasks` by the person or the script that fetched both. One
 // collection per list, an entry per task with its due date read in the zone Graph names, a

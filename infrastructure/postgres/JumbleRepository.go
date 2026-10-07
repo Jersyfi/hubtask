@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// JumbleRepository is the inbox's table (G-10). Like every repository it is called inside a unit
+// JumbleRepository is the inbox's table. Like every repository it is called inside a unit
 // of work and never opens a transaction of its own; row level security bounds every statement to
 // the tenant of the running transaction (ADR-0010).
 type JumbleRepository struct {
@@ -211,10 +211,9 @@ func entryFrom(row sqlc.ListJumbleEntriesRow) (domain.Entry, error) {
 		attachments = append(attachments, attachment)
 	}
 
-	// The tenant, which the projection did not carry until J-16. Row level security bounds the
-	// read, so nothing about the *query* needed it - but the events a settlement announces are
-	// built from this projection, and an entry with no tenant cannot be the subject of one. Every
-	// conversion refused `events.envelope_incomplete` until an end-to-end session tried one.
+	// The tenant. Row level security bounds the read, so nothing about the *query* needs it - but
+	// the events a settlement announces are built from this projection, and an entry with no tenant
+	// cannot be the subject of one: every conversion would refuse `events.envelope_incomplete`.
 	tenant, err := idFrom(row.TenantID)
 	if err != nil {
 		return domain.Entry{}, err
@@ -239,7 +238,7 @@ func entryFrom(row sqlc.ListJumbleEntriesRow) (domain.Entry, error) {
 	return entry, nil
 }
 
-// JumbleIntakeRepository is the tenant's one webhook address (G-10).
+// JumbleIntakeRepository is the tenant's one webhook address.
 //
 // The hasher is the intake's own purpose over the installation secret, so a rule's inbound token
 // presented here matches nothing and a stored hash can never be replayed as a credential of
@@ -312,7 +311,7 @@ func (r JumbleIntakeRepository) RotatedAt(ctx context.Context) (time.Time, error
 }
 
 // DeleteExpired removes one batch of entries that arrived before the cutoff and were never
-// converted (G-10, data-retention.md §3).
+// converted (data-retention.md §3).
 //
 // Which entries those are lives in the statement rather than in a parameter: an entry that became
 // a work item is that item's provenance, and no period a tenant configures may reach it.

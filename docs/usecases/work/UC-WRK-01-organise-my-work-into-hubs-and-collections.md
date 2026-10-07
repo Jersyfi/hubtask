@@ -60,11 +60,5 @@ member or a child works *inside* the collections they are given.
 
 ## Today
 
-* **Check 6 fails.** *Create hub* is drawn for every signed-in person — in the overview's head,
-  the navigation's group header and its empty state
-  (`apps/webapp/src/views/HomeView.svelte:84`, `apps/webapp/src/lib/frame/WorkspaceNav.svelte:210-224`),
-  and *Create collection* on every hub page (`apps/webapp/src/views/ContainerView.svelte:643-650`).
-  Only the server's refusal stops a member.
-* **Check 7 fails.** A person whose memberships reach no hub sees the "no hubs yet, create one"
-  empty state, because the client cannot tell an empty workspace from one narrowed to nothing
-  (`apps/webapp/src/lib/data/containers.svelte.ts:78`).
+* Check 6: not met — *Create hub* is drawn for every signed-in person (the overview's head, the navigation's group header and its empty state), and *Create collection* on every hub page; only the server's refusal stops a member, tracked in #1080.
+* Check 7: not met — a person whose memberships reach no hub sees the "no hubs yet, create one" empty state, because the client cannot tell an empty workspace from one narrowed to nothing.

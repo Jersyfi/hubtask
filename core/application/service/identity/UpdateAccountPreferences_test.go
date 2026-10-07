@@ -86,9 +86,9 @@ func TestAnAbsentPreferenceIsLeftAndAnEmptyOneIsCleared(t *testing.T) {
 	}
 }
 
-// The registry is what a request meets, and its enum check used to refuse the only value that
+// The registry is what a request meets, and its enum check must not refuse the only value that
 // clears a first day of the week. The contract says an empty value clears the preference; between
-// a refused "" and a null that reads as absent there was no way to say it (issue #427).
+// a refused "" and a null that reads as absent there would be no way to say it.
 func TestAWeekStartCanBeClearedThroughTheRegistry(t *testing.T) {
 	monday := "MONDAY"
 	accounts := newAccounts(settled(t))
@@ -116,7 +116,7 @@ func TestAWeekStartCanBeClearedThroughTheRegistry(t *testing.T) {
 	}
 }
 
-// The moments (F6-12) follow the same rule as the three before them: written as words, read back
+// The moments follow the same rule as the three before them: written as words, read back
 // in their own types, and cleared by an empty string - the default (on) for the celebrations, the
 // tour asked for again for the other.
 func TestTheMomentsAreWrittenAndClearedLikeEveryOtherPreference(t *testing.T) {

@@ -36,8 +36,8 @@ var _ port.Expander = Expander{}
 // 09:00 is a series of 09:00s, and the instants between them are 23, 24 or 25 hours apart
 // depending on what the zone did that night.
 //
-// Expanding with a zoned start instead produces a failure this project cannot have, and it was
-// observed with this library before this shape was chosen: on a night when a zone springs forward
+// Expanding with a zoned start instead produces a failure this project cannot have, and this
+// library does produce it: on a night when a zone springs forward
 // at midnight (America/Sao_Paulo, 4 November 2018) the same local day comes back twice and the
 // following one never appears at all. Expanding on the wall clock and mapping afterwards cannot do
 // that - every reading appears exactly once, and the zone decides only which instant it is.

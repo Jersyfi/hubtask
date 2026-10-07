@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// IngestMedia is the pipeline's other end (G-11): the three steps, run by this server, for bytes
+// IngestMedia is the pipeline's other end: the three steps, run by this server, for bytes
 // that arrived here rather than from a client that could be told where to put them.
 //
 // The three-step flow exists because the server does not carry a client's bytes (arc42 §8.4). A
@@ -33,7 +33,7 @@ import (
 // naming an account would invent a person who did this.
 //
 // An ingest that stages and then fails leaves bytes and a PENDING record behind, and that is what
-// the reconciliation is for (C-06). It is seeded here for the same reason the staging seeds it:
+// the reconciliation is for. It is seeded here for the same reason the staging seeds it:
 // nothing in this system may enumerate tenants, so a tenant whose only uploads arrive by mail
 // would otherwise have a reclaimer nobody ever started (multi-tenancy.md §2.1).
 type IngestMedia struct {
@@ -51,7 +51,7 @@ type IngestMedia struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Config     env.Config
-	// Text brings the file name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the file name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -128,7 +128,7 @@ func (h IngestMedia) one(
 		SizeLimit:    h.Config.Request.MaxUploadBytes,
 		Usage:        media.UsageAttachment,
 		// No uploader. The intake authenticates the tenant and nobody else, and an account here
-		// would be an author this system invented (G-10's reasoning for the entry's own actor).
+		// would be an author this system invented.
 		CreatedBy: "",
 		Now:       now,
 		Text:      h.Text,
@@ -150,7 +150,7 @@ func (h IngestMedia) one(
 	if err != nil {
 		// The bytes are removed where they got as far as being written, and the PENDING record is
 		// left to the reconciliation. Removing the record here would be a second deletion path for
-		// media, which is the one thing C-06 keeps in one place.
+		// media, and media deletion is kept in one place.
 		h.discard(ctx, object)
 		return "", err
 	}

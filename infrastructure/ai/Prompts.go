@@ -85,12 +85,12 @@ func NewStore() (Store, error) {
 
 // parsePrompt reads one file: an optional header, then the instruction.
 //
-// The header is what makes a prompt publishable to an agent (J-12). It is delimited by `---` lines
+// The header is what makes a prompt publishable to an agent. It is delimited by `---` lines
 // and hand-parsed rather than read as YAML, because a header of five keys is not worth a
 // dependency - and a dependency is a supply chain decision this file is not the place to make.
 //
 // A file without a header is a prompt the product asks its own provider, and is the ordinary case:
-// the whole file is the instruction, exactly as it was before J-12.
+// the whole file is the instruction.
 func parsePrompt(name, text string) (port.Prompt, error) {
 	body := text
 	var prompt port.Prompt
@@ -145,15 +145,15 @@ func parsePrompt(name, text string) (port.Prompt, error) {
 //
 // The convention is one fenced block holding the object the model is to answer with, and it is a
 // convention with a gate behind it: `test/architecture` compares these keys against the allow list
-// that decides which of them the code keeps, and a prompt asking for a key nobody kept is what
-// made 0.7.5 necessary (K-01). Prose bullets are not read - a prompt that documents a field only
-// in a sentence documents it to a model and to nobody else.
+// that decides which of them the code keeps, and a prompt asking for a key nobody kept has the
+// model fill a field the product silently throws away. Prose bullets are not read - a prompt that
+// documents a field only in a sentence documents it to a model and to nobody else.
 //
 // The block is not parsed as JSON, deliberately. An example written for a model has ellipses in it
 // where the values would be, which no JSON parser accepts and every model understands; what is
 // wanted here is the *shape*, and the shape is the quoted names at the object's own level.
 //
-// A prompt with no fenced object asks for prose, which is every published prompt (J-12) and no
+// A prompt with no fenced object asks for prose, which is every published prompt and no
 // completion prompt this product asks its own provider.
 func answerKeys(instruction string) []string {
 	block, found := fencedObject(instruction)
@@ -261,7 +261,7 @@ func cutHeader(text string) (header, body string, found bool) {
 //
 // Pipes rather than prose, because every other shape invites a description containing whatever
 // character was chosen as the separator. The kind is `text` or `resource:<segment>`, naming one of
-// the URI shapes J-11 published.
+// the URI shapes the MCP resources publish.
 func parsePromptArgument(file, line string) (port.PromptArgument, error) {
 	parts := strings.Split(line, "|")
 	if len(parts) != 4 {
@@ -341,10 +341,10 @@ func (s Store) IDs() []string { return append([]string(nil), s.ids...) }
 // The prompt identifiers, named here so a caller cites a constant rather than a string that can be
 // misspelled into an internal error at run time.
 const (
-	// PromptSuggestFields turns a rough note into the fields of a task (J-06, J-08).
+	// PromptSuggestFields turns a rough note into the fields of a task.
 	PromptSuggestFields = "suggest-fields"
 	// PromptWeeklyReview is the one prompt written for an agent rather than for this product's own
-	// provider (J-12). It is published over MCP and never asked by anything in `core`.
+	// provider. It is published over MCP and never asked by anything in `core`.
 	PromptWeeklyReview = "weekly-review"
 )
 

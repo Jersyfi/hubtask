@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// A template drafted from a description (P-11): the last of ai-first.md §2's seven rows.
+// A template drafted from a description: the Template generation row of ai-first.md §2.
 
 // requestStore holds the words a question was asked with, as the real one does under row level
 // security.
@@ -255,8 +255,8 @@ func TestANodeTheProfileRefusesIsDroppedAndCounted(t *testing.T) {
 		t.Errorf("outcome = %+v, want three nodes dropped", outcome)
 	}
 	for _, recorded := range world.store.proposals {
-		// The count is on the row as well as in the outcome (issue 767): the suggestion is what
-		// a client renders, and the job's result reaches none.
+		// The count is on the row as well as in the outcome: the suggestion is what a client
+		// renders, and the job's result reaches none.
 		if recorded.DroppedNodes != 3 {
 			t.Errorf("the suggestion records %d dropped nodes, want 3", recorded.DroppedNodes)
 		}

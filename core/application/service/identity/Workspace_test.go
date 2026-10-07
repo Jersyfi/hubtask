@@ -88,8 +88,8 @@ func workspaceActor() appshared.ActorContext {
 func at() time.Time { return time.Date(2026, 9, 9, 10, 0, 0, 0, time.UTC) }
 
 // The read is open to the auditor's read-only configuration permission as well as to READ - the
-// pair G-12 split, and the reason an auditor can see how a workspace is set up without holding
-// the right to change it.
+// pair kept apart so that an auditor can see how a workspace is set up without holding the right to
+// change it.
 func TestReadingTheWorkspaceAcceptsTheAuditorsPermissionToo(t *testing.T) {
 	f := newWorkspaceFixture(at())
 
@@ -130,7 +130,7 @@ func TestChangingTheWorkspaceNeedsTheStructurePermissionAlone(t *testing.T) {
 	}
 }
 
-// The enforcement switch H-02 has read since 0.6.0 is the rule's switch under its old name: setting
+// The enforcement switch `require_admin_totp` is the rule's switch under its old name: setting
 // it changes `mfa_required_for`, behind the proof, and the trail says so with the rule's own field -
 // which is what "who turned enforcement off" needs (UC-ID-12 check 2).
 func TestTheEnforcementSwitchIsSetAndRecorded(t *testing.T) {
@@ -263,8 +263,8 @@ func TestTheAnswerCarriesWhatTheContractDeclares(t *testing.T) {
 	if _, held := out["settings"]; held {
 		t.Error("the answer carries the settings document, which is the adapter's shape")
 	}
-	// The anchoring target is the second modelled setting the answer carries (issue 774): absent
-	// while anchoring is off, the identifier once it is on.
+	// The anchoring target is the second modelled setting the answer carries: absent while
+	// anchoring is off, the identifier once it is on.
 	if _, held := out["audit_anchor_target_id"]; held {
 		t.Error("anchoring is off and the answer names a target")
 	}

@@ -191,7 +191,7 @@ func (w ItemMemberWriter) change(
 		now := w.Clock.Now()
 		// The tag is the clock reading the OR-set merges on. Taken here rather than derived from
 		// `now`, because a merge orders changes against other devices' readings and a wall clock
-		// cannot do that (offline-sync.md §4.1). A push supplies the device's own tag (N-07).
+		// cannot do that (offline-sync.md §4.1). A push supplies the device's own tag.
 		tag := setTag(ctx, domain.SetMembers, w.HLC)
 
 		changed, err := w.apply(ctx, cmd, want, tag)
@@ -220,7 +220,7 @@ func (w ItemMemberWriter) change(
 }
 
 // addWithin puts an account on the member list of an entry that is being created, inside the
-// creator's transaction (issue 878): the same guards and the same four records as
+// creator's transaction: the same guards and the same four records as
 // `PUT /items/{id}/members/{accountId}`, minus the permission question the creation has already
 // asked, and minus the visibility question, which opens transactions of its own and is therefore
 // asked by the creator before it opens this one (`ensureMembersCanSee`).
@@ -334,8 +334,7 @@ func (w ItemMemberWriter) recordActivity(
 //
 // The payload is the one element that moved and the tag that decides it, not the whole set - the
 // merge rule for a set, written down (offline-sync.md §4.2). It is the shape the labels already
-// use, with `set` naming which of the two this is: that field has been in the payload since B-09
-// for exactly this second caller.
+// use, with `set` naming which of the two this is.
 func (w ItemMemberWriter) recordChange(
 	ctx context.Context, item domain.WorkItem, collection domain.Container,
 	actor appshared.ActorContext, accountID shared.ID, want memberDirection, tag shared.HLC,
@@ -353,7 +352,7 @@ func (w ItemMemberWriter) recordChange(
 		// The visibility filter a pull applies: the entry's own collection, like every other change
 		// to an entry. A member whose grant is on the collection alone is told about it that way;
 		// filed under the hub, the record would name a container that grant is not on the path
-		// of, and the stream's per-record check would withhold it (#623, offline-sync.md §3.1).
+		// of, and the stream's per-record check would withhold it (offline-sync.md §3.1).
 		ContainerID: item.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         tag,

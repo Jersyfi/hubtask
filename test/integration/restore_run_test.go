@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The restore run against a real database (E-06): the claim that is a statement, the resumption
+// The restore run against a real database: the claim that is a statement, the resumption
 // that is the same claim, the report that survives a round trip, and the tenant boundary per
 // method (gate SG-3, BK-10).
 

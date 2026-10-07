@@ -14,8 +14,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
-// What MATCHES reads changed with C-08: the document a trigger maintains under the entry's own
-// language, rather than a generated column that was `simple` for everybody (ADR-0034).
+// What MATCHES reads is the document a trigger maintains under the entry's own language, rather
+// than a generated column that is `simple` for everybody (ADR-0034).
 //
 // Two languages are in play at once and they are different questions - the entry's, which decided
 // how it was indexed, and the searcher's, which decides how the words are read. These tests are

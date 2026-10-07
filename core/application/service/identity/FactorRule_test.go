@@ -13,9 +13,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// UC-ID-12 check 3 and UC-ID-03 checks 5 and 6 (SC-06): turning one's own second factor off asks
-// the same rule signing in asks. Before SC-06 it read the old boolean and only for administrators,
-// so under *Everyone* any member could remove a factor the workspace demands of them.
+// UC-ID-12 check 3 and UC-ID-03 checks 5 and 6: turning one's own second factor off asks
+// the same rule signing in asks, never the old boolean: that one speaks only for administrators, so
+// under *Everyone* any member could otherwise remove a factor the workspace demands of them.
 
 // armedUnder is a person with an armed factor in a workspace whose rule is the one given, holding
 // the roles given.
@@ -83,7 +83,7 @@ func TestTurningOffAsksTheSameRuleSigningInAsks(t *testing.T) {
 	}
 }
 
-// A row where the old boolean and the rule came apart before SC-06: the boolean on, the rule off.
+// A row where the old boolean and the rule disagree: the boolean on, the rule off.
 // Turning off asks the rule, as signing in always did, so an administrator may.
 func TestTurningOffIgnoresTheOldBooleanWhereTheRuleSaysOtherwise(t *testing.T) {
 	fixture := armedUnder(t, domain.MfaForNobody, domain.RoleAdmin)
@@ -133,7 +133,7 @@ func TestAResetAsksTheRuleSigningInAsks(t *testing.T) {
 	fixture.writer.Session.Rule = fixture.writer
 	fixture.writer.Session.Enrollments = newEnrollments()
 	fixture.writer.Session.Memberships = membershipsFake{roles: []domain.Role{domain.RoleMember}}
-	// The old boolean says nobody - a row stored before SC-06 - and must not be what is read.
+	// The old boolean says nobody - an older row - and must not be what is read.
 	fixture.writer.Session.Policy = policyFake{required: false}
 	token := fixture.mintedFor(t, now, domain.PendingReset)
 

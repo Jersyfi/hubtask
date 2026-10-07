@@ -25,7 +25,7 @@ import (
 )
 
 // exportTimeout bounds a single push to the collector. A tracing backend that stops answering
-// must cost the process nothing beyond this (rule 7, ADR-0016 §6 "timeouts everywhere").
+// must cost the process nothing beyond this (rule 7, ADR-0016 item 4 "timeouts everywhere").
 const exportTimeout = 10 * time.Second
 
 // slowSpanThreshold is the "slow request" of observability-reliability.md §3.3. A span at or

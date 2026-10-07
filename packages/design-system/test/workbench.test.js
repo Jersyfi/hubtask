@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The workbench's index (F9-03): components in waves, the filter, and the current component.
+// The workbench's index: components in waves, the filter, and the current component.
 // Pure functions over the loaded groups, so that what the sidebar shows is decided here rather
 // than in a browser.
 

@@ -18,9 +18,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The statements the backup targets run on, against a real database (E-03): a target round-trips,
-// its credential is read by exactly one method and by nothing else, the probe's result is written
-// down, and the tenant boundary holds per method (gate SG-3).
+// The statements the backup targets run on, against a real database: a target round-trips, its
+// credential is read by exactly one method and by nothing else, the probe's result is written down,
+// and the tenant boundary holds per method (gate SG-3).
 
 func targetRepo() postgres.BackupTargetRepository { return postgres.NewBackupTargetRepository() }
 
@@ -41,9 +41,9 @@ func targetIn(t *testing.T, tenant, author shared.ID, name string) domain.Target
 	return target
 }
 
-// sealedCredential stands in for what E-02's encryptor produces. The repository never opens one,
-// so a fixed blob is exactly as good as a real ciphertext here - and much clearer about the fact
-// that this layer cannot read it.
+// sealedCredential stands in for what the envelope encryptor produces. The repository never opens
+// one, so a fixed blob is exactly as good as a real ciphertext here - and much clearer about the
+// fact that this layer cannot read it.
 func sealedCredential(text string) crypto.Sealed {
 	return crypto.Sealed{KeyID: "k2026", Ciphertext: []byte("sealed:" + text)}
 }

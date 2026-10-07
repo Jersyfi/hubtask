@@ -132,7 +132,7 @@ func TestTheActivationAnswersEveryDocumentedName(t *testing.T) {
 	}
 }
 
-// The event's two clocks (N-10, offline-sync.md §8): a change a device made three days ago and
+// The event's two clocks (offline-sync.md §8): a change a device made three days ago and
 // pushed today reads its occurred_at as the person's moment and its received_at as the server's,
 // and one raised online reads one instant in both.
 func TestTheEventDocumentCarriesBothClocks(t *testing.T) {
@@ -262,7 +262,7 @@ func TestARealReadFailurePropagates(t *testing.T) {
 	}
 }
 
-// The jumble half of `payload` (G-10): a JUMBLE_ENTRY run reads the entry's fields as data,
+// The jumble half of `payload`: a JUMBLE_ENTRY run reads the entry's fields as data,
 // lazily, and a swept entry reads as an empty document rather than a failure.
 
 type jumbleStore struct{ rows map[shared.ID]jumble.Entry }
@@ -333,9 +333,9 @@ func (s sets) List(_ context.Context, itemID shared.ID) ([]shared.ID, error) {
 }
 
 // `item.labels` and `item.members` are the entry's sets beside it, as identifiers, read only when
-// `item` is (issue 807): automation.md §1's own example, `item.labels.exists(l, l == '<id>')`, was
-// a promise the engine did not keep - the document had no `labels` key, so the condition compiled
-// and failed at every run. Without the readers the document is the entry alone, as before.
+// `item` is: automation.md §1's own example, `item.labels.exists(l, l == '<id>')`, has to run -
+// without a `labels` key the condition compiles and fails at every run. Without the readers the
+// document is the entry alone.
 func TestTheItemCarriesItsLabelsAndMembersBesideIt(t *testing.T) {
 	entries, containers := workspace()
 	label := shared.ID("01936f2a-7c1e-7000-8000-0000000000a1")

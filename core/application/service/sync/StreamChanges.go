@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package sync is the application half of the change stream: what a client is allowed to be told
-// about, and where in the log it stands (C-10, ADR-0021).
+// about, and where in the log it stands (ADR-0021).
 //
 // It is not a use case and is deliberately absent from the catalogue in domain-model.md §5, for the
 // reason ReconcileMedia and RunRetention are absent: the catalogue is the list of things a person,
@@ -47,12 +47,12 @@ type Cursors interface {
 type Position struct {
 	Seq      int64
 	IssuedAt time.Time
-	// Epoch is the workspace's synchronisation epoch the position was minted under (N-11,
-	// backup-restore.md §12 B-5). A restore into the workspace advances the epoch, and a
+	// Epoch is the workspace's synchronisation epoch the position was minted under
+	// (backup-restore.md §12 B-5). A restore into the workspace advances the epoch, and a
 	// cursor from an older one is refused as too old: the rows a restore wrote are in no change
 	// log entry, so a delta past them would leave the device believing itself current.
 	Epoch int64
-	// Kind and After are where an initial synchronisation stands (N-02): the kind being walked
+	// Kind and After are where an initial synchronisation stands: the kind being walked
 	// and the key of the last row handed out. Both empty is a delta position, the only kind the
 	// stream resumes from.
 	Kind  string
@@ -105,7 +105,7 @@ type Record struct {
 // StreamChanges reads the change log on behalf of one connection.
 //
 // The authorisation is applied per record and at the moment the record is read, never by trusting
-// what a subscription stated (ADR-0005, and the acceptance criterion of C-10). Permission lost
+// what a subscription stated (ADR-0005, offline-sync.md §3.3). Permission lost
 // while a connection is open therefore stops the records for that container without the client
 // having to do anything, and without this package having to be told.
 type StreamChanges struct {
@@ -114,7 +114,7 @@ type StreamChanges struct {
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
 	Cursors    Cursors
-	// Epochs is the workspace's synchronisation epoch (N-11): every position is minted under the
+	// Epochs is the workspace's synchronisation epoch: every position is minted under the
 	// current one, and a cursor from an older one is refused.
 	Epochs repository.Epochs
 	Clock  clock.Clock
@@ -260,7 +260,7 @@ func (s StreamChanges) page(
 	records := make([]Record, 0, len(entries))
 	for _, entry := range entries {
 		if entry.Op == repository.AccessRevoked {
-			// Addressed to a person, and the one record permission does not filter (N-08): every
+			// Addressed to a person, and the one record permission does not filter: every
 			// other record reaches a device because its account may read the container, and a
 			// revocation reaches it precisely because the account no longer may. Nor does a scope
 			// narrow it - the device drops whatever it holds under the root, and a device holding
@@ -345,7 +345,7 @@ func (s StreamChanges) mayRead(
 }
 
 // mayReadWorkspaceWide decides a change that names no container. A template defined at the
-// workspace has no scope identifier, and its record is filed under none (#626); such a change is
+// workspace has no scope identifier, and its record is filed under none; such a change is
 // visible to whoever may read at the tenant scope - the question every hub-level check starts
 // from. Only an entity the reader knows is read that way: a record of a kind the walk does not
 // name is withheld, because nothing here can say what it describes, and the safe answer to a

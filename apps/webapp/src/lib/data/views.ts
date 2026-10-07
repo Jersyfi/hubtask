@@ -15,7 +15,7 @@
  * wording — "the query document of `POST /items:query`, stored as sent" — and it is not decoration:
  * `:export` *executes* the stored query on the server, and an unanchored one is refused with
  * `query.scope_required` before a single row is rendered. A view that stored only the question
- * would be a view nobody could export, which the walk against a running server is what showed.
+ * would be a view nobody could export.
  *
  * **Applying one on screen uses the question half alone.** The list already knows which collection
  * it is looking at, so opening a view there asks its filter and its order of *those* entries. The
@@ -59,7 +59,7 @@ export function needsStructure(scope: ViewScope): boolean {
 /**
  * What a view stores as its query: a whole, anchored query — in the shape the **use case** takes.
  *
- * Two things the walk against a running server settled, and neither was guessable from the schema.
+ * Two things a running server settles, and neither is guessable from the schema.
  *
  * The scope has to be there: `:export` runs the stored query and refuses one without it
  * (`query.scope_required`), so a view that stored only the question is a view nobody can export.
@@ -124,7 +124,7 @@ export function exportFileName(name: string, format: ExportFormat): string {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
   // Eighty graphemes, never a partial one: a name that ends in a flag is not cut in the middle of
-  // it (i18n-l10n.md §6 line 8, F5-09).
+  // it (i18n-l10n.md §6 line 8).
   const cut = truncateGraphemes(safe, 80);
   return `${cut === '' ? 'view' : cut}.${EXTENSIONS[format]}`;
 }
@@ -159,7 +159,7 @@ export function feedStateOf(feed: { revoked_at?: string | null; view_id?: string
 }
 
 /**
- * The feed as a CalDAV calendar (P-06, F6-11): `/caldav/calendars/<account>/<feed>/` at the
+ * The feed as a CalDAV calendar: `/caldav/calendars/<account>/<feed>/` at the
  * origin that serves the API - the tree is mounted beside `/api/v1`, not under it. No credential
  * travels in it: a calendar client presents a personal access token as the Basic password.
  */

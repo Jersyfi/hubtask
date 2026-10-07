@@ -1,6 +1,7 @@
 # ADR-0045 — The master key stays in the environment
 
 **Status:** accepted · **Date:** 2026-09-04 · **Closes:** open point S-2 (`security.md` §16)
+**Rule lives in:** [security.md](../architecture/security.md) §8, §8.1
 
 ## Context
 

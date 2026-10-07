@@ -57,8 +57,8 @@ func TestTheBodyRulesCountCodePoints(t *testing.T) {
 }
 
 // The body is stored as sent apart from its form: normal form C, on creation and on edit
-// (i18n-l10n.md §5, M-07), so the length is the length of what a person sees and two spellings
-// of a word compare equal. Without the port, a body that is not ASCII is refused.
+// (i18n-l10n.md §5), so the length is the length of what a person sees and two spellings of a word
+// compare equal. Without the port, a body that is not ASCII is refused.
 func TestTheBodyIsStoredInNormalFormC(t *testing.T) {
 	comment, err := work.NewComment(draftComment("Scho\u0308n!\nDanke fu\u0308r alles.", nil))
 	if err != nil {

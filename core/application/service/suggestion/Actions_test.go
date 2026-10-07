@@ -53,7 +53,7 @@ func TestEachActionAsksItsOwnQuestion(t *testing.T) {
 			if job.Payload["kind"] != string(domain.KindFields) {
 				t.Errorf("kind %v", job.Payload["kind"])
 			}
-			// A proposal unless it is said, which is the milestone's whole shape.
+			// A proposal unless it is said, which is the shape of every AI feature.
 			if _, said := job.Payload["apply"]; said {
 				t.Error("the job says apply when nobody asked for it")
 			}
@@ -155,7 +155,7 @@ func TestThroughTheRegistryApplyDefaultsToProposing(t *testing.T) {
 	}
 }
 
-// The other two thirds of §2's Summarisation row (K-05): the same audit action, their own prompts,
+// The other two thirds of §2's Summarisation row: the same audit action, their own prompts,
 // and one of them about a collection rather than an entry.
 func TestTheTwoSummariesAskTheirOwnQuestionsAboutTheirOwnTargets(t *testing.T) {
 	for _, testCase := range []struct {

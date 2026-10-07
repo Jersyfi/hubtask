@@ -10,7 +10,7 @@
  * and the second one is the one that disagrees.
  *
  * Nothing else in the application subscribes: a component reads `resource(...).state` and never
- * learns that a Transport exists. When F6 puts a queue and a local store behind `SyncEngine`, this
+ * learns that a Transport exists. With a queue and a local store behind `SyncEngine`, this
  * file does not change and neither does any component.
  */
 import type { ResourceRequest, ResourceState } from '@hubtask/sync-engine';

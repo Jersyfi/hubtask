@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The use case names of the session surface (H-01). Constants for the reason the token ones are:
+// The use case names of the session surface. Constants for the reason the token ones are:
 // a name spelled twice is a name that eventually drifts.
 const (
 	signInUseCase            = "SignIn"
@@ -58,7 +58,7 @@ func (c *RestController) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if required, _ := out["mfa_required"].(bool); required {
-		// The password was right and a second step is owed (H-02).
+		// The password was right and a second step is owed.
 		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
 		return
 	}

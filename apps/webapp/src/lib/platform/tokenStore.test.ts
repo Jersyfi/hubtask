@@ -93,9 +93,9 @@ test('no storage at all behaves the same way', () => {
 });
 
 test('the elevation survives a reload, and a new session is not the old one\'s hour', () => {
-  // The walk of SI-17 found this: each screen of `/instance` is its own component, and a full page
-  // load threw the elevation away. The door then asked for a second proof while the first hour
-  // still stood at the server — and passing it started a *new* hour, which is exactly what "the
+  // Each screen of `/instance` is its own component, so a full page load that threw the elevation
+  // away would make the door ask for a second proof while the first hour still stands at the
+  // server — and passing it would start a *new* hour, which is exactly what "the
   // elevation does not slide" forbids (ADR-0070 §4).
   const storage = fakeStorage();
   const store = tokenStore(storage);

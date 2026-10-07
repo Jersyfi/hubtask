@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// The automation surface as a person meets it (G-13). What is tested here is what this client
+// The automation surface as a person meets it. What is tested here is what this client
 // decides: the shape it sends, the words it prints, and the one refusal it makes on its own.
 
 const (

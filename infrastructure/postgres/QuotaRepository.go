@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// QuotaRepository is the §4 limits' surface (H-08): the overrides in the tenant's settings
+// QuotaRepository is the surface of the limits (multi-tenancy.md §4): the overrides in the tenant's settings
 // document, the live counts, and the billing ledger. One type for the three ports - they are
 // three angles on one subject, and every method is bounded by the transaction it runs in.
 type QuotaRepository struct{}
@@ -123,9 +123,9 @@ func (QuotaRepository) Overrides(ctx context.Context) (repository.Overrides, err
 
 // fromDocument and toDocument are the two mappings, named so that a test can walk them.
 //
-// They are a field list, which is the shape that goes wrong quietly: J-15 added a row to the
-// document's struct and to neither of these, so an override an operator wrote came back unset with
-// nothing failing. `TestEveryQuotaOverrideSurvivesTheDocument` walks every field through both.
+// They are a field list, which is the shape that goes wrong quietly: a row added to the document's
+// struct and to neither of these makes an override an operator wrote come back unset with nothing
+// failing. `TestEveryQuotaOverrideSurvivesTheDocument` walks every field through both.
 func fromDocument(document quotasDocument) repository.Overrides {
 	return repository.Overrides{
 		APIRequestsPerMinute:  document.APIRequestsPerMinute,

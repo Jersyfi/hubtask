@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// SC-25 (#1122, ADR-0077 §3): nobody is left without a way in. Where a workspace's last way in was an
+// ADR-0077 §3: nobody is left without a way in. Where a workspace's last way in was an
 // offer that ended, an account that only ever signed in through that provider holds no password the
 // fallback could open - so *Forgot your password?* mails it a link to set one, and that is how it gets
 // back in. Outside the fallback nothing changes: the provider mail, no link.
@@ -214,7 +214,7 @@ func TestAnInvitationRedeemedUnderTheFallbackIsRecorded(t *testing.T) {
 	}
 }
 
-// The first-password link answers every cause of "no way in" (SC-31, E2), not only an offer that
+// The first-password link answers every cause of "no way in" (E2), not only an offer that
 // ended: here the workspace's methods leave the password out and it has no provider at all - a
 // restore that brought its settings without the providers, say. A provider-only account is still
 // let back in by mail.

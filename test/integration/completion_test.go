@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The two completion methods against a real database (B-07). Both get a cross-tenant negative, because
+// The two completion methods against a real database. Both get a cross-tenant negative, because
 // the tenant boundary is row level security underneath and the only way to know it reaches a new query is
 // to try it (gate SG-3).
 
@@ -71,14 +71,14 @@ func seedTask(ctx context.Context, t *testing.T, tenant, author, collection shar
 }
 
 // stampColumn sets a lifecycle column the repository does not write, and insists the row was there to
-// stamp: InsertWorkItem writes neither archived_at nor deleted_at - those are use cases of their own
-// (B-06, B-10) - so a fixture that set the field on the struct would be silently dropped, and a test
-// asserting the absence of such a row would prove nothing.
+// stamp: InsertWorkItem writes neither archived_at nor deleted_at - archiving and deleting are use
+// cases of their own - so a fixture that set the field on the struct would be silently dropped, and
+// a test asserting the absence of such a row would prove nothing.
 func stampColumn(ctx context.Context, t *testing.T, id shared.ID, column string) {
 	t.Helper()
 
 	// The column name is a constant of this test and never a value from anywhere else, which is what
-	// keeps CLAUDE.md rule 9 intact here, where sqlc cannot express "either of two columns".
+	// keeps rule 9 intact here, where sqlc cannot express "either of two columns".
 	switch column {
 	case "archived_at", "deleted_at":
 	default:

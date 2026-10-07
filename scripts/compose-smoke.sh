@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# The self-hosting acceptance check of task A-09: the reference Compose file starts from a real
+# The self-hosting acceptance check: the reference Compose file starts from a real
 # image and reaches a green /readyz within five minutes.
 #
 # Why a script rather than a paragraph in a document: the Compose file is what a self-hoster runs,
@@ -89,7 +89,7 @@ curl -fsS "http://127.0.0.1:$OPS_PORT/meta/health" || true
 echo
 
 # The API answers on its own port, and the queue's signals exist on the operations port - the two
-# things a self-hosted installation is expected to have after A-08.
+# things a self-hosted installation is expected to have.
 failures=0
 if ! curl -fsS -o /dev/null "http://127.0.0.1:$HTTP_PORT/api/v1/meta/capabilities"; then
 	echo "FAILED: the API did not answer on $HTTP_PORT"
@@ -109,7 +109,7 @@ elif grep -q "No user interface was built into this binary" <<< "$index"; then
 fi
 
 # The document names a content-hashed asset - which is what separates the real application from
-# any page that happens to be HTML, and what the caching pair below rests on (ADR-0028, W-08).
+# any page that happens to be HTML, and what the caching pair below rests on (ADR-0028).
 asset="$(grep -o '/assets/[^"]*\.js' <<< "$index" | head -1)"
 if [ -z "$asset" ]; then
 	echo "FAILED: the document references no hashed script - this is not the built application"
@@ -168,13 +168,13 @@ if ! curl -fsS "http://127.0.0.1:$HTTP_PORT/api/v1/meta/capabilities" | grep -q 
 	failures=$((failures + 1))
 fi
 
-# The first timed duty, against the real image (D-03). Nothing else in this repository proves that
+# The first timed duty, against the real image. Nothing else in this repository proves that
 # a stored future timestamp becomes work in a running installation: the unit tests fire the pass by
 # calling it, and the integration suite drives it inside a transaction of its own. Here nobody
 # calls anything - a row says a moment, and the scheduler and the worker in the container do the
 # rest.
 #
-# The fixture is written with SQL because hubctl has no reminder verb until D-09. What it writes is
+# The fixture is written with SQL rather than through hubctl. What it writes is
 # exactly what the API write writes: the reminder, and the wake-up job the writer seeds beside it.
 psql_run() {
 	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" exec -T db psql -U hubtask -d hubtask -tA -c "$1"
@@ -257,11 +257,10 @@ fi
 # And SLO-5's own number exists in the scrape rather than only in the code.
 #
 # Read once into a variable, and a scrape that did not answer told apart from one that answered
-# without the series. The two used to share a single message, which is how a nightly under Podman
-# spent two runs reporting "the histogram is missing" about an operations port that may simply have
-# refused the connection - nothing was printed either way, so nobody could tell (#119). Podman
-# publishes a port through a userspace proxy, and a connection to one can be refused while it is
-# still settling; Docker's does not behave the same way, which is why this only ever showed there.
+# without the series: under one message, "the histogram is missing" could be an operations port
+# that simply refused the connection. Podman publishes a port through a userspace proxy, and a
+# connection to one can be refused while it is still settling; Docker's does not behave the same
+# way.
 #
 # The retry is for the port, not for the metric. The sample is recorded inside the transaction that
 # marks the reminder SENT (core/application/service/work/FireReminders.go), so by the time the row
@@ -326,7 +325,7 @@ if [ "$failures" -ne 0 ]; then
 fi
 
 # The application's sessions run as the role row level security was built for - not as the owner,
-# not as anything that could step around the boundary (multi-tenancy.md §2.1, task A-11).
+# not as anything that could step around the boundary (multi-tenancy.md §2.1).
 contained="$($COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" exec -T db \
 	psql -U hubtask -d hubtask -tA \
 	-c "SELECT rolcanlogin AND NOT rolsuper AND NOT rolbypassrls FROM pg_roles WHERE rolname='hubtask_app'")"
@@ -343,7 +342,7 @@ if [ "${sessions:-0}" -lt 1 ]; then
 fi
 echo "tenant boundary: the application connects as hubtask_app and cannot bypass RLS"
 
-# ============ Multi mode (H-06): the same file, the other mode ============
+# ============ Multi mode: the same file, the other mode ============
 # The mode is exercised rather than configured (multi-tenancy.md §5): a second stack from the
 # same Compose file boots in multi mode, the control plane provisions a workspace behind
 # admin:tenants, and the acceptance is walked on the wire - the owner redeems the once-shown
@@ -390,7 +389,7 @@ multi_psql() {
 json_field() { python3 -c "import json,sys; print(json.load(sys.stdin).get('$1',''))"; }
 
 # The operator's own workspace and the deliberately minted credential the admin surface demands:
-# a PAT carrying admin:tenants - the scope no session carries (0.6.0 decision 6).
+# a PAT carrying admin:tenants - the scope no session carries (api-guidelines.md §7).
 OPERATOR_TENANT="01936f2a-7c1e-7000-8000-0000000000e0"
 read -r ADMIN_TOKEN ADMIN_HASH < <(cd ../.. && \
 	HUBTASK_SECRET_KEY="$MULTI_SECRET" go run ./test/e2e/mint --tenant "$OPERATOR_TENANT")
@@ -405,7 +404,7 @@ INSERT INTO access_token (id, tenant_id, account_id, name, token_hash, token_pre
           '01936f2a-7c1e-7000-8000-0000000000e1', 'the control plane bootstrap',
           decode('$ADMIN_HASH', 'hex'), 'hbt_pat_', ARRAY['admin:tenants'],
           now() + interval '15 minutes');
--- And into the register (ADR-0070 §1). The scope alone has not been enough since SI-05: it is
+-- And into the register (ADR-0070 §1). The scope alone is not enough: it is
 -- checked again where it is exercised, and the empty-register fallback is the *single-workspace*
 -- installation's — which this is not, the moment it provisions the second. An installation that
 -- hosts workspaces registers whoever runs it, and seeding that row is what these scripts are
@@ -443,7 +442,7 @@ if [ "$tenants" != "2" ]; then
 	exit 1
 fi
 
-# A session must not reach the control plane, however privileged its person (decision 6).
+# A session must not reach the control plane, however privileged its person (api-guidelines.md §7).
 echo "--- multi mode: the owner signs in and sees the seeded structure ---"
 # Deliberately *not* the phrase every strength meter's documentation prints: that one is in the
 # embedded list of refused passwords (ADR-0068 §7), which is the whole reason it is there - it is
@@ -505,9 +504,8 @@ $COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" down -v --remove-orpha
 #
 # `depends_on: condition: service_healthy` is a guarantee, and it belongs to whoever runs the file.
 # Docker Compose keeps it, so everything above passes whether or not the stack could survive
-# without it. podman-compose does not keep it reliably, and for three weeks the only witness to
-# that was a nightly job whose failure nobody was told about (#119, #937): the migration died with
-# "connection refused", never granted hubtask_app its login, and the application authenticated
+# without it. podman-compose does not keep it reliably: the migration then dies with
+# "connection refused", never grants hubtask_app its login, and the application authenticates
 # against a role that cannot log in - a missing ordering guarantee arriving as a credential defect.
 #
 # So the guarantee is taken away here, on the engine that would otherwise always provide it: the

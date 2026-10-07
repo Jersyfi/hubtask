@@ -99,7 +99,7 @@ spec:
 MANIFEST
 
 echo "--- the secrets the chart refuses to render without ---"
-# Two DSNs, which is the arrangement A-11 asks of Kubernetes as well: the migration runs as the
+# Two DSNs, which is the arrangement multi-tenancy.md §2.1 asks of Kubernetes as well: the migration runs as the
 # owner, the application as hubtask_app, and the migrator grants that role its login.
 kubectl -n "$NAMESPACE" create secret generic hubtask-secrets \
   --from-literal=db-dsn="postgres://hubtask_app:$APP_PASSWORD@postgres:5432/hubtask?sslmode=disable" \

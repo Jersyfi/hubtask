@@ -10,8 +10,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The flow kinds (automation.md §1.3, G-09). Three actions that are not use cases at all: they are
-// the engine's own control structures, and they mean nothing outside a run.
+// The flow kinds (automation.md §1.3). Three actions that are not use cases at all: they are the
+// engine's own control structures, and they mean nothing outside a run.
 //
 // That is why they are absent from the catalogue and why the parity gate does not name them. The
 // gate's rule is that every *use case* is reachable as an action; the converse - that every action
@@ -161,9 +161,9 @@ func WaitFor(params map[string]any, path string) (time.Duration, error) {
 // ActionPath is where an action sits in a rule, as the run log and the idempotency key name it.
 //
 // `"2"` is the third action of the rule; `"2/then/0"` is the first action of that branch's `then`.
-// A path rather than an index, because G-07's key is `(rule, occasion, action index)` and a nested
-// action has no index at the top level - two branches' first actions would otherwise share a key
-// and the second would silently do nothing.
+// A path rather than an index, because the idempotency key is `(rule, occasion, action index)`
+// (automation.md §2.0) and a nested action has no index at the top level - two branches' first
+// actions would otherwise share a key and the second would silently do nothing.
 func ActionPath(parent string, index int) string {
 	if parent == "" {
 		return itoa(index)

@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The buckets and labels a collection carries, against a real database (B-09): the unique index
+// The buckets and labels a collection carries, against a real database: the unique index
 // that decides a name, the ranks a board is ordered by, the OR-set tags a merge reads, and a
 // cross-tenant negative for every method (gate SG-3).
 
@@ -114,7 +114,7 @@ func TestABucketIsWrittenAndReadBack(t *testing.T) {
 
 // The unique index decides a free name, and it does so case- and accent-insensitively: "Doing" and
 // "dóing" are one name to a person, and a check that disagreed with a person would be a bug report
-// waiting (B-09 acceptance).
+// waiting.
 func TestABucketNameIsUniquePerCollectionIgnoringCaseAndAccents(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -263,9 +263,9 @@ func TestBucketNeighboursBoundAPosition(t *testing.T) {
 		{name: "before the first", before: first.ID, moving: third.ID, previous: "", follow: "a0"},
 		{name: "at the end", before: "", moving: third.ID, previous: "a1", follow: ""},
 		// What a *create* asks: place a new column before the second, with nothing to leave out
-		// because the column being placed is not on the board yet (issue 992). The empty moving
-		// identifier has to mean "leave every row in the level" - it used to mean a refused UUID
-		// conversion, and every positioned create answered 500.
+		// because the column being placed is not on the board yet. The empty moving identifier
+		// has to mean "leave every row in the level" - taken as an identifier it is a refused UUID
+		// conversion, and every positioned create answers 500.
 		{name: "before the second, nothing moving", before: second.ID, moving: "", previous: "a0", follow: "a1"},
 		{name: "at the end, nothing moving", before: "", moving: "", previous: "a2", follow: ""},
 	} {
@@ -939,8 +939,8 @@ func labelElements(ctx context.Context, t *testing.T, tenant, item shared.ID) []
 	return elements
 }
 
-// putInBucket sets a column the repositories do not write yet: putting an item into a bucket is its
-// own use case (B-09, step 9), and a fixture that set the field on the struct would be dropped.
+// putInBucket sets the column as the superuser: putting an item into a bucket is its own use case,
+// and these tests prove the statements beneath it.
 func putInBucket(ctx context.Context, t *testing.T, item, bucket shared.ID) {
 	t.Helper()
 

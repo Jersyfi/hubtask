@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// F2-15's acceptance, as arithmetic: what the change set carries, what it deliberately does not,
+// The history, as arithmetic: what the change set carries, what it deliberately does not,
 // and who a step is attributed to when the contract gives the client no way to find out a name.
 
 import { test } from 'node:test';
