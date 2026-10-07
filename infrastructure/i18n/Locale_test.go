@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// The rows against the browser's own answers, recorded here as the source (M-05, ADR-0056): for
+// The rows against the browser's own answers, recorded here as the source (ADR-0056): for
 // each tag, `new Intl.Locale(tag).getWeekInfo().firstDay` (1 is Monday, 6 Saturday, 7 Sunday) and
 // the `decimal` part of `new Intl.NumberFormat(tag).formatToParts(1.5)`, read from Node 24's ICU
 // on 2026-09-15:
@@ -95,7 +95,7 @@ func TestSupportedLocalesIsOneRowPerCatalogue(t *testing.T) {
 }
 
 // The locale's week, through the same matcher a message is rendered through: de-AT reads de's
-// row, pt-BR reads pt's, and a tag that lands nowhere starts on Monday (M-06).
+// row, pt-BR reads pt's, and a tag that lands nowhere starts on Monday.
 func TestWeekStartOfReadsTheRowTheTagLandsOn(t *testing.T) {
 	embedded := directory(t, map[string]string{
 		"en.json": `{"a.one": "One"}`,

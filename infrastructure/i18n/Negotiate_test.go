@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// One matcher over the catalogues present (M-04, i18n-l10n.md §2). The cases the hand-rolled
+// One matcher over the catalogues present (i18n-l10n.md §2). The cases the hand-rolled
 // chain got wrong are the ones this exists for: a header whose first entry nobody serves, and a
 // region that should land on its language.
 func TestTheMatcherLandsATagOnTheCatalogueThatServesIt(t *testing.T) {
