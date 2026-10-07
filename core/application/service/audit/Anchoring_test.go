@@ -22,7 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// External anchoring (A-2, P-13): the configuration, the daily job, and the read-back.
+// External anchoring (A-2, audit.md §3): the configuration, the daily job, and the read-back.
 
 // memoryStore is a backup target in memory: what the job wrote, readable back and rewritable by
 // a test that plays the attacker.

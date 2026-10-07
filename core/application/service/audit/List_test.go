@@ -315,7 +315,7 @@ func TestAMalformedIdentifierIsRefused(t *testing.T) {
 	}
 }
 
-// The boundary substitution E-09's §6 promised and E-10 built: once an erasure has taken an actor,
+// The boundary substitution of audit.md §6: once an erasure has taken an actor,
 // the trail answers a pseudonym instead of the label it stored.
 
 type pseudonymStore struct{ names map[shared.ID]string }
