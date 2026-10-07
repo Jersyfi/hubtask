@@ -3691,12 +3691,12 @@ type AccessTokenSecret struct {
 
 // Account defines model for Account.
 type Account struct {
-	// Celebrations Whether the moments are marked for this person (design-system.md §7). Absent or null means the default, which is on.
+	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
 	Email        *openapi_types.Email `json:"email,omitempty"`
 
-	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else (UC-ID-05). An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
+	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
 
 	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
@@ -3709,14 +3709,14 @@ type Account struct {
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
-	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else (SI-09). **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
-	// The same number has ridden along with a sign-in since H-02, where nobody could act on it. Here it is beside the account, which is where the screen that makes new ones is.
+	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else. **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
+	// The same number rides along with a sign-in, where nobody can act on it; here it is beside the account, which is where the screen that makes new ones is.
 	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
 
-	// SecondFactorRequired Whether the workspace's sign-in rule in force demands a second factor of this person, answered on `GET /accounts/me` and on nothing else (UC-ID-03). The same reading signing in and turning the factor off make, so a screen can say "your workspace requires it" instead of offering a control the server would refuse (P-05).
+	// SecondFactorRequired Whether the workspace's sign-in rule in force demands a second factor of this person, answered on `GET /accounts/me` and on nothing else. The same reading signing in and turning the factor off make, so a screen can say "your workspace requires it" instead of offering a control the server would refuse.
 	SecondFactorRequired *bool `json:"second_factor_required,omitempty"`
 
-	// Status `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
+	// Status `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
 	// stays, and what stops is this system deciding anything about the person by machine.
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
 	// stays so that the workspace's own content is still readable, and everything of the
@@ -3729,7 +3729,7 @@ type Account struct {
 // AccountKind defines model for Account.Kind.
 type AccountKind string
 
-// AccountStatus `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
+// AccountStatus `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
 // stays, and what stops is this system deciding anything about the person by machine.
 // `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
 // stays so that the workspace's own content is still readable, and everything of the
@@ -3747,7 +3747,7 @@ type AccountInvite struct {
 
 // AccountPreferences Every field is optional, and an empty string clears the preference rather than setting it
 // to nothing — the workspace default applies again. The two the client writes for itself
-// (F6-12, decision 11) clear the same way, with `null`: `celebrations` back to the default,
+// clear the same way, with `null`: `celebrations` back to the default,
 // which is on; `onboarding_completed_at` back to "not taken", which runs the tour again.
 type AccountPreferences struct {
 	// Celebrations Whether the moments are marked. `null` clears it; the default is on.
@@ -3763,7 +3763,7 @@ type AccountPreferences struct {
 // AccountPreferencesWeekStart defines model for AccountPreferences.WeekStart.
 type AccountPreferencesWeekStart string
 
-// AccountSummary An account as another member of the same tenant may see it: enough to render a name where a record carries an identifier, and nothing else. Deliberately not `Account` - that carries the email and the caller's own preferences, which are a different permission (data-protection.md §9, §3).
+// AccountSummary An account as another member of the same tenant may see it: enough to render a name where a record carries an identifier, and nothing else. Deliberately not `Account` - that carries the email and the caller's own preferences, which are a different permission.
 type AccountSummary struct {
 	// DisplayName An erased account carries the marker its erasure wrote here, so a reader sees that somebody acted without learning who they were.
 	DisplayName string               `json:"display_name"`
@@ -3778,7 +3778,7 @@ type AccountSummaryKind string
 // AccountSummaryStatus defines model for AccountSummary.Status.
 type AccountSummaryStatus string
 
-// AccountsWithoutProvider How many active people of the workspace no provider switched on there signs in (ADR-0078 §1). A number, never a list.
+// AccountsWithoutProvider How many active people of the workspace no provider switched on there signs in. A number, never a list.
 type AccountsWithoutProvider struct {
 	// Count The active people - service accounts and invitations aside - without an identity at any provider that is a way in here now.
 	Count int `json:"count"`
@@ -3795,7 +3795,7 @@ type ActivityEntry struct {
 	// ChangeSet The fields that moved, keyed by field name. A field the history keeps the values of carries `from` and `to` - each present only where there was a value on that side - and one it does not carries `changed: true`: a note is a page of text and its history is that somebody edited it. Empty where the step moved no field at all, and empty for every step of an activity's compact history.
 	ChangeSet map[string]interface{} `json:"change_set"`
 
-	// Code The message the client renders, from locales/*.json - activity.item_completed and the rest (i18n-l10n.md §1). A code rather than a sentence, so that one history reads in whichever language each client is set to.
+	// Code The message the client renders, from locales/*.json - activity.item_completed and the rest. A code rather than a sentence, so that one history reads in whichever language each client is set to.
 	Code       string             `json:"code"`
 	Id         openapi_types.UUID `json:"id"`
 	ItemId     openapi_types.UUID `json:"item_id"`
@@ -3829,7 +3829,7 @@ type AdminTenant struct {
 	DisplayName     string             `json:"display_name"`
 	Id              openapi_types.UUID `json:"id"`
 
-	// PasswordOpening The operator's opening of the password while it is in force (ADR-0078 §3), null otherwise - an opening past its end is answered as none, whatever the row still holds.
+	// PasswordOpening The operator's opening of the password while it is in force, null otherwise - an opening past its end is answered as none, whatever the row still holds.
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
@@ -3843,38 +3843,38 @@ type AdminTenantStatus string
 
 // AiAsk How to ask, which is one question — propose, or apply.
 type AiAsk struct {
-	// Apply Apply the answer as soon as it arrives instead of proposing it. **False unless it is said**, and deliberately: a result is a suggestion, and applying one without a person reading it is a decision somebody configures rather than one that happens by not thinking about it (`automation.md` §1.3, ADR-0012).
+	// Apply Apply the answer as soon as it arrives instead of proposing it. **False unless it is said**, and deliberately: a result is a suggestion, and applying one without a person reading it is a decision somebody configures rather than one that happens by not thinking about it.
 	// An applied answer is not a shortcut past anything. The suggestion is recorded with its provenance first, the acceptance is audited as its own act, and the change goes through the use case that owns it with the caller's own rights — it is the same path with nobody pausing in the middle.
 	Apply *bool `json:"apply,omitempty"`
 }
 
-// AiJurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
-// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
+// AiJurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
 type AiJurisdiction string
 
 // AiProvider How this workspace uses AI, if it does. The API key is not a member: it is sealed at configuration time and opened only by the adapter that makes the call.
 type AiProvider struct {
-	// BaseUrl The endpoint the adapter calls. Absent for `NOOP`. Every call to it goes through the guarded client, so an address inside this installation's own network is refused wherever it was typed (ADR-0015, T-07).
+	// BaseUrl The endpoint the adapter calls. Absent for `NOOP`. Every call to it goes through the guarded client, so an address inside this installation's own network is refused wherever it was typed.
 	BaseUrl *string `json:"base_url,omitempty"`
 
 	// CompletionModel The model a suggestion is asked of. Empty means this provider does not complete.
 	CompletionModel *string   `json:"completion_model,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
 
-	// EmbeddingModel The model a vector is asked of. Empty means this provider does not embed. The index holds 1536 dimensions: a model that produces fewer is stored exactly, padded, and one that produces more is refused at the first embedding rather than stored truncated (ADR-0054). The two Ollama embedding models in common use produce 768 and 1024 and are taken; a model above 1536 cannot be used.
+	// EmbeddingModel The model a vector is asked of. Empty means this provider does not embed. The index holds 1536 dimensions: a model that produces fewer is stored exactly, padded, and one that produces more is refused at the first embedding rather than stored truncated. The two Ollama embedding models in common use produce 768 and 1024 and are taken; a model above 1536 cannot be used.
 	EmbeddingModel *string `json:"embedding_model,omitempty"`
 
-	// HasApiKey Whether a key is stored, which is the whole of what this surface says about one (J-02). The key itself is sealed on the way in and answered by nothing afterwards - so this is the only way an operator can tell "configured with a key" from "configured without one", and a setup screen that could not tell them apart would have to ask for the key again to find out.
+	// HasApiKey Whether a key is stored, which is the whole of what this surface says about one. The key itself is sealed on the way in and answered by nothing afterwards - so this is the only way an operator can tell "configured with a key" from "configured without one", and a setup screen that could not tell them apart would have to ask for the key again to find out.
 	HasApiKey bool `json:"has_api_key"`
 
-	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
-	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
 	Jurisdiction AiJurisdiction `json:"jurisdiction"`
 
-	// Kind Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	// Kind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
 	Kind AiProviderKind `json:"kind"`
 
-	// ProcessingAllowed Whether this workspace's content may be sent to the provider at all (`ai_processing_allowed`, ai-first.md §2). Checked before every call, and false by default - configuring a provider is not the same act as consenting to use it.
+	// ProcessingAllowed Whether this workspace's content may be sent to the provider at all (`ai_processing_allowed`). Checked before every call, and false by default - configuring a provider is not the same act as consenting to use it.
 	ProcessingAllowed bool       `json:"processing_allowed"`
 	UpdatedAt         *time.Time `json:"updated_at,omitempty"`
 
@@ -3892,18 +3892,18 @@ type AiProviderConfiguration struct {
 	CompletionModel *string `json:"completion_model,omitempty"`
 	EmbeddingModel  *string `json:"embedding_model,omitempty"`
 
-	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
-	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
 	Jurisdiction AiJurisdiction `json:"jurisdiction"`
 
-	// Kind Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	// Kind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
 	Kind AiProviderKind `json:"kind"`
 
 	// ProcessingAllowed Defaults to false. Configuring a provider and consenting to send this workspace's content to it are two decisions, and a default that ran them together would make the second one by accident.
 	ProcessingAllowed *bool `json:"processing_allowed,omitempty"`
 }
 
-// AiProviderKind Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+// AiProviderKind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
 type AiProviderKind string
 
 // AiTranslateRequest Which language to read the entry in.
@@ -3912,7 +3912,7 @@ type AiTranslateRequest struct {
 	TargetLocale *string `json:"target_locale,omitempty"`
 }
 
-// AiTranslation The entry's title and notes as the provider rendered them in the target language, with the provenance every AI output carries (`ai-first.md` §2). Not a record: it has no id, no status and nothing to accept, because it is not stored anywhere.
+// AiTranslation The entry's title and notes as the provider rendered them in the target language, with the provenance every AI output carries. Not a record: it has no id, no status and nothing to accept, because it is not stored anywhere.
 type AiTranslation struct {
 	Model string `json:"model"`
 
@@ -3941,7 +3941,7 @@ type Assignment struct {
 // AuditActor Who acted, as the entry recorded them. The label is the one that was valid at the time and
 // is stored denormalised: an entry that only pointed at a foreign key would become
 // unreadable the moment the account was deleted, and a trail that loses its meaning through
-// a deletion does not do its job (audit.md §2).
+// a deletion does not do its job.
 type AuditActor struct {
 	Id    *openapi_types.UUID `json:"id,omitempty"`
 	Label *string             `json:"label,omitempty"`
@@ -3969,7 +3969,7 @@ type AuditAnchoringConfiguration struct {
 	TargetId *openapi_types.UUID `json:"target_id"`
 }
 
-// AuditChange One changed field, masked per its classification (audit.md §4). An `OPEN` field carries
+// AuditChange One changed field, masked per its classification. An `OPEN` field carries
 // `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
 // makes two entries comparable without either being readable; a `SECRET` one is not here at
 // all.
@@ -3982,7 +3982,7 @@ type AuditChange struct {
 	ToHash   *string     `json:"to_hash,omitempty"`
 }
 
-// AuditContext The request the entry belongs to (audit.md §2). The address is truncated where the entry is
+// AuditContext The request the entry belongs to. The address is truncated where the entry is
 // written - IPv4 /24, IPv6 /48 - and the user agent is reduced to a class, because the trail
 // is evidence about actions rather than a second analytics dataset.
 type AuditContext struct {
@@ -4008,11 +4008,11 @@ type AuditEntry struct {
 	// Actor Who acted, as the entry recorded them. The label is the one that was valid at the time and
 	// is stored denormalised: an entry that only pointed at a foreign key would become
 	// unreadable the moment the account was deleted, and a trail that loses its meaning through
-	// a deletion does not do its job (audit.md §2).
+	// a deletion does not do its job.
 	Actor   AuditActor     `json:"actor"`
 	Changes *[]AuditChange `json:"changes,omitempty"`
 
-	// Context The request the entry belongs to (audit.md §2). The address is truncated where the entry is
+	// Context The request the entry belongs to. The address is truncated where the entry is
 	// written - IPv4 /24, IPv6 /48 - and the user agent is reduced to a class, because the trail
 	// is evidence about actions rather than a second analytics dataset.
 	Context    *AuditContext       `json:"context,omitempty"`
@@ -4061,7 +4061,7 @@ type AuditTarget struct {
 	Type  *string             `json:"type,omitempty"`
 }
 
-// AuthenticatorReplacement The new secret's single showing (SC-17). Nothing is armed yet: the factor in force and its recovery codes keep working until the replacement is confirmed.
+// AuthenticatorReplacement The new secret's single showing. Nothing is armed yet: the factor in force and its recovery codes keep working until the replacement is confirmed.
 type AuthenticatorReplacement struct {
 	// ExpiresAt Until when the replacement can be confirmed; after that it lapses unarmed.
 	ExpiresAt time.Time `json:"expires_at"`
@@ -4114,7 +4114,7 @@ type AutoAssignStrategy string
 
 // AutomationActionField One declared parameter of an automation action, as the use case behind the kind declares it. `kind` is the catalogue's own vocabulary: `id` and `id_list` name entries of this workspace, and an editor offers a picker for them; `object`, `list` and `any` are documents whose shape another declaration decides, and an editor takes them as JSON.
 type AutomationActionField struct {
-	// Description Protocol documentation, in English, as the descriptions in this document are - never display text (ADR-0011).
+	// Description Protocol documentation, in English, as the descriptions in this document are - never display text.
 	Description *string `json:"description,omitempty"`
 
 	// Enum The closed set of values the field takes, where it takes one.
@@ -4126,7 +4126,7 @@ type AutomationActionField struct {
 	Name     string                    `json:"name"`
 	Required bool                      `json:"required"`
 
-	// Rule Whether a rule sets this field. `false` for the caller's plumbing - the identifier a client minted for offline work, the version it last read for If-Match, a reserved switch - which a person typing a call supplies and a rule never does, because a run has no version it read and mints nothing (F8-15). A rule editor hides such a field; the call still accepts it. Absent means `true`.
+	// Rule Whether a rule sets this field. `false` for the caller's plumbing - the identifier a client minted for offline work, the version it last read for If-Match, a reserved switch - which a person typing a call supplies and a rule never does, because a run has no version it read and mints nothing. A rule editor hides such a field; the call still accepts it. Absent means `true`.
 	Rule *bool `json:"rule,omitempty"`
 }
 
@@ -4140,7 +4140,7 @@ type AutomationRule struct {
 	// CheckedAt When the check last ran over this rule, and absent for a rule it never has — or for one edited since: an edit leaves the rule unchecked and its findings empty, because they described the definition the check read, not this one.
 	CheckedAt *time.Time `json:"checked_at,omitempty"`
 
-	// Conditions Up to twenty, evaluated in order, and all of them have to hold for the rule to act. An empty list is a rule with no conditions, which runs on every match; an empty *expression* is not a condition at all and is refused as the empty field it is (G-06).
+	// Conditions Up to twenty, evaluated in order, and all of them have to hold for the rule to act. An empty list is a rule with no conditions, which runs on every match; an empty *expression* is not a condition at all and is refused as the empty field it is.
 	Conditions []RuleCondition    `json:"conditions"`
 	CreatedAt  time.Time          `json:"created_at"`
 	CreatedBy  openapi_types.UUID `json:"created_by"`
@@ -4151,14 +4151,14 @@ type AutomationRule struct {
 	// FailureCount Consecutive failed runs. A run of them disables the rule by itself, and enabling it by hand clears the count.
 	FailureCount int `json:"failure_count"`
 
-	// Findings What the last check found (ADR-0060): every reference of the rule resolved against what exists now. Empty for a rule with nothing wrong, and empty for a rule that has never been checked - `checked_at` tells the two apart. A `BROKEN` finding is one the check acted on: the rule is switched off. An `ATTENTION` finding is information.
+	// Findings What the last check found: every reference of the rule resolved against what exists now. Empty for a rule with nothing wrong, and empty for a rule that has never been checked - `checked_at` tells the two apart. A `BROKEN` finding is one the check acted on: the rule is switched off. An `ATTENTION` finding is information.
 	Findings *[]RuleFinding     `json:"findings,omitempty"`
 	Id       openapi_types.UUID `json:"id"`
 
 	// InboundRotatedAt When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has none. The moment and nothing else: a prefix or a masked value beside it would be a credential whose guessing space has been narrowed for whoever reads the listing.
 	InboundRotatedAt *time.Time `json:"inbound_rotated_at,omitempty"`
 
-	// LastRun The rule's most recent run — when it started and how it ended — read beside the rule so that a list of rules says it without a page of runs per rule (F8-21). Absent for a rule that never ran. Not part of the definition: a write ignores it.
+	// LastRun The rule's most recent run — when it started and how it ended — read beside the rule so that a list of rules says it without a page of runs per rule. Absent for a rule that never ran. Not part of the definition: a write ignores it.
 	LastRun *struct {
 		At time.Time `json:"at"`
 
@@ -4171,16 +4171,16 @@ type AutomationRule struct {
 	NextRunAt *time.Time            `json:"next_run_at,omitempty"`
 	OnError   AutomationRuleOnError `json:"on_error"`
 
-	// RunAs The account the rule acts as. It can never do more than that account may (automation.md §2), which is why the writer has to hold those rights too.
+	// RunAs The account the rule acts as. It can never do more than that account may, which is why the writer has to hold those rights too.
 	RunAs openapi_types.UUID `json:"run_as"`
 
-	// Scope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
 	Scope RuleScope `json:"scope"`
 
-	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them.
 	Throttle *RuleThrottle `json:"throttle,omitempty"`
 
-	// Trigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	// Trigger What starts a run. Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
 	Trigger   RuleTrigger `json:"trigger"`
 	UpdatedAt time.Time   `json:"updated_at"`
 	Version   int         `json:"version"`
@@ -4197,13 +4197,13 @@ type AutomationRuleCreate struct {
 	OnError    *AutomationRuleCreateOnError `json:"on_error,omitempty"`
 	RunAs      openapi_types.UUID           `json:"run_as"`
 
-	// Scope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
 	Scope RuleScope `json:"scope"`
 
-	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them.
 	Throttle *RuleThrottle `json:"throttle,omitempty"`
 
-	// Trigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	// Trigger What starts a run. Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
 	Trigger RuleTrigger `json:"trigger"`
 }
 
@@ -4227,13 +4227,13 @@ type AutomationRuleUpdate struct {
 	OnError         *AutomationRuleUpdateOnError `json:"on_error,omitempty"`
 	RunAs           *openapi_types.UUID          `json:"run_as,omitempty"`
 
-	// Scope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
 	Scope *RuleScope `json:"scope,omitempty"`
 
-	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them.
 	Throttle *RuleThrottle `json:"throttle,omitempty"`
 
-	// Trigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	// Trigger What starts a run. Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
 	Trigger *RuleTrigger `json:"trigger,omitempty"`
 }
 
@@ -4315,7 +4315,7 @@ type BackupRun struct {
 	Status     BackupRunStatus    `json:"status"`
 	TargetId   openapi_types.UUID `json:"target_id"`
 
-	// TrialRestore What the trial restore found (B-4, P-14): after a scheduled `FULL` run whose schedule has `trial_restore` on, the same job reads the archive back as an `INSPECT` restore - every member read, every checksum verified, every encrypted member decrypted with the key the schedule names - and records the difference report against the workspace here. Null where no trial ran. A trial that fails fails the run, with `backup.trial_restore_failed` as its `error_code` and the failure recorded here.
+	// TrialRestore What the trial restore found: after a scheduled `FULL` run whose schedule has `trial_restore` on, the same job reads the archive back as an `INSPECT` restore - every member read, every checksum verified, every encrypted member decrypted with the key the schedule names - and records the difference report against the workspace here. Null where no trial ran. A trial that fails fails the run, with `backup.trial_restore_failed` as its `error_code` and the failure recorded here.
 	TrialRestore *BackupRunTrial  `json:"trial_restore,omitempty"`
 	Trigger      BackupRunTrigger `json:"trigger"`
 	VerifiedAt   *time.Time       `json:"verified_at,omitempty"`
@@ -4371,7 +4371,7 @@ type BackupSchedule struct {
 	TargetId openapi_types.UUID `json:"target_id"`
 	Timezone *string            `json:"timezone,omitempty"`
 
-	// TrialRestore Follow every `FULL` run with an `INSPECT` restore of the archive it wrote, in the same job, and store the difference report on the run (B-4, P-14). A trial that fails fails the run - an archive the product cannot read back is not a backup - and `notify_on` covers it as it covers any failure. On for a new schedule; schedules made before this field existed keep it off, and say so.
+	// TrialRestore Follow every `FULL` run with an `INSPECT` restore of the archive it wrote, in the same job, and store the difference report on the run. A trial that fails fails the run - an archive the product cannot read back is not a backup - and `notify_on` covers it as it covers any failure. On for a new schedule; schedules made before this field existed keep it off, and say so.
 	TrialRestore *bool `json:"trial_restore,omitempty"`
 }
 
@@ -4473,7 +4473,7 @@ type BackupTargetKind string
 
 // BackupTargetProbe What a write-read-delete against the target found. A target that could not be reached is a result rather than an error: it is what the caller asked to find out.
 type BackupTargetProbe struct {
-	// ErrorCode A message code, never the driver's message (ADR-0011).
+	// ErrorCode A message code, never the driver's message.
 	ErrorCode *string `json:"error_code"`
 
 	// FreeBytes How much room is left, or `null` where the protocol cannot say. A bucket cannot say at all.
@@ -4495,7 +4495,7 @@ type Bucket struct {
 	IsDoneBucket bool               `json:"is_done_bucket"`
 	Name         string             `json:"name"`
 
-	// OrderKey The rank on the board - a fractional index rather than a number (offline-sync.md §4.2).
+	// OrderKey The rank on the board - a fractional index rather than a number.
 	OrderKey string `json:"order_key"`
 
 	// Version The optimistic lock, returned as the ETag and sent back as If-Match.
@@ -4605,15 +4605,15 @@ type CalendarFeedSecret struct {
 type Capabilities struct {
 	ApiVersion *string `json:"api_version,omitempty"`
 
-	// AutoAssignStrategies The values an auto-assign policy's `strategy` may take, in `domain-model.md` §3.6's order, for the reason the completion policies are listed.
+	// AutoAssignStrategies The values an auto-assign policy's `strategy` may take, for the reason the completion policies are listed.
 	AutoAssignStrategies *[]AutoAssignStrategy `json:"auto_assign_strategies,omitempty"`
 
-	// Automation The vocabulary a rule is written in, and what a rule editor is built from rather than from a list compiled into it - a client with its own would be wrong on the installation that has one more (automation.md §1).
+	// Automation The vocabulary a rule is written in, and what a rule editor is built from rather than from a list compiled into it - a client with its own would be wrong on the installation that has one more.
 	Automation *struct {
-		// ActionFields For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time (F8-01). A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, and a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest (automation.md §2.2), so `required` describes the call, not the rule.
+		// ActionFields For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time. A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, and a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest, so `required` describes the call, not the rule.
 		ActionFields *map[string][]AutomationActionField `json:"action_fields,omitempty"`
 
-		// ActionSummaries For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration (F8-15). A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present.
+		// ActionSummaries For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration. A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present.
 		ActionSummaries *map[string]string `json:"action_summaries,omitempty"`
 
 		// Actions Every use case a rule may perform, as `RuleAction.kind` names it - one name per use case, in SCREAMING_SNAKE_CASE, sorted. The engine's own flow kinds `WAIT`, `BRANCH` and `STOP` are not in it: they are control structures rather than use cases and are in no catalogue, so a client names those three itself.
@@ -4626,18 +4626,18 @@ type Capabilities struct {
 	// CompletionPolicies The values a collection's `completion_policy` may take, in the domain's order. A policies form is built from this list rather than from a copy of the enum: the schema says which values exist, this says which this installation serves.
 	CompletionPolicies *[]CompletionPolicy `json:"completion_policies,omitempty"`
 
-	// Deprecations Every request field this contract has marked `deprecated`, with the operations that take it, since when, and the major version it goes away with (`versioning-release.md` §5, SC-28). Read from the contract itself, so the list and the specification cannot disagree. A request that sends one of them is answered with the `Deprecation` header (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.
+	// Deprecations Every request field this contract has marked `deprecated`, with the operations that take it, since when, and the major version it goes away with. Read from the contract itself, so the list and the specification cannot disagree. A request that sends one of them is answered with the `Deprecation` header (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.
 	Deprecations *[]DeprecatedField `json:"deprecations,omitempty"`
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
 	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search` and `natural_ordering`.
-	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health` (observability-reliability.md §7), so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace (`ai-first.md` §2); an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
-	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU (`i18n-l10n.md` §5). Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
+	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
+	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
 
-	// Instance What this caller may do at the level above the workspaces (SI-17, ADR-0070 §5). Caller- scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers `reachable: false`, and the answer changes with the actor.
-	// **This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled (principle P-05).
+	// Instance What this caller may do at the level above the workspaces. Caller-scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers `reachable: false`, and the answer changes with the actor.
+	// **This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled.
 	Instance  *InstanceReach `json:"instance,omitempty"`
 	ItemTypes *[]struct {
 		AllowedChildTypes *[]ItemType `json:"allowed_child_types,omitempty"`
@@ -4648,7 +4648,7 @@ type Capabilities struct {
 		Type *ItemType `json:"type,omitempty"`
 	} `json:"item_types,omitempty"`
 
-	// Legal The four links this installation is obliged to show, resolved for the caller's workspace or - where the caller has none - for the installation itself (SI-12, `data-protection.md` §6).
+	// Legal The four links this installation is obliged to show, resolved for the caller's workspace or - where the caller has none - for the installation itself.
 	// Here as well as on `GET /auth/sign-in-rules`, and not by duplication: that route is what a signed-out card reads, and a footer inside the application needs the same four without asking a sign-in route for them. A link the installation never set is **absent**, not empty: a private installation owes nobody an imprint, and four links pointing nowhere are worse than none.
 	Legal  *LegalLinks             `json:"legal,omitempty"`
 	Limits *map[string]interface{} `json:"limits,omitempty"`
@@ -4663,30 +4663,30 @@ type Capabilities struct {
 	// QueryFields What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.
 	QueryFields *[]QueryField `json:"query_fields,omitempty"`
 
-	// RetentionDataKinds The classes of data a retention rule may name, as `data-retention.md` §3 lists them, and what this build can do to each. A client builds its rule editor from this rather than from a table compiled into it: the document says a new kind "is then immediately configurable through the API - with no code change to the engine", and a client with its own list would be the one place that still needed the code change.
+	// RetentionDataKinds The classes of data a retention rule may name, and what this build can do to each. A client builds its rule editor from this rather than from a table compiled into it: a new kind is configurable through the API as soon as the server knows it, and a client with its own list would be the one place that still needed a code change.
 	// `actions` is empty for a kind this build names and nothing removes yet. That is not the same as a kind that does not exist, and it is why the entry is answered at all: a rule for one of those is refused with a code that says which of the two it is.
 	RetentionDataKinds *[]RetentionDataKind `json:"retention_data_kinds,omitempty"`
 
-	// Roles The role matrix as this installation enforces it (domain-model.md §3.2). A client decides from this which actions to offer, rather than from a table compiled into it: two cells of the matrix are qualifiers no permission name can carry - a contributor writes only what is assigned to them, and a guest may comment on an entry without being able to change it - and a client that does not know them offers buttons the server refuses.
+	// Roles The role matrix as this installation enforces it. A client decides from this which actions to offer, rather than from a table compiled into it: two cells of the matrix are qualifiers no permission name can carry - a contributor writes only what is assigned to them, and a guest may comment on an entry without being able to change it - and a client that does not know them offers buttons the server refuses.
 	Roles *[]RoleDescription `json:"roles,omitempty"`
 
-	// SupportedLocales The locales this installation has a catalogue for, in the order it serves them - the source language first - with the metadata a client needs before it has rendered anything (`i18n-l10n.md` §2, §6). Derived from the catalogue files present, the embedded ones and an operator's `HUBTASK_LOCALE_DIR`, so adding a language is a file and not a release. A locale is what the account's language picker offers and what `Accept-Language` is negotiated against; a language absent here still renders, in the source language, and is still an entry's `content_language`.
+	// SupportedLocales The locales this installation has a catalogue for, in the order it serves them - the source language first - with the metadata a client needs before it has rendered anything. Derived from the catalogue files present, the embedded ones and an operator's `HUBTASK_LOCALE_DIR`, so adding a language is a file and not a release. A locale is what the account's language picker offers and what `Accept-Language` is negotiated against; a language absent here still renders, in the source language, and is still an entry's `content_language`.
 	SupportedLocales *[]struct {
-		// DecimalSeparator The character between the integer and the fraction where the locale is spoken - `.` or `,`. What a client that formats before `Intl` is available, or a form that parses what somebody typed, reads; a client with `Intl` formats with it (§7).
+		// DecimalSeparator The character between the integer and the fraction where the locale is spoken - `.` or `,`. What a client that formats before `Intl` is available, or a form that parses what somebody typed, reads; a client with `Intl` formats with it.
 		DecimalSeparator string `json:"decimal_separator"`
 
-		// Direction The writing direction of the locale's script, which is what a client sets `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left scripts; the interface's layout is the client's business, the flag is the server's (§6).
+		// Direction The writing direction of the locale's script, which is what a client sets `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left scripts; the interface's layout is the client's business, the flag is the server's.
 		Direction CapabilitiesSupportedLocalesDirection `json:"direction"`
 
 		// Locale BCP 47, as the file is named - `en`, `de`, `pt-BR`, `zh-Hans`.
 		Locale string `json:"locale"`
 
-		// WeekStart The first day of the week where the locale is spoken, per CLDR, in the same vocabulary as the account's own `week_start` so that a client compares the two without translating. The account's value overrides it where set (§4).
+		// WeekStart The first day of the week where the locale is spoken, per CLDR, in the same vocabulary as the account's own `week_start` so that a client compares the two without translating. The account's value overrides it where set.
 		WeekStart CapabilitiesSupportedLocalesWeekStart `json:"week_start"`
 	} `json:"supported_locales,omitempty"`
 	TenancyMode *CapabilitiesTenancyMode `json:"tenancy_mode,omitempty"`
 
-	// TextLanguages The languages this installation can index the text of, as BCP-47 tags, and what a client's language picker for `content_language` is built from. It is the installation's answer rather than the product's: the mapping from a tag to a text search configuration is in the database, and which of those configurations exist is what its PostgreSQL was built with (ADR-0034). A language that is not in this list is not refused - an entry declaring one is stored and matched word by word, which is the same treatment a script without word boundaries gets.
+	// TextLanguages The languages this installation can index the text of, as BCP-47 tags, and what a client's language picker for `content_language` is built from. It is the installation's answer rather than the product's: the mapping from a tag to a text search configuration is in the database, and which of those configurations exist is what its PostgreSQL was built with. A language that is not in this list is not refused - an entry declaring one is stored and matched word by word, which is the same treatment a script without word boundaries gets.
 	TextLanguages *[]string `json:"text_languages,omitempty"`
 
 	// TokenScopes Every scope a personal access token or an authorized app may be granted here, sorted. It is the union of what this build's use cases declare plus the one capability scope no operation owns, and it is answered for the same reason the role matrix is: a client that offers a scope list of its own is a client that is wrong on somebody's installation, and asking for a scope this installation does not declare is refused as a field error naming it (`access.token_scope_unknown`).
@@ -4695,10 +4695,10 @@ type Capabilities struct {
 	ViewLayouts *[]string `json:"view_layouts,omitempty"`
 }
 
-// CapabilitiesSupportedLocalesDirection The writing direction of the locale's script, which is what a client sets `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left scripts; the interface's layout is the client's business, the flag is the server's (§6).
+// CapabilitiesSupportedLocalesDirection The writing direction of the locale's script, which is what a client sets `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left scripts; the interface's layout is the client's business, the flag is the server's.
 type CapabilitiesSupportedLocalesDirection string
 
-// CapabilitiesSupportedLocalesWeekStart The first day of the week where the locale is spoken, per CLDR, in the same vocabulary as the account's own `week_start` so that a client compares the two without translating. The account's value overrides it where set (§4).
+// CapabilitiesSupportedLocalesWeekStart The first day of the week where the locale is spoken, per CLDR, in the same vocabulary as the account's own `week_start` so that a client compares the two without translating. The account's value overrides it where set.
 type CapabilitiesSupportedLocalesWeekStart string
 
 // CapabilitiesTenancyMode defines model for Capabilities.TenancyMode.
@@ -4717,7 +4717,7 @@ type Comment struct {
 	ItemId    openapi_types.UUID `json:"item_id"`
 
 	// Kind `USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the
-	// displaced version of a free-text field that lost a merge (offline-sync.md §5), whose
+	// displaced version of a free-text field that lost a merge, whose
 	// body is the text that lost and whose heading is `system_code` with `system_params` -
 	// a client renders "Diverging version from Anna, 14 Aug 09:12" from the code and the
 	// author, never from a sentence the server wrote. A system comment cannot be edited.
@@ -4733,7 +4733,7 @@ type Comment struct {
 }
 
 // CommentKind `USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the
-// displaced version of a free-text field that lost a merge (offline-sync.md §5), whose
+// displaced version of a free-text field that lost a merge, whose
 // body is the text that lost and whose heading is `system_code` with `system_params` -
 // a client renders "Diverging version from Anna, 14 Aug 09:12" from the code and the
 // author, never from a sentence the server wrote. A system comment cannot be edited.
@@ -4800,7 +4800,7 @@ type Container struct {
 	OrderKey          *string             `json:"order_key,omitempty"`
 	ParentId          *openapi_types.UUID `json:"parent_id,omitempty"`
 
-	// Policies How a collection works, as opposed to what it is called. Two keys today; the others the data model names - the default bucket, capability overrides - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
+	// Policies How a collection works, as opposed to what it is called. Two keys, and no more: a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 	Policies  *ContainerPolicies `json:"policies,omitempty"`
 	Type      ContainerType      `json:"type"`
 	UpdatedAt *time.Time         `json:"updated_at,omitempty"`
@@ -4823,7 +4823,7 @@ type ContainerPage struct {
 	Page PageInfo    `json:"page"`
 }
 
-// ContainerPolicies How a collection works, as opposed to what it is called. Two keys today; the others the data model names - the default bucket, capability overrides - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
+// ContainerPolicies How a collection works, as opposed to what it is called. Two keys, and no more: a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 type ContainerPolicies struct {
 	// AutoAssign How what is created in this collection is handed out, absent (or null) for not at all. Sending null - or omitting the key - removes the policy.
 	AutoAssign *AutoAssignPolicy `json:"auto_assign,omitempty"`
@@ -4879,7 +4879,7 @@ type CustomFieldDefinition struct {
 	// Key The identifier the value is stored under, unique in its scope and fixed once defined. An identifier rather than a label: it appears in `custom_fields.<key>` filters, and a key that could be renamed would orphan every value stored under it.
 	Key string `json:"key"`
 
-	// Kind What a value for the field looks like. The eight the schema has carried since the first migration; validation against them is domain code (domain-model.md §6).
+	// Kind What a value for the field looks like: one of eight kinds, and the server validates a value against its field's kind.
 	Kind CustomFieldKind `json:"kind"`
 
 	// Options The permitted values of a SELECT or a MULTI_SELECT, and empty for every other kind. Values rather than labels: what a person sees is the client's to render.
@@ -4900,7 +4900,7 @@ type CustomFieldDefinitionCreate struct {
 	IsRequired   *bool               `json:"is_required,omitempty"`
 	Key          string              `json:"key"`
 
-	// Kind What a value for the field looks like. The eight the schema has carried since the first migration; validation against them is domain code (domain-model.md §6).
+	// Kind What a value for the field looks like: one of eight kinds, and the server validates a value against its field's kind.
 	Kind    CustomFieldKind `json:"kind"`
 	Options *[]string       `json:"options,omitempty"`
 }
@@ -4912,7 +4912,7 @@ type CustomFieldDefinitionUpdate struct {
 	Options    *[]string   `json:"options,omitempty"`
 }
 
-// CustomFieldKind What a value for the field looks like. The eight the schema has carried since the first migration; validation against them is domain code (domain-model.md §6).
+// CustomFieldKind What a value for the field looks like: one of eight kinds, and the server validates a value against its field's kind.
 type CustomFieldKind string
 
 // CustomFieldValue One value for one key. `value` is required and may be null, which clears the key - the two are different requests, and a body that left the field out would be neither.
@@ -4930,10 +4930,10 @@ type DataSubjectRequest struct {
 
 	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
 	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
-	// controller, because tenant data touches third parties' rights (ADR-0018).
+	// controller, because tenant data touches third parties' rights.
 	//
-	// A case that names neither is started as `ANONYMIZE` — the workspace default settled by
-	// open point P-6 (`data-protection.md` §12). It is the answer that preserves the rights of
+	// A case that names neither is started as `ANONYMIZE` — the workspace default. It is the
+	// answer that preserves the rights of
 	// the people who are not asking: a task somebody else depends on, a comment in a thread that
 	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
 	// on the case, and does so knowingly.
@@ -5011,10 +5011,10 @@ type DataSubjectRequestStatus string
 type DataSubjectRequestUpdate struct {
 	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
 	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
-	// controller, because tenant data touches third parties' rights (ADR-0018).
+	// controller, because tenant data touches third parties' rights.
 	//
-	// A case that names neither is started as `ANONYMIZE` — the workspace default settled by
-	// open point P-6 (`data-protection.md` §12). It is the answer that preserves the rights of
+	// A case that names neither is started as `ANONYMIZE` — the workspace default. It is the
+	// answer that preserves the rights of
 	// the people who are not asking: a task somebody else depends on, a comment in a thread that
 	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
 	// on the case, and does so knowingly.
@@ -5058,7 +5058,7 @@ type DependencyHealth struct {
 // DependencyHealthCircuitState defines model for DependencyHealth.CircuitState.
 type DependencyHealthCircuitState string
 
-// DeprecatedField One deprecated request field, and when it goes. Identifiers only (ADR-0011): what replaces it is named, and the field's description in the specification says the rest.
+// DeprecatedField One deprecated request field, and when it goes. Identifiers only: what replaces it is named, and the field's description in the specification says the rest.
 type DeprecatedField struct {
 	// Field The field in the request body.
 	Field       string `json:"field"`
@@ -5097,7 +5097,7 @@ type DroppedReference struct {
 // DroppedReferenceKind defines model for DroppedReference.Kind.
 type DroppedReferenceKind string
 
-// DueDateInput What the due date shall be. The instant is required; the flag and the zone qualify it and cannot be stored without it. An all-day due date carries due_date_only true and is read as a date in due_time_zone - the stored instant answers identically to every reader, and nothing the server emits renders it as a moment (i18n-l10n.md §4).
+// DueDateInput What the due date shall be. The instant is required; the flag and the zone qualify it and cannot be stored without it. An all-day due date carries due_date_only true and is read as a date in due_time_zone - the stored instant answers identically to every reader, and nothing the server emits renders it as a moment.
 type DueDateInput struct {
 	DueAt       time.Time `json:"due_at"`
 	DueDateOnly *bool     `json:"due_date_only,omitempty"`
@@ -5140,10 +5140,10 @@ type EncryptionStatus struct {
 
 // ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
 // `FULL_DELETE` takes the person's own contributions too. The choice rests with the
-// controller, because tenant data touches third parties' rights (ADR-0018).
+// controller, because tenant data touches third parties' rights.
 //
-// A case that names neither is started as `ANONYMIZE` — the workspace default settled by
-// open point P-6 (`data-protection.md` §12). It is the answer that preserves the rights of
+// A case that names neither is started as `ANONYMIZE` — the workspace default. It is the
+// answer that preserves the rights of
 // the people who are not asking: a task somebody else depends on, a comment in a thread that
 // stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
 // on the case, and does so knowingly.
@@ -5292,7 +5292,7 @@ type HttpRequestCallMethod string
 
 // IdentityProvider One provider people can sign in through. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
 type IdentityProvider struct {
-	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain ([ADR-0071](https://github.com/Jersyfi/hubtask/blob/main/docs/adr/ADR-0071-provider-admission.md)).
+	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.
 	// **This is what `DOMAINS` reads where the preset has a directory claim**, and `allowed_email_domains` is then not consulted at all. Both providers say why in their own documentation: an address is a name the provider reports, a directory is a fact it vouches for. Empty admits nobody, exactly as an empty domains list does.
 	AllowedDirectories []string `json:"allowed_directories"`
 
@@ -5310,16 +5310,16 @@ type IdentityProvider struct {
 	Enabled bool               `json:"enabled"`
 	Id      openapi_types.UUID `json:"id"`
 
-	// Issuer The provider's issuer identifier. Every ID token must name it exactly - a token whose `iss` differs is refused, which is the first of T-13's checks.
+	// Issuer The provider's issuer identifier. Every ID token must name it exactly - a token whose `iss` differs is refused, which is the first check of the token.
 	Issuer string `json:"issuer"`
 
-	// Kind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
 
-	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's (ADR-0070 §2). False from the moment an announced withdrawal takes effect.
+	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect.
 	OfferedHere *bool `json:"offered_here,omitempty"`
 
-	// OfferedWorkspaces For a row the installation offers, answered to the operator only: how many workspaces have it switched on (ADR-0076 §1). A number, never names - counted from the workspaces' own switches when it is read (ADR-0077 §1). Absent from a workspace's listing.
+	// OfferedWorkspaces For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read. Absent from a workspace's listing.
 	OfferedWorkspaces *int `json:"offered_workspaces,omitempty"`
 
 	// Position The order the buttons are drawn in.
@@ -5337,7 +5337,7 @@ type IdentityProvider struct {
 	// Version The optimistic lock, as everywhere else.
 	Version int `json:"version"`
 
-	// WithdrawAt For a row the installation offers: when the installation withdraws it (ADR-0076 §2). Null while it is offered without an end. Until that moment the provider keeps working; from it, it is a way in nowhere - and the connected identities stay, so cancelling the withdrawal restores sign-in. A workspace that switched it on reads this to say when it ends.
+	// WithdrawAt For a row the installation offers: when the installation withdraws it. Null while it is offered without an end. Until that moment the provider keeps working; from it, it is a way in nowhere - and the connected identities stay, so cancelling the withdrawal restores sign-in. A workspace that switched it on reads this to say when it ends.
 	WithdrawAt *time.Time `json:"withdraw_at,omitempty"`
 }
 
@@ -5354,13 +5354,13 @@ type IdentityProviderConfiguration struct {
 	AllowedEmailDomains *[]string `json:"allowed_email_domains,omitempty"`
 	ClientId            string    `json:"client_id"`
 
-	// ClientSecret Sealed on the way in (E-02) and never answered again. Required when adding a provider. Omitted on a replace it keeps the one that is sealed - there is no way to read it back, by design, and retyping it to change a name is how names stay wrong.
+	// ClientSecret Sealed on the way in and never answered again. Required when adding a provider. Omitted on a replace it keeps the one that is sealed - there is no way to read it back, by design, and retyping it to change a name is how names stay wrong.
 	ClientSecret *string `json:"client_secret,omitempty"`
 
 	// DisplayName The name on the button. Absent is the issuer's host.
 	DisplayName *string `json:"display_name,omitempty"`
 
-	// Enabled **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it says at creation whether the installation offers the provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed value is refused with `identity_provider.withdraw_instead` (ADR-0076 §2). Removed with the next major version of the contract.
+	// Enabled **Deprecated**: a workspace switches a provider on or off in its list of ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a workspace's own provider (`/identity-providers`, `/identity-provider`) a value that differs from the provider's is refused with `identity_provider.switch_in_list`; the same value, or none, is accepted and changes nothing, so a client that echoes the field keeps working. A workspace's new provider is created switched off. On the installation's (`/admin/identity-providers`) it says at creation whether the installation offers the provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed value is refused with `identity_provider.withdraw_instead`. Removed with the next major version of the contract.
 	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Enabled *bool  `json:"enabled,omitempty"`
 	Issuer  string `json:"issuer"`
@@ -5373,24 +5373,24 @@ type IdentityProviderConfiguration struct {
 	Provisioning *IdentityProviderProvisioning `json:"provisioning,omitempty"`
 }
 
-// IdentityProviderKind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+// IdentityProviderKind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 type IdentityProviderKind string
 
 // IdentityProviderPreset What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it.
 type IdentityProviderPreset struct {
-	// AddressesVerified Whether this issuer's addresses are verified by construction. False is not an accusation - it is that this installation cannot know. Informational since ADR-0071's addendum: what keeps an address from handing over an account is the account's own proof, so `INVITED_ONLY` is available for every preset.
+	// AddressesVerified Whether this issuer's addresses are verified by construction. False is not an accusation - it is that this installation cannot know. Informational only: what keeps an address from handing over an account is the account's own proof, so `INVITED_ONLY` is available for every preset.
 	AddressesVerified bool `json:"addresses_verified"`
 
 	// DirectoryClaim The claim this provider names an organisation in: `tid` at Microsoft, `hd` at Google. Absent for a provider that has none, and that is what decides whether `DOMAINS` reads `allowed_directories` or `allowed_email_domains` — so a screen asks for the one the server will actually consult.
 	DirectoryClaim *string `json:"directory_claim,omitempty"`
 
-	// InstallationProvisioning The modes it permits when the installation offers it to every workspace. Narrower for a preset with no directory claim: offered everywhere, it may only admit the people each workspace invited (ADR-0071's addendum).
+	// InstallationProvisioning The modes it permits when the installation offers it to every workspace. Narrower for a preset with no directory claim: offered everywhere, it may only admit the people each workspace invited.
 	InstallationProvisioning []IdentityProviderProvisioning `json:"installation_provisioning"`
 
-	// Instructions A message code (ADR-0011), rendered with `redirect_uri` as its parameter. What an operator has to do at the provider for this to work.
+	// Instructions A message code, rendered with `redirect_uri` as its parameter. What an operator has to do at the provider for this to work.
 	Instructions string `json:"instructions"`
 
-	// Kind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
 
 	// Particular A message code for the one thing about this provider that is not like the others - Google's single issuer for every account there is, Microsoft's directory-specific issuer. Absent where there is none.
@@ -5472,7 +5472,7 @@ type InboundTriggerToken struct {
 
 // InstanceJournalEntry One act the installation recorded. The workspace is named by a bare identifier and its slug: the row it names is usually gone, which is the reason the journal exists.
 type InstanceJournalEntry struct {
-	// Action `tenant.provisioned`, `tenant.suspended`, `tenant.hard_deleted`, `instance.settings_changed`, `instance.operator_added` and the rest. A code, rendered by the client (ADR-0011).
+	// Action `tenant.provisioned`, `tenant.suspended`, `tenant.hard_deleted`, `instance.settings_changed`, `instance.operator_added` and the rest. A code, rendered by the client.
 	Action string `json:"action"`
 
 	// ActorLabel The acting operator's own label - the installation's administrator, never a workspace's person.
@@ -5492,7 +5492,7 @@ type InstanceJournalPage struct {
 	Page PageInfo               `json:"page"`
 }
 
-// InstanceOverview The installation at a glance. Counts and states; the contents of a workspace are behind a database policy this answer does not reach through (ADR-0070 §5).
+// InstanceOverview The installation at a glance. Counts and states; the contents of a workspace are behind a database policy this answer does not reach through.
 type InstanceOverview struct {
 	// AccountsActive Live people, which is what "how big is this installation" means.
 	AccountsActive int `json:"accounts_active"`
@@ -5508,7 +5508,7 @@ type InstanceOverview struct {
 
 // InstanceReach Whether the caller may reach the level above the workspaces, and nothing about anybody else. It answers about the account asking; it is not a directory of operators and cannot be asked about one.
 type InstanceReach struct {
-	// Reachable Whether this account is in the operator register (ADR-0070 §1) — the first of the two conditions on the instance area. The second is the elevation, which is a session's state and not the manifest's.
+	// Reachable Whether this account is in the operator register — the first of the two conditions on the instance area. The second is the elevation, which is a session's state and not the manifest's.
 	// On a private installation the register is empty and means *the workspace's owner*, so a single-workspace installation answers true to its owner and false to everybody else.
 	Reachable bool `json:"reachable"`
 }
@@ -5526,7 +5526,7 @@ type InstanceSetting struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
-// InstanceSettings The installation's own level (ADR-0070 §2): the sign-in switches, the legal links, the localisation defaults and the quota ceilings.
+// InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults and the quota ceilings.
 // **Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.
 type InstanceSettings struct {
 	// BlocklistFile The path to the operator's own list of refused passwords, read offline. Instance-only: the file is on the operator's disk, so there is nothing for a workspace to point at.
@@ -5555,7 +5555,7 @@ type InstanceSettings struct {
 
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
-	// Password The first password, under the policy of security.md §5.
+	// Password The first password, under the workspace's password policy.
 	Password string `json:"password"`
 
 	// Token The redemption token from the invitation, shown once and usable once.
@@ -5655,8 +5655,8 @@ type ItemQueryResult struct {
 }
 
 // ItemSearchQuery One search of the whole workspace, or of one hub or collection. **At least one of `q` and `filter`** - a request with neither is refused by `search.words_required`, because "everything" is not a question this API answers.
-// `filter` is the same grammar `POST /items:query` takes, with the same closed field vocabulary, the same operators and the same bounds (ADR-0064). The difference between the two endpoints is not the grammar, it is the anchor: a query is anchored to a container because an unanchored one is a question authorisation cannot answer in one step, and a search is the one read where "where is this, anywhere" *is* the question - so it is read and then narrowed to what the caller may see, and its page may be short where a query's would be a refusal.
-// **It searches by words and, where the installation can, by meaning** (J-10, ADR-0050). The two are one ranked page with one cursor: a hit on the words somebody typed outranks one that is merely about the same subject, so an exact identifier is still found first, and an entry that shares no word with the query is found at all.
+// `filter` is the same grammar `POST /items:query` takes, with the same closed field vocabulary, the same operators and the same bounds. The difference between the two endpoints is not the grammar, it is the anchor: a query is anchored to a container because an unanchored one is a question authorisation cannot answer in one step, and a search is the one read where "where is this, anywhere" *is* the question - so it is read and then narrowed to what the caller may see, and its page may be short where a query's would be a refusal.
+// **It searches by words and, where the installation can, by meaning.** The two are one ranked page with one cursor: a hit on the words somebody typed outranks one that is merely about the same subject, so an exact identifier is still found first, and an entry that shares no word with the query is found at all.
 // `mode` says how much of that to use, and defaults to `AUTO` - the two halves where the installation has both. Semantic search is optional four times over: the database may not carry pgvector, the workspace may have configured no AI provider or not consented to it, and the provider may not answer in the second somebody is waiting. Every one of those is a **lexical search rather than an error**, which is why there is no `SEMANTIC` value to ask for - it would be a mode the server could not promise. `/meta/capabilities` answers `semantic_search` for a client that wants to say in its interface which it has.
 type ItemSearchQuery struct {
 	// ContainerId The hub or collection to search in. Omitted searches everything the caller may see.
@@ -5670,7 +5670,7 @@ type ItemSearchQuery struct {
 	// Language BCP-47. The language the *words* are in, not the entries: it decides how the query is read. Omitted takes the caller's locale.
 	Language *string `json:"language,omitempty"`
 
-	// Mode How much of the search to use (J-10).
+	// Mode How much of the search to use.
 	// `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
 	Mode *SearchMode `json:"mode,omitempty"`
 	Page *struct {
@@ -5694,7 +5694,7 @@ type ItemType string
 type Job struct {
 	CreatedAt time.Time `json:"created_at"`
 
-	// ErrorCode The message code of the last failure, never a message and never free text (ADR-0011). Set on a `FAILED` job, and on a job that is being retried.
+	// ErrorCode The message code of the last failure, never a message and never free text. Set on a `FAILED` job, and on a job that is being retried.
 	ErrorCode *string `json:"error_code"`
 
 	// FinishedAt When the job reached a terminal state. `null` while it has not.
@@ -5915,7 +5915,7 @@ type LinkCompletion struct {
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
 
-	// ContentType While PENDING, the claim the upload declared; once READY, the judged type - sniffed from the bytes, never the claim (T-11). Delivery decides from this.
+	// ContentType While PENDING, the claim the upload declared; once READY, the judged type - sniffed from the bytes, never the claim. Delivery decides from this.
 	ContentType string             `json:"content_type"`
 	CreatedAt   time.Time          `json:"created_at"`
 	CreatedBy   openapi_types.UUID `json:"created_by"`
@@ -5965,18 +5965,18 @@ type MediaTransferMethod string
 
 // MediaUploadRequest defines model for MediaUploadRequest.
 type MediaUploadRequest struct {
-	// ContentType The claim. Reconciled against the bytes at confirmation; a lie about a renderable type is refused there (T-11).
+	// ContentType The claim. Reconciled against the bytes at confirmation; a lie about a renderable type is refused there.
 	ContentType *string `json:"content_type,omitempty"`
 	FileName    *string `json:"file_name,omitempty"`
 
 	// Size The exact size in bytes. Bounded by the installation's upload limit.
 	Size int64 `json:"size"`
 
-	// Usage What the object is for. `IMPORT` (P-08) stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
+	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
 	Usage MediaUploadRequestUsage `json:"usage"`
 }
 
-// MediaUploadRequestUsage What the object is for. `IMPORT` (P-08) stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
+// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
 type MediaUploadRequestUsage string
 
 // Membership defines model for Membership.
@@ -5986,7 +5986,7 @@ type Membership struct {
 	Id        openapi_types.UUID  `json:"id"`
 
 	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
-	// the configuration and no content at all (audit.md §5). It exists because the
+	// the configuration and no content at all. It exists because the
 	// alternative, in practice, is giving an auditor administrator rights - a permissions
 	// problem that arises precisely where evidence is being demanded. Somebody who needs both
 	// holds two memberships; the rights add up rather than the stronger one winning.
@@ -6002,7 +6002,7 @@ type MembershipGrant struct {
 	GroupId   *openapi_types.UUID `json:"group_id,omitempty"`
 
 	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
-	// the configuration and no content at all (audit.md §5). It exists because the
+	// the configuration and no content at all. It exists because the
 	// alternative, in practice, is giving an auditor administrator rights - a permissions
 	// problem that arises precisely where evidence is being demanded. Somebody who needs both
 	// holds two memberships; the rights add up rather than the stronger one winning.
@@ -6018,7 +6018,7 @@ type MembershipPage struct {
 }
 
 // MembershipRole `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
-// the configuration and no content at all (audit.md §5). It exists because the
+// the configuration and no content at all. It exists because the
 // alternative, in practice, is giving an auditor administrator rights - a permissions
 // problem that arises precisely where evidence is being demanded. Somebody who needs both
 // holds two memberships; the rights add up rather than the stronger one winning.
@@ -6033,7 +6033,7 @@ type MfaChallenge struct {
 	Email     *string   `json:"email,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule (ADR-0068 §3); `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link` (ADR-0071's addendum). Each is a step the pending credential can complete and nothing else.
+	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`. Each is a step the pending credential can complete and nothing else.
 	Methods []MfaChallengeMethods `json:"methods"`
 
 	// PasswordRules Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.
@@ -6051,7 +6051,7 @@ type MfaChallengeMethods string
 
 // MfaDisable defines model for MfaDisable.
 type MfaDisable struct {
-	// Password **Deprecated** (ADR-0075 §3): the proof this route took before the step-up did. Still checked when sent without a step-up token, for one release; then removed.
+	// Password **Deprecated**: the proof this route took before the step-up did. Still checked when sent without a step-up token, for one release; then removed.
 	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Password *string `json:"password,omitempty"`
 }
@@ -6209,10 +6209,10 @@ type OidcCallback struct {
 
 // OidcStart What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely.
 type OidcStart struct {
-	// ConnectToken The token of the link *Forgot your password?* mails where the workspace switched the password off - to connect the workspace's provider to an existing account (ADR-0078 §1, SC-33). It is checked here - a standing link of this workspace, its account active and connected to no provider switched on here, the password still off - and **not spent**: the flow remembers which link it carries, the provider is asked for a **fresh** sign-in (`prompt=login`, `max_age=0`), and only an arrival that connects the provider spends it. An unknown, expired, spent or foreign link is refused with `auth.reset_failed`, the reset link's one sentence. It is not sent beside `invitation_token`, and it never travels to the provider.
+	// ConnectToken The token of the link *Forgot your password?* mails where the workspace switched the password off - to connect the workspace's provider to an existing account. It is checked here - a standing link of this workspace, its account active and connected to no provider switched on here, the password still off - and **not spent**: the flow remembers which link it carries, the provider is asked for a **fresh** sign-in (`prompt=login`, `max_age=0`), and only an arrival that connects the provider spends it. An unknown, expired, spent or foreign link is refused with `auth.reset_failed`, the reset link's one sentence. It is not sent beside `invitation_token`, and it never travels to the provider.
 	ConnectToken *string `json:"connect_token,omitempty"`
 
-	// InvitationToken The redemption token of the invitation this sign-in accepts, when the person chose the provider on the invitation card (ADR-0078 §1). It is checked here - a standing invitation of this workspace, its account still invited - and **not spent**: the flow remembers which account it invites, and only an arrival that succeeds accepts it. It is the second proof that lets a provider activate the invited account even where the provider is not authoritative for the address, or the address is outside a domains or directories list - only for that account; the provider's verified address must still equal the invited one. An unknown, expired, spent or foreign token is refused with `auth.redemption_failed`, the one sentence the invitation's other half answers. The token never travels to the provider.
+	// InvitationToken The redemption token of the invitation this sign-in accepts, when the person chose the provider on the invitation card. It is checked here - a standing invitation of this workspace, its account still invited - and **not spent**: the flow remembers which account it invites, and only an arrival that succeeds accepts it. It is the second proof that lets a provider activate the invited account even where the provider is not authoritative for the address, or the address is outside a domains or directories list - only for that account; the provider's verified address must still equal the invited one. An unknown, expired, spent or foreign token is refused with `auth.redemption_failed`, the one sentence the invitation's other half answers. The token never travels to the provider.
 	InvitationToken *string `json:"invitation_token,omitempty"`
 
 	// LoginHint An address to pass the provider as `login_hint`, so somebody who typed it here does not type it again. A hint and nothing more - it never decides which account is signed in, which is the ID token's `sub` and only that.
@@ -6284,7 +6284,7 @@ type PasswordForgot struct {
 	Email openapi_types.Email `json:"email"`
 }
 
-// PasswordOpening An operator's opening of the password for one workspace (ADR-0078 §3): when it ends, who asked and why.
+// PasswordOpening An operator's opening of the password for one workspace: when it ends, who asked and why.
 type PasswordOpening struct {
 	Reason string `json:"reason"`
 
@@ -6303,7 +6303,7 @@ type PasswordOpeningRequest struct {
 	// Reason Why the password is opened - what is wrong with the provider.
 	Reason string `json:"reason"`
 
-	// Requester Who asked for the opening. Free text the workspace's administrators read; a ticket reference rather than a person's name where the operator can (data-catalog.md).
+	// Requester Who asked for the opening. Free text the workspace's administrators read; a ticket reference rather than a person's name where the operator can.
 	Requester string `json:"requester"`
 }
 
@@ -6353,7 +6353,7 @@ type PasswordReset struct {
 	Token string `json:"token"`
 }
 
-// PasswordRules What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
+// PasswordRules What a password has to meet, as data rather than as a sentence. Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 // Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
 type PasswordRules struct {
 	// BreachCheck Whether a breach corpus is consulted, where one is configured.
@@ -6402,10 +6402,10 @@ type PasswordViolation struct {
 	Rule string `json:"rule"`
 }
 
-// PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+// PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 type PolicyLock string
 
-// PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+// PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
 // Problem defines model for Problem.
@@ -6474,7 +6474,7 @@ type ProviderSummary struct {
 	// Id What `/auth/oidc:start` is given to choose this provider.
 	Id string `json:"id"`
 
-	// Kind The preset it was configured from, which is what decides the mark that is drawn (ADR-0069). `GENERIC` draws the letter tile, which is the honest answer for a provider with no published button guideline rather than a borrowed logo.
+	// Kind The preset it was configured from, which is what decides the mark that is drawn. `GENERIC` draws the letter tile, which is the honest answer for a provider with no published button guideline rather than a borrowed logo.
 	Kind string `json:"kind"`
 
 	// Scope Whether every workspace is offered it, or this one configured it.
@@ -6504,10 +6504,10 @@ type ProvisionedTenant struct {
 	Id                  openapi_types.UUID `json:"id"`
 	OwnerAccountId      openapi_types.UUID `json:"owner_account_id"`
 
-	// OwnerRedemptionToken The owner's way in, shown for the only time: whoever the workspace is for redeems it, sets a password, and is signed in (H-01). Hand it to them; it cannot be read again.
+	// OwnerRedemptionToken The owner's way in, shown for the only time: whoever the workspace is for redeems it, sets a password, and is signed in. Hand it to them; it cannot be read again.
 	OwnerRedemptionToken string `json:"owner_redemption_token"`
 
-	// PasswordOpening The operator's opening of the password while it is in force (ADR-0078 §3), null otherwise - an opening past its end is answered as none, whatever the row still holds.
+	// PasswordOpening The operator's opening of the password while it is in force, null otherwise - an opening past its end is answered as none, whatever the row still holds.
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
@@ -6597,13 +6597,13 @@ type Recurrence struct {
 	// MaxCount How many occurrences the series produces at most. At most one of the two.
 	MaxCount *int `json:"max_count,omitempty"`
 
-	// Mode ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was done - a rent payment does not wait. ON_COMPLETION creates the next one only once its predecessor is completed - a task that means "again, two weeks after I last did it" (arc42 §6.3).
+	// Mode ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was done - a rent payment does not wait. ON_COMPLETION creates the next one only once its predecessor is completed - a task that means "again, two weeks after I last did it".
 	Mode RecurrenceMode `json:"mode"`
 
 	// Rrule An RFC 5545 recurrence rule, stored as it was given. The DTSTART is the entry's own due date rather than part of this string: a series is when this entry repeats, and two starts would be two answers to that.
 	Rrule string `json:"rrule"`
 
-	// TimeZone The IANA zone the rule is read in, required. Daylight saving is resolved through it and never through a UTC offset, which is what keeps 09:00 at 09:00 across a transition (i18n-l10n.md §4).
+	// TimeZone The IANA zone the rule is read in, required. Daylight saving is resolved through it and never through a UTC offset, which is what keeps 09:00 at 09:00 across a transition.
 	TimeZone  string     `json:"time_zone"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 	Version   int        `json:"version"`
@@ -6615,13 +6615,13 @@ type RecurrenceInput struct {
 	HorizonDays *int       `json:"horizon_days,omitempty"`
 	MaxCount    *int       `json:"max_count,omitempty"`
 
-	// Mode ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was done - a rent payment does not wait. ON_COMPLETION creates the next one only once its predecessor is completed - a task that means "again, two weeks after I last did it" (arc42 §6.3).
+	// Mode ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was done - a rent payment does not wait. ON_COMPLETION creates the next one only once its predecessor is completed - a task that means "again, two weeks after I last did it".
 	Mode     RecurrenceMode `json:"mode"`
 	Rrule    string         `json:"rrule"`
 	TimeZone string         `json:"time_zone"`
 }
 
-// RecurrenceMode ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was done - a rent payment does not wait. ON_COMPLETION creates the next one only once its predecessor is completed - a task that means "again, two weeks after I last did it" (arc42 §6.3).
+// RecurrenceMode ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was done - a rent payment does not wait. ON_COMPLETION creates the next one only once its predecessor is completed - a task that means "again, two weeks after I last did it".
 type RecurrenceMode string
 
 // Reminder defines model for Reminder.
@@ -6642,13 +6642,13 @@ type Reminder struct {
 
 	// State Where the reminder stands, written by the server and never by a client: PENDING until it fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it rather than cancelling it.
 	//
-	// LAPSED is the fourth, and only a restore produces it (backup-restore.md §8.4): a reminder whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an auditor reading hundreds of cancellations nobody made, and not PENDING, which would have the scheduler send every one of them at once. To a device it means what a cancellation means - do not remind (offline-sync.md §8).
+	// LAPSED is the fourth, and only a restore produces it: a reminder whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an auditor reading hundreds of cancellations nobody made, and not PENDING, which would have the scheduler send every one of them at once. To a device it means what a cancellation means - do not remind.
 	State     ReminderState `json:"state"`
 	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
 	Version   int           `json:"version"`
 }
 
-// ReminderChannel What carries the reminder. EMAIL is what this installation sends on; the channels arc42 §5.2 names beside it arrive with the tasks that build them, and a client tolerates a value it does not know (offline-sync.md §9).
+// ReminderChannel What carries the reminder. EMAIL is the one channel this installation sends on; more may be added, and a client tolerates a value it does not know.
 type ReminderChannel string
 
 // ReminderInput defines model for ReminderInput.
@@ -6657,13 +6657,13 @@ type ReminderInput struct {
 	Channels   *[]ReminderChannel `json:"channels,omitempty"`
 	OffsetSpec string             `json:"offset_spec"`
 
-	// Recipients Omitted or empty means the assignee and the entry's members. Everybody named has to be able to reach the entry, exactly as an assignee has to (C-01).
+	// Recipients Omitted or empty means the assignee and the entry's members. Everybody named has to be able to reach the entry, exactly as an assignee has to.
 	Recipients *[]openapi_types.UUID `json:"recipients,omitempty"`
 }
 
 // ReminderState Where the reminder stands, written by the server and never by a client: PENDING until it fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it rather than cancelling it.
 //
-// LAPSED is the fourth, and only a restore produces it (backup-restore.md §8.4): a reminder whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an auditor reading hundreds of cancellations nobody made, and not PENDING, which would have the scheduler send every one of them at once. To a device it means what a cancellation means - do not remind (offline-sync.md §8).
+// LAPSED is the fourth, and only a restore produces it: a reminder whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an auditor reading hundreds of cancellations nobody made, and not PENDING, which would have the scheduler send every one of them at once. To a device it means what a cancellation means - do not remind.
 type ReminderState string
 
 // ReminderUpdate A merge patch. An absent member is not touched; a member that is sent replaces what is stored, lists included - channels and recipients are chosen whole.
@@ -6687,7 +6687,7 @@ type RestoreReport struct {
 	// Conflicts Collisions the conflict rule had to decide. It is the sum of the three ways one can be decided, and it is reported separately because "how much of this run is a decision I made in advance" is the question a dry run exists to answer.
 	Conflicts *int `json:"conflicts,omitempty"`
 
-	// Deleted Objects the archive holds that the deletion journal kept out (§7).
+	// Deleted Objects the archive holds that the deletion journal kept out.
 	Deleted *int `json:"deleted,omitempty"`
 
 	// Duplicated Objects imported beside the live one under a new identity.
@@ -6731,7 +6731,7 @@ type RestoreRequest struct {
 		ItemIds      *[]openapi_types.UUID `json:"item_ids,omitempty"`
 	} `json:"selection,omitempty"`
 
-	// StepUpToken The proof of a fresh, stronger authentication for a destructive mode (§8.3). Sessions and MFA arrive in `0.6.0`; until an installation can issue one of these, a destructive restore is refused rather than silently permitted. A confirmation that is structurally impossible to give is a stronger position than one that is skipped.
+	// StepUpToken The proof of a fresh, stronger authentication for a destructive mode: the token `POST /auth/step-up` answered. A destructive restore without one is refused rather than silently permitted.
 	StepUpToken *string            `json:"step_up_token,omitempty"`
 	TargetId    openapi_types.UUID `json:"target_id"`
 
@@ -6804,7 +6804,7 @@ type RetentionPolicy struct {
 	// Condition An optional CEL expression
 	Condition *string `json:"condition,omitempty"`
 
-	// DataKind For the catalogue see data-retention.md; extensible through /meta/capabilities.
+	// DataKind One of the kinds `/meta/capabilities` lists under `retention_data_kinds`.
 	DataKind       string              `json:"data_kind"`
 	Enabled        *bool               `json:"enabled,omitempty"`
 	ExportTargetId *openapi_types.UUID `json:"export_target_id,omitempty"`
@@ -6890,11 +6890,11 @@ type RoleDescription struct {
 	ItemAccess *RoleItemAccess `json:"item_access,omitempty"`
 
 	// Permissions The columns of the matrix this role carries unqualified.
-	// `AUDIT_READ` is the whole of the tenant's trail, and it is implied by nothing: an auditor holds it without holding `READ`, and a member holds `READ` without holding it. `READ_CONFIGURATION` is reading how the workspace is set up - the backup targets, the retention rules, the holds, the automation rules, the webhook subscriptions, never a secret any of them holds - and it was split out of `STRUCTURE` so that an auditor can read what a workspace does to its data without gaining the right to change it (G-12).
+	// `AUDIT_READ` is the whole of the tenant's trail, and it is implied by nothing: an auditor holds it without holding `READ`, and a member holds `READ` without holding it. `READ_CONFIGURATION` is reading how the workspace is set up - the backup targets, the retention rules, the holds, the automation rules, the webhook subscriptions, never a secret any of them holds - and it was split out of `STRUCTURE` so that an auditor can read what a workspace does to its data without gaining the right to change it.
 	Permissions *[]RoleDescriptionPermissions `json:"permissions,omitempty"`
 
 	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
-	// the configuration and no content at all (audit.md §5). It exists because the
+	// the configuration and no content at all. It exists because the
 	// alternative, in practice, is giving an auditor administrator rights - a permissions
 	// problem that arises precisely where evidence is being demanded. Somebody who needs both
 	// holds two memberships; the rights add up rather than the stronger one winning.
@@ -6923,10 +6923,10 @@ type RoleItemAccess struct {
 	Read *ItemAccess `json:"read,omitempty"`
 }
 
-// RuleAction One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a new use case becomes an action without anybody editing anything.
+// RuleAction One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows with the catalogue rather than with a table somebody maintains, so a new use case becomes an action without anybody editing anything.
 // Three kinds are the exception, and they are one on purpose: `WAIT`, `BRANCH` and `STOP` are not use cases at all but the engine's own control structures, so they are in no catalogue and there is nothing for MCP or a person to call. Their parameters are therefore checked where every other shape question about a rule is answered - by the rule itself, when it is written.
 type RuleAction struct {
-	// Kind `ADD_LABEL`, `ASSIGN`, `CREATE_ITEM`, … A kind automation.md §1.3 documents and no release serves yet is refused by name rather than stored to be ignored.
+	// Kind `ADD_LABEL`, `ASSIGN`, `CREATE_ITEM`, … A kind this build does not serve is refused by name rather than stored to be ignored.
 	// `WAIT` takes `duration`, an unsigned ISO 8601 duration of at most a year: the run suspends and a job resumes it, so a rule that waits a day holds no worker and survives a restart. `BRANCH` takes `condition` and the nested lists `then` (required) and `else` (optional) - a nested list rather than a jump target, because "skip the next two" is a rule whose meaning changes when somebody inserts an action above it. `STOP` takes nothing and ends the run where it stands, with the actions after it `SKIPPED` and the run `SUCCEEDED`: stopping early is what the rule said to do.
 	// **A branch's arms are checked exactly as the top level is**, and both of them: the composition rule is about what a rule *may* do, so a rule whose `else` performs something its writer may not do is laundering the same rights the day the condition turns false.
 	Kind string `json:"kind"`
@@ -6940,7 +6940,7 @@ type RuleActionResult struct {
 	// ErrorCode The code the use case refused with, unchanged. A `run_as` account that may not do what the action asks shows the authoriser's own refusal here, which is what makes the run log answer "why did this not happen".
 	ErrorCode *string `json:"error_code,omitempty"`
 
-	// IdempotencyKey Derived from the rule, the occasion and the action's path (automation.md §2), so a redelivered event re-runs into the stored result rather than acting twice. Absent on flow actions, which perform nothing there is to repeat.
+	// IdempotencyKey Derived from the rule, the occasion and the action's path, so a redelivered event re-runs into the stored result rather than acting twice. Absent on flow actions, which perform nothing there is to repeat.
 	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 	Index          int     `json:"index"`
 	Kind           string  `json:"kind"`
@@ -6960,7 +6960,7 @@ type RuleActionResultStatus string
 
 // RuleCondition defines model for RuleCondition.
 type RuleCondition struct {
-	// Expr A CEL expression (ADR-0009), compiled when the rule is written rather than when it runs: an expression that does not compile, or that names something this build does not publish, is a field error under its own index rather than a rule that fails silently at three in the morning.
+	// Expr A CEL expression, compiled when the rule is written rather than when it runs: an expression that does not compile, or that names something this build does not publish, is a field error under its own index rather than a rule that fails silently at three in the morning.
 	Expr string `json:"expr"`
 }
 
@@ -6972,7 +6972,7 @@ type RuleConditionResult struct {
 	Matched   bool    `json:"matched"`
 }
 
-// RuleFinding One thing the check found about a rule (ADR-0060). `path` is a JSON pointer into the rule's own document - `/trigger/event_type`, `/run_as`, `/conditions/1/expr`, `/actions/2/params/then/0/kind` - the same paths a write-time refusal's field errors carry, so an editor that points at a refused field points at a finding with the same code. `code` is a message code and `params` its parameters (ADR-0011).
+// RuleFinding One thing the check found about a rule. `path` is a JSON pointer into the rule's own document - `/trigger/event_type`, `/run_as`, `/conditions/1/expr`, `/actions/2/params/then/0/kind` - the same paths a write-time refusal's field errors carry, so an editor that points at a refused field points at a finding with the same code. `code` is a message code and `params` its parameters.
 type RuleFinding struct {
 	Code string `json:"code"`
 
@@ -6989,7 +6989,7 @@ type RuleFindingLevel string
 type RuleRun struct {
 	ActionResults []RuleActionResult `json:"action_results"`
 
-	// CausationDepth How far this run is from the act a person performed. A run at the limit is `ABORTED_LOOP` and did nothing, which is the loop protection automation.md §2 names.
+	// CausationDepth How far this run is from the act a person performed. A run at the limit is `ABORTED_LOOP` and did nothing: that is the loop protection.
 	CausationDepth   int                   `json:"causation_depth"`
 	ConditionResults []RuleConditionResult `json:"condition_results"`
 
@@ -7009,14 +7009,14 @@ type RuleRun struct {
 	// SubjectId The entry the run is about when no event names it - a `RELATIVE_DATE` run measured from one entry's due date. Absent where the event carries the subject, which is where a reader should look for it.
 	SubjectId *openapi_types.UUID `json:"subject_id,omitempty"`
 
-	// Trigger Which of the rule's six ways of starting produced this run (automation.md §1.1). On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
+	// Trigger Which of the rule's six ways of starting produced this run. On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
 	Trigger RuleRunTrigger `json:"trigger"`
 
 	// TriggeredBy Who pulled the trigger, for the one kind a person pulls: `MANUAL`. Absent for every other kind - a schedule, a due date and an inbound delivery have no actor, and naming one would be inventing an author for something nobody did.
 	TriggeredBy *openapi_types.UUID `json:"triggered_by,omitempty"`
 }
 
-// RuleRunTrigger Which of the rule's six ways of starting produced this run (automation.md §1.1). On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
+// RuleRunTrigger Which of the rule's six ways of starting produced this run. On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
 type RuleRunTrigger string
 
 // RuleRunAccepted A run that has been queued and has not started. The identifier is the one the run will carry, so a caller can watch for it - `GET /automation/runs/{runId}` answers `404` until a worker claims the job.
@@ -7034,7 +7034,7 @@ type RuleRunPage struct {
 // RuleRunStatus How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written, a scheduled job holds the resume point, and no worker is held while the delay passes.
 type RuleRunStatus string
 
-// RuleScope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+// RuleScope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
 type RuleScope struct {
 	// Id The hub or the collection. Absent for `TENANT`, and required for the others.
 	Id   *openapi_types.UUID `json:"id,omitempty"`
@@ -7090,14 +7090,14 @@ type RuleTestResult struct {
 	Matched bool `json:"matched"`
 }
 
-// RuleThrottle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+// RuleThrottle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them.
 type RuleThrottle struct {
 	// DedupeKeyExpr An expression whose value collapses runs that mean the same thing - two events about one entry within the window are one run rather than two. Compiled with the conditions and by the same compiler; an empty one means no collapsing.
 	DedupeKeyExpr  *string `json:"dedupe_key_expr,omitempty"`
 	MaxRunsPerHour *int    `json:"max_runs_per_hour,omitempty"`
 }
 
-// RuleTrigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+// RuleTrigger What starts a run. Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
 type RuleTrigger struct {
 	// Anchor `RELATIVE_DATE` only, and required there: which instant the offset is from.
 	Anchor *RuleTriggerAnchor `json:"anchor,omitempty"`
@@ -7136,7 +7136,7 @@ type SavedView struct {
 	Name    string             `json:"name"`
 	OwnerId openapi_types.UUID `json:"owner_id"`
 
-	// Query The query a view asks, in the shape the use case takes rather than the shape `POST /items:query` takes as a body: the anchor is flat - `scope_container_id` or `scope_item_id` - because `presentation/rest` flattens the request body's `scope` object before any use case sees it, and this document is read back as an input.
+	// Query The query a view asks, in the shape the use case takes rather than the shape `POST /items:query` takes as a body: the anchor is flat - `scope_container_id` or `scope_item_id` - because the server flattens the request body's `scope` object before any use case sees it, and this document is read back as an input.
 	//
 	// It carries an anchor, because `POST /views/{viewId}:export` executes it. A view that stored only the question - a filter and an order, so that it could be asked anywhere - is a view nobody can export.
 	Query map[string]interface{} `json:"query"`
@@ -7200,7 +7200,7 @@ type SavedViewUpdate struct {
 	VisibleFields *[]string               `json:"visible_fields,omitempty"`
 }
 
-// SearchMode How much of the search to use (J-10).
+// SearchMode How much of the search to use.
 // `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
 type SearchMode string
 
@@ -7218,7 +7218,7 @@ type ServiceAccountCreate struct {
 	DisplayName string `json:"display_name"`
 }
 
-// Session A sign-in somebody can see and revoke. The client hint is what was recorded at sign-in - a user agent and an IP class, enough to recognise one's own devices and deliberately not a precise address (T-01, data catalogue).
+// Session A sign-in somebody can see and revoke. The client hint is what was recorded at sign-in - a user agent and an IP class, enough to recognise one's own devices and deliberately not a precise address.
 type Session struct {
 	CreatedAt time.Time `json:"created_at"`
 
@@ -7232,17 +7232,17 @@ type Session struct {
 	// LastUsedAt When the session last acted, to the minute rather than to the request - the value exists so a person can spot a session nobody uses.
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 
-	// SignedInProvider For a session a sign-in provider opened, that provider's name (UC-ID-06), so a person can tell their sessions apart by the way in. Absent for every other session, and for one whose provider was removed since.
+	// SignedInProvider For a session a sign-in provider opened, that provider's name, so a person can tell their sessions apart by the way in. Absent for every other session, and for one whose provider was removed since.
 	SignedInProvider *string `json:"signed_in_provider,omitempty"`
 
-	// SignedInWith How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
+	// SignedInWith How this session was opened. Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
 	SignedInWith *SessionSignedInWith `json:"signed_in_with,omitempty"`
 
 	// UserAgent The client that signed in, as it introduced itself.
 	UserAgent *string `json:"user_agent,omitempty"`
 }
 
-// SessionSignedInWith How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
+// SessionSignedInWith How this session was opened. Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
 type SessionSignedInWith string
 
 // SessionElevation How long this session carries the control plane's scope.
@@ -7281,7 +7281,7 @@ type SessionTokens struct {
 	RefreshToken          string    `json:"refresh_token"`
 	RefreshTokenExpiresAt time.Time `json:"refresh_token_expires_at"`
 
-	// Session A sign-in somebody can see and revoke. The client hint is what was recorded at sign-in - a user agent and an IP class, enough to recognise one's own devices and deliberately not a precise address (T-01, data catalogue).
+	// Session A sign-in somebody can see and revoke. The client hint is what was recorded at sign-in - a user agent and an IP class, enough to recognise one's own devices and deliberately not a precise address.
 	Session   Session                `json:"session"`
 	TokenType SessionTokensTokenType `json:"token_type"`
 }
@@ -7390,10 +7390,10 @@ type SignInPolicyFlag struct {
 	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
 	InstallationSource PolicySource `json:"installation_source"`
 
-	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 	Lock *PolicyLock `json:"lock"`
 
-	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 	Source PolicySource `json:"source"`
 	Value  bool         `json:"value"`
 }
@@ -7405,10 +7405,10 @@ type SignInPolicyMethods struct {
 	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
 	InstallationSource PolicySource `json:"installation_source"`
 
-	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 	Lock *PolicyLock `json:"lock"`
 
-	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 	Source PolicySource   `json:"source"`
 	Value  []SignInMethod `json:"value"`
 }
@@ -7421,10 +7421,10 @@ type SignInPolicyNumber struct {
 	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
 	InstallationSource PolicySource `json:"installation_source"`
 
-	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 	Lock *PolicyLock `json:"lock"`
 
-	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 	Source PolicySource `json:"source"`
 
 	// Value What is in force in this workspace.
@@ -7438,10 +7438,10 @@ type SignInPolicyText struct {
 	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
 	InstallationSource PolicySource `json:"installation_source"`
 
-	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 	Lock *PolicyLock `json:"lock"`
 
-	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
+	// Source Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 	Source PolicySource `json:"source"`
 	Value  string       `json:"value"`
 }
@@ -7454,11 +7454,11 @@ type SignInRules struct {
 	// Methods The ways in, in the order a screen draws them. `OIDC` is absent where no provider is configured, whatever the policy says: a button leading to a flow with no provider behind it is a button that answers an error.
 	Methods []SignInMethod `json:"methods"`
 
-	// Password What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
+	// Password What a password has to meet, as data rather than as a sentence. Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 	// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
 	Password PasswordRules `json:"password"`
 
-	// PasswordFallback True while `PASSWORD` is among the methods only because no other way into the workspace works - its rule leaves the password out and no provider is switched on there, whatever the cause: an offer that ended, an installation default or lock, a restore (ADR-0076 §4). The password opens for the accounts that hold one, under the workspace's own rules, until an administrator switches on a way in. The administrators' screen says so.
+	// PasswordFallback True while `PASSWORD` is among the methods only because no other way into the workspace works - its rule leaves the password out and no provider is switched on there, whatever the cause: an offer that ended, an installation default or lock, a restore. The password opens for the accounts that hold one, under the workspace's own rules, until an administrator switches on a way in. The administrators' screen says so.
 	PasswordFallback *bool             `json:"password_fallback,omitempty"`
 	Providers        []ProviderSummary `json:"providers"`
 
@@ -7466,7 +7466,7 @@ type SignInRules struct {
 	WorkspaceHost string `json:"workspace_host"`
 }
 
-// SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064).
+// SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by.
 type SortTerm struct {
 	Dir   *SortTermDir   `json:"dir,omitempty"`
 	Field string         `json:"field"`
@@ -7493,7 +7493,7 @@ type StepUpGrant struct {
 // StepUpGrantMethod What proved it - recorded in the audit trail, never the credential.
 type StepUpGrantMethod string
 
-// StepUpRequest Exactly one method (ADR-0075): the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.
+// StepUpRequest Exactly one method: the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.
 type StepUpRequest struct {
 	// AuthorizationCode The code the provider issued. Presented together with `state`.
 	AuthorizationCode *string `json:"authorization_code,omitempty"`
@@ -7517,13 +7517,13 @@ type Suggestion struct {
 	// DecidedBy Who accepted or dismissed it. A suggestion is decided by a person.
 	DecidedBy *openapi_types.UUID `json:"decided_by,omitempty"`
 
-	// DroppedNodes How many parts of the provider's answer the narrowing dropped before the payload was stored, so that a client can say the draft is not the whole answer. For `TEMPLATE` it is the nodes the collection's profile refused under their parent, each counted with its subtree (`ai-first.md` §2); zero for every other kind, whose narrowing drops what it drops without a count. Absent on a row written before the count existed, which reads as zero.
+	// DroppedNodes How many parts of the provider's answer the narrowing dropped before the payload was stored, so that a client can say the draft is not the whole answer. For `TEMPLATE` it is the nodes the collection's profile refused under their parent, each counted with its subtree; zero for every other kind, whose narrowing drops what it drops without a count. Absent on a row written before the count existed, which reads as zero.
 	DroppedNodes *int               `json:"dropped_nodes,omitempty"`
 	Id           openapi_types.UUID `json:"id"`
 
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
-	// `TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
-	// `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
+	// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
+	// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
@@ -7539,21 +7539,21 @@ type Suggestion struct {
 	// PromptVersion Which version of the prompt produced this. Prompt files are versioned in their names and the old ones stay, so this resolves to the actual words a year later.
 	PromptVersion string `json:"prompt_version"`
 
-	// Source Where the proposal came from (`ai-first.md` §2). One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
+	// Source Where the proposal came from. One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
 	Source SuggestionSource `json:"source"`
 
 	// Status `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
 	Status   SuggestionStatus   `json:"status"`
 	TargetId openapi_types.UUID `json:"target_id"`
 
-	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry (K-05): a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed.
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed.
 	TargetType SuggestionTargetType `json:"target_type"`
 
 	// Version The optimistic lock, as everywhere else.
 	Version int `json:"version"`
 }
 
-// SuggestionSource Where the proposal came from (`ai-first.md` §2). One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
+// SuggestionSource Where the proposal came from. One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
 type SuggestionSource string
 
 // SuggestionAcceptance What the person changed or added before accepting. Merged over the proposal; every value is checked by the use case that performs the change, with the accepting person's rights.
@@ -7563,8 +7563,8 @@ type SuggestionAcceptance struct {
 }
 
 // SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
-// `TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
-// `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
+// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
+// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 type SuggestionKind string
 
 // SuggestionPage defines model for SuggestionPage.
@@ -7577,7 +7577,7 @@ type SuggestionPage struct {
 // SuggestionStatus `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
 type SuggestionStatus string
 
-// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry (K-05): a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed.
+// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed.
 type SuggestionTargetType string
 
 // SyncChange defines model for SyncChange.
@@ -7594,15 +7594,15 @@ type SyncChange struct {
 
 	// OccurredAt When the change was recorded, for a client to render and an operator to line up
 	// against a log. Not the cursor and not usable as one: the sequence orders the walk, and
-	// a timestamp two transactions can share is not a total order (ADR-0021).
+	// a timestamp two transactions can share is not a total order.
 	OccurredAt *time.Time   `json:"occurred_at,omitempty"`
 	Op         SyncChangeOp `json:"op"`
 
 	// Payload What moved. On a creation, and on every record of an initial synchronisation, the whole
 	// object; on a change, only the fields that changed - one record per field, each under its
 	// own clock, because the merge rule is last writer wins *per field* and a record carrying
-	// the whole object would let a stale value win a merge it should never have entered
-	// (offline-sync.md §4.2). A set change carries `set`, `element_id` and `op`. Absent on
+	// the whole object would let a stale value win a merge it should never have entered. A
+	// set change carries `set`, `element_id` and `op`. Absent on
 	// `DELETE` and `ACCESS_REVOKED`: a tombstone carries no content by design.
 	Payload *map[string]interface{} `json:"payload,omitempty"`
 }
@@ -7644,9 +7644,9 @@ type SyncMutation struct {
 	OpId    openapi_types.UUID      `json:"op_id"`
 	Payload *map[string]interface{} `json:"payload,omitempty"`
 
-	// Set Which set of the entry the element belongs to. `attachments` joined in `0.8.5`: a
-	// device that captured a file offline uploads it once online - the upload needs the
-	// store (offline-sync.md §1) - and then pushes the `SET_ADD` that attaches it. `watchers`
+	// Set Which set of the entry the element belongs to. For `attachments`, a device that
+	// captured a file offline uploads it once online - the upload needs the store - and then
+	// pushes the `SET_ADD` that attaches it. `watchers`
 	// is answered `sync.set_unavailable` until a use case writes a watcher.
 	Set *SyncMutationSet `json:"set,omitempty"`
 }
@@ -7654,9 +7654,9 @@ type SyncMutation struct {
 // SyncMutationKind defines model for SyncMutation.Kind.
 type SyncMutationKind string
 
-// SyncMutationSet Which set of the entry the element belongs to. `attachments` joined in `0.8.5`: a
-// device that captured a file offline uploads it once online - the upload needs the
-// store (offline-sync.md §1) - and then pushes the `SET_ADD` that attaches it. `watchers`
+// SyncMutationSet Which set of the entry the element belongs to. For `attachments`, a device that
+// captured a file offline uploads it once online - the upload needs the store - and then
+// pushes the `SET_ADD` that attaches it. `watchers`
 // is answered `sync.set_unavailable` until a use case writes a watcher.
 type SyncMutationSet string
 
@@ -7691,7 +7691,7 @@ type SyncPullRequest struct {
 	// registers by turning up: the first pull or push under an identifier the account has not
 	// used writes its row, and every contact after that moves `last_seen_at` and the cursor.
 	// An identifier another account already uses is `sync.device_foreign`; one this account
-	// forgot is `sync.device_revoked` until the client mints a new one (offline-sync.md §6).
+	// forgot is `sync.device_revoked` until the client mints a new one.
 	DeviceId openapi_types.UUID `json:"device_id"`
 
 	// DisplayName How the device introduces itself in the list - "Anna's phone". Optional; the last value sent stands.
@@ -7703,7 +7703,7 @@ type SyncPullRequest struct {
 
 	// Scopes What the device wants to hold. No scope means everything the caller may read; several
 	// scopes are a union. A scope narrows the page *after* the permission check, never
-	// instead of it (offline-sync.md §3.1, §6).
+	// instead of it.
 	Scopes *[]struct {
 		ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
 
@@ -7888,7 +7888,7 @@ type TenantDeletionScheduled struct {
 
 // TenantExportRequest defines model for TenantExportRequest.
 type TenantExportRequest struct {
-	// TargetId The configured backup target the archive is written to - the one discipline for "bytes leave the installation" (E-09's precedent). The target must belong to the workspace being exported, or be an installation-wide one.
+	// TargetId The configured backup target the archive is written to - the one discipline for "bytes leave the installation". The target must belong to the workspace being exported, or be an installation-wide one.
 	TargetId openapi_types.UUID `json:"target_id"`
 }
 
@@ -7904,9 +7904,9 @@ type TenantProvision struct {
 	Slug string `json:"slug"`
 }
 
-// TenantQuotas Partial by design - each §4 limit, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
+// TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
-	// AiTokensPerDay What the workspace may spend on AI in a day, counted in the tokens every provider reports (J-15). Unlimited in single mode by default and a real number in multi, like every other row of multi-tenancy.md §4. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
+	// AiTokensPerDay What the workspace may spend on AI in a day, counted in the tokens every provider reports. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
@@ -8091,7 +8091,7 @@ type WebhookSubscription struct {
 	// State `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
 	State WebhookSubscriptionState `json:"state"`
 
-	// TargetUrl Where the CloudEvent is POSTed. An egress channel, so it goes through the guarded client: a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+	// TargetUrl Where the CloudEvent is POSTed. An egress channel, so it goes through the guarded client: a private range or the cloud metadata address is refused unless the installation has deliberately released private networks.
 	TargetUrl string `json:"target_url"`
 	Version   int    `json:"version"`
 }
@@ -8131,7 +8131,7 @@ type WebhookSubscriptionSecret struct {
 	// State `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
 	State WebhookSubscriptionSecretState `json:"state"`
 
-	// TargetUrl Where the CloudEvent is POSTed. An egress channel, so it goes through the guarded client: a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+	// TargetUrl Where the CloudEvent is POSTed. An egress channel, so it goes through the guarded client: a private range or the cloud metadata address is refused unless the installation has deliberately released private networks.
 	TargetUrl string `json:"target_url"`
 	Version   int    `json:"version"`
 }
@@ -8171,7 +8171,7 @@ type WorkItem struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
 	Completion   Completion         `json:"completion"`
 
-	// ContentLanguage BCP-47, and null for an entry whose language nobody stated. It decides the text search configuration the entry is indexed under (i18n-l10n.md §5, ADR-0034).
+	// ContentLanguage BCP-47, and null for an entry whose language nobody stated. It decides the text search configuration the entry is indexed under.
 	ContentLanguage *string                 `json:"content_language,omitempty"`
 	Cover           *Cover                  `json:"cover,omitempty"`
 	CreatedAt       *time.Time              `json:"created_at,omitempty"`
@@ -8193,7 +8193,7 @@ type WorkItem struct {
 	Notes     *string               `json:"notes,omitempty"`
 	OrderKey  *string               `json:"order_key,omitempty"`
 
-	// OriginJumbleId The jumble entry this item was converted out of (G-10). Provenance, set once at the conversion and never cleared; absent for an item that was never in the jumble.
+	// OriginJumbleId The jumble entry this item was converted out of. Provenance, set once at the conversion and never cleared; absent for an item that was never in the jumble.
 	OriginJumbleId *openapi_types.UUID `json:"origin_jumble_id,omitempty"`
 	ParentId       *openapi_types.UUID `json:"parent_id,omitempty"`
 	Path           *string             `json:"path,omitempty"`
@@ -8228,14 +8228,14 @@ type WorkItemCreate struct {
 	CalendarUid  *string             `json:"calendar_uid,omitempty"`
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 
-	// ContentLanguage BCP-47. The language the title and the notes are written in, which decides the text search configuration this entry is indexed under (i18n-l10n.md §5, ADR-0034). Omitted takes the creator's locale; a language this installation cannot index is stored and indexed word by word rather than refused. `/meta/capabilities` lists the ones it can under `text_languages`.
+	// ContentLanguage BCP-47. The language the title and the notes are written in, which decides the text search configuration this entry is indexed under. Omitted takes the creator's locale; a language this installation cannot index is stored and indexed word by word rather than refused. `/meta/capabilities` lists the ones it can under `text_languages`.
 	ContentLanguage *string                 `json:"content_language,omitempty"`
 	Cover           *Cover                  `json:"cover,omitempty"`
 	CustomFields    *map[string]interface{} `json:"custom_fields,omitempty"`
 	DueAt           *time.Time              `json:"due_at,omitempty"`
 	DueDateOnly     *bool                   `json:"due_date_only,omitempty"`
 
-	// DueTimeZone An IANA time zone. Stored beside the instant, never folded into it: an all-day due date (due_date_only) is a date in this zone, not a midnight that shifts with the viewer (i18n-l10n.md §4). Refused without a due_at.
+	// DueTimeZone An IANA time zone. Stored beside the instant, never folded into it: an all-day due date (due_date_only) is a date in this zone, not a midnight that shifts with the viewer. Refused without a due_at.
 	DueTimeZone *string               `json:"due_time_zone,omitempty"`
 	LabelIds    *[]openapi_types.UUID `json:"label_ids,omitempty"`
 	MemberIds   *[]openapi_types.UUID `json:"member_ids,omitempty"`
@@ -8277,29 +8277,29 @@ type WorkItemUpdate struct {
 
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
-	// AuditAnchorTargetId The workspace's backup target the audit chain's end is anchored to once a day, or null where anchoring is off (audit.md §3, A-2). Read here, because a screen that sets a value it cannot read back is guessing; written through `PUT /audit/anchoring` and nowhere else, which is where the write is audited with the target before and after. A body naming it on the `PATCH` is refused as an unknown field.
+	// AuditAnchorTargetId The workspace's backup target the audit chain's end is anchored to once a day, or null where anchoring is off. Read here, because a screen that sets a value it cannot read back is guessing; written through `PUT /audit/anchoring` and nowhere else, which is where the write is audited with the target before and after. A body naming it on the `PATCH` is refused as an unknown field.
 	AuditAnchorTargetId *openapi_types.UUID `json:"audit_anchor_target_id,omitempty"`
 	CreatedAt           time.Time           `json:"created_at"`
 
-	// DefaultLocale The locale a member without one of their own falls back to - the third link of the chain request, account, tenant, installation (i18n-l10n.md §2).
+	// DefaultLocale The locale a member without one of their own falls back to - the third link of the chain request, account, tenant, installation.
 	DefaultLocale string `json:"default_locale"`
 
 	// DefaultTimeZone An IANA zone, for the same position in the same chain.
 	DefaultTimeZone string `json:"default_time_zone"`
 	DisplayName     string `json:"display_name"`
 
-	// Hosts The hosts this workspace answers at (SI-12). **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.
+	// Hosts The hosts this workspace answers at. **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.
 	// Absent where there are none, which is every workspace provisioned before the table existed. An empty array would read as "this workspace is reachable nowhere".
 	Hosts *[]WorkspaceHost   `json:"hosts,omitempty"`
 	Id    openapi_types.UUID `json:"id"`
 
-	// PasswordOpening The installation operator's opening of the password for this workspace, while it is in force (ADR-0078 §3): the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.
+	// PasswordOpening The installation operator's opening of the password for this workspace, while it is in force: the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.
 	PasswordOpening *WorkspacePasswordOpening `json:"password_opening,omitempty"`
 
-	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree (UC-ID-12); it was a stored value of its own until SC-06 and came apart from the rule in both directions. Kept for the clients that read it.
+	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree. Kept for the clients that read it.
 	RequireAdminTotp bool `json:"require_admin_totp"`
 
-	// SignInPolicy How people in this workspace prove who they are (ADR-0068 §2). Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.
+	// SignInPolicy How people in this workspace prove who they are. Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.
 	SignInPolicy *SignInPolicy `json:"sign_in_policy,omitempty"`
 
 	// Slug The subdomain label the workspace is reached by in multi mode. Read-only here - see the note on the `PATCH`.
@@ -8335,7 +8335,7 @@ type WorkspaceHost struct {
 // WorkspaceHostState `PENDING` resolves nothing: a host somebody typed is not a host they own. `VERIFIED` is one whose zone carried the mark and which may become canonical; it is not serving yet. `ACTIVE` is verified, its certificate in place, and answering - the canonical host is always this one. `BROKEN` was `ACTIVE` and stopped, and the row is kept because it is the way back: when it recovers it is `ACTIVE` again without anybody doing anything.
 type WorkspaceHostState string
 
-// WorkspacePasswordOpening An operator's opening of the password as the workspace itself reads it (ADR-0078 §3). Every member is told until when; who asked and why are answered only to a reader of the workspace's configuration (`READ_CONFIGURATION`: owners, administrators, the auditor) - the requester may name a person, and the reason may say more than a member needs.
+// WorkspacePasswordOpening An operator's opening of the password as the workspace itself reads it. Every member is told until when; who asked and why are answered only to a reader of the workspace's configuration (`READ_CONFIGURATION`: owners, administrators, the auditor) - the requester may name a person, and the reason may say more than a member needs.
 type WorkspacePasswordOpening struct {
 	// Reason Why. Absent for a reader without `READ_CONFIGURATION`.
 	Reason *string `json:"reason,omitempty"`
@@ -8483,37 +8483,37 @@ type WebhookId = openapi_types.UUID
 
 // InviteAccountParams defines parameters for InviteAccount.
 type InviteAccountParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // CreateInstanceIdentityProviderParams defines parameters for CreateInstanceIdentityProvider.
 type CreateInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RemoveInstanceIdentityProviderParams defines parameters for RemoveInstanceIdentityProvider.
 type RemoveInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ConfigureInstanceIdentityProviderParams defines parameters for ConfigureInstanceIdentityProvider.
 type ConfigureInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // CancelInstanceIdentityProviderWithdrawalParams defines parameters for CancelInstanceIdentityProviderWithdrawal.
 type CancelInstanceIdentityProviderWithdrawalParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // WithdrawInstanceIdentityProviderParams defines parameters for WithdrawInstanceIdentityProvider.
 type WithdrawInstanceIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8525,19 +8525,19 @@ type ListInstanceJournalParams struct {
 
 // ProvisionTenantParams defines parameters for ProvisionTenant.
 type ProvisionTenantParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
 type RequestTenantDeletionParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // OpenTenantPasswordParams defines parameters for OpenTenantPassword.
 type OpenTenantPasswordParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8573,43 +8573,43 @@ type VerifyAuditChainJSONBody struct {
 
 // RegenerateRecoveryCodesParams defines parameters for RegenerateRecoveryCodes.
 type RegenerateRecoveryCodesParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // StartAuthenticatorReplacementParams defines parameters for StartAuthenticatorReplacement.
 type StartAuthenticatorReplacementParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // DisableTotpParams defines parameters for DisableTotp.
 type DisableTotpParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ChangePasswordParams defines parameters for ChangePassword.
 type ChangePasswordParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // CheckPasswordParams defines parameters for CheckPassword.
 type CheckPasswordParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // CreateServiceAccountParams defines parameters for CreateServiceAccount.
 type CreateServiceAccountParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ElevateSessionParams defines parameters for ElevateSession.
 type ElevateSessionParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8621,10 +8621,10 @@ type ListAccessTokensParams struct {
 
 // CreateAccessTokenParams defines parameters for CreateAccessToken.
 type CreateAccessTokenParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -8642,31 +8642,31 @@ type ListRulesParams struct {
 
 // CreateRuleParams defines parameters for CreateRule.
 type CreateRuleParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // DisableRuleParams defines parameters for DisableRule.
 type DisableRuleParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // EnableRuleParams defines parameters for EnableRule.
 type EnableRuleParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // RotateInboundTriggerParams defines parameters for RotateInboundTrigger.
 type RotateInboundTriggerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // TriggerRuleManuallyParams defines parameters for TriggerRuleManually.
 type TriggerRuleManuallyParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -8699,7 +8699,7 @@ type ListRuleRunsParamsTrigger string
 
 // ReplayRuleRunParams defines parameters for ReplayRuleRun.
 type ReplayRuleRunParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -8728,7 +8728,7 @@ type ListContainersParams struct {
 
 // CreateContainerParams defines parameters for CreateContainer.
 type CreateContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -8788,7 +8788,7 @@ type UpdateContainerPoliciesParams struct {
 
 // ArchiveContainerParams defines parameters for ArchiveContainer.
 type ArchiveContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -8803,7 +8803,7 @@ type MoveContainerJSONBody struct {
 
 // MoveContainerParams defines parameters for MoveContainer.
 type MoveContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -8815,7 +8815,7 @@ type ReorderContainerJSONBody struct {
 
 // ReorderContainerParams defines parameters for ReorderContainer.
 type ReorderContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -8824,13 +8824,13 @@ type ReorderContainerParams struct {
 
 // RestoreContainerParams defines parameters for RestoreContainer.
 type RestoreContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UnarchiveContainerParams defines parameters for UnarchiveContainer.
 type UnarchiveContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -8842,7 +8842,7 @@ type ListCustomFieldsParams struct {
 
 // DefineCustomFieldParams defines parameters for DefineCustomField.
 type DefineCustomFieldParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -8866,7 +8866,7 @@ type ListGroupsParams struct {
 
 // CreateGroupParams defines parameters for CreateGroup.
 type CreateGroupParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -8878,43 +8878,43 @@ type UpdateGroupParams struct {
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
 type ConfigureFirstIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // CreateIdentityProviderParams defines parameters for CreateIdentityProvider.
 type CreateIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RemoveIdentityProviderParams defines parameters for RemoveIdentityProvider.
 type RemoveIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ConfigureIdentityProviderParams defines parameters for ConfigureIdentityProvider.
 type ConfigureIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // OfferIdentityProviderParams defines parameters for OfferIdentityProvider.
 type OfferIdentityProviderParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ImportEntriesParams defines parameters for ImportEntries.
 type ImportEntriesParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // CreateCalendarFeedParams defines parameters for CreateCalendarFeed.
 type CreateCalendarFeedParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -8927,7 +8927,7 @@ type PollTriggerEventsParams struct {
 
 // CreateWebhookSubscriptionParams defines parameters for CreateWebhookSubscription.
 type CreateWebhookSubscriptionParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -8951,7 +8951,7 @@ type ListWebhookDeliveriesParamsStatus string
 
 // RotateWebhookSecretParams defines parameters for RotateWebhookSecret.
 type RotateWebhookSecretParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -8969,7 +8969,7 @@ type ListWorkItemsParams struct {
 
 // CreateWorkItemParams defines parameters for CreateWorkItem.
 type CreateWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9017,7 +9017,7 @@ type AddCommentJSONBody struct {
 
 // AddCommentParams defines parameters for AddComment.
 type AddCommentParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9082,13 +9082,13 @@ type SetRecurrenceParams struct {
 
 // SkipOccurrenceParams defines parameters for SkipOccurrence.
 type SkipOccurrenceParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // CreateReminderParams defines parameters for CreateReminder.
 type CreateReminderParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9106,13 +9106,13 @@ type UpdateReminderParams struct {
 
 // ArchiveWorkItemParams defines parameters for ArchiveWorkItem.
 type ArchiveWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // AssignWorkItemParams defines parameters for AssignWorkItem.
 type AssignWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -9121,7 +9121,7 @@ type AssignWorkItemParams struct {
 
 // AutoAssignWorkItemParams defines parameters for AutoAssignWorkItem.
 type AutoAssignWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -9135,13 +9135,13 @@ type CompleteWorkItemJSONBody struct {
 
 // CompleteWorkItemParams defines parameters for CompleteWorkItem.
 type CompleteWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // SuggestDecompositionParams defines parameters for SuggestDecomposition.
 type SuggestDecompositionParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9162,7 +9162,7 @@ type DuplicateWorkItemJSONBody struct {
 
 // DuplicateWorkItemParams defines parameters for DuplicateWorkItem.
 type DuplicateWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9181,19 +9181,19 @@ type MoveWorkItemJSONBody struct {
 
 // MoveWorkItemParams defines parameters for MoveWorkItem.
 type MoveWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // PurgeWorkItemParams defines parameters for PurgeWorkItem.
 type PurgeWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ReopenWorkItemParams defines parameters for ReopenWorkItem.
 type ReopenWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9205,25 +9205,25 @@ type ReorderWorkItemJSONBody struct {
 
 // ReorderWorkItemParams defines parameters for ReorderWorkItem.
 type ReorderWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // RestoreWorkItemParams defines parameters for RestoreWorkItem.
 type RestoreWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UnarchiveWorkItemParams defines parameters for UnarchiveWorkItem.
 type UnarchiveWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UnassignWorkItemParams defines parameters for UnassignWorkItem.
 type UnassignWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -9239,13 +9239,13 @@ type BulkUpdateWorkItemsJSONBody struct {
 
 // BulkUpdateWorkItemsParams defines parameters for BulkUpdateWorkItems.
 type BulkUpdateWorkItemsParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // CancelJobParams defines parameters for CancelJob.
 type CancelJobParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9269,31 +9269,31 @@ type ListJumbleEntriesParamsChannel string
 
 // SubmitJumbleEntryParams defines parameters for SubmitJumbleEntry.
 type SubmitJumbleEntryParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ConvertJumbleEntryParams defines parameters for ConvertJumbleEntry.
 type ConvertJumbleEntryParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // DismissJumbleEntryParams defines parameters for DismissJumbleEntry.
 type DismissJumbleEntryParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // SuggestFromJumbleEntryParams defines parameters for SuggestFromJumbleEntry.
 type SuggestFromJumbleEntryParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // RotateJumbleIntakeParams defines parameters for RotateJumbleIntake.
 type RotateJumbleIntakeParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9304,13 +9304,13 @@ type ListLegalHoldsParams struct {
 
 // RequestMediaUploadParams defines parameters for RequestMediaUpload.
 type RequestMediaUploadParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ConfirmMediaUploadParams defines parameters for ConfirmMediaUpload.
 type ConfirmMediaUploadParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9338,22 +9338,22 @@ type ListMembershipsParams struct {
 
 // GrantMembershipParams defines parameters for GrantMembership.
 type GrantMembershipParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RevokeMembershipParams defines parameters for RevokeMembership.
 type RevokeMembershipParams struct {
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RegisterOauthClientParams defines parameters for RegisterOauthClient.
 type RegisterOauthClientParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9371,7 +9371,7 @@ type ListDataSubjectRequestsParams struct {
 
 // CreateDataSubjectRequestParams defines parameters for CreateDataSubjectRequest.
 type CreateDataSubjectRequestParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9416,7 +9416,7 @@ type ListTemplatesParams struct {
 
 // CreateTemplateParams defines parameters for CreateTemplate.
 type CreateTemplateParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9434,13 +9434,13 @@ type UpdateTemplateParams struct {
 
 // InstantiateTemplateParams defines parameters for InstantiateTemplate.
 type InstantiateTemplateParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // AiGenerateTemplateParams defines parameters for AiGenerateTemplate.
 type AiGenerateTemplateParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9449,7 +9449,7 @@ type UpdateWorkspaceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 
-	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
@@ -9461,7 +9461,7 @@ type ListTrashParams struct {
 
 // EmptyTrashParams defines parameters for EmptyTrash.
 type EmptyTrashParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9473,7 +9473,7 @@ type ListSavedViewsParams struct {
 
 // CreateSavedViewParams defines parameters for CreateSavedView.
 type CreateSavedViewParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -9491,13 +9491,13 @@ type UpdateSavedViewParams struct {
 
 // ExportViewParams defines parameters for ExportView.
 type ExportViewParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ShareSavedViewParams defines parameters for ShareSavedView.
 type ShareSavedViewParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// IfMatch The ETag of the state last read (optimistic locking).

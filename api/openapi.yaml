@@ -3996,7 +3996,7 @@ paths:
       summary: Request a workspace's deletion
       description: >
         The most irreversible act this API has, and it behaves like it: it demands a fresh
-        step-up (H-03) in the `X-Hubtask-Step-Up` header and the workspace's display name,
+        step-up in the `X-Hubtask-Step-Up` header and the workspace's display name,
         typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked,
         automations disabled, the export still answering. The hard delete runs after the
         30-day grace as a job seeded by this very write - it cascades across database rows,
@@ -4029,7 +4029,7 @@ paths:
       description: >
         For a provider that is switched on but broken - unreachable, or admitting nobody - the
         operator opens the password for this one workspace, for a limited time: 24 hours unless
-        `hours` says otherwise, at most 168 (ADR-0078 §3). Every account there that holds a password
+        `hours` says otherwise, at most 168. Every account there that holds a password
         signs in with it, under the workspace's own rules and second factor, whatever the
         workspace's own switch and any installation lock say; an account without one is mailed a
         link to set one when it asks (`POST /auth/password:forgot`). It ends on its own at
@@ -4066,7 +4066,7 @@ paths:
       operationId: closeTenantPassword
       summary: Close an operator's opening of the password early
       description: >
-        Ends the opening `:open-password` made before its time (ADR-0078 §3). The workspace's own
+        Ends the opening `:open-password` made before its time. The workspace's own
         rules decide again from the next request on. Recorded in the workspace's trail
         (`tenant.password_closed`) and the installation's journal, and the workspace's
         administrators are told. No step-up: closing narrows the way in rather than widening it.
@@ -4091,14 +4091,12 @@ paths:
       description: >
         A complete, documented archive of one workspace - JSON Lines per entity, media by
         reference with checksums, a manifest naming counts and the product version - written as
-        a job to a configured backup target (multi-tenancy.md §5, H-07). It is the Hubtask
-        archive format, documented under docs/architecture/tenant-export.md well enough to
-        build an importer against the document alone: the basis for access requests, provider
+        a job to a configured backup target. It is the Hubtask archive format, documented well
+        enough to build an importer against the documentation alone: the basis for access requests, provider
         migration, and the "no lock-in" promise. It works for ACTIVE, SUSPENDED and
         PENDING_DELETION workspaces alike - the suspended and the leaving are exactly who
         needs it - and it is audited with its target, never its content. The export runs
-        through the same row-level-security path as the API (T-20), and the answer is E-01's
-        JobRef; the archive itself is at the target, so there is no result_url.
+        through the same row-level-security path as the API, and the answer is a JobRef; the archive itself is at the target, so there is no result_url.
       requestBody:
         required: true
         content:
@@ -4121,7 +4119,7 @@ paths:
       operationId: readInstanceSettings
       summary: What this installation has decided for every workspace on it
       description: >
-        The level above the workspaces (ADR-0070 §2): the sign-in switches this installation set,
+        The level above the workspaces: the sign-in switches this installation set,
         which of them are locked, the operator's legal links, and the path to its own list of
         refused passwords.
 
@@ -4179,7 +4177,7 @@ paths:
       operationId: listOperators
       summary: Who operates this installation
       description: >
-        The register of ADR-0070 §1. **An empty one is the private installation**: nothing was
+        The operator register. **An empty one is the private installation**: nothing was
         configured, one workspace, and its owner is the operator exactly as they were before the
         register existed.
       responses:
@@ -4243,7 +4241,7 @@ paths:
       operationId: readInstanceOverview
       summary: How big this installation is and how its workspaces stand
       description: >
-        The dashboard's first screen (SI-17, ADR-0070 §5): the workspaces by state, and how many
+        The dashboard's first screen: the workspaces by state, and how many
         accounts they hold between them.
 
         **Counts and states, never rows.** The tenant boundary is a database policy rather than a
@@ -4270,7 +4268,7 @@ paths:
       summary: The installation's own record
       description: >
         What was provisioned, suspended, resumed and deleted, and what the operator changed - newest
-        first (H-06, audit.md §6). Evidence of acts whose per-tenant trail cannot hold them: after a
+        first. Evidence of acts whose per-tenant trail cannot hold them: after a
         hard delete the workspace's own audit chain is gone by design, which is the reason this
         record exists.
 
@@ -4297,7 +4295,7 @@ paths:
       description: >
         Every workspace on this installation reads these and draws their buttons; none may change
         them, which is the row-level policy and not a check in a handler. Behind `admin:tenants`
-        **and** the operator register, both (ADR-0070 §1).
+        **and** the operator register, both.
       responses:
         "200":
           description: The installation's providers
@@ -4350,7 +4348,7 @@ paths:
         Journalled.
 
         Whether the installation offers the provider is not changed here: an offer ends through
-        `:withdraw`, announced for a date or confirmed with the count (ADR-0076 §2-3), and is kept
+        `:withdraw`, announced for a date or confirmed with the count, and is kept
         with `:cancel-withdrawal`. A changed `enabled` is refused with
         `identity_provider.withdraw_instead`; the same value, or none, changes nothing.
       requestBody:
@@ -4380,7 +4378,7 @@ paths:
         workspace uses it, removal is refused with `identity_provider.withdraw_first`, its `count`
         the number of workspaces - or, where a withdrawal is already announced, with
         `identity_provider.remove_after_withdrawal`, its `date` the moment the offer ends. An offer
-        ends announced (ADR-0076 §2, ADR-0077 §2), and *Withdraw now* is the answer to a compromised
+        ends announced, and *Withdraw now* is the answer to a compromised
         provider. The connections between people and the
         provider are deleted and are not restored by offering it again; the accounts keep their rows
         and their live sessions. Journalled.
@@ -4400,7 +4398,7 @@ paths:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Announce the withdrawal of an offered provider, or withdraw it now
       description: >
-        ADR-0076 §2-3. A withdrawal is announced for a date - fourteen days ahead where none is
+        A withdrawal is announced for a date - fourteen days ahead where none is
         given - and until then the provider keeps working everywhere while every workspace that has
         it switched on tells its administrators when it ends; it can be cancelled. On the date the
         offer ends: off everywhere, the connected identities left in place.
@@ -4410,7 +4408,7 @@ paths:
         the operator just read it - refused with `identity_provider.withdraw_count_mismatch` when it
         does not match. A date less than a day ahead is no notice either, and asks for the count
         the same way. A workspace left with no way in afterwards falls back to the password for the
-        accounts that hold one (§4). An offer that has already ended is not withdrawn again -
+        accounts that hold one. An offer that has already ended is not withdrawn again -
         refused with `identity_provider.already_withdrawn`, so a call cannot revive it; it is
         offered again only through `:cancel-withdrawal`. Journalled.
       requestBody:
@@ -4439,7 +4437,7 @@ paths:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Keep offering a provider whose withdrawal was announced
       description: >
-        Clears the withdrawal (ADR-0076 §2, P-04). Before the date nothing changes for anybody;
+        Clears the withdrawal. Before the date nothing changes for anybody;
         after it, the offer is back and the workspaces that had it switched on sign in through it
         again, because the connected identities were never removed. Journalled.
       responses:
@@ -4460,7 +4458,7 @@ paths:
       description: >
         What a rotation needs before it can end: the master key new values are sealed under, and
         for every key the ring holds - and every key a stored value still names - how many values
-        name it (ADR-0045, security.md §8.1). Removing a key while a row still names it turns that
+        name it. Removing a key while a row still names it turns that
         row into a refusal, so the count is the gate rather than the calendar.
 
         Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count
@@ -4482,13 +4480,13 @@ paths:
       summary: Re-seal what older keys still hold
       description: >
         Rewraps every stored value that names a key other than the current one, so that the older
-        key can finally leave the ring (ADR-0045). The plaintext is untouched: the data key is
+        key can finally leave the ring. The plaintext is untouched: the data key is
         unwrapped under the key its row names and wrapped again under the current one, and
         nothing above the port can tell the difference.
 
         One job per workspace rather than one sweep over the installation - nothing enumerates
-        tenants for its own purposes, and this is an operator asking rather than a schedule
-        (multi-tenancy.md). The call returns once the work is queued; progress is read back from
+        tenants for its own purposes, and this is an operator asking rather than a schedule. The
+        call returns once the work is queued; progress is read back from
         `GET /admin/encryption` until every count but the active key's is zero. Asking twice
         before the first round has run queues nothing new.
       responses:
@@ -4509,7 +4507,7 @@ paths:
       operationId: updateTenantQuotas
       summary: Set a workspace's quotas
       description: >
-        The operator's write (H-08): each provided key becomes the workspace's ceiling, an
+        The operator's write: each provided key becomes the workspace's ceiling, an
         explicit null clears the override back to the mode's default, and absent keys stay
         untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and
         "who moved the wall" is a question with an answer.
@@ -4537,7 +4535,7 @@ paths:
       operationId: readQuotas
       summary: The workspace's quota standing
       description: >
-        Every §4 limit as it applies to this workspace (multi-tenancy.md, H-08): the resolved
+        Every quota as it applies to this workspace: the resolved
         ceiling (0 means unlimited), what is currently used where a live count exists, and the
         approach ratio. Needs the permission that manages structure, or the auditor's read-only
         configuration permission - a quota is workspace configuration, and who is near a wall is
@@ -4562,7 +4560,7 @@ paths:
       description: >
         The workspace's own view of itself: the slug it is reached by, its display name, its
         standing, the locale and time zone every member without a preference of their own falls
-        back to (i18n-l10n.md §2), and the settings it configures - today the one switch that
+        back to, and the settings it configures - today the one switch that
         demands a second factor of its administrators.
 
         Needs `READ`, or the auditor's read-only configuration permission: how a workspace is set
@@ -4589,7 +4587,7 @@ paths:
         field that moved.
 
         `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not
-        stored as itself any more (UC-ID-12): true asks for `ADMINS` where the rule in force demands
+        stored as itself: true asks for `ADMINS` where the rule in force demands
         less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its
         lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for
         nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against
@@ -4601,8 +4599,7 @@ paths:
         field rather than accepted and quietly ignored.
 
         `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a
-        **step-up** (ADR-0068 §2): a workspace's
-        sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the
+        **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the
         locale and the zone are not. A body without the header is `403 step_up_required`.
 
         Settings this version does not model are left where they are. A workspace's settings
@@ -4633,8 +4630,8 @@ paths:
       operationId: countAccountsWithoutProvider
       summary: How many people here no provider switched on here signs in
       description: >
-        The number the password switch says before the password is switched off (ADR-0078 §1,
-        UC-ID-12): the active people of this workspace who hold no identity at any provider that is
+        The number the password switch says before the password is switched off: the active
+        people of this workspace who hold no identity at any provider that is
         a way in here now - the workspace's own switched on, the installation's taken and not past
         a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in
         with a token, so neither is counted. Where the password goes off, each of them connects a
@@ -4662,7 +4659,7 @@ paths:
       summary: The workspace's first identity provider
       description: >
         **Kept, because nothing in this contract disappears.** It was the whole of the provider
-        surface before providers became plural (SI-10), and a caller written against it keeps
+        surface before providers became plural, and a caller written against it keeps
         working: it reads the workspace's own first provider, in the order the collection lists
         them, and `PUT` writes that one - creating it where there is none.
 
@@ -4671,7 +4668,7 @@ paths:
         route that removes the wrong one. Use `/identity-providers` for all of that.
 
         Needs the permission that manages structure, or the auditor's read-only configuration
-        permission (A-4). The client secret is never a member of the answer.
+        permission. The client secret is never a member of the answer.
       responses:
         "200":
           description: The first provider
@@ -4694,7 +4691,7 @@ paths:
 
         The client secret is required when there is nothing to keep, and optional afterwards, as on
         the collection. And as there, `enabled` is not switched here: a created provider is off, and
-        a changed value is refused with `identity_provider.switch_in_list` (ADR-0076 §5).
+        a changed value is refused with `identity_provider.switch_in_list`.
       requestBody:
         required: true
         content:
@@ -4723,11 +4720,11 @@ paths:
         is not its to change.
 
         Needs the permission that manages structure, or the auditor's read-only configuration
-        permission (A-4): which provider vouches for this workspace's people is configuration an
+        permission: which provider vouches for this workspace's people is configuration an
         auditor reads.
 
         The client secret is never a member of this answer. It is sealed at configuration time
-        (E-02) and read only by the token exchange.
+        and read only by the token exchange.
       responses:
         "200":
           description: The providers in force
@@ -4760,7 +4757,7 @@ paths:
 
         **A new provider is created switched off** - configuring is not offering. It becomes a way
         in when the list of ways to sign in switches it on (`:offer`); `enabled: true` here is
-        refused with `identity_provider.switch_in_list` (ADR-0076 §5).
+        refused with `identity_provider.switch_in_list`.
       requestBody:
         required: true
         content:
@@ -4796,7 +4793,7 @@ paths:
 
         Whether the provider is a way in is not set here: a changed `enabled` is refused with
         `identity_provider.switch_in_list`, and the list of ways to sign in switches it
-        (`:offer`, ADR-0076 §5).
+        (`:offer`).
       requestBody:
         required: true
         content:
@@ -4842,8 +4839,9 @@ paths:
 
         For the workspace's own provider it is the row's `enabled`. For one the installation offers,
         it is this workspace's own switch - the row belongs to the installation and is not the
-        workspace's to change, but whether it is *offered here* is (ADR-0070 §2, the concept's §8:
-        "für alle Arbeitsbereiche angeboten, nirgends an: jeder Owner schaltet selbst").
+        workspace's to change, but whether it is *offered here* is: an offer of the installation
+        reaches every workspace and is switched on in none, and each owner switches it on for
+        their own.
 
         **An installation's provider is off until a workspace switches it on.** Offering every
         workspace a way in is the installation's decision; taking it is the workspace's.
@@ -4874,7 +4872,7 @@ paths:
       description: >
         Three rows and this installation's own callback address, which is the value every
         registration form at every provider asks for. `instructions` and `particular` are message
-        codes (ADR-0011) rendered with `redirect_uri`; `provisioning` is the modes the preset
+        codes rendered with `redirect_uri`; `provisioning` is the modes the preset
         permits, so a screen offers only what would be accepted rather than three of which two are
         refused.
 
@@ -4901,7 +4899,7 @@ paths:
       summary: Ask AI what work sits under this entry
       description: >
         Asks the workspace's AI provider to propose the work packages and activities that would
-        carry one entry (J-07, `ai-first.md` §2). It **proposes** and changes nothing: the
+        carry one entry. It **proposes** and changes nothing: the
         breakdown is read through `GET /suggestions` and is created only when somebody accepts it,
         one ordinary create at a time with their own rights at each destination.
 
@@ -4933,7 +4931,7 @@ paths:
       summary: Ask AI to propose this entry's fields
       description: >
         Asks the workspace's AI provider to propose a title, notes, a due date and labels for one
-        entry (J-08, `automation.md` §1.3's `AI_SUGGEST_FIELDS`). Asynchronous and answered `202`;
+        entry - what the automation action `AI_SUGGEST_FIELDS` does. Asynchronous and answered `202`;
         a workspace with no provider or no consent is answered `503` with `ai.unavailable`.
       requestBody:
         required: false
@@ -4957,8 +4955,8 @@ paths:
       operationId: aiSummarize
       summary: Ask AI to summarise this entry
       description: >
-        Asks the workspace's AI provider to summarise one entry into its notes (J-08,
-        `automation.md` §1.3's `AI_SUMMARIZE`). Asynchronous, and a proposal unless the caller asks
+        Asks the workspace's AI provider to summarise one entry into its notes - what the
+        automation action `AI_SUMMARIZE` does. Asynchronous, and a proposal unless the caller asks
         for it to be applied.
       requestBody:
         required: false
@@ -4983,15 +4981,15 @@ paths:
       summary: Read this entry in another language
       description: >
         Asks the workspace's AI provider for the entry's title and notes in a language the caller
-        reads (`ai-first.md` §2's translation row, M-11). **Display only, and nothing is
-        stored**: user content is never translated in place (`i18n-l10n.md` §7), no suggestion
+        reads. **Display only, and nothing is stored**: user content is never translated in
+        place, no suggestion
         is recorded, and there is nothing to accept — a person reads the answer and it is gone.
         Synchronous, the way the search's meaning is, and bounded the same way: the caller is
         waiting, so the call has a short timeout and every way of not getting an answer — no
         consent, no provider, a spent budget, an open breaker, a slow model — is `503` with
         `ai.unavailable`. Reading the entry is the permission asked, because reading it is what
-        this does; the workspace's consent to send its content to a provider is asked after it
-        (ai-first.md §2). The audit records that a translation was asked for an entry and into
+        this does; the workspace's consent to send its content to a provider is asked after it.
+        The audit records that a translation was asked for an entry and into
         which language, never the text.
       requestBody:
         required: false
@@ -5019,8 +5017,8 @@ paths:
       operationId: aiClassify
       summary: Ask AI to propose labels for this entry
       description: >
-        Asks the workspace's AI provider to propose labels for one entry (J-08, `automation.md`
-        §1.3's `AI_CLASSIFY`). Asynchronous, and a proposal unless the caller asks for it to be
+        Asks the workspace's AI provider to propose labels for one entry - what the automation
+        action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be
         applied.
       requestBody:
         required: false
@@ -5045,7 +5043,7 @@ paths:
       summary: Ask AI to summarise this entry's discussion
       description: >
         Asks the workspace's AI provider to summarise the comments on one entry — the discussion
-        rather than the entry (K-05, `ai-first.md` §2). Oldest first and **bounded**: a thread of
+        rather than the entry. Oldest first and **bounded**: a thread of
         four hundred comments is a token problem rather than a summary problem, and the bound is
         part of the design rather than a surprise at the provider.
 
@@ -5080,7 +5078,7 @@ paths:
       summary: Ask AI how a collection stands
       description: >
         Asks the workspace's AI provider how one collection stands — what is open, what moved, what
-        is overdue — in the shape a person asks a colleague on a Monday (K-05, `ai-first.md` §2).
+        is overdue — in the shape a person asks a colleague on a Monday.
         The entries it reads are the ones directly in the collection, in the collection's own order
         and bounded.
 
@@ -5112,9 +5110,8 @@ paths:
       operationId: suggestDuplicates
       summary: Which entries look like this one
       description: >
-        Answers the entries that sit near this one in the embedding space (K-04, `ai-first.md` §2).
-        **No provider is asked and no budget is spent**: the vectors are the ones J-10's pass
-        already maintains, so this is a query with a threshold rather than a completion.
+        Answers the entries that sit near this one in the embedding space. **No provider is asked
+        and no budget is spent**: the vectors are the ones search by meaning already maintains, so this is a query with a threshold rather than a completion.
 
         Answered `200` with a suggestion when something is near, and `204` when nothing is — which
         is also the answer where the installation carries no `pgvector`, where the workspace has no
@@ -5147,7 +5144,7 @@ paths:
       operationId: listSuggestions
       summary: What AI has proposed, and not done
       description: >
-        The suggestions standing against one entry, newest first (J-05). Nothing here has changed
+        The suggestions standing against one entry, newest first. Nothing here has changed
         anything: a suggestion is a record with a name on it — the model, the prompt version and
         the moment — and it becomes a change only when somebody accepts it, as their own write with
         their own rights.
@@ -5251,12 +5248,12 @@ paths:
       summary: The workspace's AI provider, and whether it may be used
       description: >
         Which provider this workspace would ask, under which models, and whether AI processing is
-        allowed here at all (J-02, ai-first.md §2). Needs the permission that manages structure,
-        or the auditor's read-only configuration permission (A-4): where a workspace's content
+        allowed here at all. Needs the permission that manages structure, or the auditor's
+        read-only configuration permission: where a workspace's content
         may be sent is exactly what an auditor reads.
 
-        The API key is never a member of this answer. It is sealed at configuration time (E-02)
-        and opened only by the adapter that makes the call.
+        The API key is never a member of this answer. It is sealed at configuration time and
+        opened only by the adapter that makes the call.
       responses:
         "200":
           description: The configuration
@@ -5276,7 +5273,7 @@ paths:
 
         A provider whose `jurisdiction` is `THIRD_COUNTRY` is refused unless the operator of this
         installation has confirmed third-country transfers
-        (`HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER`, data-protection.md §6, ADR-0018 decision 7).
+        (`HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER`).
         The confirmation is the installation's rather than the workspace's on purpose: it is the
         operator who signs the processing agreement and who owes the transfer impact assessment,
         and a workspace administrator cannot take that on for them. Refused as
@@ -5319,7 +5316,7 @@ paths:
       operationId: listOauthClients
       summary: The workspace's registered third-party apps
       description: >
-        The client registry an administrator manages (H-05): every app that may ask people here
+        The client registry an administrator manages: every app that may ask people here
         for bounded access. The secret of a confidential client is not among the fields - it was
         answered once, at registration.
       responses:
@@ -5411,12 +5408,11 @@ paths:
       operationId: authorizeOauthClient
       summary: Consent to an app's request for bounded access
       description: >
-        The authorization endpoint, headless (0.6.0 decision 5): the signed-in person - never a
+        The authorization endpoint, headless: the signed-in person - never a
         token, a person - names the client, the exact redirect URI, the scopes from this
         installation's own catalogue, and the PKCE challenge, and receives the single-use code
         the app will exchange. The consent is recorded as a grant the person can see and revoke
-        beside their sessions; the consent *screen* arrives with the client track and calls
-        exactly this.
+        beside their sessions; the web application's consent screen calls exactly this.
 
         A public client without PKCE is refused; `S256` is the only accepted method - `plain`
         would put the verifier on the wire twice.
@@ -5448,11 +5444,10 @@ paths:
         was minted under, and, for a confidential client, the secret. A code replayed after
         exchange is refused; the redirect URI has to repeat the authorization's, exactly.
 
-        The answer is the same pair sign-in mints (security.md §5), leashed to the grant:
-        revoking the grant refuses the pair on its next request, exactly as refresh reuse would.
-        Refresh happens at `/auth/sessions:refresh`, because it is the same machinery. This
-        milestone speaks JSON; the form encoding RFC 6749 clients expect arrives with the public
-        marketplace track, additively.
+        The answer is the same pair sign-in mints, leashed to the grant: revoking the grant
+        refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at
+        `/auth/sessions:refresh`, because it is the same machinery. The body is JSON; the form
+        encoding of RFC 6749 is not accepted.
       requestBody:
         required: true
         content:
@@ -5515,7 +5510,7 @@ paths:
       description: |
         Newest first, the open ones by default. A right somebody exercised is a case with a
         statutory deadline, and this is the list whoever answers for it reads - which is why the
-        overdue ones can be asked for on their own (`data-protection.md` §4).
+        overdue ones can be asked for on their own.
       parameters:
         - { name: status, in: query, schema: { $ref: "#/components/schemas/DataSubjectRequestStatus" } }
         - { name: kind, in: query, schema: { $ref: "#/components/schemas/DataSubjectRequestKind" } }
@@ -5551,8 +5546,7 @@ paths:
         is the controller's decision, taken by moving the case to `IN_PROGRESS`.
 
         `RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:
-        the schema has allowed the kind since phase 0, and a deadline somebody is answerable for is
-        worth recording whether or not the work needs a special path.
+        a deadline somebody is answerable for is worth recording whether or not the work needs a special path.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -5588,7 +5582,7 @@ paths:
         An erasure needs its mode before it can start - `ANONYMIZE` keeps the authorship as a
         former user and the workspace's content with it, `FULL_DELETE` takes the person's own
         contributions too. The choice rests with the controller, because tenant data touches third
-        parties' rights (ADR-0018).
+        parties' rights.
       requestBody:
         required: true
         content:
@@ -5613,7 +5607,7 @@ paths:
       description: |
         A technical state rather than a lock: the account stays readable and its content stays
         where it is, and what stops is *processing* - automation rules and AI leave the record
-        alone (`data-protection.md` §4, arc42 §8.15). Lifting it is the same call with
+        alone. Lifting it is the same call with
         `restricted: false`.
       requestBody:
         required: true
@@ -5669,9 +5663,8 @@ paths:
         does: the name is one request away (`GET /accounts/{accountId}`, `GET /groups/{groupId}`).
 
         Who may read is `READ` at the scope: a member of a hub seeing who else is in it is what
-        makes a shared workspace legible, and `data-protection.md` §9 already limits what a name
-        reveals. A scope the caller holds nothing on is not found, in the words a missing one
-        produces (T-04). The workspace itself (`scope_type: TENANT`) is the one scope whose
+        makes a shared workspace legible, and what a name reveals is already kept minimal. A scope
+        the caller holds nothing on is not found, in the words a missing one produces. The workspace itself (`scope_type: TENANT`) is the one scope whose
         existence is no secret, so a refusal there is a refusal.
       parameters:
         - name: scope_type
@@ -5703,7 +5696,7 @@ paths:
         To an account or to a group, never both. The role applies downwards from the scope:
         a role at a hub applies to its collections and their items.
 
-        Granting `OWNER` is a privileged action (security.md §5): it demands a fresh step-up,
+        Granting `OWNER` is a privileged action: it demands a fresh step-up,
         presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
         without one.
       parameters:
@@ -5737,7 +5730,7 @@ paths:
         that is the group's membership, revoked separately.
 
         Revoking an `OWNER` membership is changing the `OWNER` role, and demands a fresh step-up
-        in the `X-Hubtask-Step-Up` header (security.md §5).
+        in the `X-Hubtask-Step-Up` header.
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       responses:
@@ -5756,8 +5749,7 @@ paths:
         may resolve an account identifier to a name: a membership granted to a group is unreadable
         until the group can be shown as the people it reaches, and a member scoped to one hub holds
         nothing at the workspace to be judged against. What a group discloses is its name and its
-        members' identifiers, and the identifiers resolve through the same minimal read
-        (`data-protection.md` §9).
+        members' identifiers, and the identifiers resolve through the same minimal read.
       parameters:
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/PageSize"
@@ -6331,10 +6323,9 @@ paths:
         read is told so.
 
         A `POST` and no `GET`. What somebody is looking for is their content, and a query string
-        travels through access logs, proxies and browser history; the same words in a body do not
-        (security.md §9, ADR-0018). What is searched today is entries - tasks, work packages and
-        activities - which is what `searchItems` says; a later milestone that makes containers or
-        comments searchable widens this operation rather than adding a second one.
+        travels through access logs, proxies and browser history; the same words in a body do
+        not. What is searched is entries - tasks, work packages and activities - which is what
+        `searchItems` says.
       requestBody:
         required: true
         content:
@@ -6362,7 +6353,7 @@ paths:
         Counts the entries whose search document was built under a text search configuration this
         installation has since replaced or gained — an installation that upgraded its PostgreSQL,
         or an operator who installed a configuration, after the entries were written — queues the
-        job that rewrites exactly those in batches, and answers the count (M-09, ADR-0034). Until
+        job that rewrites exactly those in batches, and answers the count. Until
         it runs, such entries are searched word by word rather than by stem; nothing is lost and
         nothing is wrong, only shorter.
 
@@ -6732,7 +6723,7 @@ paths:
         The copy is open and carries fresh ranks at the end of its level; an entry that was archived
         below the copied one stays archived in the copy, and trashed entries are not copied at all.
         The title is copied unchanged - a server that invented "Copy of …" would be writing display
-        text (ADR-0011) - so a client that wants a different one sends it.
+        text - so a client that wants a different one sends it.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -6949,8 +6940,8 @@ paths:
       description: >
         The entry's own history, newest first: who did what, and when. It is the product's record
         and not the audit trail - it is readable by whoever may read the entry, and it is deleted
-        with the entry (audit.md §1). Each step carries a message code rather than a sentence, and
-        the client renders it (ADR-0011). For an activity the history is compact: the code, the
+        with the entry. Each step carries a message code rather than a sentence, and the client
+        renders it. For an activity the history is compact: the code, the
         actor and the time, without the fields that moved.
       parameters:
         - $ref: "#/components/parameters/Cursor"
@@ -7449,7 +7440,7 @@ paths:
       operationId: setDueDate
       description: >
         Puts a due date on the entry: the instant, the all-day flag, and the IANA zone, written
-        together because the three describe one date (i18n-l10n.md §4). An all-day due date is a
+        together because the three describe one date. An all-day due date is a
         date in the given zone, never a midnight that shifts with the viewer. A zone that is not
         an IANA name is refused. Moving a due date is this call again. The same three fields on
         the create and update paths dispatch into this writer, so a due date means the same thing
@@ -7503,9 +7494,8 @@ paths:
       tags: [recurrence]
       operationId: getRecurrence
       description: >
-        The entry's series, or 404 when it has none. The resource table of api-guidelines.md §2
-        named only the writers; a rule a client can set and never read back is one it cannot show,
-        so the read is here and the table says so too (D-04).
+        The entry's series, or 404 when it has none. A rule a client can set and never read back
+        is one it cannot show, so the series is read here as well as written.
       responses:
         "200":
           description: The rule
@@ -7533,8 +7523,8 @@ paths:
         horizon exceeds the bound in /meta/capabilities are each refused with a field error rather
         than stored and discovered by the scheduler.
 
-        Nothing is materialised here. The occurrences follow in a later version of this
-        installation; what this call does is store the rule.
+        Nothing is materialised here: this call stores the rule, and the occurrences are created
+        as the series comes due.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       requestBody:
@@ -7661,7 +7651,7 @@ paths:
       description: >
         Changes a reminder. A merge patch: a field that is not sent is not touched, and each field
         that moves is its own change log entry, so two devices editing the offset and the channels
-        converge to both (offline-sync.md §4.2). Recipients and channels are chosen whole - the
+        converge to both. Recipients and channels are chosen whole - the
         list sent replaces the list stored.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
@@ -7826,7 +7816,7 @@ paths:
       description: >
         Seals the upload: the server reads the object's head back from storage, sniffs it, checks
         the size against what was declared and against the installation's limit, and marks the
-        object READY with the judged content type - never the claim (T-11). A refusal removes the
+        object READY with the judged content type - never the claim. A refusal removes the
         staged bytes. Idempotent: confirming a READY object succeeds and changes nothing, which
         is what makes an upload confirmed twice one media object.
       parameters:
@@ -7879,7 +7869,7 @@ paths:
       description: >
         The download target of a local-storage installation: the bytes, streamed, as a download -
         `Content-Disposition: attachment` and a sandboxing content security policy, never a
-        rendering path for what somebody uploaded (T-11).
+        rendering path for what somebody uploaded.
       responses:
         "200":
           description: The bytes
@@ -7898,7 +7888,7 @@ paths:
       summary: The change stream, as server-sent events
       description: |
         The same change records `:pull` returns, pushed as they happen. An **accelerator, not a
-        second source of truth** (ADR-0021): a client that loses this connection catches up by
+        second source of truth**: a client that loses this connection catches up by
         cursor rather than by anything being replayed from memory, and a client that never opens it
         is not missing anything a pull would not give it.
 
@@ -7910,7 +7900,7 @@ paths:
 
         A cursor older than the tombstone period is refused with `sync.cursor_too_old`, exactly as
         `:pull` refuses one: a delta across a gap would be silently wrong, so the only safe answer
-        is a full resynchronisation (offline-sync.md §7). A cursor this installation did not mint is
+        is a full resynchronisation. A cursor this installation did not mint is
         `sync.cursor_invalid`.
 
         The stream carries everything the caller may read in their workspace, and there is no
@@ -8038,11 +8028,11 @@ components:
       in: header
       required: false
       description: >
-        The proof a privileged operation demanded (H-03, security.md §5): the token
+        The proof a privileged operation demanded: the token
         `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that
         needs one refuses with `auth.step_up_required`, naming in `params.methods` what this
         account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and
-        `PROVIDER`, ADR-0075; empty for an account with none), and in `params.provider` the name of
+        `PROVIDER`; empty for an account with none), and in `params.provider` the name of
         the provider a `PROVIDER` proof goes to.
       schema: { type: string }
 
@@ -8188,7 +8178,7 @@ components:
         A UUID; identical requests return the same result for 24 h. Two answers are not kept: a
         `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the
         repeat reaches the operation again. A client that is asked for a proof retries with the
-        proof under the same key (api-guidelines.md §5).
+        proof under the same key.
       schema: { type: string, format: uuid }
     IfMatch:
       name: If-Match
@@ -8266,14 +8256,14 @@ components:
         "everything" is not a question this API answers.
 
         `filter` is the same grammar `POST /items:query` takes, with the same closed field
-        vocabulary, the same operators and the same bounds (ADR-0064). The difference between the
+        vocabulary, the same operators and the same bounds. The difference between the
         two endpoints is not the grammar, it is the anchor: a query is anchored to a container
         because an unanchored one is a question authorisation cannot answer in one step, and a
         search is the one read where "where is this, anywhere" *is* the question - so it is read
         and then narrowed to what the caller may see, and its page may be short where a query's
         would be a refusal.
 
-        **It searches by words and, where the installation can, by meaning** (J-10, ADR-0050). The
+        **It searches by words and, where the installation can, by meaning.** The
         two are one ranked page with one cursor: a hit on the words somebody typed outranks one that
         is merely about the same subject, so an exact identifier is still found first, and an entry
         that shares no word with the query is found at all.
@@ -8347,7 +8337,7 @@ components:
       enum: [AUTO, LEXICAL]
       default: AUTO
       description: >
-        How much of the search to use (J-10).
+        How much of the search to use.
 
         `AUTO` is the default and searches by words and, where the installation has it, by meaning.
         `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing,
@@ -8386,7 +8376,7 @@ components:
         status:
           type: string
           description: |
-            `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
+            `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
             stays, and what stops is this system deciding anything about the person by machine.
             `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
             stays so that the workspace's own content is still readable, and everything of the
@@ -8398,7 +8388,8 @@ components:
         celebrations:
           type: [boolean, "null"]
           description: >
-            Whether the moments are marked for this person (design-system.md §7). Absent or null
+            Whether the moments are marked for this person - a small celebration when work is
+            completed. Absent or null
             means the default, which is on.
         onboarding_completed_at:
           type: [string, "null"]
@@ -8421,26 +8412,26 @@ components:
           type: integer
           description: >
             How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and
-            on nothing else (SI-09). **Present exactly when `has_second_factor` is true**, and then
+            on nothing else. **Present exactly when `has_second_factor` is true**, and then
             zero is answered as zero, because there zero is the number to act on. Absent where there
             is nothing to count: an account holding no second factor, or an installation wired
             without one. Its codes are not "zero left" - they are a thing that does not exist yet,
             and a screen told zero sends somebody to make codes the server would refuse to make.
 
-            The same number has ridden along with a sign-in since H-02, where nobody could act on
-            it. Here it is beside the account, which is where the screen that makes new ones is.
+            The same number rides along with a sign-in, where nobody can act on it; here it is
+            beside the account, which is where the screen that makes new ones is.
         second_factor_required:
           type: boolean
           description: >
             Whether the workspace's sign-in rule in force demands a second factor of this person,
-            answered on `GET /accounts/me` and on nothing else (UC-ID-03). The same reading signing in
+            answered on `GET /accounts/me` and on nothing else. The same reading signing in
             and turning the factor off make, so a screen can say "your workspace requires it"
-            instead of offering a control the server would refuse (P-05).
+            instead of offering a control the server would refuse.
         has_password:
           type: boolean
           description: >
             Whether this account holds a password, answered on `GET /accounts/me` and on nothing
-            else (UC-ID-05). An account that signs in only through a provider holds none: a screen
+            else. An account that signs in only through a provider holds none: a screen
             does not offer it a password change, and no step-up asks it for one.
 
     Actor:
@@ -8466,8 +8457,7 @@ components:
       description: >
         An account as another member of the same tenant may see it: enough to render a name where a
         record carries an identifier, and nothing else. Deliberately not `Account` - that carries the
-        email and the caller's own preferences, which are a different permission (data-protection.md
-        §9, §3).
+        email and the caller's own preferences, which are a different permission.
       required: [id, kind, display_name, status]
       properties:
         id: { type: string, format: uuid }
@@ -8495,7 +8485,7 @@ components:
       description: |
         Every field is optional, and an empty string clears the preference rather than setting it
         to nothing — the workspace default applies again. The two the client writes for itself
-        (F6-12, decision 11) clear the same way, with `null`: `celebrations` back to the default,
+        clear the same way, with `null`: `celebrations` back to the default,
         which is on; `onboarding_completed_at` back to "not taken", which runs the tour again.
       properties:
         locale: { type: [string, "null"] }
@@ -8667,14 +8657,14 @@ components:
           type: string
           minLength: 12
           maxLength: 1024
-          description: The first password, under the policy of security.md §5.
+          description: The first password, under the workspace's password policy.
 
     Session:
       type: object
       description: >
         A sign-in somebody can see and revoke. The client hint is what was recorded at sign-in -
         a user agent and an IP class, enough to recognise one's own devices and deliberately not
-        a precise address (T-01, data catalogue).
+        a precise address.
       required: [id, created_at, current]
       properties:
         id: { type: string, format: uuid }
@@ -8701,13 +8691,13 @@ components:
           type: [string, "null"]
           enum: [PASSWORD, PASSWORD_TOTP, PASSWORD_RECOVERY, OIDC, INVITATION, RESET, null]
           description: >
-            How this session was opened (ADR-0068 §3). Null for one opened before this was
+            How this session was opened. Null for one opened before this was
             recorded, which is not "unknown method" so much as "before this existed" - a client
             leaves the line out rather than printing a word nobody can act on.
         signed_in_provider:
           type: [string, "null"]
           description: >
-            For a session a sign-in provider opened, that provider's name (UC-ID-06), so a
+            For a session a sign-in provider opened, that provider's name, so a
             person can tell their sessions apart by the way in. Absent for every other session, and
             for one whose provider was removed since.
 
@@ -8743,8 +8733,8 @@ components:
     AccountsWithoutProvider:
       type: object
       description: >
-        How many active people of the workspace no provider switched on there signs in
-        (ADR-0078 §1). A number, never a list.
+        How many active people of the workspace no provider switched on there signs in. A number,
+        never a list.
       required: [count]
       properties:
         count:
@@ -8776,7 +8766,7 @@ components:
           type: [string, "null"]
           description: >
             The redemption token of the invitation this sign-in accepts, when the person chose the
-            provider on the invitation card (ADR-0078 §1). It is checked here - a standing
+            provider on the invitation card. It is checked here - a standing
             invitation of this workspace, its account still invited - and **not spent**: the flow
             remembers which account it invites, and only an arrival that succeeds accepts it. It
             is the second proof that lets a provider activate the invited account even where the
@@ -8789,8 +8779,8 @@ components:
           type: [string, "null"]
           description: >
             The token of the link *Forgot your password?* mails where the workspace switched the
-            password off - to connect the workspace's provider to an existing account (ADR-0078 §1,
-            SC-33). It is checked here - a standing link of this workspace, its account active and
+            password off - to connect the workspace's provider to an existing account. It is
+            checked here - a standing link of this workspace, its account active and
             connected to no provider switched on here, the password still off - and **not spent**:
             the flow remembers which link it carries, the provider is asked for a **fresh** sign-in
             (`prompt=login`, `max_age=0`), and only an arrival that connects the provider spends it.
@@ -8863,7 +8853,7 @@ components:
           type: string
           enum: [AI]
           description: >
-            Where the proposal came from (`ai-first.md` §2). One value today, and a field rather
+            Where the proposal came from. One value today, and a field rather
             than an assumption: a suggestion whose origin is not recorded is one nobody can tell
             from a person's own draft.
         model:
@@ -8895,7 +8885,7 @@ components:
             How many parts of the provider's answer the narrowing dropped before the payload was
             stored, so that a client can say the draft is not the whole answer. For `TEMPLATE`
             it is the nodes the collection's profile refused under their parent, each counted
-            with its subtree (`ai-first.md` §2); zero for every other kind, whose narrowing
+            with its subtree; zero for every other kind, whose narrowing
             drops what it drops without a count. Absent on a row written before the count
             existed, which reads as zero.
         version:
@@ -8918,7 +8908,7 @@ components:
       type: object
       description: >
         The entry's title and notes as the provider rendered them in the target language, with the
-        provenance every AI output carries (`ai-first.md` §2). Not a record: it has no id, no
+        provenance every AI output carries. Not a record: it has no id, no
         status and nothing to accept, because it is not stored anywhere.
       required: [target_locale, title, notes, source, model, prompt_id, prompt_version, produced_at]
       properties:
@@ -8947,7 +8937,7 @@ components:
             Apply the answer as soon as it arrives instead of proposing it. **False unless it is
             said**, and deliberately: a result is a suggestion, and applying one without a person
             reading it is a decision somebody configures rather than one that happens by not
-            thinking about it (`automation.md` §1.3, ADR-0012).
+            thinking about it.
 
             An applied answer is not a shortcut past anything. The suggestion is recorded with its
             provenance first, the acceptance is audited as its own act, and the change goes through
@@ -8982,7 +8972,7 @@ components:
       type: string
       enum: [WORK_ITEM, JUMBLE_ENTRY, CONTAINER]
       description: >
-        What the suggestion is about. `CONTAINER` is a collection rather than an entry (K-05): a
+        What the suggestion is about. `CONTAINER` is a collection rather than an entry: a
         summary of how it stands is about the collection, and nothing accepts one — a collection
         has nowhere to put a status summary, so it is read and dismissed.
 
@@ -8995,10 +8985,10 @@ components:
         classification are `FIELDS` suggestions whose payload happens to be notes or labels — they
         are not kinds of their own, because accepting them is the same act.
 
-        `TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a
+        `TEMPLATE` proposes a template for the collection it targets: its payload is a
         `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 
-        `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this
+        `DUPLICATES` is the one kind nothing accepts. It says which entries look like this
         one, and what to do about that is a person's decision through the ordinary use cases —
         `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced,
         so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model
@@ -9026,7 +9016,7 @@ components:
           description: >
             The endpoint the adapter calls. Absent for `NOOP`. Every call to it goes through the
             guarded client, so an address inside this installation's own network is refused
-            wherever it was typed (ADR-0015, T-07).
+            wherever it was typed.
         completion_model:
           type: string
           description: The model a suggestion is asked of. Empty means this provider does not complete.
@@ -9035,15 +9025,15 @@ components:
           description: >
             The model a vector is asked of. Empty means this provider does not embed. The index
             holds 1536 dimensions: a model that produces fewer is stored exactly, padded, and one
-            that produces more is refused at the first embedding rather than stored truncated
-            (ADR-0054). The two Ollama embedding models in common use produce 768 and 1024 and
+            that produces more is refused at the first embedding rather than stored truncated.
+            The two Ollama embedding models in common use produce 768 and 1024 and
             are taken; a model above 1536 cannot be used.
         jurisdiction:
           $ref: "#/components/schemas/AiJurisdiction"
         has_api_key:
           type: boolean
           description: >
-            Whether a key is stored, which is the whole of what this surface says about one (J-02).
+            Whether a key is stored, which is the whole of what this surface says about one.
             The key itself is sealed on the way in and answered by nothing afterwards - so this is
             the only way an operator can tell "configured with a key" from "configured without
             one", and a setup screen that could not tell them apart would have to ask for the key
@@ -9052,7 +9042,7 @@ components:
           type: boolean
           description: >
             Whether this workspace's content may be sent to the provider at all
-            (`ai_processing_allowed`, ai-first.md §2). Checked before every call, and false by
+            (`ai_processing_allowed`). Checked before every call, and false by
             default - configuring a provider is not the same act as consenting to use it.
         created_at: { type: string, format: date-time }
         updated_at: { type: [string, "null"], format: date-time }
@@ -9095,7 +9085,7 @@ components:
       type: string
       enum: [NOOP, OPENAI_COMPATIBLE, OLLAMA]
       description: >
-        Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure,
+        Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure,
         Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model;
         `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
 
@@ -9105,13 +9095,13 @@ components:
       description: >
         Where the provider processes what is sent to it, as the operator declares it. It is a
         declaration rather than something this software can verify, and it exists so that the
-        decision is documented rather than made by accident (ADR-0018 decision 7).
+        decision is documented rather than made by accident.
 
         `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody.
         `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and
         needs the operator's confirmation in the installation's configuration; the adequacy
         decision or the standard contractual clauses, and the transfer impact assessment, remain
-        the operator's obligation (data-protection.md §6).
+        the operator's obligation.
 
     Workspace:
       type: object
@@ -9141,7 +9131,7 @@ components:
           type: string
           description: >
             The locale a member without one of their own falls back to - the third link of the
-            chain request, account, tenant, installation (i18n-l10n.md §2).
+            chain request, account, tenant, installation.
         default_time_zone:
           type: string
           description: An IANA zone, for the same position in the same chain.
@@ -9150,15 +9140,14 @@ components:
           description: >
             Whether the rule in force demands a second factor of this workspace's `OWNER` and
             `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`.
-            Derived from the rule and from nothing else, so the two cannot disagree (UC-ID-12); it
-            was a stored value of its own until SC-06 and came apart from the rule in both
-            directions. Kept for the clients that read it.
+            Derived from the rule and from nothing else, so the two cannot disagree. Kept for the
+            clients that read it.
         audit_anchor_target_id:
           type: [string, "null"]
           format: uuid
           description: >
             The workspace's backup target the audit chain's end is anchored to once a day, or
-            null where anchoring is off (audit.md §3, A-2). Read here, because a screen that sets
+            null where anchoring is off. Read here, because a screen that sets
             a value it cannot read back is guessing; written through `PUT /audit/anchoring` and
             nowhere else, which is where the write is audited with the target before and after.
             A body naming it on the `PATCH` is refused as an unknown field.
@@ -9170,7 +9159,7 @@ components:
         sign_in_policy:
           $ref: "#/components/schemas/SignInPolicy"
           description: >
-            How people in this workspace prove who they are (ADR-0068 §2). Absent on an installation
+            How people in this workspace prove who they are. Absent on an installation
             with no instance layer, where there is no level above to resolve against - a screen that
             drew eighteen rows it could not save would be a screen that lies about what it offers.
         hosts:
@@ -9178,7 +9167,7 @@ components:
           readOnly: true
           items: { $ref: "#/components/schemas/WorkspaceHost" }
           description: >
-            The hosts this workspace answers at (SI-12). **Read-only, and nothing resolves a request
+            The hosts this workspace answers at. **Read-only, and nothing resolves a request
             through them yet**: a workspace is still found from its slug, and what this answers is the
             model a custom domain will need - one host per row, a state, and which of them is
             canonical.
@@ -9190,7 +9179,7 @@ components:
           readOnly: true
           description: >
             The installation operator's opening of the password for this workspace, while it is in
-            force (ADR-0078 §3): the password is open for every account that holds one, whatever
+            force: the password is open for every account that holds one, whatever
             `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control
             plane alone; a body naming it on the `PATCH` is refused as an unknown field.
 
@@ -9293,7 +9282,7 @@ components:
       enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE]
       description: >
         Where a value in force came from: Hubtask's own default, the installation, the plan, or this
-        workspace (UC-ID-12, P-06). A screen says it beside every rule, so nobody meets a value
+        workspace. A screen says it beside every rule, so nobody meets a value
         without learning who set it - and says nothing about an installation that decided nothing,
         which is what a private installation is.
 
@@ -9303,7 +9292,7 @@ components:
       description: >
         Where a lock came from, or null where there is none. The origin is answered rather than a
         bare boolean because "ask your administrator" and "ask your provider" are different
-        sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+        sentences, and a screen told the wrong one sends somebody to the wrong person.
 
     SignInPolicy:
       type: object
@@ -9465,7 +9454,7 @@ components:
           format: uri
           description: >
             The provider's issuer identifier. Every ID token must name it exactly - a token whose
-            `iss` differs is refused, which is the first of T-13's checks.
+            `iss` differs is refused, which is the first check of the token.
         client_id:
           type: string
           description: This installation's registration with the provider.
@@ -9492,14 +9481,14 @@ components:
             Whether this provider is a way into **this** workspace. Always true for its own rows
             while they are enabled; for a row the installation offers, it is this workspace's own
             switch, and it is **false until somebody turns it on** — offering it is the
-            installation's decision, taking it is the workspace's (ADR-0070 §2). False from the
+            installation's decision, taking it is the workspace's. False from the
             moment an announced withdrawal takes effect.
         withdraw_at:
           type: [string, "null"]
           format: date-time
           readOnly: true
           description: >
-            For a row the installation offers: when the installation withdraws it (ADR-0076 §2).
+            For a row the installation offers: when the installation withdraws it.
             Null while it is offered without an end. Until that moment the provider keeps working;
             from it, it is a way in nowhere - and the connected identities stay, so cancelling the
             withdrawal restores sign-in. A workspace that switched it on reads this to say when it
@@ -9510,8 +9499,8 @@ components:
           readOnly: true
           description: >
             For a row the installation offers, answered to the operator only: how many workspaces
-            have it switched on (ADR-0076 §1). A number, never names - counted from the workspaces'
-            own switches when it is read (ADR-0077 §1). Absent from a workspace's listing.
+            have it switched on. A number, never names - counted from the workspaces' own switches
+            when it is read. Absent from a workspace's listing.
         allowed_email_domains:
           type: array
           items: { type: string }
@@ -9525,8 +9514,7 @@ components:
           items: { type: string }
           description: >
             The organisations this provider admits under `DOMAINS`, in the provider's own
-            identifiers: a Microsoft tenant id, a Google Workspace domain
-            ([ADR-0071](https://github.com/Jersyfi/hubtask/blob/main/docs/adr/ADR-0071-provider-admission.md)).
+            identifiers: a Microsoft tenant id, a Google Workspace domain.
 
             **This is what `DOMAINS` reads where the preset has a directory claim**, and
             `allowed_email_domains` is then not consulted at all. Both providers say why in their
@@ -9551,7 +9539,7 @@ components:
       enum: [GENERIC, GOOGLE, MICROSOFT]
       description: >
         The preset a provider was configured from, which decides the mark its button draws
-        (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo.
+        `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo.
         A stated kind the issuer does not belong to is refused: a Google mark over somebody else's
         issuer is borrowed trust on a sign-in screen.
 
@@ -9589,7 +9577,7 @@ components:
           type: [string, "null"]
           writeOnly: true
           description: >
-            Sealed on the way in (E-02) and never answered again. Required when adding a provider.
+            Sealed on the way in and never answered again. Required when adding a provider.
             Omitted on a replace it keeps the one that is sealed - there is no way to read it back,
             by design, and retyping it to change a name is how names stay wrong.
         display_name:
@@ -9616,7 +9604,7 @@ components:
           x-removed-in: v2
           x-replaced-by: [offerIdentityProvider, withdrawInstanceIdentityProvider]
           description: >
-            **Deprecated** (ADR-0076 §5): a workspace switches a provider on or off in its list of
+            **Deprecated**: a workspace switches a provider on or off in its list of
             ways to sign in - `POST /identity-providers/{providerId}:offer` - and nowhere else. On a
             workspace's own provider (`/identity-providers`, `/identity-provider`) a value that
             differs from the provider's is refused with `identity_provider.switch_in_list`; the same
@@ -9624,7 +9612,7 @@ components:
             working. A workspace's new provider is created switched off. On the installation's
             (`/admin/identity-providers`) it says at creation whether the installation offers the
             provider, absent being `true`; afterwards an offer ends through `:withdraw` and a changed
-            value is refused with `identity_provider.withdraw_instead` (ADR-0076 §2). Removed with
+            value is refused with `identity_provider.withdraw_instead`. Removed with
             the next major version of the contract.
         allowed_email_domains:
           type: array
@@ -9682,8 +9670,7 @@ components:
           type: boolean
           description: >
             Whether this issuer's addresses are verified by construction. False is not an accusation
-            - it is that this installation cannot know. Informational since ADR-0071's addendum:
-            what keeps an address from handing over an account is the account's own proof, so
+            - it is that this installation cannot know. Informational only: what keeps an address from handing over an account is the account's own proof, so
             `INVITED_ONLY` is available for every preset.
         public:
           type: boolean
@@ -9700,7 +9687,7 @@ components:
           description: >
             The modes it permits when the installation offers it to every workspace. Narrower for a
             preset with no directory claim: offered everywhere, it may only admit the people each
-            workspace invited (ADR-0071's addendum).
+            workspace invited.
         redirect_uri:
           type: string
           format: uri
@@ -9710,7 +9697,7 @@ components:
         instructions:
           type: string
           description: >
-            A message code (ADR-0011), rendered with `redirect_uri` as its parameter. What an
+            A message code, rendered with `redirect_uri` as its parameter. What an
             operator has to do at the provider for this to work.
         particular:
           type: [string, "null"]
@@ -9743,7 +9730,7 @@ components:
         reachable:
           type: boolean
           description: >
-            Whether this account is in the operator register (ADR-0070 §1) — the first of the two
+            Whether this account is in the operator register — the first of the two
             conditions on the instance area. The second is the elevation, which is a session's state
             and not the manifest's.
 
@@ -9754,7 +9741,7 @@ components:
       type: object
       description: >
         The installation at a glance. Counts and states; the contents of a workspace are behind a
-        database policy this answer does not reach through (ADR-0070 §5).
+        database policy this answer does not reach through.
       required:
         [workspaces_active, workspaces_suspended, workspaces_pending_deletion,
          accounts_active, accounts_total]
@@ -9787,7 +9774,7 @@ components:
           description: >
             `tenant.provisioned`, `tenant.suspended`, `tenant.hard_deleted`,
             `instance.settings_changed`, `instance.operator_added` and the rest. A code, rendered by
-            the client (ADR-0011).
+            the client.
         tenant_id: { type: [string, "null"], format: uuid }
         tenant_slug: { type: [string, "null"] }
         actor_label:
@@ -9921,7 +9908,7 @@ components:
     InstanceSettings:
       type: object
       description: >
-        The installation's own level (ADR-0070 §2): the sign-in switches, the legal links, the
+        The installation's own level: the sign-in switches, the legal links, the
         localisation defaults and the quota ceilings.
 
         **Every key of every area is answered**, decided or not, with `set` saying which. A reader
@@ -10049,7 +10036,7 @@ components:
     PasswordRules:
       type: object
       description: >
-        What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch
+        What a password has to meet, as data rather than as a sentence. Each switch
         becomes a message code with parameters in the client, and the same codes travel in
         `field_errors[]` when a password is refused - so one fact has one sentence whether the
         client saw the refusal coming or the server sent it.
@@ -10116,8 +10103,8 @@ components:
         kind:
           type: string
           description: >
-            The preset it was configured from, which is what decides the mark that is drawn
-            (ADR-0069). `GENERIC` draws the letter tile, which is the honest answer for a provider
+            The preset it was configured from, which is what decides the mark that is drawn.
+            `GENERIC` draws the letter tile, which is the honest answer for a provider
             with no published button guideline rather than a borrowed logo.
         scope:
           type: string
@@ -10161,7 +10148,7 @@ components:
           description: >
             True while `PASSWORD` is among the methods only because no other way into the workspace
             works - its rule leaves the password out and no provider is switched on there, whatever
-            the cause: an offer that ended, an installation default or lock, a restore (ADR-0076 §4).
+            the cause: an offer that ended, an installation default or lock, a restore.
             The password opens for the accounts that hold one, under the workspace's own rules,
             until an administrator switches on a way in. The administrators' screen says so.
 
@@ -10183,9 +10170,9 @@ components:
           description: >
             `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the
             workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password
-            that was right and no longer meets the rule (ADR-0068 §3); `LINK` alone for a provider
-            arrival that met an account with a password, completed at `/auth/sessions:link`
-            (ADR-0071's addendum). Each is a step the pending credential can complete and nothing
+            that was right and no longer meets the rule; `LINK` alone for a provider
+            arrival that met an account with a password, completed at `/auth/sessions:link`.
+            Each is a step the pending credential can complete and nothing
             else.
         password_rules:
           $ref: "#/components/schemas/PasswordRules"
@@ -10263,7 +10250,7 @@ components:
     AuthenticatorReplacement:
       type: object
       description: >
-        The new secret's single showing (SC-17). Nothing is armed yet: the factor in force and its
+        The new secret's single showing. Nothing is armed yet: the factor in force and its
         recovery codes keep working until the replacement is confirmed.
       required: [secret, otpauth_uri, expires_at]
       properties:
@@ -10331,7 +10318,7 @@ components:
           description: Set while a deletion request stands - when the grace runs out.
         password_opening:
           description: >
-            The operator's opening of the password while it is in force (ADR-0078 §3), null
+            The operator's opening of the password while it is in force, null
             otherwise - an opening past its end is answered as none, whatever the row still holds.
           oneOf:
             - $ref: "#/components/schemas/PasswordOpening"
@@ -10340,7 +10327,7 @@ components:
     PasswordOpening:
       type: object
       description: >
-        An operator's opening of the password for one workspace (ADR-0078 §3): when it ends, who
+        An operator's opening of the password for one workspace: when it ends, who
         asked and why.
       required: [until, requester, reason]
       properties:
@@ -10356,7 +10343,7 @@ components:
     WorkspacePasswordOpening:
       type: object
       description: >
-        An operator's opening of the password as the workspace itself reads it (ADR-0078 §3). Every
+        An operator's opening of the password as the workspace itself reads it. Every
         member is told until when; who asked and why are answered only to a reader of the
         workspace's configuration (`READ_CONFIGURATION`: owners, administrators, the auditor) - the
         requester may name a person, and the reason may say more than a member needs.
@@ -10389,7 +10376,7 @@ components:
           maxLength: 200
           description: >
             Who asked for the opening. Free text the workspace's administrators read; a ticket
-            reference rather than a person's name where the operator can (data-catalog.md).
+            reference rather than a person's name where the operator can.
         reason:
           type: string
           minLength: 1
@@ -10471,7 +10458,7 @@ components:
               type: string
               description: >
                 The owner's way in, shown for the only time: whoever the workspace is for
-                redeems it, sets a password, and is signed in (H-01). Hand it to them; it
+                redeems it, sets a password, and is signed in. Hand it to them; it
                 cannot be read again.
             default_hub_id: { type: string, format: uuid }
             example_collection_id: { type: string, format: uuid }
@@ -10493,7 +10480,7 @@ components:
           format: uuid
           description: >
             The configured backup target the archive is written to - the one discipline for
-            "bytes leave the installation" (E-09's precedent). The target must belong to the
+            "bytes leave the installation". The target must belong to the
             workspace being exported, or be an installation-wide one.
 
     QuotaStanding:
@@ -10521,7 +10508,7 @@ components:
     TenantQuotas:
       type: object
       description: >
-        Partial by design - each §4 limit, settable per workspace. A provided value becomes the
+        Partial by design - each quota, settable per workspace. A provided value becomes the
         ceiling (0 = unlimited), an explicit null clears the override, an absent key changes
         nothing.
       properties:
@@ -10537,8 +10524,8 @@ components:
           minimum: 0
           description: >
             What the workspace may spend on AI in a day, counted in the tokens every provider
-            reports (J-15). Unlimited in single mode by default and a real number in multi, like
-            every other row of multi-tenancy.md §4. A workspace over its budget stops making
+            reports. Unlimited in single mode by default and a real number in multi, like every
+            other quota. A workspace over its budget stops making
             suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent
             provider and an open circuit answer, so nothing that calls AI needs a second way to
             degrade.
@@ -10684,7 +10671,7 @@ components:
     StepUpRequest:
       type: object
       description: >
-        Exactly one method (ADR-0075): the password; the authenticator's current code; a recovery
+        Exactly one method: the password; the authenticator's current code; a recovery
         code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser
         back with after `POST /auth/step-up:provider`. Each proves the person holding the session is
         still the person who opened it.
@@ -10748,7 +10735,7 @@ components:
           x-removed-in: v2
           x-replaced-by: [X-Hubtask-Step-Up]
           description: >
-            **Deprecated** (ADR-0075 §3): the proof this route took before the step-up did. Still
+            **Deprecated**: the proof this route took before the step-up did. Still
             checked when sent without a step-up token, for one release; then removed.
 
     Group:
@@ -10814,7 +10801,7 @@ components:
       type: string
       description: |
         `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
-        the configuration and no content at all (audit.md §5). It exists because the
+        the configuration and no content at all. It exists because the
         alternative, in practice, is giving an auditor administrator rights - a permissions
         problem that arises precisely where evidence is being demanded. Somebody who needs both
         holds two memberships; the rights add up rather than the stronger one winning.
@@ -10903,9 +10890,8 @@ components:
     ContainerPolicies:
       type: object
       description: >
-        How a collection works, as opposed to what it is called. Two keys today; the others the
-        data model names - the default bucket, capability overrides - arrive with the use cases
-        that own them, and a key nothing reads would be a promise nothing keeps. This document is
+        How a collection works, as opposed to what it is called. Two keys, and no more: a key
+        nothing reads would be a promise nothing keeps. This document is
         replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the
         completion policy, no automatic assignment for auto_assign.
       properties:
@@ -11019,7 +11005,7 @@ components:
         What the due date shall be. The instant is required; the flag and the zone qualify it and
         cannot be stored without it. An all-day due date carries due_date_only true and is read as
         a date in due_time_zone - the stored instant answers identically to every reader, and
-        nothing the server emits renders it as a moment (i18n-l10n.md §4).
+        nothing the server emits renders it as a moment.
       required: [due_at]
       properties:
         due_at: { type: string, format: date-time }
@@ -11061,7 +11047,7 @@ components:
           description: >
             The query a view asks, in the shape the use case takes rather than the shape
             `POST /items:query` takes as a body: the anchor is flat - `scope_container_id` or
-            `scope_item_id` - because `presentation/rest` flattens the request body's `scope`
+            `scope_item_id` - because the server flattens the request body's `scope`
             object before any use case sees it, and this document is read back as an input.
 
 
@@ -11206,7 +11192,7 @@ components:
           description: >
             Where the CloudEvent is POSTed. An egress channel, so it goes through the guarded
             client: a private range or the cloud metadata address is refused unless the
-            installation has deliberately released private networks (T-07).
+            installation has deliberately released private networks.
         event_types:
           type: array
           minItems: 1
@@ -11382,10 +11368,9 @@ components:
     RuleScope:
       type: object
       description: >
-        Where the rule applies: the whole workspace, one hub, or one collection - the three levels
-        `automation_rule.scope_type` has carried since the first migration. Descendants are included
-        by the ordinary rule rather than by a flag: a permission held at a hub applies downwards
-        (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+        Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included
+        by the ordinary rule rather than by a flag: a permission held at a hub applies downwards,
+        and a rule scoped to a hub sees what happens in its collections.
       required: [type]
       properties:
         type:
@@ -11399,7 +11384,7 @@ components:
     RuleTrigger:
       type: object
       description: >
-        What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and
+        What starts a run. Six kinds, each with the fields its kind needs and
         no others - a trigger carrying a cron expression and an event type would be a rule nobody
         can read.
       required: [kind]
@@ -11458,14 +11443,14 @@ components:
           type: string
           description: >
             Protocol documentation, in English, as the descriptions in this document are - never
-            display text (ADR-0011).
+            display text.
         rule:
           type: boolean
           description: >
             Whether a rule sets this field. `false` for the caller's plumbing - the identifier a
             client minted for offline work, the version it last read for If-Match, a reserved
             switch - which a person typing a call supplies and a rule never does, because a run
-            has no version it read and mints nothing (F8-15). A rule editor hides such a field;
+            has no version it read and mints nothing. A rule editor hides such a field;
             the call still accepts it. Absent means `true`.
         format:
           type: string
@@ -11479,7 +11464,7 @@ components:
       type: object
       description: >
         One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows
-        with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a
+        with the catalogue rather than with a table somebody maintains, so a
         new use case becomes an action without anybody editing anything.
 
         Three kinds are the exception, and they are one on purpose: `WAIT`, `BRANCH` and `STOP` are
@@ -11492,8 +11477,7 @@ components:
         kind:
           type: string
           description: >
-            `ADD_LABEL`, `ASSIGN`, `CREATE_ITEM`, … A kind automation.md §1.3 documents and no
-            release serves yet is refused by name rather than stored to be ignored.
+            `ADD_LABEL`, `ASSIGN`, `CREATE_ITEM`, … A kind this build does not serve is refused by name rather than stored to be ignored.
 
             `WAIT` takes `duration`, an unsigned ISO 8601 duration of at most a year: the run
             suspends and a job resumes it, so a rule that waits a day holds no worker and survives
@@ -11518,7 +11502,7 @@ components:
       type: object
       description: >
         What bounds a storm. Both are optional, and both are stored rather than enforced here: the
-        engine that runs a rule is what observes them (automation.md §2).
+        engine that runs a rule is what observes them.
       properties:
         max_runs_per_hour:
           type: integer
@@ -11549,15 +11533,15 @@ components:
           type: string
           format: uuid
           description: >
-            The account the rule acts as. It can never do more than that account may
-            (automation.md §2), which is why the writer has to hold those rights too.
+            The account the rule acts as. It can never do more than that account may,
+            which is why the writer has to hold those rights too.
         trigger: { $ref: "#/components/schemas/RuleTrigger" }
         conditions:
           type: array
           description: >
             Up to twenty, evaluated in order, and all of them have to hold for the rule to act. An
             empty list is a rule with no conditions, which runs on every match; an empty
-            *expression* is not a condition at all and is refused as the empty field it is (G-06).
+            *expression* is not a condition at all and is refused as the empty field it is.
           items: { $ref: "#/components/schemas/RuleCondition" }
         actions:
           type: array
@@ -11588,7 +11572,7 @@ components:
         findings:
           type: array
           description: >
-            What the last check found (ADR-0060): every reference of the rule resolved against
+            What the last check found: every reference of the rule resolved against
             what exists now. Empty for a rule with nothing wrong, and empty for a rule that has
             never been checked - `checked_at` tells the two apart. A `BROKEN` finding is one the
             check acted on: the rule is switched off. An `ATTENTION` finding is information.
@@ -11604,7 +11588,7 @@ components:
           type: [object, "null"]
           description: >
             The rule's most recent run — when it started and how it ended — read beside the
-            rule so that a list of rules says it without a page of runs per rule (F8-21).
+            rule so that a list of rules says it without a page of runs per rule.
             Absent for a rule that never ran. Not part of the definition: a write ignores it.
           required: [at, status]
           properties:
@@ -11618,11 +11602,11 @@ components:
     RuleFinding:
       type: object
       description: >
-        One thing the check found about a rule (ADR-0060). `path` is a JSON pointer into the
+        One thing the check found about a rule. `path` is a JSON pointer into the
         rule's own document - `/trigger/event_type`, `/run_as`, `/conditions/1/expr`,
         `/actions/2/params/then/0/kind` - the same paths a write-time refusal's field errors
         carry, so an editor that points at a refused field points at a finding with the same
-        code. `code` is a message code and `params` its parameters (ADR-0011).
+        code. `code` is a message code and `params` its parameters.
       required: [level, path, code]
       properties:
         level:
@@ -11644,7 +11628,7 @@ components:
         expr:
           type: string
           description: >
-            A CEL expression (ADR-0009), compiled when the rule is written rather than when it
+            A CEL expression, compiled when the rule is written rather than when it
             runs: an expression that does not compile, or that names something this build does not
             publish, is a field error under its own index rather than a rule that fails silently
             at three in the morning.
@@ -11953,7 +11937,7 @@ components:
         idempotency_key:
           type: string
           description: >
-            Derived from the rule, the occasion and the action's path (automation.md §2), so a
+            Derived from the rule, the occasion and the action's path, so a
             redelivered event re-runs into the stored result rather than acting twice. Absent on
             flow actions, which perform nothing there is to repeat.
 
@@ -11969,7 +11953,7 @@ components:
           type: string
           enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
           description: >
-            Which of the rule's six ways of starting produced this run (automation.md §1.1). On the
+            Which of the rule's six ways of starting produced this run. On the
             run rather than read from the rule, because a rule can be edited from one kind into
             another and the log has to keep saying what actually happened.
         triggered_by:
@@ -12006,7 +11990,7 @@ components:
           type: integer
           description: >
             How far this run is from the act a person performed. A run at the limit is
-            `ABORTED_LOOP` and did nothing, which is the loop protection automation.md §2 names.
+            `ABORTED_LOOP` and did nothing: that is the loop protection.
 
     InboundTriggerToken:
       type: object
@@ -12188,8 +12172,8 @@ components:
     CustomFieldKind:
       type: string
       description: >
-        What a value for the field looks like. The eight the schema has carried since the first
-        migration; validation against them is domain code (domain-model.md §6).
+        What a value for the field looks like: one of eight kinds, and the server validates a value
+        against its field's kind.
       enum: [TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL]
 
     CustomFieldDefinitionCreate:
@@ -12250,7 +12234,7 @@ components:
           type: string
           description: >
             While PENDING, the claim the upload declared; once READY, the judged type - sniffed
-            from the bytes, never the claim (T-11). Delivery decides from this.
+            from the bytes, never the claim. Delivery decides from this.
         size:
           type: integer
           format: int64
@@ -12309,7 +12293,7 @@ components:
         content_type:
           type: [string, "null"]
           description: The claim. Reconciled against the bytes at confirmation; a lie about a
-            renderable type is refused there (T-11).
+            renderable type is refused there.
         size:
           type: integer
           format: int64
@@ -12319,7 +12303,7 @@ components:
           type: string
           enum: [COVER, ATTACHMENT, IMPORT]
           description: >
-            What the object is for. `IMPORT` (P-08) stages a file for `POST /imports` and nothing
+            What the object is for. `IMPORT` stages a file for `POST /imports` and nothing
             else: an object staged as an import cannot become a cover or an attachment, and it is
             deleted when the import's job ends.
 
@@ -12407,13 +12391,13 @@ components:
           type: [string, "null"]
           format: uuid
           description: >
-            The jumble entry this item was converted out of (G-10). Provenance, set once at the
+            The jumble entry this item was converted out of. Provenance, set once at the
             conversion and never cleared; absent for an item that was never in the jumble.
         content_language:
           type: [string, "null"]
           description: >
             BCP-47, and null for an entry whose language nobody stated. It decides the text search
-            configuration the entry is indexed under (i18n-l10n.md §5, ADR-0034).
+            configuration the entry is indexed under.
         calendar_uid:
           type: [string, "null"]
           maxLength: 255
@@ -12465,7 +12449,7 @@ components:
           description: >
             An IANA time zone. Stored beside the instant, never folded into it: an all-day due
             date (due_date_only) is a date in this zone, not a midnight that shifts with the
-            viewer (i18n-l10n.md §4). Refused without a due_at.
+            viewer. Refused without a due_at.
         label_ids:
           type: array
           items: { type: string, format: uuid }
@@ -12482,7 +12466,7 @@ components:
           type: [string, "null"]
           description: >
             BCP-47. The language the title and the notes are written in, which decides the text
-            search configuration this entry is indexed under (i18n-l10n.md §5, ADR-0034). Omitted
+            search configuration this entry is indexed under. Omitted
             takes the creator's locale; a language this installation cannot index is stored and
             indexed word by word rather than refused. `/meta/capabilities` lists the ones it can
             under `text_languages`.
@@ -12563,7 +12547,7 @@ components:
       required: [field]
       description: >
         One ordering. Named once and read twice: `POST /items:query` sorts a view of a container,
-        and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064).
+        and `POST /search` sorts a workspace-wide read that has no words to rank by.
       properties:
         field: { type: string }
         dir: { type: string, enum: [ASC, DESC], default: ASC }
@@ -12795,7 +12779,7 @@ components:
         order_key:
           type: string
           description: >
-            The rank on the board - a fractional index rather than a number (offline-sync.md §4.2).
+            The rank on the board - a fractional index rather than a number.
         wip_limit:
           type: [integer, "null"]
           minimum: 1
@@ -12964,7 +12948,7 @@ components:
           default: USER
           description: |
             `USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the
-            displaced version of a free-text field that lost a merge (offline-sync.md §5), whose
+            displaced version of a free-text field that lost a merge, whose
             body is the text that lost and whose heading is `system_code` with `system_params` -
             a client renders "Diverging version from Anna, 14 Aug 09:12" from the code and the
             author, never from a sentence the server wrote. A system comment cannot be edited.
@@ -12999,8 +12983,7 @@ components:
           example: "Europe/Berlin"
           description: >
             The IANA zone the rule is read in, required. Daylight saving is resolved through it and
-            never through a UTC offset, which is what keeps 09:00 at 09:00 across a transition
-            (i18n-l10n.md §4).
+            never through a UTC offset, which is what keeps 09:00 at 09:00 across a transition.
         mode:
           $ref: "#/components/schemas/RecurrenceMode"
         horizon_days:
@@ -13035,8 +13018,7 @@ components:
       description: >
         ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was
         done - a rent payment does not wait. ON_COMPLETION creates the next one only once its
-        predecessor is completed - a task that means "again, two weeks after I last did it"
-        (arc42 §6.3).
+        predecessor is completed - a task that means "again, two weeks after I last did it".
 
     RecurrenceInput:
       type: object
@@ -13260,9 +13242,8 @@ components:
       type: string
       enum: [EMAIL]
       description: >
-        What carries the reminder. EMAIL is what this installation sends on; the channels arc42
-        §5.2 names beside it arrive with the tasks that build them, and a client tolerates a value
-        it does not know (offline-sync.md §9).
+        What carries the reminder. EMAIL is the one channel this installation sends on; more may
+        be added, and a client tolerates a value it does not know.
 
     ReminderState:
       type: string
@@ -13273,11 +13254,11 @@ components:
         rather than cancelling it.
 
 
-        LAPSED is the fourth, and only a restore produces it (backup-restore.md §8.4): a reminder
+        LAPSED is the fourth, and only a restore produces it: a reminder
         whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an
         auditor reading hundreds of cancellations nobody made, and not PENDING, which would have
         the scheduler send every one of them at once. To a device it means what a cancellation
-        means - do not remind (offline-sync.md §8).
+        means - do not remind.
 
     ReminderInput:
       type: object
@@ -13295,7 +13276,7 @@ components:
           items: { type: string, format: uuid }
           description: >
             Omitted or empty means the assignee and the entry's members. Everybody named has to be
-            able to reach the entry, exactly as an assignee has to (C-01).
+            able to reach the entry, exactly as an assignee has to.
 
     ReminderUpdate:
       type: object
@@ -13340,10 +13321,10 @@ components:
       description: |
         `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
         `FULL_DELETE` takes the person's own contributions too. The choice rests with the
-        controller, because tenant data touches third parties' rights (ADR-0018).
+        controller, because tenant data touches third parties' rights.
 
-        A case that names neither is started as `ANONYMIZE` — the workspace default settled by
-        open point P-6 (`data-protection.md` §12). It is the answer that preserves the rights of
+        A case that names neither is started as `ANONYMIZE` — the workspace default. It is the
+        answer that preserves the rights of
         the people who are not asking: a task somebody else depends on, a comment in a thread that
         stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
         on the case, and does so knowingly.
@@ -13469,7 +13450,7 @@ components:
         Who acted, as the entry recorded them. The label is the one that was valid at the time and
         is stored denormalised: an entry that only pointed at a foreign key would become
         unreadable the moment the account was deleted, and a trail that loses its meaning through
-        a deletion does not do its job (audit.md §2).
+        a deletion does not do its job.
       properties:
         type: { type: string, enum: [USER, SERVICE_ACCOUNT, AUTOMATION, AI_AGENT, SYSTEM] }
         id: { type: [string, "null"], format: uuid }
@@ -13487,7 +13468,7 @@ components:
     AuditContext:
       type: object
       description: |
-        The request the entry belongs to (audit.md §2). The address is truncated where the entry is
+        The request the entry belongs to. The address is truncated where the entry is
         written - IPv4 /24, IPv6 /48 - and the user agent is reduced to a class, because the trail
         is evidence about actions rather than a second analytics dataset.
       properties:
@@ -13502,7 +13483,7 @@ components:
     AuditChange:
       type: object
       description: |
-        One changed field, masked per its classification (audit.md §4). An `OPEN` field carries
+        One changed field, masked per its classification. An `OPEN` field carries
         `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
         makes two entries comparable without either being readable; a `SECRET` one is not here at
         all.
@@ -13652,7 +13633,7 @@ components:
             all.
         error_code:
           type: [string, "null"]
-          description: A message code, never the driver's message (ADR-0011).
+          description: A message code, never the driver's message.
 
     BackupArchive:
       type: object
@@ -13744,7 +13725,7 @@ components:
             - $ref: "#/components/schemas/BackupRunTrial"
             - type: "null"
           description: >
-            What the trial restore found (B-4, P-14): after a scheduled `FULL` run whose schedule
+            What the trial restore found: after a scheduled `FULL` run whose schedule
             has `trial_restore` on, the same job reads the archive back as an `INSPECT` restore -
             every member read, every checksum verified, every encrypted member decrypted with the
             key the schedule names - and records the difference report against the workspace
@@ -13792,7 +13773,7 @@ components:
           default: true
           description: >
             Follow every `FULL` run with an `INSPECT` restore of the archive it wrote, in the same
-            job, and store the difference report on the run (B-4, P-14). A trial that fails fails
+            job, and store the difference report on the run. A trial that fails fails
             the run - an archive the product cannot read back is not a backup - and `notify_on`
             covers it as it covers any failure. On for a new schedule; schedules made before this
             field existed keep it off, and say so.
@@ -13876,10 +13857,9 @@ components:
         step_up_token:
           type: [string, "null"]
           description: >
-            The proof of a fresh, stronger authentication for a destructive mode (§8.3). Sessions
-            and MFA arrive in `0.6.0`; until an installation can issue one of these, a destructive
-            restore is refused rather than silently permitted. A confirmation that is structurally
-            impossible to give is a stronger position than one that is skipped.
+            The proof of a fresh, stronger authentication for a destructive mode: the token
+            `POST /auth/step-up` answered. A destructive restore without one is refused rather
+            than silently permitted.
 
     RestoreRun:
       type: object
@@ -13990,7 +13970,7 @@ components:
             made in advance" is the question a dry run exists to answer.
         deleted:
           type: integer
-          description: Objects the archive holds that the deletion journal kept out (§7).
+          description: Objects the archive holds that the deletion journal kept out.
         withheld:
           type: object
           additionalProperties: { type: integer }
@@ -14070,7 +14050,7 @@ components:
           type: string
           description: >
             The message the client renders, from locales/*.json - activity.item_completed and the
-            rest (i18n-l10n.md §1). A code rather than a sentence, so that one history reads in
+            rest. A code rather than a sentence, so that one history reads in
             whichever language each client is set to.
           example: activity.item_completed
         actor:
@@ -14192,7 +14172,7 @@ components:
             id: { type: [string, "null"], format: uuid }
         data_kind:
           type: string
-          description: For the catalogue see data-retention.md; extensible through /meta/capabilities.
+          description: One of the kinds `/meta/capabilities` lists under `retention_data_kinds`.
           example: COMPLETED_ITEM
         condition: { type: [string, "null"], description: An optional CEL expression }
         retain_days: { type: integer, minimum: 0 }
@@ -14325,7 +14305,7 @@ components:
             registers by turning up: the first pull or push under an identifier the account has not
             used writes its row, and every contact after that moves `last_seen_at` and the cursor.
             An identifier another account already uses is `sync.device_foreign`; one this account
-            forgot is `sync.device_revoked` until the client mints a new one (offline-sync.md §6).
+            forgot is `sync.device_revoked` until the client mints a new one.
         platform:
           type: [string, "null"]
           maxLength: 40
@@ -14340,7 +14320,7 @@ components:
           description: |
             What the device wants to hold. No scope means everything the caller may read; several
             scopes are a union. A scope narrows the page *after* the permission check, never
-            instead of it (offline-sync.md §3.1, §6).
+            instead of it.
           items:
             type: object
             properties:
@@ -14399,7 +14379,7 @@ components:
           description: |
             When the change was recorded, for a client to render and an operator to line up
             against a log. Not the cursor and not usable as one: the sequence orders the walk, and
-            a timestamp two transactions can share is not a total order (ADR-0021).
+            a timestamp two transactions can share is not a total order.
         actor_id: { type: [string, "null"], format: uuid, description: Who made the change; absent for the installation's own. }
         device_id:
           type: [string, "null"]
@@ -14414,8 +14394,8 @@ components:
             What moved. On a creation, and on every record of an initial synchronisation, the whole
             object; on a change, only the fields that changed - one record per field, each under its
             own clock, because the merge rule is last writer wins *per field* and a record carrying
-            the whole object would let a stale value win a merge it should never have entered
-            (offline-sync.md §4.2). A set change carries `set`, `element_id` and `op`. Absent on
+            the whole object would let a stale value win a merge it should never have entered. A
+            set change carries `set`, `element_id` and `op`. Absent on
             `DELETE` and `ACCESS_REVOKED`: a tombstone carries no content by design.
 
     SyncPullResponse:
@@ -14456,9 +14436,9 @@ components:
           type: [string, "null"]
           enum: [labels, members, watchers, attachments, null]
           description: |
-            Which set of the entry the element belongs to. `attachments` joined in `0.8.5`: a
-            device that captured a file offline uploads it once online - the upload needs the
-            store (offline-sync.md §1) - and then pushes the `SET_ADD` that attaches it. `watchers`
+            Which set of the entry the element belongs to. For `attachments`, a device that
+            captured a file offline uploads it once online - the upload needs the store - and then
+            pushes the `SET_ADD` that attaches it. `watchers`
             is answered `sync.set_unavailable` until a use case writes a watcher.
         element: { type: [string, "null"], format: uuid }
         hlc: { type: [string, "null"] }
@@ -14583,8 +14563,7 @@ components:
         error_code:
           type: [string, "null"]
           description: >
-            The message code of the last failure, never a message and never free text
-            (ADR-0011). Set on a `FAILED` job, and on a job that is being retried.
+            The message code of the last failure, never a message and never free text. Set on a `FAILED` job, and on a job that is being retried.
         created_at: { type: string, format: date-time }
         finished_at:
           type: [string, "null"]
@@ -14746,8 +14725,8 @@ components:
         auto_assign_strategies:
           type: array
           description: >
-            The values an auto-assign policy's `strategy` may take, in `domain-model.md` §3.6's
-            order, for the reason the completion policies are listed.
+            The values an auto-assign policy's `strategy` may take, for the reason the completion
+            policies are listed.
           items: { $ref: "#/components/schemas/AutoAssignStrategy" }
         query_fields:
           type: array
@@ -14764,7 +14743,7 @@ components:
             client's language picker for `content_language` is built from. It is the
             installation's answer rather than the product's: the mapping from a tag to a text
             search configuration is in the database, and which of those configurations exist is
-            what its PostgreSQL was built with (ADR-0034). A language that is not in this list is
+            what its PostgreSQL was built with. A language that is not in this list is
             not refused - an entry declaring one is stored and matched word by word, which is the
             same treatment a script without word boundaries gets.
           items: { type: string }
@@ -14773,7 +14752,7 @@ components:
           description: >
             The locales this installation has a catalogue for, in the order it serves them - the
             source language first - with the metadata a client needs before it has rendered
-            anything (`i18n-l10n.md` §2, §6). Derived from the catalogue files present, the
+            anything. Derived from the catalogue files present, the
             embedded ones and an operator's `HUBTASK_LOCALE_DIR`, so adding a language is a file
             and not a release. A locale is what the account's language picker offers and what
             `Accept-Language` is negotiated against; a language absent here still renders, in the
@@ -14792,27 +14771,26 @@ components:
                   The writing direction of the locale's script, which is what a client sets
                   `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left
                   scripts; the interface's layout is the client's business, the flag is the
-                  server's (§6).
+                  server's.
               week_start:
                 type: string
                 enum: [MONDAY, SUNDAY, SATURDAY]
                 description: >
                   The first day of the week where the locale is spoken, per CLDR, in the same
                   vocabulary as the account's own `week_start` so that a client compares the two
-                  without translating. The account's value overrides it where set (§4).
+                  without translating. The account's value overrides it where set.
               decimal_separator:
                 type: string
                 description: >
                   The character between the integer and the fraction where the locale is spoken -
                   `.` or `,`. What a client that formats before `Intl` is available, or a form
-                  that parses what somebody typed, reads; a client with `Intl` formats with it
-                  (§7).
+                  that parses what somebody typed, reads; a client with `Intl` formats with it.
         automation:
           type: object
           description: >
             The vocabulary a rule is written in, and what a rule editor is built from rather than
             from a list compiled into it - a client with its own would be wrong on the
-            installation that has one more (automation.md §1).
+            installation that has one more.
           properties:
             triggers:
               type: array
@@ -14832,12 +14810,12 @@ components:
               description: >
                 For every kind in `actions`, the parameters its use case declares - the same
                 fields the MCP tool schema for that use case is derived from, and derived here
-                from the same declaration rather than written a second time (F8-01). A rule
+                from the same declaration rather than written a second time. A rule
                 editor builds an action's form from this rather than from a schema compiled into
                 it: a client with its own would be wrong on the installation whose use case
                 grew a field. Always present, and a kind with no parameters maps to an empty
                 array. What a rule may leave out is not said here: a rule supplies some
-                parameters and the run supplies the rest (automation.md §2.2), so `required`
+                parameters and the run supplies the rest, so `required`
                 describes the call, not the rule.
               additionalProperties:
                 type: array
@@ -14846,7 +14824,7 @@ components:
               type: object
               description: >
                 For every kind in `actions`, the one sentence its use case declares - the same
-                sentence the MCP tool for it carries, derived from the same declaration (F8-15).
+                sentence the MCP tool for it carries, derived from the same declaration.
                 A rule editor's catalogue says it under the kind's name, so that every kind the
                 installation serves is readable without a copy of the sentences compiled into a
                 client. Protocol documentation in English, as every description in this document
@@ -14858,11 +14836,10 @@ components:
         retention_data_kinds:
           type: array
           description: >
-            The classes of data a retention rule may name, as `data-retention.md` §3 lists them,
-            and what this build can do to each. A client builds its rule editor from this rather
-            than from a table compiled into it: the document says a new kind "is then immediately
-            configurable through the API - with no code change to the engine", and a client with
-            its own list would be the one place that still needed the code change.
+            The classes of data a retention rule may name, and what this build can do to each. A
+            client builds its rule editor from this rather than from a table compiled into it: a
+            new kind is configurable through the API as soon as the server knows it, and a client
+            with its own list would be the one place that still needed a code change.
 
             `actions` is empty for a kind this build names and nothing removes yet. That is not the
             same as a kind that does not exist, and it is why the entry is answered at all: a rule
@@ -14898,7 +14875,7 @@ components:
         roles:
           type: array
           description: >
-            The role matrix as this installation enforces it (domain-model.md §3.2). A client
+            The role matrix as this installation enforces it. A client
             decides from this which actions to offer, rather than from a table compiled into it:
             two cells of the matrix are qualifiers no permission name can carry - a contributor
             writes only what is assigned to them, and a guest may comment on an entry without
@@ -14922,17 +14899,17 @@ components:
             `backup_targets`, `ai_suggestions`, `semantic_search` and `natural_ordering`.
 
             `ai_suggestions` and `semantic_search` are the same two names `degraded_features`
-            uses in `/meta/health` (observability-reliability.md §7), so a client reading either
+            uses in `/meta/health`, so a client reading either
             learns about one feature. Both are answered for the caller's workspace rather than for
-            the installation, because an AI provider is configured per workspace
-            (`ai-first.md` §2); an anonymous caller, who can neither search nor ask, reads `false`
+            the installation, because an AI provider is configured per workspace; an anonymous
+            caller, who can neither search nor ask, reads `false`
             for both. `semantic_search` needs the store *and* a provider that embeds: a database
             carrying pgvector with nobody to produce vectors searches lexically, which is complete
             but is not the feature.
 
             `natural_ordering` says whether names sort under the ICU root collation here - the
             same order on every installation, `Ä` beside `A` - or under the database's own locale
-            where PostgreSQL was built without ICU (`i18n-l10n.md` §5). Names sort either way; a
+            where PostgreSQL was built without ICU. Names sort either way; a
             client that orders a list itself with `Intl.Collator` reads here whether the server
             already ordered it the same way.
           additionalProperties: { type: boolean }
@@ -14940,8 +14917,7 @@ components:
           $ref: "#/components/schemas/LegalLinks"
           description: >
             The four links this installation is obliged to show, resolved for the caller's workspace
-            or - where the caller has none - for the installation itself (SI-12, `data-protection.md`
-            §6).
+            or - where the caller has none - for the installation itself.
 
             Here as well as on `GET /auth/sign-in-rules`, and not by duplication: that route is what
             a signed-out card reads, and a footer inside the application needs the same four without
@@ -14951,27 +14927,25 @@ components:
         instance:
           $ref: "#/components/schemas/InstanceReach"
           description: >
-            What this caller may do at the level above the workspaces (SI-17, ADR-0070 §5). Caller-
-            scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers
+            What this caller may do at the level above the workspaces. Caller-scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers
             `reachable: false`, and the answer changes with the actor.
 
             **This is what decides whether a client draws a way into `/instance` at all.** Hubtask
             does not draw a control somebody may not use and then refuse it: what the installation
             permits is read, never compiled in, and a capability that is refused outright is absent
-            rather than disabled (principle P-05).
+            rather than disabled.
         deprecations:
           type: array
           items: { $ref: "#/components/schemas/DeprecatedField" }
           description: >
             Every request field this contract has marked `deprecated`, with the operations that
-            take it, since when, and the major version it goes away with (`versioning-release.md`
-            §5, SC-28). Read from the contract itself, so the list and the specification cannot
+            take it, since when, and the major version it goes away with. Read from the contract itself, so the list and the specification cannot
             disagree. A request that sends one of them is answered with the `Deprecation` header
             (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.
     DeprecatedField:
       type: object
       description: >
-        One deprecated request field, and when it goes. Identifiers only (ADR-0011): what replaces
+        One deprecated request field, and when it goes. Identifiers only: what replaces
         it is named, and the field's description in the specification says the rest.
       required: [operation_id, method, path, field, since, removed_in, replaced_by]
       properties:
@@ -15012,7 +14986,7 @@ components:
             it. `READ_CONFIGURATION` is reading how the workspace is set up - the backup targets,
             the retention rules, the holds, the automation rules, the webhook subscriptions, never
             a secret any of them holds - and it was split out of `STRUCTURE` so that an auditor can
-            read what a workspace does to its data without gaining the right to change it (G-12).
+            read what a workspace does to its data without gaining the right to change it.
           items:
             type: string
             enum:
