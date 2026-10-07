@@ -81,7 +81,8 @@ What a milestone delivers is fixed at release; its tasks are not.
   GitHub issue in the milestone, and the same treatment as every other task.
 - **A finding that blocks a `Delivers` check belongs to the milestone** — fixed in the task that
   found it, or as a new task.
-- **A finding outside `Delivers`** becomes a `finding` issue for the next cut.
+- **A finding outside `Delivers`** is fixed on the branch where the rules allow (AGENTS.md, "Working
+  rules"); otherwise it becomes a `finding` issue for the next cut.
 - **Changing `Delivers`** is the owner's decision (a `decision` issue). The answer is written into
   the milestone's `Decisions` and its `Delivers` line.
 - **The milestone is done when every `Delivers` check is met** — not when a task list is empty.
