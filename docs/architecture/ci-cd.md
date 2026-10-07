@@ -70,10 +70,9 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 `quick` is the prerequisite of every Go job; a skipped `quick` skips them all. The Go jobs after it
 run in parallel.
 
-**Contract gate.** `make gate-contract` runs in exactly one place: the last step of `integration`.
-There is no separate `contract` job, and `make verify` does not run it. It needs no database —
-`go test -tags contract ./test/contract/...` runs it locally in seconds — so run it after any change
-to `api/openapi.yaml`, to `presentation/rest`, or to a route's authentication.
+**Contract gate.** In CI, `make gate-contract` runs in one place: the last step of `integration`.
+There is no separate `contract` job. It needs no database and runs in seconds, so `make verify`
+runs it as well.
 
 **Not built.** The OpenAPI diff against the last tag, which [versioning-release.md](./versioning-release.md)
 §6 lists as the compatibility check, does not exist yet. Nothing fails a breaking change to the

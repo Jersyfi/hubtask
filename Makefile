@@ -343,8 +343,11 @@ run:
 # ---------------------------------------------------------------------- Gates
 
 ## verify: The fast gates, without containers - the first half of make verify-pr
+# gate-contract is here although CI runs it after the integration tests: it needs no database - the
+# router and the handlers run in-process against the specification - and a contract that drifted
+# is the kind of defect that is cheapest found while working.
 .PHONY: verify
-verify: gate-quick gate-unit gate-architecture gate-security gate-privacy gate-chart gate-licenses gate-docs gate-observability gate-sdk
+verify: gate-quick gate-unit gate-architecture gate-security gate-privacy gate-chart gate-licenses gate-docs gate-observability gate-sdk gate-contract
 	@echo "All locally runnable gates are green."
 
 ## verify-pr: The pull request check, locally - make verify, then every gate CI runs for this branch (ADR-0079)
