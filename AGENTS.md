@@ -199,7 +199,7 @@ list. A follow-up needs a new fact.
 | A translation in `locales/` | `make gate-architecture`; `make locales` for completeness |
 | Anything in `apps/` or `packages/` | `pnpm -r build && pnpm -r lint && pnpm -r typecheck && pnpm -r test` |
 | `deploy/docker/` | `make gate-compose` |
-| A pull request description | `make gate-pr BODY=<file>` |
+| A pull request description and title | `make gate-pr BODY=<file> TITLE="<title>"` |
 
 `go build ./...`, `go test ./...` and `make generate` work without Node.js.
 

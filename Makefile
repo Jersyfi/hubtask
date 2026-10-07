@@ -350,7 +350,8 @@ verify: gate-quick gate-unit gate-architecture gate-security gate-privacy gate-c
 ## verify-pr: The pull request check, locally - make verify, then every gate CI runs for this branch (ADR-0079)
 # A draft is checked in the session that writes it, and CI runs when the pull request is ready. This
 # selects the gates by the same filters ci.yml does (tools/cilocal), runs the container gates one
-# session at a time, checks the description (BODY=<file>, or read with gh), and on success leaves
+# session at a time, checks the description (BODY=<file>, or read with gh) and the title (TITLE,
+# or read with gh when there is a pull request), and on success leaves
 # the stamp the Claude Code hook asks for before `gh pr ready`.
 .PHONY: verify-pr
 verify-pr:
@@ -502,10 +503,13 @@ gate-security:
 gate-privacy:
 	$(call go_test,,./test/privacy/...,)
 
-## gate-pr: The pull request description against the template (BODY=<file>, or stdin); BASE=<ref> also reads the branch's history
+## gate-pr: The pull request description against the template (BODY=<file>, or stdin); TITLE=<title> checks the title; BASE=<ref> also reads the branch's history
+# The title is read by the shell from the environment rather than pasted into the recipe, where its
+# quotes would be the shell's. Given on make's command line, a `$` in it is make's and is written
+# `$$`; given in the environment (TITLE="…" make gate-pr), it is taken as it is.
 .PHONY: gate-pr
 gate-pr:
-	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),) $(if $(BASE),-base $(BASE),) $(if $(HEAD_REF),-head $(HEAD_REF),) $(if $(OPENED),-opened $(OPENED),)
+	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),) $(if $(TITLE),-title "$$TITLE",) $(if $(BASE),-base $(BASE),) $(if $(HEAD_REF),-head $(HEAD_REF),) $(if $(OPENED),-opened $(OPENED),)
 
 ## gate-privacy-full: PG-2 and PG-7 against a real PostgreSQL (every pull request, and the nightly on arm64)
 .PHONY: gate-privacy-full

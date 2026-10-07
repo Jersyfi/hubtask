@@ -9,8 +9,9 @@
 // descriptions from scratch with `gh pr create --body`: GitHub shows the template only to somebody
 // who opens the form. This reads the description the way a reviewer would and names what is missing.
 //
-// Usage: checkpr -body <file> [-opened <RFC 3339>] [-base <ref> [-head <ref>]]
-// (or the description on stdin). The Definition of Done is compared with the template's (dod.go).
+// Usage: checkpr -body <file> [-title <title>] [-opened <RFC 3339>] [-base <ref> [-head <ref>]]
+// (or the description on stdin). The Definition of Done is compared with the template's (dod.go),
+// and the title is a Conventional Commit (title.go).
 // With -base it also reads the branch's history: the readiness record of every task it carries,
 // merged migrations it changes, use cases it deletes (readiness.go). A rule added after a pull
 // request was opened (-opened) does not apply to it.
@@ -30,7 +31,10 @@ func main() {
 	base := flag.String("base", "", "the pull request's base; empty reads no history")
 	head := flag.String("head", "HEAD", "the pull request's head")
 	openedAt := flag.String("opened", "", "when the pull request was opened, RFC 3339")
+	title := flag.String("title", "", "the pull request's title; not checked when the flag is absent")
 	flag.Parse()
+	titleGiven := false
+	flag.Visit(func(f *flag.Flag) { titleGiven = titleGiven || f.Name == "title" })
 
 	root, err := repositoryRoot()
 	if err != nil {
@@ -77,6 +81,9 @@ func main() {
 	problems := check(string(raw), required, useCases)
 	if heldTo(opened, dodSince) {
 		problems = append(problems, dodProblems(string(raw), dod)...)
+	}
+	if titleGiven && heldTo(opened, titleSince) {
+		problems = append(problems, titleProblems(*title)...)
 	}
 	problems = append(problems, historyProblems(string(raw), facts, func(path string) ([]byte, error) {
 		return os.ReadFile(filepath.Join(root, filepath.FromSlash(path))) //nolint:gosec // G304: docs/backlog/ready/<TASK>.md, the task taken from the branch's own trailers

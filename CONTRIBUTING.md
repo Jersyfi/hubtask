@@ -103,7 +103,8 @@ at the integration environment with `--api`.
 ## A pull request
 
 - Start it as a draft (`gh pr create --draft`), its description copied from
-  `.github/PULL_REQUEST_TEMPLATE.md`; `make gate-pr BODY=<file>` checks it.
+  `.github/PULL_REQUEST_TEMPLATE.md`, its title a Conventional Commit;
+  `make gate-pr BODY=<file> TITLE="<title>"` checks both.
 - Small commits, one concern each, with a Conventional Commit title in English.
 - `make verify-pr` before `gh pr ready`: a draft runs no CI; CI runs once when it is ready
   ([ci-cd.md](docs/architecture/ci-cd.md)). Most jobs skip themselves when their part of the tree

@@ -592,8 +592,8 @@ jobs:
   pr-description:
     name: Pull request description
     # The description against the template: every section present and filled, n/a where one does
-    # not apply, the issue it closes or why there is none, the use cases that exist
-    # (tools/checkpr). Sessions wrote descriptions from scratch with `gh pr create --body`, which
+    # not apply, the issue it closes or why there is none, the use cases that exist, and the title
+    # a Conventional Commit (tools/checkpr). Sessions wrote descriptions from scratch with `gh pr create --body`, which
     # never shows the template, and dropped the sections they judged irrelevant - "Does this need
     # an ADR?" among them, on a change to a gate (2026-09-30).
     #
@@ -616,12 +616,18 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - name: The description, as it stands now
+      # The title too: it becomes the squash commit's title, from which release.yml writes the
+      # changelog. Read like the description, so that an edited title is judged as it stands.
+      - name: The description and the title, as they stand now
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
-        run: gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.body // ""' > "${RUNNER_TEMP}/description.md"
-      - run: make gate-pr BODY="${RUNNER_TEMP}/description.md" BASE="${BASE}" HEAD_REF="${HEAD_SHA}" OPENED="${OPENED}"
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.body // ""' > "${RUNNER_TEMP}/description.md"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.title' > "${RUNNER_TEMP}/title.txt"
+      # TITLE travels in the environment rather than on make's command line, where a `$` in it
+      # would be expanded by make.
+      - run: TITLE="$(cat "${RUNNER_TEMP}/title.txt")" make gate-pr BODY="${RUNNER_TEMP}/description.md" BASE="${BASE}" HEAD_REF="${HEAD_SHA}" OPENED="${OPENED}"
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
