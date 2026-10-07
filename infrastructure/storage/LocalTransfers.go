@@ -15,7 +15,7 @@ import (
 
 // LocalTransfers issues the content-route URLs of a local-storage installation: the same
 // three-step flow as a presigned bucket, with this server's /media/{id}:content standing in for
-// the bucket and an HMAC token standing in for the signature (C-06).
+// the bucket and an HMAC token standing in for the signature.
 type LocalTransfers struct {
 	tokens security.MediaTokenIssuer
 	// base is HUBTASK_BASE_URL, or empty - then the URL is served relative to the API origin,

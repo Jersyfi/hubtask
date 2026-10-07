@@ -90,8 +90,8 @@ func MediaOrigin(cfg env.StorageConfig) (string, error) {
 // s3Dependency is the name the breaker, the metrics and the health probe share.
 const s3Dependency = "object_storage"
 
-// NewS3Storage builds the adapter from the validated configuration (the surface has existed
-// since A-02; with kind=s3 the bucket and both keys are mandatory at startup).
+// NewS3Storage builds the adapter from the validated configuration (with kind=s3 the bucket and
+// both keys are mandatory at startup).
 func NewS3Storage(cfg env.StorageConfig, timeout time.Duration) (*S3Storage, error) {
 	base, err := resolveEndpoint(cfg)
 	if err != nil {
