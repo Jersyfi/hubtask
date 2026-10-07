@@ -75,7 +75,7 @@ func (s AuditSink) Append(ctx context.Context, entry port.Entry) error {
 	// Rounding would move an instant forwards; truncation cannot.
 	entry.OccurredAt = entry.OccurredAt.UTC().Truncate(time.Microsecond)
 
-	// The client as a first-class actor attribute (H-05): when the request acts under an OAuth
+	// The client as a first-class actor attribute: when the request acts under an OAuth
 	// grant, the correlation context carries the client's identifier, and every entry of the
 	// request records it - here, once, rather than in every service that writes one. An entry
 	// that already names a client keeps its own answer.
@@ -89,7 +89,7 @@ func (s AuditSink) Append(ctx context.Context, entry port.Entry) error {
 	// structure, an integer, a slice - and verification recomputes the hash from what came out of
 	// JSONB through `map[string]any`. A structure marshals in *field* order on the way in and in
 	// key order on the way out, so every entry carrying one hashed differently than it read back,
-	// and the trail reported tampering that never happened (E-12).
+	// and the trail reported tampering that never happened.
 	//
 	// One round trip through the same encoder the reader uses settles it: what is hashed is what
 	// any reader will see, whatever the caller built it from.
@@ -206,7 +206,7 @@ func storedShape(changes map[string]any) (map[string]any, error) {
 	// An entry that changed nothing - a probe, a read that is recorded, a refusal - is stored as
 	// `{}` and read back as `{}`, and a nil map hashes as `null`. So the chain broke at the first
 	// such entry in it, and only there: everything with a changed field in it verified, which is
-	// why a trail could look sound for forty entries and then not (E-12).
+	// why a trail could look sound for forty entries and then not.
 	if len(changes) == 0 {
 		return map[string]any{}, nil
 	}

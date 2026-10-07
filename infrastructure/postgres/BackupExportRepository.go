@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// BackupExportRepository reads a tenant out, one page at a time, for the archive writer (E-05).
+// BackupExportRepository reads a tenant out, one page at a time, for the archive writer.
 //
 // Paged on each entity's own key rather than on OFFSET, and the difference is not performance. A
 // backup runs inside a REPEATABLE READ snapshot for minutes; an OFFSET re-counts the rows it

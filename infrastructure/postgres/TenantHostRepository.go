@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// TenantHostRepository is the hosts a workspace answers at (SI-12, migration 0104).
+// TenantHostRepository is the hosts a workspace answers at (migration 0104).
 //
 // No method takes a tenant: row level security bounds every statement and the workspace is the
 // transaction's (ADR-0010). Nothing here finds a workspace *by* host - that lookup would have to

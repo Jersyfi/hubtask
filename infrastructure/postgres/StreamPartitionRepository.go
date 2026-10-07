@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// StreamPartitionRepository is the monthly duty of the partitioned streams (H-09), the audit
+// StreamPartitionRepository is the monthly duty of the partitioned streams, the audit
 // partition repository's shape: two narrow SECURITY DEFINER acts, nothing else.
 type StreamPartitionRepository struct{}
 

@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The relying party's stores (H-04, SI-10). No method takes a tenant: row level security bounds
+// The relying party's stores. No method takes a tenant: row level security bounds
 // every statement, and which level a row belongs to is the scope's answer rather than a
 // parameter's (ADR-0010, migration 0103).
 
@@ -500,7 +500,7 @@ func (r OidcFlowRepository) ConsumeForStepUp(
 	}, true, nil
 }
 
-// ExternalAccountRepository is the link between a provider's subject and an account (H-04, SI-10).
+// ExternalAccountRepository is the link between a provider's subject and an account.
 //
 // `account_identity` since the providers became plural: `account.external_subject` held one subject
 // per account and could not say which provider vouched for it. The column is left where it is - a

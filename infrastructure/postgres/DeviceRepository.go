@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// DeviceRepository is the statements behind the devices that synchronise (N-03). Every one runs
+// DeviceRepository is the statements behind the devices that synchronise. Every one runs
 // inside the caller's transaction and therefore under `SET LOCAL app.tenant_id` (rule 3).
 type DeviceRepository struct{}
 

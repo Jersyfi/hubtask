@@ -216,7 +216,7 @@ func (q Queue) Complete(ctx context.Context, job queue.Job) error {
 	return leaseHeld(affected, job)
 }
 
-// Report writes how far along a long job is (E-05).
+// Report writes how far along a long job is.
 //
 // Fenced on the lease like every statement a handler runs, and silent when the fence does not hold:
 // a worker that lost its job writes nothing, and that is not a failure to hand back. The number is
@@ -334,7 +334,7 @@ func (q Queue) Depth(ctx context.Context) ([]queue.Depth, error) {
 }
 
 // ScheduledBacklog counts the jobs of one kind waiting for a future moment - the retry ladders
-// parked on the queue, which is what hubtask_webhook_retry_backlog reads (H-12, §4).
+// parked on the queue, which is what hubtask_webhook_retry_backlog reads (§4).
 func (q Queue) ScheduledBacklog(ctx context.Context, kind queue.Kind) (int, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// RetentionMarkingRepository is the two phases of data-retention.md §5 against the entries (E-07).
+// RetentionMarkingRepository is the two phases of data-retention.md §5 against the entries.
 //
 // One statement per anchor rather than one with the column as a parameter. The anchor is a value of
 // the domain's closed set and never a byte of a request, which is rule 9 applied to the one place

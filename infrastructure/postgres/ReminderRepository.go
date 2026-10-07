@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// ReminderRepository stores the reminders beside the entries (D-02).
+// ReminderRepository stores the reminders beside the entries.
 //
 // No cursor codec, unlike the comment store: what one entry may carry is bounded where reminders
 // are written, so the list is one answer rather than a page.

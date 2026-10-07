@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The reading half of the trail (E-09, audit.md §5).
+// The reading half of the trail (audit.md §5).
 //
 // Its own type beside AuditSink rather than a second method on it, and that is the same decision
 // the port makes: the sink is a dependency of every use case that writes anything, and a sink that
@@ -130,7 +130,7 @@ func (r AuditTrailRepository) Walk(
 			}
 		}
 
-		// The cursor is the sequence number, because the walk is ordered by it (E-12): a keyset on
+		// The cursor is the sequence number, because the walk is ordered by it: a keyset on
 		// the timestamp would skip or repeat entries wherever two of them carry timestamps in the
 		// opposite order to their place in the chain.
 		seq := rows[len(rows)-1].Seq
@@ -204,7 +204,7 @@ func (r AuditTrailRepository) HashAt(ctx context.Context, seq int64) ([]byte, er
 	return hash, nil
 }
 
-// Record writes one anchor (P-13). A second anchor of the same sequence number is refused by the
+// Record writes one anchor. A second anchor of the same sequence number is refused by the
 // primary key and answered as a conflict, which the job reads as "nothing new to anchor".
 func (r AuditTrailRepository) Record(ctx context.Context, anchor repository.Anchor) error {
 	queries, err := queriesFrom(ctx)
@@ -390,7 +390,7 @@ func auditChangesFrom(raw []byte) (map[string]any, error) {
 	return changes, nil
 }
 
-// AuditPartitionRepository keeps the trail's partitions conforming (E-09, audit.md §3).
+// AuditPartitionRepository keeps the trail's partitions conforming (audit.md §3).
 //
 // Its own type beside the trail rather than a method on it: this is maintenance of the table, not
 // a read of the evidence, and a repository that could do both would put a DDL statement one call

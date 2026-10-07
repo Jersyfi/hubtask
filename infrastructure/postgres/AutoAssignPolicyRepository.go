@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// AutoAssignPolicyRepository stores the assignment policy per scope (C-02).
+// AutoAssignPolicyRepository stores the assignment policy per scope.
 //
 // The candidates and the rotation's state travel as JSONB, in the shape the column has carried
 // since 0001_init: `[{"kind": "ACCOUNT", "id": "…"}]` and `{"cursor": 0}`. The shapes are named

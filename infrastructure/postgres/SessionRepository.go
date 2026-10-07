@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// SessionRepository maintains the sign-in rows and their refresh chains (H-01).
+// SessionRepository maintains the sign-in rows and their refresh chains.
 //
 // It is the only place that knows how a refresh token becomes a hash, AccessTokenRepository's
 // reasoning: the pepper is a secret of this layer, which is why the ports take the presented
@@ -796,7 +796,7 @@ func nullableString(value string) *string {
 	return &value
 }
 
-// DeleteExpired removes one batch of sessions that are over (H-01, the SESSION data kind). The
+// DeleteExpired removes one batch of sessions that are over (the SESSION data kind). The
 // query's own guard only ever matches a session that has run out or was revoked - ending
 // sign-ins is revocation's job, and the sweep only forgets.
 func (r SessionRepository) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
@@ -824,7 +824,7 @@ func (r SessionRepository) DeleteExpired(ctx context.Context, cutoff time.Time, 
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("sweeping the pending credentials: %w", err))
 	}
-	// And the expired authorization codes (H-05), with the same reasoning: minutes of life,
+	// And the expired authorization codes, with the same reasoning: minutes of life,
 	// and a consumed or expired one is bookkeeping about a dance nobody finished.
 	if _, err := queries.DeleteExpiredOauthCodes(ctx, sqlc.DeleteExpiredOauthCodesParams{
 		Cutoff: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
@@ -834,7 +834,7 @@ func (r SessionRepository) DeleteExpired(ctx context.Context, cutoff time.Time, 
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("sweeping the authorization codes: %w", err))
 	}
-	// And the sign-in flows of the relying party (H-04), for the third time the same reason: a
+	// And the sign-in flows of the relying party, for the third time the same reason: a
 	// flow is one browser round trip, and what is left of it afterwards is a row nobody will
 	// ever present again.
 	if _, err := queries.DeleteExpiredOidcFlows(ctx, sqlc.DeleteExpiredOidcFlowsParams{

@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// SearchIndexRepository is the adapter for the search's bookkeeping (M-09).
+// SearchIndexRepository is the adapter for the search's bookkeeping.
 type SearchIndexRepository struct{}
 
 func NewSearchIndexRepository() SearchIndexRepository { return SearchIndexRepository{} }

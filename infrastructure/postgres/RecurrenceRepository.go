@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// RecurrenceRepository stores the series beside the entries (D-04).
+// RecurrenceRepository stores the series beside the entries.
 //
 // Two rows move together here, which is why the pointer's write lives in this adapter rather than
 // in the application: a rule and the entry that points at it are one state, and a caller that had

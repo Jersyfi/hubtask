@@ -100,7 +100,7 @@ func (s IdempotencyStore) Complete(ctx context.Context, key repository.Key, stat
 	return nil
 }
 
-// Release lets a reservation go (G-09). The engine calls it for an action that claimed its key
+// Release lets a reservation go. The engine calls it for an action that claimed its key
 // and then failed, in the same transaction: the claim and the failure commit together, so a
 // replay of the run finds the key free and performs the action the first run never did.
 func (s IdempotencyStore) Release(ctx context.Context, key repository.Key) error {

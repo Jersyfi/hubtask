@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// AutomationRunRepository is the log of what the rules have done (G-07), the failure counter, and
+// AutomationRunRepository is the log of what the rules have done, the failure counter, and
 // the per-event lookup the dispatcher makes.
 //
 // Three ports on one type because they are one table pair, and three ports rather than one because
@@ -105,7 +105,7 @@ func (r AutomationRunRepository) Finish(ctx context.Context, run domain.Run) err
 	}
 
 	// A parked run has no finished moment, and the column says so: NULL is what keeps a WAITING
-	// row honest about not being over (G-09). A finished run without the stamp - which the domain
+	// row honest about not being over. A finished run without the stamp - which the domain
 	// never produces - would fall back to when it started rather than inventing a reading here.
 	finished := pgtype.Timestamptz{}
 	if run.FinishedAt != nil {
@@ -311,7 +311,7 @@ func (r AutomationRunRepository) Disable(
 }
 
 // ByTriggerKind answers this tenant's enabled rules of one kind, which is what a producer that is
-// not the event dispatcher asks - the relative-date producer does (G-08).
+// not the event dispatcher asks - the relative-date producer does.
 func (r AutomationRunRepository) ByTriggerKind(
 	ctx context.Context, kind domain.TriggerKind,
 ) ([]domain.Rule, error) {

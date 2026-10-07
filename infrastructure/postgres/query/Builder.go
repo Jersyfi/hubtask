@@ -306,7 +306,7 @@ func Key(term view.SortTerm, item work.WorkItem) string {
 }
 
 // dueAtOf reads the instant off the trio, which is the one member the query language serves: the
-// flag and the zone qualify how a client renders it, not when it is (D-01).
+// flag and the zone qualify how a client renders it, not when it is.
 func dueAtOf(item work.WorkItem) *time.Time {
 	if item.Due == nil {
 		return nil

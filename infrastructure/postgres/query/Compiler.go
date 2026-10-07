@@ -46,7 +46,7 @@ const (
 	// visibleCustomFields is the projection of `custom_fields` every read answers with: only the
 	// keys a live definition stands behind. The same expression the sqlc reads use (Work.sql,
 	// FindWorkItem), so the query endpoint and the plain reads hide a deleted definition's values
-	// identically (C-07). The stored document is untouched - the hiding is in the answer.
+	// identically. The stored document is untouched - the hiding is in the answer.
 	// jsonb_build_object() with no arguments is the empty document. The literal spelling '{}'
 	// would be shorter, and it is unavailable on purpose: this package's alphabet has no braces,
 	// so that the fuzz gate can prove no fragment of a request ever reaches the text (FuzzCompile).
@@ -166,7 +166,7 @@ func Count(search repository.ItemSearch) (Statement, error) {
 }
 
 // Search compiles the full text search: one page of entries in the order the database ranked them
-// (C-08, ADR-0034).
+// (ADR-0034).
 //
 // Three things are here that no other statement in this package has.
 //
@@ -308,7 +308,7 @@ func (b *builder) meaningJoin(meaning string) {
 	}
 	// And only the rows of the model the query vector came from: two models' vectors are not
 	// comparable, and between a reconfiguration and the end of the re-embedding pass the table
-	// holds both (#568). Bound, never written - a model name is configuration somebody typed.
+	// holds both. Bound, never written - a model name is configuration somebody typed.
 	b.write(` LEFT JOIN item_embedding e ON e.tenant_id = wi.tenant_id AND e.item_id = wi.id AND e.model = `)
 	b.param(b.model)
 }
@@ -479,7 +479,7 @@ func (b *builder) predicates(search repository.ItemSearch) {
 }
 
 // fullText writes the MATCHES predicate: the words, read under the searcher's configuration and
-// under `simple`, against the document the trigger maintains (C-08, ADR-0034).
+// under `simple`, against the document the trigger maintains (ADR-0034).
 //
 // Two branches rather than one, and neither of them is the entry's own configuration. A document
 // is built under the language its entry names, so the exact question - "parse these words the way
@@ -505,7 +505,7 @@ func (b *builder) fullText(value view.Value) {
 }
 
 // restriction narrows the answer to the entries the caller may see, when that is fewer than the
-// anchor holds (C-04).
+// anchor holds.
 //
 // A bound array rather than a list written into the statement: no byte of it becomes SQL text
 // (rule 9, T-06). Empty means no restriction, which is what every caller holding a role on the
@@ -772,7 +772,7 @@ func (b *builder) customField(node view.Node, key string) {
 // liveDefinition is the check that the definition this entry's value was written under still
 // lives, in the entry's own collection or workspace-wide. By identity rather than by key, for the
 // reason the read projection is: a definition recreated under the same key must not make the old
-// value filterable again (C-07). A primary-key lookup per row, beside whatever the main predicate
+// value filterable again. A primary-key lookup per row, beside whatever the main predicate
 // costs.
 func (b *builder) liveDefinition(key string) {
 	b.write(`EXISTS (SELECT 1 FROM custom_field_definition cfd WHERE cfd.deleted_at IS NULL ` +

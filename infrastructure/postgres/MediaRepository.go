@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// MediaRepository stores the media records and the attachment links (C-06).
+// MediaRepository stores the media records and the attachment links.
 type MediaRepository struct {
 	cursors security.CursorCodec
 }

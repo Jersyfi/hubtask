@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// JobRepository is the caller's side of the job table (E-01).
+// JobRepository is the caller's side of the job table.
 //
 // It reads the same rows as Queue and shares none of its statements, because the two ask
 // different questions: the queue claims work across tenants and this one answers for exactly one.

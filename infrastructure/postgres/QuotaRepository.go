@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// QuotaRepository is the §4 limits' surface (H-08): the overrides in the tenant's settings
+// QuotaRepository is the §4 limits' surface: the overrides in the tenant's settings
 // document, the live counts, and the billing ledger. One type for the three ports - they are
 // three angles on one subject, and every method is bounded by the transaction it runs in.
 type QuotaRepository struct{}

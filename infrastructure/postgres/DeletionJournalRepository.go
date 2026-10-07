@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// DeletionJournalRepository reads the deletion journal (E-06, backup-restore.md §7).
+// DeletionJournalRepository reads the deletion journal (backup-restore.md §7).
 //
 // The first reader the table has ever had in production. It has been written since B-10 with a
 // comment saying exactly that, and this is the other half of the promise it was making: objects

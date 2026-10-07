@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// CalendarFeedRepository stores the subscriptions and finds the one a token names (D-08).
+// CalendarFeedRepository stores the subscriptions and finds the one a token names.
 //
 // It is the only place that knows how a feed token becomes a hash, for the reason the access
 // token repository is: the pepper is a secret of this layer (security.md §8), which is why the

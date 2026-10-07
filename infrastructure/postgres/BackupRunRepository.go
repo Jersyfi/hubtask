@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// BackupRunRepository stores what happened (E-05).
+// BackupRunRepository stores what happened.
 type BackupRunRepository struct{}
 
 func NewBackupRunRepository() BackupRunRepository { return BackupRunRepository{} }

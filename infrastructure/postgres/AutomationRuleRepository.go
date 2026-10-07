@@ -27,7 +27,7 @@ const maxRulePage = 200
 // defaultRulePage is what a caller with no opinion gets.
 const defaultRulePage = 50
 
-// AutomationRuleRepository stores the rules (G-05).
+// AutomationRuleRepository stores the rules.
 //
 // The four jsonb columns are serialised here rather than in the domain: JSON is a wire format and
 // the domain does not serialise itself (project-structure.md §3). What travels is the validated
@@ -129,9 +129,9 @@ func (r AutomationRuleRepository) Find(ctx context.Context, id shared.ID) (domai
 	return rules[0], nil
 }
 
-// withLastRuns reads the most recent run of each rule in one statement and writes it on the rule
-// (F8-21): what a list of rules says under each word, at the cost of one query per page rather
-// than one per card. A rule that never ran keeps nil.
+// withLastRuns reads the most recent run of each rule in one statement and writes it on the
+// rule: what a list of rules says under each word, at the cost of one query per page rather than
+// one per card. A rule that never ran keeps nil.
 func withLastRuns(ctx context.Context, queries *sqlc.Queries, rules []domain.Rule) error {
 	if len(rules) == 0 {
 		return nil
@@ -503,7 +503,7 @@ func documentsOf(rule domain.Rule) (ruleDocuments, error) {
 // Defensively, although every document in the column was written by a validated aggregate: the row
 // outlives the release that wrote it, and a shape this build cannot read has to be an error a log
 // names rather than a zero value that quietly changes what a rule does.
-// Due answers this tenant's rules whose moment has come (G-08).
+// Due answers this tenant's rules whose moment has come.
 //
 // The tenant is the transaction's, never a parameter: the pass is opened under one tenant's scope
 // by that tenant's own poller, and nothing may enumerate tenants (rule 3, multi-tenancy.md §2.1).
@@ -713,7 +713,7 @@ func boundedRulePage(size int) int {
 	}
 }
 
-// The RELATIVE_DATE occurrences (G-08). On the rule repository rather than a type of their own,
+// The RELATIVE_DATE occurrences. On the rule repository rather than a type of their own,
 // because they are the same aggregate's bookkeeping: what a rule owes is decided from the rule.
 
 var _ repository.Occurrences = AutomationRuleRepository{}
@@ -851,7 +851,7 @@ func (r AutomationRuleRepository) NextOccurrence(ctx context.Context) (time.Time
 	return timeFrom(next), nil
 }
 
-// AutomationInboundRepository is the address an INBOUND_WEBHOOK rule answers on (G-08).
+// AutomationInboundRepository is the address an INBOUND_WEBHOOK rule answers on.
 //
 // Its own type rather than two more methods on the rule repository, for CalendarFeedRepository's
 // reason: it is the only place that knows how a presented token becomes a hash, and the pepper is

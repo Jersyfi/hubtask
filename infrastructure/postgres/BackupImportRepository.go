@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// BackupImportRepository writes a tenant back in, one row at a time (E-06, backup-restore.md §8).
+// BackupImportRepository writes a tenant back in, one row at a time (backup-restore.md §8).
 //
 // The mirror of BackupExportRepository, and deliberately its opposite in shape: the export pages
 // because it reads a whole tenant, and the import does not because it decides each row - against

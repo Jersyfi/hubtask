@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// CommentRepository stores the discussion beside the entries (C-03).
+// CommentRepository stores the discussion beside the entries.
 type CommentRepository struct {
 	cursors security.CursorCodec
 }

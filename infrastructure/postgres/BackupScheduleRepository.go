@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// BackupScheduleRepository stores what runs when (E-05).
+// BackupScheduleRepository stores what runs when.
 //
 // `next_run_at` is a stored decision rather than a rule expanded on every read. Expanding an RRULE
 // costs a library call per schedule, and a poller that did it on every wake-up would do it for
@@ -178,7 +178,7 @@ func (r BackupScheduleRepository) SetNextRun(
 	return nil
 }
 
-// Update writes a changed schedule and the moment it is next owed (F4-02).
+// Update writes a changed schedule and the moment it is next owed.
 //
 // The target and the scope are not among the columns the statement writes, for the reason the
 // contract gives: a schedule that moved either would be a different schedule under an old

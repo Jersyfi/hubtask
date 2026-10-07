@@ -52,7 +52,7 @@ func FuzzCompile(f *testing.F) {
 		`{"field":"due_at","op":"EQ","value":"2026-08-19T00:00:00Z"}`,
 		`{"field":"title","op":"EQ","value":"$1"}`,
 		`{"field":"title","op":"EQ","value":"COLLATE \"C\""}`,
-		// The custom field family (C-07). The key is the one part of a field *name* that is a
+		// The custom field family. The key is the one part of a field *name* that is a
 		// value, so these seeds are what says it never reaches the SQL text.
 		`{"field":"custom_fields.priority","op":"EQ","value":"high"}`,
 		`{"field":"custom_fields.budget","op":"EQ","value":1000}`,

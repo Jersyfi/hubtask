@@ -120,7 +120,7 @@ func (r MembershipRepository) SharedItemsIn(
 	return items, nil
 }
 
-// administratorRoles are the roles the retention warning treats as administrators (R-1, G-12).
+// administratorRoles are the roles the retention warning treats as administrators (R-1).
 //
 // Named here rather than passed in, because "who can answer a warning about work that is about to
 // be deleted" is a property of the role matrix (domain-model.md §3.2): the two roles that shape

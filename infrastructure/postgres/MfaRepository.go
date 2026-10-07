@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// MfaRepository maintains the second factor (H-02): the sealed enrolment, the recovery codes,
+// MfaRepository maintains the second factor: the sealed enrolment, the recovery codes,
 // the pending credential, and the tenant's enforcement switch. It is the only place that knows
 // how a pending token or a recovery code becomes a hash, AccessTokenRepository's reasoning. No
 // method takes a tenant - row level security bounds every statement (ADR-0010).
@@ -109,7 +109,7 @@ func (r MfaRepository) Find(
 	return enrollment, nil
 }
 
-// StartReplacement puts a new secret beside an armed one (SC-17).
+// StartReplacement puts a new secret beside an armed one.
 func (r MfaRepository) StartReplacement(
 	ctx context.Context, accountID shared.ID, sealed cryptoport.Sealed,
 	sessionID shared.ID, expiresAt, now time.Time,
@@ -141,7 +141,7 @@ func (r MfaRepository) StartReplacement(
 	return changed > 0, nil
 }
 
-// SwapReplacement arms the replacement in one statement (SC-17).
+// SwapReplacement arms the replacement in one statement.
 func (r MfaRepository) SwapReplacement(
 	ctx context.Context, accountID, sessionID shared.ID, expected cryptoport.Sealed,
 	step int64, now time.Time,
@@ -604,7 +604,7 @@ func (r MfaRepository) Rewrap(
 	return changed > 0, nil
 }
 
-// ReplacementsSealedNotUnder answers the waiting replacements to re-seal (SC-17).
+// ReplacementsSealedNotUnder answers the waiting replacements to re-seal.
 func (r MfaRepository) ReplacementsSealedNotUnder(
 	ctx context.Context, keyID string,
 ) ([]repository.MfaEnrollment, error) {

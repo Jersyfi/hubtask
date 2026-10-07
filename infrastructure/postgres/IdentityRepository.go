@@ -83,7 +83,7 @@ func (r AccountRepository) FindByEmail(ctx context.Context, email string) (ident
 		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
-// AcceptInvitation activates an invited account whose invitation has not run out (SC-24).
+// AcceptInvitation activates an invited account whose invitation has not run out.
 func (r AccountRepository) AcceptInvitation(
 	ctx context.Context, accountID shared.ID, now time.Time,
 ) (bool, error) {
@@ -517,7 +517,7 @@ func (r GroupRepository) Members(ctx context.Context, groupID shared.ID) ([]shar
 }
 
 // MembershipGrantRepository is the write half of the membership table, and the one read that
-// lists what was written at a scope (F3-01).
+// lists what was written at a scope.
 type MembershipGrantRepository struct {
 	cursors security.CursorCodec
 }

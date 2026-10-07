@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// LegalHoldRepository places and lifts the instructions that override every deletion (E-08).
+// LegalHoldRepository places and lifts the instructions that override every deletion.
 //
 // Its own type rather than four more methods on LifecycleRepository, and for the same reason the
 // ports are apart: the deletion paths take the reading half, and a repository that carried both
@@ -24,7 +24,7 @@ func NewLegalHoldRepository() LegalHoldRepository { return LegalHoldRepository{}
 
 var _ repository.HoldWriter = LegalHoldRepository{}
 
-// Place writes a legal hold (E-08).
+// Place writes a legal hold.
 func (r LegalHoldRepository) Place(ctx context.Context, hold domain.LegalHold) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
