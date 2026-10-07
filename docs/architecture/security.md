@@ -154,7 +154,7 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
 | Token storage | HMAC-SHA-256 keyed on a pepper derived from `HUBTASK_SECRET_KEY` (not in the database), under a purpose label per credential kind, so a hash of one kind cannot be replayed as another |
 | Signed tokens | The session access token, cursors and media tokens: HMAC-SHA-256 under a key derived from `HUBTASK_SECRET_KEY` with their own purpose label; none is JOSE |
 | Integration credentials, webhook secrets, backup target credentials | AES-256-GCM envelope encryption: a data key **per value** (the master key only encrypts random keys, within GCM's per-key bound), wrapped by a master key from `HUBTASK_ENCRYPTION_KEYS` (§8.1) whose ID is stored. The ciphertext is bound to a caller-supplied purpose and cannot move between rows |
-| Backup archives | AES-256-GCM under a key derived from a passphrase with Argon2id (t=3, m=64 MiB, p=4); the passphrase is stored nowhere, salt and cost beside the archive ([backup-restore.md](./backup-restore.md) §4) |
+| Backup archives | AES-256-GCM under a key derived from the master key with HKDF-SHA256, bound to the target; no passphrase is accepted ([backup-restore.md](./backup-restore.md) §4) |
 | Signatures on outbound webhooks | HMAC-SHA-256, a secret per subscription, the header `X-Hubtask-Signature` with a timestamp |
 | Transport | TLS 1.2+ (target 1.3); mTLS inside the cluster optional; HSTS where TLS is terminated |
 | Randomness | Only `crypto/rand` for tokens, IDs and nonces; the `RandomSource` port uses it in production |
