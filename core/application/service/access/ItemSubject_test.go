@@ -168,7 +168,7 @@ func TestACreationOutOfReachStaysForbidden(t *testing.T) {
 	}
 }
 
-// A request that names no entry is decided by the permission alone, exactly as before C-04.
+// A request that names no entry is decided by the permission alone.
 func TestAContainerRequestIsUnchanged(t *testing.T) {
 	authorize, store, _, _ := serviceWith(held(identity.TenantScope(), identity.RoleAdmin))
 
