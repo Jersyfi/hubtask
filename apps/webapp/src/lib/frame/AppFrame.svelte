@@ -7,8 +7,9 @@
   // One navigation, three drawings. `lib/navigation.ts` is the list; this frame draws it as a
   // `SideNav` pinned beside the content from `expanded` (collapsible to a rail), as the same
   // `SideNav` in a `NavDrawer` behind ☰ below it, and as a `BottomBar` on `compact`, where the
-  // drawer then holds the tree alone. The account group is behind the avatar and the name from
-  // `medium` and behind "You" in the bottom bar below it. The bar carries no page action. It does
+  // drawer then holds the `tree` and `keeping` bands only (design-system.md §11.3). The account
+  // group is behind the avatar from `medium` (with the name from `large`) and behind "You" in the
+  // bottom bar below it. The bar carries no page action. It does
   // carry the entry to search from `medium` up (ADR-0063 decision 4), and that is why `primary()`
   // is asked for the list *without* Search there: one visible entry to it on every width - the
   // field up here, or the destination in the bottom bar on `compact`, never both.
@@ -139,7 +140,7 @@
   const accountGroup = $derived(
     account({
       isAdministrationReachable: quotas.isReachable === true,
-      // The manifest's answer about this caller, and nothing compiled in (SI-17). False until it
+      // The manifest's answer about this caller, and nothing compiled in. False until it
       // has been read, which is the third value every capability question here has.
       isInstanceReachable: manifest.isInstanceReachable,
     }),
@@ -223,15 +224,15 @@
 
   /**
    * How many recovery codes are left, on the other side of a sign-in that spent one (UC-ID-02 check
-   * 6, SC-18): a note at the top of the content area, and said once besides.
+   * 6): a note at the top of the content area, and said once besides.
    *
    * The note is in the content area and not in the bar, which is ADR-0065 decision 4 holding: the
    * bar keeps statements about the application, and this one is about this person's sign-in. It
    * stays across pages and reloads until it is closed or the authenticator is replaced.
    *
-   * `SessionTokens.recovery_codes_remaining` has carried this since H-02, with "zero is the number
-   * to act on" written beside it in the contract, and no client had ever read it - so somebody
-   * could spend their tenth code and learn nothing. It belongs to the frame rather than to the
+   * `SessionTokens.recovery_codes_remaining` carries this, with "zero is the number to act on"
+   * written beside it in the contract; unread, somebody could spend their tenth code and learn
+   * nothing. It belongs to the frame rather than to the
    * sign-in screen because it is true *after* the sign-in, when that screen is gone.
    *
    * Said rather than drawn, and that is ADR-0065 decision 4 holding: a banner here would be a
@@ -256,8 +257,8 @@
 </script>
 
 <div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? '' : undefined} data-bottombar={session.isSignedIn ? '' : undefined}>
-  <!-- The first stop on every page (2.4.1). The keyboard walk of F5-11 counted eleven stops from
-       the top of the frame to the first control of the content; this is the one that skips them.
+  <!-- The first stop on every page (2.4.1): the frame puts many stops between its top and the
+       first control of the content, and this is the one that skips them.
        Hidden until it takes focus, so nobody with a pointer ever sees it. The click is handled
        here rather than left to the anchor: the router takes every same-origin link and would
        navigate to the same path with the fragment dropped. -->
@@ -424,9 +425,9 @@
   {/if}
 
   <!-- The proof a privileged action demands, rendered once. Any request may meet the refusal, so
-       the prompt belongs to the frame rather than to whichever screen made the request (H-03). -->
+       the prompt belongs to the frame rather than to whichever screen made the request. -->
   <StepUpPrompt />
-  <!-- The tour (F6-14): walks routes, so it lives where every route is. -->
+  <!-- The tour: walks routes, so it lives where every route is. -->
   {#if session.isSignedIn}
     <TourGuide {onnavigate} />
   {/if}
@@ -505,7 +506,7 @@
   main[data-filled] .content { max-inline-size: none; }
 
   /* From `expanded`, where a filled page keeps its own panel beside its canvas, the region is a
-     **height** as well as a width (`milestone-F8.md` decision 31): the page is one screen and
+     **height** as well as a width (design-system.md §11.1): the page is one screen and
      what scrolls is inside it, so the frame grows no second scrollbar underneath and a panel as
      tall as the region really ends where the region does - the rule editor's ended below the
      window by the height of everything above it. `min-block-size: 0` down the flex chain, or the

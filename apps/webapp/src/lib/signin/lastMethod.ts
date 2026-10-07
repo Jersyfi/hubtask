@@ -32,7 +32,7 @@ function storage(): Storage | undefined {
 /**
  * What a password sign-in records. Not a provider identifier, so it can never match one - and a
  * provider used once does not stay on top of the card for somebody who has signed in with their
- * password every day since (SC-09).
+ * password every day since.
  */
 const PASSWORD = 'PASSWORD';
 

@@ -13,8 +13,7 @@ import type { SessionPair } from './tokenStore.ts';
  *
  * The interface is deliberately as small as what exists. The ports ADR-0033 already names for
  * later — local persistence, the keystore-held encryption key — are added here when the
- * sync-engine and shell work packages bring their first real implementation, not before
- * (AGENTS.md: no speculative abstractions).
+ * sync-engine and shell work packages bring their first real implementation, not before.
  */
 export interface Platform {
   /**
@@ -44,7 +43,7 @@ export interface Platform {
   refreshToken(): string | undefined;
 
   /**
-   * Holds the pair a sign-in answered for the calls that follow (F4-03).
+   * Holds the pair a sign-in answered for the calls that follow.
    *
    * `POST /auth/sessions` answers an access token of fifteen minutes and a refresh token of
    * thirty days, and every route takes the first as its bearer. *Where* the pair is kept is
@@ -97,7 +96,7 @@ export interface Platform {
 
   /**
    * The replica's store for one account, or nothing where this runtime has none to offer
-   * (ADR-0033 §4, F6-03).
+   * (ADR-0033 §4).
    *
    * One store per API origin and account, opened here because the platform is what knows where a
    * copy may live: the browser's IndexedDB - a best-effort cache, never the offline promise, and
@@ -114,8 +113,8 @@ export interface Platform {
   lastAccount(): string | undefined;
 
   /**
-   * When this session's elevation to the control plane ends, and where it is remembered (SI-17,
-   * ADR-0070 §4).
+   * When this session's elevation to the control plane ends, and where it is remembered
+   * (ADR-0070 §4).
    *
    * Beside the pair, and for the reason the account is: a reload must not lose it. **Losing it is
    * worse than keeping it** — the door would ask for a second proof while the first hour still

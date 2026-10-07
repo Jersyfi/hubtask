@@ -10,7 +10,7 @@
   // two were banners above the page's own head - a statement about a *release* drawn where a
   // statement about the *page* belongs, taking a row of every screen with it.
   //
-  // The third came from `SyncStatus` (issue 1020), which 1022's own "what this does not fix" left
+  // The third came from `SyncStatus`, which 1022's own "what this does not fix" left
   // open because this mark did not exist yet. It is a statement about the application rather than
   // about this copy's changes - but what decides it is simpler than the category: **`SyncLine` is
   // drawn only with a session, this mark always**, and `/meta/capabilities` is read before
@@ -44,7 +44,7 @@
    * by two mechanisms, because they are two kinds of read: a *subscription* is started and stopped
    * by whoever draws it, which is this component; a *one-shot* read is refreshed by whoever changed
    * the actor, which is `session.svelte.ts` - it calls `manifest.refresh()` at each of its four
-   * transitions (issue 1020). A second refresh here would be this component asking again for a
+   * transitions. A second refresh here would be this component asking again for a
    * read it does not own.
    */
   $effect(() => {

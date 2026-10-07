@@ -1,10 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The frame's **one mark** about the copy and the server (F6-06, ADR-0063 decision 5):
+  // The frame's **one mark** about the copy and the server (ADR-0063 decision 5):
   // `SyncStatus` in the app bar, fed by the stream's state `live` already reads and by
   // `engine.queue()` through `queue`. Every word it shows is
-  // resolved here, and the moments go through the formats F5-09 built. The conflict a refused
+  // resolved here, and the moments go through the formats of `lib/i18n`. The conflict a refused
   // change may carry opens the resolver, which is the one write this line can lead to - an
   // ordinary PATCH of the notes, performed by `notes.rewrite`.
   //
@@ -12,7 +12,7 @@
   // (ADR-0065 decision 4): it is a statement about the application rather than about this copy's
   // changes, and - the half that decides it - this line is drawn only with a session, while the
   // manifest is read before anybody signs in. A retry behind a mark that is not on the screen is
-  // no retry (issue 1020).
+  // no retry.
 
   import { ConflictResolver, SyncStatus, type Connection, type RefusedChange } from '@hubtask/design-system/components';
 

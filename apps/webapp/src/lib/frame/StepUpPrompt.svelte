@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The prompt a `403 auth.step_up_required` produces (H-03).
+  // The prompt a `403 auth.step_up_required` produces.
   //
   // **In the frame, not on a screen.** Any request may meet the refusal, and the screen that made
   // it is the one that retries — so the dialog is rendered once, here, and the store is what any

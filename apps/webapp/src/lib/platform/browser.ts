@@ -12,7 +12,7 @@ import { browserStorage, tokenStore } from './tokenStore.ts';
  * (ADR-0031).
  *
  * The session pair lives in `sessionStorage`, and `tokenStore.ts` carries the reasoning: it
- * survives a reload, which F1-11 requires, and dies with the tab, which is all this target
+ * survives a reload and dies with the tab (identity.md §14.4), which is all this target
  * promises. A shell holds its pair in the platform keystore instead, and this is the only file
  * that has to change for that (ADR-0031).
  */
@@ -70,7 +70,7 @@ export const platform: Platform = {
   // The database is named after this origin and the account (ADR-0033 §4): the API is this
   // origin's (ADR-0028), so two installations on two hosts never share a copy, and two accounts on
   // one never do. A browser that refuses IndexedDB - a private window, a policy - answers nothing,
-  // and the engine then runs online-only as it did before F6.
+  // and the engine then runs online-only.
   storageFor: (accountId) => {
     try {
       return new IndexedDbStorage(databaseNameFor(window.location.origin, accountId));

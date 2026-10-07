@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // Replacing the authenticator (SC-17): a new phone, a lost app.
+  // Replacing the authenticator: a new phone, a lost app.
   //
   // **Never a moment without a factor.** The new secret waits beside the one in force; the old
   // authenticator and its recovery codes keep working until a code from the new app confirms the

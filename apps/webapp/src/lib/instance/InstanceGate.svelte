@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The door to the level above the workspaces, and the clock on it (SI-17, ADR-0070 §4).
+  // The door to the level above the workspaces, and the clock on it (ADR-0070 §4).
   //
   // **`admin:tenants` is carried by no session until somebody raises one.** A registered operator
   // raises **their own** for an hour by passing a fresh step-up, which is the deliberate weakening

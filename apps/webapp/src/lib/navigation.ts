@@ -70,13 +70,12 @@ export const DESTINATIONS: readonly Destination[] = [
   // exactly the moment a buried link is no use.
   // The marks say what each row is about (ADR-0063 decision 6). `user` for what is the reader's
   // own; the **gear moves to the administration**, where "the application's settings" is what it
-  // actually means — which is the owner's complaint answered exactly, and one icon fewer than the
-  // `sliders` the ADR named; `compass` for a tour, which is a way through rather than a notice.
-  // The installation used to carry the same outlined `info` as the tour, so two rows of one menu
-  // said the same thing with one mark.
+  // actually means — one icon fewer than the `sliders` the ADR named; `compass` for a tour, which
+  // is a way through rather than a notice, so the tour and the installation do not share the
+  // outlined `info`: two rows of one menu would say the same thing with one mark.
   { id: 'profile', group: 'account', icon: 'user', code: 'app.nav.profile', target: { kind: 'route', path: '/profile' }, routes: ['profile', 'tokens'], area: 'profile' },
   { id: 'administration', group: 'account', icon: 'settings', code: 'app.nav.administration', target: { kind: 'route', path: '/administration' }, routes: ['administration'], area: 'administration' },
-  // The level above the workspaces (SI-17, ADR-0070 §5). Drawn only for an account in the operator
+  // The level above the workspaces (ADR-0070 §5). Drawn only for an account in the operator
   // register, which the manifest answers — never compiled in, and **absent** rather than disabled
   // where it does not apply: somebody who is not an operator was never going to have it, and a
   // greyed row would be an invitation to ask why.
@@ -102,8 +101,7 @@ export const DESTINATIONS: readonly Destination[] = [
 /**
  * The `keeping` band: where a reader goes when something is missing, at the foot of the column.
  *
- * The archive and the trash. Neither is "the tree's last node" any more — ADR-0063 decision 1
- * supersedes that sentence of ADR-0061, because a row somebody reaches for when something has gone
+ * The archive and the trash. Neither is "the tree's last node" (ADR-0063 decision 1), because a row somebody reaches for when something has gone
  * should not sit under the last hub as though it were one.
  */
 export interface KeepingRow {
@@ -160,7 +158,7 @@ export interface SectionGroup {
   readonly rows: readonly SectionRow[];
 }
 
-/** The marks come from the set ADR-0041 declares; issue 998 added the three it was missing. */
+/** The marks come from the set ADR-0041 declares. */
 export const ADMINISTRATION: readonly SectionGroup[] = [
   // The way back, first and alone: a section a reader cannot leave is a trap, and the row that
   // leads out is the one they look for at the top rather than at the foot.
@@ -268,9 +266,9 @@ export const SETTINGS: readonly SectionGroup[] = [
     id: 'entry',
     code: 'app.you.group_entry',
     rows: [
-      // Three things rather than one since the sign-in work: the password, the second factor and the
-      // recovery codes. The row was called after the second of them, which is how a reader looking
-      // for "where do I change my password" ended up on every other screen first.
+      // Three things rather than one: the password, the second factor and the recovery codes. A row
+      // called after the second of them sends a reader looking for "where do I change my password"
+      // to every other screen first.
       { id: 'security', icon: 'shield', code: 'app.security.title', path: '/profile/security', routes: ['security'] },
       { id: 'sessions', icon: 'user-check', code: 'app.you.row_sessions', titleCode: 'app.sessions.title', path: '/profile/sessions', routes: ['sessions'] },
       { id: 'devices', icon: 'arrow-right-left', code: 'app.you.row_devices', titleCode: 'app.devices.title', path: '/profile/devices', routes: ['devices'] },
@@ -287,7 +285,7 @@ export const SETTINGS: readonly SectionGroup[] = [
 ];
 
 /**
- * The level above the workspaces (SI-17, ADR-0070 §5).
+ * The level above the workspaces (ADR-0070 §5).
  *
  * A third section beside the administration and Your settings, drawn by the same column for the
  * reason the ADR gives: "not a second bundle, not a second frame, not a second translation". What
@@ -356,7 +354,7 @@ export function primary(): readonly Destination[] {
  *
  * The administration area is offered only where `GET /quotas` is not refused — the frame's
  * `quotas.isReachable`, which is the area's condition exactly. The instance area is offered only
- * where the manifest says this account is in the operator register (SI-17, ADR-0070 §1).
+ * where the manifest says this account is in the operator register (ADR-0070 §1).
  *
  * These are the places in this client where **hiding beats a gate**, and the rule that decides it
  * is the same one `CapabilityGate` follows: a gate explains a refusal somebody might otherwise

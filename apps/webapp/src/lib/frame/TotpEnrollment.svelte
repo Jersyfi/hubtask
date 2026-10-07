@@ -1,17 +1,17 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // Setting up a second factor (H-02), from two places: a person doing it from their profile, and
+  // Setting up a second factor, from two places: a person doing it from their profile, and
   // a person the workspace's rule routed into it instead of into a session.
   //
   // **One walk for both places, in the order UC-ID-03 tells it**: the secret, one code to confirm
-  // it, then the ten recovery codes once, and *Continue*. The two places used to differ - the
-  // profile's first setup was a plain input and a plain list, while *New codes* had the one-time
-  // panel - and a person met two answers to one question.
+  // it, then the ten recovery codes once, and *Continue*. Two places that differed - a plain input
+  // and a plain list in one, the one-time panel in the other - would give a person two answers to
+  // one question.
   //
   // **The QR code is drawn by the design system, and it is an aid rather than the setup.**
   // [ADR-0053](../../../../docs/adr/ADR-0053-totp-qr-code.md) chose an encoder over a dependency;
-  // the image stands beside what F4-04 shipped and does not replace it: the base32 secret in
+  // the image stands beside the typed setup and does not replace it: the base32 secret in
   // groups of four, which every authenticator accepts typed in, and the `otpauth://` URI as a
   // link, which is the best answer of all on the device that holds the authenticator. A URI the
   // encoder cannot draw - past its thirteen versions, which takes a very long issuer and address

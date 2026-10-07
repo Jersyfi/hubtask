@@ -29,12 +29,9 @@ test('the administration area is exactly the routes under its prefix', () => {
   assert.ok(tagged.length >= 1, 'the area is empty, which means the reading is broken');
 });
 
-test('the administration area is exactly the screens F4 built, by name', () => {
+test('the administration area is exactly these screens, by name', () => {
   // The first test says the tag and the prefix agree; this one says what the set *is*. A screen
-  // added under `/administration` later joins this list on purpose, or the walk that found it
-  // missing is repeated. F4-21's walk is where the list was read off the running application;
-  // `ai` joined it on purpose in F5-05; `rule` and `rule-new`, the editor, in F8-04; and
-  // `sign-in-settings` with the sign-in rule a workspace may tighten.
+  // added under `/administration` joins this list on purpose.
   const built = ROUTES.filter((route) => route.area === 'administration')
     .map((route) => route.name)
     .sort();
@@ -64,7 +61,7 @@ test('the administration area is exactly the screens F4 built, by name', () => {
 });
 
 test('the instance area is exactly the routes under its prefix', () => {
-  // SI-17's acceptance in one assertion, and the same one the administration has: the level above
+  // One assertion, the same one the administration has: the level above
   // the workspaces is excluded from the shells by its area (ADR-0070 §5), so a screen that lives
   // under `/instance` and forgot the tag would ship the control plane in the mobile shell.
   const tagged = ROUTES.filter((route) => route.area === 'instance').map((r) => r.pattern);
@@ -86,8 +83,8 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
   // does not belong to this area however convenient it would be. The list is written out so that
   // adding one is a decision somebody made against that sentence rather than a file that appeared.
   //
-  // Seven since SI-12: the two the control plane had only at a terminal — the providers it offers
-  // every workspace, and the keyring's census — joined it when the parity rule was written down
+  // Seven, among them the two the control plane would otherwise have only at a terminal — the
+  // providers it offers every workspace, and the keyring's census — here by the parity rule
   // (ADR-0070 §5). Neither reads into a workspace: one is the installation's own rows, the other is
   // a count per key that names no workspace at all.
   const built = ROUTES.filter((route) => route.area === 'instance').map((route) => route.name).sort();
@@ -108,7 +105,7 @@ test('every route resolves to one of the four areas, and the profile ones are na
   // ship as end-user and be excluded from nothing, which is not what "own security is not
   // administration" means.
   //
-  // Four since SI-17: ADR-0070 §5 puts the level above the workspaces in this same app, and the
+  // Four: ADR-0070 §5 puts the level above the workspaces in this same app, and the
   // shells exclude it as they exclude administration.
   for (const route of ROUTES) {
     const area = resolve(ROUTES, route.pattern.replaceAll(/:\w+/g, 'x')).area;

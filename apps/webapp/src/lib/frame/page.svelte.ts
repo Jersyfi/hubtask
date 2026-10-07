@@ -62,12 +62,12 @@ class Page {
    *
    * Almost every screen is a document in the frame's padding, with the reading measure capped.
    * A canvas is not: the rule editor is a surface with its own head, its own hairlines and an
-   * inspector against the far edge, and standing it inside the padding drew a slab of one colour
-   * on a page of another - a box on a page, which is what issue 918 was. The page says so and
+   * inspector against the far edge, and standing it inside the padding draws a slab of one colour
+   * on a page of another - a box on a page. The page says so and
    * the frame gives it the room; the same answer would serve any later canvas, and there is no
    * route table in the frame to keep in step.
    *
-   * **The room is a height as well as a width** (`milestone-F8.md` decision 31): a filled page
+   * **The room is a height as well as a width** (design-system.md §11.1): a filled page
    * is one screen, so the frame bounds the region to the viewport and what scrolls is inside the
    * page - its canvas, its panel - rather than the page itself. Without that bound the editor
    * grew past the fold and its panel, as tall as the viewport but starting below the bar and the

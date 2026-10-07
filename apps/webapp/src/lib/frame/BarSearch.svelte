@@ -3,11 +3,10 @@
 <script lang="ts">
   // The entry to search, in the bar from `medium` up (ADR-0063 decision 4, ADR-0066 decision 4).
   //
-  // **It used to search nothing.** It took words and navigated, and the note here said why: the
-  // debounce, the language and the widening belonged in one place. Two of those three were the
-  // language's, and the language is gone (ADR-0066 decision 1) — so what the economy still buys is
-  // one debounce, and what it costs is that the commonest search in the product, "where is that
-  // one thing", needs a screen change to answer. It answers here now.
+  // **It searches, rather than only taking words and navigating.** Navigating would keep the
+  // debounce in one place, and that is all it would buy now that the language is gone (ADR-0066
+  // decision 1) — while the commonest search in the product, "where is that one thing", would need
+  // a screen change to answer. It answers here.
   //
   // **The words still travel in memory, not in the address.** `/search` is a `POST` with no `GET`
   // precisely so that a term never reaches an access log, a proxy or browser history

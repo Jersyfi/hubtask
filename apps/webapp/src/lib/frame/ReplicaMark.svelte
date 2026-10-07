@@ -2,8 +2,8 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The one line a screen says when what it shows came from this device's copy rather than from
-  // the server (F6-04): as of when the copy was last synchronised, through the `Intl` formats
-  // F5-09 built. One component in four places - the list, the board, the tree, the entry - so
+  // the server: as of when the copy was last synchronised, through the `Intl` formats
+  // of `lib/i18n`. One component in four places - the list, the board, the tree, the entry - so
   // that "shown from the copy" is one sentence and not four.
   //
   // It draws nothing for a state that came from the server, so a caller renders it unconditionally
