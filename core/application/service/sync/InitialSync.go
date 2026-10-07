@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The initial synchronisation (N-02, offline-sync.md §3.1): a device with no cursor is told
+// The initial synchronisation (offline-sync.md §3.1): a device with no cursor is told
 // everything it may read, as UPSERT records carrying whole objects, one kind at a time in an
 // order a client can apply without a forward reference. The log's position is read before the
 // first page and becomes the cursor the last page hands back, so that a change landing mid-walk

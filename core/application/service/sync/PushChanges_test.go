@@ -53,7 +53,7 @@ type invocation struct {
 	in    usecase.Input
 	// device is what the context named at the time of the call.
 	device shared.ID
-	// push is the push the context named, and the moment it carried (N-10).
+	// push is the push the context named, and the moment it carried.
 	push appshared.Push
 }
 

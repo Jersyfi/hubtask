@@ -217,7 +217,7 @@ func TestAScopeNarrowsAfterThePermissionCheckNotInsteadOfIt(t *testing.T) {
 }
 
 // A revocation at the hub reaches a device holding one of its collections: the device drops what
-// it holds under the root, and a scope does not stand in the way (N-08).
+// it holds under the root, and a scope does not stand in the way.
 func TestARevocationIsNotNarrowedByAScope(t *testing.T) {
 	revoked := entry(1, hub)
 	revoked.Op, revoked.ActorID = repository.AccessRevoked, account
@@ -234,7 +234,7 @@ func TestARevocationIsNotNarrowedByAScope(t *testing.T) {
 	}
 }
 
-// A workspace-wide template (#626) reaches a device through the pull, and under a scope too: it
+// A workspace-wide template reaches a device through the pull, and under a scope too: it
 // stands above every hub, so a device holding one hub still receives the templates it can apply.
 func TestAWorkspaceWideTemplateIsAnsweredWithAndWithoutAScope(t *testing.T) {
 	template := entry(1, "")

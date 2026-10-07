@@ -49,7 +49,7 @@ type Scope struct {
 }
 
 // covers reports whether a change filed under the container is inside this scope. A change filed
-// under none is workspace-wide - a template defined at the workspace (#626) - and stands above
+// under none is workspace-wide - a template defined at the workspace - and stands above
 // every scope, so every scope holds it: a device holding one hub still needs the templates it
 // can apply there.
 func (s Scope) covers(container work.Container) bool {
@@ -69,7 +69,7 @@ func (s Scope) covers(container work.Container) bool {
 // to hold, and how much it can take at once.
 type PullRequest struct {
 	DeviceID shared.ID
-	// Platform and DisplayName are what the device says about itself, both optional (N-03).
+	// Platform and DisplayName are what the device says about itself, both optional.
 	Platform    string
 	DisplayName string
 	// Cursor is empty for an initial synchronisation.
@@ -98,22 +98,22 @@ const (
 	PullLimitMax     = 2000
 )
 
-// PullChanges serves `POST /sync:pull`, the paged form of the stream (N-01, ADR-0021).
+// PullChanges serves `POST /sync:pull`, the paged form of the stream (ADR-0021).
 //
 // Not a catalogue use case, for the stream's reason: the catalogue lists what a person, an agent
 // or a rule can ask for, and a pull is a connection being served in pages rather than an action -
 // an agent has no offline queue, and a rule that pulled would be reading its own effects. What a
-// push applies, by contrast, is always a catalogue use case (N-04).
+// push applies, by contrast, is always a catalogue use case.
 //
 // The reading, the cursor and the per-record permission are the stream's, shared rather than
 // copied - which is what makes the stream an accelerator over this rather than a second source of
 // truth: the same records, the same order, the same cursor.
 type PullChanges struct {
 	Stream StreamChanges
-	// Devices registers the device on its first contact and records every one after (N-03).
+	// Devices registers the device on its first contact and records every one after.
 	// Nil registers nothing, which is a test's convenience and not an installation's.
 	Devices repository.Devices
-	// Snapshot reads the current state for an initial synchronisation (N-02). Nil means this
+	// Snapshot reads the current state for an initial synchronisation. Nil means this
 	// installation does not serve one, and a device with no cursor is told so.
 	Snapshot repository.Snapshot
 }

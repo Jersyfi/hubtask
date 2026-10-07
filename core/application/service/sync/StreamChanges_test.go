@@ -312,7 +312,7 @@ func TestARecordForAContainerTheCallerMayNotReadIsWithheld(t *testing.T) {
 	}
 }
 
-// A change naming no container is workspace-wide - a template defined at the workspace (#626) -
+// A change naming no container is workspace-wide - a template defined at the workspace -
 // and is read at the tenant scope, once for the batch.
 func TestAWorkspaceWideRecordIsReadAtTheTenantScope(t *testing.T) {
 	first, second := entry(1, ""), entry(2, "")
@@ -573,7 +573,7 @@ func TestWithholdingARecordWritesNoAuditEntry(t *testing.T) {
 }
 
 // An ACCESS_REVOKED record is addressed to a person and is the one record permission does not
-// filter (N-08): it reaches the account it names although that account may no longer read the
+// filter: it reaches the account it names although that account may no longer read the
 // container - which is the point - and reaches nobody else, however well they may read it.
 func TestARevocationReachesTheAccountItNamesAndNobodyElse(t *testing.T) {
 	stranger := shared.ID("01936f2a-7c1e-7000-8000-0000000000a9")

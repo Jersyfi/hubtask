@@ -19,12 +19,12 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// The push (N-04, offline-sync.md §3.2): a device's queue of mutations, applied one at a time
+// The push (offline-sync.md §3.2): a device's queue of mutations, applied one at a time
 // through the ordinary use cases as the pushing person, each answered on its own.
 //
 // Not a catalogue use case, for the pull's reason - and what it *applies* is never its own code
 // path: an `ITEM_CREATE` is `CreateWorkItem` performed as the pushing person, exactly as accepting
-// a suggestion is the ordinary use case performed as the accepting person (J-05). A push grants
+// a suggestion is the ordinary use case performed as the accepting person. A push grants
 // nothing, and somebody who could not make a change by hand cannot make it by pushing.
 
 // pushScope is the token scope a push needs at the door. Every use case it performs checks its
@@ -130,20 +130,20 @@ type PushChanges struct {
 	Devices    repository.Devices
 	Ops        repository.OpLog
 	Tombstones repository.Tombstones
-	// Clocks is the server's clock per field, which ITEM_PATCH decides against (N-05).
+	// Clocks is the server's clock per field, which ITEM_PATCH decides against.
 	Clocks    repository.FieldClocks
 	Catalogue Catalogue
-	// IDs mints the push's own identity (N-10): every event a mutation of this push raises names
+	// IDs mints the push's own identity: every event a mutation of this push raises names
 	// it, which is what the webhook fan-out collapses the deliveries of one push on
 	// (offline-sync.md §8).
 	IDs clock.IDGenerator
 	// Activity writes the two steps a merge owes the history - a change with meaning that lost,
-	// and a merge that displaced free text (N-06). Nil writes neither, a test's convenience.
+	// and a merge that displaced free text. Nil writes neither, a test's convenience.
 	Activity StepRecorder
 	// Displaced files the version of a free-text field that lost as a comment (§5). Nil files
 	// nothing, and the conflict still carries both values.
 	Displaced DisplacedFiler
-	// Sets is where each set's tags are read for the OR-set merge (N-07).
+	// Sets is where each set's tags are read for the OR-set merge.
 	Sets Sets
 	// Skew is how far a device's clock may stand from the server's before its readings are
 	// replaced by server readings (offline-sync.md §4.1). Zero means the contract's five minutes.
@@ -198,7 +198,7 @@ func (p PushChanges) Push(
 	}, nil
 }
 
-// touch registers the device or records its contact, the pull's rule (N-03). A push carries no
+// touch registers the device or records its contact, the pull's rule. A push carries no
 // cursor, so the position recorded is whatever the row already holds.
 func (p PushChanges) touch(ctx context.Context, actor appshared.ActorContext, request PushRequest) error {
 	if p.Devices == nil {

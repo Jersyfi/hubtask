@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// The two catalogue use cases of the sync context (N-03). A device is the person's, like a
+// The two catalogue use cases of the sync context. A device is the person's, like a
 // session: listing and forgetting are things a person asks for about their own account, which is
 // what makes them catalogue entries where the pull and the push are not.
 const (

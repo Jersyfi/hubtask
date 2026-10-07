@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// ITEM_PATCH (N-05, offline-sync.md §4.2): a map of fields, each with its value and its own
+// ITEM_PATCH (offline-sync.md §4.2): a map of fields, each with its value and its own
 // reading, decided one by one against the server's clock per field - the later reading wins, a
 // tie broken by the device identifier the way HLC.Compare breaks it - and applied through the use
 // case that owns each field, as the pushing person, under the device's reading.
@@ -250,7 +250,7 @@ func (p PushChanges) applyWinners(
 			}
 			// Idempotent in the use case: an entry already in the state asked for writes nothing
 			// and seeds nothing, which is what keeps a double completion from producing a second
-			// occurrence (D-05, SY-8).
+			// occurrence (SY-8).
 			if _, err := p.Catalogue.Invoke(ctx, name, actor, usecase.Input{"item_id": itemID}); err != nil {
 				return err
 			}
