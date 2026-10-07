@@ -24,6 +24,9 @@
 //   - Every rule in AGENTS.md says what checks it, and a gate it names exists (agents.go).
 //   - Every ADR says where its rule lives now, because an ADR is the record of why and the
 //     current rule is in a subject document (agents.go).
+//   - Code cites what keeps resolving: every "file.md §N" exists, and no comment cites a task, an
+//     issue, a milestone file or an instruction file; the API description names no internal
+//     reference at all (citations.go).
 //   - The support matrix and the workflows agree in both directions, so that support can neither
 //     be claimed without a job nor removed by deleting one (see matrix.go).
 //   - The use cases cite personas, deployments and principles that exist, carry the sections that
@@ -64,6 +67,7 @@ func main() {
 	problems = append(problems, checkUseCases(root)...)
 	problems = append(problems, checkRuleTags(root)...)
 	problems = append(problems, checkADRRuleLines(root)...)
+	problems = append(problems, checkCodeCitations(root)...)
 
 	if len(problems) > 0 {
 		sort.Strings(problems)

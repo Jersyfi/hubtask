@@ -226,9 +226,9 @@ to this by the hook in `.claude/settings.json`; other agents keep it by themselv
 - Cite only stable references: a rule (`rule 10`), a principle (`P-05`), a use case check
   (`UC-ID-12/4`), an existing identifier (`SG-3`, `RT-12`, `T-07`), a subject-document section
   (`security.md §9`), an ADR for the reasoning. Never a task ID, an issue or pull request number, or
-  an instruction file. `[unchecked: not yet gated]`
+  an instruction file. `[partial: gate-docs; open: single-letter task ids, which collide with alert and principle ids]`
 - Text an API client or an end user reads — `api/openapi.yaml` descriptions and summaries, metric
-  help — contains no internal reference; operator dashboards may link the operating documents. `[unchecked: not yet gated]`
+  help — contains no internal reference; operator dashboards may link the operating documents. `[partial: gate-docs; open: metric help]`
 - Every Go package has a package comment saying what it is responsible for.
   `[gate: gate-architecture]`
 
