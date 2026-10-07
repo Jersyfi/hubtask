@@ -1,8 +1,7 @@
 # Domain Model
 
-Binding for `core/domain` and `core/application`: the aggregates, their fields and invariants, the
-roles and what each may do, the events, and the rules of the operation catalogue. Complements
-[arc42.md](./arc42.md) §5 and §8.1.
+Binding for `core/domain` and `core/application`: aggregates, invariants, roles, events and the
+operation catalogue's rules. Complements [arc42.md](./arc42.md) §5 and §8.1.
 
 ---
 
@@ -58,10 +57,8 @@ narrow them, never widen them beyond the system boundary.
 | `MAX_DEPTH` | 3 | 2 | 1 | Relative to the collection |
 
 **The rule:** setting a field whose capability is not active for the type produces
-`ErrCapabilityNotSupported` (HTTP 422, code `capability_not_supported`) — never silent ignoring.
-
-A new type such as `MILESTONE` is a new profile entry plus an adjustment of the permitted child
-types: no schema change, no API change.
+`ErrCapabilityNotSupported` (HTTP 422, code `capability_not_supported`) — never silent ignoring. A
+new type such as `MILESTONE` is a profile entry and its child types, no schema or API change.
 
 ---
 
@@ -117,10 +114,9 @@ Roles and rights (an extract):
 
 **Read configuration** (`READ_CONFIGURATION`) reads how the workspace is set up — backup targets
 and runs, retention rules and previews, legal holds, automation rules and runs, webhook
-subscriptions — never a secret: a signing secret is answered once at creation, backup credentials
-are sealed and listed nowhere. Every configuration read also accepts `STRUCTURE`, which is a writing
-permission. `AUDITOR` is not a rung on the ladder: without `READ`, every use case over containers,
-entries and comments refuses it ([audit.md](./audit.md) §5, §9).
+subscriptions — never a secret. Every configuration read also accepts `STRUCTURE`. `AUDITOR` is not
+a rung on the ladder: without `READ`, every use case over containers, entries and comments refuses
+it ([audit.md](./audit.md) §5, §9).
 
 The two qualifiers are decided in one place in the application layer
 ([ADR-0005](../adr/ADR-0005-authn-authz.md)), from the entry, the act and whose the entry is:
@@ -133,10 +129,10 @@ The two qualifiers are decided in one place in the application layer
   is the usual one.
 
 An entry nothing on its path grants the actor anything on is **not found**, like a missing one
-([security.md](./security.md) T-04); a creation names no entry and is refused like any other write.
-**A list is narrowed inside the statement** (the reachable
-shares bound as an array), never filtered after reading, so a page is never short and a cursor never
-skips. `/meta/capabilities` reports the whole matrix with both qualifiers.
+([security.md](./security.md) T-04); a creation is refused like any other write. **A list is
+narrowed inside the statement** (the reachable shares bound as an array), never filtered after
+reading, so a page is never short and a cursor never skips. `/meta/capabilities` reports the whole
+matrix with both qualifiers.
 
 ### 3.3 `Container` (hub / collection)
 
@@ -192,7 +188,7 @@ Invariants:
 * I-W3: all references (bucket, label, assignee, member, media) live in the same tenant and — for buckets and labels — in the same collection.
 * I-W4: a trashed or archived item is not editable except through `Restore`/`Unarchive`.
 * I-W5: with `completionPolicy = ROLLUP`, a parent item is completed or reopened automatically when its children's completion changes (idempotent, event-driven).
-* I-W6: carrying an item into another collection, by move or copy, keeps only references that resolve there; the rest is removed and reported in the result, never silently. A move resolves labels and the board column; a copy, writing a new entry, also members, assignee and custom field values. The reported kinds are `LABEL`, `BUCKET`, `MEMBER`, `ASSIGNEE`, `ATTACHMENT` and `CUSTOM_FIELD`, each with a stable message code; an account is reported when it cannot see the destination, a reference the type's profile no longer carries by its kind.
+* I-W6: carrying an item into another collection, by move or copy, keeps only references that resolve there; the rest is removed and reported in the result (`LABEL`, `BUCKET`, `MEMBER`, `ASSIGNEE`, `ATTACHMENT`, `CUSTOM_FIELD`, each with a stable message code), never silently. A move resolves labels and the board column; a copy also members, assignee and custom field values. An account is reported when it cannot see the destination, a reference the type's profile no longer carries by its kind.
 * I-W7: `title` and text fields are Unicode NFC normalised; length limits count code points, not bytes.
 
 The lifecycle state machine:
@@ -226,36 +222,25 @@ stateDiagram-v2
 | `AutoAssignPolicy` | `scope`, `strategy`, `candidates[]` (accounts/groups), `state` (for round robin), `enabled` | See §3.6 |
 | `AutomationRule` | See [automation.md](./automation.md) | |
 | `WebhookSubscription` | `tenantId`, `targetUrl`, `eventTypes[]`, `secret`, `state`, `failureCount` | HMAC-SHA256 signature, auto-disable after sustained failure |
-| `CalendarFeed` | `tenantId`, `accountId` (the owner), `viewId`, `tokenHash`, `revokedAt` | The token is answered once and stored only as a purpose-labelled HMAC. The feed reads as its owner at every fetch; revocation is a stamp; a deleted view leaves the feed serving nothing ([security.md](./security.md) T-21) |
+| `CalendarFeed` | `tenantId`, `accountId` (the owner), `viewId`, `tokenHash`, `revokedAt` | The token is answered once; revocation is a stamp; a deleted view leaves the feed serving nothing. Storage and reading: [security.md](./security.md) T-21 |
 
 **The `ActivityEntry` verbs.** The verb is a message code, rendered under the `activity` namespace
-(`item.completed` is stored, `activity.item_completed` rendered — [i18n-l10n.md](./i18n-l10n.md)
-§1). The closed vocabulary is `core/domain/model/activity/Entry.go`: one verb per lifecycle act and
-edit, one per direction for each set beside the entry. What the list cannot say:
-
-* Handing an entry to another person is `item.assigned` with both sides in the change set.
-* `item.cover_set`/`_cleared` publish `item.updated`; `item.due_set` (setting or moving) and
-  `item.due_cleared` publish `item.due_changed`; `item.duplicated`, the first step of a copy,
-  publishes `item.created`.
-* `item.custom_field_set` sets and clears one field, both sides in the change set.
-* `item.commented` is the one comment verb; editing and deleting write no history (the comment
-  carries its own `editedAt` and tombstone).
-* The recurrence verbs sit on the template entry with a compact change set; an occurrence has its
-  own history.
-* `item.merged` and `item.change_lost` are written by a sync push: a free-text value displaced into
-  a comment, or a meaningful change another device outvoted ([offline-sync.md](./offline-sync.md)
-  §4.2, §5).
+(`item.completed` stored, `activity.item_completed` rendered — [i18n-l10n.md](./i18n-l10n.md) §1).
+The closed vocabulary, with each verb's change set and the event it publishes, is
+`core/domain/model/activity/Entry.go`: one verb per lifecycle act and edit, one per direction for
+each set beside the entry.
 
 Rules of the history:
 
-* **Every mutating work-management use case writes an `ActivityEntry`, or is on the architecture
-  test's exemption list with a reason** (`test/architecture/activity_test.go`); the descriptor and
-  the test name it both. Two use cases never share a verb.
-* The `changeSet` always keeps the field names and the values only where the product needs them: a
-  rename carries both titles, a note `changed: true` and none of its text. Where `HISTORY` is compact
-  (an activity, §2), verb, actor and time are the whole step and the change set is empty.
-* A container has no `ActivityEntry`: the entity is keyed on `itemId`, and `/items/{id}/activity` is
-  the only reader. What a hub or a collection changed is in the audit trail and the change log.
+* **Every mutating work-management use case writes an `ActivityEntry`, or is on the exemption list
+  of `test/architecture/activity_test.go` with a reason** the descriptor also names. Two use cases
+  never share a verb.
+* The `changeSet` keeps the field names, and values only where the product needs them: a rename
+  carries both titles, a note `changed: true` and none of its text. Where `HISTORY` is compact (an
+  activity, §2), the change set is empty.
+* A container has no `ActivityEntry` (it is keyed on `itemId`, read only by
+  `/items/{id}/activity`); what a hub or a collection changed is in the audit trail and the change
+  log.
 
 ### 3.6 Automatic assignment
 
@@ -268,24 +253,23 @@ Rules of the history:
 | `LEAST_LOADED` | The candidate with the fewest open entries | A pure function over counts |
 
 An enabled policy applies to everything created in its collection; a disabled one only when a create
-asks for `auto_assign`. Removing a policy deletes it. New strategies implement the
-`AssignmentStrategy` interface in `core/domain/service`, without a change to `WorkItem`.
+asks for `auto_assign`. Removing a policy deletes it. A new strategy implements `AssignmentStrategy`
+(`core/domain/service`) without changing `WorkItem`.
 
 ---
 
 ## 4. Domain events
 
-The naming scheme: `de.hubtask.<context>.<entity>.<action>.v1`. Every event carries `tenantId`,
+Named `de.hubtask.<context>.<entity>.<action>.v1`, every event carries `tenantId`,
 `actor{type,id}`, `occurredAt`, `correlationId`, `causationId`, `causationDepth` and a business
-payload. Events are a public contract (webhooks, automation, n8n, Zapier); their JSON schemas live
-under `api/events/`, and `core/domain/event/EventType.go` is the closed list.
+payload. Events are a public contract (webhooks, automation, n8n, Zapier): JSON schemas under
+`api/events/`, the closed list in `core/domain/event/EventType.go`.
 
 Delivery ([ADR-0007](../adr/ADR-0007-events-outbox-cloudevents.md)):
 
-* An event is written to the outbox **in the same transaction** as the change it describes — no
-  event without a change, no change without its event.
-* The dispatcher delivers at least once, in the CloudEvents 1.0 structured format; every consumer
-  is idempotent on the event id.
+* An event is written to the outbox **in the same transaction** as the change it describes.
+* The dispatcher delivers at least once, as CloudEvents 1.0 structured; every consumer is
+  idempotent on the event id.
 * A change a restore wrote carries the extension attribute `replay`, present only when true; a
   subscriber receives a replay only if it asked for one ([backup-restore.md](./backup-restore.md) §8.4).
 
@@ -337,23 +321,22 @@ alongside continued delivery of `.v1` for at least two minor releases.
 
 ## 5. Use case catalogue (application layer)
 
-*Two meanings of one word.* The entries here are **operations** — what the application layer can
-do. A **use case** in [`docs/usecases/`](../usecases/README.md) is the person-level requirement
-above them (a goal, a story, numbered checks), served by one or more operations. A task names both.
+The entries here are **operations**; a **use case** in [`docs/usecases/`](../usecases/README.md) is
+the person-level requirement above them, served by one or more operations.
 
-**The list is the code.** Every operation is registered once in
-[`core/application/catalogue/Catalogue.go`](../../core/application/catalogue/Catalogue.go);
-[`docs/audit/event-matrix.md`](../audit/event-matrix.md) is generated from it with each operation's
-audit action. This section holds the rules the list cannot say.
+**The list is the code**: every operation is registered once in
+[`core/application/catalogue/Catalogue.go`](../../core/application/catalogue/Catalogue.go), and
+[`docs/audit/event-matrix.md`](../audit/event-matrix.md) is generated from it. This section holds
+the rules the list cannot say.
 
 **The three channels.** Every catalogued operation is a `Command`/`Query` struct plus a handler with
 a `Descriptor()`, reachable as a REST operation, an MCP tool and an automation action
-([arc42.md](./arc42.md) §4). Its PascalCase name is stable; the route's operation id, the MCP tool
-and the automation action derive from it, and the parity gate compares them.
+([arc42.md](./arc42.md) §4). Its PascalCase name is stable; the operation id, the MCP tool and the
+automation action derive from it, and the parity gate compares them.
 
 **What is deliberately not in the catalogue.** The catalogue is what a person, an agent or a rule
-may ask for. A duty nobody should be able to ask for is internal: it runs as a job, influenced
-through its configuration or its own record, never by a call.
+may ask for. A duty nobody should ask for runs as a job, influenced through its configuration or its
+own record, never by a call.
 
 | Not catalogued | Why, and what stands in |
 |---|---|
@@ -366,18 +349,18 @@ choice is not the obvious one:
 
 | Area | Rule |
 |---|---|
-| Media | The upload is three steps — ask where, put the bytes there, confirm — because the server does not carry the bytes ([arc42.md](./arc42.md) §8.4). Only the confirmation, which reads them back and sniffs them, makes the object usable |
+| Media | The upload is three steps — ask where, put the bytes there, confirm — because the server does not carry the bytes ([arc42.md](./arc42.md) §8.4); only the confirmation makes the object usable (§3.5) |
 | Scheduling | `SetRecurrence` sets and changes a series in one `PUT`; the audit entry and the history verb say which happened. `GetRecurrence` reads it back |
 | Templates | Defining, changing and deleting ask for `STRUCTURE` at the template's scope; instantiating only for `WRITE_ITEMS` in the target collection |
 | Views & query | `QueryItems` is the query DSL. A saved query is validated against the query catalogue when written, and a shared view always runs under the **reader's** authorisation, never its owner's |
-| Jumble | Submitting, converting and dismissing ask for `WRITE_ITEMS` at the tenant, reading for `READ` — an entry sits in no collection yet; the converted item goes through `CreateWorkItem`, which checks the destination. Rotating the intake address asks for `AUTOMATION`; the address is shown once. `SuggestFromJumbleEntry` asks for `WRITE_ITEMS` (it spends budget and sends content out), is refused before queueing without provider or consent, and changes nothing but a suggestion |
+| Jumble | Submitting, converting and dismissing ask for `WRITE_ITEMS` at the tenant, reading for `READ` — an entry sits in no collection yet; the converted item goes through `CreateWorkItem`, which checks the destination. Rotating the intake address asks for `AUTOMATION`; the address is shown once. `SuggestFromJumbleEntry` asks for `WRITE_ITEMS` (it spends budget and sends content out) and is refused before queueing without provider or consent |
 | Lifecycle | Writing a retention rule asks for `DELETE_CONTAINER` (a standing instruction to destroy work), as does placing a legal hold, which overrides retention, an emptied trash and an erasure ([data-protection.md](./data-protection.md) §4.1); reading and previewing either asks for `STRUCTURE`. `:retain` is a write on the entry, narrowed like any other |
-| Privacy & compliance | A data subject request asks for `MANAGE_MEMBERS`, **starting an erasure for `DELETE_CONTAINER`**; a case scoped `INSTALLATION` — the one operation that legitimately crosses the tenant boundary — goes through `admin:tenants`, one workspace at a time under its own tenant context ([data-protection.md](./data-protection.md) §4). `RestrictProcessing` asks for `MANAGE_MEMBERS`; `WithdrawConsent` is self-service for one's own consent, `MANAGE_MEMBERS` for somebody else's |
+| Privacy & compliance | Data subject requests: [data-protection.md](./data-protection.md) §4 (an `INSTALLATION` case is the one operation that legitimately crosses the tenant boundary). `RestrictProcessing` asks for `MANAGE_MEMBERS`; `WithdrawConsent` is self-service for one's own consent, `MANAGE_MEMBERS` for somebody else's |
 | Integration | Creating, listing and revoking a calendar feed ask only for the view's read permission: a feed grants exactly what its owner may already read, and revoking is never harder than minting |
-| Identity & tenancy | `ReadEncryptionStatus` and `ResealSecrets` are the control plane's, behind `admin:tenants` ([security.md](./security.md) §8.1). `GetOwnAccount` checks no permission beyond the token scope — the actor is the identifier, a service account included. **`GetAccount` is open to any member** and answers `AccountSummary` (id, kind, display name, status), a separate schema, never `Account` with fields cleared; another tenant's identifier fails to resolve, an erased account answers `status: ANONYMIZED`. `ListMemberships` answers what is granted **at** one scope, asking for `READ` there; a scope the caller holds nothing on is not found (T-04), except the workspace, refused and audited. `ListGroups` and `GetGroup` are open to any member (`members:read`). Notification preferences: one row per category and channel, the default filled in and marked; a write sets `enabled` and `include_title` together, audited with the previous value; one's own needs only the token scope, somebody else's `MANAGE_MEMBERS`; the invitation category is never off; the categories are in `/meta/capabilities` |
-| Suggestions (AI, optional) | Reading asks for `READ`, answering for `WRITE_ITEMS` at the target's scope. **Accepting performs the ordinary use case as the accepting person** — a suggestion grants nothing; one whose input fingerprint no longer matches its target is refused with `suggestions.stale`. Dismissing is a state, never a deletion (the record ages out as `AI_SUGGESTION`). Producing one is a job. Accepting a breakdown (`SuggestDecomposition`) is one `CreateWorkItem` per node in reading order; a refusal at the third leaves the two before it. `SuggestDuplicates` asks no provider (embedding distance), answers synchronously, asks for `WRITE_ITEMS`, narrows hits to what the caller may read, never proposes an entry's own parent or children, and can be dismissed, not accepted. `AiSummarizeContainer` is read and dismissed, never accepted. Accepting an `AiGenerateTemplate` suggestion is `CreateTemplate`, minus nodes the profile refuses. `AiTranslate` answers now and stores nothing ([i18n-l10n.md](./i18n-l10n.md) §7): the entry's `READ`, then consent and budget; every way of not answering is `ai.unavailable` |
+| Identity & tenancy | `ReadEncryptionStatus` and `ResealSecrets` are the control plane's, behind `admin:tenants` ([security.md](./security.md) §8.1). `GetOwnAccount` checks only the token scope — the actor is the identifier, a service account included. **`GetAccount` is open to any member** and answers `AccountSummary` (id, kind, display name, status), a separate schema, never `Account` with fields cleared; another tenant's identifier fails to resolve, an erased account answers `status: ANONYMIZED`. `ListMemberships` answers what is granted **at** one scope, asking for `READ` there; a scope the caller holds nothing on is not found (T-04), except the workspace, refused and audited. `ListGroups` and `GetGroup` are open to any member (`members:read`). Notification preferences: one row per category and channel, the default filled in and marked; a write sets `enabled` and `include_title` together, audited with the previous value; one's own needs only the token scope, somebody else's `MANAGE_MEMBERS`; the invitation category is never off |
+| Suggestions (AI, optional) | Reading asks for `READ`, answering for `WRITE_ITEMS` at the target's scope. **Accepting performs the ordinary use case as the accepting person** — a suggestion grants nothing; one whose input fingerprint no longer matches its target is refused with `suggestions.stale`. Dismissing is a state, never a deletion (the record ages out as `AI_SUGGESTION`). Producing one is a job. `SuggestDuplicates` asks no provider, answers synchronously and asks for `WRITE_ITEMS`; `AiTranslate` asks for the entry's `READ`. What each kind's acceptance performs: [ai-first.md](./ai-first.md) §2 |
 | Search | `SearchItems` is full text and, where pgvector and a provider exist, semantic — one ranked page, the words winning over the meaning ([ADR-0050](../adr/ADR-0050-pgvector-as-a-capability.md)). `ReindexSearch` asks for `STRUCTURE` at the workspace, queues the rewrite of exactly the entries indexed under a replaced text search configuration, and answers the count |
-| Backup | Creating a target asks for `DELETE_CONTAINER`: a target is a channel the data leaves by. Listing targets asks for `STRUCTURE`. Credentials are sealed on the way in and returned by nothing. The connection test writes, reads back and deletes, and answers a result rather than an error. Listing what is at a target, reading a restore and starting one ask for `STRUCTURE`; `REPLACE_TENANT` and `INSTANCE` ask for `DELETE_CONTAINER`, the typed workspace name and a step-up ([backup-restore.md](./backup-restore.md) §8.3) |
+| Backup | Creating a target asks for `DELETE_CONTAINER`: a target is a channel the data leaves by. Listing targets, what is at one, and restores asks for `STRUCTURE`. The connection test writes, reads back and deletes, and answers a result rather than an error. Restore modes: [backup-restore.md](./backup-restore.md) §8.2 |
 | Jobs | `GetJob` asks for `READ`, `CancelJob` for `STRUCTURE`, both at the tenant (a job belongs to no container). A job answers its status, its progress where computable, a result reference and the last failure's code — never the payload, attempts, lease or deduplication key |
 | Automation | [automation.md](./automation.md) §2.1 |
 
@@ -385,14 +368,12 @@ choice is not the obvious one:
 
 ## 6. Persistence sketch
 
-The complete DDL: [`../../db/schema.sql`](../../db/schema.sql). The principles:
+The complete DDL, indices included: [`../../db/schema.sql`](../../db/schema.sql). The principles:
 
 * Every business table begins with `tenant_id uuid NOT NULL` and carries an RLS policy
   ([multi-tenancy.md](./multi-tenancy.md)).
-* Composite indices matching the views' query patterns:
-  `(tenant_id, collection_id, bucket_id, order_key)`, `(tenant_id, collection_id, due_at)`,
-  `(tenant_id, assignee_id, is_completed, due_at)`, `(tenant_id, path text_pattern_ops)`.
-* Partial indices for "not deleted / not archived" (the most common filter).
+* Composite indices, led by `tenant_id`, match the views' query patterns; partial indices serve
+  "not deleted / not archived", the most common filter.
 * Set relations (labels, members) as join tables, not JSON arrays — filterability takes precedence.
 * `custom_fields` as `jsonb` with a GIN index; validation happens in the domain code.
 * Full text: a `tsvector` column with a language-dependent configuration per item, maintained by a
