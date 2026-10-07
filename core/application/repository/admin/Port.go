@@ -6,7 +6,7 @@
 // The methods on the tenant row itself deliberately take no tenant parameter, the same shape as
 // every other repository: the control plane opens an ordinary bounded transaction per tenant it
 // touches, and row level security holds even here. The two exceptions say so in their comments -
-// the enumerator, which is decision 6's one legitimate listing, and the instance journal, which
+// the enumerator, which is the one legitimate listing of tenants (multi-tenancy.md §2.1), and the instance journal, which
 // belongs to no tenant at all.
 package admin
 
@@ -40,7 +40,7 @@ type TenantRecord struct {
 type Tenants interface {
 	// List answers every workspace, oldest first. It reads through the installation-scoped
 	// SECURITY DEFINER enumerator migration 0067 pins down - the one legitimate place tenants
-	// are enumerated (0.6.0 decision 6).
+	// are enumerated (multi-tenancy.md §2.1).
 	List(ctx context.Context) ([]TenantRecord, error)
 
 	// Insert writes the row, inside the new tenant's own scope: the first write a tenant ever

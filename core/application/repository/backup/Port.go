@@ -189,9 +189,8 @@ type Import interface {
 
 // Journal is the deletion journal, read (backup-restore.md §7).
 //
-// The table has been written since B-10 and read, until now, only by tests - the comment on the
-// writing side says so in as many words: "nothing reads this table in production; it exists so
-// that a restore from backup cannot bring back what was deleted." This is that reader.
+// The table exists so that a restore from backup cannot bring back what was deleted, and this is
+// its one reader in production.
 //
 // It is a port of its own rather than a method on the lifecycle repository for the reason that
 // port already gives about mixing reads with deletions: one interface carrying both would let a

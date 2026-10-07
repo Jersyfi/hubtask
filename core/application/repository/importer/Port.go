@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package importer is the outbound side of an import (P-08): the run's repository, and the
+// Package importer is the outbound side of an import: the run's repository, and the
 // converter port - a foreign file in, archive records out.
 //
 // One ingestion path, not two (backup-restore.md §9): a converter never writes a row. It reads
@@ -47,7 +47,7 @@ type Source struct {
 	Hub shared.ID
 	// Name is what the file was called when it arrived, without its extension, or empty where
 	// nothing is known. A source that names nothing of its own - a CSV - names its collection
-	// after it (issue 766): two files are then two collections, where a constant name met the
+	// after it: two files are then two collections, where a constant name would meet the
 	// hub's unique name on the second import.
 	Name string
 	// Digest is the file's SHA-256, lower hex. A converter whose source carries no identity of

@@ -101,8 +101,7 @@ type Changes interface {
 	Latest(ctx context.Context) (int64, error)
 }
 
-// Devices is what the server keeps about the devices that synchronise (offline-sync.md §6, §10,
-// N-03).
+// Devices is what the server keeps about the devices that synchronise (offline-sync.md §6, §10).
 type Devices interface {
 	// Touch registers a device on its first contact and records every contact after that: the
 	// last position, the last moment, the credential, and what the device said about itself. An

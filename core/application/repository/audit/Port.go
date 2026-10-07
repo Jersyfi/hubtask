@@ -104,7 +104,7 @@ type Anchor struct {
 	LastSeq    int64
 	ChainHash  []byte
 	// Destination is the backup target the copy was written to, by identifier; Receipt is the
-	// digest of the object as written, which is what a read-back is checked against (P-13).
+	// digest of the object as written, which is what a read-back is checked against (audit.md §3).
 	Destination string
 	Receipt     string
 }
@@ -120,7 +120,7 @@ type ChainEnd struct {
 }
 
 // Anchors writes the one row the trail's package writes beside the trail: what was exported and
-// where (P-13). Its own port rather than a method on Trail, whose contract is that it reads.
+// where (audit.md §3). Its own port rather than a method on Trail, whose contract is that it reads.
 type Anchors interface {
 	Record(ctx context.Context, anchor Anchor) error
 }
@@ -167,7 +167,7 @@ type Trail interface {
 	LatestAnchor(ctx context.Context) (Anchor, error)
 
 	// ChainEnd answers where the chain stands now: the tail the next entry chains to, which is
-	// what an anchor exports (P-13).
+	// what an anchor exports.
 	ChainEnd(ctx context.Context) (ChainEnd, error)
 
 	// HashAt answers the stored hash at one sequence number, or an error wrapping ErrNotFound.
