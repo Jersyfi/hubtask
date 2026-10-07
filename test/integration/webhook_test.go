@@ -210,12 +210,12 @@ func TestADeliveryOfOneTenantIsInvisibleInAnother(t *testing.T) {
 // is one a query can leave out without anything looking wrong.
 //
 // `Retried` and `Replayed` both build the next attempt out of the row that was read, and both
-// refuse a delivery whose tenant is zero. The listing and the find left `tenant_id` unselected -
-// row level security already scopes the row, so nothing in a unit test or a service test missed
-// it - and the consequence was that **every** retry and **every** replay answered
-// `webhooks.delivery_incomplete`: the first failed attempt rolled its own outcome back with it, so
-// a delivery stayed `PENDING` for ever, no subscription ever reached its failure run, and nothing
-// could be dead-lettered for a replay to act on. Only a real read shows it.
+// refuse a delivery whose tenant is zero. A listing or a find that leaves `tenant_id` unselected
+// passes every unit test and service test - row level security already scopes the row - and makes
+// **every** retry and **every** replay answer `webhooks.delivery_incomplete`: the first failed
+// attempt rolls its own outcome back with it, so a delivery stays `PENDING` for ever, no
+// subscription ever reaches its failure run, and nothing can be dead-lettered for a replay to act
+// on. Only a real read shows it.
 func TestADeliveryReadBackCanProduceItsOwnNextAttempt(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -277,10 +277,10 @@ func TestADeliveryReadBackCanProduceItsOwnNextAttempt(t *testing.T) {
 			t.Errorf("the listed delivery carries tenant %v, want %v", listed[0].TenantID, tenantA)
 		}
 
-		// The subscription had the same hole, with the same cause and a different symptom: every
+		// The subscription has the same trap, with the same cause and a different symptom: every
 		// auditable operation on one writes its entry under `subscription.TenantID`, and the audit
-		// port refuses an entry whose tenant is zero. That is what answered `audit.entry_incomplete`
-		// on every replay.
+		// port refuses an entry whose tenant is zero - so a read without the tenant answers
+		// `audit.entry_incomplete` on every replay.
 		stored, err := subscriptions.Find(txCtx, subscription.ID)
 		if err != nil {
 			return err

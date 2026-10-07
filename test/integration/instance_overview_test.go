@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The installation at a glance, against the real boundary (SI-17, migration 0105).
+// The installation at a glance, against the real boundary (migration 0105).
 //
 // The census is the one read in this product that crosses the tenant boundary on purpose, and the
 // reason it may is that it cannot bring anything back but integers. Both halves are asserted: that

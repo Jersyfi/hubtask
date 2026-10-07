@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The caller's side of the job table (E-01), against a real database. The `job` table is the one
+// The caller's side of the job table, against a real database. The `job` table is the one
 // table without row level security, so every one of these methods states the tenant condition
 // itself - which is exactly why the boundary is proved per method here rather than trusted to a
 // policy that is not there (gate SG-3).

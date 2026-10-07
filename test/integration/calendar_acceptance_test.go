@@ -24,8 +24,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The sentence D-08 exists to make true, against real memberships and real rows: the feed reads as
-// its **owner**, evaluated at fetch time. An owner stripped of the membership that let them see
+// UC-INT-06 check 4, against real memberships and real rows: the feed reads as its **owner**,
+// evaluated at fetch time. An owner stripped of the membership that let them see
 // the view fetches a feed that has narrowed with them - and the token that worked yesterday is not
 // what decides.
 

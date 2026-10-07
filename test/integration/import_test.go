@@ -27,9 +27,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/storage"
 )
 
-// The import from another system against the real boundary (P-08): the run's row round-trips,
-// no method of it crosses a tenant (gate SG-3), and the whole runner - the file read back, the
-// CSV converted, the archive applied through the restore's applier - lands a collection under the
+// The import from another system against the real boundary: the run's row round-trips, no method
+// of it crosses a tenant (gate SG-3), and the whole runner - the file read back, the CSV
+// converted, the archive applied through the restore's applier - lands a collection under the
 // hub, and lands nothing the second time.
 
 func importRunRepo() postgres.ImportRunRepository { return postgres.NewImportRunRepository() }

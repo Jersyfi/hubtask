@@ -16,9 +16,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The seven statements F4-02 added, against a real database: the guarded writes hold on the
-// version, the reads answer what the deletion refusal names, and every one of them is invisible
-// next door (gate SG-3).
+// The seven lifecycle statements of the configuration, against a real database: the guarded writes
+// hold on the version, the reads answer what the deletion refusal names, and every one of them is
+// invisible next door (gate SG-3).
 
 // A schedule is changed under its version, and the version it was written against is then spent.
 func TestAScheduleIsChangedUnderItsVersionAndRemoved(t *testing.T) {
@@ -220,7 +220,7 @@ func TestARetentionRuleIsCorrectedAndWithdrawn(t *testing.T) {
 	}
 }
 
-// Gate SG-3: a cross-tenant negative test for every method F4-02 added.
+// Gate SG-3: a cross-tenant negative test for every one of those seven methods.
 func TestAnotherTenantCannotChangeOrRemoveThisOnesConfiguration(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

@@ -18,8 +18,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The assignment policy against a real database (C-02): one row per scope, the rotation's cursor
-// advanced under its lock, and a cross-tenant negative for every method (gate SG-3).
+// The assignment policy against a real database: one row per scope, the rotation's cursor advanced
+// under its lock, and a cross-tenant negative for every method (gate SG-3).
 
 func policyRepo() postgres.AutoAssignPolicyRepository {
 	return postgres.AutoAssignPolicyRepository{}
@@ -133,9 +133,9 @@ func TestAReplacementResetsTheRotation(t *testing.T) {
 	}
 }
 
-// The acceptance criterion of C-02, at the row: two rotations arriving together queue on the
-// lock, advance the state twice, and hand out two different candidates. A real concurrency test -
-// the second transaction provably waits on the first - not two sequential calls.
+// UC-WRK-11 check 3, at the row: two rotations arriving together queue on the lock, advance the
+// state twice, and hand out two different candidates. A real concurrency test - the second
+// transaction provably waits on the first - not two sequential calls.
 func TestTwoConcurrentRotationsQueueOnTheLockedRow(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -258,7 +258,7 @@ func TestTwoConcurrentRotationsQueueOnTheLockedRow(t *testing.T) {
 }
 
 // The policies document travels with the container: the LEFT JOIN in FindContainer and
-// ListContainers is what puts the row's definition onto every container read (C-02).
+// ListContainers is what puts the row's definition onto every container read.
 func TestTheContainerCarriesItsPolicyDocument(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

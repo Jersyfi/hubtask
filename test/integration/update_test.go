@@ -16,8 +16,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// SetAttributes against a real database (B-05), with the cross-tenant negative gate SG-3 asks of
-// every new repository method.
+// SetAttributes against a real database, with the cross-tenant negative gate SG-3 asks of every
+// new repository method.
 
 // writableProfile is the profile of a task as far as these tests need it: NOTES is the capability
 // under test, and the domain refuses notes without it.

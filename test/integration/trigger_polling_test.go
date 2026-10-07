@@ -27,7 +27,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The polling trigger against a real database (G-04). Three things only PostgreSQL can answer:
+// The polling trigger against a real database. Three things only PostgreSQL can answer:
 // that the keyset pages a table nobody is holding still, that the horizon covers a writer whose
 // transaction is open while a poll runs, and that a poll cannot reach into another tenant.
 

@@ -15,9 +15,8 @@ import (
 	"github.com/Jersyfi/hubtask/test/dbtest"
 )
 
-// The migration that gives `work_item` its language-dependent document (C-08, migration 0019,
-// ADR-0034), proved where the acceptance criterion puts it: against a table that already has rows
-// in it.
+// The migration that gives `work_item` its language-dependent document (migration 0019,
+// ADR-0034), proved against a table that already has rows in it.
 //
 // The other suites migrate an empty database, which is the one state in which this migration
 // cannot go wrong. Here it runs the way it runs in production - over a populated table, from the

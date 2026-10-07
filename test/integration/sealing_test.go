@@ -23,7 +23,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The re-seal's five views of the stores and the census over them (ADR-0045, #368), against the
+// The re-seal's five views of the stores and the census over them (ADR-0045), against the
 // real boundary. Gate SG-3: one negative per port method - a re-seal reaches every table that
 // holds a credential to something outside this system, and it must reach only its own tenant's.
 

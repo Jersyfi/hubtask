@@ -23,12 +23,12 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// ADR-0076 §4 as the owner decided it on 2026-10-04 (E2, #1138), against the real database and the
-// real resolver: the password opens whenever the workspace's resolved methods leave no way in that
-// works - here an installation default without the password, which no workspace screen wrote and no
-// workspace guard could refuse, in a workspace whose invited owner has to get in before anybody can
-// switch a way in on. The service tests show the same over fakes; what only this test shows
-// is that the rule the resolver reads from `instance_setting` is the rule the fallback answers.
+// ADR-0076 §4 as ADR-0078 §2 amends it, against the real database and the real resolver: the
+// password opens whenever the workspace's resolved methods leave no way in that works - here an
+// installation default without the password, which no workspace screen wrote and no workspace
+// guard could refuse, in a workspace whose invited owner has to get in before anybody can switch a
+// way in on. The service tests show the same over fakes; what only this test shows is that the
+// rule the resolver reads from `instance_setting` is the rule the fallback answers.
 //
 // The installation's level is one row set for every workspace in this database, so the test restores
 // it whole when it ends; the package runs its tests one after another, never beside each other.

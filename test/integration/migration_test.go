@@ -47,8 +47,8 @@ func TestTheMigrationRunsAgainstAnExistingDatabase(t *testing.T) {
 	// than one that failed.
 	//
 	// The exceptions come from the package's one list rather than from a second copy written into
-	// this query. There *was* a second copy, and a table added to the first left this one red -
-	// which is the cheap version of two lists disagreeing about where the boundary is (H-10).
+	// this query. A second copy goes red when a table is added to the first - which is the cheap
+	// version of two lists disagreeing about where the boundary is.
 	rows, err := admin.Query(ctx, `
 		SELECT c.relname FROM pg_class c
 		JOIN pg_namespace n ON n.oid = c.relnamespace

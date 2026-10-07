@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// Names sort the same on every installation (M-08, i18n-l10n.md §5): migration 0080 defines
+// Names sort the same on every installation (i18n-l10n.md §5): migration 0080 defines
 // hubtask_name from the ICU root collation where PostgreSQL has it, and every image the support
 // matrix names has it - so on the integration database the object is ICU's, "Ä" sits beside "A",
 // and the manifest says so.

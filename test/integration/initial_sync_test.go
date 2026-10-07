@@ -14,10 +14,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The initial synchronisation against a real database and the real service (N-02): a member of
-// the hub walks the workspace from nothing to a delta cursor, every kind this test seeded is in
-// the walk, a change landing mid-walk is on the first delta, and the walk's size and duration are
-// measured rather than assumed.
+// The initial synchronisation against a real database and the real service: a member of the hub
+// walks the workspace from nothing to a delta cursor, every kind this test seeded is in the walk,
+// a change landing mid-walk is on the first delta, and the walk's size and duration are measured
+// rather than assumed.
 
 func pullFor(ctx context.Context, t *testing.T) syncservice.PullChanges {
 	t.Helper()
@@ -140,7 +140,7 @@ func TestAMemberOfAnotherHubWalksNoneOfIt(t *testing.T) {
 	}
 }
 
-// The snapshot against the real database (SY-C, P-12): the same records as the page sequence in
+// The snapshot against the real database (SY-C): the same records as the page sequence in
 // the same order, and a cursor at its end that the delta accepts without a gap - a change landing
 // after the snapshot began is on the first delta, as it is after a walk in pages.
 func TestTheSnapshotAnswersThePageSequenceAndEndsOnACursorTheDeltaAccepts(t *testing.T) {

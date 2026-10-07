@@ -26,7 +26,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// ADR-0078 §3 (SC-34) against the real database: an operator opens the password for one workspace
+// ADR-0078 §3 against the real database: an operator opens the password for one workspace
 // whose own provider is switched on - the broken provider the opening is for - and the real resolver
 // reads it from the tenant row: the door opens with the cause OPERATOR, the card offers the password,
 // a sign-in through it lands in the trail, the act lands in the workspace's trail and in the journal,
@@ -39,8 +39,9 @@ var (
 	openingProvider  = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000034c1")
 )
 
-// provenStepUp stands for a step-up the operator passed: the proof itself is H-03's, tested at
-// length elsewhere; what this test is about is what the opening does once it is let through.
+// provenStepUp stands for a step-up the operator passed: the proof itself is the step-up's own,
+// tested at length elsewhere; what this test is about is what the opening does once it is let
+// through.
 type provenStepUp struct{}
 
 func (provenStepUp) Available() bool { return true }

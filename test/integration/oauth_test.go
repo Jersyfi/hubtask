@@ -19,8 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The OAuth2 provider of H-05, against the real boundary. Gate SG-3: one negative per port
-// method.
+// The OAuth2 provider, against the real boundary. Gate SG-3: one negative per port method.
 
 func oauthStores(ctx context.Context, t *testing.T) (
 	postgres.OauthClientRepository, postgres.OauthGrantRepository,

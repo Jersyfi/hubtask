@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The statements the templates run on, against a real database (D-06): the tree round-trips as the
+// The statements the templates run on, against a real database: the tree round-trips as the
 // document it is, a name is free again once a template is deleted, and the tenant boundary holds
 // per method (gate SG-3).
 
@@ -113,7 +113,7 @@ func TestATemplateRoundTripsAsTheTreeItIs(t *testing.T) {
 	}
 }
 
-// The name rule, and the C-07 lesson with it: two live templates in one scope may not share a
+// The name rule, and the trap beside it: two live templates in one scope may not share a
 // name, a deleted one frees it, and what comes back under that name is the new template rather
 // than the old one.
 func TestADeletedTemplateFreesItsNameAndDoesNotComeBack(t *testing.T) {

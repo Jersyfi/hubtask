@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 )
 
-// J-12's acceptance, with the real store behind the real server rather than a fake of either. It
+// The MCP prompts, with the real store behind the real server rather than a fake of either. It
 // needs no database - a prompt reads nothing - and it lives here because this is the package that
 // may wire an inbound adapter to an outbound one; `presentation/mcp` may not import
 // `infrastructure/ai`, which is the dependency rule that made the store a port in the first place.
@@ -107,8 +107,8 @@ func TestTheWeeklyReviewIsUsableFromEndToEnd(t *testing.T) {
 	if linked["type"] != "resource_link" {
 		t.Fatalf("the collection was rendered as %v", linked)
 	}
-	// And the link is in the URI space J-11 published, so the client resolves it through
-	// resources/read - which is where the permission is asked.
+	// And the link is in the URI space the MCP resources publish, so the client resolves it
+	// through resources/read - which is where the permission is asked.
 	uri, _ := linked["uri"].(string)
 	if _, _, err := mcp.ParseResourceURI(uri); err != nil {
 		t.Errorf("the prompt produced %q, which this server's own resources/read cannot address", uri)
@@ -142,7 +142,7 @@ func TestThePublishedPromptIsTheStoredPrompt(t *testing.T) {
 	}
 }
 
-// A prompt writes no audit entry, and that is the correct answer rather than a gap (J-14).
+// A prompt writes no audit entry, and that is the correct answer rather than a gap.
 //
 // The parity test asserts `AI_AGENT` for what an agent *does*; a prompt is a text this build
 // carries, rendered without reading anything and without acting on anything, so there is no act to

@@ -17,8 +17,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The guards a hard delete has to pass, against the real database (B-10): the holds that forbid it,
-// and the two records it leaves behind. Plus a cross-tenant negative for each (gate SG-3) - a legal
+// The guards a hard delete has to pass, against the real database: the holds that forbid it, and
+// the two records it leaves behind. Plus a cross-tenant negative for each (gate SG-3) - a legal
 // hold read across the boundary would not be a wrong answer but somebody else's obligation ignored.
 
 func lifecycleRepo() postgres.LifecycleRepository { return postgres.NewLifecycleRepository() }

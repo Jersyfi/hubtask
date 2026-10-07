@@ -16,9 +16,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// Placing and lifting a legal hold against a real database (E-08): the lifting that happens once,
-// and the boundary each method may not cross (gate SG-3). A hold read across the boundary would not
-// be a wrong answer but somebody else's obligation ignored — or, worse, lifted.
+// Placing and lifting a legal hold against a real database: the lifting that happens once, and the
+// boundary each method may not cross (gate SG-3). A hold read across the boundary would not be a
+// wrong answer but somebody else's obligation ignored — or, worse, lifted.
 
 func holdRepo() postgres.LegalHoldRepository { return postgres.NewLegalHoldRepository() }
 

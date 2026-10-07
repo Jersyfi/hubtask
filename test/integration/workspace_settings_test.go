@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The workspace's own row against the real boundary (F4-01). Gate SG-3: one workspace reads and
+// The workspace's own row against the real boundary. Gate SG-3: one workspace reads and
 // changes itself and reaches nothing of the one next door - and the settings document keeps the
 // keys this build does not model, which is the property no unit test can show.
 

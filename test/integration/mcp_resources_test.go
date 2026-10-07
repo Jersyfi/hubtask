@@ -24,8 +24,8 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 )
 
-// J-11's acceptance, against a real database: an MCP resource is a catalogue read, so it is bounded
-// by the same permission, narrowed by the same row level security, and audited by the same
+// The MCP resources, against a real database: an MCP resource is a catalogue read, so it is
+// bounded by the same permission, narrowed by the same row level security, and audited by the same
 // application layer as the identical read through any other door.
 //
 // Everything below the adapters is the production wiring - only the clock is fixed.
@@ -74,9 +74,9 @@ func readCatalogueFor(t *testing.T) *usecase.Registry {
 // agentFor is the actor an MCP call arrives as - which is to say a *person's*, with the scopes an
 // agent token carries for reading.
 //
-// The kind is deliberately not set here (J-14). What makes a call an agent's is the door it came
-// through, and the adapter stamps it: a test that stamped it itself would pass on the day the
-// adapter stopped, which is exactly the state this suite was in before J-14.
+// The kind is deliberately not set here. What makes a call an agent's is the door it came through,
+// and the adapter stamps it: a test that stamped it itself would still pass on the day the adapter
+// stopped.
 func agentFor(tenant, account shared.ID) appshared.ActorContext {
 	actor := administrator(tenant, account)
 	actor.Scopes = []string{"containers:read", "items:read", "views:read"}
@@ -208,7 +208,7 @@ func TestARefusedResourceReadIsAuditedAsTheAgentItWas(t *testing.T) {
 		t.Fatalf("reading the audit entry: %v", err)
 	}
 	// AI_AGENT, and the actor that arrived was a person's: the door decided it, which is what
-	// makes ai-first.md §1.1's promise about resources true and not only about tools (J-14).
+	// makes ai-first.md §1.1's promise about resources true and not only about tools.
 	if actorType != string(appshared.ActorAIAgent) {
 		t.Errorf("the refusal was recorded as %s, want the agent it was", actorType)
 	}

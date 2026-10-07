@@ -19,9 +19,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The statements the calendar feeds run on, against a real database (D-08): a feed round-trips,
-// the token finds exactly its own row, revocation is a stamp that happens once, and the tenant
-// boundary holds per method (gate SG-3).
+// The statements the calendar feeds run on, against a real database: a feed round-trips, the token
+// finds exactly its own row, revocation is a stamp that happens once, and the tenant boundary holds
+// per method (gate SG-3).
 
 // feedSecret is this file's installation secret. Fixed, so that a hash written by one test is the
 // hash another one looks up.

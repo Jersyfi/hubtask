@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// B-5 (backup-restore.md §12, N-11) against the database: a workspace whose device holds a valid
+// B-5 (backup-restore.md §8.3 step 6) against the database: a workspace whose device holds a valid
 // cursor is restored into - rows land without change log entries and the epoch advances as the
 // restore succeeds, which is what Applier.succeed does through the same repository - and the
 // device's next pull is refused, the full synchronisation delivers the restored rows, and the

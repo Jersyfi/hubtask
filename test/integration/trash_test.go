@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The trash against the real database (B-10): the cascade, the batch that makes a restore exact,
+// The trash against the real database: the cascade, the batch that makes a restore exact,
 // the view over both aggregates, the hard delete - and a cross-tenant negative for every one of
 // them (gate SG-3).
 //

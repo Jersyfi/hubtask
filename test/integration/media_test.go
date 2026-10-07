@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The media records against a real database (C-06): the upload life, the reference counting the
+// The media records against a real database: the upload life, the reference counting the
 // reconciliation keeps honest, the cover under its constraints, and a cross-tenant negative for
 // every method (gate SG-3).
 
@@ -229,7 +229,7 @@ func TestTheOrphanSweepMarksTakesAndRemoves(t *testing.T) {
 
 	// Confirmed just now and attached to nothing yet: the state every upload passes through
 	// between its confirmation and the call that uses it. The pass below runs straight through
-	// that window, which is what used to mark it.
+	// that window, and must not mark it.
 	justConfirmed := sealMedia(
 		ctx, t, tenantA, stagedMedia(ctx, t, tenantA, authorA, media.UsageAttachment))
 

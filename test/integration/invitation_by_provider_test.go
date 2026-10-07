@@ -14,9 +14,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// SC-24: an invited account accepts its invitation through the provider - ACTIVE and the invitation
-// spent in one statement, only while the invitation has not run out, and only in its own workspace
-// (gate SG-3). Its own accounts, named by nobody else in this shared database.
+// UC-ID-07 check 5: an invited account accepts its invitation through the provider - ACTIVE and
+// the invitation spent in one statement, only while the invitation has not run out, and only in its
+// own workspace (gate SG-3). Its own accounts, named by nobody else in this shared database.
 var (
 	invitedFresh  = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000024c1")
 	invitedLapsed = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000024c2")

@@ -19,9 +19,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The relying party's surface against the real boundary (H-04). Gate SG-3: one workspace's
-// provider, its sealed secret, its sign-in flows and its people's provider subjects are all
-// invisible and unusable next door.
+// The relying party's surface against the real boundary. Gate SG-3: one workspace's provider, its
+// sealed secret, its sign-in flows and its people's provider subjects are all invisible and
+// unusable next door.
 
 var (
 	idpTenantA  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc01")

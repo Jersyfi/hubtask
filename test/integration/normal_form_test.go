@@ -14,9 +14,9 @@ import (
 	textadapter "github.com/Jersyfi/hubtask/infrastructure/text"
 )
 
-// The acceptance of M-07 against a real database: a title that arrives decomposed is stored
+// Unicode normalisation against a real database: a title that arrives decomposed is stored
 // composed and found by a composed search - and, beside it, the consequence i18n-l10n.md §5
-// names for the rows this task does not rewrite. A row holding the decomposed bytes - written
+// names for the rows nothing rewrites. A row holding the decomposed bytes - written
 // here straight into the column, past the constructor and past the row's own normalize() -
 // is *not* found by the same search, because PostgreSQL's parser compares code points and
 // `a` + U+0308 is not `ä` to it. That is the row its next edit brings into line, and nothing

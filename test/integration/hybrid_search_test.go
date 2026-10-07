@@ -20,8 +20,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The acceptance of J-10, against a real database - which is the only place it can be asked. What a
-// vector is near, what `ts_rank_cd` thinks a title is worth beside it, and whether the two halves
+// The search by meaning, against a real database - which is the only place it can be asked. What
+// a vector is near, what `ts_rank_cd` thinks a title is worth beside it, and whether the two halves
 // come back as one ordered page are all PostgreSQL's answers, and a fake would only ever agree with
 // whatever this file assumed.
 
@@ -151,7 +151,7 @@ func requirePgvector(ctx context.Context, t *testing.T) {
 }
 
 // hybridModel names the fixtures' vectors and the query's, which is what makes them comparable
-// at all: the search reads only the rows of the model its query vector came from (#568).
+// at all: the search reads only the rows of the model its query vector came from.
 const hybridModel = "test-embed-1"
 
 func hybridSearch(f hybridFixture, meaning []float32) repository.TextSearch {
@@ -164,9 +164,9 @@ func hybridSearch(f hybridFixture, meaning []float32) repository.TextSearch {
 	}
 }
 
-// The sentence the whole task is for: an entry that shares no word with the query is found, and the
+// The point of the hybrid search: an entry that shares no word with the query is found, and the
 // entry that carries the word is still first. Both halves matter - a ranking that let meaning win
-// would stop finding an exact identifier, which is the regression F3-18 had to soften in the client.
+// would stop finding an exact identifier.
 func TestASemanticHitIsFoundAndTheExactWordStillWins(t *testing.T) {
 	ctx := context.Background()
 	f := newHybridFixture(ctx, t)
@@ -195,9 +195,9 @@ func TestASemanticHitIsFoundAndTheExactWordStillWins(t *testing.T) {
 	}
 }
 
-// The same search without a vector is the search this product had before J-10: the entry carrying
-// the word, and nothing else. Which is what says the hit above came from the vector rather than
-// from some accident of the German configuration.
+// The same search without a vector is the search by words alone: the entry carrying the word, and
+// nothing else. Which is what says the hit above came from the vector rather than from some
+// accident of the German configuration.
 func TestWithoutAVectorTheSearchFindsOnlyTheWords(t *testing.T) {
 	ctx := context.Background()
 	f := newHybridFixture(ctx, t)

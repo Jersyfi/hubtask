@@ -178,9 +178,9 @@ func TestRetiringAKeyARowStillNamesIsARefusalRatherThanALoss(t *testing.T) {
 	})
 }
 
-// The completion the first two drills could not reach (#368): values sealed under k1 in all five
-// stores, one round under [k2 k1], the census answering zero for k1, and every value opening under
-// a ring that holds k2 alone. This is the moment step 4 of security.md §8.1 waits for.
+// The completion the two drills above stop short of: values sealed under k1 in all five stores,
+// one round under [k2 k1], the census answering zero for k1, and every value opening under a ring
+// that holds k2 alone. This is the moment step 4 of security.md §8.1 waits for.
 
 type drillTrail struct{ entries []audit.Entry }
 

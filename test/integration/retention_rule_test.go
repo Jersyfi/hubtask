@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The rule model and the two phases against a real database (E-07): one rule per kind per level,
+// The rule model and the two phases against a real database: one rule per kind per level,
 // the marking that survives between the phases, the referential safeguard, and the boundary each
 // method may not cross (gate SG-3).
 
@@ -74,9 +74,9 @@ func TestARuleIsWrittenAndReadBackWhole(t *testing.T) {
 	// The tenant, first, because it is the field a query can leave out without anything looking
 	// wrong: row level security already scopes the row, so nothing in a unit test or a service
 	// test misses it. What misses it is every correction — `applyTo` rebuilds the rule from the
-	// row that was read and `NewRule` refuses one whose tenant is zero, so **every** PATCH on a
-	// retention rule answered `lifecycle.rule_incomplete` on `/data_kind`, which is the last field
-	// anybody would suspect (F4-18).
+	// row that was read and `NewRule` refuses one whose tenant is zero, so a row read without its
+	// tenant makes **every** PATCH on a retention rule answer `lifecycle.rule_incomplete` on
+	// `/data_kind`, which is the last field anybody would suspect.
 	if found.TenantID != tenantA {
 		t.Errorf("the rule came back with tenant %v, want %v", found.TenantID, tenantA)
 	}
@@ -95,8 +95,8 @@ func TestARuleIsWrittenAndReadBackWhole(t *testing.T) {
 		t.Errorf("the rule came back as %d days of %s", found.RetainDays, found.Action)
 	case found.GraceDays != domain.DefaultGraceDays:
 		t.Errorf("the grace period came back as %d", found.GraceDays)
-	// Nothing warns anybody yet, so a rule nobody asked to warn carries no warning rather than one
-	// nothing sends.
+	// A rule nobody asked to warn carries no warning: the advance warning goes only to the
+	// recipients a rule names.
 	case !found.Notify.Silent():
 		t.Errorf("the warning came back as %+v", found.Notify)
 	case !found.Enabled:

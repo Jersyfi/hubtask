@@ -18,10 +18,10 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// SC-32: a sign-in flow started from an invitation's own link carries the invited account
-// (ADR-0078 §1, migration 0116) - back to the callback of its own workspace and to no other, and
-// only an account of the workspace the flow belongs to (gate SG-3). Its own workspaces and
-// accounts, named by nobody else in this shared database.
+// A sign-in flow started from an invitation's own link carries the invited account (ADR-0078 §1,
+// migration 0116) - back to the callback of its own workspace and to no other, and only an
+// account of the workspace the flow belongs to (gate SG-3). Its own workspaces and accounts, named
+// by nobody else in this shared database.
 var (
 	sc32TenantA  = shared.MustParseID("01936f2a-7c1e-7000-8000-000000032a01")
 	sc32TenantB  = shared.MustParseID("01936f2a-7c1e-7000-8000-000000032a02")

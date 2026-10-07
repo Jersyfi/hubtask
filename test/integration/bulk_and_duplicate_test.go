@@ -21,10 +21,10 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The acceptance runs C-11 names, against a real database and through the real catalogue: five
-// hundred operations with one bad one, the same input all-or-nothing, and a copy of a subtree three
-// levels deep. Each of them is a sentence in the task that would otherwise be a claim - and the
-// atomic one in particular can only be proved where there is a transaction to roll back.
+// The bulk and the duplicate against a real database and through the real catalogue: five hundred
+// operations with one bad one, the same input all-or-nothing (UC-WRK-08 check 6), and a copy of a
+// subtree three levels deep. Each of them would otherwise be a claim - and the atomic one in
+// particular can only be proved where there is a transaction to roll back.
 
 // deferredRegistry is the composition root's holder, in miniature: the bulk needs the catalogue
 // that is built from its own descriptor, so it is handed this and this is filled straight after.
@@ -36,8 +36,8 @@ func (d *deferredRegistry) Invoke(
 	return d.catalogue.Invoke(ctx, name, actor, in)
 }
 
-// bulkCatalogueFor wires the use cases C-11 needs to real repositories: the two it adds, and the
-// creation the bulk performs.
+// bulkCatalogueFor wires the use cases this file needs to real repositories: the bulk, the
+// duplicate, and the creation the bulk performs.
 func bulkCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 	t.Helper()
 

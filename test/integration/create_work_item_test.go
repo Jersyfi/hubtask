@@ -23,7 +23,7 @@ import (
 )
 
 // The whole use case against a real database, with the seeded capability profiles deciding the
-// hierarchy - which is the point of B-03: the rules are the rows in item_capability_profile that
+// hierarchy - which is the point: the rules are the rows in item_capability_profile that
 // db/migrations/0002 wrote, not constants in the code.
 //
 // These tests work in tenant B. The package shares one database, and tenant A carries a narrowed
@@ -56,7 +56,7 @@ func itemCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 		Profiles:   postgres.NewCapabilityProfileRepository(),
 		Authorizer: authorizer,
 		// The same service in both fields: it answers the permission and, for the create path, what
-		// the role it found requires of the new entry's assignee (C-04).
+		// the role it found requires of the new entry's assignee.
 		Ownership:  authorizer,
 		Events:     postgres.NewOutbox(jobQueue(t)),
 		Changes:    postgres.NewChangeLog(),
@@ -66,7 +66,7 @@ func itemCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 		Clock:      fixed,
 		IDs:        ids,
 		HLC:        hybrid,
-		// The D-01 machinery, over the same adapters: a create declaring a due date dispatches
+		// The due date writer, over the same adapters: a create declaring a due date dispatches
 		// into it inside the create's transaction.
 		DueDates: work.DueDateWriter{
 			Items: itemRepo(), Containers: containerRepo(),
@@ -76,7 +76,7 @@ func itemCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 			Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
 			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
 		},
-		// The two set writers (issue 878), over the same adapters: `label_ids` and `member_ids`
+		// The two set writers, over the same adapters: `label_ids` and `member_ids`
 		// dispatch into them inside the create's transaction.
 		Labels: work.ItemLabelWriter{
 			Items: itemRepo(), ItemLabels: itemLabelRepo(), Labels: labelRepo(), Containers: containerRepo(),
@@ -92,7 +92,7 @@ func itemCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 			Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
 			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
 		},
-		// The cover writer and the custom field use case (issue 896), over the same adapters:
+		// The cover writer and the custom field use case, over the same adapters:
 		// `cover` and `custom_fields` dispatch into them inside the create's transaction.
 		Covers: work.CoverWriter{
 			Items: itemRepo(), Containers: containerRepo(),
@@ -124,8 +124,8 @@ func itemWriter(tenant, account shared.ID) appshared.ActorContext {
 	}
 }
 
-// The acceptance criterion of B-03, against the seeded profiles: all three levels can be created,
-// each under the parent the matrix permits.
+// Against the seeded profiles, all three levels can be created, each under the parent the matrix
+// permits.
 func TestTheThreeLevelsAreCreatedAgainstTheSeededProfiles(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
@@ -356,11 +356,9 @@ func TestANoteOnAnActivityIsRefusedByTheSeededProfile(t *testing.T) {
 
 // A field the contract does not promise is refused by name rather than accepted and dropped.
 //
-// It used to be `cover` that proved this, because `cover` was one of three the contract promised
-// and no use case wrote (issue 896). All three are written since F10-17, so what is left to prove
-// is the invariant that kept them honest while they waited: a name the catalogue does not declare
-// comes back naming itself, rather than a `201` for an entry that is not what the caller asked
-// for.
+// The same refusal keeps a field the contract promises honest while no use case writes it: a name
+// the catalogue does not declare comes back naming itself, rather than a `201` for an entry that is
+// not what the caller asked for.
 func TestAFieldNoUseCaseWritesYetIsRefusedByName(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
@@ -381,9 +379,9 @@ func TestAFieldNoUseCaseWritesYetIsRefusedByName(t *testing.T) {
 	}
 }
 
-// Issue 878 against the real database: an entry created with `label_ids` carries the label the
-// moment it exists, in the same transaction, and a label of another collection takes the whole
-// creation with it - no row, no label.
+// Against the real database: an entry created with `label_ids` carries the label the moment it
+// exists, in the same transaction, and a label of another collection takes the whole creation with
+// it - no row, no label.
 func TestAnEntryIsCreatedCarryingItsLabels(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
@@ -484,13 +482,13 @@ func TestAnAccountWithoutARoleCannotCreateAnItem(t *testing.T) {
 	}
 }
 
-// The three fields `WorkItemCreate` promised and the catalogue refused until F10-17 (issue 896),
-// against a real database: the position, the cover and the custom field values, in one creation.
+// Three fields `WorkItemCreate` promises that each dispatch into a use case of their own, against a
+// real database: the position, the cover and the custom field values, in one creation.
 //
 // Against the real adapters rather than the fakes, because what the fakes cannot show is exactly
-// what was in doubt: the rank comes from the neighbours query the database answers, the cover
-// moves a reference counter the schema constrains, and each custom field value lands in a jsonb
-// document the repository merges key by key.
+// what is in question here: the rank comes from the neighbours query the database answers, the
+// cover moves a reference counter the schema constrains, and each custom field value lands in a
+// jsonb document the repository merges key by key.
 func TestACreateServesThePositionTheCoverAndTheValues(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)

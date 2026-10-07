@@ -23,7 +23,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The security content of D-07, against real memberships and real rows: a view shared into a
+// The security content of saved views, against real memberships and real rows: a view shared into a
 // scope executes under the *reader's* authorisation. There is no execute endpoint - a client
 // reads the view and runs the query as itself - so the proof is equality: per role, the stored
 // query answers exactly what the same query asked ad hoc answers, and nobody's answer widens
@@ -94,10 +94,10 @@ func TestASharedViewExecutesUnderTheReadersAuthorisation(t *testing.T) {
 	stored, err := harness.create.Execute(ctx, viewReader(authorA), work.CreateSavedViewCommand{
 		ScopeType: view.ViewScopeCollection, ScopeID: collection,
 		Name: "Due this week", Layout: "KANBAN",
-		// Anchored in the use case's input shape. The nested `scope` this used to send is the
-		// shape `POST /items:query` takes as a *body*, which the controller flattens before any
-		// use case sees it - so the stored document anchored nothing and :export would have
-		// refused it (issue #431).
+		// Anchored in the use case's input shape. A nested `scope` is the shape
+		// `POST /items:query` takes as a *body*, which the controller flattens before any use
+		// case sees it - so a stored document in that shape anchors nothing and :export refuses
+		// it.
 		Query: map[string]any{
 			"scope_container_id": collection.String(),
 			"filter":             map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P3D"},

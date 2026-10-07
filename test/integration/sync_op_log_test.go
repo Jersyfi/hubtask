@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The operation log and the tombstone lookup behind a push (N-04): a record round-trips with its
+// The operation log and the tombstone lookup behind a push: a record round-trips with its
 // response, a repeat that raced the first is left standing, a purged entity is held - and a
 // cross-tenant negative for every method (gate SG-3).
 

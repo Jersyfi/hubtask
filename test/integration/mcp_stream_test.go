@@ -24,8 +24,8 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
-// J-13's acceptance, with a real database under it: a client completes the handshake, opens the
-// stream, and is told when the workspace changed - by a change made through another channel
+// The MCP change stream, with a real database under it: a client completes the handshake, opens
+// the stream, and is told when the workspace changed - by a change made through another channel
 // entirely, which is what says the notification comes from the workspace rather than from the
 // connection that caused it.
 

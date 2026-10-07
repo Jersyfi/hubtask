@@ -19,9 +19,10 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// SC-33: a workspace without the password mails a CONNECT link, and the provider flow started from
-// it carries the credential (ADR-0078 §1, migration 0117) - home to its own workspace and nowhere
-// else (gate SG-3). Its own workspaces and accounts, named by nobody else in this shared database.
+// UC-ID-10 checks 1 and 6: a workspace without the password mails a CONNECT link, and the provider
+// flow started from it carries the credential (ADR-0078 §1, migration 0117) - home to its own
+// workspace and nowhere else (gate SG-3). Its own workspaces and accounts, named by nobody else in
+// this shared database.
 var (
 	sc33TenantA   = shared.MustParseID("01936f2a-7c1e-7000-8000-000000033a01")
 	sc33TenantB   = shared.MustParseID("01936f2a-7c1e-7000-8000-000000033a02")

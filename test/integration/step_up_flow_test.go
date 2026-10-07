@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// ADR-0075 §2 (SC-16): a step-up at the provider is a sign-in flow bound to the session that asked.
+// ADR-0075 §2: a step-up at the provider is a sign-in flow bound to the session that asked.
 // Its state finishes that session's step-up and nothing else - not another session's, not a
 // sign-in - and a sign-in flow finishes no step-up. Gate SG-3: none of it reaches another workspace.
 

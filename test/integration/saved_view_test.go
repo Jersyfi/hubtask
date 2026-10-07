@@ -16,8 +16,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The statements the saved views run on, against a real database (D-07): the round trip, the
-// tenant boundary per method (gate SG-3), and the one deletion semantics D-08 will lean on.
+// The statements the saved views run on, against a real database: the round trip, the tenant
+// boundary per method (gate SG-3), and the one deletion semantics the calendar feeds lean on.
 
 func viewRepo() postgres.SavedViewRepository { return postgres.NewSavedViewRepository() }
 
@@ -153,8 +153,8 @@ func TestTheReachableListAnswersOwnAndSharedAlongThePath(t *testing.T) {
 	}
 }
 
-// D-08's question, answered where the schema answers it: a feed whose view is gone keeps its row
-// and loses the reference (ON DELETE SET NULL, migration 0005).
+// The calendar feed's question, answered where the schema answers it: a feed whose view is gone
+// keeps its row and loses the reference (ON DELETE SET NULL, migration 0005).
 func TestDeletingAViewNullsTheFeedThatServedIt(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)

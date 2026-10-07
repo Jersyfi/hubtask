@@ -18,8 +18,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// K-04's half that only a real database can answer: what pgvector calls near, what the statement
-// refuses to call near, and whether one workspace's neighbourhood can reach into another's.
+// The half of the duplicate search that only a real database can answer: what pgvector calls near,
+// what the statement refuses to call near, and whether one workspace's neighbourhood can reach
+// into another's.
 //
 // The vectors are the hybrid fixture's synthetic axes rather than a model's output, for that
 // file's reason: two vectors on one axis are identical, two on different axes are orthogonal, and
@@ -193,7 +194,7 @@ func TestOneWorkspacesNeighbourhoodIsInvisibleNextDoor(t *testing.T) {
 }
 
 // An entry the embedding pass has not reached is found by nobody and finds nobody, and that is an
-// answer rather than an error (J-10's third degradation).
+// answer rather than an error (ai-first.md §2, an entry not yet embedded).
 func TestAnEntryWithNoVectorHasNoNeighbourhood(t *testing.T) {
 	ctx := context.Background()
 	f := seedNeighbourhood(ctx, t)

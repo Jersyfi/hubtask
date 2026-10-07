@@ -295,7 +295,7 @@ func TestCollectionsAreRankedAfterTheirSiblings(t *testing.T) {
 
 	// And the change log entry of a collection is filed under the collection itself: a grant on
 	// the collection alone is on the path of the collection, not of its hub, and a reader that
-	// wants the hub's subtree resolves the parent (#623).
+	// wants the hub's subtree resolves the parent.
 	collection := mustLastCollection(ctx, t, hub.String("id"))
 	var containerID string
 	if err := adminPool(ctx, t).QueryRow(ctx,

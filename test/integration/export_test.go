@@ -21,10 +21,10 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The export against real rows (D-08), which is where it was found that the audit entry had no
-// transaction to be written in: the selection reads through the query's own read-only
-// transactions, one per page, and they have all closed by the time the export is decided. A fake
-// unit of work cannot show that, and the end-to-end session did - so the check lives here now.
+// The export against real rows, which is where the audit entry needs a transaction of its own to
+// be written in: the selection reads through the query's own read-only transactions, one per page,
+// and they have all closed by the time the export is decided. A fake unit of work cannot show
+// that, so the check lives here.
 
 func exportHarness(ctx context.Context, t *testing.T) work.ExportView {
 	t.Helper()

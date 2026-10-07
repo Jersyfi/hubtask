@@ -40,10 +40,10 @@ var (
 // hand-written fixture constant in this package uses 8000.
 //
 // That separation is not cosmetic. The counter walks upwards through the low bytes, and the constants sit
-// in the same low bytes - authorA is ...0000000000a1, so the 161st generated identifier used to *be*
-// authorA. Nothing noticed until a test file pushed the counter past 161, and then two unrelated identity
-// tests failed with "that address is taken" because an account insert had collided on its primary key.
-// A namespace makes that impossible rather than unlikely.
+// in the same low bytes - authorA is ...0000000000a1, so without it the 161st generated identifier would
+// *be* authorA. Nothing notices until a test file pushes the counter past 161, and then two unrelated
+// identity tests fail with "that address is taken" because an account insert collided on its primary
+// key. A namespace makes that impossible rather than unlikely.
 func freshID(t *testing.T) shared.ID {
 	t.Helper()
 	return shared.MustParseID(fmt.Sprintf("01936f2a-7c1e-7000-8f00-%012x", fixtureCounter.Add(1)))

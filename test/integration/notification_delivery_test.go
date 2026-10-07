@@ -30,7 +30,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/worker"
 )
 
-// The acceptance the task names, end to end and against the real pieces: a real PostgreSQL, the
+// Mail delivery through an outage, end to end and against the real pieces: a real PostgreSQL, the
 // real queue and its runner, the real SMTP adapter behind the real breaker, the real health
 // registry, and the real message catalogue.
 //

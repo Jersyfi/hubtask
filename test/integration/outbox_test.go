@@ -547,7 +547,7 @@ func drain(woken <-chan struct{}) {
 	}
 }
 
-// The sweep, against the database that carries the guard (G-02, ADR-0007's second countermeasure).
+// The sweep, against the database that carries the guard (ADR-0007's second countermeasure).
 //
 // Here rather than only in the engine's own tests because the guard is a WHERE clause: a fake that
 // implements it correctly proves that the engine asks the right question, and only a real query

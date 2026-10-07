@@ -19,8 +19,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The synchronisation's records over time (N-09, offline-sync.md §7, data-retention.md §4 point
-// 5 and RE-6): a device back after the window starts over and the purged entry stays gone, an
+// The synchronisation's records over time (offline-sync.md §7, data-retention.md §4 point 5 and
+// RE-6): a device back after the window starts over and the purged entry stays gone, an
 // aged month of the change log falls as a partition, and the operation log and the tombstones are
 // swept per tenant and never across the boundary.
 

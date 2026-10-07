@@ -24,12 +24,12 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// SC-22 (#1117), against the real database: a wrong proof at a second-factor door advances the
-// attempt ledger. The real unit of work rolls back everything a refusing transaction wrote, so a
-// failure recorded inside it never landed - which no service test could show, because their unit of
-// work did not roll back. The step-up's wrong password is the door walked here: the same helper
-// settles the refusal at every door, and the service tests (SecondFactorLedger_test.go) hold each
-// door to it against a unit of work that now rolls back the ledger as this one does.
+// Against the real database: a wrong proof at a second-factor door advances the attempt ledger.
+// The real unit of work rolls back everything a refusing transaction wrote, so a failure recorded
+// inside it never lands - which a service test cannot show against a unit of work that does not
+// roll back. The step-up's wrong password is the door walked here: the same helper settles the
+// refusal at every door, and the service tests (SecondFactorLedger_test.go) hold each door to it
+// against a unit of work that rolls back the ledger as this one does.
 var (
 	ledgerAccount = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000022c1")
 	ledgerSession = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000022d1")
