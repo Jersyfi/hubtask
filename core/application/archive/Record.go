@@ -254,8 +254,8 @@ type Entity struct {
 	Duplicable bool
 	// Unique are the columns, other than the identity, that carry a uniqueness a copy would meet.
 	//
-	// A DUPLICATE gives the copy an identity of its own and used to change nothing else, which is
-	// how a duplicated collection arrived under the living one's name and landed nothing.
+	// A DUPLICATE gives the copy an identity of its own, and changing nothing else would make a
+	// duplicated collection arrive under the living one's name and land nothing.
 	// The identity is not the only thing the schema insists is unique, and what is left is not a
 	// special case each: it is a property of the entity, declared here beside Keys and References
 	// and kept honest by a test that compares it against the unique indexes the database has.
