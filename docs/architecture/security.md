@@ -278,7 +278,7 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 | SG-5 | The authorisation architecture test: no repository call without a prior policy check; no authorisation in adapters |
 | SG-6 | The SSRF test suite against `GuardedClient` (metadata IPs, rebinding, redirect chains) |
 | SG-7 | Secret scanning with no findings; the "log output contains no tokens or secrets" test |
-| SG-8 | Fuzz tests for the query DSL parser, CEL input and signature verification, run overnight (`make gate-fuzz`). Today only the query DSL compiler and the mail parser have fuzz targets, and the target does not fail the run |
+| SG-8 | Fuzz tests for the parsers that take untrusted input — the query DSL, CEL input, signature verification, the intake parser — each target in its own nightly job; a crash fails the nightly and files a `finding`. Decided, not built: today only the query DSL compiler and the mail parser have fuzz targets, and `make gate-fuzz` runs them in one invocation that cannot fail the run (#1199) |
 | SG-9 | A container scan with no critical findings; the image verified as non-root and read-only |
 | SG-10 | An SBOM produced and the image signed (release pipeline only) |
 | SG-11 | Auth negative tests: an expired/tampered/revoked token, the wrong issuer, a missing scope |
