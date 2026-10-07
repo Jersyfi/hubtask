@@ -52,7 +52,7 @@ type Change struct {
 	HLC shared.HLC
 	// Field names the one field this entry moves, for a scalar change - empty for a creation,
 	// a deletion or a set change, which are not about one field. A named field is what the
-	// server's clock per field is kept for (N-05, §4.2): the adapter stamps `field_clock` with
+	// server's clock per field is kept for (§4.2): the adapter stamps `field_clock` with
 	// this entry's reading in the same transaction, and a push compares its own reading against
 	// that row. When a push is applying, the reading is the device's rather than the writer's -
 	// carried in the context (appshared.ContextWithReadings), the way the device is, so that
@@ -119,7 +119,7 @@ type Devices interface {
 }
 
 // Snapshot reads the current state a device starting from nothing is told about, one kind at a
-// time and in pages by identifier (offline-sync.md §3.1, N-02).
+// time and in pages by identifier (offline-sync.md §3.1).
 //
 // Tenant-wide rather than per container, because the walk is one sequence with one cursor: a
 // page is "the next batch of this kind after this identifier", and a device that stops halfway
@@ -185,7 +185,7 @@ type OpRecord struct {
 	AppliedAt time.Time
 }
 
-// OpLog remembers processed operations for the offline window (N-04). Rows age out with the
+// OpLog remembers processed operations for the offline window. Rows age out with the
 // window: a device may be away for the whole of it and then push its queue.
 type OpLog interface {
 	// Find answers the record of an operation this workspace has already processed, and false
@@ -203,7 +203,7 @@ type Tombstones interface {
 	Holds(ctx context.Context, entity string, id shared.ID) (bool, error)
 }
 
-// FieldClocks reads the server's clock per field (N-05, offline-sync.md §4.2): the reading of the
+// FieldClocks reads the server's clock per field (offline-sync.md §4.2): the reading of the
 // write that last landed on each field, which a push's reading is compared against. Written by the
 // change log adapter beside the entry that names a field, never directly.
 type FieldClocks interface {
@@ -212,7 +212,7 @@ type FieldClocks interface {
 	Of(ctx context.Context, entity string, id shared.ID) (map[string]shared.HLC, error)
 }
 
-// Epochs is the workspace's synchronisation epoch (N-11, backup-restore.md §12 B-5): a restore
+// Epochs is the workspace's synchronisation epoch (backup-restore.md §12 B-5): a restore
 // writes rows without change log entries, so every cursor carries the epoch it was minted under
 // and a restore into the workspace advances it. A cursor from an older epoch is refused as too
 // old, and the device resynchronises from scratch - which is what hands it the restored rows.

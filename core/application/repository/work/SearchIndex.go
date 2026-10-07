@@ -5,7 +5,7 @@ package work
 
 import "context"
 
-// SearchIndex is the search's own bookkeeping (M-09, ADR-0034): the rows whose document was built
+// SearchIndex is the search's own bookkeeping (ADR-0034): the rows whose document was built
 // under a configuration this installation has since replaced or gained.
 //
 // A row records which text search configuration built its document, beside the document, and one

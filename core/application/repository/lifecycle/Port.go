@@ -25,7 +25,7 @@ type LegalHolds interface {
 	Active(ctx context.Context) (domain.Holds, error)
 }
 
-// HoldWriter places and lifts them (E-08).
+// HoldWriter places and lifts them.
 //
 // Its own port rather than methods on LegalHolds, for the reason the read and the write of a
 // deletion are kept apart: the deletion paths take the reading half, and a port that carried both
@@ -133,7 +133,7 @@ type Policies interface {
 	Find(ctx context.Context, kind domain.DataKind) (domain.Policy, error)
 }
 
-// Rules stores the rule model of data-retention.md §2 (E-07).
+// Rules stores the rule model of data-retention.md §2.
 //
 // Beside Policies rather than replacing it for one release: the old table's key allows one period
 // per kind per tenant and the model is scoped, so the two live alongside each other while a rolling
@@ -157,7 +157,7 @@ type Rules interface {
 
 	// Update writes a corrected rule, guarded on the version the caller read. False means the
 	// guard did not hold. The kind and the scope are not written: a rule that moved either would
-	// be a different rule under an old identifier (F4-02).
+	// be a different rule under an old identifier.
 	Update(ctx context.Context, rule domain.Rule, expectedVersion int, now time.Time) (bool, error)
 
 	// Delete withdraws a rule. False is "there was none", which is not an error.

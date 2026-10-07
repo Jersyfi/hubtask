@@ -28,12 +28,12 @@ type Credential struct {
 	// (i18n-l10n.md §2). Never empty: the columns have defaults.
 	TenantLocale   string
 	TenantTimeZone string
-	// TenantSlug and TenantStatus ride with every credential read (H-06): the middleware
+	// TenantSlug and TenantStatus ride with every credential read: the middleware
 	// compares the slug against §3's weaker sources, and a suspension flips authentication
 	// itself rather than each use case separately.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
-	// TokenRatePerMinute is the workspace's own request-rate ceiling (H-08), riding with the
+	// TokenRatePerMinute is the workspace's own request-rate ceiling, riding with the
 	// read so the limiter needs no lookup of its own. 0 means none is configured and the
 	// installation's default applies.
 	TokenRatePerMinute int64
@@ -92,7 +92,7 @@ type Memberships interface {
 	Along(ctx context.Context, accountID shared.ID, path []identity.Scope) ([]identity.Membership, error)
 
 	// SharedItemsIn returns the entries inside one collection the account holds a membership on -
-	// what was shared with it individually (domain-model.md §3.2, C-04).
+	// what was shared with it individually (domain-model.md §3.2).
 	//
 	// Along cannot answer this: it takes the path to one entry, and this asks which entries there
 	// are a path to. The two are asked in sequence and only when the first came back empty - an
@@ -104,7 +104,7 @@ type Memberships interface {
 	SharedItemsIn(ctx context.Context, accountID, collectionID shared.ID) ([]shared.ID, error)
 
 	// Administrators answers who administers anywhere on this path: the accounts holding a role
-	// that carries the workspace's structure, directly or through a group (R-1, G-12).
+	// that carries the workspace's structure, directly or through a group (R-1).
 	//
 	// The mirror image of Along - that one asks what one account holds, this one asks who holds
 	// something - and it exists for the retention advance warning, which has to reach "the
@@ -130,7 +130,7 @@ type Accounts interface {
 	FindByEmail(ctx context.Context, email string) (identity.Account, error)
 
 	// AcceptInvitation makes an invited account ACTIVE and spends its invitation, when the
-	// invitation has not run out - the provider's half of redeeming it (SC-24). False is "not
+	// invitation has not run out - the provider's half of redeeming it. False is "not
 	// invited, gone, or lapsed": nothing changed.
 	AcceptInvitation(ctx context.Context, accountID shared.ID, now time.Time) (bool, error)
 
@@ -149,7 +149,7 @@ type Accounts interface {
 	UpdatePreferences(ctx context.Context, account identity.Account, at time.Time) error
 
 	// Restricted answers which of the accounts named may not be processed automatically - Art. 18
-	// as a technical state (data-protection.md §4, E-10).
+	// as a technical state (data-protection.md §4).
 	//
 	// A set rather than a question per account, because the caller is a draw over a pool: one
 	// round trip for a policy's candidates instead of one per candidate. Accounts that are not
@@ -167,7 +167,7 @@ type GroupPage struct {
 type Groups interface {
 	Find(ctx context.Context, groupID shared.ID) (identity.Group, error)
 
-	// List answers the workspace's groups by name, paged (F3-01). Members are not in the page:
+	// List answers the workspace's groups by name, paged. Members are not in the page:
 	// a list of groups is read to pick one, and the people in it are Members' answer.
 	List(ctx context.Context, page Page) (GroupPage, error)
 
@@ -219,7 +219,7 @@ type GrantPage struct {
 
 type MembershipGrants interface {
 	// ListAt answers the memberships granted at exactly this scope - an account or a group, a
-	// role - and none granted elsewhere, newest first (F3-01). What is *in force* at the scope is
+	// role - and none granted elsewhere, newest first. What is *in force* at the scope is
 	// this plus what the scopes above grant, and the caller composes that path itself: an
 	// effective listing that walked it here is deliberately not built until a second caller
 	// wants one. The tenant boundary is the transaction's (ADR-0010).
@@ -242,7 +242,7 @@ type MembershipGrants interface {
 	Find(ctx context.Context, membershipID shared.ID) (identity.Grant, error)
 
 	// OfGroup returns every grant the group holds, for the revocation that has to know what a
-	// member taken out of the group - or every member of a group deleted - is about to lose
-	// (N-08). Unpaged: a group holds a handful of roles.
+	// member taken out of the group - or every member of a group deleted - is about to lose.
+	// Unpaged: a group holds a handful of roles.
 	OfGroup(ctx context.Context, groupID shared.ID) ([]identity.Grant, error)
 }

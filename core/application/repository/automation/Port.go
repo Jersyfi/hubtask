@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package automation is the repository port of the rules (G-05, automation.md §1).
+// Package automation is the repository port of the rules (automation.md §1).
 package automation
 
 import (
@@ -106,7 +106,7 @@ type RunQuery struct {
 	RuleID  shared.ID
 	Status  domain.RunStatus
 	Trigger domain.TriggerKind
-	// From and To bound started_at, inclusive and exclusive; nil is unbounded on that side (F8-02).
+	// From and To bound started_at, inclusive and exclusive; nil is unbounded on that side.
 	From   *time.Time
 	To     *time.Time
 	Cursor string
@@ -120,7 +120,7 @@ type RunPage struct {
 	HasMore    bool
 }
 
-// Runs is the log of what the rules have done (G-07, automation.md §2).
+// Runs is the log of what the rules have done (automation.md §2).
 //
 // A run outlives the rule that produced it, which is why deleting a rule is soft: a record of
 // actions nobody can account for would be worse than the rule staying visible.
@@ -168,7 +168,7 @@ type Failures interface {
 	Disable(ctx context.Context, ruleID shared.ID, threshold int, at time.Time) (bool, error)
 }
 
-// Schedules is what one tenant's schedule pass asks (G-08, automation.md §1.1).
+// Schedules is what one tenant's schedule pass asks (automation.md §1.1).
 //
 // Its own interface rather than three more methods on Rules, for Failures' reason: a pass that
 // fires schedules has no business being able to write a rule's definition, and the one field it
@@ -192,7 +192,7 @@ type Schedules interface {
 	SetNextRun(ctx context.Context, id shared.ID, at time.Time) error
 }
 
-// Occurrences is what a RELATIVE_DATE rule owes its entries (G-08, automation.md §1.1).
+// Occurrences is what a RELATIVE_DATE rule owes its entries (automation.md §1.1).
 //
 // The tenant is the transaction's throughout, like every other repository here.
 type Occurrences interface {
@@ -218,7 +218,7 @@ type Occurrences interface {
 	NextOccurrence(ctx context.Context) (time.Time, error)
 }
 
-// InboundTriggers is the address an INBOUND_WEBHOOK rule answers on (G-08).
+// InboundTriggers is the address an INBOUND_WEBHOOK rule answers on.
 //
 // The port takes the presented token whole rather than a hash, for the reason the calendar feed's
 // does: the pepper is a secret of the infrastructure layer (security.md §8), and an application

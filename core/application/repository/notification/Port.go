@@ -65,7 +65,7 @@ type Preferences interface {
 	Save(ctx context.Context, preference domain.Preference) error
 
 	// ListForAccount answers what one account has written - the exceptions, not the settings. A
-	// pair with no row is the default, and it is the use case that says so (F3-02), because "not
+	// pair with no row is the default, and it is the use case that says so, because "not
 	// stored" and "off" are different facts a form has to show apart. The tenant boundary is the
 	// transaction's (ADR-0010).
 	ListForAccount(ctx context.Context, accountID shared.ID) ([]domain.Preference, error)

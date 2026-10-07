@@ -35,7 +35,7 @@ type CapabilityProfiles interface {
 	ListSystem(ctx context.Context) ([]work.CapabilityProfile, error)
 }
 
-// TextLanguages reads which languages this installation can index the text of (C-08, ADR-0034).
+// TextLanguages reads which languages this installation can index the text of (ADR-0034).
 //
 // A port rather than a constant, because the answer is the installation's rather than the
 // product's: the mapping from a BCP 47 tag to a text search configuration is in the database, and
@@ -49,7 +49,7 @@ type TextLanguages interface {
 	List(ctx context.Context) ([]string, error)
 }
 
-// SemanticSearch reads whether this installation can search by meaning (J-09, ADR-0050).
+// SemanticSearch reads whether this installation can search by meaning (ADR-0050).
 //
 // A port for TextLanguages' reason exactly: the answer is the installation's rather than the
 // product's. pgvector is detected rather than demanded, so whether the embedding store exists is a
@@ -62,7 +62,7 @@ type SemanticSearch interface {
 }
 
 // NaturalOrdering reads whether names sort under the ICU root collation on this installation
-// (M-08, i18n-l10n.md §5).
+// (i18n-l10n.md §5).
 //
 // A port for the reason the two above are: migration 0080 defines the collation the queries
 // order by from `und-x-icu` where PostgreSQL has it and from the database's own locale where it

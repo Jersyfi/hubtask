@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 )
 
-// Workspaces is the tenant's own row, read and written from inside the tenant (F4-01).
+// Workspaces is the tenant's own row, read and written from inside the tenant.
 //
 // Separate from the admin repository on purpose. That one enumerates workspaces and is the
 // control plane's; this one never names a tenant, because row level security has already
@@ -29,7 +29,7 @@ type Workspaces interface {
 	Update(ctx context.Context, changed identity.Workspace, expectedVersion int, now time.Time) (bool, error)
 }
 
-// TenantHosts is the hosts a workspace answers at (SI-12, migration 0104).
+// TenantHosts is the hosts a workspace answers at (migration 0104).
 //
 // Two methods, because there are two things anybody does with the table today: a workspace gets its
 // canonical row when it is provisioned, and a reader is told which hosts it answers at. What is

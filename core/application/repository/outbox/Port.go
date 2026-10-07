@@ -57,7 +57,7 @@ type Pending interface {
 //
 // The order is `(occurred_at, id)` - what the dispatcher claims in, and what the polling index is
 // built on. A position is therefore a fact about the table rather than a number a process was
-// holding, which is what makes a cursor survive a restart and a failover (G-04).
+// holding, which is what makes a cursor survive a restart and a failover.
 type Position struct {
 	OccurredAt time.Time
 	ID         shared.ID

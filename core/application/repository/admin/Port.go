@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package admin holds the control plane's outbound ports (H-06, multi-tenancy.md §5).
+// Package admin holds the control plane's outbound ports (multi-tenancy.md §5).
 //
 // The methods on the tenant row itself deliberately take no tenant parameter, the same shape as
 // every other repository: the control plane opens an ordinary bounded transaction per tenant it
@@ -100,7 +100,7 @@ type InstanceEvent struct {
 	Details map[string]any
 }
 
-// Journal is the instance's own record. Append-only by grant, and read by one screen (SI-17): the
+// Journal is the instance's own record. Append-only by grant, and read by one screen: the
 // dashboard's journal, newest first, one page at a time.
 type Journal interface {
 	// Record writes one entry. The table has no row-level-security policy, so this works inside
@@ -118,7 +118,7 @@ type PageInfo struct {
 	HasMore    bool
 }
 
-// Census is the installation at a glance (SI-17, ADR-0070 §5): counts, states and limits, never
+// Census is the installation at a glance (ADR-0070 §5): counts, states and limits, never
 // rows. The tenant boundary is a database policy rather than a role, and the dashboard does not go
 // around it - what it reads is five integers, through a function that can answer nothing else.
 type Census struct {

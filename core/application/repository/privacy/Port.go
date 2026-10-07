@@ -125,7 +125,7 @@ type Erasure interface {
 	// It is asked before a full deletion is attempted, because `automation_rule.run_as` is the one
 	// reference to an account the schema declares `ON DELETE RESTRICT`: a rule that acts as
 	// somebody must not quietly start acting as nobody. The deletion is refused with that count
-	// rather than attempted and failed on a foreign key (E-11, PG-2).
+	// rather than attempted and failed on a foreign key (PG-2).
 	AutomationsRunningAs(ctx context.Context, accountID shared.ID) (int, error)
 
 	// RevokeCredentials removes every token, calendar feed and sync device of the person. Called

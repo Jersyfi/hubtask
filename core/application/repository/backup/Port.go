@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package backup is the outbound port for the targets a tenant has configured (E-03).
+// Package backup is the outbound port for the targets a tenant has configured.
 package backup
 
 import (
@@ -47,7 +47,7 @@ type Targets interface {
 
 	// Delete removes the target and its sealed credential from the workspace's configuration.
 	// **Nothing at the target is touched** - the archives stay where they are, and an operator
-	// who wants them gone removes them there (F4-02). False is "there was none".
+	// who wants them gone removes them there. False is "there was none".
 	Delete(ctx context.Context, id shared.ID) (bool, error)
 }
 
@@ -57,7 +57,7 @@ type Coverage struct {
 	Unencrypted int
 }
 
-// Export is the tenant's rows as the archive writer needs them (E-05, backup-restore.md §3).
+// Export is the tenant's rows as the archive writer needs them (backup-restore.md §3).
 //
 // It is keyed by table name rather than by the archive's entity names, and that is the seam: the
 // database's vocabulary stops here, and the archive's begins on the other side. The deletion
@@ -111,7 +111,7 @@ type MediaLocation struct {
 	Bytes      int64
 }
 
-// Restores stores what a restore did, and what it is about to do (E-06).
+// Restores stores what a restore did, and what it is about to do.
 //
 // The row is written when the restore is accepted rather than when it starts, which is what lets a
 // caller poll the `result_url` they were handed instead of meeting a 404 for the first few seconds.
@@ -149,7 +149,7 @@ type Restores interface {
 }
 
 // Workspace is the one thing a destructive restore has to ask about the tenant it is about to
-// replace: what it is called (E-06, backup-restore.md §8.3 step 3).
+// replace: what it is called (backup-restore.md §8.3 step 3).
 //
 // A port of one method rather than a field on something larger, because that is genuinely all of
 // it. The name is read to be compared against what somebody typed, and it is never answered to a
@@ -159,7 +159,7 @@ type Workspace interface {
 	Name(ctx context.Context) (string, error)
 }
 
-// Import is the tenant's rows as a restore writes them (E-06, backup-restore.md §8).
+// Import is the tenant's rows as a restore writes them (backup-restore.md §8).
 //
 // The mirror of Export, in the same vocabulary and with the same seam: table names on this side,
 // the archive's entity names on the other. Row by row rather than in pages, which is the one place
@@ -187,7 +187,7 @@ type Import interface {
 	Clear(ctx context.Context, table string) (int, error)
 }
 
-// Journal is the deletion journal, read (E-06, backup-restore.md §7).
+// Journal is the deletion journal, read (backup-restore.md §7).
 //
 // The table has been written since B-10 and read, until now, only by tests - the comment on the
 // writing side says so in as many words: "nothing reads this table in production; it exists so
@@ -221,7 +221,7 @@ type Deletion struct {
 	Reason    string
 }
 
-// Schedules stores what runs when (E-05, backup-restore.md §5).
+// Schedules stores what runs when (backup-restore.md §5).
 type Schedules interface {
 	// Insert writes a schedule, with the moment it is next due already decided: the rule is
 	// expanded by the use case that created it, not by every read afterwards.
@@ -249,7 +249,7 @@ type Schedules interface {
 
 	// Update writes a changed schedule and the moment it is next owed, guarded on the version the
 	// caller read. False means the guard did not hold. The target and the scope are not written:
-	// a schedule that moved either would be a different schedule under an old identifier (F4-02).
+	// a schedule that moved either would be a different schedule under an old identifier.
 	Update(ctx context.Context, schedule domain.Schedule, nextRunAt time.Time, expectedVersion int) (bool, error)
 
 	// Delete removes one. False is "there was none", which is not an error - a caller asking for
@@ -261,7 +261,7 @@ type Schedules interface {
 	ForTarget(ctx context.Context, targetID shared.ID) ([]domain.Schedule, error)
 }
 
-// Runs stores what happened (E-05).
+// Runs stores what happened.
 type Runs interface {
 	// Start writes the run and answers whether it got the target.
 	//

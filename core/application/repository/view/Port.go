@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package view declares how the application layer stores saved views (D-07).
+// Package view declares how the application layer stores saved views.
 //
 // Its own package rather than a corner of the work port, the way meta and media have their own:
 // a saved view is a bookmark over the work, not a piece of it - it names no item, joins no
