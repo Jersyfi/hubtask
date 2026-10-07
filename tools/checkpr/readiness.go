@@ -20,7 +20,8 @@ import (
 //     `Readiness: n/a — <why>` instead.
 //   - A merged migration never changes (rule 12) unless the description names the ADR that
 //     allows it: `Changes a merged migration: ADR-nnnn`.
-//   - A use case is never deleted; one that no longer applies is retired, its ID kept.
+//   - A use case is never deleted; one that no longer applies is retired, its ID kept. A new use
+//     case never takes an ID an earlier file carried.
 //   - A change to a use case's Goal, How to check or Where it ends is named in the description as
 //     a correction or as the owner's decision (usecasetext.go).
 //
@@ -43,8 +44,12 @@ type branchFacts struct {
 	changed    []string
 	altered    []change
 	ucText     []ucTextChange
+	reused     []reusedID
 	beforeCode func(path string) ([]byte, error)
 }
+
+// reusedID is a use case the branch adds under an ID an earlier file carried.
+type reusedID struct{ id, path, earlier string }
 
 // ucTextChange is a use case whose Goal, How to check or Where it ends the branch changes.
 type ucTextChange struct {
@@ -93,6 +98,9 @@ func historyProblems(body string, facts branchFacts, read func(string) ([]byte, 
 		if c.status == "D" && strings.HasPrefix(c.path, "docs/usecases/") && strings.Contains(c.path, "/UC-") {
 			problems = append(problems, fmt.Sprintf("%s is deleted - a use case is retired (state: retired, with why), never removed, and its ID is never reused", c.path))
 		}
+	}
+	for _, r := range facts.reused {
+		problems = append(problems, fmt.Sprintf("%s takes the ID %s, which %s carried - an ID is never reused; a new use case takes the next free number", r.path, r.id, r.earlier))
 	}
 
 	if heldTo(facts.opened, ucTextSince) {

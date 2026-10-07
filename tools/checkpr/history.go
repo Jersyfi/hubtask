@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -63,6 +64,9 @@ func readHistory(root, base, head string, opened time.Time) (branchFacts, error)
 	}
 
 	if facts.ucText, err = useCaseTextChanges(root, base, head, changed); err != nil {
+		return branchFacts{}, err
+	}
+	if facts.reused, err = reusedUseCaseIDs(root, base, head, changed); err != nil {
 		return branchFacts{}, err
 	}
 
@@ -135,6 +139,50 @@ func useCaseTextChanges(root, base, head, nameStatus string) ([]ucTextChange, er
 }
 
 func normalised(text string) string { return strings.Join(strings.Fields(text), " ") }
+
+// reusedUseCaseIDs names the use cases the branch adds under an ID that an earlier file carried -
+// one deleted before deleting was refused, or one renamed away. Every file that ever existed in the
+// base's history was added by some commit, so the paths the history touched are all of them. A
+// file re-added at its own path is that use case coming back, not a new one under an old ID.
+func reusedUseCaseIDs(root, base, head, nameStatus string) ([]reusedID, error) {
+	var added []reusedID
+	for _, line := range strings.Split(strings.TrimSpace(nameStatus), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != "A" {
+			continue
+		}
+		if m := ucFile.FindStringSubmatch(fields[1]); m != nil {
+			added = append(added, reusedID{id: m[1], path: fields[1]})
+		}
+	}
+	if len(added) == 0 {
+		return nil, nil
+	}
+	mergeBase, err := git(root, "merge-base", base, head)
+	if err != nil {
+		return nil, err
+	}
+	history, err := git(root, "log", "--format=", "--name-only", "--no-renames", strings.TrimSpace(mergeBase), "--", "docs/usecases/")
+	if err != nil {
+		return nil, err
+	}
+	earlier := map[string][]string{}
+	for _, path := range strings.Fields(history) {
+		if m := ucFile.FindStringSubmatch(path); m != nil && !slices.Contains(earlier[m[1]], path) {
+			earlier[m[1]] = append(earlier[m[1]], path)
+		}
+	}
+	var out []reusedID
+	for _, a := range added {
+		for _, path := range earlier[a.id] {
+			if path != a.path {
+				out = append(out, reusedID{id: a.id, path: a.path, earlier: path})
+				break
+			}
+		}
+	}
+	return out, nil
+}
 
 // touchesCode is whether a commit changes anything outside docs/ - the record itself, the backlog
 // and the use cases are written before the code, and are not code.
