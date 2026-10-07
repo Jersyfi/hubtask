@@ -19,7 +19,7 @@ import (
 // memoryStore is the target the converter's archive is written to and the applier reads it from:
 // a map, alive for one job. An import's records are a file somebody uploaded, bounded by the
 // upload limit, and a target they would have to reach would be of no use to the applier that
-// reads them a moment later - so the archive never leaves the process (decision 7).
+// reads them a moment later - so the archive never leaves the process.
 //
 // Guarded, because the writer's producer runs in a goroutine of its own.
 type memoryStore struct {

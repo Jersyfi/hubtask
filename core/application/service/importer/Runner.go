@@ -24,7 +24,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/storage"
 )
 
-// Runner performs one import, end to end, for the job (P-08).
+// Runner performs one import, end to end, for the job.
 //
 // Claim the run, read the file back from the object store, convert it, write the records as an
 // archive into memory, apply that archive through the restore's applier in MERGE mode with skip,
@@ -188,7 +188,7 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 	})
 	if err != nil && shared.AsError(err).DetailCode == "containers.name_taken" {
 		// A collection the file would create meets one the hub already holds, by name. The run's
-		// outcome, in the import's own words (issue 766): the applier says what collided, and the
+		// outcome, in the import's own words: the applier says what collided, and the
 		// person reading the run needs to know what to do about it - rename, or another hub.
 		err = shared.ErrConflict.WithDetail(domain.CodeCollectionExists).WithCause(err)
 	}

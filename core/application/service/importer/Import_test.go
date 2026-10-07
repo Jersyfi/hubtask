@@ -168,7 +168,7 @@ func (c converter) Convert(_ context.Context, source repository.Source) (reposit
 	}
 	raw, _ := io.ReadAll(source.Content)
 	collection := backupdomain.DuplicateID(source.Hub, "import", source.Digest)
-	// Named after the file where one is known, as the CSV converter names its own (issue 766).
+	// Named after the file where one is known, as the CSV converter names its own.
 	name := source.Name
 	if name == "" {
 		name = "Imported"
@@ -225,7 +225,7 @@ func (r *importRepo) Write(_ context.Context, table string, data map[string]any,
 		return false, nil
 	}
 	// The container's unique name per parent, as the index refuses it and the adapter answers it
-	// (issue 766): a second collection under the same name is a conflict, never a database error.
+	// - a second collection under the same name is a conflict, never a database error.
 	if table == "container" {
 		for other, row := range r.rows[table] {
 			if other != id && row["parent_id"] == data["parent_id"] && row["name"] == data["name"] {
@@ -458,7 +458,7 @@ func TestTheRunnerLandsTheFileAndFinishesTheRun(t *testing.T) {
 		t.Errorf("landed = %v", landed.rows)
 	}
 	// The converter was told the file's name without its extension, and the collection carries
-	// it (issue 766).
+	// it.
 	for id, row := range landed.rows["container"] {
 		if id != hubID.String() && row["name"] != "errands" {
 			t.Errorf("the collection is named %v, want the file's name", row["name"])
@@ -537,7 +537,7 @@ func TestTheRunnerRecordsAFileThatIsNotItsKindAndRetriesTheStoreBeingAway(t *tes
 }
 
 // A second, different file into a hub that already holds a collection of the same name is the
-// run's outcome in the import's own words, not a retried database error (issue 766): nothing of
+// run's outcome in the import's own words, not a retried database error: nothing of
 // the batch lands, the file goes, and the epoch stands.
 func TestASecondFileUnderATakenNameIsRefusedWithACode(t *testing.T) {
 	run := newRuns()
