@@ -9,7 +9,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/text"
 )
 
-// The vectors that matter for an address (M-10, i18n-l10n.md §7): a Unicode label becomes its
+// The vectors that matter for an address (i18n-l10n.md §7): a Unicode label becomes its
 // Punycode, an already-encoded label stays, case is mapped, and what the DNS would refuse is
 // refused here - a label of the wrong shape, a mixed-script label the lookup profile declines.
 func TestDomainsAreBroughtToTheFormTheDNSHolds(t *testing.T) {
