@@ -25,7 +25,7 @@ func newTestLogger(t *testing.T, format string) (*slog.Logger, *bytes.Buffer) {
 	return NewLogger(cfg, &buf), &buf
 }
 
-// The acceptance criterion of A-02, and threat T-18: the log contains no token.
+// Threat T-18: the log contains no token.
 func TestASecretValueNeverReachesTheLog(t *testing.T) {
 	for _, format := range []string{"json", "text"} {
 		t.Run(format, func(t *testing.T) {

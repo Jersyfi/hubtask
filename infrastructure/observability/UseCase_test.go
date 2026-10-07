@@ -69,8 +69,8 @@ func TestTheErrorPathIsCountedToo(t *testing.T) {
 }
 
 // A 500 nobody can diagnose is a 500 nobody fixes: the response deliberately carries no detail,
-// so the log line is the only place the cause exists. Issue #426 was found through a revocation
-// that answered `internal` and wrote nothing at all.
+// so the log line is the only place the cause exists - a revocation that answers `internal` and
+// writes nothing at all is a failure nobody can find.
 func TestAFailureThatIsOursIsLogged(t *testing.T) {
 	cases := map[string]struct {
 		err    error

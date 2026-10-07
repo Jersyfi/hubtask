@@ -23,7 +23,7 @@ import (
 const ResultOK = "ok"
 
 // Observer gives one use case execution its metric and its span - the two signals the Definition
-// of Done requires of every use case, and what gate RT-12 checks for (ADR-0016 §6).
+// of Done requires of every use case, and what gate RT-12 checks for (ADR-0016 item 6).
 //
 // It is a wrapper rather than two calls at each call site, because two calls are two chances to
 // forget one, and the one that gets forgotten is the error path.
@@ -67,8 +67,8 @@ func (o *Observer) UseCase(ctx context.Context, name string, fn func(context.Con
 // Here rather than where the response is written, because this is the one place that sees the
 // error, the use case's name and the correlation fields of the context at once - the `use_case`
 // and `error_code` fields §3.1 makes mandatory, whichever channel the call arrived through.
-// Without it an internal error was a request ID with nothing to look up: the technical cause a
-// domain error carries exists for the log (`shared.Error`), and reached no log (issue #426).
+// Without it an internal error is a request ID with nothing to look up: the technical cause a
+// domain error carries exists for the log (`shared.Error`), and would reach no log.
 //
 // Only the two categories that are the installation's problem. A validation error or a 404 is the
 // API working as designed, and a line per refused request is a log nobody reads (§3.1 level
