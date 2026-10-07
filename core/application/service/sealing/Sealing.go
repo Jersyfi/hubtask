@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	// adminTenantsScope is the control plane's credential (0.6.0 decision 6): a personal access
+	// adminTenantsScope is the control plane's credential (identity.md §15.4): a personal access
 	// token minted for it behind a step-up, never a session. Re-sealing is the control plane's
 	// act - it reaches every workspace - so it asks for the same scope.
 	adminTenantsScope = "admin:tenants"

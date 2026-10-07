@@ -120,8 +120,7 @@ func (h ResealSecrets) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityNotice, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "an act of the control plane touches no item; the history is an item's " +
-				"(domain-model.md §3.5).",
+			Exempt: "an act of the control plane touches no item; the history is an item's.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
