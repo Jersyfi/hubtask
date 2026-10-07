@@ -88,8 +88,8 @@ func TestThePublicRoutesAreTheOnesTheSpecificationExempts(t *testing.T) {
 	}
 }
 
-// The classification decides which routes are refused under load (H-11), and it is written out in
-// the REST layer because the specification does not carry a class. A typo in it would be a line
+// The classification decides which routes are refused under load, and it is written out in the
+// REST layer because the specification does not carry a class. A typo in it would be a line
 // that silently never matches - the route would keep being served, the overload test would keep
 // passing, and nothing would ever be shed. So every entry has to be a route that exists.
 func TestTheDeferrableRoutesAreRoutesTheRouterServes(t *testing.T) {
@@ -131,8 +131,7 @@ func fetchCapabilities(t *testing.T, result usecase.Capabilities) (int, []byte) 
 	return response.Code, response.Body.Bytes()
 }
 
-// The acceptance criterion of A-06: the response is judged by the schema in api/openapi.yaml,
-// not by a copy of it in a test.
+// The response is judged by the schema in api/openapi.yaml, not by a copy of it in a test.
 func TestTheCapabilityManifestMatchesTheSchema(t *testing.T) {
 	status, body := fetchCapabilities(t, usecase.Capabilities{
 		ProductVersion: "0.1.0",
@@ -234,9 +233,9 @@ func TestEveryErrorMatchesTheProblemSchema(t *testing.T) {
 		wantStatus int
 	}{
 		"an unknown route": {http.MethodGet, rest.APIBasePath + "/nothing-here", http.StatusNotFound},
-		// The example used to move as the milestone did - /backup-targets until E-03, the device
-		// list until N-03. The pull is served by a controller field rather than the catalogue,
-		// and a bare controller leaves it to the pending set, so this one no longer has to move.
+		// A catalogue route stops being pending as soon as its use case is registered. The pull
+		// is served by a controller field rather than the catalogue, and a bare controller leaves
+		// it to the pending set, so this example stays pending.
 		"a pending operation":   {http.MethodPost, rest.APIBasePath + "/sync:pull", http.StatusNotFound},
 		"outside the base path": {http.MethodGet, "/nothing-here", http.StatusNotFound},
 	}
@@ -305,7 +304,7 @@ func TestTheErrorModelMapsOntoTheDocumentedStatuses(t *testing.T) {
 }
 
 // The read side's responses, judged by the schemas in api/openapi.yaml rather than by a copy of them
-// here (B-04). Four of them: the two single objects, and the two pages - the page schemas are named
+// here. Four of them: the two single objects, and the two pages - the page schemas are named
 // components for exactly this reason, since an inline schema in a path item is one this validator
 // cannot resolve.
 func readResponse(t *testing.T, path string, out catalogue.Output) (int, []byte) {
@@ -373,7 +372,7 @@ func TestTheUpdateResponseMatchesTheSchema(t *testing.T) {
 // fixedCatalogue answers every invocation with one output. What the use case would decide is not this
 // test's subject - the shape of what the adapter writes is.
 // The completion actions answer with a WorkItem, and the state they answer with is the one a create never
-// produces: completed, with both fields of the completion answered (B-07).
+// produces: completed, with both fields of the completion answered.
 func TestTheCompletionResponsesMatchTheSchema(t *testing.T) {
 	spec := contractSpec(t)
 	at := time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC)
@@ -553,7 +552,7 @@ func TestTheReadResponsesMatchTheirSchemas(t *testing.T) {
 	}
 }
 
-// The query language's wire format, pinned in both of its shapes (B-12).
+// The query language's wire format, pinned in both of its shapes.
 //
 // Both matter separately. The ungrouped answer is a page like any other; the grouped one is the
 // board projection, and it is the only response in this contract that nests a page inside a row -
@@ -679,7 +678,7 @@ func TestTheLastPageCarriesAnExplicitNullCursor(t *testing.T) {
 }
 
 // bucketProjection is a column as a use case returns it: the field names of the contract, with the
-// optional values as explicit nulls (B-09).
+// optional values as explicit nulls.
 func bucketProjection() catalogue.Output {
 	return catalogue.Output{
 		"id":             "0192f000-0000-7000-8000-0000000000b1",
@@ -747,7 +746,7 @@ func TestAColumnCarriesItsOptionalValuesAsNull(t *testing.T) {
 }
 
 // labelProjection is a label as a use case returns it: the field names of the contract, with the
-// description as an explicit null (B-09).
+// description as an explicit null.
 func labelProjection() catalogue.Output {
 	return catalogue.Output{
 		"id":            "0192f000-0000-7000-8000-0000000000c1",
@@ -787,7 +786,7 @@ func TestAVocabularyMatchesTheLabelSchema(t *testing.T) {
 	}
 }
 
-// The labels an entry carries, as adding and removing report them (B-09).
+// The labels an entry carries, as adding and removing report them.
 func TestTheItemLabelResponseMatchesTheSchema(t *testing.T) {
 	spec := contractSpec(t)
 	itemID := "0192f000-0000-7000-8000-00000000000e"
@@ -820,9 +819,9 @@ func TestTheItemLabelResponseMatchesTheSchema(t *testing.T) {
 }
 
 // A generated type narrower than the wire is a trap for whoever consumes it next. `LAPSED` is a
-// real, server-owned reminder state - a restore produces it (backup-restore.md §8.4) - and the
-// schema declared three, so `@hubtask/api-client` typed the field as a union that a restored
-// workspace can answer outside of (issue #429).
+// real, server-owned reminder state - a restore produces it (backup-restore.md §8.4) - and a
+// schema declaring fewer states makes `@hubtask/api-client` type the field as a union that a
+// restored workspace can answer outside of.
 //
 // Compared against the domain's own closed set rather than against a list written here, so that a
 // fifth state cannot be added on one side alone.
