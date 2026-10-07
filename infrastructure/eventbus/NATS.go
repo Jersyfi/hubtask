@@ -95,7 +95,7 @@ func NewPublisher(ctx context.Context, config PublisherConfig) *Publisher {
 
 	conn, err := nats.Connect(config.URL, options...)
 	if err != nil {
-		// Only a URL the client cannot parse reaches this, now that a failed first connection is
+		// Only a URL the client cannot parse reaches this, because a failed first connection is
 		// retried rather than returned. Deliberately not a startup error even so: the publish path
 		// answers ErrUnavailable, which is the same answer it gives when the bus goes away later -
 		// one degraded state rather than two.
