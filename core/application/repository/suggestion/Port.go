@@ -65,8 +65,8 @@ type Expiring interface {
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
-// Request is what a person asked a template to be drafted from (P-11): the one question a
-// provider is asked whose material exists nowhere the workspace already holds.
+// Request is what a person asked a template to be drafted from: the one question a provider is
+// asked whose material exists nowhere the workspace already holds.
 type Request struct {
 	ID        shared.ID
 	AskedBy   shared.ID

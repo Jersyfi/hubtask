@@ -120,9 +120,9 @@ type WebhookDeliveries interface {
 	RecordOutcome(ctx context.Context, outcome DeliveryOutcome) error
 
 	// FindPendingOfPush returns the pending delivery of a push under a subscription, for one
-	// subject and type - the one the fan-out folds a later event of the push onto (N-10,
-	// offline-sync.md §8) - locked for the transaction, so that two events dispatched in one
-	// round both land on it. false when there is none.
+	// subject and type - the one the fan-out folds a later event of the push onto (offline-sync.md
+	// §8) - locked for the transaction, so that two events dispatched in one round both land on it.
+	// false when there is none.
 	FindPendingOfPush(ctx context.Context, subscriptionID shared.ID, key domain.CollapseKey) (domain.WebhookDelivery, bool, error)
 
 	// Repoint makes a pending delivery stand for a newer event, and reports whether it did: a
