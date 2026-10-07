@@ -9,7 +9,7 @@ import (
 )
 
 // The pool remembers a width per endpoint and model, refuses to learn nothing, keeps the first
-// answer it was given, and can say how many of what it knows exceed the index (#569).
+// answer it was given, and can say how many of what it knows exceed the index.
 func TestTheWidthPoolRemembersPerEndpointAndModel(t *testing.T) {
 	pool := &WidthPool{}
 	now := time.Date(2026, 9, 14, 9, 0, 0, 0, time.UTC)
@@ -54,8 +54,8 @@ func TestTheWidthPoolStartsAgainPastItsCap(t *testing.T) {
 	if pool.Known("e", "one") != 0 || pool.Known("e", "three") != 3 {
 		t.Errorf("the pool holds one=%d three=%d past its cap", pool.Known("e", "one"), pool.Known("e", "three"))
 	}
-	// A key the pool already holds is confirmed, not re-recorded: at the cap, every batch used to
-	// wipe the pool to one entry, because the wipe came before the look-up.
+	// A key the pool already holds is confirmed, not re-recorded. The trap is a wipe that comes
+	// before the look-up: at the cap, every batch would then wipe the pool to one entry.
 	pool.Record("e", "two", 2, now)
 	pool.Record("e", "three", 3, now)
 	if pool.Known("e", "two") != 2 || pool.Known("e", "three") != 3 {
@@ -103,7 +103,7 @@ func TestAWidthNobodyAsksForStopsCountingAsDegraded(t *testing.T) {
 
 // A model this process has learned the index cannot hold is a degradation, not an outage: every
 // endpoint answers, suggestions work, and the search is lexical for as long as the model stays
-// configured. The probe says so, names the feature and the code, and names no model (#569).
+// configured. The probe says so, names the feature and the code, and names no model.
 func TestAModelWiderThanTheIndexDegradesTheSearchAndNothingElse(t *testing.T) {
 	breakers := &BreakerPool{New: func(string) Breaker { return nil }}
 	breakers.For("http://models.internal:11434")

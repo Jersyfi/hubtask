@@ -124,7 +124,7 @@ func TestAKeySealedUnderAKeyThisInstallationLostRefusesRatherThanFails(t *testin
 }
 
 // The key is opened under the workspace's own purpose, so a ciphertext lifted into another
-// workspace's row does not open (E-02).
+// workspace's row does not open.
 func TestTheKeyIsOpenedUnderTheWorkspacesOwnPurpose(t *testing.T) {
 	store := &resolverStore{
 		configured: domain.AiProvider{

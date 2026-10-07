@@ -9,7 +9,7 @@ import (
 )
 
 // WidthPool remembers, per endpoint and model, how wide the vectors are - what a model description
-// answered, or what the first batch this process embedded turned out to be (#569).
+// answered, or what the first batch this process embedded turned out to be.
 //
 // Per process and never stored, the way breaker state is: what it holds is what this process has
 // learned, and a restart learns it again for the price of one description. It exists so that a

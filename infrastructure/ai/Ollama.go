@@ -41,7 +41,7 @@ type Ollama struct {
 	BaseURL         string
 	CompletionModel string
 	EmbeddingModel  string
-	// Widths is what this process has learned about models' widths (#569). Nil learns nothing,
+	// Widths is what this process has learned about models' widths. Nil learns nothing,
 	// which is what a test that constructs the adapter by hand gets.
 	Widths *WidthPool
 }
@@ -55,7 +55,7 @@ var (
 //
 // A local endpoint serving a chat model that cannot embed is an ordinary, supported configuration
 // rather than a misconfiguration, and this is where an installation is told so - the search then
-// degrades to lexical with a reason instead of failing (J-10).
+// degrades to lexical with a reason instead of failing.
 func (p Ollama) Capabilities() port.ProviderCapabilities {
 	return port.ProviderCapabilities{
 		Kind:            OllamaKind,
@@ -238,7 +238,7 @@ func (p Ollama) Embed(ctx context.Context, texts []string) (port.EmbeddingResult
 		if dimensions == 0 {
 			dimensions = len(vector)
 		} else if len(vector) != dimensions {
-			// One batch, one geometry: a mixture cannot go into one index (J-09).
+			// One batch, one geometry: a mixture cannot go into one index.
 			return port.EmbeddingResult{}, port.ErrUnavailable.
 				WithCause(errors.New("the provider answered vectors of differing lengths"))
 		}

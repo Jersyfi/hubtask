@@ -52,8 +52,8 @@ func TestACompletionRoundTripsAndCarriesItsProvenance(t *testing.T) {
 }
 
 // The adapter's half of ai-first.md §1.3. The behavioural half - content that issues an
-// instruction produces a suggestion and no action - belongs to J-06, where a suggestion exists to
-// produce. What is provable here is that the wire keeps the two apart: the instruction is the
+// instruction produces a suggestion and no action - belongs where a suggestion is produced. What
+// is provable here is that the wire keeps the two apart: the instruction is the
 // system message, the content is the user message, and nothing merges them.
 func TestSomebodysContentNeverArrivesAsAnInstruction(t *testing.T) {
 	client := &recordingClient{body: `{"choices":[{"message":{"content":"{}"}}]}`}
@@ -305,7 +305,7 @@ func (m *countingMeter) AiTokens(_ context.Context, kind, operation string, inpu
 }
 
 // The OpenAI wire has no way to describe a model, so the width is the documented one where a
-// vendor documented it, what this process has seen where not, and zero before either (#569).
+// vendor documented it, what this process has seen where not, and zero before either.
 func TestAHostedModelsWidthIsTheDocumentedOne(t *testing.T) {
 	for model, want := range map[string]int{
 		"text-embedding-3-small": 1536, "text-embedding-3-large": 3072, "somebody-elses-model": 0,

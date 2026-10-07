@@ -38,7 +38,7 @@ import (
 // what its workspaces have configured, and the degradation table's concern - "AI suggestions
 // disappear" - is about calls that fail rather than about calls nobody has made.
 //
-// And it reads the width pool for the same reason and in the same shape (#569): a model this
+// And it reads the width pool for the same reason and in the same shape: a model this
 // process has learned the index cannot hold is a search that is lexical for as long as it stays
 // configured - a degradation, not an outage, and one no breaker will ever open on, since the
 // provider answers perfectly well. Which model, and whose, is deliberately not in the answer.
