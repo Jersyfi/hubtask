@@ -68,7 +68,8 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 The rules of this file are the items of four lists: the table above, this list, "Working with the
 owner" and "Code comments". Each names what checks it — `[gate: …]`, `[partial: …; open: …]`,
 `[owner]` or `[unchecked: why]` — and `make gate-docs` holds every item to a tag and every named
-gate to a Makefile target or a `ci.yml` job. The other sections explain.
+gate to a Makefile target or a `ci.yml` job. The other sections explain. A directory's own
+`AGENTS.md` keeps its rules under "What must not happen here", tagged the same way.
 
 - A task starts with its readiness record (`docs/backlog/ready/TEMPLATE.md`) as the branch's first
   commit, attacked by a reviewer who did not write it; code follows only once it says `ready` or

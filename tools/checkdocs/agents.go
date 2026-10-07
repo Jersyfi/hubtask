@@ -30,7 +30,11 @@ func checkRuleTags(root string) []string {
 	}
 	targets := makeTargets(read(root, "Makefile"))
 	jobs := ciJobs(read(root, filepath.Join(".github", "workflows", "ci.yml")))
-	return ruleTagProblems(agents, targets, jobs)
+	problems := ruleTagProblems(agents, targets, jobs)
+	for _, file := range nestedAgentsFiles(root) {
+		problems = append(problems, nestedTagProblems(file, read(root, file), targets, jobs)...)
+	}
+	return problems
 }
 
 // frozenHeadings are cited by older documents, migrations and ADRs by their words ("CLAUDE.md rule
@@ -120,7 +124,7 @@ func normativeProblems(agents string) []string {
 			continue
 		}
 		prose := inlineCode.ReplaceAllString(line, "")
-		for _, title := range frozenHeadings {
+		for _, title := range append(append([]string{}, frozenHeadings...), nestedRuleSections...) {
 			prose = strings.ReplaceAll(prose, title, "")
 		}
 		if m := normativeWord.FindString(prose); m != "" {
@@ -140,37 +144,90 @@ func ruleTagProblems(agents string, targets, jobs map[string]bool) []string {
 			continue
 		}
 		for _, item := range ruleItems(body) {
-			short := item
-			if len(short) > 60 {
-				short = short[:60] + "…"
-			}
-			m := ruleTag.FindStringSubmatch(item)
-			if m == nil {
-				problems = append(problems, fmt.Sprintf("AGENTS.md § %s: %q says nothing about what checks it - tag it [gate: …], [partial: …; open: …], [owner] or [unchecked: why]", section, short))
-				continue
-			}
-			kind, arg := m[1], strings.TrimSpace(m[2])
-			switch kind {
-			case "gate", "partial":
-				target := strings.TrimSpace(strings.SplitN(arg, ";", 2)[0])
-				if strings.HasPrefix(target, "ci:") {
-					if !jobs[strings.TrimPrefix(target, "ci:")] {
-						problems = append(problems, fmt.Sprintf("AGENTS.md § %s: %q names the CI job %s, which ci.yml does not have", section, short, target))
-					}
-				} else if !targets[target] {
-					problems = append(problems, fmt.Sprintf("AGENTS.md § %s: %q names the gate %s, which the Makefile does not have", section, short, target))
-				}
-				if kind == "partial" && !strings.Contains(arg, "open:") {
-					problems = append(problems, fmt.Sprintf("AGENTS.md § %s: %q is partly gated but does not say what stays open", section, short))
-				}
-			case "unchecked":
-				if arg == "" {
-					problems = append(problems, fmt.Sprintf("AGENTS.md § %s: %q is unchecked without saying why", section, short))
-				}
-			}
+			problems = append(problems, itemTagProblems("AGENTS.md § "+section, item, targets, jobs)...)
 		}
 	}
 	return problems
+}
+
+// itemTagProblems holds one rule to its tag: there is one, a gate or CI job it names exists - one
+// or several, comma-separated - a partial one says what stays open, an unchecked one says why.
+func itemTagProblems(where, item string, targets, jobs map[string]bool) []string {
+	short := item
+	if len(short) > 60 {
+		short = short[:60] + "…"
+	}
+	m := ruleTag.FindStringSubmatch(item)
+	if m == nil {
+		return []string{fmt.Sprintf("%s: %q says nothing about what checks it - tag it [gate: …], [partial: …; open: …], [owner] or [unchecked: why]", where, short)}
+	}
+	var problems []string
+	kind, arg := m[1], strings.TrimSpace(m[2])
+	switch kind {
+	case "gate", "partial":
+		for _, target := range strings.Split(strings.SplitN(arg, ";", 2)[0], ",") {
+			target = strings.TrimSpace(target)
+			if strings.HasPrefix(target, "ci:") {
+				if !jobs[strings.TrimPrefix(target, "ci:")] {
+					problems = append(problems, fmt.Sprintf("%s: %q names the CI job %s, which ci.yml does not have", where, short, target))
+				}
+			} else if !targets[target] {
+				problems = append(problems, fmt.Sprintf("%s: %q names the gate %s, which the Makefile does not have", where, short, target))
+			}
+		}
+		if kind == "partial" && !strings.Contains(arg, "open:") {
+			problems = append(problems, fmt.Sprintf("%s: %q is partly gated but does not say what stays open", where, short))
+		}
+	case "unchecked":
+		if arg == "" {
+			problems = append(problems, fmt.Sprintf("%s: %q is unchecked without saying why", where, short))
+		}
+	}
+	return problems
+}
+
+// nestedRuleSections are the sections of a directory's own AGENTS.md whose items are rules: what
+// must not happen in that directory, and for the website what it may claim. The other sections -
+// what the directory is, how to check a change - explain, and carry no tags.
+var nestedRuleSections = []string{"What must not happen here", "What the site may claim"}
+
+// nestedTagProblems holds every rule of a directory's AGENTS.md to a tag, the way the root's rules
+// are held: a rule there binds whoever works in the directory just as much.
+func nestedTagProblems(file, doc string, targets, jobs map[string]bool) []string {
+	var problems []string
+	for _, section := range nestedRuleSections {
+		body, ok := sectionBody(doc, section)
+		if !ok {
+			continue
+		}
+		for _, item := range ruleItems(body) {
+			problems = append(problems, itemTagProblems(file+" § "+section, item, targets, jobs)...)
+		}
+	}
+	return problems
+}
+
+// nestedAgentsFiles lists every AGENTS.md below the root.
+func nestedAgentsFiles(root string) []string {
+	var files []string
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if skipDir(entry.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if entry.Name() == "AGENTS.md" {
+			if relative, _ := filepath.Rel(root, path); relative != "AGENTS.md" {
+				files = append(files, filepath.ToSlash(relative))
+			}
+		}
+		return nil
+	})
+	return files
 }
 
 // sectionBody returns the text under a "## <title>" heading, up to the next heading of the same
@@ -213,7 +270,7 @@ func ruleItems(body string) []string {
 				continue
 			}
 			items = append(items, trimmed)
-		case strings.HasPrefix(trimmed, "- "):
+		case strings.HasPrefix(trimmed, "- "), strings.HasPrefix(trimmed, "* "):
 			flush()
 			current = []string{trimmed}
 		case trimmed == "":

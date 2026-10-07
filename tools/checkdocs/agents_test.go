@@ -65,6 +65,37 @@ func TestRuleTags(t *testing.T) {
 	}
 }
 
+func TestNestedTags(t *testing.T) {
+	targets := map[string]bool{"gate-architecture": true}
+	jobs := map[string]bool{"node": true, "tokens-drift": true}
+	doc := "# packages/x\n\n## What must not happen here\n\n" +
+		"* **No literal.** The lint fails on one.\n  `[gate: ci:node, ci:tokens-drift]`\n" +
+		"* **No go file** (rule 14). `[gate: gate-architecture]`\n" +
+		"* **No judgement left out.** `[owner]`\n\n" +
+		"**The gates read comments.** A paragraph explains.\n\n" +
+		"## How to check a change\n\n* `pnpm test` - explained, not a rule\n"
+	if p := nestedTagProblems("packages/x/AGENTS.md", doc, targets, jobs); len(p) != 0 {
+		t.Fatalf("a tagged file was refused: %v", p)
+	}
+	cases := []struct{ name, from, to, want string }{
+		{"an untagged rule", " `[owner]`", "", "packages/x/AGENTS.md § What must not happen here: \"* **No judgement left out.**\" says nothing"},
+		{"one of two targets missing", "ci:tokens-drift", "ci:no-such-job", "names the CI job ci:no-such-job"},
+		{"a gate that does not exist", "gate-architecture]", "gate-nothing]", "names the gate gate-nothing"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := strings.Join(nestedTagProblems("packages/x/AGENTS.md", strings.Replace(doc, c.from, c.to, 1), targets, jobs), "\n")
+			if !strings.Contains(got, c.want) {
+				t.Fatalf("want %q, got:\n%s", c.want, got)
+			}
+		})
+	}
+	claims := "## What the site may claim\n\n* Only what is true today.\n"
+	if len(nestedTagProblems("apps/website/AGENTS.md", claims, targets, jobs)) != 1 {
+		t.Error("an untagged claim rule passed")
+	}
+}
+
 func TestNormativeWords(t *testing.T) {
 	doc := agentsSample + "\n## When CI runs\n\nA draft is checked in the session.\n\n```text\nnever in a code block\n```\n\n" +
 		"See § \"What you do not decide yourself\" and `never` as code.\n"

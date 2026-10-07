@@ -11,16 +11,19 @@ every task is checked against. The format and the states are in [`README.md`](./
   this folder exists to prevent. A wrong reference, check number or typo is a correction: fix it,
   and mark it `correction` on that use case's line in the pull request's *Use cases* section; a
   change the owner decided is marked `decision #<issue>` there.
+  `[partial: gate-pr; open: whether the owner did decide]`
 * **No use case deleted or renumbered.** One that no longer applies moves to `state: retired` with
   a line saying why. An ID is never reused.
+  `[partial: gate-pr, gate-docs; open: the line that says why a use case retired]`
 * **No new use case unless the owner asked for it**, in the conversation or the task — and then
-  only in `state: specified`, said so in the pull request body.
+  only in `state: specified`, said so in the pull request body. `[owner]`
 * **No check a reviewer has to interpret.** Each check is one observable fact: a person does X and
   sees Y; a request without Z is refused with code W; in deployment D1 the screen does not show V.
   "Works well", "is intuitive", "handles errors" are not checks. A check only a walk can confirm
-  names the screen and the persona.
+  names the screen and the persona. `[owner]`
 * **No *Today* that says more than what is missing.** It lists only the checks not met yet, one line
   per check with where it is tracked, and it is absent once the state is `built` or `verified`.
+  `[partial: gate-docs; open: narration after the check number]`
 
 ## What you may change on your own
 

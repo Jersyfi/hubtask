@@ -6,23 +6,27 @@ plus `openapi`, the code generated from the contract.
 ## What must not happen here
 
 * **No business logic.** An adapter translates and dispatches; a rule written here is missing from
-  the other adapters.
+  the other adapters. `[owner]`
 * **No authorisation decision** (rule 2). An adapter may authenticate — validate a bearer, verify a
   signed token — and decides nothing after that. A value travels to the use case as it arrived;
   coercing it here would be deciding a rule.
+  `[partial: gate-architecture; open: a decision or a coercion made without the named calls]`
 * **No import from `infrastructure/`.** What an adapter needs from it arrives as an interface
-  declared here and wired in `cmd/`.
+  declared here and wired in `cmd/`. `[gate: gate-quick]`
 * **No hand edit under `presentation/openapi`** (rule 11): change `api/openapi.yaml`, run
   `make generate`, then implement.
+  `[partial: gate-quick; open: the order of the work, a hand-written file beside the generated one]`
 * **No display text** (rule 8). An error is an RFC 9457 problem with a stable `code` and a message
   code, never a sentence (`api-guidelines.md`).
+  `[partial: gate-architecture; open: prose inside an error string]`
 * **No route the contract does not declare.** `/mcp` and the web UI are the two documented
-  exceptions.
+  exceptions. `[partial: gate-contract; open: routes mounted outside the REST controller]`
 * **`webui` reaches nothing** — no actor, no tenant, no transaction. `dist/index.html` is a
   committed placeholder so that `go build ./...` works without Node; everything else under `dist/`
   is ignored. `/api/*` is never shadowed: `rest.Fallback` gives the API every path it owns and the
   interface what is left. The UI's content security policy has no `'unsafe-inline'` and no
   `'unsafe-eval'` (`project-structure.md` §7, `security.md` §9).
+  `[partial: gate-unit; open: an import of actor, tenant or transaction into webui; dist/ kept out by .gitignore only]`
 
 ## How to check a change
 
