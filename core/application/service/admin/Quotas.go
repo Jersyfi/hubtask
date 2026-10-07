@@ -45,7 +45,7 @@ type UpdateTenantQuotasCommand struct {
 	Changes  []QuotaChange
 }
 
-// UpdateTenantQuotas is the operator's write on a workspace's §4 ceilings (H-08): partial by
+// UpdateTenantQuotas is the operator's write on a workspace's §4 ceilings: partial by
 // design, version-guarded, audited field by field.
 type UpdateTenantQuotas struct {
 	Tenants    adminrepo.Tenants

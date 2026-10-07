@@ -55,7 +55,7 @@ type ExportQuota interface {
 	ExportJobs(ctx context.Context, tenant string) error
 }
 
-// ExportTenant accepts one workspace export (H-07): a job that writes the complete, documented
+// ExportTenant accepts one workspace export: a job that writes the complete, documented
 // archive of tenant-export.md to a configured backup target. It works for ACTIVE, SUSPENDED and
 // PENDING_DELETION workspaces alike - the suspended and the leaving are exactly who needs it -
 // and it is audited with its target, never its content.

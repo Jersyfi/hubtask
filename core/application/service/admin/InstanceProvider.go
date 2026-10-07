@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// The providers the installation offers every workspace (ADR-0070 §2, SI-10).
+// The providers the installation offers every workspace (ADR-0070 §2).
 //
 // **One store, two levels.** A row with no workspace is the installation's: every workspace reads it
 // and draws its button, and none may change it - which is the row-level policy of migration 0103 and

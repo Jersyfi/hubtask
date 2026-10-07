@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package admin holds the control plane's use cases: the lifecycle of a tenant, as
-// multi-tenancy.md §5 draws it (H-06).
+// multi-tenancy.md §5 draws it.
 //
 // Authorisation here is the scope alone, checked in this layer (rule 2): the role matrix is a
 // tenant's internal order, and the operator acting on the control plane is deliberately not a
@@ -112,11 +112,11 @@ type ProvisionTenant struct {
 	Tenants  adminrepo.Tenants
 	Journal  adminrepo.Journal
 	Accounts AccountSeeder
-	// Domains brings the owner's address to its stored form (M-10).
+	// Domains brings the owner's address to its stored form.
 	Domains text.DomainEncoder
 	// Text brings the seeded names to normal form C: they are rendered from the catalogue in the
 	// workspace's language, and a translator's file is as free to carry combining marks as a
-	// keyboard is (i18n-l10n.md §5, M-07).
+	// keyboard is (i18n-l10n.md §5).
 	Text       text.Normalizer
 	Redemption RedemptionTokens
 	Grants     MembershipSeeder
@@ -138,7 +138,7 @@ type ProvisionTenant struct {
 	// Tenancy is the installation's mode. Provisioning a second workspace only exists in multi
 	// mode: single mode's whole contract is "exactly one tenant, no selection" (§1).
 	Tenancy env.TenancyMode
-	// Hosts records the one host the new workspace answers at (SI-12). Optional: a build wired
+	// Hosts records the one host the new workspace answers at. Optional: a build wired
 	// without it provisions exactly as before, which is what every installation before migration
 	// 0104 was - nothing resolves through the table yet, so a missing row costs nothing.
 	Hosts identityrepo.TenantHosts
@@ -527,7 +527,7 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 	return out
 }
 
-// seedHost writes the one host the new workspace answers at (SI-12).
+// seedHost writes the one host the new workspace answers at.
 //
 // VERIFIED and canonical on arrival: it is the installation's own host with this workspace's slug in
 // front of it, so the installation already answers at it and there is nobody to prove anything to.

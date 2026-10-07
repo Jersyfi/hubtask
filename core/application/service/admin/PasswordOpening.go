@@ -22,7 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// An operator opens the password for one workspace (ADR-0078 §3, SC-34).
+// An operator opens the password for one workspace (ADR-0078 §3).
 //
 // For a provider that is switched on but broken, nothing inside the workspace can help: the people
 // who could switch the password back on cannot sign in to do it. The operator opens it for that one
@@ -89,7 +89,7 @@ type PasswordOpeningWriter struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Text brings the requester and the reason to normal form C (M-07).
+	// Text brings the requester and the reason to normal form C.
 	Text text.Normalizer
 }
 

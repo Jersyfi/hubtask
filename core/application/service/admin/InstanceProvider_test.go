@@ -21,7 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// The control plane's half of the provider store (SI-10, ADR-0070 §2).
+// The control plane's half of the provider store (ADR-0070 §2).
 //
 // What these tests are about is the level: the same writer the workspace's own half uses, under the
 // scope that has no tenant, behind the scope and the operator register both - and a row that comes
@@ -229,7 +229,7 @@ func TestTheInstallationsProviderBelongsToNoWorkspace(t *testing.T) {
 		t.Errorf("the row belongs to %q, want no workspace", stored.TenantID)
 	}
 	// The installation has no list of ways to sign in: its form is still the offer, and absent is
-	// on. Only a workspace's own doors stopped switching (ADR-0076 §5, SC-21).
+	// on. Only a workspace's own doors stopped switching (ADR-0076 §5).
 	if !stored.Enabled {
 		t.Error("the installation's provider was added off")
 	}

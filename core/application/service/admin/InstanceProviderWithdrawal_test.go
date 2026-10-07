@@ -258,7 +258,7 @@ func TestADateLessThanADayAheadAsksForTheCount(t *testing.T) {
 	}
 }
 
-// ADR-0077 §2 (SC-27): an offered provider is removed only once its offer has ended, or when no
+// ADR-0077 §2: an offered provider is removed only once its offer has ended, or when no
 // workspace uses it. Removal deletes the connections between people and the provider, which
 // offering it again would not restore - so it comes after a withdrawal that announced itself.
 func TestAnOfferedProviderIsRemovedOnlyAfterItsOfferEnded(t *testing.T) {

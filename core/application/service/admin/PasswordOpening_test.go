@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// ADR-0078 §3 (SC-34): an operator opens the password for one named workspace - behind the scope, the
+// ADR-0078 §3: an operator opens the password for one named workspace - behind the scope, the
 // operator register and a step-up - for 24 hours unless said otherwise and never more than a week,
 // with who asked and why recorded in the workspace's trail and the installation's journal; and can
 // close it early.
