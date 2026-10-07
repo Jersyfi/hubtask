@@ -26,8 +26,8 @@ packages/  sdk/  design-system, api-client, sync-engine, connectors; generated c
 ```
 
 Dependencies point inwards: `cmd → presentation, infrastructure → core`;
-`core/application → core/domain, core/port`; `apps/* → packages/*`; never `apps/* → apps/*` or
-`packages/* → apps/*`.
+`core/application → core/domain, core/port`; `apps/* → packages/*`. No edge runs `apps/* → apps/*`
+or `packages/* → apps/*` (`build/lint-workspace-map.mjs`).
 
 **Before you change a file under `core/`, `presentation/`, `apps/webapp/`, `apps/website/`,
 `packages/design-system/`, `packages/api-client/`, `packages/sync-engine/` or `docs/usecases/`,
@@ -64,6 +64,11 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 | 15 | No colour, spacing, radius or duration value outside `packages/design-system/tokens/tokens.json`; the generated `LabelTokens.go` is never hand-edited. | `[gate: ci:node]` |
 
 ## Working rules
+
+The rules of this file are the items of four lists: the table above, this list, "Working with the
+owner" and "Code comments". Each names what checks it — `[gate: …]`, `[partial: …; open: …]`,
+`[owner]` or `[unchecked: why]` — and `make gate-docs` holds every item to a tag and every named
+gate to a Makefile target or a `ci.yml` job. The other sections explain.
 
 - A task starts with its readiness record (`docs/backlog/ready/TEMPLATE.md`) as the branch's first
   commit, attacked by a reviewer who did not write it; code follows only once it says `ready` or

@@ -65,6 +65,40 @@ func TestRuleTags(t *testing.T) {
 	}
 }
 
+func TestNormativeWords(t *testing.T) {
+	doc := agentsSample + "\n## When CI runs\n\nA draft is checked in the session.\n\n```text\nnever in a code block\n```\n\n" +
+		"See § \"What you do not decide yourself\" and `never` as code.\n"
+	if p := normativeProblems(doc); len(p) != 0 {
+		t.Fatalf("explaining prose, a code block, inline code and a quoted heading were refused: %v", p)
+	}
+	for _, sentence := range []string{
+		"Rework must go back to draft first.",
+		"Never push a red gate.",
+		"Always run make verify.",
+		"Do not run two gates at once.",
+		"Don't pipe a gate.",
+	} {
+		t.Run(sentence, func(t *testing.T) {
+			got := strings.Join(normativeProblems(doc+"\n"+sentence+"\n"), "\n")
+			if !strings.Contains(got, "outside the rule lists") {
+				t.Fatalf("%q passed", sentence)
+			}
+		})
+	}
+	t.Run("prose under a rule list", func(t *testing.T) {
+		withProse := strings.Replace(doc, "## Working rules\n\n", "## Working rules\n\nYou must read this.\n\n", 1)
+		if len(normativeProblems(withProse)) == 0 {
+			t.Fatal("a commanding paragraph in a rule section that is no item passed")
+		}
+	})
+	t.Run("a rule item", func(t *testing.T) {
+		withRule := strings.Replace(doc, "- Merge on the word.", "- Never merge without the word.", 1)
+		if p := normativeProblems(withRule); len(p) != 0 {
+			t.Fatalf("a tagged rule item was refused: %v", p)
+		}
+	})
+}
+
 func TestADRRuleLine(t *testing.T) {
 	if !hasRuleLine("# ADR-0001\n\n**Status:** accepted\n\n**Rule lives in:** [x](y) §1\n") {
 		t.Error("the line under the status was not found")

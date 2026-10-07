@@ -78,8 +78,61 @@ func frozenProblems(agents string) []string {
 	return problems
 }
 
+// A rule stands in a rule list, as an item with its tag; everything else in AGENTS.md explains.
+// The rule lists are the tagged sections: "Rules that do not bend" and "Working rules", and the
+// two lists of the same kind added beside them - "Working with the owner" and "Code comments" -
+// whose items are rules held to the same tags. A sentence elsewhere that commands - must, never,
+// always, do not - is a rule nobody tagged: it is rewritten to describe, or moved into a list with
+// its tag.
+var normativeWord = regexp.MustCompile(`(?i)\b(must|never|always|do not|don't)\b`)
+
+var inlineCode = regexp.MustCompile("`[^`]*`")
+
+// normativeProblems reports the lines outside the rule items that command. Headings, code blocks
+// and inline code are not prose; a quoted heading is a name.
+func normativeProblems(agents string) []string {
+	tagged := map[string]bool{}
+	for _, s := range taggedSections {
+		tagged[s] = true
+	}
+	var problems []string
+	section, fenced, inItem := "", false, false
+	for i, line := range strings.Split(agents, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(trimmed, "```"):
+			fenced = !fenced
+			continue
+		case fenced:
+			continue
+		case strings.HasPrefix(line, "## "):
+			section, inItem = strings.TrimSpace(strings.TrimPrefix(line, "## ")), false
+			continue
+		case strings.HasPrefix(line, "#"):
+			continue
+		case trimmed == "":
+			inItem = false
+			continue
+		case strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "|"):
+			inItem = true
+		}
+		if tagged[section] && inItem {
+			continue
+		}
+		prose := inlineCode.ReplaceAllString(line, "")
+		for _, title := range frozenHeadings {
+			prose = strings.ReplaceAll(prose, title, "")
+		}
+		if m := normativeWord.FindString(prose); m != "" {
+			problems = append(problems, fmt.Sprintf("AGENTS.md:%d: %q outside the rule lists - describe instead of command, or make it an item of a rule list with its tag", i+1, strings.ToLower(m)))
+		}
+	}
+	return problems
+}
+
 func ruleTagProblems(agents string, targets, jobs map[string]bool) []string {
 	problems := frozenProblems(agents)
+	problems = append(problems, normativeProblems(agents)...)
 	for _, section := range taggedSections {
 		body, ok := sectionBody(agents, section)
 		if !ok {
