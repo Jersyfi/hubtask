@@ -63,7 +63,7 @@ installation accepts total data loss. Both are legitimate; forgetting is not.
 
 ## Follow-up
 
-The metric exists since `0.4.5` (E-05) and is published by the `scheduler` role. If it is absent on
+The metric exists since `0.4.5` and is published by the `scheduler` role. If it is absent on
 a version that has backups, the leader is not running — see [RB-A03](./RB-A03-not-ready.md) — rather
 than "backups are not implemented", which was the honest state before that release.
 
@@ -72,7 +72,7 @@ that restores, and the second is the one that matters.
 
 ---
 
-## The point-in-time recovery half (H-10)
+## The point-in-time recovery half
 
 These fire where the database is the CloudNativePG cluster this chart owns
 ([deployment.md §3.2](../../../docs/architecture/deployment.md#32-where-production-runs)). They read

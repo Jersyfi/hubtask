@@ -621,8 +621,8 @@ password (§13) and the emergency access to a private hub
 
 ## 17. Nobody is locked out: the ways back in
 
-**No decision of the platform or of a level above a person takes away *whether* they can sign in.**
-A withdrawal, a removal, a switched-off method or a tightened rule may change *how*. Where a door
+**No decision of the platform or of a level above a person takes away *whether* they can sign in**
+([P-16](../vision/principles.md#p-16-nobody-is-locked-out)). A withdrawal, a removal, a switched-off method or a tightened rule may change *how*. Where a door
 would leave somebody with no way in, it either refuses (§4.1's last-way-in guard) or a way stays
 open. Every way back is checked against P-02 as well: none of them skips a second factor.
 

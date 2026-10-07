@@ -48,4 +48,4 @@ An installation that runs for weeks with a warning it means to keep (say, no SMT
 stack) should silence A-14 in its Alertmanager rather than here: the shipped rule states the
 intended posture. An environment that exists to mirror production is the other case: there the
 warning is telling you where the mirror is wrong, and the answer is the configuration, not the
-route — that is how the integration environment got its mail server (#310).
+route — that is how the integration environment got its mail server.

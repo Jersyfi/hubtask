@@ -3,7 +3,7 @@
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
 # Reads a tenant export the way docs/architecture/tenant-export.md says a reader must, and says
-# what it found (H-16).
+# what it found.
 #
 # It is written against the document rather than against the writer, which is the whole point:
 # "somebody must be able to build an importer against what is written here ... without reading

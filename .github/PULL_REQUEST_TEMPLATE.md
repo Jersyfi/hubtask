@@ -44,10 +44,8 @@ Closes #
 
 - [ ] No — this implements a rule already decided. Where it lives: `<file>.md §n`, or ADR-….
 - [ ] Yes, and it is in this pull request (with the subject-document change) or already merged: ADR-….
-- [ ] It deviates from a rule, or introduces a third-party dependency, or renames or removes a
-      field in `api/openapi.yaml`, or touches the licence, the security gates or the retention
-      safeguards — **none of which is decided in a pull request** (AGENTS.md, "What you do not
-      decide yourself"): a `decision` issue first.
+- [ ] It touches an item of AGENTS.md, "What you do not decide yourself" — **not decided in a
+      pull request**: a `decision` issue first.
 
 ## Definition of Done
 

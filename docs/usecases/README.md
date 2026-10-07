@@ -141,11 +141,13 @@ and [`../vision/principles.md`](../vision/principles.md) first.
    line is the test. Most often broken: a control offered that the server refuses (P-05), a second
    place for the same rule (P-06), a raw key or identifier on a screen (P-12), a way in on less than
    the account's own proof (P-02), a task only SQL can do (P-08, P-09).
-5. **Report** a table — use case, check, verdict, evidence or what the person sees instead — then
-   anything beyond the goal, principles broken, use cases whose `state:`, `checked_by:` or *Today*
-   no longer match, and the verdict: ready or not, and what decides it.
+5. **Report** a table — use case, check, outcome (met, not met, not proven), evidence or what the
+   person sees instead — then anything beyond the goal, principles broken, use cases whose
+   `state:`, `checked_by:` or *Today* no longer match, and the outcome: ready or not, and what
+   decides it. (A readiness record's `**Verdict:**` is a different thing: whether a task may be
+   built.)
 
-Never edit a *Goal*, *How to check* or *Where it ends* so that a verdict comes out right. An
+Never edit a *Goal*, *How to check* or *Where it ends* so that an outcome comes out right. An
 unattended run reports its findings as a `finding` issue and changes nothing.
 
 ## Index

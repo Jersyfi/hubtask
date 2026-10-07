@@ -5,9 +5,11 @@ every task is checked against. The format and the states are in [`README.md`](./
 
 ## What must not happen here
 
-* **No change to *Goal*, *How to check* or *Where it ends* without the owner.** If the code cannot
-  meet a check, or a check turns out to be wrong, stop and report it in the issue and the pull
-  request. A check rewritten to match what was built is the drift this folder exists to prevent.
+* **No change to what a person observes in *Goal*, *How to check* or *Where it ends* without the
+  owner.** If the code cannot meet a check, or a check asks for the wrong thing, stop and report it
+  in a `decision` issue and the pull request. A check rewritten to match what was built is the drift
+  this folder exists to prevent. A wrong reference, check number or typo is a correction: fix it,
+  and mark it `correction` in the pull request's *Use cases* section.
 * **No use case deleted or renumbered.** One that no longer applies moves to `state: retired` with
   a line saying why. An ID is never reused.
 * **No new use case unless the owner asked for it**, in the conversation or the task — and then
@@ -22,7 +24,7 @@ every task is checked against. The format and the states are in [`README.md`](./
 ## What you may change on your own
 
 `state:`, `tasks:` and `checked_by:` in the front matter, and *Today* — in the pull request that
-builds or proves a check, naming its evidence.
+builds or proves a check, naming its evidence. A correction as above.
 
 ## How to check a change
 

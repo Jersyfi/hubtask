@@ -307,8 +307,8 @@ jobs:
   report:
     name: File what broke, close what mended
     # A nightly failure that only exists as a red run in a tab nobody opens is a failure nobody
-    # fixes. This turns it into an issue - one per failing job, deduplicated across nights, with
-    # the label that lets the CI assistant open a pull request against it.
+    # fixes. This turns it into an issue - one per failing job, deduplicated across nights, labelled
+    # `finding` so that the next milestone cut takes it in or closes it with a reason.
     #
     # And the other direction, which is not a nicety. Nothing used to close these, so an issue
     # outlived its defect by however long it took somebody to check: on the morning this was

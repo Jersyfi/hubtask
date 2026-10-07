@@ -127,7 +127,7 @@ deadline can be extended.
   most three months after receipt, naming the reason — `COMPLEXITY` or `NUMBER_OF_REQUESTS` — and
   the date the person was informed; without that date the extension is refused. Hubtask does not
   write to the person; it records that the controller did. The watch and the register read the
-  extended date; both dates stay visible; the extension is audited (`privacy.request_extended`). An
+  extended date; both dates stay visible; the extension is audited (`dsr.extended`). An
   installation-wide case is extended by the operator, and every workspace it touches records it.
 * **A legal hold wins over an erasure, exactly as far as it reaches (Art. 17(3)(e), Art. 18).** The
   erasure runs for everything no hold covers. What a hold covers is kept and *restricted* — out of

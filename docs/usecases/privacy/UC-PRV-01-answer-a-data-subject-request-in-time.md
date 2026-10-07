@@ -53,7 +53,7 @@ so it does not depend on somebody opening the screen.
    months after receipt, with a reason — complexity or the number of requests — and the date the
    person was informed; without either it is refused. A second extension is refused.
 10. After an extension the register shows the original and the extended date, and the watch and
-    *owed soon* read the extended one; the extension writes `privacy.request_extended` with the
+    *owed soon* read the extended one; the extension writes `dsr.extended` with the
     reason and no note text. An installation-wide case is extended by the operator and every
     workspace it touches records it.
 
