@@ -14,12 +14,12 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The OAuth2 provider from a terminal (H-05).
+// The OAuth2 provider from a terminal.
 //
-// The authorization endpoint is headless (0.6.0 decision 5), which is what makes the dance
+// The authorization endpoint is headless (identity.md §15.3), which is what makes the dance
 // scriptable at all: there is no browser to redirect, so the three moves are three commands -
-// register the app, consent to it, exchange the code for the pair. What a consent *screen* will
-// do when the client track builds one is call exactly the middle one.
+// register the app, consent to it, exchange the code for the pair. A consent *screen* calls
+// exactly the middle one.
 //
 // Consenting is a person's act - "never a token, a person" - so `hubctl oauth authorize` needs the
 // session `hubctl login` holds. The exchange is the opposite: public, because what authenticates

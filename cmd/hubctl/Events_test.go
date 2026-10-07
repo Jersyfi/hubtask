@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// The pull half of the event stream (G-13, G-04). What this client decides is the cursor: a poll
+// The pull half of the event stream. What this client decides is the cursor: a poll
 // without one asks the unbounded question, so the next one is printed after every call - and on
 // standard error, where a pipe reading the payload does not carry it.
 

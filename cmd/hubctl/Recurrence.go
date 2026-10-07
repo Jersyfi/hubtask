@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The series on the command line (D-04, D-05, D-09).
+// The series on the command line.
 
 func recurrenceGroup() group {
 	return group{

@@ -12,12 +12,12 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The outbound half of the integration surface (G-13): who is being told what happens here, what
+// The outbound half of the integration surface: who is being told what happens here, what
 // reached them, and what to do when it did not.
 //
 // Two things this group is careful about. A signing secret is answered once - at creation and at
 // each rotation - and there is no read that can produce it again, so both commands that see one
-// say so on standard error (D-09's discipline). And a rotation's grace period is named in the
+// say so on standard error (project-structure.md §3). And a rotation's grace period is named in the
 // command rather than defaulted silently: how long the old secret keeps verifying is the
 // difference between a deployment and an outage, and zero is what a leak calls for.
 

@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// The agent interface from outside the process (J-16). What is asked here is the protocol: the
+// The agent interface from outside the process. What is asked here is the protocol: the
 // handshake happens first, the session it hands back is carried, and a JSON-RPC refusal - which
 // arrives with a 200 - is an error rather than a success.
 

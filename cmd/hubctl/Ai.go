@@ -9,7 +9,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The workspace's AI provider, as an operator configures it (J-02, J-16).
+// The workspace's AI provider, as an operator configures it.
 //
 // **The key is never printed and never read back.** The API answers no key - it is sealed on the
 // way in and opened only by the adapter that makes the call - so there is nothing here to echo even
@@ -78,7 +78,7 @@ func aiConfigSet(ctx context.Context, cli *CLI, args []string) error {
 	baseURL := flags.String("base-url", "", "the endpoint; required for every kind but NOOP")
 	completion := flags.String("completion-model", "", "the model that answers in words")
 	embedding := flags.String("embedding-model", "", "the model that answers in vectors")
-	// Consent is its own flag because it is its own decision (J-02): configuring a provider and
+	// Consent is its own flag because it is its own decision: configuring a provider and
 	// agreeing to send this workspace's content to it are two acts, and a default that ran them
 	// together would make the second one by accident.
 	allow := flags.Bool("allow-processing", false,

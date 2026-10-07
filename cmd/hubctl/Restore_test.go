@@ -68,7 +68,7 @@ func TestInspectingAnArchiveAsksForTheInspectModeAndPrintsTheReport(t *testing.T
 		t.Errorf("the archive did not travel: %v", sent["archive_id"])
 	}
 	// The contract has a `decryption_passphrase` and this version refuses it: an archive's key is
-	// derived from the installation's master key (E-02).
+	// derived from the installation's master key.
 	if _, sentAnyway := sent["decryption_passphrase"]; sentAnyway {
 		t.Error("a passphrase was sent to a version that refuses the field")
 	}

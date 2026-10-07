@@ -21,7 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The reference client of offline-sync.md, in the CLI (N-12): `hubctl sync pull` pages the
+// The reference client of offline-sync.md, in the CLI: `hubctl sync pull` pages the
 // delta or the initial synchronisation as JSON lines with the cursor last, `hubctl sync push`
 // sends a file of mutations and answers one result per line, and `hubctl sync devices` lists
 // and forgets the devices. hubctl is a device like any other: it mints one identifier, keeps it
@@ -155,8 +155,8 @@ func syncPull(ctx context.Context, cli *CLI, args []string) error {
 	}
 }
 
-// syncSnapshot takes the initial synchronisation as one stream (SY-C, P-12) and writes it where
-// it is told - a file, or standard output - as it arrives, line for line. The stream ends in a
+// syncSnapshot takes the initial synchronisation as one stream (offline-sync.md §3.1) and writes
+// it where it is told - a file, or standard output - as it arrives, line for line. The stream ends in a
 // cursor line; `--apply` keeps that cursor in the profile, which is hubctl's store, so that
 // `hubctl sync pull --continue` takes the delta from where the snapshot left the device. A stream
 // that ends without the cursor line was cut short and is reported as such: nothing is kept, and
@@ -345,7 +345,8 @@ func readMutations(cli *CLI, path string) ([]map[string]any, error) {
 
 // deviceClock is hubctl's hybrid logical clock: the last reading kept in the profile between
 // invocations and ticked from there, so that two mutations stamped in one session never share
-// a reading and a reading never goes backwards, the way the server's clock behaves (§4.1). The
+// a reading and a reading never goes backwards, the way the server's clock behaves
+// (offline-sync.md §4.1). The
 // offset is the walk's: a device whose clock is hours out, from a shell.
 type deviceClock struct {
 	cli    *CLI

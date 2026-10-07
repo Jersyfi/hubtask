@@ -26,7 +26,7 @@ func searchGroup() group {
 }
 
 func searchRun(ctx context.Context, cli *CLI, args []string) error {
-	// The one verb the group has beside searching (M-09). A person searching for the word
+	// The one verb the group has beside searching. A person searching for the word
 	// itself adds any second word or a flag, and the word is words again.
 	if len(args) == 1 && args[0] == "reindex" {
 		return searchReindexRun(ctx, cli)
@@ -44,7 +44,7 @@ func searchRun(ctx context.Context, cli *CLI, args []string) error {
 		"<words> [--container <id>] [--language <bcp47>] [--mode <m>] [--include-archived] [--include-trashed] [--size <n>] [--cursor <c>]")
 	container := flags.String("container", "", "the hub or collection to search in; unset searches everything visible")
 	language := flags.String("language", "", "the language the words are in, as BCP-47; unset takes the account's locale")
-	// AUTO and LEXICAL, and deliberately no SEMANTIC (J-10): an installation may have no pgvector,
+	// AUTO and LEXICAL, and deliberately no SEMANTIC: an installation may have no pgvector,
 	// no provider or no consent, so a mode asking for the meaning alone is one the server would
 	// have to refuse. LEXICAL is what a script wants - it asks no provider and waits on nothing.
 	mode := flags.String("mode", "", "AUTO to search by words and meaning, LEXICAL for words alone")

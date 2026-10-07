@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The saved views on the command line (D-07, D-08, D-09).
+// The saved views on the command line.
 
 const viewsPath = "/views"
 

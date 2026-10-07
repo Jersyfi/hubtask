@@ -116,8 +116,8 @@ func run(args []string) error {
 // The migration creates the role without one, because a credential has no business being in a
 // migration (db/migrations/0001_init.sql) - but without a login the application cannot connect as
 // the role row level security was built for, and a reference stack that quietly connected as the
-// owner instead is exactly what task A-11 exists to end. The migrator is the natural operator: it
-// already runs before the application, once per start, as a role that may ALTER ROLE.
+// owner instead is exactly what multi-tenancy.md §2.1 rules out. The migrator is the natural
+// operator: it already runs before the application, once per start, as a role that may ALTER ROLE.
 //
 // Nothing is assembled from strings (rule 9). ALTER ROLE takes no bind parameters, so the
 // password travels as a parameterised server-side setting and format(%L) quotes it inside the
@@ -188,8 +188,7 @@ func up(ctx context.Context, pool *sql.DB) error {
 	// A migration merged after a higher-numbered one is applied rather than refused. Numbers are
 	// taken when a branch is cut and the branches merge in whatever order review finishes them, so
 	// a database that took 0091 before 0090 existed is the ordinary outcome of two pull requests,
-	// not a corrupted ledger - it is how the integration environment stopped deploying on
-	// 2026-09-16, with P-13's 0090 merged after P-14's 0091. Goose's default refuses that case to
+	// not a corrupted ledger. Goose's default refuses that case to
 	// protect a migration that assumes its predecessors; ADR-0003's are expand-only and assume
 	// nothing but the schema they name, and the test beside this proves the case applies.
 	if err := goose.UpContext(ctx, pool, "migrations", goose.WithAllowMissing()); err != nil {

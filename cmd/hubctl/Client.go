@@ -193,7 +193,7 @@ func (c *Client) PutVersioned(
 	return c.call(ctx, http.MethodPut, path, nil, body, header, into)
 }
 
-// OpenStream connects to the change stream (C-10) and hands the open response back. The caller
+// OpenStream connects to the change stream and hands the open response back. The caller
 // owns the body: it reads the events, it closes it, and its context is what bounds a connection
 // that is deliberately unbounded past the headers.
 func (c *Client) OpenStream(ctx context.Context, lastEventID string) (httpclient.StreamResponse, error) {
@@ -217,7 +217,7 @@ func (c *Client) OpenStream(ctx context.Context, lastEventID string) (httpclient
 	return response, nil
 }
 
-// OpenSnapshot asks for the initial synchronisation as one stream (SY-C) and hands the open
+// OpenSnapshot asks for the initial synchronisation as one stream and hands the open
 // response back, for OpenStream's reason: the body is read line by line as it arrives, and the
 // caller closes it. A refusal before the first byte is an ordinary problem document and is
 // answered as one.
@@ -334,8 +334,8 @@ func (c *Client) call(
 // PostStatus posts and hands back the status beside the bytes, for the operations whose two
 // successful answers are two different documents.
 //
-// The sign-in is the reason it exists: `201` is a session and `202` is the second step it owes
-// (H-02), and nothing in either body reliably says which - a client that guessed by looking for a
+// The sign-in is the reason it exists: `201` is a session and `202` is the second step it
+// owes, and nothing in either body reliably says which - a client that guessed by looking for a
 // field would be inventing a contract the specification does not make. The status is the
 // contract, so the status is what the caller gets.
 func (c *Client) PostStatus(ctx context.Context, path string, body any) (int, []byte, error) {
@@ -399,7 +399,7 @@ func (c *Client) exchange(
 	return response.Status, response.Body, nil
 }
 
-// RPC calls the MCP endpoint, which is JSON-RPC over one path outside the API's own (J-16).
+// RPC calls the MCP endpoint, which is JSON-RPC over one path outside the API's own.
 //
 // It exists rather than being folded into `exchange` because two things about it differ and both
 // matter: the path hangs off the installation rather than off `/api/v1`, and a refusal comes back
@@ -441,7 +441,7 @@ func (c *Client) RPC(ctx context.Context, session string, body any) (int, map[st
 // with whatever the server said about the truncation.
 //
 // A file is not decoded: an export is CSV, JSON or a calendar document, and this is the one call
-// whose answer is written where the caller says rather than reshaped by --json (D-08's row cap
+// whose answer is written where the caller says rather than reshaped by --json (the export's row cap
 // travels in the Export-Truncated header, which is why it comes back beside the bytes).
 func (c *Client) Download(ctx context.Context, path string, body any) ([]byte, bool, error) {
 	encoded, err := json.Marshal(body)
@@ -480,7 +480,7 @@ func (c *Client) Download(ctx context.Context, path string, body any) ([]byte, b
 //
 // The same trust model Upload uses for a content route, and for the same reason: a calendar feed
 // URL *is* the credential, and a request that carried a second one would be claiming an identity
-// the route does not accept (D-08).
+// the route does not accept.
 func (c *Client) FetchPublic(ctx context.Context, target string) ([]byte, error) {
 	response, err := c.send(ctx, port.Request{
 		Method:      http.MethodGet,

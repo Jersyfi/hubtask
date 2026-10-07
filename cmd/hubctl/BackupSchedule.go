@@ -16,8 +16,8 @@ const backupSchedulesPath = "/backup-schedules"
 // backupSchedule is a noun under a noun, the way `backup target` is, and it dispatches its own
 // verb for the same reason: `hubctl backup schedule ls` reads as what it is.
 //
-// The operator who found this gap is the one who could create a schedule and not list one
-// (F4-02). The four verbs here are what that costs to fix.
+// An operator who can create a schedule has to be able to list, change and remove it too: the
+// four verbs here.
 func backupSchedule(ctx context.Context, cli *CLI, args []string) error {
 	if len(args) == 0 {
 		return usagef("backup schedule needs a command: ls, set, rm")

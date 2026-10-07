@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The reminders on the command line (D-02, D-03, D-09).
+// The reminders on the command line.
 
 func reminderGroup() group {
 	return group{

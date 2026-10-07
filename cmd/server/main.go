@@ -197,8 +197,8 @@ func run() error {
 	defer stop()
 
 	// Tracing exists even when it is switched off: the W3C propagator is installed either way,
-	// so an incoming traceparent still reaches the log and still travels onwards (§3.3). Off is
-	// the documented self-hosting default (§13).
+	// so an incoming traceparent still reaches the log and still travels onwards
+	// (observability-reliability.md §3.3). Off is the documented self-hosting default (§13 there).
 	startupCtx, cancelStartup := context.WithTimeout(ctx, 10*time.Second)
 	tracing, err := observability.NewTracing(startupCtx, cfg)
 	cancelStartup()
@@ -244,14 +244,14 @@ func run() error {
 	registry.Register(postgres.NewProbe(pool))
 	registry.SetSignals(metrics)
 
-	// The object store exists from here on, although the first use case that consumes it is
-	// C-06's: the configuration surface has existed since A-02, and an operator who pointed the
+	// The object store exists from here on, whether or not a use case consumes it yet: an
+	// operator who pointed the
 	// process at a bucket deserves to read in /meta/health that it is unreachable rather than to
 	// find out at the first upload (QS-11). Local storage carries no breaker and no probe - a
 	// directory has no circuit to trip, and its failures are the disk's, reported per call.
 	// Who mints the URLs the bytes travel through comes back with the store, because the two
 	// answers are one decision: a bucket signs its own transfers, and a local installation lets
-	// this server's content routes stand in for it with a token (C-06, arc42 §8.4).
+	// this server's content routes stand in for it with a token (arc42 §8.4).
 	mediaTokens := security.NewMediaTokenIssuer(cfg.SecretKey)
 	mediaStore, mediaTransfers, err := buildObjectStore(cfg, mediaTokens, registry, metrics)
 	if err != nil {
@@ -265,7 +265,7 @@ func run() error {
 	streamCursors := streamCursorAdapter{codec: security.NewStreamCursorCodec(cfg.SecretKey)}
 	changeListener := postgres.NewChangeListener(pool)
 
-	// The change stream's process-local bookkeeping (C-10). Built before the chain, because the
+	// The change stream's process-local bookkeeping. Built before the chain, because the
 	// shutdown path needs it as much as the handler does: a stream has no natural end, so nothing
 	// but CloseAll tells it there is one.
 	streams := stream.NewRegistry(stream.Limits{
@@ -279,8 +279,8 @@ func run() error {
 		PerProcess:    256,
 	})
 
-	// The one channel that sends in this milestone, and the renderer that decides its language
-	// (C-09). Both are built whatever the roles are, because the pieces are the same; what the
+	// The mail channel, and the renderer that decides its language. Both are built whatever the
+	// roles are, because the pieces are the same; what the
 	// roles decide is which loops run (ADR-0014).
 	mailSender := buildMailSender(cfg, registry, metrics)
 
@@ -288,7 +288,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("message catalogue: %w", err)
 	}
-	// A catalogue with no metadata row is answered with defaults and said so once here (M-05).
+	// A catalogue with no metadata row is answered with defaults and said so once here.
 	renderer.LogUnknownLocales(slog.Default())
 
 	// The panic metric is the one an alert watches, and its target value is 0 permanently
@@ -332,7 +332,7 @@ func run() error {
 	// shares no statement with the queue - see infrastructure/postgres/JobRepository.go.
 	jobRecords := postgres.NewJobRepository()
 
-	// The backup targets (E-03). The guard is built here rather than inside the registry because
+	// The backup targets. The guard is built here rather than inside the registry because
 	// it is the installation's egress policy and not the backup context's: the day a webhook
 	// leaves this process, it leaves through the same one.
 	//
@@ -346,7 +346,7 @@ func run() error {
 	backupAdapters := backupstorage.NewRegistry(
 		outboundClient, outboundGuard, cfg.Backup.LocalRoot, cfg.Outbound.Timeout, time.Now)
 	// The envelope, whose keyring is empty on an installation that configured none - and which
-	// then refuses to seal rather than writing a credential in the clear (E-02).
+	// then refuses to seal rather than writing a credential in the clear.
 	keyring, err := crypto.NewKeyring(masterKeys(cfg))
 	if err != nil {
 		return fmt.Errorf("encryption keyring: %w", err)
@@ -369,10 +369,10 @@ func run() error {
 	// encryptor sealed a credential - three that did would be three chances to seal one under a
 	// key the others cannot open.
 	// The run use cases share theirs for the same reason: three that disagreed about the clock
-	// would record a run at a moment nothing else agrees with (E-05).
+	// would record a run at a moment nothing else agrees with.
 	backupRuns := postgres.NewBackupRunRepository()
 	backupSchedules := postgres.NewBackupScheduleRepository()
-	// One normaliser for every constructor that stores user text (M-07, i18n-l10n.md §5): two
+	// One normaliser for every constructor that stores user text (i18n-l10n.md §5): two
 	// spellings of one character are one row only if every door brings them to the same form.
 	forms := textadapter.Forms{}
 	backupWriter := backupservice.Writer{
@@ -391,10 +391,10 @@ func run() error {
 		Expander: recurrenceadapter.New(), Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
-	// And the restore side (E-06). It gets the same cipher the run job uses, because listing an
+	// And the restore side. It gets the same cipher the run job uses, because listing an
 	// archive and restoring one have to agree about how a member was closed - two ciphers here
 	// would look exactly like a wrong key.
-	// The sign-in flow (H-01). One dependency set for AccessTokenWriter's reason: the rules
+	// The sign-in flow. One dependency set for AccessTokenWriter's reason: the rules
 	// about one credential pair belong in one place. Argon2id lives behind the port; its
 	// construction draws the decoy, and a process that cannot draw randomness must not start.
 	passwords, err := crypto.NewPasswords(clockadapter.CryptoRandom{})
@@ -409,17 +409,17 @@ func run() error {
 	signInStore := postgres.NewSignInRepository(
 		security.NewRedemptionTokenHasher(cfg.SecretKey),
 		security.NewAuthAttemptHasher(cfg.SecretKey))
-	// One encoder for every place an address is stored or looked up (M-10): two spellings of a
+	// One encoder for every place an address is stored or looked up: two spellings of a
 	// mailbox are one row only if every door brings them to the same form.
 	domains := textadapter.Domains{}
 
-	// The devices that synchronise (N-03): the person's, like their sessions, and forgetting one
+	// The devices that synchronise: the person's, like their sessions, and forgetting one
 	// ends the session it last synchronised under.
 	deviceWriter := syncservice.DeviceWriter{
 		Devices: postgres.NewDeviceRepository(), Sessions: sessions, Cursors: streamCursors,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 	}
-	// The relying party (H-04). One object for the installation: the configuration travels per
+	// The relying party. One object for the installation: the configuration travels per
 	// call, so two workspaces pointed at the same provider share its discovery and neither can
 	// see the other's. Through the guarded client as a standard one, because go-oidc takes one -
 	// an issuer is a URL a tenant administrator typed, so it is an egress channel like any other.
@@ -455,7 +455,7 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Entropy: clockadapter.CryptoRandom{},
 		Multi:   cfg.Tenancy == envport.TenancyMulti,
-		// The second factor (H-02): the sealed enrolment, the codes, the pending credential,
+		// The second factor: the sealed enrolment, the codes, the pending credential,
 		// and the tenant's enforcement switch.
 		Enrollments: mfaStore, Recovery: mfaStore, Pending: mfaStore, Policy: mfaStore,
 		StepUps:      postgres.NewStepUpRepository(security.NewStepUpTokenHasher(cfg.SecretKey)),
@@ -470,7 +470,7 @@ func run() error {
 	backupRestorer := backupservice.Restorer{
 		Targets: backupTargets, Restores: backupRestores,
 		Workspace: postgres.NewWorkspaceRepository(), Jobs: jobs,
-		// The verifier H-03 built into the seam E-06 cut - a fresh re-authentication on the
+		// The step-up verifier - a fresh re-authentication on the
 		// current session, consumed by the one privileged action it is presented to - is handed in
 		// once the sign-in rule is taught (stepUpVerifier, below).
 		Encryptor: encryptor, Opener: backupAdapters,
@@ -487,11 +487,12 @@ func run() error {
 	groups := postgres.NewGroupRepository(cursors)
 	grants := postgres.NewMembershipGrantRepository(cursors)
 
-	// The webhook subscriptions (G-03). One dependency set for the same reason the credentials
+	// The webhook subscriptions. One dependency set for the same reason the credentials
 	// have one: the rule that decides who may touch a subscription is a single rule.
 	//
-	// The encryptor is the one E-02 built. A signing secret is sealed exactly as a backup
-	// target's credential is, under a purpose that names the row - so a ciphertext lifted out of
+	// The encryptor is the installation's envelope encryption (security.md §8). A signing secret
+	// is sealed exactly as a backup target's credential is, under a purpose that names the row - so
+	// a ciphertext lifted out of
 	// one subscription and dropped into another no longer opens.
 	webhookWriter := integrationservice.Writer{
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
@@ -502,7 +503,7 @@ func run() error {
 	}
 
 	// The three credential use cases share one dependency set, because the rule about whose
-	// tokens somebody may touch is one rule (G-01). The known scopes come from the catalogue
+	// tokens somebody may touch is one rule. The known scopes come from the catalogue
 	// rather than a list: a use case cannot read the catalogue it is part of, and a list beside
 	// the descriptors is one that grows a scope no operation checks.
 	accessTokenWriter := identity.AccessTokenWriter{
@@ -530,7 +531,7 @@ func run() error {
 	// placement is permitted, so what an installation advertises and what it accepts cannot
 	// drift apart (ADR-0006).
 	//
-	// The automation rules (G-05). One dependency set for the webhook writer's reason: the six use
+	// The automation rules. One dependency set for the webhook writer's reason: the six use
 	// cases are one aggregate's writers, and the rule that decides who may write one is a single
 	// rule - including the composition half of it, which reads accounts and memberships to answer
 	// whether a writer may delegate to the account a rule would run as.
@@ -538,7 +539,7 @@ func run() error {
 	// The catalogue is deferred for BulkUpdateWorkItems' reason and it is the same circle: a rule's
 	// actions are use cases, so writing one has to consult the registry - and these seven are
 	// entries of the registry, so it cannot exist yet.
-	// The address an INBOUND_WEBHOOK rule answers on (G-08). Its own hasher, derived from the
+	// The address an INBOUND_WEBHOOK rule answers on. Its own hasher, derived from the
 	// installation secret under the inbound trigger's purpose label, so a value from this column
 	// can never be replayed as a calendar feed token, a personal access token or a page cursor
 	// (security.md §5).
@@ -558,14 +559,14 @@ func run() error {
 		Memberships: postgres.NewMembershipRepository(),
 		Catalogue:   ruleCatalogue,
 		// The one place the expression engine is constructed. A rule's conditions are compiled
-		// when it is written, so a mistake reaches its author rather than a log (G-06, ADR-0009).
+		// when it is written, so a mistake reaches its author rather than a log (ADR-0009).
 		Conditions: celexpression.New(),
-		// The one schedule engine this installation has (ADR-0008, decision 5 of the 0.5.0
-		// backlog). A SCHEDULE rule's next moment is worked out here, so a recurrence this build
-		// cannot read is refused to its author rather than failing on a worker (G-08).
+		// The one schedule engine this installation has (ADR-0008, automation.md §1.1). A
+		// SCHEDULE rule's next moment is worked out here, so a recurrence this build
+		// cannot read is refused to its author rather than failing on a worker.
 		Expander: recurrenceadapter.New(),
 		Jobs:     jobs,
-		// Seals an HTTP_REQUEST's header secret at the write (E-02, T-21): the rule stores
+		// Seals an HTTP_REQUEST's header secret at the write (T-21): the rule stores
 		// ciphertext or nothing, and the outbound sender opens it for the length of one call.
 		Encryptor: encryptor,
 
@@ -576,13 +577,13 @@ func run() error {
 	items := postgres.NewItemRepository(cursors)
 	trash := postgres.NewTrashRepository(cursors)
 	// The item history. One repository for both halves of the port - the append every writer makes
-	// and the page ListActivity reads (B-11).
+	// and the page ListActivity reads.
 	history := postgres.NewActivityRepository(cursors)
 	// The reading half of the audit trail, beside the sink rather than part of it: every use case
 	// that writes holds the sink, and a sink that could also read would put the whole trail one
-	// call away from code that has no business reading it (E-09).
+	// call away from code that has no business reading it.
 	auditTrail := postgres.NewAuditTrailRepository(cursors)
-	// External anchoring (A-2, P-13): the chain's end written daily to a target the workspace
+	// External anchoring (audit.md §3): the chain's end written daily to a target the workspace
 	// named, and read back by a verification that asks for it.
 	auditAnchoring := auditservice.Anchoring{
 		Workspaces: postgres.NewWorkspaceSettingsRepository(), Targets: backupTargets,
@@ -593,7 +594,7 @@ func run() error {
 		Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, ProductVersion: version,
 	}
-	// Data subject rights (E-10). One repository over four ports - the cases, the consents, the
+	// Data subject rights. One repository over four ports - the cases, the consents, the
 	// account states an erasure and a restriction write, and the pseudonyms the audit trail reads
 	// at the boundary - because they are one table group and one transaction's worth of work.
 	privacyStore := postgres.NewPrivacyRepository(cursors)
@@ -603,11 +604,11 @@ func run() error {
 	labels := postgres.NewLabelRepository()
 	// The vocabulary a workspace adds to its entries. Its own repository beside the items rather
 	// than a method on them: this is what the keys mean, and `work_item.custom_fields` is what an
-	// entry says in it (C-07).
+	// entry says in it.
 	customFields := postgres.NewCustomFieldRepository()
-	// The bookmark shelf (D-07): stored queries, interpreted by nobody on this side of a client.
+	// The bookmark shelf: stored queries, interpreted by nobody on this side of a client.
 	savedViews := postgres.NewSavedViewRepository()
-	// The subscriptions over those bookmarks (D-08). Its own hasher, derived from the
+	// The subscriptions over those bookmarks. Its own hasher, derived from the
 	// installation secret under the calendar feed's purpose label, so a value from this table can
 	// never be replayed as a personal access token or a page cursor (security.md §5).
 	calendarFeeds := postgres.NewCalendarFeedRepository(
@@ -618,9 +619,9 @@ func run() error {
 	itemLabels := postgres.NewItemLabelRepository()
 	itemMembers := postgres.NewItemMemberRepository()
 	// The media records, beside the bytes: this stores the rows, the object store the content, and
-	// keeping the two apart is what keeps every byte operation outside a transaction (C-06).
+	// keeping the two apart is what keeps every byte operation outside a transaction.
 	mediaObjects := postgres.NewMediaRepository(cursors)
-	// The imports (P-08): the run's row, and the converters this build serves, one per kind.
+	// The imports: the run's row, and the converters this build serves, one per kind.
 	importRuns := postgres.NewImportRunRepository()
 	importConverters := map[importdomain.Kind]importrepo.Converter{
 		importdomain.KindCSV:           importadapter.CSV{},
@@ -633,11 +634,11 @@ func run() error {
 		importKinds = append(importKinds, kind)
 	}
 	// The notification records and the preferences. Two repositories rather than one type with two
-	// interfaces, because both need a Find and a Save (C-09).
+	// interfaces, because both need a Find and a Save.
 	notifications := postgres.NewNotificationRepository()
 	notificationPreferences := postgres.NewNotificationPreferenceRepository()
 	outbox := postgres.NewOutbox(jobs)
-	// The jumble (G-10). The writer is shared by every jumble use case; the media half is the
+	// The jumble. The writer is shared by every jumble use case; the media half is the
 	// same repository the attachments use, so an entry's reference counts with theirs. The intake
 	// hashes its tokens under the intake's own purpose label, so a rule's inbound token presented
 	// at the jumble door matches nothing.
@@ -651,7 +652,7 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 	}
 	changes := postgres.NewChangeLog()
-	// The one place a lost read access becomes a record a device can act on (N-08): every use case
+	// The one place a lost read access becomes a record a device can act on: every use case
 	// that ends one says what was removed, and this decides who may no longer read what.
 	revocations := access.Revocations{
 		Permits: authorizer, Grants: grants, Groups: groups, Containers: containers, Items: items,
@@ -690,7 +691,7 @@ func run() error {
 		TombstoneWindow: cfg.Retention.TombstoneWindow, BatchSize: cfg.Retention.BatchSize,
 	}
 
-	// The rule model of data-retention.md §2 (E-07). One set for the three use cases, so that the
+	// The rule model of data-retention.md §2. One set for the three use cases, so that the
 	// share a newly created rule reports and the share its preview reports come from the same
 	// reading - RE-7 is exactly that they agree.
 	retentionRules := lifecycle.Rules{
@@ -703,7 +704,7 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
-	// The safeguard that outranks every rule above (E-08). One set for the three use cases, so
+	// The safeguard that outranks every rule above. One set for the three use cases, so
 	// that placing a hold and lifting one cannot disagree about which clock recorded them.
 	legalHolds := lifecycle.Holds{
 		Holds:      postgres.NewLegalHoldRepository(),
@@ -772,19 +773,19 @@ func run() error {
 	}
 
 	// One instance serves both callers: the :auto-assign route, and the create path that reuses
-	// the machinery for the policy that applies itself and for an explicit assignee (C-02).
+	// the machinery for the policy that applies itself and for an explicit assignee.
 	autoAssign := work.AutoAssignWorkItem{
 		Assignment: assignment, Policies: postgres.AutoAssignPolicyRepository{},
 		Groups: groups, Random: clockadapter.CryptoRandom{},
 		// Art. 18 as a technical state: a person under a restriction of processing is left out of
-		// the draw rather than assigned work by machine (E-10, data-protection.md §4).
+		// the draw rather than assigned work by machine (data-protection.md §4).
 		Accounts: accounts,
 	}
 
 	// Both directions of an entry's due date share one dependency set, for the same reason
 	// (work.DueDateWriter). The pair's own routes, the merge patch and the create path all
 	// dispatch into this one instance, so a due date means the same thing whichever door it came
-	// through (D-01).
+	// through.
 	dueDateWriter := work.DueDateWriter{
 		Items: items, Containers: containers, Profiles: profiles, Reminders: reminders,
 		Jobs:       jobs,
@@ -796,7 +797,7 @@ func run() error {
 	// Both directions of an entry's cover share one dependency set, for the same reason
 	// (work.CoverWriter). The media record store is here rather than in the media package's own
 	// wiring, because a cover is a reference an item holds: this is where the counter moves
-	// (C-06, data-protection.md §5).
+	// (data-protection.md §5).
 	coverWriter := work.CoverWriter{
 		Items: items, Containers: containers, Profiles: profiles, Media: mediaObjects,
 		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
@@ -804,7 +805,7 @@ func run() error {
 		HLC: hybrid,
 	}
 
-	// One custom field use case, registered once and dispatched into by the create (issue 896):
+	// One custom field use case, registered once and dispatched into by the create:
 	// what judges a value is the definition in force for the entry's collection, and a second
 	// resolution of that would be a second answer to what a key means.
 	setCustomField := work.SetCustomField{
@@ -815,7 +816,7 @@ func run() error {
 	}
 
 	// The three changes to an existing view share one dependency set (work.SavedViewWriter): the
-	// same find, the same visibility, the same ownership question (D-07). `authorizer` appears
+	// same find, the same visibility, the same ownership question. `authorizer` appears
 	// twice on purpose - the audited permission question and the silent visibility question are
 	// two doors into the same service.
 	savedViewWriter := work.SavedViewWriter{
@@ -824,8 +825,8 @@ func run() error {
 	}
 
 	// The three feed use cases share one dependency set, and it sits beside the views' because a
-	// feed is a read of a view: the visibility rule the minting asks is the one GetSavedView asks
-	// (D-08).
+	// feed is a read of a view: the visibility rule the minting asks is the one GetSavedView
+	// asks.
 	calendarFeedWriter := work.CalendarFeedWriter{
 		Feeds: calendarFeeds, Views: savedViews, Containers: containers, Permits: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -834,7 +835,7 @@ func run() error {
 
 	// An edit and a deletion of a definition share one dependency set (work.CustomFieldWriter):
 	// the same read, the same scope resolution, the same permission question, and only the write
-	// at the end differs (C-07).
+	// at the end differs.
 	customFieldWriter := work.CustomFieldWriter{
 		Fields: customFields, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -843,7 +844,7 @@ func run() error {
 
 	// Both directions of an entry's attachments share one dependency set (work.ItemAttachmentWriter).
 	// The same repository serves both halves of it: MediaRepository stores the links and the
-	// records, and the reference counter moves in the same transaction as the link (C-06).
+	// records, and the reference counter moves in the same transaction as the link.
 	attachmentWriter := work.ItemAttachmentWriter{
 		Items: items, Containers: containers, Profiles: profiles, Attachments: mediaObjects,
 		Media: mediaObjects, Authorizer: authorizer, Events: outbox, Changes: changes,
@@ -876,7 +877,7 @@ func run() error {
 	// The reminder's three writes share one dependency set (work.ReminderWriter): the same reads,
 	// the same permission question, the same two records. `authorizer` appears twice on purpose -
 	// the actor's own permission and the question about whether a named recipient can see the
-	// entry are two questions answered by the same service (D-02).
+	// entry are two questions answered by the same service.
 	reminderWriter := work.ReminderWriter{
 		Reminders: reminders, Items: items, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Visibility: authorizer, Changes: changes, Audit: auditSink,
@@ -887,7 +888,7 @@ func run() error {
 	// Both directions of a series share one dependency set (work.RecurrenceWriter). The expander
 	// is the library ADR-0008 chose, as a port: the writer asks it whether a text is a rule at all
 	// before anything is stored, so a broken series is refused where somebody wrote it rather than
-	// discovered by the scheduler (D-04).
+	// discovered by the scheduler.
 	recurrenceWriter := work.RecurrenceWriter{
 		Recurrences: recurrences, Items: items, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Expander: recurrenceadapter.New(),
@@ -897,10 +898,10 @@ func run() error {
 
 	// The copy reaches almost everything an entry has, because that is what it carries: the row,
 	// its three sets, the vocabulary of the collection it lands in, and the counter of every file
-	// it points at (C-11). It is a value rather than a literal in the registry because the
-	// materialisation reuses it: an occurrence is a copy of its template (D-05).
-	// The one capacity decision of H-08, asked from every bounded create. One value, shared:
-	// the ceilings, the counts and the ratio metric speak through the same guard everywhere.
+	// it points at. It is a value rather than a literal in the registry because the
+	// materialisation reuses it: an occurrence is a copy of its template.
+	// The one capacity decision of multi-tenancy.md §4, asked from every bounded create. One value,
+	// shared: the ceilings, the counts and the ratio metric speak through the same guard everywhere.
 	quotaGuard := quotaservice.Guard{
 		Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
 		Meter: postgres.NewQuotaRepository(), Signals: metrics, Tenancy: cfg.Tenancy,
@@ -920,7 +921,7 @@ func run() error {
 	}
 
 	// The templates' three definition verbs share one dependency set (work.TemplateWriter): the
-	// same scope resolution, the same permission question, the same records (D-06).
+	// same scope resolution, the same permission question, the same records.
 	templateWriter := work.TemplateWriter{
 		Templates: templates, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Changes: changes, Audit: auditSink,
@@ -933,7 +934,7 @@ func run() error {
 	// catalogue the moment there is one, a few lines below.
 	bulkCatalogue := &deferredCatalogue{}
 
-	// What AI proposed (J-05). The catalogue is deferred for the bulk's reason and it is the same
+	// What AI proposed. The catalogue is deferred for the bulk's reason and it is the same
 	// circle: accepting a suggestion performs an ordinary use case, and these three are entries of
 	// the catalogue that performs them. What that buys is the whole design - the permission check,
 	// the validation, the event and the entry's own history are the ones a person's own write
@@ -945,7 +946,7 @@ func run() error {
 		Targets:     suggestionservice.EntryTargets{Catalogue: suggestionCatalogue},
 		Authorizer:  authorizer, Catalogue: suggestionCatalogue, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-		// The words a template is drafted from, held for the job (P-11).
+		// The words a template is drafted from, held for the job.
 		Requests: suggestionStore, IDs: ids,
 	}
 
@@ -955,7 +956,7 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
-	// The provider's shared dependencies (H-05).
+	// The provider's shared dependencies.
 	oauthWriter := identity.OauthWriter{
 		Session:    sessionWriter,
 		Clients:    postgres.NewOauthClientRepository(security.NewOauthClientSecretHasher(cfg.SecretKey)),
@@ -965,8 +966,8 @@ func run() error {
 		Text: forms,
 	}
 
-	// The installation's own host, which the canonical host of every new workspace is derived from
-	// (SI-12). Parsed rather than trimmed: the parser knows what a scheme and a port are, and gate
+	// The installation's own host, which the canonical host of every new workspace is derived
+	// from. Parsed rather than trimmed: the parser knows what a scheme and a port are, and gate
 	// PG-6 reads a trimmed prefix in this tree as an address written into the source.
 	installationHost := ""
 	if parsed, err := url.Parse(cfg.BaseURL); err == nil {
@@ -988,7 +989,7 @@ func run() error {
 		RedirectURL: oidcRedirectURL,
 	}
 
-	// The AI provider's configuration (J-02). The third-country confirmation is the
+	// The AI provider's configuration. The third-country confirmation is the
 	// installation's rather than the workspace's: it is the operator who signs the processing
 	// agreement and owes the transfer impact assessment (ADR-0018 decision 7,
 	// data-protection.md §6), so the flag is read here and a workspace administrator cannot set
@@ -1000,7 +1001,7 @@ func run() error {
 		ThirdCountryConfirmed: cfg.AI.AllowThirdCountryTransfer,
 	}
 
-	// The AI provider's resolver (J-03). A provider is per tenant (ai-first.md §2), so there is
+	// The AI provider's resolver. A provider is per tenant (ai-first.md §2), so there is
 	// no one adapter to wire: this answers "which provider does this workspace use" and produces
 	// NoopAi for the three cases that are not "configured and consented".
 	//
@@ -1022,7 +1023,7 @@ func run() error {
 		})
 	}}
 	// What this process has learned about embedding models' widths, per endpoint and model, the
-	// way the breakers are per endpoint (#569): the embedding pass writes it, and the capability
+	// way the breakers are per endpoint: the embedding pass writes it, and the capability
 	// report and the health probe read it without a call.
 	// Three of the pass's hourly intervals: one missed pass does not clear a real degradation,
 	// and a workspace that switched models stops being reported within the afternoon.
@@ -1033,8 +1034,8 @@ func run() error {
 		Meter: metrics, Breakers: aiBreakers, Widths: aiWidths,
 	}
 	registry.Register(aiadapter.NewProbe(aiBreakers, aiWidths, workrepo.EmbeddingWidth, clockadapter.System{}))
-	// The per-tenant budget ai-first.md §2 asks for, around the resolver rather than inside it
-	// (J-15). It is a quota like every other row of multi-tenancy.md §4 - resolved from the
+	// The per-tenant budget ai-first.md §2 asks for, around the resolver rather than inside
+	// it. It is a quota like every other row of multi-tenancy.md §4 - resolved from the
 	// workspace's settings, reported on the same ratio metric, watched by the same alert - and a
 	// workspace that has spent its day's budget gets a provider that refuses exactly as an absent
 	// one does, which is why nothing downstream needed changing.
@@ -1045,11 +1046,11 @@ func run() error {
 		Providers: aiResolver, Budget: quotaGuard,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 	}
-	// What asking a provider does when the job runs (J-06). It acts for the person who asked, so
+	// What asking a provider does when the job runs. It acts for the person who asked, so
 	// the reads it performs go through the catalogue with their rights - which is the same
 	// arrangement the acceptance has, and for the same reason.
 	//
-	// Through the scoped catalogue, because a job presents no credential (J-16): the token that
+	// Through the scoped catalogue, because a job presents no credential: the token that
 	// asked was checked when it asked, and by the time the job runs there is nothing left for the
 	// scope bound to narrow - so each call is granted the scope its own use case declares, exactly
 	// as a rule's run is. Without it every read the job makes is refused, which is the state this
@@ -1065,7 +1066,7 @@ func run() error {
 		Catalogue: scopedSuggestions,
 		// And a proposal is narrowed to what that use case can take: `suggest-fields` proposes
 		// four fields and `ConvertJumbleEntry` declares one of them, so without this a jumble
-		// suggestion was produced, stored, listed - and refused by every acceptance (J-16).
+		// suggestion was produced, stored, listed - and refused by every acceptance.
 		Fields:     useCaseFields{catalogue: suggestionCatalogue},
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
@@ -1082,10 +1083,10 @@ func run() error {
 
 	workspaceWriter := identity.WorkspaceWriter{
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
-		// The hosts the workspace answers at (SI-12). Read-only: nothing resolves a request
+		// The hosts the workspace answers at. Read-only: nothing resolves a request
 		// through them yet.
 		Hosts: postgres.NewTenantHostRepository(),
-		// The ways in beside the password, so that the last one cannot be switched off (SC-06).
+		// The ways in beside the password, so that the last one cannot be switched off.
 		Providers:  postgres.NewIdentityProviderRepository(),
 		Authorizer: authorizer,
 		Audit:      auditSink,
@@ -1104,11 +1105,11 @@ func run() error {
 		Providers:  postgres.NewIdentityProviderRepository(),
 		Relying:    relyingParty,
 		Authorizer: authorizer,
-		// Which of the installation's providers this workspace took (SI-10): the switch lives in
+		// Which of the installation's providers this workspace took: the switch lives in
 		// the workspace's settings, because the row is the installation's.
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		// The one value every registration form at every provider asks for, and it is this
-		// installation's own rather than anything a request carries (SI-10).
+		// installation's own rather than anything a request carries.
 		RedirectURL: oidcRedirectURL,
 		// A change to a way in asks for a fresh proof, at both levels (ADR-0071's addendum, E2) -
 		// handed in once the rule is taught (stepUpVerifier, below).
@@ -1143,7 +1144,7 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
-	// The control plane's half of the provider store (SI-10): the same writer, under the scope that
+	// The control plane's half of the provider store: the same writer, under the scope that
 	// has no tenant, behind the scope and the operator register both.
 	instanceProviderWriter := adminservice.InstanceProviderWriter{
 		Instance:  instanceWriter,
@@ -1153,8 +1154,8 @@ func run() error {
 
 	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the rule,
 	// the history and the trail have one place each. The blocklist and the breach corpus are both
-	// nil on a plain installation - the operator's file arrives with the instance layer, and the
-	// corpus with whatever milestone wires one.
+	// nil on a plain installation: the operator's file comes with the instance layer, and nothing
+	// wires a corpus by default.
 	//
 	// Named for the rows rather than for the hasher: `passwords` above is the Argon2 verifier.
 	passwordStore := postgres.NewPasswordRepository()
@@ -1163,7 +1164,7 @@ func run() error {
 		Resolver: signInPolicyResolver,
 		Accounts: passwordStore, Histories: passwordStore,
 		Pending: mfaStore,
-		// ADR-0076 §4: a workspace left with no way in that works - whatever the cause (E2, #1138) -
+		// ADR-0076 §4: a workspace left with no way in that works - whatever the cause -
 		// signs in by password again, and the sign-in records it. Set here, in the literal, so that
 		// every copy teachTheRule hands out below carries it.
 		WaysIn: identity.WaysIn{
@@ -1186,7 +1187,7 @@ func run() error {
 	// Every step-up verifier is a copy of the session writer, so the ones the writers above hold are
 	// taken here, after the rule: a verifier copied before it cannot ask whether the password is a way
 	// in, and names PASSWORD as a proof in a workspace that switched the password off - a field the
-	// step-up then refuses (SC-24). Wiring_test.go keeps every verifier literal below this line.
+	// step-up then refuses. Wiring_test.go keeps every verifier literal below this line.
 	stepUpVerifier := identity.StepUpVerifier{Writer: sessionWriter}
 	backupRestorer.StepUp = stepUpVerifier
 	accessTokenWriter.StepUp = stepUpVerifier
@@ -1195,8 +1196,8 @@ func run() error {
 	instanceProviderWriter.Configure = identityProviderWriter
 	passwordWriter.StepUp = stepUpVerifier
 	// And a writer whose rule cannot say whether the password is open lets the password through at
-	// every door it guards - the shape before SC-24, kept for tests that wire no rule. The server
-	// refuses to start that way rather than run with it (SC-34).
+	// every door it guards - a shape kept for tests that wire no rule. The server
+	// refuses to start that way rather than run with it.
 	if err := requirePasswordDoors(map[string]identity.SessionWriter{
 		"the sign-in path":                 sessionWriter,
 		"the reset's session writer":       passwordWriter.Session,
@@ -1212,7 +1213,7 @@ func run() error {
 		return err
 	}
 
-	// The check (ADR-0060, F8-03): the same catalogue, compiler and authoriser the write uses,
+	// The check (ADR-0060): the same catalogue, compiler and authoriser the write uses,
 	// the resolver for what a rule names, and the streak's own path to the author. One value,
 	// because the job a deletion seeds runs the same check the route serves.
 	ruleCheck := automationservice.CheckRules{
@@ -1230,7 +1231,7 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 	}
 
-	// An operator's opening of the password for one workspace (ADR-0078 §3, SC-34). Built after the
+	// An operator's opening of the password for one workspace (ADR-0078 §3). Built after the
 	// rule is taught, so the verifier's copy of the session writer knows whether the password is a
 	// way in at all when it names the methods a step-up may use.
 	passwordOpeningWriter := adminservice.PasswordOpeningWriter{
@@ -1317,7 +1318,7 @@ func run() error {
 			Resolver: signInPolicyResolver, Tenants: signInStore,
 			Providers: postgres.NewIdentityProviderRepository(),
 			// Which of the installation's providers this workspace took: an offered one is not a
-			// button until somebody here switched it on (SI-10).
+			// button until somebody here switched it on.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
 			// The moment an offer is read at: a withdrawn provider is not a button (ADR-0076 §2).
 			Clock:      clockadapter.System{},
@@ -1378,9 +1379,8 @@ func run() error {
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
-		// automation.md §1.3's three AI actions, which have been refused by name since G-05 with a
-		// code saying "not built yet". An automation action is a use case, so these exist here or
-		// a rule cannot name them (J-08).
+		// automation.md §1.3's three AI actions. An automation action is a use case, so these
+		// exist here or a rule cannot name them.
 		suggestionservice.AiSuggestFields{
 			Cases: suggestionCases,
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
@@ -1411,7 +1411,7 @@ func run() error {
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
-		// The one that asks nothing of a provider (K-04): no `AI`, no `Queue`, and no provider
+		// The one that asks nothing of a provider: no `AI`, no `Queue`, and no provider
 		// anywhere in its dependencies - which is what makes "no budget is spent" structural.
 		suggestionservice.SuggestDuplicates{
 			Cases:      suggestionCases,
@@ -1624,7 +1624,7 @@ func run() error {
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
-		// The entry in another language (M-11): a read through the entry's own read, then the
+		// The entry in another language: a read through the entry's own read, then the
 		// budgeted provider - so a workspace without consent, without a provider or without
 		// budget is refused the way the search's meaning is, and nothing is stored.
 		work.AiTranslate{
@@ -1650,7 +1650,7 @@ func run() error {
 			Items: items, Containers: containers,
 			Authorizer: authorizer, Anchored: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-			// The semantic half (J-10). Optional four times over - the extension, the provider,
+			// The semantic half. Optional four times over - the extension, the provider,
 			// the consent, and whether it answers in time - and every one of those is a lexical
 			// search rather than a failure.
 			Meaning: work.SearchMeaning{
@@ -1658,7 +1658,7 @@ func run() error {
 				UnitOfWork: unitOfWork,
 			},
 		}.Descriptor(),
-		// The index brought current at an administrator's request (M-09): what the row's
+		// The index brought current at an administrator's request: what the row's
 		// recorded configuration says was built differently from how it would be built today.
 		work.ReindexSearch{
 			Index: postgres.NewSearchIndexRepository(), Jobs: jobs, Authorizer: authorizer,
@@ -1726,7 +1726,7 @@ func run() error {
 			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
-		// The imports (P-08): the request, and the read of its report. The kinds this build
+		// The imports: the request, and the read of its report. The kinds this build
 		// converts are the converters wired below; a kind the contract declares and no converter
 		// serves is refused by name at the request.
 		importservice.ImportEntries{
@@ -1872,9 +1872,9 @@ func run() error {
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
 		adminservice.AddOperator{Writer: instanceWriter}.Descriptor(),
 		adminservice.RemoveOperator{Writer: instanceWriter}.Descriptor(),
-		// The control plane (H-06). Its credential is a PAT carrying admin:tenants - never a
-		// session (decision 6) - and its authorisation is the scope **and** the operator register
-		// since ADR-0070 §1: the scope says what a credential may reach and the register says whose
+		// The control plane. Its credential is a PAT carrying admin:tenants - never a
+		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
+		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose
 		// credential it may be, and either alone is a hole.
 		adminservice.ProvisionTenant{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
@@ -1884,7 +1884,7 @@ func run() error {
 			Domains: domains, Text: forms,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
-			// The one host the new workspace answers at (SI-12). The installation's own host comes
+			// The one host the new workspace answers at. The installation's own host comes
 			// from the configured base URL and never from a request.
 			Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
 		}.Descriptor(),
@@ -1906,7 +1906,7 @@ func run() error {
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
-		// An operator's opening of the password for one workspace (ADR-0078 §3, SC-34): the scope
+		// An operator's opening of the password for one workspace (ADR-0078 §3): the scope
 		// and the register through the instance writer, the step-up through the session's verifier.
 		adminservice.OpenTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
 		adminservice.CloseTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
@@ -1915,7 +1915,7 @@ func run() error {
 			Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
-		// The §4 quota surface (H-08): the workspace reads its own standing, the operator
+		// The §4 quota surface: the workspace reads its own standing, the operator
 		// moves the walls.
 		quotaservice.ReadQuotas{
 			Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
@@ -1928,7 +1928,7 @@ func run() error {
 			Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
-		// The deep self-diagnosis (K-06, #507). The same registry `/readyz` and the operations
+		// The deep self-diagnosis. The same registry `/readyz` and the operations
 		// listener read, asked through a use case so that who may see how much of it is decided
 		// in the application layer and once - an operator's credential reads the whole report, a
 		// workspace administrator reads its status and what is degraded.
@@ -1952,7 +1952,7 @@ func run() error {
 	}
 	// And now the bulk can reach the catalogue it is part of. Every operation it performs therefore
 	// goes through the same registry a REST call or an MCP tool call goes through, with the same
-	// input check, the same permission check and the same metric (C-11).
+	// input check, the same permission check and the same metric.
 	bulkCatalogue.catalogue = useCases
 	ruleCatalogue.catalogue = useCases
 	suggestionCatalogue.catalogue = useCases
@@ -1967,7 +1967,7 @@ func run() error {
 		// The two content routes are not catalogue entries: they take a stream and answer a
 		// stream, which is neither what MCP nor what an automation rule could do with them. On an
 		// object-storage installation they are never reached - the token this server would have to
-		// have minted is one it never mints there (C-06).
+		// have minted is one it never mints there.
 		controller.MediaContent = mediaservice.MediaContent{
 			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard,
 			UnitOfWork: unitOfWork, Config: cfg,
@@ -1977,14 +1977,14 @@ func run() error {
 		// The address a calendar client is handed. Configured rather than taken from the
 		// request's Host, so that one caller cannot decide what the next person's client stores.
 		controller.BaseURL = cfg.BaseURL
-		// The host alone, for reading a tenant subdomain off a multi-mode sign-in (H-01,
-		// multi-tenancy.md §3). An unreadable base URL means no subdomain is ever read, which
+		// The host alone, for reading a tenant subdomain off a multi-mode sign-in
+		// (multi-tenancy.md §3). An unreadable base URL means no subdomain is ever read, which
 		// fails closed into "no workspace answers here" rather than into a guess.
 		if parsed, urlErr := url.Parse(cfg.BaseURL); urlErr == nil {
 			controller.BaseHost = strings.ToLower(parsed.Hostname())
 		}
 		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
-		// system holds, and every question it asks is asked inwards of the controller (D-08).
+		// system holds, and every question it asks is asked inwards of the controller.
 		controller.CalendarFeeds = work.ReadCalendarFeed{
 			Feeds: calendarFeeds, Accounts: postgres.NewAccountRepository(),
 			Export: work.ExportView{
@@ -2001,12 +2001,12 @@ func run() error {
 		// The public inbound-webhook route, for the same reason and with the same discipline: it
 		// answers a credential nobody in this system holds, it can do exactly one thing - start
 		// that one rule's run - and every question it asks is asked inwards of the controller
-		// (G-08, automation.md §1.1).
+		// (automation.md §1.1).
 		controller.InboundRuns = automationservice.StartInboundRun{
 			Inbound: automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}
-		// The jumble's public door (G-10): a delivery on the tenant's address becomes an entry.
+		// The jumble's public door: a delivery on the tenant's address becomes an entry.
 		controller.JumbleIntake = intake.WebhookIntake{
 			Deliveries: jumbleservice.IntakeJumbleEntry{
 				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
@@ -2014,7 +2014,7 @@ func run() error {
 				Clock: clockadapter.System{}, IDs: ids,
 			},
 		}
-		// The mail door beside it (G-11): the message is parsed here, its files go through the
+		// The mail door beside it: the message is parsed here, its files go through the
 		// media pipeline's server-side end, and what lands is an EMAIL entry.
 		controller.MailIntake = intake.MailIntake{
 			Deliveries: jumbleservice.IntakeMail{
@@ -2030,12 +2030,12 @@ func run() error {
 		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
-		// call (C-10). The listener is the wake-up; without it the stream still works, at its idle
+		// call. The listener is the wake-up; without it the stream still works, at its idle
 		// poll interval.
 		changeStream := syncservice.StreamChanges{
 			Changes: changes, Containers: containers, Authorizer: authorizer,
 			UnitOfWork: unitOfWork, Cursors: streamCursors,
-			// The workspace's synchronisation epoch (N-11): a restore advances it, and a cursor
+			// The workspace's synchronisation epoch: a restore advances it, and a cursor
 			// minted before is refused.
 			Epochs: postgres.NewEpochRepository(),
 			Clock:  clockadapter.System{},
@@ -2050,30 +2050,30 @@ func run() error {
 			Wakeups:  changeListener,
 			Signals:  metrics,
 		}
-		// The pull is the same reader served in pages (N-01): the same records, the same order,
+		// The pull is the same reader served in pages: the same records, the same order,
 		// the same cursor, which is what makes the stream an accelerator over it.
 		controller.Sync = &rest.SyncController{
 			Pull: syncservice.PullChanges{
 				Stream: changeStream,
-				// Every pull registers or touches the device it comes from (N-03).
+				// Every pull registers or touches the device it comes from.
 				Devices: postgres.NewDeviceRepository(),
-				// The initial synchronisation reads the current state kind by kind (N-02).
+				// The initial synchronisation reads the current state kind by kind.
 				Snapshot: postgres.NewSnapshotRepository(),
 			},
 			Signals: metrics,
-			// The push applies a device's queue through the catalogue as the pushing person
-			// (N-04): nothing here writes by any other path.
+			// The push applies a device's queue through the catalogue as the pushing person:
+			// nothing here writes by any other path.
 			Push: syncservice.PushChanges{
 				Stream: changeStream, Devices: postgres.NewDeviceRepository(), IDs: ids,
 				Ops: postgres.NewSyncOpLog(), Tombstones: postgres.NewTombstoneRepository(),
-				// The server's clock per field, kept by the change log (N-05).
+				// The server's clock per field, kept by the change log.
 				Clocks:    changes,
 				Catalogue: useCases, Skew: cfg.Sync.ClockSkew,
-				// What a merge owes beside the use case it performed (N-06): the history's step
+				// What a merge owes beside the use case it performed: the history's step
 				// for a change that lost, and the comment that keeps displaced free text.
 				Activity:  journal,
 				Displaced: work.AddComment{Writer: commentWriter},
-				// Where each set's tags are read for the OR-set merge (N-07).
+				// Where each set's tags are read for the OR-set merge.
 				Sets: syncservice.Sets{
 					Labels:      postgres.NewItemLabelRepository(),
 					Members:     postgres.NewItemMemberRepository(),
@@ -2081,7 +2081,7 @@ func run() error {
 				},
 			},
 			PushSignals: metrics,
-			// The snapshot is the walk as one response (SY-C), admitted and counted with the
+			// The snapshot is the walk as one response, admitted and counted with the
 			// streams because it is a connection held open like one.
 			Registry: streams, StreamSignals: metrics,
 		}
@@ -2093,15 +2093,15 @@ func run() error {
 			Semantic:  postgres.NewSemanticSearchRepository(),
 			Ordering:  postgres.NewNaturalOrderingRepository(),
 			// The same resolver every asking route reaches through, so the manifest cannot say
-			// the workspace has AI while the route refuses (issue 502). Budgeted, which is the
+			// the workspace has AI while the route refuses. Budgeted, which is the
 			// honest one: a workspace that has spent the day's tokens is a workspace whose next
 			// suggestion will be refused.
 			Providers: budgetedAi,
 			// The four links the installation is obliged to show, through the one resolver that
-			// knows the levels (SI-12). The same object `/auth/sign-in-rules` reads, so a footer
+			// knows the levels. The same object `/auth/sign-in-rules` reads, so a footer
 			// inside the application and the signed-out card cannot disagree.
 			Legal: signInPolicyResolver,
-			// Whether the caller operates this installation (SI-17). The same register the
+			// Whether the caller operates this installation. The same register the
 			// control plane checks, so the menu cannot offer what the route refuses.
 			Operators:  operators,
 			UnitOfWork: unitOfWork,
@@ -2111,7 +2111,7 @@ func run() error {
 			// catalogue is assembled from these very use cases.
 			Scopes: catalogue.Scopes(),
 			// And the action kinds, for the same reason: the rule writer validates against the
-			// catalogue this manifest would otherwise have to describe from a copy (issue 542).
+			// catalogue this manifest would otherwise have to describe from a copy.
 			Actions:         catalogue.AutomationActions(),
 			ActionFields:    catalogue.AutomationActionFields(),
 			ActionSummaries: catalogue.AutomationActionSummaries(),
@@ -2120,7 +2120,7 @@ func run() error {
 		// JSON-RPC over one path, not a REST resource, so it belongs in no OpenAPI document - and
 		// it still travels through the whole middleware chain, which is what makes an agent's call
 		// authenticated, rate limited and observed exactly like a person's (ai-first.md §1.1).
-		// The CalDAV tree (P-06) is mounted the same way, as a prefix: WebDAV rather than REST,
+		// The CalDAV tree is mounted the same way, as a prefix: WebDAV rather than REST,
 		// outside the contract, inside the middleware chain - authenticated by the same token
 		// path, through HTTP Basic because a calendar client can send nothing else. The discovery
 		// address of RFC 6764 redirects into it.
@@ -2143,7 +2143,7 @@ func run() error {
 					ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
 					Clock: clockadapter.System{},
 				},
-				// The entry behind an address the view no longer answers (issue 720): the same
+				// The entry behind an address the view no longer answers: the same
 				// read the API performs, so the permission is the same one.
 				Items: work.GetWorkItem{
 					Items: items, ItemLabels: itemLabels, Containers: containers,
@@ -2151,7 +2151,7 @@ func run() error {
 				},
 				BaseURL: cfg.BaseURL,
 				Now:     clockadapter.System{}.Now,
-				// The writes (P-07): a completion, a date, a name, a deletion, each the
+				// The writes: a completion, a date, a name, a deletion, each the
 				// ordinary use case performed as the token's account through the registry.
 				UseCases: useCases,
 			},
@@ -2161,11 +2161,11 @@ func run() error {
 			Path:   mcp.Path,
 			Mount: mcp.Server{
 				Catalogue: useCases,
-				// The same store the outbound adapters read (J-12). One store, because two is how
+				// The same store the outbound adapters read. One store, because two is how
 				// one prompt comes to exist in two versions - and a suggestion's recorded prompt
 				// version would then name a text that depends on who is reading it.
 				Prompts: aiPrompts,
-				// The streaming half (J-13). `Streams` is the *same* registry the change stream
+				// The streaming half. `Streams` is the *same* registry the change stream
 				// uses, deliberately: an agent's stream is not a different kind of connection from
 				// a browser's, so a pod's capacity is one number whoever is holding it and a
 				// refusal shows up in the same metric.
@@ -2182,13 +2182,13 @@ func run() error {
 			Tokens:     postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
 			UnitOfWork: unitOfWork,
 			Clock:      clockadapter.System{},
-			// The week's first day for an account that set none: the locale's row (M-06).
+			// The week's first day for an account that set none: the locale's row.
 			WeekStarts: renderer,
-			// The session half (H-01): the signature refuses forgeries before any lookup, the
+			// The session half: the signature refuses forgeries before any lookup, the
 			// row answers whether the session is still alive. A session carries every declared
 			// scope except the control plane's, because it is the person rather than a bounded
 			// credential - and the admin surface is entered by a deliberately minted credential,
-			// never by whoever happens to be signed in (H-06, 0.6.0 decision 6).
+			// never by whoever happens to be signed in (api-guidelines.md §7).
 			Sessions:      sessions,
 			Signer:        sessionSigner,
 			SessionScopes: catalogue.SessionScopes(),
@@ -2203,7 +2203,7 @@ func run() error {
 		// presented string - so a flood of invalid tokens costs no lookups.
 		limiter := rest.NewRateLimiter()
 
-		// Admission control in front of the whole API (H-11): above the configured number of
+		// Admission control in front of the whole API: above the configured number of
 		// requests in flight, deferrable work - bulk, export, search, the query shapes - is
 		// refused with `503` and a `Retry-After` instead of queueing behind the interactive path
 		// (observability-reliability.md §6, RT-6). Nil when the threshold is zero, which is how
@@ -2282,7 +2282,7 @@ func run() error {
 						Routes: apiRoutes, Admit: admit, Signals: metrics,
 						Next: rest.Bounded{
 							MaxBodyBytes: cfg.Request.MaxBodyBytes,
-							// The mail door's own bound (G-11): a message is not a document, and the
+							// The mail door's own bound: a message is not a document, and the
 							// route reads one whole.
 							MaxMailBytes: cfg.Request.MaxMailBytes,
 							Timeout:      cfg.Request.Timeout,
@@ -2306,7 +2306,7 @@ func run() error {
 									// The feed's own bucket, in front of the lookup rather than
 									// behind it: a subscription polls, and one client polling hard
 									// must not shed the calendar of somebody else behind the same
-									// address (D-08, T-21).
+									// address (T-21).
 									Next: rest.Limited{
 										Limiter: limiter, Signals: metrics,
 										Level: "feed",
@@ -2315,17 +2315,17 @@ func run() error {
 										Next: rest.Localised{
 											Locale: cfg.Locale,
 											// The catalogues present decide what a header lands
-											// on (M-04); the renderer is the matcher.
+											// on; the renderer is the matcher.
 											Negotiator: renderer,
 											Next: rest.Authenticated{
 												Routes:        apiRoutes,
 												Authenticator: authenticate,
 												Locale:        cfg.Locale,
-												// The subdomain check of multi-tenancy.md §3 (H-06);
+												// The subdomain check of multi-tenancy.md §3;
 												// the controller reads its host the same way.
 												BaseHost: controller.BaseHost,
 												Next: rest.Limited{
-													// H-08: the workspace's own per-token ceiling,
+													// The workspace's own per-token ceiling,
 													// engaging only where one is configured.
 													Limiter: limiter, Signals: metrics,
 													Level:  "token",
@@ -2373,14 +2373,14 @@ func run() error {
 	// what the roles decide is which loops run (ADR-0014).
 	backgroundWork := postgres.NewUnitOfWork(backgroundPool)
 	// Who is told about what happens. The first subscriber there has ever been: automation,
-	// webhooks, the live stream and the search index register beside it as they arrive (C-09).
+	// webhooks, the live stream and the search index register beside it.
 	notify := notification.RecordNotifications{
 		Notifications: notifications, Preferences: notificationPreferences, Accounts: accounts,
 		Items: items, ItemMembers: itemMembers, Jobs: jobs,
 		Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 	}
 
-	// The automation engine (G-07). The subscriber turns one event into one job per matching rule;
+	// The automation engine. The subscriber turns one event into one job per matching rule;
 	// the engine that runs a job is the handler below, and the two are separate because a
 	// subscriber runs inside the dispatcher's transaction and may not reach the use case registry.
 	automationRuns := postgres.NewAutomationRunRepository(cursors)
@@ -2391,7 +2391,7 @@ func run() error {
 		Clock:      clockadapter.System{},
 	}
 
-	// The relative-date producer (G-08). A second subscriber rather than a branch inside the first,
+	// The relative-date producer. A second subscriber rather than a branch inside the first,
 	// because it answers a different question: MatchRules asks which rules *want* this event, and
 	// this one asks what the entry's deadline now means for the rules that measure from it.
 	relativeDates := automationservice.RelativeDates{
@@ -2400,7 +2400,7 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 	}
 
-	// The optional bus (H-14, ADR-0042). Everything about it is conditional on a URL having been
+	// The optional bus (ADR-0042). Everything about it is conditional on a URL having been
 	// configured, and that is what "optional" has to mean: with none, no connection is attempted,
 	// no subscriber is registered, no job is written and no row is paid for.
 	// The probe is registered either way, so that /meta/health says "disabled" rather than saying
@@ -2445,14 +2445,14 @@ func run() error {
 		// restore reaches no external system (backup-restore.md §8.4).
 		// The automation engine beside them, and it deliberately does not implement TakesReplays
 		// either: no rule fires for a restore's events (backup-restore.md §8.4, BK-5).
-		// The bus joins them only when one is configured (H-14): appending an empty slice is how
+		// The bus joins them only when one is configured: appending an empty slice is how
 		// an installation without a bus ends up with exactly the subscriber list it had before.
 		Subscribers: append([]eventbusport.Subscriber{
 			notify, webhookFanOut, matchRules, relativeDates,
 			// The check a deletion seeds (ADR-0060): one job per workspace, never the check itself
 			// inside the dispatcher's transaction.
 			automationservice.CheckOnDeletion{Jobs: jobs},
-			// What asks for a workspace's vectors to be brought up to date (J-10). A seed rather
+			// What asks for a workspace's vectors to be brought up to date. A seed rather
 			// than the work: one deduplicated job per workspace, and the pass behind it decides
 			// which entries actually owe an embedding.
 			work.SeedEmbedding{
@@ -2509,7 +2509,7 @@ func run() error {
 			BaseURL:        cfg.BaseURL,
 		},
 	}
-	// An operator's opening of the password (SC-34): its notices to the administrators, and the job
+	// An operator's opening of the password: its notices to the administrators, and the job
 	// that records its end once the time has passed.
 	passwordOpeningMessage := worker.PasswordOpeningMessage{
 		Send: notification.SendPasswordOpening{
@@ -2525,16 +2525,16 @@ func run() error {
 		Delivery: notification.DeliverNotification{
 			Notifications: notifications, Preferences: notificationPreferences,
 			Accounts: accounts, Items: items, Mail: mailSender, Renderer: renderer,
-			// The subjects that are not an entry (issue 814): the rule that was switched off,
+			// The subjects that are not an entry: the rule that was switched off,
 			// the subscription that stopped being called.
 			Rules:         postgres.NewAutomationRuleRepository(cursors),
 			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
-			// The workspace's default language for a recipient who has not chosen one (#603),
+			// The workspace's default language for a recipient who has not chosen one,
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
 			UnitOfWork: backgroundWork, Clock: clockadapter.System{}, BaseURL: cfg.BaseURL,
 			Signals: metrics,
-			// The invitation mail's link is the redemption token (H-01), minted at delivery so
+			// The invitation mail's link is the redemption token, minted at delivery so
 			// the plaintext exists exactly once, in the message on its way out.
 			Redemptions: identity.MintRedemptionToken{
 				Accounts: postgres.NewSignInRepository(
@@ -2548,7 +2548,7 @@ func run() error {
 
 	// The firing of what is due. It reads the reminders, writes the records through the same
 	// notification path everything else uses, and decides when to come back - which is why it
-	// holds its own job row for the pass (D-03).
+	// holds its own job row for the pass.
 	reminderFiring := worker.ReminderFiring{
 		Firing: work.FireReminders{
 			Reminders: reminders, Items: items, Schedule: items, Containers: containers,
@@ -2571,9 +2571,9 @@ func run() error {
 		MinimumWait:  cfg.Queue.OutboxMinInterval,
 	}
 
-	// What a series owes. The copy is C-11's duplicate, wired with the same repositories the use
+	// What a series owes. The copy is the duplicate use case's, wired with the same repositories the use
 	// case uses: an occurrence is a copy of the template with its subtree, and rebuilding that
-	// would be a second answer to what a copy carries (D-05).
+	// would be a second answer to what a copy carries.
 	recurrenceMaterialisation := worker.RecurrenceMaterialisation{
 		Materialisation: work.MaterializeOccurrences{
 			Recurrences: recurrences, Items: items, Containers: containers,
@@ -2589,7 +2589,7 @@ func run() error {
 		MinimumWait:  cfg.Queue.OutboxMinInterval,
 	}
 
-	// The backup run and the two jobs around it (E-05). The run is Detached: it holds a
+	// The backup run and the two jobs around it. The run is Detached: it holds a
 	// REPEATABLE READ snapshot while it streams to somebody else's machine, and doing that inside
 	// the runner's own transaction would mean two open at once - the runner's for minutes, on the
 	// pool the API shares.
@@ -2602,7 +2602,7 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), ProductVersion: version,
 	}
-	// Data subject requests (E-10): the erasure that serves every storage location, and the export
+	// Data subject requests: the erasure that serves every storage location, and the export
 	// that is a Hubtask archive rather than a second format.
 	privacyEraser := privacyservice.Eraser{
 		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
@@ -2627,7 +2627,7 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 	}
 
-	// The audit export (E-09). It writes to a backup target through the seam that owns a target's
+	// The audit export. It writes to a backup target through the seam that owns a target's
 	// credentials, because an export needs somewhere to put bytes and has no business with them.
 	auditArchivist := auditservice.Archivist{
 		Trail: auditTrail, Pseudonyms: privacyStore,
@@ -2639,7 +2639,7 @@ func run() error {
 		ProductVersion: version,
 	}
 
-	// The restore, and the backup it takes before a destructive mode (E-06). It shares the
+	// The restore, and the backup it takes before a destructive mode. It shares the
 	// performer so that the safety copy is the same act a scheduled backup is - a second way of
 	// writing an archive would be a second archive format to keep in step.
 	backupApplier := backupservice.Applier{
@@ -2649,41 +2649,41 @@ func run() error {
 		Opener:  backupAdapters, Encryptor: encryptor, Keys: encryptor,
 		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Objects: mediaStore,
 		Safety: backupPerformer, UnitOfWork: unitOfWork,
-		// The synchronisation epoch a restore advances (N-11, B-5), so that every device's cursor
-		// minted before is refused and the restored rows reach them through the walk.
+		// The synchronisation epoch a restore advances (backup-restore.md §8.3), so that every
+		// device's cursor minted before is refused and the restored rows reach them through the walk.
 		Epochs: postgres.NewEpochRepository(),
 		Clock:  clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
 	}
-	// The trial restore (B-4): the run that wrote a FULL archive reads it back through the
-	// applier, in the same job. The applier's own safety copy keeps the performer as it was
+	// The trial restore (backup-restore.md §5): the run that wrote a FULL archive reads it back
+	// through the applier, in the same job. The applier's own safety copy keeps the performer as it was
 	// before this line - a copy taken before a restore has no archive to read back yet.
 	backupPerformer.Trial = backupApplier
 	retention := worker.RetentionSweep{
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
 			History: notifications,
-			// The outbox's own rows (G-02). ADR-0007's second countermeasure, and until now the
-			// one table in this schema that only ever grew.
+			// The outbox's own rows: ADR-0007's second countermeasure, for a table that would
+			// otherwise only ever grow.
 			Events: postgres.NewDispatchedEvents(),
-			// The jumble (G-10). Ninety days from the arrival for what was never converted, which
-			// is the kind D-06 predicted and the one place raw inbound text would otherwise sit
+			// The jumble. Ninety days from the arrival for what was never converted, which
+			// is the one place raw inbound text would otherwise sit
 			// for ever.
 			Inbox: postgres.NewJumbleRepository(cursors),
-			// The SESSION kind (H-01): expired and revoked sessions age out through the engine,
+			// The SESSION kind: expired and revoked sessions age out through the engine,
 			// not a second sweeper.
 			Sessions: postgres.NewSessionRepository(),
-			// The devices that synchronise (N-03): silent past their period, their sign-in is
+			// The devices that synchronise: silent past their period, their sign-in is
 			// revoked and the row goes.
 			Devices: postgres.NewDeviceRepository(),
-			// The synchronisation's records (N-09): the operation log and the tombstones past
+			// The synchronisation's records: the operation log and the tombstones past
 			// the offline window; the change log's months fall as partitions, the leader's duty.
 			SyncLog: postgres.NewSyncLogSweeper(),
-			// What AI proposed (J-05). Thirty days, the shortest default in the catalogue: a
+			// What AI proposed. Thirty days, the shortest default in the catalogue: a
 			// suggestion is about a state of an entry, and an entry's state does not stay still.
 			Proposals: postgres.NewSuggestionRepository(cursors),
 			Clock:     clockadapter.System{}, IDs: ids, Signals: metrics,
-			// The rule-driven half (E-07). It shares the purger, so a retention hard delete owes
+			// The rule-driven half. It shares the purger, so a retention hard delete owes
 			// exactly what a person's purge owes: a journal entry, a tombstone and an event per
 			// row that goes.
 			Rules: postgres.NewRetentionRuleRepository(),
@@ -2691,7 +2691,7 @@ func run() error {
 				Rules:   postgres.NewRetentionRuleRepository(),
 				Marking: postgres.NewRetentionMarkingRepository(),
 				Holds:   lifecycleStore, Items: items, Purger: purger, Conditions: celexpression.New(), Changes: changes,
-				// The advance warning of data-retention.md §6 (R-1), through the path C-09 built:
+				// The advance warning of data-retention.md §6 (R-1), through the notification path:
 				// the preference is honoured, the record is deduplicated, and the send is a job.
 				Warnings: notification.RecordRetentionWarning{
 					Notifications: notifications, Accounts: accounts,
@@ -2724,7 +2724,7 @@ func run() error {
 		},
 	}
 
-	// The webhook deliverer (G-03). Detached, because the call to somebody else's server happens
+	// The webhook deliverer. Detached, because the call to somebody else's server happens
 	// between two short transactions rather than inside one long one - holding a database
 	// connection for as long as a subscriber's server feels like taking is what
 	// observability-reliability.md §8 forbids.
@@ -2739,7 +2739,7 @@ func run() error {
 		Outcomes: integrationservice.Outcomes{
 			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 			Audit:         auditSink, Clock: clockadapter.System{},
-			// The owner is told through the path C-09 built rather than a new channel: the
+			// The owner is told through the notification path rather than a new channel: the
 			// preference is honoured and the send is a job like every other.
 			Notifier: notification.RecordWebhookDisabled{
 				Notifications: notifications, Accounts: accounts,
@@ -2762,7 +2762,7 @@ func run() error {
 		Signals: metrics,
 	}
 
-	// The outbound call (G-09): an HTTP_REQUEST action's HTTP, detached from every transaction and
+	// The outbound call: an HTTP_REQUEST action's HTTP, detached from every transaction and
 	// through the guarded client, with the sealed header secret opened for the length of one call.
 	outboundCall := automation.OutboundCall{
 		Events:     postgres.NewOutbox(jobs),
@@ -2776,7 +2776,7 @@ func run() error {
 		Containers: containers,
 	}
 
-	// The engine (G-07). It reaches the use case registry as the rule's own account, which is why
+	// The engine. It reaches the use case registry as the rule's own account, which is why
 	// it is a queue handler rather than a subscriber: a subscriber runs inside the dispatcher's
 	// transaction, and an action is a use case.
 	automationRun := worker.AutomationRun{
@@ -2802,7 +2802,7 @@ func run() error {
 				Preferences: notificationPreferences, Jobs: jobs,
 				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 			},
-			// Where a WAIT parks its resume (G-09): the suspended run and the job that brings it
+			// Where a WAIT parks its resume: the suspended run and the job that brings it
 			// back commit together with the runner's transaction.
 			Jobs:       jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -2833,7 +2833,7 @@ func run() error {
 			Interval: time.Hour, Continuation: 5 * time.Second,
 		},
 		// One workspace's search documents brought current, batch by batch, at an
-		// administrator's request (M-09, ADR-0034). Detached like the embedding pass, so that
+		// administrator's request (ADR-0034). Detached like the embedding pass, so that
 		// each batch commits on its own; unlike it, the walk finishes.
 		queueport.KindSearchReindex: worker.SearchReindex{
 			Rebuild: work.RebuildSearchIndex{
@@ -2874,9 +2874,9 @@ func run() error {
 			Progress: jobs,
 		},
 		queueport.KindAuditAnchor: worker.AuditAnchoring{Anchoring: auditAnchoring, Fallback: 24 * time.Hour},
-		// The grace job the deletion request seeded (H-06). Detached for the media
+		// The grace job the deletion request seeded. Detached for the media
 		// reconciliation's reason: bytes leave a bucket between two transactions.
-		// The workspace export the control plane seeds (H-07). Detached for the audit
+		// The workspace export the control plane seeds. Detached for the audit
 		// export's reason: an archive streams to a target between reads.
 		queueport.KindTenantExport: worker.TenantExport{
 			Archivist: adminservice.TenantExportArchivist{
@@ -2978,8 +2978,7 @@ func run() error {
 			// The poll interval stays what it was. This shortens the wait when the notification
 			// arrives and changes nothing when it does not (ADR-0007).
 			Woken: jobListener.Woken(),
-			// A failed statement's constraint and SQLSTATE beside the code, never its message
-			// (issue 692).
+			// A failed statement's constraint and SQLSTATE beside the code, never its message.
 			Diagnose: postgres.Diagnostics,
 		}
 		background = append(background, start(ctx, "worker.runner", runner.Run))
@@ -2997,17 +2996,17 @@ func run() error {
 			Signals:      metrics,
 			Kinds:        kinds,
 			TickInterval: cfg.Queue.SchedulerTick,
-			// The leader's one duty beyond measurement, and the reading behind alert A-12 (E-05).
+			// The leader's one duty beyond measurement, and the reading behind alert A-12.
 			InstanceBackups: backupPass,
 			BackupFreshness: backupRunsInBackground{Runs: backupRuns, Work: backgroundWork},
 			// The partition duty `0001_init` wrote down: next month's partition of `audit_log`
 			// exists before the first entry of it does, and carries its own policy and its own
-			// revokes (E-09, audit.md §3).
+			// revokes (audit.md §3).
 			AuditPartitions: auditPartitionsInBackground{
 				Partitions: postgres.NewAuditPartitionRepository(), Work: backgroundWork,
 			},
-			// The same duty for the four monthly streams (H-09; the change log since N-09, with
-			// the offline window as the floor of its drop).
+			// The same duty for the four monthly streams (the change log with the offline window
+			// as the floor of its drop).
 			StreamPartitions: streamPartitionsInBackground{
 				Partitions: postgres.NewStreamPartitionRepository(), Work: backgroundWork,
 			},
@@ -3040,7 +3039,8 @@ func run() error {
 
 	registry.MarkStarted()
 
-	// hubtask_dependency_up is described as "self-diagnosis as a time series" (§4), and a series
+	// hubtask_dependency_up is described as "self-diagnosis as a time series"
+	// (observability-reliability.md §4), and a series
 	// needs a regular sample. Nothing scrapes /meta/health, and /readyz only touches the
 	// mandatory dependencies - so the full report is produced on a timer and mirrored into the
 	// gauges from there.
@@ -3145,7 +3145,7 @@ func start(ctx context.Context, name string, loop func(context.Context)) <-chan 
 // sessions themselves. Assigned rather than passed, because the two read each other: the password
 // writer holds a copy of the session writer for the hasher and the trail.
 //
-// The copies are the point (SC-03, SC-06). The writers are values, so a copy taken before the rule
+// The copies are the point. The writers are values, so a copy taken before the rule
 // is assigned never learns it: the password writer's, which a reset opens its session through, read
 // the old boolean instead of the rule and gave its session no bounds; the provider's, which a
 // provider sign-in and the LINK step open theirs through, gave its sessions no bounds either. Every
@@ -3162,7 +3162,7 @@ func teachTheRule(
 // requirePasswordDoors refuses a set of session writers in which one holds a rule that cannot say
 // whether the password is a way into a workspace (identity.PasswordDoor). Such a writer lets the
 // password through at every door it guards and offers it as a step-up proof, silently - which is what
-// a test that wires no rule wants, and what a server must never do (SC-24, SC-34).
+// a test that wires no rule wants, and what a server must never do.
 func requirePasswordDoors(writers map[string]identity.SessionWriter) error {
 	names := make([]string, 0, len(writers))
 	for name := range writers {
@@ -3192,7 +3192,7 @@ func runsBackgroundWork(cfg envport.Config) bool {
 // primaryRole picks the role whose query budget the pool runs under. The API is the strictest,
 // so a process serving the API uses that budget for everything it does - being cut off early is
 // the safer mistake on a shared pool.
-// buildObjectStore composes the configured store (C-05). For S3 that is the whole of A-05's
+// buildObjectStore composes the configured store. For S3 that is the whole
 // vocabulary: the adapter, a breaker the health probe reads, and a bulkhead so the storage pool
 // is this size and not the process (ADR-0016).
 // The transfer issuer comes back with it, because which one applies is the same decision: the S3
@@ -3228,7 +3228,7 @@ func buildObjectStore(
 	return storageadapter.NewResilientStore(s3, breaker, bulkhead), s3, nil
 }
 
-// busBreaker is the bus's own breaker, and the probe that reads it (H-14, ADR-0042).
+// busBreaker is the bus's own breaker, and the probe that reads it (ADR-0042).
 //
 // No bulkhead beside it, unlike the mail sender's: every publish is already a job, so the worker
 // pool is the compartment, and a second one inside it would be a limit on a limit.
@@ -3246,7 +3246,7 @@ func busBreaker(
 }
 
 // buildMailSender assembles the mail port: the SMTP adapter behind a breaker and a bulkhead, and
-// the probe that reads the same breaker (C-09).
+// the probe that reads the same breaker.
 //
 // Always built, even where nothing is configured. An installation with no HUBTASK_SMTP_HOST is not
 // an installation without notifications - the records are written either way, and the delivery
@@ -3371,7 +3371,7 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 	}, nil
 }
 
-// dispatchActions and actionScopes bridge the engine to the use case registry (G-07).
+// dispatchActions and actionScopes bridge the engine to the use case registry.
 //
 // Two small translations rather than the engine naming the adapter's types: the dispatcher lives in
 // infrastructure and the application layer may not import one (ADR-0001). What crosses is a kind and
@@ -3445,14 +3445,14 @@ func (c runClaims) Claim(
 	return reserved, err
 }
 
-// Release lets a failed action's claim go, so a replay can perform what the first run never did
-// (G-09). See the engine's Idempotency port for why a failed claim must not outlive its failure.
+// Release lets a failed action's claim go, so a replay can perform what the first run never
+// did. See the engine's Idempotency port for why a failed claim must not outlive its failure.
 func (c runClaims) Release(ctx context.Context, _ appshared.ActorContext, key string) error {
 	return c.store.Release(ctx, idempotencyrepo.Key{Key: key, Endpoint: "automation:run"})
 }
 
 // cloudEventRendering bridges the polling trigger's rendering port to the CloudEvents mapping the
-// webhook deliverer already sends (G-04).
+// webhook deliverer already sends.
 //
 // The point is that there is one function. The pull half and the push half are two transports over
 // one contract, and the way to keep that true is for both to call ToCloudEvent rather than for each
@@ -3490,7 +3490,7 @@ func (d *deferredCatalogue) Invoke(
 }
 
 // ByAutomationAction is the same circle from the other side: the rule writer validates an action
-// against the catalogue, and is itself an entry of it (G-05).
+// against the catalogue, and is itself an entry of it.
 //
 // A rule with no catalogue answers "no such action" for every kind, which is the fail-closed
 // direction: unreachable, because the holder is filled before the server accepts a request, and if
@@ -3521,7 +3521,7 @@ func (d *deferredCatalogue) Lookup(name string) (usecase.Descriptor, bool) {
 
 // masterKeys is the configured keyring as the envelope adapter takes it. A translation of two
 // field names rather than a shared type, because the environment port and the cipher adapter have
-// no business knowing each other (E-02).
+// no business knowing each other.
 func masterKeys(cfg envport.Config) []crypto.KeyMaterial {
 	keys := make([]crypto.KeyMaterial, 0, len(cfg.Encryption.Keys))
 	for _, key := range cfg.Encryption.Keys {
@@ -3531,7 +3531,8 @@ func masterKeys(cfg envport.Config) []crypto.KeyMaterial {
 }
 
 // schemaVersion is the migration this build was compiled against, and it goes into every archive's
-// manifest: a restore compares it with its own and runs the migrations in between (E-04, §3).
+// manifest: a restore compares it with its own and runs the migrations in between
+// (backup-restore.md §3).
 //
 // Read from the embedded migrations rather than from the database, and deliberately: what an
 // archive has to record is the shape of the data this build writes, and a build knows that about
@@ -3555,7 +3556,7 @@ func schemaVersion() string {
 // leader duty runs: the API's pool is for requests.
 // streamEvidenceInBackground writes the drop's evidence into the instance journal - the record
 // a partition spanning every tenant can have, where no per-tenant trail could hold it
-// (audit.md §6, H-06's journal).
+// (audit.md §6).
 type streamEvidenceInBackground struct {
 	Journal adminrepo.Journal
 	IDs     clockport.IDGenerator
@@ -3577,7 +3578,7 @@ func (b streamEvidenceInBackground) PartitionDropped(
 }
 
 // streamPartitionsInBackground is auditPartitionsInBackground's shape for the three monthly
-// streams (H-09): the system-scoped transaction both narrow acts run in.
+// streams: the system-scoped transaction both narrow acts run in.
 type streamPartitionsInBackground struct {
 	Partitions streamsrepo.Partitions
 	Work       persistenceport.UnitOfWork

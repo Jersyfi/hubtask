@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The second factor from a terminal (H-02).
+// The second factor from a terminal.
 //
 // This group handles credentials the way `calendar mint` does, and for the same reason: the
 // secret, the provisioning URI and the ten recovery codes exist outside the server for exactly one

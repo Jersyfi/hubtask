@@ -20,7 +20,7 @@ const (
 	auditExportPath    = "/audit:export"
 	auditAnchoringPath = "/audit/anchoring"
 	// workspacePath is where the anchoring target is read back from: the workspace carries it
-	// as its second modelled setting (issue 774).
+	// as its second modelled setting.
 	workspacePath = "/tenant"
 )
 

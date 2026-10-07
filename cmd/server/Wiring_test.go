@@ -23,7 +23,7 @@ import (
 // The password writer's copy (which a reset opens its session through) and the provider's copy
 // (which a provider sign-in and the LINK step open theirs through) were both taken before, so a
 // reset read the old boolean instead of the rule and a provider session answered to no session
-// bound in production - while every test, which wires its own fixtures, passed (SC-03, SC-06).
+// bound in production - while every test, which wires its own fixtures, passed.
 func TestTheRuleReachesEveryWriterThatOpensASession(t *testing.T) {
 	session := identity.SessionWriter{}
 	passwords := identity.PasswordWriter{Session: session}
@@ -39,7 +39,7 @@ func TestTheRuleReachesEveryWriterThatOpensASession(t *testing.T) {
 		if rule == nil {
 			t.Errorf("%s opens sessions without the rule", name)
 		}
-		// And the rule answers whether the password is a way in at all (SC-24): a door that cannot
+		// And the rule answers whether the password is a way in at all: a door that cannot
 		// ask lets the password through, so the rule it is handed has to be able to answer.
 		if _, ok := rule.(identity.PasswordDoor); !ok {
 			t.Errorf("%s holds a rule that cannot say whether the password is open", name)
@@ -189,7 +189,7 @@ func TestTheSignInRulesCarryAClock(t *testing.T) {
 }
 
 // The reset mail's adapter copies the identity service's answer field by field into the shape the
-// notification service reads. A field the copy forgets is a link the mail never carries - SC-33's
+// notification service reads. A field the copy forgets is a link the mail never carries - the
 // connect link would arrive as the provider mail, and only in production, because every service test
 // wires the notification side on its own.
 func TestTheResetLinkAdapterCopiesEveryField(t *testing.T) {
@@ -225,7 +225,7 @@ func TestTheResetLinkAdapterCopiesEveryField(t *testing.T) {
 }
 
 // judgeOnly is a sign-in rule that judges a password and cannot say whether the password is a way
-// in at all - the shape of a rule written before SC-24.
+// in at all.
 type judgeOnly struct{}
 
 func (judgeOnly) JudgeSignIn(
@@ -235,7 +235,7 @@ func (judgeOnly) JudgeSignIn(
 }
 
 // A writer whose rule cannot answer lets the password through at every door it guards and offers it
-// as a step-up proof (SC-24's "the shape before"). In a test that wires no rule that is the point; in
+// as a step-up proof. In a test that wires no rule that is the point; in
 // the server it is a door left open without anybody deciding it, so the server refuses to start.
 func TestTheServerRefusesAWriterWhoseRuleCannotSayWhetherThePasswordIsOpen(t *testing.T) {
 	session := identity.SessionWriter{}

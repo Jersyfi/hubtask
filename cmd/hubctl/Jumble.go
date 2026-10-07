@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The inbox as a person meets it (G-13): what arrived, what it became, and what was decided
+// The inbox as a person meets it: what arrived, what it became, and what was decided
 // against.
 //
 // The listing prints the subject and not the body. An entry's raw content is the least trusted

@@ -76,7 +76,7 @@ func TestSearchPagingTravelsInThePageObject(t *testing.T) {
 	}
 }
 
-// The one verb the group has beside searching (M-09): `hubctl search reindex` asks for the
+// The one verb the group has beside searching: `hubctl search reindex` asks for the
 // workspace's search documents to be brought current and prints the job and the count. The word
 // on its own is the verb; with any other word it is words again.
 func TestSearchReindexAsksAndPrintsTheJob(t *testing.T) {

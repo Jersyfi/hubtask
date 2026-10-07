@@ -10,8 +10,8 @@ import (
 	"testing"
 )
 
-// The trial restore flag (B-4, P-14): shown by the listing, and moved by `set --trial` and
-// `--no-trial` - and by nothing else, so that `--off` leaves it alone.
+// The trial restore flag (backup-restore.md §5): shown by the listing, and moved by `set --trial`
+// and `--no-trial` - and by nothing else, so that `--off` leaves it alone.
 func TestTheScheduleListingShowsTheTrialAndSetMovesIt(t *testing.T) {
 	schedule := `{"id":"` + itemID + `","target_id":"` + targetID + `","scope":{"kind":"TENANT"},` +
 		`"rrule":"FREQ=DAILY;BYHOUR=3","timezone":"UTC","mode":"FULL","enabled":true,"trial_restore":true}`

@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The templates on the command line (D-06, D-09).
+// The templates on the command line.
 
 const templatesPath = "/templates"
 

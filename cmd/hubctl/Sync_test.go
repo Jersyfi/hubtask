@@ -199,7 +199,7 @@ func TestDevicesAreListedAndForgotten(t *testing.T) {
 }
 
 // The snapshot is written as it arrives, the cursor line last; --apply keeps the cursor in the
-// profile, and --continue takes the delta from it (SY-C, P-12).
+// profile, and --continue takes the delta from it (offline-sync.md §3.1).
 func TestASnapshotIsWrittenToAFileAndItsCursorKeptForTheDelta(t *testing.T) {
 	var stub *installation
 	var requests []map[string]any

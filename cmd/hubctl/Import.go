@@ -14,7 +14,7 @@ import (
 
 const importsPath = "/imports"
 
-// importGroup is `hubctl import <kind> <file> --hub <id>` (P-08): the upload, staged as an
+// importGroup is `hubctl import <kind> <file> --hub <id>`: the upload, staged as an
 // import, and the request, and the job followed to its end - because an import that stops after
 // the upload is a file nobody asked anything of.
 func importGroup() group {
@@ -52,7 +52,7 @@ reads {"value": [{"id": ..., "displayName": ..., "tasks": {"value": [...]}}, ...
 
 func importRun(ctx context.Context, cli *CLI, args []string) error {
 	const usage = "import <csv|trello|google-tasks|microsoft-todo> <file> --hub <id> [--map <field>=<column>]..."
-	// Microsoft To Do has no export (backlog 0.9.0, decision 8): the file is what the Graph API
+	// Microsoft To Do has no export: the file is what the Graph API
 	// answers, fetched by the person. `hubctl import microsoft-todo` alone says how.
 	if len(args) == 1 && (strings.EqualFold(args[0], "microsoft-todo") || strings.EqualFold(args[0], "todo")) {
 		printf(cli.Out, "%s\n", graphRequests)

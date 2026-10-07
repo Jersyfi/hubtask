@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// What AI proposed, as a person meets it (J-05, J-16). Two decisions are asserted here: the listing
+// What AI proposed, as a person meets it. Two decisions are asserted here: the listing
 // prints the provenance rather than the payload, and accepting is a command of its own because it
 // is a write with the caller's own rights.
 

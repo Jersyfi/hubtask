@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// The outbound integration surface (G-13). The two things worth testing out here are the two this
+// The outbound integration surface. The two things worth testing out here are the two this
 // client decides: that a secret printed to a terminal says it is shown once, and that a replay
 // names the event it repeats.
 

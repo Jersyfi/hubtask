@@ -89,7 +89,7 @@ func TestAnImpossibleURLIsRefusedBeforeAnythingIsCalled(t *testing.T) {
 }
 
 // The CLI speaks the language of the person running it, from the same catalogues the server
-// renders email from (M-01): HUBTASK_LOCALE first, then the shell's own variables.
+// renders email from: HUBTASK_LOCALE first, then the shell's own variables.
 func TestTheCLISpeaksThePersonsLanguage(t *testing.T) {
 	stub := serve(t, func(http.ResponseWriter, *http.Request) {
 		t.Error("a call was made with an unreadable identifier")

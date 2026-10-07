@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The control plane (H-06, SI-17): provisioning, the lifecycle, the archive a workspace leaves
+// The control plane: provisioning, the lifecycle, the archive a workspace leaves
 // with — and since ADR-0070 §5 the instance level too, which is the second of its three doors.
 //
 // "Ein Betreiber wählt seine Tür, nicht seinen Funktionsumfang": every verb the dashboard has is

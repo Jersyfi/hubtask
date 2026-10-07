@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The pull half of the event stream (G-13, G-04): the endpoint a platform without a URL polls.
+// The pull half of the event stream: the endpoint a platform without a URL polls.
 //
 // Zapier and n8n cannot receive a webhook on a free plan, so they ask instead - and the whole of
 // what makes that safe is the cursor. A poll without one asks "what has happened", which is a

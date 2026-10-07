@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The credentials on the command line (G-01).
+// The credentials on the command line.
 //
 // The second group that handles a secret, and it follows the calendar's rule: the token is
 // printed exactly once, by the command that mints it, and never again. `ls` shows that a

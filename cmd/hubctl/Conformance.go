@@ -22,7 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The conformance test offline-sync.md §9 names (N-13): a top-level verb that drives the server
+// The conformance test offline-sync.md §9 names: a top-level verb that drives the server
 // through the protocol as two devices and checks that what the server does is what a conforming
 // client can rely on. It tests the server's side of each requirement; what is a client's alone -
 // encryption at rest - it says so about rather than pretending to test. The report is the shape
@@ -33,7 +33,7 @@ const membershipsPath = "/memberships"
 func conformanceGroup() group {
 	return group{
 		name:      "sync-conformance",
-		summary:   "check a running instance against the client requirements of offline-sync.md §9",
+		summary:   "check a running instance against the sync protocol's client requirements",
 		usage:     "[--report <file>] [--keep]",
 		unbounded: true,
 		run:       conformanceRun,
@@ -196,7 +196,7 @@ func (c *conformance) failed() int {
 // checks is §9 in order. Each check names its number, so that a broken server names the
 // requirement it breaks.
 func (c *conformance) checks(ctx context.Context) {
-	printf(c.cli.Err, "hubctl: the client requirements of offline-sync.md §9, against %s\n", c.cli.Profile.BaseURL)
+	printf(c.cli.Err, "hubctl: the sync protocol's client requirements, against %s\n", c.cli.Profile.BaseURL)
 	c.checkIdentifiers(ctx)
 	c.checkIdempotence(ctx)
 	c.checkRevocation(ctx)
@@ -415,7 +415,7 @@ func (c *conformance) checkCursorAndWalk(ctx context.Context) {
 		c.fail(4, claim, "a cursor the server cannot read was not refused as sync.cursor_invalid")
 		return
 	}
-	// The second half (SY-C, P-12): the snapshot is the page sequence with the pages joined -
+	// The second half (offline-sync.md §3.1): the snapshot is the page sequence with the pages joined -
 	// the same number of records, and a cursor at its end the delta accepts.
 	streamed, snapshotCursor, err := c.snapshot(ctx, c.client, c.deviceA)
 	if err != nil {
@@ -566,7 +566,7 @@ func outcomeOf(err error) string {
 
 // 8: no mutation kind exists for what §1's right column keeps online.
 func (c *conformance) checkNothingOfTheRightColumn(ctx context.Context) {
-	const claim = "Nothing in the right-hand column of §1 is offered offline"
+	const claim = "Nothing that stays online-only is offered offline"
 	for _, kind := range []string{"RULE_CREATE", "MEMBERSHIP_GRANT", "TEMPLATE_INSTANTIATE", "RESTORE"} {
 		mutation := newMutation(kind, uuidOf(clockadapter.NewUUIDv7(clockadapter.System{}).NewID()))
 		out := c.push(ctx, c.client, c.deviceA, mutation)
@@ -592,7 +592,7 @@ func (c *conformance) checkNothingOfTheRightColumn(ctx context.Context) {
 // requirement with its number, its outcome and what was seen.
 func (c *conformance) render() string {
 	var out strings.Builder
-	fmt.Fprintf(&out, "# Sync conformance — offline-sync.md §9\n\n")
+	fmt.Fprintf(&out, "# Sync conformance\n\n")
 	fmt.Fprintf(&out, "**%s, `hubctl sync-conformance` against %s.** The eight requirements on clients, checked from the server's side as two devices: the first the signed-in account's, the second a service account's with a role on a hub this run made and took away again.\n\n",
 		c.started.Format("2006-01-02 15:04 MST"), c.cli.Profile.BaseURL)
 	fmt.Fprintf(&out, "| | Value |\n|---|---|\n")

@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The schedule on the command line (D-09): when something is due, and in which zone that means
+// The schedule on the command line: when something is due, and in which zone that means
 // what it says.
 
 func dueGroup() group {
@@ -39,7 +39,7 @@ func dueGroup() group {
 //
 // Two spellings, and the shorter one is not a shortcut for the longer: `2026-09-10` is a day, and
 // it is stored as an all-day due date in the entry's zone; `2026-09-10T09:00:00Z` is a moment.
-// That is the distinction the product makes (D-01, i18n-l10n.md §4), and a client that turned a
+// That is the distinction the product makes (i18n-l10n.md §4), and a client that turned a
 // date into midnight would be deciding it for the person typing.
 type dueValue struct {
 	at       time.Time

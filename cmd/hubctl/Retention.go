@@ -94,7 +94,7 @@ func retentionList(ctx context.Context, cli *CLI, args []string) error {
 func retentionAdd(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "retention", "add",
 		"--kind <data kind> --days <n> --action <action> [--scope TENANT|HUB|COLLECTION --scope-id <id>]")
-	kind := flags.String("kind", "", "the data kind, as data-retention.md lists them, e.g. COMPLETED_ITEM")
+	kind := flags.String("kind", "", "the data kind, as /meta/capabilities lists them, e.g. COMPLETED_ITEM")
 	days := flags.Int("days", -1, "how long it is kept before the action")
 	action := flags.String("action", "", "ARCHIVE, TRASH, ANONYMIZE, HARD_DELETE, EXPORT_THEN_DELETE or NOTIFY_ONLY")
 	scope := flags.String("scope", "TENANT", "TENANT, HUB or COLLECTION")
