@@ -29,7 +29,7 @@ func NewAdminTenantRepository() AdminTenantRepository { return AdminTenantReposi
 
 var _ repository.Tenants = AdminTenantRepository{}
 
-// List reads through admin_tenants(), the one legitimate enumerator (0.6.0 decision 6).
+// List reads through admin_tenants(), the one legitimate enumerator (multi-tenancy.md §2.1).
 func (AdminTenantRepository) List(ctx context.Context) ([]repository.TenantRecord, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -294,7 +294,7 @@ func (AutomationSwitch) DisableAll(ctx context.Context, now time.Time) (int, err
 	return int(disabled), nil
 }
 
-// TenantPurge is the hard delete's surface (§5's final phase).
+// TenantPurge is the hard delete's surface (multi-tenancy.md §5, the final phase).
 type TenantPurge struct{}
 
 func NewTenantPurge() TenantPurge { return TenantPurge{} }

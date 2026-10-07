@@ -811,9 +811,9 @@ func (r ItemRepository) LastOrderKey(ctx context.Context, collectionID, parentID
 // Insert writes the item.
 //
 // One uniqueness is translated and one deliberately is not. The identity: a client that minted
-// its own (a CalDAV client's address in P-07) and presents one the workspace already holds
+// its own (a CalDAV client's address) and presents one the workspace already holds
 // has to hear "taken" rather than "database error", because it is the one thing it can act on -
-// look the entry up and update it (issue 720). The title is not: two items in one collection may
+// look the entry up and update it. The title is not: two items in one collection may
 // share one. A shopping list with "milk" on it twice is a list somebody wrote that way, and a
 // container's name is the thing that has to be unique because it is how a person navigates.
 func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {

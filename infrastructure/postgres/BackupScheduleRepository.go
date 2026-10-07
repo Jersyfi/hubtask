@@ -20,7 +20,7 @@ import (
 // `next_run_at` is a stored decision rather than a rule expanded on every read. Expanding an RRULE
 // costs a library call per schedule, and a poller that did it on every wake-up would do it for
 // every schedule that is not due; the value is written by the pass that last ran, which is the
-// shape D-03's reminders already use.
+// shape the reminders already use.
 type BackupScheduleRepository struct{}
 
 func NewBackupScheduleRepository() BackupScheduleRepository { return BackupScheduleRepository{} }

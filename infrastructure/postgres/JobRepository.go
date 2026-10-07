@@ -58,8 +58,8 @@ func (r JobRepository) Find(ctx context.Context, id shared.ID) (domain.Job, erro
 	if err != nil {
 		return domain.Job{}, err
 	}
-	// Nullable on the way through, because null is the answer E-01 documented for a job that
-	// cannot compute one - and most still cannot.
+	// Nullable on the way through, because null is the documented answer for a job that cannot
+	// compute one - and most cannot.
 	if row.Progress != nil {
 		fraction := float64(*row.Progress)
 		job.Progress = &fraction

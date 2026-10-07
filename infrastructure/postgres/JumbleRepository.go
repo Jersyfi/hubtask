@@ -211,10 +211,9 @@ func entryFrom(row sqlc.ListJumbleEntriesRow) (domain.Entry, error) {
 		attachments = append(attachments, attachment)
 	}
 
-	// The tenant, which the projection did not carry until J-16. Row level security bounds the
-	// read, so nothing about the *query* needed it - but the events a settlement announces are
-	// built from this projection, and an entry with no tenant cannot be the subject of one. Every
-	// conversion refused `events.envelope_incomplete` until an end-to-end session tried one.
+	// The tenant. Row level security bounds the read, so nothing about the *query* needs it - but
+	// the events a settlement announces are built from this projection, and an entry with no tenant
+	// cannot be the subject of one: every conversion would refuse `events.envelope_incomplete`.
 	tenant, err := idFrom(row.TenantID)
 	if err != nil {
 		return domain.Entry{}, err

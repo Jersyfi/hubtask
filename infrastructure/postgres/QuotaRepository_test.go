@@ -13,10 +13,10 @@ import (
 // The settings document and the port's overrides have to carry the same rows, and every row has to
 // travel in both directions.
 //
-// This exists because it did not, and the omission was invisible: J-15 added `ai_tokens_per_day` to
-// the document's struct and to neither mapping, so the field parsed and serialised and was dropped
-// on the way through - an override an operator wrote, read back as unset, with nothing failing. The
-// unit tests could not see it (they hold no adapter) and only an integration test caught it.
+// This exists because the omission is invisible: a field added to the document's struct and to
+// neither mapping parses and serialises and is dropped on the way through - an override an
+// operator wrote, read back as unset, with nothing failing. The unit tests cannot see it (they hold
+// no adapter).
 //
 // Reflection over the two structs rather than a list somebody keeps: a list is the thing that was
 // already wrong.

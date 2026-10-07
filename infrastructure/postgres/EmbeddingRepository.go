@@ -55,7 +55,7 @@ const (
 		) AS owed`
 
 	// The neighbourhood of one entry. A query and a threshold: nothing is asked of a
-	// provider, because the vectors are the ones J-10's pass already wrote.
+	// provider, because the vectors are the ones the embedding pass already wrote.
 	//
 	// Four things it refuses to call a duplicate, and each is a line rather than a comment
 	// afterwards. The entry itself, which is trivially its own nearest neighbour. A row from
@@ -243,7 +243,7 @@ func (EmbeddingRepository) Store(
 	if len(embedding.Vector) > repository.EmbeddingWidth {
 		return repository.EmbeddingTooWide(embedding.Model, len(embedding.Vector))
 	}
-	// And an empty one, which the column used to refuse for us: padded, it would be a vector of
+	// And an empty one, which the column does not refuse: padded, it would be a vector of
 	// zeros, whose cosine distance to everything is NaN - and NaN sorts first under `ORDER BY
 	// rank DESC`, so one such row would head every search it lexically matched.
 	if len(embedding.Vector) == 0 {

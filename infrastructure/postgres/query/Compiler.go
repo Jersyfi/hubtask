@@ -444,9 +444,9 @@ func (b *builder) simpleQuery(words string) {
 //
 // **Under `simple`, always**, and for two reasons that are the same reason. A configuration stems,
 // so `Ann` would become a stem that is not a prefix of the entry's; and a configuration drops stop
-// words, so `A` and `An` would become nothing at all - which is exactly the search the owner found
-// answering nothing. `simple` does neither, and since ADR-0066 every document carries a `simple`
-// copy of itself, so this reaches an entry whatever language it was written in.
+// words, so `A` and `An` would become nothing at all - a search that answers nothing. `simple` does
+// neither, and every document carries a `simple` copy of itself (ADR-0066), so this reaches an
+// entry whatever language it was written in.
 //
 // The `:*` is written here and the word is **bound**: no byte of the request becomes query text,
 // and the domain has already refused anything that is not a letter, a digit or a mark - so

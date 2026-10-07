@@ -141,7 +141,7 @@ func (r BackupTargetRepository) Find(
 
 // Credential answers the sealed credential, still sealed. This repository never learns what is
 // inside it: the key lives in the encryptor, and that is what makes a database dump worth nothing
-// on its own (security.md §3).
+// on its own (security.md §8).
 func (r BackupTargetRepository) Credential(
 	ctx context.Context, id shared.ID,
 ) (crypto.Sealed, error) {

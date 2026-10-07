@@ -78,7 +78,7 @@ func (r BackupImportRepository) Write(
 }
 
 // rowConflict turns a unique index refusing an archive's row into the conflict it is, rather
-// than into a database error the queue retries (issue 766): the next attempt meets the same row.
+// than into a database error the queue retries: the next attempt meets the same row.
 // A container's name is the one collision with words of its own - the same code CreateContainer
 // answers, so that one fact has one sentence - and any other index is named by its constraint,
 // which is the schema's vocabulary and not content.

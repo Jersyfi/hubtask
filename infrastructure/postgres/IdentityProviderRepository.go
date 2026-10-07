@@ -502,10 +502,10 @@ func (r OidcFlowRepository) ConsumeForStepUp(
 
 // ExternalAccountRepository is the link between a provider's subject and an account.
 //
-// `account_identity` since the providers became plural: `account.external_subject` held one subject
-// per account and could not say which provider vouched for it. The column is left where it is - a
-// rolling update still reads it - and nothing here writes it any more, which is why an account's
-// links live in the table and the column is a contract step for a later migration.
+// `account_identity` rather than `account.external_subject`, which holds one subject per account
+// and cannot say which provider vouched for it. The column stays where it is - a rolling update
+// still reads it - and nothing here writes it, which is why an account's links live in the table
+// and the column is a contract step for a later migration.
 //
 // Its own type rather than a method on AccountRepository, for the reason every slice here has
 // one: the sign-in flow needs two statements about a table nothing else touches, and a

@@ -607,8 +607,8 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 		return domain.Rule{}, err
 	}
 	// The tenant, read back with the row: an update rebuilds the rule whole through NewRule, which
-	// refuses one without its tenant, and the audit entry names it. Every edit answered 500 from
-	// G-05 until F8's walk, because no test met the real mapper (the service tests use fakes).
+	// refuses one without its tenant, and the audit entry names it. Without it every edit answers
+	// 500, and no service test notices: they use fakes and never meet the real mapper.
 	tenantID, err := idFrom(row.TenantID)
 	if err != nil {
 		return domain.Rule{}, err

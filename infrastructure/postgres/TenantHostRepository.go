@@ -18,9 +18,8 @@ import (
 // TenantHostRepository is the hosts a workspace answers at (migration 0104).
 //
 // No method takes a tenant: row level security bounds every statement and the workspace is the
-// transaction's (ADR-0010). Nothing here finds a workspace *by* host - that lookup would have to
-// cross the boundary, the way `resolve_tenant` does, and it arrives with the milestone that resolves
-// a request through a custom domain.
+// transaction's (ADR-0010). Nothing here finds a workspace *by* host: that lookup has to cross the
+// boundary, the way `resolve_tenant` does.
 type TenantHostRepository struct{}
 
 func NewTenantHostRepository() TenantHostRepository { return TenantHostRepository{} }

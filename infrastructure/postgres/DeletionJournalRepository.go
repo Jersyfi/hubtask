@@ -15,9 +15,8 @@ import (
 
 // DeletionJournalRepository reads the deletion journal (backup-restore.md §7).
 //
-// The first reader the table has ever had in production. It has been written since B-10 with a
-// comment saying exactly that, and this is the other half of the promise it was making: objects
-// deleted between the archive point and the restore do not come back.
+// The reading half of the journal's promise: objects deleted between the archive point and the
+// restore do not come back.
 type DeletionJournalRepository struct {
 	// batch is how many entries one statement answers, for the reason the export has one: a
 	// tenant that has been emptying its trash for two years has a journal larger than the thing

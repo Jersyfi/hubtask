@@ -14,8 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
-// The gate T-06 asks for, and the acceptance criterion of B-12: no filter produces invalid SQL, and
-// none escapes parameterisation.
+// The gate T-06 asks for: no filter produces invalid SQL, and none escapes parameterisation.
 //
 // It runs as an ordinary test over its seed corpus in `make gate-unit`, and as a fuzz target for
 // five minutes a night in `make gate-fuzz`. Both matter: the seeds are the cases somebody thought

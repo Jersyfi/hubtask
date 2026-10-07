@@ -487,7 +487,7 @@ func runFrom(row sqlc.ListRuleRunsRow) (domain.Run, error) {
 	for _, result := range actionRows {
 		path := result.Path
 		if path == "" {
-			// A row written before G-09 named actions by index alone, and every action was
+			// A row without a path names its action by index alone, and such an action is
 			// top-level - where the path is the index.
 			path = strconv.Itoa(result.Index)
 		}

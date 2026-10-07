@@ -17,8 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// Data subject rights, stored (data-protection.md §4). The tables have stood since
-// `0001_init` and these are the first statements over them.
+// Data subject rights, stored (data-protection.md §4).
 //
 // Nothing here names a tenant: the transaction the caller opened decided that, and row level
 // security applies it to every statement (ADR-0010). That holds for the installation-wide case as

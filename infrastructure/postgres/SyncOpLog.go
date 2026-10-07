@@ -129,8 +129,8 @@ func (TombstoneRepository) Holds(ctx context.Context, entity string, id shared.I
 	return held, nil
 }
 
-// SyncLogSweeper removes the synchronisation's records past the offline window (N-09,
-// data-retention.md §3, the SYNC_LOG kind): operation log rows and tombstones, one batch of each
+// SyncLogSweeper removes the synchronisation's records past the offline window
+// (data-retention.md §3, the SYNC_LOG kind): operation log rows and tombstones, one batch of each
 // per pass, the device sweep's shape. The change log is not its business - its months fall as
 // partitions (drop_stream_partition).
 type SyncLogSweeper struct{}

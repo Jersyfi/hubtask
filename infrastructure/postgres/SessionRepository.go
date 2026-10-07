@@ -539,7 +539,7 @@ func (r RefreshTokenRepository) Rotate(ctx context.Context, tokenID shared.ID, a
 }
 
 // SignInRepository is the account surface of the sign-in flow: the credential check's read, the
-// attempt ledger, the invitation redeemed, and decision 3's tenant resolution.
+// attempt ledger, the invitation redeemed, and the tenant resolution (multi-tenancy.md §3).
 type SignInRepository struct {
 	redemptionHasher security.RedemptionTokenHasher
 	attemptHasher    security.AuthAttemptHasher
@@ -891,7 +891,7 @@ func (r SignInRepository) PasswordHashOf(
 	return secret.New(stringFrom(hash)), nil
 }
 
-// StepUpRepository maintains the proof of H-03 on the session rows. A type of its own for
+// StepUpRepository maintains the step-up proof on the session rows. A type of its own for
 // RefreshTokenRepository's reason: it hashes a different credential under a different label.
 type StepUpRepository struct {
 	hasher security.StepUpTokenHasher
