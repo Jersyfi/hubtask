@@ -60,3 +60,29 @@ The work is funded by donations ([GitHub Sponsors](https://github.com/sponsors/J
 support, no priority, no feature. Hubtask is provided as is, as the licence says; the project makes
 no maintenance commitment and may be archived. If it is, the code stays public under Apache-2.0
 and anyone may continue it under another name.
+
+## 6. No maintenance commitments before Licensing Start
+
+Retired with [ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md): there is no Licensing Start, and
+§5 says what the project commits to.
+
+## 7. Funding, and what happens if it does not work
+
+Retired with ADR-0080: funding is §5.
+
+## 8. Prerequisites for Licensing Start
+
+Retired with ADR-0080: no licence is sold, so nothing is prepared for selling one;
+[ADR-0059](../adr/ADR-0059-licensing-phases-and-licensing-start.md) records what was planned.
+
+## 9. Files in the repository
+
+Retired with ADR-0080: the licence files are listed in §1.
+
+## 10. Editions
+
+Retired with ADR-0080: there is one edition, §4.
+
+## 11. Settled questions
+
+Retired with ADR-0080, which records the questions it settled.
