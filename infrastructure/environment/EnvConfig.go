@@ -152,7 +152,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			OutboxMinInterval: getDuration("HUBTASK_OUTBOX_MIN_INTERVAL", time.Second),
 			OutboxMaxInterval: getDuration("HUBTASK_OUTBOX_MAX_INTERVAL", 15*time.Second),
 			// The worker's statement timeout, because that is the longest write this
-			// installation documents a bound for and the lag has to outlast it (G-04).
+			// installation documents a bound for and the lag has to outlast it.
 			TriggerPollLag: getDuration("HUBTASK_TRIGGER_POLL_LAG", 60*time.Second),
 		},
 		Retention: env.RetentionConfig{
@@ -242,7 +242,7 @@ func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 		// serves the API and sends nothing has no mail server, which is worth knowing; one that
 		// runs the worker or the scheduler fires reminders that have nowhere to go, which is the
 		// promised warning of observability-reliability.md §7 - the record exists, the message
-		// waits in the queue, and nobody is told until somebody configures SMTP (D-03).
+		// waits in the queue, and nobody is told until somebody configures SMTP.
 		if cfg.HasRole(env.RoleWorker) || cfg.HasRole(env.RoleScheduler) {
 			w = append(w, env.Warning{Code: "config.smtp_missing_with_reminders", Severity: "warn"})
 		} else {
@@ -252,10 +252,10 @@ func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 	if cfg.BaseURL == "" {
 		w = append(w, env.Warning{Code: "config.base_url_missing", Severity: "warn"})
 	}
-	// No warning about a missing identity provider: since H-04 a provider is configured per
-	// tenant, in the database, and a multi-tenant installation whose workspaces sign in with
-	// passwords and TOTP is a posture rather than an omission (#310).
-	// In provider operation an egress allowlist is mandatory (security.md §T-07). It cannot be
+	// No warning about a missing identity provider: a provider is configured per tenant, in the
+	// database, and a multi-tenant installation whose workspaces sign in with
+	// passwords and TOTP is a posture rather than an omission.
+	// In provider operation an egress allowlist is mandatory (T-07). It cannot be
 	// an error - an installation that refuses to start because a list is empty is worse than
 	// one that says so - but it belongs in /meta/health where the operator will see it.
 	if cfg.Tenancy == env.TenancyMulti && len(cfg.Outbound.AllowedHosts) == 0 {
@@ -643,7 +643,7 @@ func validateTracing(t env.TracingConfig) []error {
 func validateAI(a env.AIConfig) []error {
 	// Zero is "take the default"; anything else has to be a similarity. A threshold above one
 	// proposes nothing for ever and a negative one proposes everything, and both do it silently -
-	// which is the class of misconfiguration that looks like a feature nobody uses (K-04).
+	// which is the class of misconfiguration that looks like a feature nobody uses.
 	if a.DuplicateThreshold < 0 || a.DuplicateThreshold > 1 {
 		return []error{configError("config.duplicate_threshold_invalid", "HUBTASK_AI_DUPLICATE_THRESHOLD")}
 	}

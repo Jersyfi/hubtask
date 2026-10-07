@@ -93,7 +93,7 @@ func assertCode(t *testing.T, err error, want string) {
 	t.Errorf("codes = %v, want %s", codes, want)
 }
 
-// The acceptance criterion of A-02: a missing required secret prevents startup.
+// A missing required secret prevents startup.
 func TestAMissingSecretPreventsStartup(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -412,7 +412,7 @@ func TestNoSMTPIsAWarningNotAnError(t *testing.T) {
 	})
 
 	// The warning observability-reliability.md §7 promises: the reminders will fire, the records
-	// will exist, and nobody will be told until somebody configures a mail server (D-03).
+	// will exist, and nobody will be told until somebody configures a mail server.
 	t.Run("an installation that fires reminders", func(t *testing.T) {
 		t.Setenv("HUBTASK_ROLES", "api,worker,scheduler")
 		cfg, err := load(t)
@@ -467,12 +467,11 @@ func TestWarningsReportWhatTheOperatorIsMissing(t *testing.T) {
 		t.Error("SMTP is configured, so the warning must not appear")
 	}
 
-	// config.backup_not_configured is deliberately not here any more (E-03). It used to be keyed
-	// on two environment variables, one of which nothing read and neither of which said whether a
-	// backup target exists - a target is a row in a tenant's database. The question is answered by
-	// the repository's coverage count instead, and the surface that asks it is the health report -
-	// which since K-06 is served at /api/v1/meta/health as well, to whoever may read that much of
-	// it.
+	// config.backup_not_configured is deliberately not derived from the environment: no
+	// environment variable says whether a backup target exists - a target is a row in a tenant's
+	// database. The question is answered by the repository's coverage count instead, and the
+	// surface that asks it is the health report, served at /api/v1/meta/health as well, to
+	// whoever may read that much of it.
 	if hasWarning(warnings, "config.backup_not_configured") {
 		t.Error("a warning about backup targets is being derived from the environment again")
 	}
@@ -707,7 +706,7 @@ func TestTheWildcardIsAcceptedOnItsOwn(t *testing.T) {
 	}
 }
 
-// The keyring (E-02). Two variables: one naming the keys in order, one per key holding the
+// The keyring. Two variables: one naming the keys in order, one per key holding the
 // material - so that no key material appears in the variable an operator pastes into a support
 // ticket, and so that every key can be its own mounted secret.
 
