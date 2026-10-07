@@ -11,13 +11,13 @@ import (
 	port "github.com/Jersyfi/hubtask/core/port/identityprovider"
 )
 
-// What "authoritative for the address" means, per claim shape (ADR-0078 §5, SC-32).
+// What "authoritative for the address" means, per claim shape (ADR-0078 §5).
 //
 // It decides whether a provider may activate an invited account without the invitation's own link,
 // so the table is the reading, written out: the provider's own statement in the shape its preset
-// names, and nothing else. Before SC-32 a Microsoft token counted whenever its domain-ownership
-// claim was present at all, and every issuer without a directory claim - every self-hosted one, and
-// Google without `hd` - counted always.
+// names, and nothing else. The trap is a Microsoft token counting whenever its domain-ownership
+// claim is present at all, and every issuer without a directory claim - every self-hosted one, and
+// Google without `hd` - counting always.
 
 // The presets' rules as the application hands them over (relyingConfig): Microsoft names a claim,
 // Google its own domains and a directory that is a domain, a generic issuer nothing.
