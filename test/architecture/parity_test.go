@@ -27,11 +27,10 @@ import (
 // useCaseCatalogue is the list this gate checks: every use case, exactly as the composition root
 // registers it.
 //
-// The list itself moved to core/application/catalogue when the event matrix began to be generated
-// from it (E-09). It is still maintained by hand for the reason it always was - a derived list
-// would grow a use case that was written and never registered - and it is now read by a generator
-// as well as by this gate, which is what stops the documented matrix and the running system
-// drifting apart.
+// The list itself lives in core/application/catalogue, because the event matrix is generated from
+// it. It is maintained by hand - a derived list would grow a use case that was written and never
+// registered - and it is read by a generator as well as by this gate, which is what stops the
+// documented matrix and the running system drifting apart.
 //
 // Two tests keep it honest: TestEveryUseCaseIsInTheCatalogue finds a use case that is missing from
 // it, and TestTheCompositionRootRegistersEveryUseCase finds one that is missing in cmd/server.
@@ -45,7 +44,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 	return registry
 }
 
-// The acceptance criterion of A-07, and the rule arc42 §4 states: a use case is reachable through
+// The rule arc42 §4 states: a use case is reachable through
 // REST, through MCP and as an automation action - all three, or the build is red.
 func TestEveryUseCaseIsReachableThroughEveryChannel(t *testing.T) {
 	registry := useCaseCatalogue(t)
@@ -311,7 +310,7 @@ func readFile(t *testing.T, path string) []byte {
 	return content
 }
 
-// Every scope an event names has to be a scope some use case actually serves (G-04).
+// Every scope an event names has to be a scope some use case actually serves.
 //
 // core/domain may not import the application layer (ADR-0001), so `items:read` is written down in
 // both places and nothing but this gate holds the two together. What it catches is the drift that

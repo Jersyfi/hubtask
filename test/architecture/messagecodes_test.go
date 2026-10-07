@@ -90,8 +90,8 @@ func TestEveryUsedMessageCodeIsInTheCatalogue(t *testing.T) {
 				// accident rather than by design.
 				// `port.Action` is the same declaration seen from inside the application's own
 				// audit package, which imports the port under an alias because the two share a
-				// name (core/application/service/audit, E-09). And `Action("…")` is the conversion
-				// the port itself writes, in its table of renamed actions (SC-29).
+				// name (core/application/service/audit). And `Action("…")` is the conversion the
+				// port itself writes, in its table of renamed actions.
 				if strings.Contains(line, "audit.Action") || strings.Contains(line, "port.Action") ||
 					actionConversion.MatchString(line) || strings.Contains(line, "Kind = \"") {
 					continue
@@ -116,10 +116,11 @@ func TestEveryUsedMessageCodeIsInTheCatalogue(t *testing.T) {
 // The other direction is a warning in CI, not an error (i18n-l10n.md §3) - a code may be
 // prepared before its use lands. Reported so it does not rot unnoticed.
 //
-// Indexed rather than searched. Asking `strings.Contains` once per key walked the whole source
-// 3754 times and took 17 of this package's 20 seconds - which `gate-selftest` then paid for 25
-// times over, because every one of its probes runs `make gate-architecture` (#911). The index
-// below answers the same question in half a second and reports the same keys.
+// Indexed rather than searched. Asking `strings.Contains` once per key walks the whole source
+// once per catalogue entry - thousands of times, most of this package's run time - and
+// `gate-selftest` pays for it again in every probe, because every one of its probes runs
+// `make gate-architecture`. The index answers the same question in a fraction of the time and
+// reports the same keys.
 func TestUnusedCatalogueEntriesAreReported(t *testing.T) {
 	messages := loadCatalogue(t)
 	source := readAllSources(t)
@@ -284,8 +285,7 @@ func loadCatalogue(t *testing.T) map[string]string {
 	return messages
 }
 
-// readAllSources reads everything that can use a message code - which since F1-07 is both halves
-// of the product. The client renders the same catalogue from the same file
+// readAllSources reads everything that can use a message code - both halves of the product. The client renders the same catalogue from the same file
 // (apps/webapp/src/lib/i18n/catalogue.ts), so a key used only there is used, and a report that
 // called it unused would be a report nobody trusts. Reading the client's source is all this does;
 // nothing here builds it, and `go test ./...` still runs in a checkout where Node never was.

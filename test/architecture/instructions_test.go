@@ -38,9 +38,9 @@ func TestNoGoFileUnderAppsOrPackages(t *testing.T) {
 	}
 }
 
-// Every Go package says what it is responsible for (AGENTS.md, "Code comments"): the package
-// comment is the first thing a reader of the package sees, and the one place its purpose is kept.
-// Generated packages are exempt - their generator writes them.
+// Every Go package says what it is responsible for: the package comment is the first thing a
+// reader of the package sees, and the one place its purpose is kept. Generated packages are
+// exempt - their generator writes them.
 func TestEveryGoPackageSaysWhatItIsFor(t *testing.T) {
 	documented := map[string]bool{}
 	seen := map[string]bool{}

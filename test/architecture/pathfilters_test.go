@@ -19,11 +19,10 @@ import (
 // nothing at all. That is not a red build: `ci-required` counts a skipped job as a pass, so the
 // pull request is green and the gates that would have had something to say never reported.
 //
-// It had already happened. The `go` filter said `**/*.go` and a list of manifests, so every
-// non-Go file a Go test reads was outside it - thirty golden archives under test/backup, the
-// adapters' testdata, the load guard's baseline, the Go SDK's templates. A golden archive changed
-// on its own ran nothing, and the test whose whole purpose is to notice a changed archive format
-// was the test that did not run (#941).
+// The trap: a `go` filter of `**/*.go` and a list of manifests leaves out every non-Go file a Go
+// test reads - the golden archives under test/backup, the adapters' testdata, the load guard's
+// baseline, the Go SDK's templates. A golden archive changed on its own then runs nothing, and the
+// test whose whole purpose is to notice a changed archive format is the test that does not run.
 //
 // So this asks the question the other way round: every tracked file must be claimed by some
 // filter, or be named below as one that deliberately triggers nothing. Two entries are named

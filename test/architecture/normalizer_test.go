@@ -12,11 +12,11 @@ import (
 	"testing"
 )
 
-// normalizerPort is the package whose Normalizer every constructor storing user text takes (M-07,
-// i18n-l10n.md §5).
+// normalizerPort is the package whose Normalizer every constructor storing user text takes
+// (i18n-l10n.md §5).
 const normalizerPort = module + "/core/port/text"
 
-// TestEveryTextNormalizerIsHandedIn is the wiring half of M-07.
+// TestEveryTextNormalizerIsHandedIn is the wiring half of the normal-form rule (i18n-l10n.md §5).
 //
 // shared.NFC fails closed: a constructor handed no Normalizer refuses any text that is not ASCII
 // rather than storing it in whatever form it arrived. That protects the rows, and it turns a
@@ -100,7 +100,7 @@ func TestEveryTextNormalizerIsHandedIn(t *testing.T) {
 	sort.Strings(missing)
 	for _, m := range missing {
 		t.Errorf("%s is built without its Text normaliser - every constructor that stores "+
-			"user text is handed one (M-07)", m)
+			"user text is handed one (i18n-l10n.md §5)", m)
 	}
 }
 

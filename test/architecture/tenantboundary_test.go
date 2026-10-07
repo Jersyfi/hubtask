@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// Rule 3 does not bend, and E-10 is where it would have.
+// Rule 3 does not bend, and the access request is where it would.
 //
 // An access request has to produce a copy of somebody's data across every workspace they are a
 // member of - the one operation in this system that legitimately crosses the tenant boundary

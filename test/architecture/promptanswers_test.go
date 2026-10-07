@@ -13,13 +13,11 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/ai"
 )
 
-// The gate K-01 exists for: what a prompt asks a provider for, and what the code keeps, are the
-// same set.
+// What a prompt asks a provider for, and what the code keeps, are the same set.
 //
-// The two halves are a markdown file and a Go map, and until this test nothing read both.
-// `suggest-fields` asked for `subtasks` from J-06 onwards and the allow list dropped the key, so
-// every jumble suggestion paid a provider for an answer no code read - for four milestones, with
-// §2's Jumble row and J-06's own acceptance both naming a field that never arrived. No compiler
+// The two halves are a markdown file and a Go map, and nothing else reads both. A prompt that asks
+// for `subtasks` while the allow list drops the key pays a provider for an answer no code reads,
+// on every suggestion, while the documents go on naming a field that never arrives. No compiler
 // sees that, and a review sees it only if somebody happens to open both files at once.
 //
 // It is a *gate* rather than a rule in a document because the defect is silent in both directions.
@@ -30,7 +28,7 @@ func TestEveryPromptAsksForExactlyWhatTheCodeKeeps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the prompt store does not build: %v", err)
 	}
-	// Two readers of the store: the suggestion service, and the translation (M-11), which is a
+	// Two readers of the store: the suggestion service, and the translation, which is a
 	// read rather than a proposal and keeps its own two keys.
 	allowed := suggestion.AnswerKeys()
 	for id, keys := range work.TranslationAnswerKeys() {
@@ -45,7 +43,7 @@ func TestEveryPromptAsksForExactlyWhatTheCodeKeeps(t *testing.T) {
 		keeps, asked := allowed[id]
 
 		if prompt.Published() {
-			// A prompt written for an agent's client to operate (J-12) is not asked by this
+			// A prompt written for an agent's client to operate is not asked by this
 			// product's own code, answers prose, and has no allow list. One that acquired one
 			// would be a prompt read two ways.
 			if asked {

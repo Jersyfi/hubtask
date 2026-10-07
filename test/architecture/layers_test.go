@@ -21,7 +21,7 @@ import (
 
 const module = "github.com/Jersyfi/hubtask"
 
-// TestCoreStaysClean checks rule 1 from AGENTS.md (ADR-0001): the core must point neither
+// TestCoreStaysClean checks rule 1 (ADR-0001): the core must point neither
 // outwards nor at third-party libraries. core/shared is included - the promise in go.mod covers
 // the whole core.
 func TestCoreStaysClean(t *testing.T) {
@@ -52,7 +52,7 @@ func TestCoreStaysClean(t *testing.T) {
 	})
 }
 
-// TestNoBareGoroutines checks rule 5 from AGENTS.md (ADR-0016). A panic in an unguarded
+// TestNoBareGoroutines checks rule 5 (ADR-0016). A panic in an unguarded
 // goroutine terminates the whole process.
 func TestNoBareGoroutines(t *testing.T) {
 	allowed := filepath.Clean("../../core/shared/concurrency")
@@ -72,9 +72,9 @@ func TestNoBareGoroutines(t *testing.T) {
 		})
 }
 
-// TestNoDirectTimeSource checks rule 4 from AGENTS.md: the domain and application layers must
-// not reach for the clock or for randomness themselves, otherwise they are not deterministically
-// testable (arc42 §8.13).
+// TestNoDirectTimeSource checks rule 4: the domain and application layers must not reach for the
+// clock or for randomness themselves, otherwise they are not deterministically testable
+// (arc42 §8.13).
 func TestNoDirectTimeSource(t *testing.T) {
 	forbidden := map[string][]string{
 		"time":      {"Now"},
@@ -156,8 +156,8 @@ func TestAdaptersDoNotCallUseCases(t *testing.T) {
 	})
 }
 
-// TestDriverStaysInThePostgresAdapter checks rule 3 from AGENTS.md: every query goes through the
-// transaction wrapper, which is the only place that sets `SET LOCAL app.tenant_id` (ADR-0010).
+// TestDriverStaysInThePostgresAdapter checks rule 3: every query goes through the transaction
+// wrapper, which is the only place that sets `SET LOCAL app.tenant_id` (ADR-0010).
 // Anything holding the driver itself can bypass that wrapper - so nothing else may hold it.
 func TestDriverStaysInThePostgresAdapter(t *testing.T) {
 	allowed := []string{
@@ -165,7 +165,7 @@ func TestDriverStaysInThePostgresAdapter(t *testing.T) {
 		filepath.Clean("../../cmd/migrate"),
 		// The restore drill connects to the restored instance as the raw owner and application
 		// roles: T-20's checks are about what the database itself enforces, and going through
-		// the wrapper would be testing the wrapper (H-10, RT-9).
+		// the wrapper would be testing the wrapper (RT-9).
 		filepath.Clean("../../cmd/restore-drill"),
 		// The suites that run against a real database connect as the raw application role,
 		// without the wrapper - that is how they prove the database enforces the boundary rather
@@ -197,12 +197,12 @@ func TestDriverStaysInThePostgresAdapter(t *testing.T) {
 		})
 }
 
-// TestCryptographyStaysInItsAdapter checks the seam E-02 exists to create: a cipher is named in
-// exactly one package, and everything inwards of it sees core/port/crypto.
+// TestCryptographyStaysInItsAdapter checks the seam core/port/crypto is: a cipher is named in
+// exactly one package, and everything inwards of it sees the port.
 //
-// The point is not purity. It is that "where does the master key live" is open point S-2, due at
-// 0.6.0, and the answer changes an adapter rather than the system - which stops being true the
-// moment an application service constructs a cipher of its own. A second implementation of AES-GCM
+// The point is not purity. It is that where the master key lives (security.md §8.1) is an
+// adapter's answer, and changing it changes an adapter rather than the system - which stops being
+// true the moment an application service constructs a cipher of its own. A second implementation of AES-GCM
 // in this repository is also a second place to get a nonce wrong.
 //
 // crypto/subtle is deliberately not on the list: a constant-time comparison is how a secret is
@@ -240,7 +240,7 @@ func TestCryptographyStaysInItsAdapter(t *testing.T) {
 				}
 				for _, banned := range forbidden {
 					if importPath == banned || strings.HasPrefix(importPath, banned+"/") {
-						t.Errorf("%s: %s outside infrastructure/crypto - the port is the seam (E-02)",
+						t.Errorf("%s: %s outside infrastructure/crypto - the port is the seam (security.md §8)",
 							rel(path), importPath)
 					}
 				}
@@ -279,7 +279,7 @@ func rel(p string) string {
 	return strings.TrimPrefix(c, "../../")
 }
 
-// The NATS client lives in exactly one package, and this is the gate that says so (H-14).
+// The NATS client lives in exactly one package, and this is the gate that says so.
 //
 // ADR-0042 could choose a library for the same reason ADR-0009 could: nothing outside the adapter
 // depends on the choice. The core describes an event and a subscriber, and a bus swapped tomorrow
@@ -303,11 +303,11 @@ func TestTheNATSClientIsBehindOneAdapter(t *testing.T) {
 		})
 }
 
-// The expression engine lives in exactly one package, and this is the gate that says so (G-06).
+// The expression engine lives in exactly one package, and this is the gate that says so.
 //
-// `cel-go` is the milestone's one new direct dependency, and the reason ADR-0009 could choose a
-// library at all is that nothing outside its adapter depends on the choice: the core describes what
-// a condition is, and an engine swapped tomorrow changes no rule anybody wrote.
+// The reason ADR-0009 could choose a library at all is that nothing outside its adapter depends on
+// the choice: the core describes what a condition is, and an engine swapped tomorrow changes no
+// rule anybody wrote.
 //
 // TestCoreStaysTechnologyFree already refuses any third-party import in `core/`. What this adds is
 // the other side of the same sentence - the adapter is one package rather than "somewhere in
@@ -331,7 +331,7 @@ func TestTheExpressionEngineIsBehindOneAdapter(t *testing.T) {
 		})
 }
 
-// The relying party lives in exactly one package, and this is the gate ADR-0036 promised (H-04).
+// The relying party lives in exactly one package, and this is the gate ADR-0036 promised.
 //
 // It is the same sentence as the expression engine's above, for a dependency with a sharper
 // edge: go-oidc and go-jose parse hostile input on the authentication path of every workspace
@@ -367,9 +367,9 @@ func TestTheIdentityProviderLibraryIsBehindOneAdapter(t *testing.T) {
 		})
 }
 
-// The text libraries live in exactly the packages ADR-0056 names, and this is the gate it promised
-// (M-02). golang.org/x/text and golang.org/x/net/idna were already in the module graph; what the
-// ADR added is which four packages of them the binary imports and from where - the matcher and
+// The text libraries live in exactly the packages ADR-0056 names, and this is the gate it promised.
+// golang.org/x/text and golang.org/x/net/idna are in the module graph anyway; what the ADR decides
+// is which four packages of them the binary imports and from where - the matcher and
 // the plural rules from the i18n adapter, the normaliser and the domain encoder from the text
 // adapter. An import from anywhere else is the decision being made twice.
 //

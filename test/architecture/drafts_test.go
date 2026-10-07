@@ -23,7 +23,7 @@ const (
 
 	// The exact expression, because the property that matters is a string comparison GitHub makes:
 	// branch protection asks for a check called `CI required`, and only a run that is not a draft's
-	// may produce one (#1137).
+	// may produce one (ci-cd.md §3.2).
 	ciRequiredName = "${{ (github.event_name == 'pull_request' && github.event.pull_request.draft) && 'CI not run (draft)' || 'CI required' }}"
 )
 
@@ -83,8 +83,8 @@ func TestLeavingDraftStartsThePipeline(t *testing.T) {
 }
 
 // Every job that needs no other job carries the draft condition; every other job depends on one of
-// them and is skipped with it, which the probe of #1137 showed for all twenty-four. `ci-required` is
-// the one exception: it always runs and is renamed instead.
+// them and is skipped with it (ci-cd.md §3.4). `ci-required` is the one exception: it always runs
+// and is renamed instead.
 func TestADraftRunsNothing(t *testing.T) {
 	ci := loadWorkflow(t, "ci.yml")
 
@@ -119,7 +119,7 @@ func TestADraftNeverCarriesCIRequired(t *testing.T) {
 	}
 	if summary.Name != ciRequiredName {
 		t.Errorf("ci.yml: `ci-required` is named %q; it must be\n  %s\nso that a draft's commit carries "+
-			"no check called `CI required` (ADR-0079, #1137)", summary.Name, ciRequiredName)
+			"no check called `CI required` (ci-cd.md §3.2)", summary.Name, ciRequiredName)
 	}
 	if summary.If != "always()" {
 		t.Errorf("ci.yml: `ci-required` must run `if: always()`, it says %q - a skipped required "+
