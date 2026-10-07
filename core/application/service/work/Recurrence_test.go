@@ -127,7 +127,8 @@ func (r *recurrences) AttachOccurrence(_ context.Context, occurrenceID, ruleID, 
 }
 
 // attachment is what the materialisation pointed at what: an occurrence, its series, and the entry
-// it was copied from. All three, because the defect issue #428 names is a pair written by halves.
+// it was copied from. All three, because a pair written by halves cannot say which end of the
+// series a copy is.
 type attachment struct {
 	Occurrence, Rule, Source shared.ID
 }

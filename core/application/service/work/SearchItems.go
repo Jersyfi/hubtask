@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	// SearchItemsName is the catalogue name, as domain-model.md §5 writes it under "Search".
+	// SearchItemsName is the catalogue name (core/application/catalogue).
 	SearchItemsName = "SearchItems"
 	// searchTarget is what an audit entry about a search names. Its own target type rather than
 	// the entry's, for the reason the trash has one: a search is one view over everything, and a
@@ -116,7 +116,7 @@ func (h SearchItems) Execute(
 	}
 	// One grammar read twice is one *resolution* twice: `@me` and the date anchors are values only
 	// the server knows, and a placeholder that reaches the compiler is a defect rather than a bad
-	// request (issue 1018). The query has resolved them since it was written; this had not.
+	// request.
 	if filter, err = resolveFilter(h.Clock, actor, filter, "/filter"); err != nil {
 		return repository.ItemHitPage{}, err
 	}

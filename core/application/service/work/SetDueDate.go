@@ -41,9 +41,9 @@ const (
 // One dependency set held by both use cases, for the reason AssignmentWriter is one: the two
 // operations are the same walk in opposite directions - the same guards, the same four records -
 // and the only thing that differs is whether a date arrives or leaves. It is also the writer the
-// create and update paths dispatch into: the contract has carried the three due fields on
-// their schemas since 0.1.0, and serving them through a second implementation would be a second
-// answer to what a due date means.
+// create and update paths dispatch into: the contract carries the three due fields on their
+// schemas, and serving them through a second implementation would be a second answer to what a due
+// date means.
 type DueDateWriter struct {
 	Items      repository.Items
 	Containers repository.Containers

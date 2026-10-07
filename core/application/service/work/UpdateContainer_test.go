@@ -26,7 +26,7 @@ var (
 )
 
 // policyStore fakes the assignment policy rows, keyed by scope. It records every write, because
-// the C-02 tests care about what reached the row as much as about what came back.
+// the auto-assignment tests care about what reached the row as much as about what came back.
 type policyStore struct {
 	stored   map[shared.ID]domain.AutoAssignPolicy
 	upserted []domain.AutoAssignPolicy

@@ -45,7 +45,7 @@ type MaterializeOccurrences struct {
 	Recurrences repository.Recurrences
 	Items       repository.Items
 	Containers  repository.Containers
-	// Copy is C-11's duplicate, reused rather than rebuilt: an occurrence is a copy of the
+	// Copy is DuplicateWorkItem, reused rather than rebuilt: an occurrence is a copy of the
 	// template with its subtree, and everything that makes a copy correct - the vocabulary of the
 	// destination, the references it cannot carry (I-W6), the records each entry owes - is already
 	// decided there.

@@ -225,7 +225,7 @@ func (w CoverWriter) change(
 	return changed, nil
 }
 
-// setWithin covers an entry that is being created, inside the creator's transaction (issue 896):
+// setWithin covers an entry that is being created, inside the creator's transaction:
 // the same guards and the same four records as `PUT /items/{id}/cover`, minus the permission
 // question, which the creation has already asked of the same path with the same permission.
 //
@@ -528,7 +528,7 @@ func (h SetCover) Descriptor() usecase.Descriptor {
 				{
 					Name: "color_token", Kind: usecase.KindString,
 					Description: "The colour, as a design system token rather than a value - " +
-						"theming belongs to the client (ADR-0029). Exactly for a COLOR cover.",
+						"theming belongs to the client. Exactly for a COLOR cover.",
 				},
 				{
 					Name: "media_id", Kind: usecase.KindID,

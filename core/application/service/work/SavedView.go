@@ -51,8 +51,8 @@ type Permitting interface {
 }
 
 // CreateSavedView saves a view: a query in the DSL, validated here against the same catalogue an
-// ad-hoc one passes, and the layout the client draws it in, stored and never consulted (D-07,
-// api-guidelines.md §3).
+// ad-hoc one passes, and the layout the client draws it in, stored and never consulted
+// (api-guidelines.md §3).
 type CreateSavedView struct {
 	Views      viewrepo.SavedViews
 	Containers repository.Containers
@@ -241,7 +241,7 @@ type ListSavedViewsQuery struct {
 // Unpaged, deliberately, the way the custom field list is: a shelf of bookmarks is small and
 // bounded by what a person saves, and a cursor over a list nobody scrolls would be machinery for
 // its own sake. What is shared along the path is computed in the query, never filtered after a
-// page (C-04's rule).
+// page (domain-model.md §3.2).
 func (h ListSavedViews) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListSavedViewsQuery,
 ) ([]view.SavedView, error) {

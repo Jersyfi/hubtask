@@ -21,7 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// QueryItemsName is the catalogue name, as domain-model.md §5 writes it under "Views & query".
+// QueryItemsName is the catalogue name (core/application/catalogue).
 const QueryItemsName = "QueryItems"
 
 // QueryItems answers the query language: one filter over one anchored scope, sorted, paged, and
@@ -106,12 +106,11 @@ func (h QueryItems) resolvePlaceholders(
 
 // resolveFilter replaces `@me` and the date anchors with the values only the server knows.
 //
-// **One grammar read twice has to mean one resolution too** (ADR-0064). The query resolved its
-// placeholders and the search did not, so `assignee_id EQ @me` parsed, validated, and reached the
-// compiler unresolved - where it is `ErrInternal` with `query.placeholder_unresolved`, because a
-// placeholder at the adapter is a defect in the use case. The overview's one read is exactly that
-// filter, so the first panel of the first screen after signing in answered a 500 with a reference
-// (issue 1018).
+// **One grammar read twice has to mean one resolution too** (ADR-0064): the query and the search
+// both call this. A reader that skipped it would let `assignee_id EQ @me` parse, validate, and
+// reach the compiler unresolved - where it is `ErrInternal` with `query.placeholder_unresolved`,
+// because a placeholder at the adapter is a defect in the use case, and a filter as ordinary as
+// "mine" would answer a 500.
 //
 // The zone is the actor's, which is what api-guidelines.md §3 means by "resolved server-side in the
 // actor's time zone": somebody in Auckland asking for what is due today is asking about their day.

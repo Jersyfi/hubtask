@@ -120,10 +120,10 @@ func (h ExportView) Execute(
 }
 
 // Select is the selection without the audit entry, for a caller that polls: the CalDAV calendar
-// (P-06) fetches a view every quarter of an hour as its owner, exactly as the ICS feed does, and
-// an audit row per poll would bury the entries somebody actually looks for (audit.md §2). The
-// same visibility rule, the same walk, the same cap - only the record differs, which is why
-// this is a method on the export rather than a second selection.
+// fetches a view every quarter of an hour as its owner, exactly as the ICS feed does, and an audit
+// row per poll would bury the entries somebody actually looks for (audit.md §2). The same
+// visibility rule, the same walk, the same cap - only the record differs, which is why this is a
+// method on the export rather than a second selection.
 func (h ExportView) Select(
 	ctx context.Context, actor appshared.ActorContext, viewID shared.ID,
 ) (ExportedView, error) {

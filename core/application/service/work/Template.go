@@ -64,8 +64,7 @@ type TemplateWriter struct {
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
 	// Text brings a template's name, its description and every node's title and notes to normal
-	// form C on the way in, and the entries an instantiation writes with them (i18n-l10n.md §5,
-	// M-07).
+	// form C on the way in, and the entries an instantiation writes with them (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 

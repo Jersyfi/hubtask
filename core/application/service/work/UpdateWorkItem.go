@@ -43,10 +43,10 @@ const (
 // What it does not change: where the item sits (MoveWorkItem), whether it is done
 // (CompleteWorkItem), which labels it carries (AddLabel - a set is not a field), and the assignee,
 // which is an action route because two ways to write that column would be two places deciding
-// whether the person may see the entry. The due date left that list with D-01, and in a
-// particular way: the contract has carried the three due fields on this schema since 0.1.0, so
-// the patch serves them - by dispatching into the writer the SetDueDate pair owns, which is how
-// the fields keep one validation, one event and one history whichever door they arrive through.
+// whether the person may see the entry. The due date is not on that list, in a particular way:
+// the contract carries the three due fields on this schema, so the patch serves them - by
+// dispatching into the writer the SetDueDate pair owns, which is how the fields keep one
+// validation, one event and one history whichever door they arrive through.
 type UpdateWorkItem struct {
 	Items      repository.Items
 	Buckets    repository.Buckets

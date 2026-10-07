@@ -186,8 +186,8 @@ func TestQueryItemsResolvesThePlaceholders(t *testing.T) {
 	if got := filter.Nodes[1].Values[0]; got.IsPlaceholder() || !got.Time.Equal(want) {
 		t.Errorf("@today resolved to %s, want %s", got.Time, want.UTC())
 	}
-	// The lift B-12's acceptance anticipated: "due in the next three days" is a calendar
-	// offset from that same midnight, in the actor's zone - not seventy-two clock hours.
+	// "Due in the next three days" is a calendar offset from that same midnight, in the actor's
+	// zone - not seventy-two clock hours.
 	if got := filter.Nodes[2].Values[0]; got.IsPlaceholder() || !got.Time.Equal(want.AddDate(0, 0, 3)) {
 		t.Errorf("@today+P3D resolved to %s, want %s", got.Time, want.AddDate(0, 0, 3).UTC())
 	}

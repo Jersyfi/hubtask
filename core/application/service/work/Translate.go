@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// AiTranslateName is the catalogue name (domain-model.md §5).
+// AiTranslateName is the catalogue name (core/application/catalogue).
 const AiTranslateName = "AiTranslate"
 
 // TranslationAskedAction records that somebody read an entry in another language: the entry and
@@ -31,8 +31,8 @@ const TranslationAskedAction audit.Action = "ai.translation_asked"
 // translatePrompt is the instruction in the store (ADR-0049 decision 3).
 const translatePrompt = "translate"
 
-// translateAnswerKeys is what the prompt asks for and the code keeps, compared by the gate K-01
-// left behind (test/architecture/promptanswers_test.go). Both halves are deliberate.
+// translateAnswerKeys is what the prompt asks for and the code keeps, compared by the gate in
+// test/architecture/promptanswers_test.go. Both halves are deliberate.
 var translateAnswerKeys = []string{"notes", "title"}
 
 // TranslationAnswerKeys is the allow list the gate reads beside the suggestion service's.

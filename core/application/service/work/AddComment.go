@@ -107,9 +107,9 @@ func (h AddComment) Execute(
 	// Before the transaction, deliberately: a refusal writes an audit entry, and an entry written
 	// inside this transaction would be rolled back together with the refusal (audit.md §7).
 	//
-	// WRITE_ITEMS, until C-04: the matrix gives a guest the right to comment without it, and that
-	// is exactly the kind of qualifier the permission deliberately does not fold in - C-04 is the
-	// task that builds the decision point the qualifiers consult (Authorization.go).
+	// WRITE_ITEMS is the permission a refusal names, not what decides: the entry named in On is
+	// judged by its COMMENT action, which the matrix gives a guest who holds no write right and a
+	// contributor only on what is assigned to them (domain-model.md §3.2, service.ItemAccessOf).
 	if err := w.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionWriteItems,
 		Path:       containerPath(collection),

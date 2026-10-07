@@ -56,7 +56,7 @@ func newUpdateHarness() *updateHarness {
 		Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
 		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: h.uow, Clock: clock.Fixed(updateNow), IDs: &ids{}, HLC: &hlcSource{},
-		// The D-01 machinery, over the same fakes: the patch is its second caller.
+		// The due date machinery, over the same fakes: the patch is its second caller.
 		DueDates: DueDateWriter{
 			Items: store, Containers: containerStore, Profiles: profileRows,
 			Reminders:  newReminders(),
@@ -183,7 +183,7 @@ func TestUpdateClearsTheNotesWhenAskedTo(t *testing.T) {
 	}
 }
 
-// The capability profile as the gate, which is what B-05 is named after. Nothing is written, and
+// The capability profile as the gate. Nothing is written, and
 // the refusal names the type and the capability rather than the field alone.
 func TestNotesOnAnActivityAreRefusedAndNothingIsWritten(t *testing.T) {
 	h := newUpdateHarness()

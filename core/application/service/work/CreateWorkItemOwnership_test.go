@@ -11,9 +11,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
-// The decision on issue #84: a role whose writes are narrowed to what is assigned to it may create,
-// and what it creates is its own. Without that, the entry would be out of its creator's reach the
-// moment it existed.
+// The contributor rule (domain-model.md §3.2): a role whose writes are narrowed to what is assigned
+// to it may create, and what it creates is its own. Without that, the entry would be out of its
+// creator's reach the moment it existed.
 
 func TestCreatingOnBehalfOfARoleThatWritesOnlyItsOwn(t *testing.T) {
 	h := newItemHarness()

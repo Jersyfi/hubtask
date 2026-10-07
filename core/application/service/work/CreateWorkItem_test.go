@@ -33,11 +33,11 @@ type items struct {
 	inserted []domain.WorkItem
 	stored   map[shared.ID]domain.WorkItem
 	lastKey  string
-	// page is what List answers with, and asked is what it was asked (B-04's read side).
+	// page is what List answers with, and asked is what it was asked (the level list).
 	page  repository.ItemPage
 	asked repository.ItemQuery
-	// result is what Query answers with, and searched is every specification it was handed
-	// (B-12's query language).
+	// result is what Query answers with, and searched is every specification it was handed (the
+	// query language).
 	result   repository.ItemQueryResult
 	searched []repository.ItemSearch
 	queryErr error
@@ -45,8 +45,8 @@ type items struct {
 	// result while it lasts. The export is the only caller that walks; everything else
 	// asks once and reads result.
 	queryPages []repository.ItemQueryResult
-	// hits is what Search answers with, and searchedText is every request it was handed (C-08's
-	// full text search).
+	// hits is what Search answers with, and searchedText is every request it was handed (the full
+	// text search).
 	hits         repository.ItemHitPage
 	searchedText []repository.TextSearch
 	searchErr    error
@@ -55,20 +55,20 @@ type items struct {
 	// other is what it decided.
 	children    map[shared.ID]domain.ChildCompletion
 	completions []completionWrite
-	// load is what CountOpenByAssignee answers, per account (C-02's LEAST_LOADED material).
+	// load is what CountOpenByAssignee answers, per account - what LEAST_LOADED measures.
 	load map[shared.ID]int
-	// attributes records every write SetAttributes took: the B-05 tests care about what was stored as
-	// much as about what came back, because a use case that returned the right item and wrote the wrong
-	// one would pass every assertion made on the answer alone.
+	// attributes records every write SetAttributes took: the attribute tests care about what was
+	// stored as much as about what came back, because a use case that returned the right item and
+	// wrote the wrong one would pass every assertion made on the answer alone.
 	attributes []attributeWrite
 	findErr    error
 	listErr    error
 	insertErr  error
 	setErr     error
 	conflictOn shared.ID
-	// The move and reorder fakes: what the neighbours answer, and what each write was asked to store. The
-	// B-08 tests care about both - one is the position the ordering service measured against, the other is
-	// where the item ended up.
+	// The move and reorder fakes: what the neighbours answer, and what each write was asked to
+	// store. The move and reorder tests care about both - one is the position the ordering service
+	// measured against, the other is where the item ended up.
 	previousKey string
 	nextKey     string
 	askedLevel  repository.Level
@@ -126,7 +126,7 @@ func (i *items) SetOrderKey(_ context.Context, item domain.WorkItem, expectedVer
 }
 
 // CountOpenByAssignee answers from the load map, absent accounts omitted as the real query omits
-// them. The C-02 tests fill it; everything else never asks.
+// them. The auto-assignment tests fill it; everything else never asks.
 func (i *items) CountOpenByAssignee(
 	_ context.Context, accounts []shared.ID,
 ) (map[shared.ID]int, error) {
@@ -140,7 +140,7 @@ func (i *items) CountOpenByAssignee(
 }
 
 // SetCover mirrors SetAssignee: the same optimistic lock, the same version bump on the stored
-// row, recorded in covers so the C-06 tests can say what was written.
+// row, recorded in covers so the cover tests can say what was written.
 func (i *items) SetCover(_ context.Context, item domain.WorkItem, expectedVersion int) error {
 	if item.ID == i.conflictOn || i.stored[item.ID].Version != expectedVersion {
 		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
@@ -153,8 +153,8 @@ func (i *items) SetCover(_ context.Context, item domain.WorkItem, expectedVersio
 }
 
 // SetCustomField mirrors SetCover: the same optimistic lock, the same version bump on the stored
-// row, recorded in customFields so the C-07 tests can say what was written. The fake stores the
-// whole wanted state, which is what the real adapter's per-key write converges the row to.
+// row, recorded in customFields so the custom field tests can say what was written. The fake stores
+// the whole wanted state, which is what the real adapter's per-key write converges the row to.
 func (i *items) SetCustomField(
 	_ context.Context, item domain.WorkItem, _ string, _ shared.ID, expectedVersion int,
 ) error {
@@ -169,7 +169,7 @@ func (i *items) SetCustomField(
 }
 
 // SetDueDate mirrors SetCover: the same optimistic lock, the same version bump on the stored
-// row, recorded in dueDates so the D-01 tests can say what was written.
+// row, recorded in dueDates so the due date tests can say what was written.
 func (i *items) SetDueDate(_ context.Context, item domain.WorkItem, expectedVersion int) error {
 	if item.ID == i.conflictOn || i.stored[item.ID].Version != expectedVersion {
 		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
@@ -569,7 +569,7 @@ func newItemHarness() *itemHarness {
 		Ownership:  h.authorizer,
 		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
-		// The C-02 machinery, over the same fakes: the create path is its second caller.
+		// The auto-assignment machinery, over the same fakes: the create path is its second caller.
 		AutoAssign: AutoAssignWorkItem{
 			Assignment: AssignmentWriter{
 				Items: store, Containers: containerStore, Profiles: h.profiles,
@@ -582,7 +582,7 @@ func newItemHarness() *itemHarness {
 			Groups:   &groupStore{members: map[shared.ID][]shared.ID{}},
 			Random:   clock.NewScripted(0),
 		},
-		// The D-01 machinery, over the same fakes: the create path is its second caller.
+		// The due date machinery, over the same fakes: the create path is its second caller.
 		DueDates: DueDateWriter{
 			Items: store, Containers: containerStore, Profiles: h.profiles,
 			Reminders:  newReminders(),
@@ -590,8 +590,7 @@ func newItemHarness() *itemHarness {
 			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 		},
-		// The two set writers, over the same fakes (issue 878): the create path is their second
-		// caller.
+		// The two set writers, over the same fakes: the create path is their second caller.
 		Labels: ItemLabelWriter{
 			Items: store, ItemLabels: h.itemLabels, Labels: h.labels, Containers: containerStore,
 			Profiles: h.profiles, Authorizer: h.authorizer, Events: h.events, Changes: h.changes,
@@ -606,8 +605,8 @@ func newItemHarness() *itemHarness {
 			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 		},
-		// The custom field use case, over the same fakes (issue 896): the create path is its
-		// second caller, one key at a time.
+		// The custom field use case, over the same fakes: the create path is its second caller,
+		// one key at a time.
 		CustomFields: SetCustomField{
 			Items: store, Containers: containerStore, Profiles: h.profiles, Fields: h.fields,
 			Authorizer: h.authorizer, Visibility: h.visibility,
@@ -615,7 +614,7 @@ func newItemHarness() *itemHarness {
 			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 		},
-		// The cover writer, over the same fakes (issue 896): the create path is its second caller.
+		// The cover writer, over the same fakes: the create path is its second caller.
 		Covers: CoverWriter{
 			Items: store, Containers: containerStore, Profiles: h.profiles, Media: h.media,
 			Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
@@ -672,8 +671,7 @@ func taskCommand() CreateWorkItemCommand {
 	}
 }
 
-// The acceptance criterion of B-03, read forwards: all three levels can be created, each landing
-// where the level implies.
+// All three levels can be created, each landing where the level implies.
 func TestTheThreeLevelsCanAllBeCreated(t *testing.T) {
 	h := newItemHarness()
 	ctx := context.Background()
@@ -1213,10 +1211,9 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 			t.Errorf("%s is not declared", owned)
 		}
 	}
-	// Every member of WorkItemCreate is now declared and written (issue 896). What is
-	// checked from here on is the other direction: a name the contract does *not* promise is
-	// still refused rather than accepted and dropped, which is what kept the three honest while
-	// they waited.
+	// Every member of WorkItemCreate is declared and written. What is checked from here on is the
+	// other direction: a name the contract does *not* promise is still refused rather than
+	// accepted and dropped.
 	if err := descriptor.ValidateInput(map[string]any{
 		"type": "TASK", "title": "Buy milk", "colour": "red",
 	}); err == nil {
@@ -1236,9 +1233,8 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	}
 }
 
-// The anchor the contract has promised since 0.1 and the catalogue refused until F10-17 (issue
-// 896): the entry lands in front of the sibling named, between its neighbours, rather than at the
-// end of the list.
+// The anchor WorkItemCreate promises: the entry lands in front of the sibling named, between its
+// neighbours, rather than at the end of the list.
 func TestACreateRanksTheEntryInFrontOfTheSiblingItNames(t *testing.T) {
 	h := newItemHarness()
 	sibling := h.withTask()
@@ -1288,8 +1284,8 @@ func TestASiblingThatIsNotAtTheLevelRefusesTheCreate(t *testing.T) {
 	}
 }
 
-// The cover the contract has promised on WorkItemCreate since 0.3 and the catalogue refused until
-// F10-17 (issue 896): the entry is created already carrying it, through the writer that owns it.
+// The cover WorkItemCreate promises: the entry is created already carrying it, through the
+// writer that owns it.
 func TestACreateCoversTheEntryThroughTheWriterThatOwnsTheCover(t *testing.T) {
 	h := newItemHarness()
 	h.profiles.rows = coverProfiles()
@@ -1368,8 +1364,8 @@ func (h *itemHarness) withFieldDefinition(
 	return definition
 }
 
-// The values the contract has promised on WorkItemCreate since 0.4 and the catalogue refused until
-// F10-17 (issue 896): judged against the definition in force, written one key at a time.
+// The custom field values WorkItemCreate promises: judged against the definition in force,
+// written one key at a time.
 func TestACreateFillsCustomFieldsThroughTheUseCaseThatOwnsThem(t *testing.T) {
 	h := newItemHarness()
 	h.profiles.rows = fieldProfiles()
@@ -1444,8 +1440,8 @@ func TestTheOutputIsTheContractsShape(t *testing.T) {
 	}
 }
 
-// The language an entry is written in, and where it comes from when nobody says (C-08,
-// i18n-l10n.md §5). The default is the creator's locale - a guess, and the honest kind: an entry
+// The language an entry is written in, and where it comes from when nobody says (i18n-l10n.md
+// §5). The default is the creator's locale - a guess, and the honest kind: an entry
 // that stated no language at all would be indexed word by word, which is the worse guess of the two.
 func TestAnEntryTakesTheCreatorsLocaleWhenNoLanguageIsStated(t *testing.T) {
 	h := newItemHarness()
@@ -1495,7 +1491,7 @@ func TestAnEntryStatesNoLanguageWhenTheCreatorHasNoLocale(t *testing.T) {
 
 // The address a calendar client chose reaches the entry through the catalogue - the tree performs
 // the create through it like every other channel - and comes back in the projection, null for an
-// entry nobody addressed (P-07).
+// entry nobody addressed (offline-sync.md §4.2).
 func TestACalendarUIDReachesTheEntryAndItsProjection(t *testing.T) {
 	h := newItemHarness()
 	descriptor := h.handler.Descriptor()
@@ -1593,9 +1589,8 @@ func setProfiles() []domain.CapabilityProfile {
 	return rows
 }
 
-// Issue 878: `WorkItemCreate.label_ids` and `member_ids` are in the contract, and the catalogue
-// refused both by name. An entry created with them carries them at once, with the records the
-// standalone routes write - inside the one transaction.
+// `WorkItemCreate.label_ids` and `member_ids` are in the contract. An entry created with them
+// carries them at once, with the records the standalone routes write - inside the one transaction.
 func TestAnEntryIsCreatedAlreadyCarryingItsLabelsAndMembers(t *testing.T) {
 	h := newItemHarness()
 	h.profiles.rows = setProfiles()

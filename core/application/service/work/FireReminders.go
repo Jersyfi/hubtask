@@ -60,7 +60,7 @@ type FireReminders struct {
 	ItemMembers repository.ItemMembers
 	// Visibility answers whether a named recipient can still see the entry. A membership revoked
 	// since the reminder was written is not survived by a reminder that remembers better days -
-	// the same question D-02 asked at the write, asked again at the moment it matters.
+	// the same question the write asked, asked again at the moment it matters.
 	Visibility Visibility
 	Notifier   ReminderNotifier
 	// Events is where the two scheduling announcements go: item.due_soon and item.overdue are
@@ -323,7 +323,7 @@ func (h FireReminders) recipients(
 // Not its watchers, for the reason the comment notification does not use them: the schema
 // reserves the set name and nothing writes it yet. No authorisation question either, and for the
 // same reason - every recipient here is derived from a membership of the entry itself, which is
-// the narrowing C-04 built.
+// the narrowing the role matrix applies (domain-model.md §3.2).
 func (h FireReminders) everybodyOn(
 	ctx context.Context, item domain.WorkItem,
 ) ([]shared.ID, error) {

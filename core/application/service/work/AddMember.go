@@ -220,7 +220,7 @@ func (w ItemMemberWriter) change(
 }
 
 // addWithin puts an account on the member list of an entry that is being created, inside the
-// creator's transaction (issue 878): the same guards and the same four records as
+// creator's transaction: the same guards and the same four records as
 // `PUT /items/{id}/members/{accountId}`, minus the permission question the creation has already
 // asked, and minus the visibility question, which opens transactions of its own and is therefore
 // asked by the creator before it opens this one (`ensureMembersCanSee`).
@@ -334,8 +334,7 @@ func (w ItemMemberWriter) recordActivity(
 //
 // The payload is the one element that moved and the tag that decides it, not the whole set - the
 // merge rule for a set, written down (offline-sync.md §4.2). It is the shape the labels already
-// use, with `set` naming which of the two this is: that field has been in the payload since B-09
-// for exactly this second caller.
+// use, with `set` naming which of the two this is.
 func (w ItemMemberWriter) recordChange(
 	ctx context.Context, item domain.WorkItem, collection domain.Container,
 	actor appshared.ActorContext, accountID shared.ID, want memberDirection, tag shared.HLC,

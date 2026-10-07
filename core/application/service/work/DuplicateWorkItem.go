@@ -156,8 +156,8 @@ type duplication struct {
 	// belongs to no series (db/queries/Work.sql, CopyWorkItem).
 	series shared.ID
 	// seriesSource is the entry the occurrence was copied from, and empty wherever series is. The
-	// pair travels together because one without the other is what issue #428 was: the rule
-	// identifier is on the template as well, and says nothing about which end this copy is.
+	// pair travels together because one without the other cannot be read: the rule identifier is on
+	// the template as well, and says nothing about which end this copy is.
 	seriesSource shared.ID
 	// createdBy overrides who the copy was made by, and is empty for an ordinary duplicate, where
 	// it is the actor. The materialisation sets it to whoever created the template: the system has
@@ -342,12 +342,12 @@ func (h DuplicateWorkItem) perform(
 // copyInto is the copy itself, without the permission questions and without a transaction of its
 // own: everything perform does inside the caller's.
 //
-// It exists as its own method because the materialisation reuses it (D-05, "the copy machinery is
-// C-11's duplicate, reused"). A series copying its own template is the system acting on a decision
-// somebody already made - when they wrote the rule - so there is no second person to ask about,
-// and asking the authorisation service about an actor with no memberships would refuse the only
-// caller that has the right to be here. What is *not* skipped is everything that makes a copy
-// correct: the fresh read, the lifecycle guards, the placement, and the records each entry owes.
+// It exists as its own method because the materialisation reuses it: an occurrence is a copy of its
+// template. A series copying its own template is the system acting on a decision somebody already
+// made - when they wrote the rule - so there is no second person to ask about, and asking the
+// authorisation service about an actor with no memberships would refuse the only caller that has
+// the right to be here. What is *not* skipped is everything that makes a copy correct: the fresh
+// read, the lifecycle guards, the placement, and the records each entry owes.
 func (h DuplicateWorkItem) copyInto(
 	ctx context.Context, actor appshared.ActorContext, plan duplication, now time.Time,
 ) (DuplicateResult, error) {
@@ -510,8 +510,8 @@ func (h DuplicateWorkItem) vocabularyOf(
 // canSee answers whether an account reaches the destination, once per account.
 //
 // Asked at all only when the collection changes: an account that could see the entry can see a copy
-// of it beside it. It is the question C-01 asks before an assignment, and asking it here is what
-// keeps "an entry is only ever on somebody who can see it" true through a copy as well.
+// of it beside it. It is the question an assignment asks first, and asking it here is what keeps
+// "an entry is only ever on somebody who can see it" true through a copy as well.
 func (h DuplicateWorkItem) canSee(
 	ctx context.Context, actor appshared.ActorContext, known *vocabulary,
 	destination domain.Container, accountID shared.ID,

@@ -34,7 +34,7 @@ const (
 
 // InstantiateTemplate stamps a template out into a collection.
 //
-// A sibling of C-11's duplicate rather than the same machinery: there is no source tree to read -
+// A sibling of DuplicateWorkItem rather than the same machinery: there is no source tree to read -
 // the shape is a document - but everything else is the same shape of problem, and the answers are
 // the ones the copy already gave. Every entry carries its own records, because a client
 // synchronising the collection has to learn about every row; the references the destination cannot

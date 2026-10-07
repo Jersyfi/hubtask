@@ -21,7 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// ReindexSearchName is the catalogue name (domain-model.md §5).
+// ReindexSearchName is the catalogue name (core/application/catalogue).
 const ReindexSearchName = "ReindexSearch"
 
 // ReindexAskedAction records that an administrator asked for the workspace's search documents to

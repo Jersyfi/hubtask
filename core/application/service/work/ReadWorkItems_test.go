@@ -407,8 +407,8 @@ func TestARefusedReadDoesNotAskForLabels(t *testing.T) {
 	}
 }
 
-// The read narrowing of C-04: somebody who holds no role on the collection and a membership on
-// entries inside it lists those entries, rather than being refused the level.
+// The read narrowing (domain-model.md §3.2): somebody who holds no role on the collection and a
+// membership on entries inside it lists those entries, rather than being refused the level.
 func TestAListIsNarrowedToWhatWasSharedIndividually(t *testing.T) {
 	store, containerStore := readFixture()
 	store.page = repository.ItemPage{

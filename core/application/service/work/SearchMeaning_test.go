@@ -88,7 +88,7 @@ func TestEveryReasonNotToEmbedIsALexicalSearchRatherThanAnError(t *testing.T) {
 			asked: true,
 		},
 		{
-			name: "the model is known to be wider than the index, so nothing is asked (#569)",
+			name: "the model is known to be wider than the index, so nothing is asked",
 			world: &embeddingWorld{
 				available: true, embedding: true, model: "embed-wide",
 				vectors: [][]float32{{0.1, 0.2, 0.3}}, known: repository.EmbeddingWidth + 1,
@@ -151,7 +151,7 @@ func TestAProviderThatCannotBeResolvedIsALexicalSearch(t *testing.T) {
 }
 
 // A search that is not wired for meaning at all - an installation running without the seam - is the
-// search this product had before J-10, rather than a nil dereference.
+// full text search alone, rather than a nil dereference.
 func TestASearchWithoutTheSeamIsTheSearchItAlwaysWas(t *testing.T) {
 	vector, _, err := SearchMeaning{}.Of(t.Context(), itemActor(), "invoices")
 	if err != nil || vector != nil {

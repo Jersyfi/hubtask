@@ -205,10 +205,10 @@ func (w ItemLabelWriter) change(
 	return result, nil
 }
 
-// addWithin puts a label on an entry that is being created, inside the creator's transaction
-// (issue 878): the same guards and the same four records as `PUT /items/{id}/labels/{labelId}`,
-// minus the permission question, which the creation has already asked of the same path with
-// the same permission. A refusal takes the whole creation with it - a merge of one request
+// addWithin puts a label on an entry that is being created, inside the creator's transaction:
+// the same guards and the same four records as `PUT /items/{id}/labels/{labelId}`, minus the
+// permission question, which the creation has already asked of the same path with the same
+// permission. A refusal takes the whole creation with it - a merge of one request
 // half-applied is a state nobody asked for. `position` is where the label sat in the request's
 // list, so a refusal names the element rather than a field the request never had.
 func (w ItemLabelWriter) addWithin(
@@ -535,8 +535,8 @@ func labelCommandOf(in usecase.Input) (LabelCommand, error) {
 }
 
 // setTag is the tag a set change is written under: the device's reading when a push applies it -
-// carried in the context under the set's name, the way a field's reading is (N-07,
-// appshared.ContextWithReadings) - and a fresh server reading otherwise. The reading that decided
+// carried in the context under the set's name, the way a field's reading is
+// (appshared.ContextWithReadings) - and a fresh server reading otherwise. The reading that decided
 // a merge is the reading the row has to carry, or the next device compares against the wrong one.
 func setTag(ctx context.Context, set domain.SetName, source clock.HLCSource) shared.HLC {
 	if reading, found := appshared.ReadingFrom(ctx, string(set)); found {

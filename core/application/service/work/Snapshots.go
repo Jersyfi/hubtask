@@ -8,8 +8,8 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The whole object, in the contract's shape, for a device starting from nothing (N-02,
-// offline-sync.md §3.1). The same builders every channel answers with, exported under one name
+// The whole object, in the contract's shape, for a device starting from nothing
+// (offline-sync.md §3.1). The same builders every channel answers with, exported under one name
 // each so that the initial synchronisation and a read over the API cannot describe one object in
 // two vocabularies - a field a device learned from a snapshot is a field the delta later moves
 // under the same name.

@@ -122,7 +122,7 @@ func (h *materialiseHarness) withSeries(
 	}
 	h.recurrences.stored[rule.ID] = rule
 
-	// The template belongs to its own series, which is what D-04's writer does and what an
+	// The template belongs to its own series, which is what the recurrence writer does and what an
 	// ON_COMPLETION series waits for.
 	task.RecurrenceRuleID = rule.ID
 	h.copies.items.stored[task.ID] = task

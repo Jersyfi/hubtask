@@ -40,10 +40,10 @@ type GetWorkItem struct {
 // GetWorkItemQuery is the input, typed.
 type GetWorkItemQuery struct {
 	ItemID shared.ID
-	// CalendarUID names the entry by the address a calendar client knows it by instead of by
-	// its identifier (P-07) - the tree's question when a PUT arrives at an address
-	// the view does not answer. Read when ItemID is empty; the permission is decided the same
-	// way, because the entry found is the same entry.
+	// CalendarUID names the entry by the address a calendar client knows it by instead of by its
+	// identifier (offline-sync.md §4.2) - the tree's question when a PUT arrives at an address the
+	// view does not answer. Read when ItemID is empty; the permission is decided the same way,
+	// because the entry found is the same entry.
 	CalendarUID string
 	// ExpandLabels asks for the labels the entry carries.
 	//

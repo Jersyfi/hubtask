@@ -263,7 +263,7 @@ func TestAReplyToAMissingParentIsRefusedByName(t *testing.T) {
 	}
 }
 
-// The acceptance criterion of C-03: an activity carries no discussion.
+// An activity carries no discussion (domain-model.md §2).
 func TestACommentOnAnActivityIsRefused(t *testing.T) {
 	h := newCommentHarness(t)
 	h.withItem(domain.ItemActivity)

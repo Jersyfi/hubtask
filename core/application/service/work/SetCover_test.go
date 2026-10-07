@@ -239,8 +239,8 @@ func TestClearingAnImageCoverLowersTheReferenceCount(t *testing.T) {
 	}
 }
 
-// The acceptance C-06 names by hand: a cover on a work package is refused, and with the code that
-// says why rather than being quietly dropped.
+// A cover on a work package is refused, and with the code that says why rather than being quietly
+// dropped.
 func TestATypeWithoutTheCapabilityIsRefused(t *testing.T) {
 	for _, itemType := range []domain.ItemType{domain.ItemWorkPackage, domain.ItemActivity} {
 		t.Run(string(itemType), func(t *testing.T) {

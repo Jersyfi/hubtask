@@ -55,13 +55,11 @@ type Ownership interface {
 
 // CreateWorkItemCommand is the input, typed.
 //
-// The fields are the ones this use case owns or dispatches. Everything else the contract's
-// WorkItemCreate declares - the labels, the members, the cover, the custom fields - belongs to a
-// use case that has not landed yet, and is refused rather than accepted and dropped: the
-// catalogue does not declare those fields, so a request carrying one comes back naming it
-// (usecase.field_unknown) instead of returning a 201 for an item that is not what the caller
-// asked for. The assignee and auto_assign joined with C-02, which is the task C-01 left them to;
-// the schedule joined with D-01, the due date dispatching the way the assignee does.
+// The fields are the ones this use case owns or dispatches - the assignee, the due date, the
+// labels, the members, the cover and the custom fields each into the writer that owns them. A
+// field the catalogue does not declare is refused rather than accepted and dropped: a request
+// carrying one comes back naming it (usecase.field_unknown) instead of returning a 201 for an item
+// that is not what the caller asked for.
 type CreateWorkItemCommand struct {
 	// ID is the identifier the client minted, or empty for one the server mints. A device
 	// creating an entry offline assigns its own UUIDv7 so that the entry has its final identity
@@ -92,36 +90,34 @@ type CreateWorkItemCommand struct {
 	// attribute beside the notes.
 	StartAt *time.Time
 	// CalendarUID is the UID a calendar client chose for the entry it is making, and empty for
-	// every other creation (P-07). The tree answers the entry at that address from
-	// then on; nothing else reads it, and nothing ever changes it.
+	// every other creation (offline-sync.md §4.2). The tree answers the entry at that address
+	// from then on; nothing else reads it, and nothing ever changes it.
 	CalendarUID string
 	// Due creates the entry already carrying a due date: the same validation and the same
 	// records as PUT /items/{id}/due, in the same transaction as the creation - the way an
 	// explicit assignee reuses the :assign machinery. Nil for none.
 	Due *domain.DueDate
 	// LabelIDs creates the entry already carrying labels of its collection, and MemberIDs already
-	// on a member list (issue 878): the contract promised both on WorkItemCreate and the catalogue
-	// refused them by name. Each goes through the writer that owns the set, with the same guards
-	// and the same four records as the standalone route, in the same transaction as the creation.
-	// Empty for none.
+	// on a member list. Each goes through the writer that owns the set, with the same guards and
+	// the same four records as the standalone route, in the same transaction as the creation. Empty
+	// for none.
 	LabelIDs  []shared.ID
 	MemberIDs []shared.ID
-	// CustomFields creates the entry already carrying values (issue 896), each judged against the
-	// definition in force for its collection and each written as its own change - the per-key
-	// merge rule the standalone route exists to keep. Nil for none.
+	// CustomFields creates the entry already carrying values, each judged against the definition in
+	// force for its collection and each written as its own change - the per-key merge rule the
+	// standalone route exists to keep. Nil for none.
 	CustomFields map[string]any
-	// Cover creates the entry already covered (issue 896): a colour token or an image, with the
-	// rules and the records of `PUT /items/{id}/cover`, in the same transaction as the creation.
-	// Nil for an entry with no cover. `ItemID` is filled at the dispatch - the caller of a create
-	// does not know the identifier yet, which is half of why this field had to be written here
-	// rather than left to a second request.
+	// Cover creates the entry already covered: a colour token or an image, with the rules and the
+	// records of `PUT /items/{id}/cover`, in the same transaction as the creation. Nil for an entry
+	// with no cover. `ItemID` is filled at the dispatch - the caller of a create does not know the
+	// identifier yet, which is half of why this field had to be written here rather than left to a
+	// second request.
 	Cover *CoverCommand
 	// BeforeItemID is the sibling the new entry is ranked in front of, and empty puts it at the
-	// end (issue 896). The contract has promised it since 0.1 and the catalogue refused it by
-	// name; it is the move's own anchor, answered by the same neighbours query and the same
+	// end. It is the move's own anchor, answered by the same neighbours query and the same
 	// refusal - a sibling that is not at this level is `items.before_item_not_in_level` rather
-	// than a silent append, because a client that asked for a position and got the end of the
-	// list has been ignored.
+	// than a silent append, because a client that asked for a position and got the end of the list
+	// has been ignored.
 	BeforeItemID shared.ID
 }
 
@@ -156,7 +152,7 @@ type CreateWorkItem struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
-	// AutoAssign is the machinery C-02 built for :auto-assign, reused whole: the create path is
+	// AutoAssign is the machinery behind :auto-assign, reused whole: the create path is
 	// its second caller - the policy that applies itself to what a collection creates, and the
 	// explicit `auto_assign` ask - and its Assignment writer is also how an explicit assignee is
 	// written, with the same guards and the same four records as :assign.
@@ -164,19 +160,18 @@ type CreateWorkItem struct {
 	// DueDates is the writer the declared due fields dispatch into, reused whole for the same
 	// reason.
 	DueDates DueDateWriter
-	// Labels and Members are the writers the two set fields dispatch into (issue 878), reused
-	// whole: a label put on at creation is the same OR-set element, the same events and the same
-	// audit entry as one put on a moment later.
+	// Labels and Members are the writers the two set fields dispatch into, reused whole: a label
+	// put on at creation is the same OR-set element, the same events and the same audit entry as
+	// one put on a moment later.
 	Labels  ItemLabelWriter
 	Members ItemMemberWriter
-	// Covers is the writer the declared cover dispatches into (issue 896), reused whole for the
-	// same reason: one place decides what a cover may be, what an image has to be before it may
-	// become one, and what the change owes.
+	// Covers is the writer the declared cover dispatches into, reused whole for the same reason:
+	// one place decides what a cover may be, what an image has to be before it may become one, and
+	// what the change owes.
 	Covers CoverWriter
-	// CustomFields is the use case the declared values dispatch into, one key at a time (issue
-	// 896). Whole rather than a slice of it, because what judges a value is the definition in
-	// force for the entry's collection, and that resolution is the thing that may not be
-	// duplicated.
+	// CustomFields is the use case the declared values dispatch into, one key at a time. Whole
+	// rather than a slice of it, because what judges a value is the definition in force for the
+	// entry's collection, and that resolution is the thing that may not be duplicated.
 	CustomFields SetCustomField
 	// Text brings the title and the notes to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
@@ -216,8 +211,8 @@ func (h CreateWorkItem) Execute(
 	}
 
 	// Whose the new entry has to be. A role narrowed to what is assigned to it creates on itself,
-	// or the entry would be out of its reach the moment it existed - which is the decision on issue
-	// #84, and what keeps "assigned only" true at every moment rather than suspended for one call.
+	// or the entry would be out of its reach the moment it existed - which is what keeps "assigned
+	// only" true at every moment rather than suspended for one call (domain-model.md §3.2).
 	cmd, err = h.assignToCreator(ctx, actor, path, cmd)
 	if err != nil {
 		return domain.WorkItem{}, nil, err
@@ -289,9 +284,9 @@ func (h CreateWorkItem) Execute(
 		created = item
 		if plan != nil {
 			// The entry exists; now it lands on somebody, with the same records the standalone
-			// assignment writes - the second event is what a notification reacts to (C-09
-			// subscribes to item.assigned, not to every create), and it is why the assignment is
-			// not baked into the inserted row.
+			// assignment writes - the second event is what a notification reacts to (the
+			// notifications subscribe to item.assigned, not to every create), and it is why the
+			// assignment is not baked into the inserted row.
 			if created, outcome, err = plan.apply(ctx, actor, item, now); err != nil {
 				return err
 			}
@@ -319,7 +314,7 @@ func (h CreateWorkItem) Execute(
 				}
 			}
 		}
-		// And its cover, through the writer that owns it (issue 896): a type whose profile
+		// And its cover, through the writer that owns it: a type whose profile
 		// carries no COVER, a malformed token or an image the media context will not stand
 		// behind refuses here and takes the creation with it.
 		if cmd.Cover != nil {
@@ -335,10 +330,10 @@ func (h CreateWorkItem) Execute(
 			}
 			created = covered
 		}
-		// And its custom field values, one key at a time through the use case that owns them
-		// (issue 896). Sorted, so that a document with several keys writes its changes in one
-		// order whatever order the request's map was read in - two runs of one request would
-		// otherwise announce the same facts in different sequences.
+		// And its custom field values, one key at a time through the use case that owns them.
+		// Sorted, so that a document with several keys writes its changes in one order whatever
+		// order the request's map was read in - two runs of one request would otherwise announce
+		// the same facts in different sequences.
 		if len(cmd.CustomFields) > 0 {
 			profile, err := profileOf(ctx, h.Profiles, created.Type)
 			if err != nil {
@@ -359,9 +354,9 @@ func (h CreateWorkItem) Execute(
 				created = filled
 			}
 		}
-		// And its labels and its members, through the writers that own the two sets (issue
-		// 878): a label from another collection, or a type whose profile carries no LABELS,
-		// refuses here and takes the creation with it, as the due date does.
+		// And its labels and its members, through the writers that own the two sets: a label from
+		// another collection, or a type whose profile carries no LABELS, refuses here and takes the
+		// creation with it, as the due date does.
 		for position, labelID := range cmd.LabelIDs {
 			if err := h.Labels.addWithin(ctx, actor, created, collection, labelID, position, now); err != nil {
 				return err
@@ -717,7 +712,7 @@ func (h CreateWorkItem) itemOrderKey(
 	}
 
 	// Nothing is excluded: the entry being placed is not in the table yet, and the query reads a
-	// zero identifier as "leave every row in the level" (issue 992).
+	// zero identifier as "leave every row in the level".
 	previous, next, err := h.Items.Neighbours(
 		ctx, repository.Level{CollectionID: collectionID, ParentID: parentID}, beforeID, "",
 	)
@@ -867,7 +862,7 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 		// read as "this server does not know about languages".
 		"content_language": stringOrNil(item.ContentLanguage),
 		// Always present, as null for an entry no calendar client made: the address the tree
-		// answers the entry at, where a client chose one (P-07).
+		// answers the entry at, where a client chose one (offline-sync.md §4.2).
 		"calendar_uid": stringOrNil(item.CalendarUID),
 		"archived_at":  timeOrNil(item.ArchivedAt),
 		"deleted_at":   timeOrNil(item.DeletedAt),

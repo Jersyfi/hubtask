@@ -10,8 +10,8 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// The create path's half of C-02: an entry created already on somebody - by name, or by the
-// collection's policy - with the same records the standalone assignment writes.
+// The create path's half of automatic assignment: an entry created already on somebody - by name,
+// or by the collection's policy - with the same records the standalone assignment writes.
 
 // withAssignment gives the harness the profiles that carry ASSIGNMENT and returns a create
 // command; the fixture profiles of the placement tests are deliberately narrower.
@@ -159,8 +159,8 @@ func TestNamingAPersonAndAskingForThePolicyIsRefused(t *testing.T) {
 	assertValidation(t, err, "items.assignee_conflicts_auto_assign")
 }
 
-// The acceptance criterion of C-02: a policy with nobody eligible leaves the entry unassigned and
-// says so in the result with a stable code, instead of failing the creation.
+// A policy with nobody eligible leaves the entry unassigned and says so in the result with a stable
+// code, instead of failing the creation.
 func TestNobodyEligibleStillCreatesTheEntry(t *testing.T) {
 	h := newItemHarness()
 	h.withAssignment()

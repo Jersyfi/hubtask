@@ -178,9 +178,9 @@ func (h SetCustomField) Execute(
 }
 
 // setWithin writes one custom field on an entry that is being created, inside the creator's
-// transaction (issue 896): the same definition lookup, the same judgement and the same five
-// records as `PUT /items/{id}/custom-fields/{key}`, minus the permission question, which the
-// creation has already asked of the same path with the same permission.
+// transaction: the same definition lookup, the same judgement and the same five records as
+// `PUT /items/{id}/custom-fields/{key}`, minus the permission question, which the creation has
+// already asked of the same path with the same permission.
 //
 // One key per call here too, and the caller loops. That is the merge rule made unavoidable rather
 // than a convenience: a create that wrote the document as one scalar would give every key one HLC,

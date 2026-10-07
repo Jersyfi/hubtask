@@ -563,12 +563,12 @@ func (h ReopenWorkItem) invoke(
 // completionCommand reads the untyped input, and refuses the one field the contract declares that this
 // installation does not serve.
 //
-// `cascade_children` is in api/openapi.yaml and completing a whole subtree in one call is not part of
-// B-07. It is declared here and refused when true rather than left out of the declaration entirely,
-// because the two failures are different: a field the catalogue does not know comes back as
-// `usecase.field_unknown`, which tells a client it misspelled something, and a client sending the
-// documented default `false` would then be refused for asking for exactly what it gets. Refusing only
-// `true` says the true thing - this installation cannot do that yet.
+// `cascade_children` is in api/openapi.yaml and completing a whole subtree in one call is not
+// served. It is declared here and refused when true rather than left out of the declaration
+// entirely, because the two failures are different: a field the catalogue does not know comes back
+// as `usecase.field_unknown`, which tells a client it misspelled something, and a client sending
+// the documented default `false` would then be refused for asking for exactly what it gets.
+// Refusing only `true` says the true thing - this installation cannot do that yet.
 func completionCommand(in usecase.Input) (CompletionCommand, error) {
 	if in.Bool("cascade_children") {
 		return CompletionCommand{}, shared.ErrValidation.
