@@ -16,7 +16,7 @@ import (
 )
 
 // The installation's half of ADR-0076: a withdrawal is announced for a date, *Withdraw now* repeats
-// the count, either can be cancelled, and the form no longer ends an offer by itself.
+// the count, either can be cancelled, and the form does not end an offer by itself.
 
 const withdrawnRow = shared.ID("01936f2a-7c1e-7000-8000-0000000000d4")
 
@@ -127,7 +127,7 @@ func TestCancellingAWithdrawalKeepsOfferingIt(t *testing.T) {
 	}
 }
 
-// The form no longer ends an offer by itself: an unannounced, unconfirmed withdrawal is exactly what
+// The form does not end an offer by itself: an unannounced, unconfirmed withdrawal is exactly what
 // ADR-0076 replaces. The same value, or none, is accepted.
 func TestTheInstallationsFormRefusesAChangedSwitch(t *testing.T) {
 	writer, store, _, _ := newInstanceProviderWriter(newRegister(operatorID))

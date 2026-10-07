@@ -107,8 +107,8 @@ func (s *instanceProviderStore) SetWithdrawal(
 	return domain.IdentityProvider{}, false, nil
 }
 
-// Reconfigure is Update with the row's own switch kept, as the statement's COALESCE keeps it: since
-// ADR-0076 the installation's form no longer ends an offer either.
+// Reconfigure is Update with the row's own switch kept, as the statement's COALESCE keeps it: the
+// installation's form does not end an offer either (ADR-0076).
 func (s *instanceProviderStore) Reconfigure(
 	ctx context.Context, configured domain.IdentityProvider,
 	sealed *cryptoport.Sealed, now time.Time,

@@ -139,8 +139,8 @@ type ProvisionTenant struct {
 	// mode: single mode's whole contract is "exactly one tenant, no selection" (§1).
 	Tenancy env.TenancyMode
 	// Hosts records the one host the new workspace answers at. Optional: a build wired
-	// without it provisions exactly as before, which is what every installation before migration
-	// 0104 was - nothing resolves through the table yet, so a missing row costs nothing.
+	// without it provisions without a host - nothing resolves through the table, so a missing row
+	// costs nothing.
 	Hosts identityrepo.TenantHosts
 	// InstallationHost is this installation's own host, from which the canonical one is derived: the
 	// slug in front of it in multi mode, and the host itself in single mode. From the configured
