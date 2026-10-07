@@ -13,7 +13,7 @@ import (
 )
 
 // Search is one full-text search: the words, where to look, and how much of the answer to return
-// (C-08, domain-model.md §5).
+// (domain-model.md §5).
 //
 // A sibling of Spec rather than a filter inside it, and the difference is what it answers with. A
 // query says which entries satisfy a condition and returns them in an order somebody chose; a
@@ -22,9 +22,9 @@ import (
 // could ask for - `ts_rank_cd` reads the same lexemes the match did.
 //
 // The scope is optional, which is the second difference. A query is anchored because an unanchored
-// one is a question authorisation cannot answer in one step (Scope). A search is the one read
-// where that is the question being asked - "where is this, anywhere" - so it is answered the way
-// the trash is: read, then narrowed to what the actor may see (ListTrash, C-04).
+// one is a question authorisation cannot answer in one step (Scope). A search is the one read where
+// that is the question being asked - "where is this, anywhere" - so it is answered the way the
+// trash is: read, then narrowed to what the actor may see (ListTrash).
 //
 // And because it is that read, it is the one that may also be **narrowed** (ADR-0064). It takes
 // the same filter tree Spec does - the same closed vocabulary, the same bounds, the same cost cap
@@ -48,8 +48,8 @@ type Search struct {
 	IncludeTrashed  bool
 	Cursor          string
 	Size            int
-	// Mode is how much of the search to use (J-10, ADR-0050). Empty means SearchAuto, so a caller
-	// that predates the field - and a client that never sends it - keeps getting the whole search.
+	// Mode is how much of the search to use (ADR-0050). Empty means SearchAuto, so a caller that
+	// predates the field - and a client that never sends it - keeps getting the whole search.
 	Mode SearchMode
 	// Filter narrows the hits, in Spec's grammar and with Spec's bounds. Nil is no narrowing.
 	Filter *Node

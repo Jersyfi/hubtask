@@ -246,10 +246,9 @@ func resolveValue(t *testing.T, field, placeholder string, at Resolution) Value 
 	return resolved.Values[0]
 }
 
-// The week starts where the account or its locale says (i18n-l10n.md §4, M-06): on the same
-// Wednesday, `@start_of_week` is the Monday before for one person, the Sunday before for
-// another, the Saturday before for a third - and Monday for a resolution that says nothing,
-// which is what every query before 0.8.0 got.
+// The week starts where the account or its locale says (i18n-l10n.md §7): on the same Wednesday,
+// `@start_of_week` is the Monday before for one person, the Sunday before for another, the Saturday
+// before for a third - and Monday for a resolution that says nothing.
 func TestTheWeekStartsWhereTheResolutionSays(t *testing.T) {
 	location := berlin(t)
 	wednesday := time.Date(2026, 8, 19, 14, 30, 0, 0, location)

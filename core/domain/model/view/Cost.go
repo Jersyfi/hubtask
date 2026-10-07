@@ -5,10 +5,10 @@ package view
 
 import "strconv"
 
-// The cost estimate (H-08, multi-tenancy.md §4): the rejection of obviously unaffordable
-// queries, on top of the depth and node caps that were always the floor. Like them it is part
-// of the grammar, not a configuration value - a query a client may send is a query every
-// installation has to be able to plan.
+// The cost estimate (multi-tenancy.md §4): the rejection of obviously unaffordable queries, on top
+// of the depth and node caps that were always the floor. Like them it is part of the grammar, not a
+// configuration value - a query a client may send is a query every installation has to be able to
+// plan.
 //
 // The model is deliberately crude. It does not predict a plan; it prices the shapes that are
 // known to be expensive - text scans, list fans, negations the indexes cannot serve - and

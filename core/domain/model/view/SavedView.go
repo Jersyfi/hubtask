@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// SavedView is a stored query with the layout it is drawn in (domain-model.md §3.5, D-07).
+// SavedView is a stored query with the layout it is drawn in (domain-model.md §3.5).
 //
 // It lives beside the grammar deliberately: this package decides what a query *means*, and a
 // saved view is a query somebody kept - validated by the same catalogue at write time, because a
@@ -104,9 +104,9 @@ type Sharing string
 const (
 	SharingPrivate Sharing = "PRIVATE"
 	SharingScope   Sharing = "SCOPE"
-	// SharingPublicLink is declared - the check constraint has carried it since 0001_init - and
-	// refused by name: the calendar feed is this version's only public reader and carries its own
-	// token, and a browsable public link is a product decision no task takes in passing (D-07).
+	// SharingPublicLink is declared - the check constraint accepts it - and refused by name: the
+	// calendar feed is the only public reader and carries its own token, and a browsable public
+	// link is a product decision not taken here.
 	SharingPublicLink Sharing = "PUBLIC_LINK"
 )
 
@@ -156,8 +156,8 @@ type NewSavedViewInput struct {
 
 	Now time.Time
 
-	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5,
-	// M-07); work.NewWorkItemInput says why it is handed in.
+	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5);
+	// work.NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 
@@ -258,7 +258,7 @@ func (a ViewAttributes) IsEmpty() bool {
 // no version and records nothing for an update that changes nothing - the contract every writer
 // here keeps.
 //
-// The normaliser is handed in for the reason NewSavedView takes one (M-07).
+// The normaliser is handed in for the reason NewSavedView takes one (i18n-l10n.md §5).
 func (v SavedView) Updated(attributes ViewAttributes, form text.Normalizer) (SavedView, bool, error) {
 	changed := false
 
@@ -332,7 +332,7 @@ func (v SavedView) Shared(sharing Sharing) (SavedView, bool, error) {
 
 // ValidatedViewQuery checks the stored query document against the grammar an ad-hoc query passes,
 // with the same codes - which is the whole point: a saved view refused at write is a correction
-// somebody can make, and one refused at read is a broken bookmark (D-07).
+// somebody can make, and one refused at read is a broken bookmark.
 //
 // Validated, not normalised: the document is stored exactly as sent, placeholders included -
 // `@me` in a saved view is the reader at read time, which is what makes one view mean the right
@@ -369,12 +369,12 @@ func ValidatedViewQuery(raw map[string]any) (map[string]any, error) {
 
 // validatedQueryScope checks the document's anchor, parsed by the rule the execution applies.
 //
-// **Flat, and required.** Both halves were traps (issue #431). The document is the *use case's*
-// input rather than the REST body: `presentation/rest` flattens `scope: {container_id}` into
-// `scope_container_id` before any use case sees it, and `:export` hands the stored document back
-// as an input. A nested `scope` therefore anchors nothing, and an unanchored view is refused at
-// every export - `query.scope_required`, naming a field the caller never sent, in an operation a
-// long way from the one where the mistake was made.
+// **Flat, and required.** Both halves are traps. The document is the *use case's* input rather than
+// the REST body: `presentation/rest` flattens `scope: {container_id}` into `scope_container_id`
+// before any use case sees it, and `:export` hands the stored document back as an input. A nested
+// `scope` therefore anchors nothing, and an unanchored view is refused at every export -
+// `query.scope_required`, naming a field the caller never sent, in an operation a long way from the
+// one where the mistake was made.
 //
 // Existence is not asked here: the anchor is resolved by whoever executes the view, under their
 // own authorisation.
