@@ -1,9 +1,7 @@
 # Licence and Edition Model
 
-> The decision is [ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md). It supersedes
-> [ADR-0059](../adr/ADR-0059-licensing-phases-and-licensing-start.md) and
-> [ADR-0013](../adr/ADR-0013-licensing.md), which keep the reasoning behind the licence the
-> project had before. This document is not legal advice.
+> The decision is [ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md). This document is not legal
+> advice.
 
 ---
 
