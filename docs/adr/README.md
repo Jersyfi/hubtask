@@ -17,7 +17,7 @@ read that section for what holds today ([ADR-0081](./ADR-0081-how-work-is-organi
 - An ADR accepted before anything implements it gets a task in a milestone, in the pull request that
   accepts it, and an open point in its subject document; a decision no task owns stays unbuilt.
 - Every new ADR is named to the owner. When the code that implements a proposed ADR merges, the
-  same pull request moves it to `accepted` here, in its header and in arc42 §9.
+  same pull request moves it to `accepted` here and in its header.
 
 Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 

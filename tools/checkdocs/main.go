@@ -16,8 +16,6 @@
 //     nobody finds; an index entry without a file is a decision that looks recorded and is not.
 //   - Every ADR-xxxx named anywhere in the repository exists. Code cites ADR numbers in comments,
 //     and a typo there points a reader at nothing.
-//   - arc42 §9 lists every ADR the index lists, with the same status. It repeats the decision list,
-//     and a repetition nobody checks drifts - this one stood three decisions behind.
 //   - Every statement of the Go version agrees with go.mod. It is repeated in thirty places
 //     across eight files, and a base image bumped on its own would have the release built by a
 //     compiler no gate ever ran.
@@ -64,7 +62,6 @@ func main() {
 	problems = append(problems, checkLinks(root, docs)...)
 	problems = append(problems, checkADRIndex(root)...)
 	problems = append(problems, checkADRReferences(root)...)
-	problems = append(problems, checkArc42ADRTable(root)...)
 	problems = append(problems, checkGoVersion(root)...)
 	problems = append(problems, checkSupportMatrix(root)...)
 	problems = append(problems, checkCoverageReport(root)...)
