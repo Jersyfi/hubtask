@@ -712,7 +712,14 @@ for f in docs/usecases/*/UC-*.md; do
 		break
 	fi
 done
-MILESTONE=$(grep -l '^\*\*Delivers:\*\*' docs/backlog/milestone-*.md | head -1)
+# Loops rather than `grep | head`: under pipefail, head closing the pipe kills grep with SIGPIPE.
+MILESTONE=""
+for f in docs/backlog/milestone-*.md; do
+	if grep -q '^\*\*Delivers:\*\*' "$f"; then
+		MILESTONE=$f
+		break
+	fi
+done
 CHECKS=$((CHECKS + 1))
 cp "$MILESTONE" "$MILESTONE.selftest-backup"
 printf '\n## ZZ-99 — A probe task\n\n**Use cases:** %s (1)\n' "$PROBE_UC" >>"$MILESTONE"
@@ -728,7 +735,13 @@ fi
 mv "$MILESTONE.selftest-backup" "$MILESTONE"
 
 CHECKS=$((CHECKS + 1))
-BUILT=$(grep -l '^state: built' docs/usecases/*/UC-*.md | head -1)
+BUILT=""
+for f in docs/usecases/*/UC-*.md; do
+	if grep -q '^state: built' "$f"; then
+		BUILT=$f
+		break
+	fi
+done
 cp "$BUILT" "$BUILT.selftest-backup"
 printf '\n## Today\n\n* Check 1: not met — a probe\n' >>"$BUILT"
 if make --no-print-directory gate-docs >/dev/null 2>&1; then
