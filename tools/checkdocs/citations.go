@@ -24,6 +24,8 @@ import (
 var (
 	sectionCitation = regexp.MustCompile(`([a-z0-9-]+\.md)\s*§\s*(\d+(?:\.\d+)*)`)
 	taskCitation    = regexp.MustCompile(`\b(?:SC|SI|PH|F\d{1,2})-\d{2}\b`)
+	letterTask      = regexp.MustCompile(`\b[A-Z]-\d{2}\b`)
+	letterHeading   = regexp.MustCompile(`(?m)^## ([A-Z]-\d{2}) `)
 	issueCitation   = regexp.MustCompile(`(?:(?:^|[^\w&/])#\d{3,4}\b)|(?:\b[Ii]ssues? #?\d{3,4}\b)`)
 	milestoneFile   = regexp.MustCompile(`milestone-[A-Za-z0-9.]+\.md`)
 	instructionFile = regexp.MustCompile(`\b(?:CLAUDE|AGENTS)\.md\b`)
@@ -81,10 +83,36 @@ func codeDocument(file string) bool {
 	return strings.Contains(file, "/") && !strings.HasPrefix(file, ".github/") && path.Base(file) != "AGENTS.md"
 }
 
+// stableLetters are the single letters of identifiers that stay: alerts (A-14), constraints (C-03)
+// and quality goals (Q-02) in arc42, principles (P-05), risks (R-09) and threats (T-07). The early
+// milestones lettered their tasks A to W, and a task A-05 cannot be told from alert A-05 by its
+// shape - so a citation of a task lettered A, C or P is left to review.
+const stableLetters = "ACPQRT"
+
+// letterTasks are the single-letter task IDs the milestones ever named in a task heading (## G-02),
+// except those whose letter a stable identifier uses.
+func letterTasks(root string) map[string]bool {
+	tasks := map[string]bool{}
+	for _, dir := range []string{filepath.Join("docs", "backlog"), filepath.Join("docs", "archive", "backlog")} {
+		files, _ := filepath.Glob(filepath.Join(root, dir, "milestone-*.md"))
+		for _, file := range files {
+			relative, _ := filepath.Rel(root, file)
+			for _, m := range letterHeading.FindAllStringSubmatch(read(root, relative), -1) {
+				if !strings.ContainsRune(stableLetters, rune(m[1][0])) {
+					tasks[m[1]] = true
+				}
+			}
+		}
+	}
+	return tasks
+}
+
 // isTestData is a file whose literals may carry a task or issue number as data (a fixture, a test
 // of the gate that refuses them); its section citations are still checked.
 func isTestData(file string) bool {
-	return strings.HasSuffix(file, "_test.go") || strings.Contains(file, "/testdata/") || strings.Contains(file, "/e2e/fixture")
+	base := path.Base(file)
+	return strings.HasSuffix(file, "_test.go") || strings.Contains(base, ".test.") ||
+		strings.Contains(file, "/testdata/") || strings.Contains(file, "/e2e/fixture")
 }
 
 func checkCodeCitations(root string) []string {
@@ -93,6 +121,7 @@ func checkCodeCitations(root string) []string {
 		return []string{fmt.Sprintf("citations: %v", err)}
 	}
 	sections := documentSections(root, files)
+	tasks := letterTasks(root)
 	var problems []string
 	for _, file := range files {
 		if !citationScope(file) {
@@ -102,13 +131,13 @@ func checkCodeCitations(root string) []string {
 		if err != nil {
 			continue
 		}
-		problems = append(problems, citationProblems(file, string(raw), sections)...)
+		problems = append(problems, citationProblems(file, string(raw), sections, tasks)...)
 	}
 	problems = append(problems, publicTextProblems(read(root, filepath.Join("api", "openapi.yaml")))...)
 	return problems
 }
 
-func citationProblems(file, text string, sections map[string]*docSections) []string {
+func citationProblems(file, text string, sections map[string]*docSections, tasks map[string]bool) []string {
 	var problems []string
 	data := isTestData(file)
 	for i, line := range strings.Split(text, "\n") {
@@ -129,6 +158,12 @@ func citationProblems(file, text string, sections map[string]*docSections) []str
 		}
 		if m := taskCitation.FindString(line); m != "" {
 			problems = append(problems, fmt.Sprintf("%s: cites the task %s - cite the rule or the use case check instead (AGENTS.md, Code comments)", where, m))
+		}
+		for _, m := range letterTask.FindAllString(line, -1) {
+			if tasks[m] {
+				problems = append(problems, fmt.Sprintf("%s: cites the task %s - cite the rule or the use case check instead (AGENTS.md, Code comments)", where, m))
+				break
+			}
 		}
 		if m := issueCitation.FindString(line); m != "" && !strings.HasSuffix(file, ".svelte") && !strings.HasSuffix(file, ".ts") {
 			problems = append(problems, fmt.Sprintf("%s: cites an issue or pull request (%s) - the reason, not the ticket", where, strings.TrimSpace(m)))

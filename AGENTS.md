@@ -220,8 +220,8 @@ refuses Claude Code a `gh pr create` without `--draft` and a `gh pr ready` befor
   never what the next line does, history or plans. `[unchecked: judgement]`
 - Cite only stable references: `rule 10`, `P-05`, `UC-ID-12/4`, an existing identifier (`SG-3`,
   `RT-12`, `T-07`), `security.md §9`, an ADR for the reasoning — never a task ID, an issue or pull
-  request number, or an instruction file. `[partial: gate-docs; open: single-letter task ids, which
-  collide with alert and principle ids]`
+  request number, or an instruction file. `[partial: gate-docs; open: tasks lettered A, C or P,
+  which share their letter with alert, constraint and principle ids]`
 - Text an API client or an end user reads (`api/openapi.yaml`, metric help) holds no internal
   reference; operator dashboards may link the operating documents. `[partial: gate-docs; open:
   metric help]`

@@ -27,10 +27,13 @@ func TestCitations(t *testing.T) {
 		{"a milestone file", "core/x.go", "// milestone-F8.md decision 5", "a milestone's decisions"},
 		{"an instruction file", "core/x.go", "// rule 7 of AGENTS.md", "cite the rule"},
 		{"a rule by number", "core/x.go", "// (rule 7, ADR-0016)", ""},
+		{"a task with a single letter", "core/x.go", "// measured in G-02", "cites the task G-02"},
+		{"an alert, a threat, a principle", "core/x.go", "// A-14, T-07, P-05, C-03, R-09", ""},
+		{"a single letter that is no task", "core/x.go", "// option B-99", ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := strings.Join(citationProblems(c.file, c.line, sections), "\n")
+			got := strings.Join(citationProblems(c.file, c.line, sections, map[string]bool{"G-02": true}), "\n")
 			if c.want == "" && got != "" {
 				t.Fatalf("want nothing, got %s", got)
 			}
@@ -62,10 +65,10 @@ func TestCitationScope(t *testing.T) {
 			t.Errorf("%s: in scope %v, want %v", file, got, want)
 		}
 	}
-	if p := citationProblems("packages/x/README.md", "The rules are in [AGENTS.md](./AGENTS.md).", nil); len(p) != 0 {
+	if p := citationProblems("packages/x/README.md", "The rules are in [AGENTS.md](./AGENTS.md).", nil, nil); len(p) != 0 {
 		t.Errorf("a README pointing to its AGENTS.md was refused: %v", p)
 	}
-	if p := citationProblems("deploy/x/README.md", "Found in issue #310.", nil); len(p) == 0 {
+	if p := citationProblems("deploy/x/README.md", "Found in issue #310.", nil, nil); len(p) == 0 {
 		t.Error("an issue number in a code document passed")
 	}
 }
