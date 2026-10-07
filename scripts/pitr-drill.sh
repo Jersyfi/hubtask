@@ -12,7 +12,7 @@
 #
 # What this cannot prove, and does not claim to: the *size* of the numbers. A kind cluster on a
 # shared runner measures the runner. RPO and RTO become real figures only against production, where
-# they stay internal (decision 7 of milestone 0.6.0).
+# they stay internal (observability-reliability.md §13.2).
 #
 # It expects a kind cluster to exist - the workflow creates one - and leaves everything behind for
 # the job's logs; the cluster is thrown away with the runner.
@@ -31,8 +31,7 @@ CLUSTER="hubtask-db"
 # Both lists are reconciled with deploy/observability/alerts/prometheus-rules-pitr.yaml by
 # test/observability on every pull request: every name a rule reads has to appear in one of them,
 # and every name here has to be read by a rule. Without that, a list drifts from the file it
-# claims to check and goes on reporting confidently - `cnpg_collector_up` sat in it for months
-# without a single rule reading it (#940).
+# claims to check and goes on reporting confidently about a name no rule reads.
 #
 # Required: published by the instance manager's own collector, on the primary, once the cluster
 # has a backup configured - which the step above has just waited for.
@@ -48,7 +47,7 @@ cnpg_collector_last_available_backup_timestamp"
 PITR_ABSENT_METRICS="cnpg_pg_replication_lag"
 DRILL_CLUSTER="hubtask-db-drill"
 # The S3-compatible server, the same pin test/s3test holds for the Go suites. Overridable for the
-# same reason the images there are (#1029).
+# same reason the images there are.
 S3_IMAGE="${HUBTASK_TEST_S3_IMAGE:-chrislusf/seaweedfs:4.47}"
 BUCKET="hubtask-backups"
 MEDIA_BUCKET="hubtask-media"
@@ -137,8 +136,8 @@ echo "--- an object store for the archive ---"
 # buckets, no persistence: it exists for the length of this job, and the archive it holds is
 # written and read back inside it.
 #
-# It replaced MinIO when MinIO archived its open-source server and client and closed every
-# registry that served them (#1029, test/s3test says the rest). The drill and the Go suites share
+# Not MinIO: its open-source server and client are archived and its registries closed
+# (test/s3test says the rest). The drill and the Go suites share
 # that choice on purpose - an object store the tests never meet is an object store nobody proves.
 #
 # The server's whole authorisation surface is one identity in a JSON file, so the Secret carries
@@ -230,7 +229,7 @@ done
 }
 
 echo "--- the release, with the database the chart owns ---"
-# Two DSNs, the arrangement A-11 asks of Kubernetes (multi-tenancy.md §2.1): the migration runs as
+# Two DSNs, the arrangement multi-tenancy.md §2.1 asks of Kubernetes: the migration runs as
 # the owner - out of the Secret CloudNativePG generates, so that credential is never copied - and
 # the application connects as hubtask_app, whose login the migrator grants from this password.
 # The drill uses both: the owner writes the markers, and hubtask_app is the role whose bounds the
@@ -322,16 +321,15 @@ echo "--- the metric names A-12's rules read, against a real instance ---"
 #
 # The list is PITR_REQUIRED_METRICS below, and `test/observability` reconciles it with the rules
 # file in both directions on every pull request - a list that drifts from the rules it claims to
-# check is the failure this whole section exists to prevent, and it had already happened:
-# `cnpg_collector_up` stood here for months and no rule has ever read it (#940).
+# check is the failure this whole section exists to prevent.
 cnpg_metrics="$(fetch "pod/$CLUSTER-1" 9187 /metrics)" || fail "the database's metrics port did not answer"
 missing=0
 for metric in $PITR_REQUIRED_METRICS; do
 	# Into a variable and matched from there, never through a pipe. `grep -q` leaves on its first
 	# match, the writer gets SIGPIPE, and `set -o pipefail` at the top of this script then turns a
 	# *match* into a failed pipeline: a metric that is published is reported missing, and whether it
-	# happens depends on where in the payload the match falls. That is how this check spent every
-	# night since 2026-09-08 reporting three names the operator publishes perfectly well (#940).
+	# happens depends on where in the payload the match falls - and the check reports names the
+	# operator publishes perfectly well.
 	if grep -q "^# TYPE $metric " <<<"$cnpg_metrics"; then
 		echo "  $metric"
 	else
@@ -381,7 +379,7 @@ kubectl -n "$NAMESPACE" logs job/hubtask-restore-drill --tail=200 || true
 echo "--- and what it left behind ---"
 # Three properties the log alone would not prove.
 #
-# 1. The record the gauge is read from, because A-20 has waited for it since 0.4.5.
+# 1. The record the gauge is read from, because A-20 reads it.
 record="$(kubectl -n "$NAMESPACE" get configmap hubtask-restore-drill -o jsonpath='{.data.last_success_unix}' 2>/dev/null || true)"
 case "$record" in
 	'') fail "the drill wrote no last_success_unix into its record" ;;

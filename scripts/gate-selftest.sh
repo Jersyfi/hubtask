@@ -7,8 +7,8 @@
 #
 # Why this exists: a rule that is configured but never triggered is indistinguishable from one
 # that is silently disabled - a wrong glob pattern in depguard, a linter renamed by an upgrade,
-# an exclusion that is too wide. The acceptance criterion of task A-01 is precisely "a deliberate
-# violation of every configured rule demonstrably fails the build".
+# an exclusion that is too wide. What this script holds is precisely that a deliberate violation
+# of every configured rule demonstrably fails the build.
 #
 # The violating files are written into the work tree (the layer rules are path-dependent, so they
 # cannot live in a temporary directory) and are removed again afterwards, including on abort.
@@ -415,11 +415,11 @@ header "Coverage threshold (make gate-unit)"
 
 # Two halves, because the rule and its wiring fail in different ways and neither proves the other.
 #
-# The rule is `coverage-check`, and it is asked directly. Asking `make gate-unit` instead ran the
-# whole test suite with the race detector - 189 seconds of this script's 14 minutes - to reach a
-# threshold that `coverage-check` decides in fifteen (#911). It was also the weaker evidence: any
-# red result counted as a catch, including a compile error that never reached the threshold at
-# all. The output is now read, so the probe passes for the reason it names.
+# The rule is `coverage-check`, and it is asked directly. Asking `make gate-unit` instead would run
+# the whole test suite with the race detector to reach a threshold that `coverage-check` decides in
+# seconds. It would also be the weaker evidence: any red result would count as a catch, including a
+# compile error that never reached the threshold at all. The output is read, so the probe passes
+# for the reason it names.
 #
 # The wiring is that `gate-unit` calls it. `make -n` prints the recipe without running it, which
 # is what turns "the threshold bites" and "the gate applies it" into two statements instead of
@@ -447,7 +447,7 @@ else
 	FAILURES=$((FAILURES + 1))
 fi
 
-# A query that orders by a name and does not say which collation (M-08). The gate globs
+# A query that orders by a name and does not say which collation (i18n-l10n.md §5). The gate globs
 # db/queries/*.sql, so the violation is a file there rather than a Go package.
 expect_query_failure() {
 	local name="$1" content="$2" file="db/queries/zz_gate_selftest.sql"
@@ -466,7 +466,7 @@ expect_query_failure "a name ordered without its collation" \
 '-- name: SelftestLabels :many
 SELECT id, name FROM label ORDER BY name, id;'
 
-# A translation the gate must refuse (M-03): a key the source does not have, a placeholder that
+# A translation the gate must refuse: a key the source does not have, a placeholder that
 # does not match the source's, a message outside the ICU subset, a key written twice. Each is a
 # catalogue file under locales/, which is what the gate reads - a Go package would prove nothing.
 expect_catalogue_failure() {
@@ -540,7 +540,7 @@ The reasoning is in ADR-0099.'
 header "The chart (make gate-chart)"
 
 # The image policy verifies against an identity, and a policy without one verifies against nobody
-# (CI-3, P-15). The probes edit the chart's own defaults - the subjects in values.yaml, the failure
+# (deployment.md §3.2). The probes edit the chart's own defaults - the subjects in values.yaml, the failure
 # policy in the template - and expect the chart check to refuse the render.
 expect_chart_failure() {
 	local name="$1" file="$2" from="$3" to="$4"
@@ -573,8 +573,8 @@ fi
 header "Prompts and the code that reads them (make gate-architecture)"
 
 # What a prompt asks a provider for and what the code keeps are a markdown file and a Go map, and
-# until K-01 nothing read both: `suggest-fields` asked for `subtasks` for four milestones while the
-# allow list dropped the key, so every jumble suggestion paid for an answer nobody read. The probe
+# without a gate reading both, a prompt can ask for a key the allow list drops, so that every
+# suggestion pays for an answer nobody reads. The probe
 # is a prompt file, so it gets one of its own - the prompts are embedded from one directory and a
 # subdirectory would not be read at all.
 expect_prompt_failure() {
@@ -599,13 +599,13 @@ expect_prompt_failure "a prompt no allow list names" \
 {"title": "…", "subtasks": ["…"]}
 ```'
 
-# The second half of the same rule, and the one #529 exists for: a key an allow list keeps that the
-# use case applying the proposal cannot take is dropped by J-16's narrowing, silently, and the
-# provider was paid for it. K-01's gate cannot see that - it compares the prompt with the allow
-# list, and those two agree the whole time.
+# The second half of the same rule: a key an allow list keeps that the use case applying the
+# proposal cannot take is dropped by the narrowing, silently, and the provider was paid for it. The
+# prompt's gate cannot see that - it compares the prompt with the allow list, and those two agree
+# the whole time.
 #
 # The probe bites the *descriptor* rather than the allow list, and it has to: editing the allow list
-# would put the prompt and the code out of step, K-01's gate would go red first, and
+# would put the prompt and the code out of step, the prompt's gate would go red first, and
 # gate-architecture would be red for the old reason while the new check went unexercised. Editing a
 # Go file back afterwards is the event schema probes' pattern.
 expect_descriptor_failure() {
@@ -839,7 +839,7 @@ mv "$MATRIX.selftest-backup" "$MATRIX"
 header "The Go version (make gate-docs)"
 
 # The Go version stands in seventeen places across eight files, and nothing kept them in step. A
-# Dependabot pull request bumping only the base image (#107) would have left the released binary
+# Dependabot pull request bumping only the base image would leave the released binary
 # built by a compiler no gate had ever run - which is the probe: move the image and nothing else.
 CHECKS=$((CHECKS + 1))
 DOCKERFILE="deploy/docker/Dockerfile"
@@ -896,7 +896,7 @@ header "Drafts run nothing (make gate-architecture)"
 
 # ADR-0079 rests on two lines of ci.yml, and both fail quietly: a root job without the draft
 # condition runs on every push to a draft again, and `ci-required` under its plain name puts a green
-# `CI required` on a draft's commit that no gate earned (#1137). Each probe takes one of them away;
+# `CI required` on a draft's commit that no gate earned. Each probe takes one of them away;
 # the workflow is put back whatever happens.
 expect_architecture_failure_after() {
 	local name="$1" file="$2" programme="$3"
@@ -951,9 +951,9 @@ rm -f "$PIN_PROBE"
 
 header "Data protection (make gate-privacy)"
 
-# PG-1 to PG-8 are the gates data-protection.md §10 and ADR-0018 assert. Four documents claimed
-# them and nothing ran them until E-11, so what has to be shown here is not that they are clever -
-# it is that each one goes red. Three take a probe package the way the layer rules do; the rest
+# PG-1 to PG-8 are the gates data-protection.md §10 and ADR-0018 assert. What has to be shown here
+# is not that they are clever - it is that each one goes red. Three take a probe package the way
+# the layer rules do; the rest
 # need a line of the real source moved, and are restored afterwards.
 
 expect_gate_failure "an audit change without a classification" gate-privacy core/domain \
@@ -1017,8 +1017,8 @@ expect_privacy_failure_after() {
 expect_privacy_failure_after "a retention kind without a lower bound" \
 	core/domain/model/lifecycle/Catalogue.go '/KindTrash/ s/MinDays: [0-9]*/MinDays: 0/'
 
-# PG-8 was a tripwire until J-02 and is a check now: the AI provider surface it was watching for
-# arrived, so what has to go red is the refusal itself. Two probes, because the gate asserts two
+# PG-8 checks the AI provider surface, so what has to go red is the refusal itself. Two probes,
+# because the gate asserts two
 # different things about the same rule.
 #
 # The first removes the refusal from the application layer - a third-country provider configured
@@ -1080,9 +1080,9 @@ fi
 header "The generated SDK (make gate-sdk)"
 
 # A file that is not Python, in the package `make sdk` writes. The realistic shape of the defect:
-# the generator meets a contract field named after a keyword and writes it out as one. Nothing
-# looked at this package until #943 - tools/sdkgen's test compares strings, which a file that does
-# not parse passes as readily as one that does.
+# the generator meets a contract field named after a keyword and writes it out as one.
+# tools/sdkgen's test compares strings, which a file that does not parse passes as readily as one
+# that does.
 CHECKS=$((CHECKS + 1))
 printf 'def selftest(from):\n    pass\n' > sdk/python/hubtask/zz_gate_selftest.py
 if make --no-print-directory gate-sdk >/dev/null 2>&1; then

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# The end-to-end session of task B-13: a person's whole first hour with Hubtask, run against the
+# The end-to-end session: a person's whole first hour with Hubtask, run against the
 # reference Compose stack from a real image - sign in, build a hierarchy, do some work, delete it,
 # get it back.
 #
@@ -13,7 +13,7 @@
 # domain mints one is a token the server accepts. That is what this checks, and it is why it uses
 # the published image rather than `go run`.
 #
-# The session's own credential is minted through the API it tests (G-01), which makes the auth
+# The session's own credential is minted through the API it tests, which makes the auth
 # surface the first thing it proves rather than something it works around. What still comes from
 # outside is the *bootstrap*: an installation whose first account has no credential cannot be
 # reached at all, and no first-run path exists yet - so the script seeds one narrow, ten-minute
@@ -43,7 +43,7 @@ MEMBERSHIP_ID="01936f2a-7c1e-7000-8000-00000000e2e2"
 TOKEN_ROW_ID="01936f2a-7c1e-7000-8000-00000000e2e3"
 
 # The closing act runs against a second stack, because the tenancy mode is read once at start-up
-# and the hour above is spent in single mode (H-16; compose-smoke.sh does the same for H-06).
+# and the hour above is spent in single mode (compose-smoke.sh does the same for its control plane).
 # Ports of its own again, distinct from every other stack this repository starts.
 MULTI_PROJECT="hubtask-e2e-multi"
 MULTI_HTTP_PORT=18082
@@ -142,7 +142,7 @@ HUBTASK_VERSION=$TAG
 HUBTASK_PORT=$HTTP_PORT
 HUBTASK_OPS_PORT=$OPS_PORT
 # The AI stub this session configures as a provider sits on the compose network, which is a private
-# address (J-16). This is an operator switch the project documents and warns about at start-up, and
+# address. This is an operator switch the project documents and warns about at start-up, and
 # it is on here for the reason the load-test stack sets it: what is being reached is inside the
 # test's own network.
 HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS=true
@@ -236,11 +236,11 @@ SESSION_SCOPES="$SESSION_SCOPES,retention:manage,retention:read,templates:read,t
 # One scope rather than a pair: automation has no read of its own, because reading a rule is
 # reading what it may do (core/domain/event/ReadScope.go).
 SESSION_SCOPES="$SESSION_SCOPES,automation:manage"
-# The AI surface (J-16). Configuring a provider is its own scope because it is its own power -
+# The AI surface. Configuring a provider is its own scope because it is its own power -
 # where a workspace's content may be sent - while asking for a suggestion and deciding one are
 # reads and writes of the entry they are about, and need nothing beyond items:read/write.
 SESSION_SCOPES="$SESSION_SCOPES,ai:manage"
-# The health report's own scope (K-06). Not `admin:...` on purpose: every admin scope is withheld
+# The health report's own scope. Not `admin:...` on purpose: every admin scope is withheld
 # from a session, and the reader this answer exists for is a signed-in workspace administrator.
 SESSION_SCOPES="$SESSION_SCOPES,ops:read"
 minted="$(hubctl --json token create --name 'the end-to-end session' --days 1 --scope "$SESSION_SCOPES")"
@@ -254,8 +254,7 @@ printf '%s\n' "$TOKEN" | hubctl auth login --url "$INSTALLATION"
 # only the ones without which nothing else can run.
 
 echo "--- how the installation says it is, to somebody who is not the operator ---"
-# W-03's acceptance in milestone-0.3.5.md: `/api/v1/meta/health` answers in a running container.
-# It did not, for six milestones, and the QS-09 walk is what found it (#507, closed by K-06).
+# `/api/v1/meta/health` answers in a running container, not only in a unit test.
 #
 # This session's credential is a workspace administrator's, not the installation's, so what comes
 # back is the reduced answer: the status, the version and what is degraded. The dependency names,
@@ -298,7 +297,7 @@ expect_contains "item ls --parent" \
 	"$(hubctl item ls --collection "$COLLECTION_ID" --parent "$TASK_ID")" "Go to the shop"
 
 echo "--- completing ---"
-# The contract declares cascade_children and this installation does not serve it yet (B-07). That
+# The contract declares cascade_children and this installation does not serve it yet. That
 # split is the right one and worth checking from the outside: the client offers what the contract
 # offers, and what an installation can actually do is the installation's to say - in a sentence
 # from the catalogue rather than in a document.
@@ -375,7 +374,7 @@ if [ "$watch_code" -ne 0 ]; then
 fi
 
 echo "--- a date, a reminder, a series ---"
-# The milestone's own verbs (D-01 … D-05), on an entry of their own so that the trash section
+# The scheduling verbs, on an entry of their own so that the trash section
 # below still has one clean task to work with.
 DATED_ID="$(hubctl item create --collection "$COLLECTION_ID" --type TASK --title 'Water the plants' \
 	--due "$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-1d +%Y-%m-%dT%H:%M:%SZ)" | first_id)"
@@ -479,7 +478,7 @@ expect_contains "the instantiated children" "$stamped" "Pack the kitchen"
 expect_contains "the resolved due date" "$stamped" '2026-12-04'
 
 echo "--- the offline synchronisation, as a device ---"
-# hubctl is the reference client (N-12): it synchronises as one device, minted on the first
+# hubctl is the reference client: it synchronises as one device, minted on the first
 # `sync` and kept in the profile, and stamps its readings from a hybrid clock of its own. The
 # identifiers a client assigns are UUIDv7 (offline-sync.md §9), spelled here from the clock and
 # /dev/urandom - a version nibble of 7 and a variant of 8..b are all the server checks.
@@ -499,7 +498,7 @@ SYNC_CURSOR="$(printf '%s\n' "$initial" | tail -n 1 | sed -n 's/.*"cursor":"\([^
 if ! grep -q '"has_more":false' <<< "$(printf '%s\n' "$initial" | tail -n 1)"; then
 	fail "sync pull --all stopped with more to come"
 fi
-# The same walk as one stream (SY-C, P-12): the same records, the cursor last, kept in the
+# The same walk as one stream (offline-sync.md §3.1): the same records, the cursor last, kept in the
 # profile for the delta.
 hubctl sync snapshot --out "$WORK_DIR/snapshot.ndjson" --apply 2>/dev/null
 snapshot_records="$(grep -c '"entity"' "$WORK_DIR/snapshot.ndjson")"
@@ -550,7 +549,7 @@ hubctl sync devices forget "$DEVICE_ID" 2>/dev/null
 expect_contains "the device is blocked" "$(hubctl sync devices ls | grep -F "$DEVICE_ID")" "true"
 
 echo "--- the client requirements of offline-sync.md §9, checked ---"
-# The conformance runner (N-13): the server driven through the protocol as two devices, each of
+# The conformance runner: the server driven through the protocol as two devices, each of
 # §9's eight requirements answered by its number. What it cannot test from outside it says so
 # about - the sixth is a client's alone - and a broken server fails exactly the check it breaks,
 # which cmd/hubctl/Conformance_test.go proves against a stub with one switch per requirement,
@@ -606,7 +605,8 @@ expect_contains "the feed" "$calendar" "BEGIN:VCALENDAR"
 # What a calendar carries is the dated entries and only those, which is why the tree's root - it
 # has no date of its own - is not in it and its dated child is. The child's date is the template's
 # P3D resolved against the anchor and rendered as a day rather than as a moment, which is the
-# whole chain from D-06's offset through D-01's flag to D-08's renderer in one line.
+# whole chain from the template's offset through the date-only flag to the feed's renderer in one
+# line.
 expect_contains "the feed" "$calendar" "SUMMARY:Pack the kitchen"
 expect_contains "the feed" "$calendar" "DTSTART;VALUE=DATE:20261204"
 expect_missing "the feed" "$calendar" "Move to the new flat"
@@ -644,7 +644,7 @@ MEDIA_ID="$(printf '%s\n' "$uploaded" | first_id)"
 attached="$(hubctl media attach "$TASK_ID" --media "$MEDIA_ID")"
 expect_contains "media attach" "$attached" "$MEDIA_ID"
 
-echo "--- a CSV, imported under the hub (P-08) ---"
+echo "--- a CSV, imported under the hub ---"
 printf 'title,due,labels,bucket\nImported one,2026-09-20,rot;blau,Doing\nImported two,2026-09-21 10:00,rot,Done\nBroken,nope,,\n' > "$WORK_DIR/tasks.csv"
 imported="$(hubctl import csv "$WORK_DIR/tasks.csv" --hub "$HUB_ID" --wait 2m)"
 expect_contains "import csv" "$imported" "SUCCEEDED"
@@ -667,7 +667,7 @@ collided="$(hubctl import csv "$WORK_DIR/tasks.csv" --hub "$HUB_ID" --wait 2m)"
 expect_contains "import csv, a different file under a taken name" "$collided" "FAILED"
 expect_contains "import csv, a different file under a taken name" "$collided" "imports.collection_exists"
 
-echo "--- a Trello board, imported under the hub (P-09) ---"
+echo "--- a Trello board, imported under the hub ---"
 cat > "$WORK_DIR/board.json" <<'BOARD'
 {"id":"e2e0000000000000000000b1","name":"Imported board","desc":"","lists":[{"id":"l1","name":"To do","pos":1},{"id":"l2","name":"Done","pos":2}],
  "labels":[{"id":"lb1","name":"Urgent","color":"red"}],"members":[{"id":"m1","fullName":"Alex Example"}],
@@ -682,7 +682,7 @@ expect_contains "import trello" "$board_imported" "TRELLO"
 # The member's assignment has no place here and is counted rather than lost silently.
 expect_contains "import trello counts the unmapped members" "$board_imported" '"unmapped_members": 1'
 
-echo "--- a Google Tasks Takeout and a Microsoft To Do dump, imported (P-10) ---"
+echo "--- a Google Tasks Takeout and a Microsoft To Do dump, imported ---"
 cat > "$WORK_DIR/Tasks.json" <<'TAKEOUT'
 {"kind":"tasks#taskLists","items":[{"kind":"tasks#taskList","id":"e2elist1","title":"Imported list","items":[
  {"kind":"tasks#task","id":"e2etask1","title":"Imported Google task","status":"needsAction","due":"2026-09-25T00:00:00.000Z","position":"0"},
@@ -737,7 +737,7 @@ expect_contains "the subtree came back too" \
 
 echo "--- a place to write copies to ---"
 # No passphrase: the contract has one and this version refuses it, because an archive is written
-# under a key derived from the installation's master key (E-02). A target created with one would
+# under a key derived from the installation's master key (security.md §8). A target created with one would
 # answer 400, which is what makes this worth a line rather than a silence.
 target="$(hubctl backup target add --name 'the local target' --kind LOCAL --config path=e2e)"
 TARGET_ID="$(printf '%s\n' "$target" | first_id)"
@@ -799,7 +799,7 @@ else
 fi
 
 # And the round trip backup-restore.md §10 recommends: the archive read back into a workspace of
-# its own (#206). The minted workspace's identifier comes back on the run, and the comparison is
+# its own. The minted workspace's identifier comes back on the run, and the comparison is
 # the drill's whole point - the new workspace holds exactly as many entries as the source did,
 # counted in the database on both sides rather than looked at.
 new_tenant="$(hubctl --json restore run --target "$TARGET_ID" --archive "$ARCHIVE" \
@@ -904,7 +904,7 @@ listed="$(hubctl --json token ls)"
 expect_contains "token ls" "$listed" "the end-to-end session"
 expect_missing "token ls" "$listed" "$TOKEN"
 
-# A service account: no address, nothing to accept, active from the moment it exists. G-05's
+# A service account: no address, nothing to accept, active from the moment it exists. A rule's
 # run_as points at one of these, so that a rule outlives its author.
 MACHINE_ID="$(hubctl service-account create --name 'the nightly export' | first_id)"
 [ -n "$MACHINE_ID" ] || { echo "FAILED: creating the service account produced no identifier"; exit 1; }
@@ -922,7 +922,7 @@ refused="$(HUBTASK_TOKEN="$BOOTSTRAP_TOKEN" hubctl container ls 2>&1 || true)"
 expect_contains "a revoked token" "$refused" "revoked"
 
 echo "--- a mail becomes a task ---"
-# The milestone's demo (G-11), and the one thing no unit test can show: a message arrives from
+# The one thing no unit test can show: a message arrives from
 # outside over a credential the workspace minted, and a rule turns it into work without anybody
 # touching it. Through curl rather than hubctl, because the intake is a public route with no client
 # behind it - what a bridge does here is exactly this.
@@ -943,7 +943,7 @@ api() {
 
 json_field() { sed -n "s/.*\"$1\": *\"\([^\"]*\)\".*/\1/p" <<< "$2" | head -1; }
 
-# The address, shown once - through the client now that it has the verb (G-13). Rotating is how one
+# The address, shown once - through the client. Rotating is how one
 # is revoked, so minting and rotating are one call.
 intake="$(hubctl --json jumble intake rotate-token)"
 INTAKE_TOKEN="$(json_field token "$intake")"
@@ -959,8 +959,8 @@ RULE_ID="$(json_field id "$rule")"
 [ -n "$RULE_ID" ] || { echo "FAILED: writing the rule produced no identifier: $rule"; exit 1; }
 # A rule nobody switched on does nothing, and the listing says so before it is switched on.
 expect_contains "rule ls" "$(hubctl rule ls --disabled)" "$RULE_ID"
-# The dry run first: what it would do, with nothing done. That is the whole of E-06's discipline
-# from a terminal.
+# The dry run first: what it would do, with nothing done - the restore's discipline
+# (backup-restore.md §8.3) from a terminal.
 expect_contains "rule test" \
 	"$(hubctl rule test "$RULE_ID" --event de.hubtask.jumble.entry.received.v1)" "conditions"
 hubctl rule enable "$RULE_ID" >/dev/null
@@ -1087,14 +1087,14 @@ expect_contains "webhook ls" "$(run_hubctl webhook ls)" "webhook.invalid"
 # outbound path are broken in a way only this end-to-end use could show, and both have issues of
 # their own: a `webhook.deliver` job fails with `webhooks.delivery_incomplete` before it writes a
 # delivery row, so there is nothing to read back or replay; and `:rotate-secret` answers 500. Both
-# are G-03's, both are reproduced by exactly the two commands that would go here, and asserting
+# are the webhook surface's, both are reproduced by exactly the two commands that would go here, and asserting
 # around them would be this session pretending they work.
 #
 # What is proved above is what a person meets first: the subscription is written, its secret is
 # answered once with the sentence that makes "once" true, and the listing reads it back.
 
 echo "--- the platforms that cannot receive a call ---"
-# G-04's cursor from a terminal: a poll without one asks the unbounded question, so the client
+# The polling trigger's cursor from a terminal: a poll without one asks the unbounded question, so the client
 # prints the next one after every call. The type is one this workspace has certainly produced.
 # The assertion is the cursor rather than a particular event: what a poller needs is the answer's
 # shape and somewhere to continue from, and which events are inside the window at this second is
@@ -1119,8 +1119,8 @@ expect_contains "the refusal" "$refusal" 'hubctl: '
 # The sentence itself, straight out of locales/en.json.
 expect_contains "the refusal" "$refusal" 'does not exist'
 
-# ============ 0.7.0's verbs, against a provider that answers (J-16) ============
-# The milestone's own sequence: a provider configured, an entry submitted, a suggestion received
+# ============ The AI verbs, against a provider that answers ============
+# The sequence: a provider configured, an entry submitted, a suggestion received
 # and accepted, a search that runs the semantic half, and the agent interface listed from outside
 # the process.
 #
@@ -1136,7 +1136,7 @@ expect_contains "the refusal" "$refusal" 'does not exist'
 # the thing being reached is inside the test's own network. Nothing else in this session depends on
 # it being off.
 
-# QS-09's half of this section (J-17). With HUBTASK_E2E_WITHOUT_AI set, no provider is configured
+# QS-09's half of this section. With HUBTASK_E2E_WITHOUT_AI set, no provider is configured
 # and no stub is started: what runs instead is the refusal every asking route owes an installation
 # that has none. Everything *else* in this session is unchanged and is the rest of the claim - the
 # verbs of every earlier milestone, against a stack with `NoopAi` and nothing else.
@@ -1189,7 +1189,7 @@ if [ -n "${HUBTASK_E2E_WITHOUT_AI:-}" ]; then
 	# that never wanted AI must not report itself degraded forever
 	# (observability-reliability.md 7).
 	# On the internal port: this asks for the whole report, and the reduced answer under /api/v1
-	# carries no dependency rows to read `ai_provider` out of (K-06). The internal listener needs
+	# carries no dependency rows to read `ai_provider` out of. The internal listener needs
 	# no token, which is what makes it the right door for a question about the installation rather
 	# than about a workspace.
 	report="$(curl -s "http://127.0.0.1:$OPS_PORT/meta/health")"
@@ -1209,7 +1209,7 @@ if [ -n "${HUBTASK_E2E_WITHOUT_AI:-}" ]; then
 	expect_contains "the suggestions of a workspace with no provider" "$standing" "ID"
 
 	# The search still answers, both ways round: no provider means a lexical search rather than an
-	# error, which is the same degradation an outage produces (J-10).
+	# error, which is the same degradation an outage produces.
 	run_hubctl search "Order 42" --mode AUTO
 	run_hubctl search "Order 42" --mode LEXICAL
 
@@ -1218,7 +1218,7 @@ else
 echo "--- a provider that answers, and the suggestion it produces ---"
 
 # The canned answer, in the shape core/port/ai's adapters read: a completion whose content is the
-# JSON the suggest-fields prompt asks for, and a usage the budget can count (J-15).
+# JSON the suggest-fields prompt asks for, and a usage the budget can count.
 cat > "$WORK_DIR/ai-stub.conf" <<'NGINX'
 server {
   listen 80;
@@ -1250,13 +1250,13 @@ $RUNTIME run -d --name "$AI_STUB" --network "${PROJECT}_default" \
 trap 'status=$?; $RUNTIME rm -f "$AI_STUB" > /dev/null 2>&1 || true; (exit "$status"); cleanup' EXIT
 
 # The provider, set through the client. `--allow-processing` is its own flag because consent is its
-# own decision (J-02): configuring a provider and agreeing to send this workspace's content to it
+# own decision: configuring a provider and agreeing to send this workspace's content to it
 # are two acts.
 # No embedding model, deliberately. A stub that answers one fixed document cannot serve a batch of
 # fifty texts with fifty vectors, and the adapter refuses an unalignable batch rather than guessing
 # which vector belongs to which entry - so an embedding model here would leave a job failing for the
 # rest of the session over a limitation of the stub. The semantic half is proved where it can be, in
-# test/integration against a real pgvector database (J-10); what this section is about is the
+# test/integration against a real pgvector database; what this section is about is the
 # suggestion and the agent interface.
 run_hubctl ai config-set --kind OPENAI_COMPATIBLE --jurisdiction SELF_HOSTED \
 	--base-url "http://$AI_STUB/v1" \
@@ -1350,7 +1350,7 @@ echo "--- the search runs its semantic half, and its lexical one ---"
 #
 # Both modes are asked and both must find it. What is *not* asserted is that the semantic half
 # contributed: an installation may have no pgvector, no provider or no consent, and every one of
-# those is a lexical search rather than an error (J-10), so demanding a semantic hit would be
+# those is a lexical search rather than an error, so demanding a semantic hit would be
 # asserting the opposite of the design.
 for mode in AUTO LEXICAL; do
 	found="$(run_hubctl search "Order 42" --mode "$mode")"
@@ -1359,10 +1359,10 @@ done
 
 echo "--- the agent interface, from outside the process ---"
 # The smallest honest proof that the inbound half works: the handshake, the three lists, and a read
-# of one resource and one prompt (J-11, J-12, J-13).
+# of one resource and one prompt.
 tools="$(run_hubctl mcp tools)"
 expect_contains "the tool list" "$tools" "create_container"
-# The hints agree with the enforcement (J-14). Asserted on a row rather than on the column header,
+# The hints agree with the enforcement. Asserted on a row rather than on the column header,
 # because a header proves the table has a column and this has to prove a tool carries the hint -
 # an agent token without the capability is refused by the server whatever the hint said.
 if ! grep -qE '^(purge_work_item|trash_work_item|delete_container|empty_trash)[[:space:]]+no[[:space:]]+yes' <<< "$tools"; then
@@ -1388,11 +1388,11 @@ $RUNTIME rm -f "$AI_STUB" > /dev/null 2>&1 || true
 trap cleanup EXIT
 fi
 
-# ============ The milestone's proof (H-16) ============
-# What the whole of 0.6.0 amounts to, in one sequence and against a real stack: a workspace
+# ============ The multi-tenant installation's proof ============
+# One sequence against a real stack: a workspace
 # provisioned by a control plane, its owner signing in with a password, a second factor the tenant
 # demands, a third-party app allowed and calling the API with what it was issued, a destructive
-# restore through a real step-up - the round trip refused since 0.4.5 - the workspace exported
+# restore through a real step-up, the workspace exported
 # whole and the archive read against the document that defines it, and a second workspace that is
 # never once visible.
 #
@@ -1451,7 +1451,7 @@ echo "multi mode ready after $((SECONDS - multi_started))s"
 MULTI="http://127.0.0.1:$MULTI_HTTP_PORT"
 
 echo "--- the control plane's credential, and two workspaces ---"
-# `admin:tenants` is the one scope no session carries (0.6.0 decision 6), so the control plane is
+# `admin:tenants` is the one scope no session carries (api-guidelines.md §7), so the control plane is
 # reached with a personal access token minted for exactly this - and there is no first-run path
 # that mints one, so it is seeded the way the bootstrap above is: through the real constructions,
 # short-lived, and used for nothing else.
@@ -1467,7 +1467,7 @@ INSERT INTO access_token
   VALUES ('$OPERATOR_TOKEN_ROW', '$OPERATOR_TENANT', '$OPERATOR_ACCOUNT',
           'the control plane bootstrap', decode('$ADMIN_HASH', 'hex'), 'hbt_pat_',
           ARRAY['admin:tenants'], now() + interval '30 minutes');
--- And into the register (ADR-0070 §1). The scope alone has not been enough since SI-05: it is
+-- And into the register (ADR-0070 §1). The scope alone is not enough: it is
 -- checked again where it is exercised, and the empty-register fallback is the *single-workspace*
 -- installation's — which this is not, the moment it provisions the second. An installation that
 -- hosts workspaces registers whoever runs it, and seeding that row is what this script is standing
@@ -1496,7 +1496,7 @@ totp() {
 	HUBTASK_TOTP_SECRET="$TOTP_SECRET" "$WORK_DIR/totp"
 }
 # A code verifies once, and never again at or below the step it was accepted at - "a code that
-# worked twice is a code somebody shoulder-read" (H-02, VerifyTotp). A person meets that rule
+# worked twice is a code somebody shoulder-read" (identity.md §8, VerifyTotp). A person meets that rule
 # once a minute at most; a session that compresses their afternoon into thirty seconds meets it
 # every time, because its second code falls inside the same window as its first. So a command
 # that will be asked for a code waits for the next window first, which is what a person does by
@@ -1575,7 +1575,7 @@ expect_contains "quota show" "$(owner quota show)" "items"
 
 echo "--- and the second workspace, invisible ---"
 # Never in a read of the first, and the control plane is not reachable from a session however
-# privileged the person holding it - which is decision 6 seen from the other side.
+# privileged the person holding it - api-guidelines.md §7 seen from the other side.
 expect_missing "container ls" "$(owner --json container ls)" "$OTHERS_ID"
 set +e
 reached="$(owner admin tenant ls 2>&1 >/dev/null)"
@@ -1599,7 +1599,7 @@ admin admin tenant resume "$ACME_ID"
 expect_contains "the workspace after one write" "$(owner container ls)" "HUB"
 
 echo "--- a third-party app, consented to and calling the API with what it was issued ---"
-# The whole authorization code flow with PKCE, headless (0.6.0 decision 5). A public client, so
+# The whole authorization code flow with PKCE, headless (identity.md §15.3). A public client, so
 # there is no secret and the verifier is the whole of what the exchange proves - which is why the
 # consent answers both halves and this is three commands rather than a browser.
 registered="$(owner --json oauth client add --name 'the kanban board' --redirect "$REDIRECT_URI")"
@@ -1732,7 +1732,7 @@ echo "--- the workspace, exported whole and read against its format document ---
 # No `--follow`: the job an export becomes belongs to the workspace, and the credential that asked
 # for it belongs to the operator - so there is nothing here for this caller to poll. What says the
 # archive is finished is the archive: `checksums.txt` is written last and is the commit point
-# (tenant-export.md §8.1), which is what the loop below waits for.
+# (tenant-export.md §3), which is what the loop below waits for.
 accepted="$(admin admin tenant export "$ACME_ID" --target "$ACME_TARGET")"
 expect_contains "admin tenant export" "$accepted" "JOB"
 
