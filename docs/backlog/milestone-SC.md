@@ -52,6 +52,8 @@ What deliberately is **not** in this milestone:
 9. **Providers are offered best effort** (the owner, 2026-10-03). No real identity-provider account
    is available to the project, so provider features are built and tested up to the provider, and
    the evidence says what was not walked. Not a statement for the website.
+10. **An installation lock mandates only an invite-only provider** (the owner, 2026-10-07, #1174):
+    identity.md §18. SC-38 builds it and carries UC-INS-11 check 4, which is in `Delivers`.
 
 ---
 
@@ -644,6 +646,22 @@ content. From the installation's screen and from `hubctl`.
 
 **Acceptance:** scope, operator register and step-up; the opening ends on its own; both trails; the
 notices; it overrides the workspace's switch and a lock; it can be closed early.
+
+---
+
+## SC-38 — An installation lock turns an invite-only offered provider on everywhere
+
+*Depends on: SC-31.* · issue #1194 · Decision 10
+
+**Use cases:** UC-INS-11 (4)
+
+Locking the installation's ways to sign in turns each offered provider admitted as *Only people
+invited here* on in every workspace and removes the workspace's switch for it; a provider admitted by
+domain or to anyone stays each workspace's switch, and the installation's screen says which applies
+(identity.md §18).
+
+**Acceptance:** check 4 through the registry and a walk of both screens; where the mandated provider
+is on, the password fallback does not open.
 
 ---
 
