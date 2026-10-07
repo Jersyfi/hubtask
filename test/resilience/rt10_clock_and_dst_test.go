@@ -32,8 +32,8 @@ import (
 // hour outage - no double firing and no missed firing.
 //
 // Both duties run here, against a real database and through the shipped adapters: the
-// materialisation that turns a series into entries (D-05) and the firing that turns a reminder
-// into a notification (D-03). What makes it RT-10 rather than two unit tests is the clock: it is a
+// materialisation that turns a series into entries and the firing that turns a reminder into a
+// notification. What makes it RT-10 rather than two unit tests is the clock: it is a
 // value this test moves, so a transition and an outage are things that happen to the passes rather
 // than things a mock asserts about.
 //
@@ -48,7 +48,8 @@ func (c *steppingClock) Now() time.Time { return c.at }
 var _ clockport.Clock = (*steppingClock)(nil)
 
 // rt10Notifier records what the firing pass handed to the notification context, which is what
-// "fired" means here: the delivery itself is C-09's evidence.
+// "fired" means here: the delivery itself is test/integration/notification_delivery_test.go's
+// evidence.
 type rt10Notifier struct{ told []shared.ID }
 
 func (n *rt10Notifier) Execute(
@@ -339,7 +340,7 @@ func seedRT10Reminder(
 
 // occurrencesOfSeries reads the entries a series produced, through the repository rather than
 // through a query of this test's own: what the read answers about recurrence_rule_id is part of
-// what D-04 and D-05 promise, and a test that went around it would not be reading what a client
+// what UC-WRK-15 promises, and a test that went around it would not be reading what a client
 // reads.
 func occurrencesOfSeries(
 	ctx context.Context, t *testing.T, unitOfWork *postgres.UnitOfWork,

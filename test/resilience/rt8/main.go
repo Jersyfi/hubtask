@@ -11,8 +11,8 @@
 // and goes looking for all of it again at the end.
 //
 // The generator itself lives in test/load/harness: it counts from the client, paces independently
-// of the responses, and records a timeline, and H-11 gave it a ramp so that RT-6 could use the
-// same one. What stays here is what is particular to RT-8 - the mix of calls both versions of a
+// of the responses, records a timeline, and has a ramp, so that RT-6 uses the same one. What
+// stays here is what is particular to RT-8 - the mix of calls both versions of a
 // rolling update can serve, and the search for every identifier afterwards.
 //
 // Two things it does deliberately, beyond what the harness gives it:

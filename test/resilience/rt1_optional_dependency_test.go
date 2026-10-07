@@ -12,9 +12,9 @@
 // breaker, the guarded client, the health registry, and the metrics - because the property is a
 // property of their composition, not of any one of them.
 //
-// The optional dependency here is an in-process HTTP service. Every row of the degradation table
-// has outgrown it - object storage and SMTP since C-12, the AI provider since J-04 - and their
-// RT-1 runs against real containers, stopped mid-flight, in rt1_container_dependency_test.go.
+// The optional dependency here is an in-process HTTP service. Every row of the degradation table -
+// object storage, SMTP, the AI provider - has outgrown it, and their RT-1 runs against real
+// containers, stopped mid-flight, in rt1_container_dependency_test.go.
 //
 // What this file keeps proving is the part a container makes slower rather than stronger: the
 // composition itself, against a dependency whose failure mode the test writes by hand. A handler
@@ -164,8 +164,8 @@ func TestRT1AnOptionalDependencyFailingDoesNotBlockTheWritePath(t *testing.T) {
 
 	// createTask stands in for the core write path. It touches nothing but the database, which
 	// is the claim under test: no optional dependency sits between a user and their data. It is
-	// a stub here because there is no use case yet - A-07 replaces it with CreateContainer
-	// against a real PostgreSQL, and the assertions around it stay as they are.
+	// a stub because this file is the fast half; the real write path against PostgreSQL is
+	// rt1_container_dependency_test.go's.
 	var written int
 	createTask := func(context.Context) error {
 		written++
