@@ -141,8 +141,8 @@ type NewRuleInput struct {
 	// one - so the caller reads it and hands it in, and the domain decides what it means.
 	Ceiling int
 
-	// Text brings the justification - the one field here a person writes in sentences - to
-	// normal form C before it is stored (i18n-l10n.md §5, M-07).
+	// Text brings the justification - the one field here a person writes in sentences - to normal
+	// form C before it is stored (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -328,7 +328,7 @@ func graceOf(in NewRuleInput, kind Kind) (int, error) {
 	return *in.GraceDays, nil
 }
 
-// notifyOf is the advance warning (§6), stored since R-1 was answered in G-12.
+// notifyOf is the advance warning (§6).
 //
 // §6 asks for two kinds of visibility: the object carries what is coming, and those affected get a
 // message. Both exist now - the marking and `retention` on the entry for the first, the RETENTION
@@ -470,7 +470,7 @@ const (
 	CodeRuleNotFound          = "lifecycle.rule_not_found"
 	CodeRuleAlreadyExists     = "lifecycle.rule_already_exists"
 	// CodeRuleVersionConflict is a correction written against a version that no longer stands
-	// (F4-02): either the caller's form was stale, or somebody committed in between.
+	// (api-guidelines.md §5): either the caller's form was stale, or somebody committed in between.
 	CodeRuleVersionConflict = "lifecycle.rule_version_conflict"
 	CodeNotMarked           = "lifecycle.not_marked"
 )

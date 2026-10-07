@@ -36,9 +36,8 @@ const (
 // removal recorded in two of the three is the orphan the completeness rule forbids (ADR-0020 §6).
 type Removal struct {
 	// Entity is the table the row was in, in the words the journal and the tombstone use:
-	// `work_item`, `container`. A string rather than an enumeration, because these two tables are
-	// the ones this task removes from and the mechanism is meant to serve the rest of the catalogue
-	// without a code change (data-retention.md §3).
+	// `work_item`, `container`. A string rather than an enumeration, because the mechanism is meant
+	// to serve the rest of the catalogue without a code change (data-retention.md §3).
 	Entity   string
 	EntityID shared.ID
 	Reason   DeletionReason

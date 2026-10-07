@@ -107,7 +107,7 @@ func TestAContainerTargetIsJudgedByItsOwnPath(t *testing.T) {
 	}
 }
 
-// Placing one (E-08): what the model accepts, and the one scope it refuses.
+// Placing one: what the model accepts, and the one scope it refuses.
 
 func holdInput(change func(*lifecycle.NewHoldInput)) lifecycle.NewHoldInput {
 	in := lifecycle.NewHoldInput{
@@ -188,9 +188,8 @@ func TestWhatAHoldCannotMean(t *testing.T) {
 	}
 }
 
-// The decision this task had to take rather than inherit: the check constraint accepts ACCOUNT and
-// `Blocking` deliberately ignores it, so storing one would store a hold nobody honours - which is
-// worse than none, because somebody believes it is in force.
+// The check constraint accepts ACCOUNT and `Blocking` deliberately ignores it, so storing one would
+// store a hold nobody honours - which is worse than none, because somebody believes it is in force.
 func TestAnAccountHoldIsRefusedRatherThanIgnored(t *testing.T) {
 	_, err := lifecycle.NewLegalHold(holdInput(func(in *lifecycle.NewHoldInput) {
 		in.Scope, in.ScopeID = lifecycle.HoldAccount, accountID
@@ -202,7 +201,8 @@ func TestAnAccountHoldIsRefusedRatherThanIgnored(t *testing.T) {
 	if !errors.Is(err, shared.ErrConflict) {
 		t.Errorf("refused with %v, want a conflict - the request is well formed and unanswerable", err)
 	}
-	// And the scope stays a value the model knows, so that E-10 needs no migration to answer one.
+	// And the scope stays a value the model knows, so that honouring it needs no migration
+	// (data-retention.md §4.1).
 	if !lifecycle.HoldAccount.Valid() {
 		t.Error("the ACCOUNT scope was removed rather than refused")
 	}
@@ -246,8 +246,8 @@ func TestLiftingRecordsWhoAndWhyAndHappensOnce(t *testing.T) {
 	}
 }
 
-// The reason is stored in normal form C, when a hold is placed and when it is lifted
-// (i18n-l10n.md §5, M-07): it is read by an auditor, in one spelling.
+// The reason is stored in normal form C, when a hold is placed and when it is lifted (i18n-l10n.md
+// §5): it is read by an auditor, in one spelling.
 func TestAHoldsReasonIsStoredInNormalFormC(t *testing.T) {
 	hold, err := lifecycle.NewLegalHold(holdInput(func(in *lifecycle.NewHoldInput) {
 		in.Reason = "Anha\u0308ngiges Verfahren"

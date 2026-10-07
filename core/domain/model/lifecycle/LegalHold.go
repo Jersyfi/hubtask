@@ -40,7 +40,7 @@ const (
 //
 // It is the first thing checked and it overrides everything else - a retention rule, a person
 // emptying their own trash, a tenant's configured period. Lifting one is auditable; that happens
-// where holds are placed, which is not this task.
+// where holds are placed and lifted, not here.
 type LegalHold struct {
 	ID    shared.ID
 	Scope HoldScope
@@ -52,8 +52,7 @@ type LegalHold struct {
 	// reading a blocked run ever see it.
 	Reason string
 	// PlacedBy and PlacedAt are who and when. The audit obligation of §4.1 is about who as much as
-	// about what - "lifting it is auditable" is a statement about a person - and the columns have
-	// carried both since `0001_init` against a model that had neither (E-08).
+	// about what - "lifting it is auditable" is a statement about a person.
 	PlacedBy shared.ID
 	PlacedAt time.Time
 	// ReleasedBy, ReleasedAt and ReleasedReason are the lifting. A hold is never deleted: the row
@@ -81,8 +80,8 @@ type NewHoldInput struct {
 	PlacedBy shared.ID
 	Now      time.Time
 
-	// Text brings the reason to normal form C before it is bounded and stored (i18n-l10n.md §5,
-	// M-07); work.NewWorkItemInput says why it is handed in.
+	// Text brings the reason to normal form C before it is bounded and stored (i18n-l10n.md §5);
+	// work.NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 
@@ -112,8 +111,8 @@ func NewLegalHold(in NewHoldInput) (LegalHold, error) {
 	// The scope the check constraint accepts and this build does not act on. `Holds.Blocking`
 	// ignores it deliberately - an account hold is about one person's own data, which is erased
 	// where a data subject request is answered rather than kept where a workspace's entries are -
-	// and E-10 is the task that answers one. Until then it is refused: a hold nothing honours is
-	// the one outcome that is worse than no hold at all, because it is believed.
+	// so it is refused (data-retention.md §4.1): a hold nothing honours is the one outcome that is
+	// worse than no hold at all, because it is believed.
 	case in.Scope == HoldAccount:
 		return LegalHold{}, shared.ErrConflict.WithDetail(CodeHoldAccountScopeUnavailable).
 			WithFields(shared.FieldError{Path: "/scope", Code: CodeHoldAccountScopeUnavailable})
@@ -131,7 +130,7 @@ func NewLegalHold(in NewHoldInput) (LegalHold, error) {
 // record exists to keep - and the caller asking for it is working from a stale reading rather than
 // asking for something new.
 //
-// The normaliser is handed in for the reason NewLegalHold takes one (M-07).
+// The normaliser is handed in for the reason NewLegalHold takes one (i18n-l10n.md §5).
 func (h LegalHold) Release(by shared.ID, reason string, form text.Normalizer, at time.Time) (LegalHold, error) {
 	trimmed, err := shared.NFC(strings.TrimSpace(reason), form)
 	if err != nil {
@@ -177,7 +176,7 @@ const (
 	CodeHoldReasonTooLong   = "lifecycle.hold_reason_too_long"
 	CodeHoldNotFound        = "lifecycle.hold_not_found"
 	CodeHoldAlreadyReleased = "lifecycle.hold_already_released"
-	// CodeHoldAccountScopeUnavailable is the ACCOUNT scope, refused until E-10 answers one.
+	// CodeHoldAccountScopeUnavailable is the ACCOUNT scope, refused (data-retention.md §4.1).
 	CodeHoldAccountScopeUnavailable = "lifecycle.hold_account_scope_unavailable"
 )
 

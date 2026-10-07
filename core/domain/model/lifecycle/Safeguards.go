@@ -16,10 +16,8 @@ const (
 	// BlockedByLegalHold is §4.1, and it outranks everything: a hold on a tenant, a container or an
 	// item means no deletion and no anonymisation, and lifting it is auditable.
 	BlockedByLegalHold = "legal_hold"
-	// BlockedByRestriction is §4.2: an ongoing data subject request under GDPR Art. 18 restricts
-	// processing, and a restricted object is neither deleted nor changed. E-10 builds the request;
-	// what is here is its place in the order, so that the task which fills the seam does not also
-	// have to decide where it sits.
+	// BlockedByRestriction is §4.2: a restriction of processing under GDPR Art. 18, carried by the
+	// account, means a restricted object is neither deleted nor changed.
 	BlockedByRestriction = "restriction"
 	// BlockedByTombstoneWindow is §4.5: an object may only disappear for good once every known
 	// device has had the chance to learn of the deletion (offline-sync.md §7). It bounds the
