@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A13 — The cluster is running two migration versions
 
 **Alert:** `HubtaskMigrationVersionsDiverge` · **Severity:** ticket · **Catalogue:** A-13

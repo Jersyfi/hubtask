@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A20 — The last restore drill is more than 90 days old
 
 **Alert:** `HubtaskRestoreDrillStale` · **Severity:** ticket · **Catalogue:** A-20

@@ -21,7 +21,7 @@ output-options:
   # an operation's answer `<OperationId>Response` - `syncPull` would collide with its own body.
   # So the generated answer types carry a suffix that no schema in the contract uses.
   response-type-suffix: Result
-  # The SPDX header is the generator's to write (ADR-0059 §6): the file's first lines come from
+  # The SPDX header is the generator's to write (ADR-0080): the file's first lines come from
   # this copy of the tool's imports template, which adds the header and nothing else.
   user-templates:
     imports.tmpl: sdk/go/templates/imports.tmpl

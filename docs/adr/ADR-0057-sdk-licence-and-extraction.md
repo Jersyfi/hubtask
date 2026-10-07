@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-16 · **Decided:** 2026-09-17, the licence part; the names and the extraction stay open
 
+**Note (2026-10-07):** the licence motivation below is moot — since [ADR-0080](./ADR-0080-hubtask-is-apache-2-0.md) the whole repository is Apache-2.0.
+
 ## Context
 
 [ADR-0027](./ADR-0027-monorepo-structure.md) deferred one decision to before `1.0.0`: "extracting

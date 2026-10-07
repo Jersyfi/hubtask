@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Hubtask design tokens and the CSS layer generated from them. One origin: tokens/tokens.json.",
-  "license": "BUSL-1.1",
+  "license": "Apache-2.0",
   "exports": {
     ".": "./dist/tokens.ts",
     "./components": "./src/index.ts",

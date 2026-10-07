@@ -93,9 +93,10 @@ COPY --from=build /src/locales /app/locales
 # above copyright notice … in the documentation and/or other materials provided with the
 # distribution". MIT and ISC want the notice in every copy; Apache-2.0 §4 wants the licence and any
 # NOTICE file handed to the recipient. `THIRD-PARTY-LICENSES.md` is the index and the record the
-# build gate reads; `third-party/licenses/` is the material itself, and Hubtask's own terms travel
-# with it (ADR-0013).
+# build gate reads; `third-party/licenses/` is the material itself. Hubtask is Apache-2.0 too, so
+# its own LICENSE and NOTICE travel with the image under the same rule (ADR-0080).
 COPY --from=build /src/LICENSE /licenses/LICENSE
+COPY --from=build /src/NOTICE /licenses/NOTICE
 COPY --from=build /src/THIRD-PARTY-LICENSES.md /licenses/THIRD-PARTY-LICENSES.md
 COPY --from=build /src/third-party/licenses /licenses/third-party
 # The media and backup directories, owned by the runtime user. A named volume mounted over a

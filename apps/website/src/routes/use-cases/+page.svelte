@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1
+<!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import Proof from '$lib/Proof.svelte';
@@ -43,11 +43,11 @@
           nothing withheld.
         </p>
         <p>
-          <strong>Free, and free with the condition stated out loud.</strong> Private and household use
-          is covered by the licence’s use grant, with no feature gate and no licence key — and the
-          project makes no promise about maintenance until it sells something. If it stops tomorrow,
-          every version you are running becomes Apache-2.0 three years after it was published. That
-          is written into the licence rather than promised in a blog post.
+          <strong>Free, and free with the condition stated out loud.</strong> Hubtask is open source
+          under Apache-2.0, with no feature gate and no licence key — and the project makes no promise
+          about maintenance. If it stops tomorrow, every version you are running is still yours to
+          run, change and carry on. That is written into the licence rather than promised in a blog
+          post.
         </p>
         <a href="/licence/">Read the licence terms</a>
       </div>
@@ -313,10 +313,9 @@
     </div>
     <div class="callout">
       <p>
-        <strong>Running it commercially is free until Licensing Start</strong> — a date announced at
-        least sixty days ahead, after which organisations of five persons or more need a licence for
-        new versions. What you run before that day keeps its terms.
-        <a href="/licence/">What is decided and what is not</a>
+        <strong>Running it commercially is free</strong> — Hubtask is Apache-2.0, for organisations of
+        every size, with nothing to buy later.
+        <a href="/licence/">The licence</a>
       </p>
     </div>
   </div>

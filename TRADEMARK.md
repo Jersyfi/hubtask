@@ -1,8 +1,8 @@
 # Trademark Policy
 
 The name **Hubtask**, the Hubtask word mark, and the Hubtask logo are trademarks of
-Jérôme Bastian Winkel. The software licence in [LICENSE](LICENSE) covers the code. It grants
-no rights in the name or the logo — the Business Source License says so explicitly, and this
+Jérôme Bastian Winkel. The software licence in [LICENSE](LICENSE), the Apache License 2.0, covers
+the code. It grants no rights in the name or the logo — its section 6 says so explicitly, and this
 document explains what that means in practice.
 
 The point is not to restrict use of the software. It is to keep "Hubtask" meaning one thing,

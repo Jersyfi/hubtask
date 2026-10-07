@@ -31,10 +31,10 @@ Two generated files, nothing hand-written:
   because the generator is Go and the Node lanes have none.
 * `dist/schema.d.ts` — the `operations` types the client imports, written by `pnpm build` with
   `openapi-typescript` from the same document, and ignored by git. This is the SDK's **own**
-  generation of the types, not an import of `@hubtask/api-client`'s: the SDK is Apache-2.0 and
-  the first-party types are not, so nothing first-party sits in its import path
-  ([ADR-0059](../../docs/adr/ADR-0059-licensing-phases-and-licensing-start.md) §6). It is the
-  "regeneration rather than a copy" ADR-0057 foresaw for an extraction, done in place.
+  generation of the types, not an import of `@hubtask/api-client`'s: the SDK may be extracted on
+  its own, so nothing first-party sits in its import path. It is the "regeneration rather than a
+  copy" [ADR-0057](../../docs/adr/ADR-0057-sdk-licence-and-extraction.md) foresaw for an
+  extraction, done in place.
 
 The package is a workspace member so that the Node lane builds, typechecks and tests it, and an
 island on the workspace map ([`project-structure.md`](../../docs/architecture/project-structure.md)
@@ -43,6 +43,6 @@ fetch layer is the sync engine's port, never this class. `scripts/client.test.js
 against a recording server; `pnpm lint` refuses anything in `src/` but the generated file.
 
 **Licence.** Apache-2.0 — the `LICENSE` file beside this README, and the header every file
-carries (ADR-0059 §6, deciding [ADR-0057](../../docs/adr/ADR-0057-sdk-licence-and-extraction.md)).
-The npm name and an extraction into a repository of its own stay open; the workspace name
+carries, like the whole repository ([ADR-0080](../../docs/adr/ADR-0080-hubtask-is-apache-2-0.md)). The npm name and an extraction into a repository of its
+own stay open ([ADR-0057](../../docs/adr/ADR-0057-sdk-licence-and-extraction.md)); the workspace name
 `@hubtask/sdk-typescript` is not a publication name.

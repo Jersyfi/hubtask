@@ -449,7 +449,7 @@ export function writeApp({ document, events, into }) {
   fs.writeFileSync(path.join(into, 'package.json'), JSON.stringify(publishedManifest(version), null, 2) + '\n');
   for (const file of ['hubtask.js', 'authentication.js']) fs.copyFileSync(path.join(packageRoot, 'src', file), path.join(into, file));
   fs.copyFileSync(path.join(packageRoot, 'README.md'), path.join(into, 'README.md'));
-  // The app is Apache-2.0 (ADR-0059 §6), and what is pushed carries its licence file.
+  // The app is Apache-2.0 (ADR-0080), and what is pushed carries its licence file.
   fs.copyFileSync(path.join(packageRoot, 'LICENSE'), path.join(into, 'LICENSE'));
   return { triggers, creates: CREATES.map((c) => c.id), searches: SEARCHES.map((s) => s.id) };
 }

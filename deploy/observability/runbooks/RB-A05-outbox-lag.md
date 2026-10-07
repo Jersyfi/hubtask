@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A05 — Events are reaching their consumers late
 
 **Alert:** `HubtaskOutboxLagging` · **Severity:** page · **Catalogue:** A-05 · **SLO:** SLO-4

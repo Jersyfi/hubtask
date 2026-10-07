@@ -98,14 +98,12 @@ production the rule is: fix forwards).
 
 ## 5. Support and upgrade policy
 
-**Until Licensing Start** ([licensing-editions.md](./licensing-editions.md) §6) none of this is a
-commitment: the project is provided as is, fixes are best effort and go into the current minor,
-no version has a support period, and the project may be archived at any time. The rows below are
-the policy the project *aims* to follow, and the one it is bound to from Licensing Start for every
-major that licences have been sold for — because from then the Cyber Resilience Act binds it,
-not this document.
+None of this is a commitment. Hubtask is open source under Apache-2.0 and provided as is
+([licensing-editions.md](./licensing-editions.md)): fixes are best effort and go into the current
+minor, no version has a support period, and the project may be archived at any time. The rows
+below are the policy the project *aims* to follow.
 
-| Point | Aim now, policy for sold majors from Licensing Start |
+| Point | Aim |
 |---|---|
 | Supported versions | The current major plus the previous major for its declared support period (12 months intended) |
 | Upgrade path | Any version can be upgraded to from any version of the previous major; jumps across two majors need an intermediate step |

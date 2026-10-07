@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A09 — Webhook deliveries are failing
 
 **Alert:** `HubtaskWebhookDeliveryFailing` · **Severity:** ticket · **Catalogue:** A-09 · **SLO:** SLO-6

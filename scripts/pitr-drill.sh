@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
 # RT-9 in CI: a point-in-time recovery to a moment between two writes, on a real CloudNativePG

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "The Hubtask project website (hubtask.eu). Deployed as static files, never embedded.",
-  "license": "BUSL-1.1",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build && node build/check-static.js",

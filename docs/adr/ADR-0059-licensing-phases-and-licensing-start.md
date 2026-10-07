@@ -1,6 +1,7 @@
 # ADR-0059 — Licensing phases and Licensing Start
 
-**Status:** proposed · **Date:** 2026-09-17 · **Supersedes:** [ADR-0013](./ADR-0013-licensing.md)
+**Status:** superseded · **Date:** 2026-09-17 · **Supersedes:** [ADR-0013](./ADR-0013-licensing.md) ·
+**Superseded by:** [ADR-0080](./ADR-0080-hubtask-is-apache-2-0.md) on 2026-10-07 — Hubtask is Apache-2.0, and Licensing Start will not come
 
 > The decisions in this record are made and are in force for Phase 1 from the day it was merged:
 > `LICENSE` carries the interim grant from §2. What the status waits on is one event — the
@@ -304,5 +305,5 @@ parameter and the "revisit before `1.0.0`" are replaced. Accepts the licence par
 [ADR-0058](./ADR-0058-connector-packages.md) (the connector packages),
 [ADR-0035](./ADR-0035-one-product-version.md) (one version, which "per version" terms attach to),
 [`licensing-editions.md`](../architecture/licensing-editions.md) (the model as implemented, the
-`0.x` declaration, the prerequisites), [`CLA.md`](../../CLA.md),
+`0.x` declaration, the prerequisites), [`CLA.md`](https://github.com/Jersyfi/hubtask/blob/663564136fb6a21c9fe96c0cfbe732df41cbbcce/CLA.md),
 [`data-protection.md`](../architecture/data-protection.md) §7 (the CRA row).

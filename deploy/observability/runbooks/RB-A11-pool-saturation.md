@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A11 — A connection pool is running near its ceiling
 
 **Alert:** `HubtaskPoolNearSaturation` · **Severity:** ticket · **Catalogue:** A-11

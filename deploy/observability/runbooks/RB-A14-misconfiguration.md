@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A14 — The process is running with flagged configuration
 
 **Alert:** `HubtaskMisconfigured` · **Severity:** ticket · **Catalogue:** A-14

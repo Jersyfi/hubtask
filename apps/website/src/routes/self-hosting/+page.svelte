@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1
+<!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import Proof from '$lib/Proof.svelte';
@@ -196,10 +196,10 @@ docker compose -f deploy/docker/compose.yaml up -d
           latency, and point-in-time recovery with a verified restore.
         </p>
         <p>
-          Running it for your own organisation or your own clients is free, today and for every
-          version published before Licensing Start. Offering Hubtask itself to other people as a
-          hosted or managed service is the one case the licence reserves.
-          <a href="/licence/">The terms, and what is still open</a>
+          Running it for your own organisation, for your own clients, or as a service for other
+          people is free: Hubtask is Apache-2.0. Only the name stays ours — an offering built on it
+          calls itself something else.
+          <a href="/licence/">The terms</a>
         </p>
       </div>
       <div>

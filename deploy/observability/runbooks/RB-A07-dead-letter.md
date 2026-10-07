@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A07 — A job was finally given up on
 
 **Alert:** `HubtaskDeadLetter` · **Severity:** ticket · **Catalogue:** A-07

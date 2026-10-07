@@ -1,7 +1,8 @@
 # ADR-0013 — BSL 1.1 with a conversion to Apache-2.0
 
 **Status:** superseded · **Date:** 2026-08-16 · **Supersedes:** the proposed draft of 2026-08-14 ·
-**Superseded by:** [ADR-0059](./ADR-0059-licensing-phases-and-licensing-start.md) on 2026-09-17
+**Superseded by:** [ADR-0059](./ADR-0059-licensing-phases-and-licensing-start.md) on 2026-09-17, and by
+[ADR-0080](./ADR-0080-hubtask-is-apache-2-0.md) on 2026-10-07 — Hubtask is Apache-2.0
 
 > The revisit before `1.0.0` that the last paragraph of *Consequences* asks for has happened: it is
 > ADR-0059. The context, the options and the reasoning below are kept as they were written; what
@@ -39,7 +40,7 @@ now rather than left open.
 * **Change Date** — three years after a given version is first publicly distributed.
 * **Change License** — Apache-2.0.
 
-Supporting pieces, all now in place: a [CLA](../../CLA.md) so the conversion and commercial
+Supporting pieces, all now in place: a [CLA](https://github.com/Jersyfi/hubtask/blob/663564136fb6a21c9fe96c0cfbe732df41cbbcce/CLA.md) so the conversion and commercial
 licensing are actually possible, a [trademark policy](../../TRADEMARK.md) covering the name and
 logo, `NOTICE`, `LICENSE-APACHE`, SPDX headers (`BUSL-1.1`) in the source, and a CI check that
 blocks GPL/AGPL dependencies — those would make relicensing impossible. Product-side details are

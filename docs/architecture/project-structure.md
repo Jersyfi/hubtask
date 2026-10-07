@@ -149,8 +149,8 @@ hubtask/
 ├── package.json                    # workspace root: private, scripts and packageManager only
 ├── .nvmrc
 │
-├── sdk/                            # the client SDKs, generated from api/openapi.yaml; Apache-2.0,
-│   │                               # each with a LICENSE of its own (ADR-0057, ADR-0059 §6)
+├── sdk/                            # the client SDKs, generated from api/openapi.yaml; each with a
+│   │                               # LICENSE of its own, for extraction (ADR-0057, ADR-0080)
 │   ├── go/hubtask/                 # client.gen.go (make generate, sdk/go/oapi-codegen.yaml) and
 │   │                               # hubtask.go, the few hand-written lines beside it
 │   ├── python/hubtask/             # client.py and types.py (make generate, tools/sdkgen), and
@@ -214,11 +214,11 @@ apps/website → packages/design-system, packages/api-client (the document, at b
 packages/*   → other packages/* only, acyclically (ADR-0033)
              sync-engine → api-client, and nothing else new
              n8n-nodes-hubtask, zapier-app → api-client (the document, at build time; ADR-0058)
-sdk/*        → nothing in the workspace, and nothing in the workspace → sdk/* (ADR-0059 §6)
+sdk/*        → nothing in the workspace, and nothing in the workspace → sdk/* (ADR-0057)
 ```
 
 `sdk/typescript` is a workspace member so that the Node lane builds, typechecks and tests it —
-and an island on the map: it is Apache-2.0 and what a third party takes, so it depends on no
+and an island on the map: it is what a third party takes and may be extracted, so it depends on no
 first-party member (it generates its own types from `api/openapi.yaml`), and no first-party
 member depends on it (the apps' fetch layer is the engine's port, below).
 
@@ -238,8 +238,8 @@ Forbidden:
 * **`apps/*` depending on `apps/*`.** The two clients have nothing in common that is not a
   package; the webapp is a task manager and the website is a brochure.
 * **An edge between `sdk/*` and the rest of the workspace, in either direction.** An SDK that
-  imports a first-party package carries its licence and its release cadence; a first-party app
-  that imports the SDK reaches past the sync engine's seam.
+  imports a first-party package carries its release cadence and cannot be extracted; a
+  first-party app that imports the SDK reaches past the sync engine's seam.
 * **Any Go code under `apps/` or `packages/`.** Nothing there is importable from Go, and no `.go`
   file is committed under either. The traffic runs the other way: the design system *generates*
   one Go file into the core (§6).

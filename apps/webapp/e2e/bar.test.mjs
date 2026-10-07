@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // The compact bar's contract (F10-16; ADR-0061 decision 1's table, issue 904): at 375 px the bar

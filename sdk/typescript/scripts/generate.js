@@ -6,9 +6,9 @@
 // The client itself (src/client.gen.ts) is written by tools/sdkgen on `make generate`; what it
 // imports is `operations` from dist/schema.d.ts, and this script is what writes that file. It is
 // the SDK's own generation rather than an import of @hubtask/api-client's, on purpose: the SDK is
-// Apache-2.0 and the first-party types are not (ADR-0059 §6), so the SDK regenerates them from
-// the same Apache-2.0 document instead of depending on them - the "regeneration rather than a
-// copy" ADR-0057 foresaw for an extraction, done in place.
+// what a third party takes and may be extracted on its own (ADR-0057), so it regenerates the types
+// from the same document instead of depending on a first-party package - the "regeneration rather
+// than a copy" ADR-0057 foresaw for an extraction, done in place.
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';

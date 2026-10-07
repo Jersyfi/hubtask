@@ -65,7 +65,7 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0056](./ADR-0056-golang-x-text-and-idna.md) | `golang.org/x/text` and `golang.org/x/net/idna` as direct dependencies, confined to adapters | accepted | i18n, supply chain, ports |
 | [0057](./ADR-0057-sdk-licence-and-extraction.md) | The SDKs: which packages, under which licence, extracted or not | accepted | licensing, ecosystem, sdk |
 | [0058](./ADR-0058-connector-packages.md) | The connector packages: generated, dependency-free here, typed there | accepted | ecosystem, supply chain, automation |
-| [0059](./ADR-0059-licensing-phases-and-licensing-start.md) | Licensing phases and Licensing Start | proposed | Legal, product, process |
+| [0059](./ADR-0059-licensing-phases-and-licensing-start.md) | Licensing phases and Licensing Start | superseded | Legal, product, process |
 | [0060](./ADR-0060-rule-check.md) | The check: a rule's references resolved before they fail | accepted | Automation, data model |
 | [0061](./ADR-0061-page-anatomy-and-the-shell.md) | Page anatomy: one navigation, the shell wave, and status as a surface | accepted | Design system, client |
 | [0062](./ADR-0062-cached-tool-binaries.md) | The pinned tools are cached as binaries, and a stamp says what a cache holds | accepted | CI, supply chain, tooling |
@@ -86,3 +86,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0077](./ADR-0077-nobody-is-locked-out.md) | Nobody is locked out: amendments to the withdrawal of an offered provider | accepted | Identity, multi-tenancy |
 | [0078](./ADR-0078-the-ways-back-in.md) | The ways back in: a second proof for a provider, a fallback for every cause, and an operator's lever | accepted | Identity, multi-tenancy |
 | [0079](./ADR-0079-a-draft-is-checked-locally.md) | A draft is checked locally; CI runs when a pull request is ready | accepted | CI, process, tooling |
+| [0080](./ADR-0080-hubtask-is-apache-2-0.md) | Hubtask is Apache-2.0 | accepted | Legal, product, process |

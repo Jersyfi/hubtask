@@ -34,6 +34,6 @@ What is hand-written is `hubtask/__init__.py`, `pyproject.toml` and this file; `
 drives the example against the in-process server where a `python3` is on the path.
 
 **Licence.** Apache-2.0 — the `LICENSE` file beside this README, the header every file carries,
-and the classifier in `pyproject.toml` ([ADR-0059](../../docs/adr/ADR-0059-licensing-phases-and-licensing-start.md)
-§6, deciding [ADR-0057](../../docs/adr/ADR-0057-sdk-licence-and-extraction.md)). The package name
-on PyPI and an extraction into a repository of its own stay open.
+and the classifier in `pyproject.toml`, like the whole repository ([ADR-0080](../../docs/adr/ADR-0080-hubtask-is-apache-2-0.md)). The package name on PyPI
+and an extraction into a repository of its own stay open
+([ADR-0057](../../docs/adr/ADR-0057-sdk-licence-and-extraction.md)).

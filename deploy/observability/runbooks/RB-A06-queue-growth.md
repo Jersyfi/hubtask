@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A06 — A job backlog has done nothing but grow
 
 **Alert:** `HubtaskQueueNotKeepingUp` · **Severity:** ticket · **Catalogue:** A-06

@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # RB-A16 — An automation rule switched itself off
 
 **Alert:** `HubtaskRuleSelfDisabled` · **Severity:** ticket · **Catalogue:** A-16

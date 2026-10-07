@@ -6,7 +6,7 @@
 // The SDK is what a third party takes; everything in it is generated from the contract or is the
 // header the generator writes. A hand-written file here would be the start of a second client,
 // and a client without its Apache-2.0 line is one whose terms a consumer has to take on trust
-// (ADR-0059 §6).
+// (ADR-0080).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -27,7 +27,7 @@ for (const entry of fs.readdirSync(source)) {
     problems.push(`src/${entry}: does not say it is generated - run make generate`);
   }
   if (!head.includes('SPDX-License-Identifier: Apache-2.0')) {
-    problems.push(`src/${entry}: the Apache-2.0 header is missing (ADR-0059 §6)`);
+    problems.push(`src/${entry}: the Apache-2.0 header is missing (ADR-0080)`);
   }
 }
 

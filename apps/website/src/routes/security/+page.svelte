@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: BUSL-1.1
+<!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import Proof from '$lib/Proof.svelte';
@@ -222,8 +222,8 @@
 
     <div class="callout section-gap">
       <p>
-        <strong>Reporting a vulnerability.</strong> The path, the response aims — best effort until
-        Licensing Start, not deadlines — and the advisory process are in <code>SECURITY.md</code>
+        <strong>Reporting a vulnerability.</strong> The path, the response aims — best effort, not
+        deadlines — and the advisory process are in <code>SECURITY.md</code>
         in the repository. Please use it rather than an issue.
       </p>
       <Proof href="https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md" label="SECURITY.md" />
