@@ -9,9 +9,8 @@
   // of people is `GET /memberships?scope_type=TENANT`. An account with no membership anywhere is
   // invisible here, which is why the invitation below grants a role in the same breath.
   //
-  // **F3-07 built the container half; this is the workspace half.** Same store, same grant and
-  // revoke, one scope higher — and `people.svelte.ts` already carries the step-up, because F4-04
-  // switched that control on rather than leaving a mechanism with no caller.
+  // **This is the workspace half; a container has its own.** Same store, same grant and revoke,
+  // one scope higher — and `people.svelte.ts` carries the step-up for both.
   //
   // **Read-only rather than absent where the write is refused.** Reading the memberships needs
   // `READ`; changing them needs `MANAGE_MEMBERS`. Somebody who holds the first and not the second
@@ -72,7 +71,7 @@
 
   const holders = $derived(people.holders({}, TENANT));
 
-  /** The row a revoke is being confirmed for (issue 778); the dialog is open while there is one. */
+  /** The row a revoke is being confirmed for; the dialog is open while there is one. */
   let revoking = $state<Holder | undefined>(undefined);
   const revokingOwnership = $derived(
     revoking ? ownershipOf(holders, revoking.membershipId, actor.account?.id, (id) => people.membersOf(id)) : 'other',
@@ -265,7 +264,7 @@
               {/if}
             </td>
             <td>
-              <!-- Asks first (issue 778): a single keystroke on a focused control must not end
+              <!-- Asks first: a single keystroke on a focused control must not end
                    somebody's access. -->
               <Button
                 size="sm"

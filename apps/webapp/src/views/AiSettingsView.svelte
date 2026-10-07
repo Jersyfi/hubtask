@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The workspace's AI provider, and the consent that lets it be used (J-02, ADR-0049, F5-05).
+  // The workspace's AI provider, and the consent that lets it be used (ADR-0049).
   //
   // **Two decisions, kept two.** Configuring a provider says where a call would go; consenting
   // says the workspace's content may go there. `processing_allowed` is the second decision as a

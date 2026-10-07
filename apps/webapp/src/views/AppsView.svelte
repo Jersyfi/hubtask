@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The third-party apps this workspace has registered (H-05).
+  // The third-party apps this workspace has registered.
   //
   // **The redirect URIs are matched byte for byte**, at authorization and again at exchange. So the
   // form says that, and this screen normalises nothing: a trailing slash quietly removed here is an

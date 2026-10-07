@@ -1,17 +1,16 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The first screen after signing in — and what it stopped being (ADR-0063 decision 1).
+  // The first screen after signing in (ADR-0063 decision 1).
   //
-  // It was a list of the hubs. The tree beside it lists the hubs, so on every width above a phone
-  // this screen said what the navigation already said, and the walk of 2026-09-22 found nothing
-  // here worth arriving at. It keeps its address and becomes **what is on the reader**: what of
+  // Not a list of the hubs: the tree beside it lists the hubs, so on every width above a phone
+  // such a screen says what the navigation already says. It is **what is on the reader**: what of
   // theirs is overdue and what is due next, what waits in the jumble, what this device opened
   // last — and, for a workspace with no hub at all, the one action that starts one.
   //
-  // **Composed of reads that already exist**, which is decision 4's rule and the reason this
-  // screen took no server work. The first panel is one wordless search, which is a question only
-  // since ADR-0064 (`lib/data/overview.svelte.ts`); the jumble is the same read the jumble screen
+  // **Composed of reads that already exist** (ADR-0063 decision 1), so this screen needs no server
+  // work of its own. The first panel is one wordless search, which is a question (ADR-0064,
+  // `lib/data/overview.svelte.ts`); the jumble is the same read the jumble screen
   // makes; what was opened last is this device's and is sent nowhere (`lib/recents.svelte.ts`).
   // The hubs are not read here at all — the frame already holds them for the tree.
   //
@@ -229,8 +228,8 @@
   }
 
   /* The band's word is flush left: the same start as the panel's own heading and as the rows'
-     boxes under it (issue 1022). It was indented to the titles for a day, which read as a label
-     hanging in the middle of the list; `e2e/overview.test.mjs` measures it either way. */
+     boxes under it. Indented to the titles it reads as a label hanging in the middle of the list;
+     `e2e/overview.test.mjs` measures it either way. */
   .band {
     margin: 0;
     font-size: var(--fs-075);

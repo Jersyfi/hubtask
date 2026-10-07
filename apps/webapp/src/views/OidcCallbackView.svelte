@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // Where the provider sends the browser back (H-04).
+  // Where the provider sends the browser back.
   //
   // **This address is the server's, not this screen's.** `cmd/server/main.go` derives
   // `<base>/auth/callback` as the redirect URI and registers it with the provider; nothing about

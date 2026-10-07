@@ -28,7 +28,7 @@
   // **Every way in is one row with one switch** (check 6, UC-ID-11 check 8): the password, the
   // workspace's own providers and the ones the installation offers, in one list. A switch there acts
   // at once, behind the step-up - the password's through `methods`, a provider's through `:offer`,
-  // the one verb for both kinds - and the provider screen switches nothing any more. The last way in
+  // the one verb for both kinds - and the provider screen switches nothing. The last way in
   // that is on cannot be switched off, here and at the server.
   //
   // **A withdrawal is said where the switch is** (ADR-0076 §2, §4). A provider the installation
@@ -420,7 +420,7 @@
               {@render flagRow('breach_check', policy.password.breach_check, t('app.signin_settings.breach_check'), t('app.signin_settings.breach_hint'))}
               {@render countRow('max_age_days', policy.password.max_age_days, t('app.signin_settings.max_age_days'), mayBeOff(policy.password.max_age_days) ? t('app.signin_settings.max_age_hint') : undefined, capped(policy.password.max_age_days), true)}
               {@render countRow('history_count', policy.password.history_count, t('app.signin_settings.history_count'), t('app.signin_settings.history_hint'))}
-              <!-- The eighteenth rule, which had no control until SC-06 (check 7). -->
+              <!-- The eighteenth rule (check 7). -->
               {@render countRow('min_age_hours', policy.password.min_age_hours, t('app.signin_settings.min_age_hours'), t('app.signin_settings.min_age_hint'))}
             </Stack>
           </section>
@@ -533,9 +533,8 @@
               {@render linkRow('imprint_url', t('app.legal.imprint'))}
               {@render linkRow('privacy_url', t('app.legal.privacy'))}
               {@render linkRow('terms_url', t('app.legal.terms'))}
-              <!-- The fourth link. The sign-in footer has shown it since the card was built, and
-                   it was the one of the four with nowhere to set it: a workspace could only have
-                   the installation's, whatever its own statement said. -->
+              <!-- The fourth link, which the sign-in footer shows: without this row a workspace
+                   could only have the installation's, whatever its own statement said. -->
               {@render linkRow('accessibility_url', t('app.legal.accessibility'))}
             </Stack>
           </section>

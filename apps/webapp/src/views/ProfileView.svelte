@@ -2,10 +2,10 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // How the product speaks to this reader — the first screen of Your settings (ADR-0065
-  // decision 3), and the whole of what this screen is now.
+  // decision 3), and nothing else.
   //
-  // **The client has read these three since F1-08 and could never set them.** This is the screen
-  // that closes that, and it does the setting only — the frame still applies the language and the
+  // **The client reads these three, and this is the one screen that sets them.** It does the
+  // setting only — the frame still applies the language and the
   // direction, in the one place it applies them. A write names `/accounts`, the frame's read of
   // `/accounts/me` is watched, and the engine re-reads it: the page changes language without a
   // reload and without a second module deciding which language it is.
@@ -13,9 +13,9 @@
   // **Clearing is not setting to nothing.** An empty value means the workspace's own applies again,
   // and the field says that rather than going blank and leaving somebody to guess.
   //
-  // **What used to be under it is a screen each.** The second factor, the sessions, the devices,
-  // the theme, the notifications, the apps and the tokens were sections of one screen of nine;
-  // each is now a row of the section's column with an address of its own.
+  // **Nothing else is under it.** The second factor, the sessions, the devices, the theme, the
+  // notifications, the apps and the tokens are each a row of the section's column with an address
+  // of its own.
   //
   // **Nothing is compiled in.** The languages are the manifest's.
 
@@ -63,7 +63,7 @@
     try {
       await preferences.setAccount(accountId, {
         // The empty string, not null: it is what every server version clears on, where a null
-        // was read as "not sent" before 0.9.0 (issue 709).
+        // was read as "not sent" before 0.9.0.
         locale: clearedOr(locale),
         time_zone: clearedOr(zone),
         week_start: clearedOr(weekStart) as never,
@@ -85,7 +85,7 @@
   <Stack gap="300">
     <SettingsHead row="profile" />
 
-    <!-- Where the tour's `profile` step points (F6-14). It goes to `/profile`, which is the
+    <!-- Where the tour's `profile` step points. It goes to `/profile`, which is the
          section's first screen, and what is on the next row of the column its sentence names. -->
     <form class="panel" data-tour="profile" onsubmit={(event) => { event.preventDefault(); void save(); }}>
       <Stack gap="200">

@@ -10,8 +10,8 @@
   //
   // **The recovery codes are shown the way every other one-time secret in this product is** -
   // `OneTimeSecret`, with reveal, copy and an acknowledgement, which is what the component exists
-  // for. They used to be a plain list with no way to copy them, which is a set of ten codes
-  // somebody has to retype by hand at the worst possible moment.
+  // for. A plain list with no way to copy them is a set of ten codes somebody has to retype by
+  // hand at the worst possible moment.
   //
   // **Whether one is armed decides what this screen offers.** `GET /accounts/me` answers
   // `has_second_factor`, and everything below the password hangs off it. Before it was answered,
@@ -200,7 +200,7 @@
           <div class="section">
             <!-- Offered whenever a factor is on, also where the workspace requires one: the old
                  factor works until the new app confirms the swap, so there is never a moment
-                 without a factor (SC-17). -->
+                 without a factor. -->
             <!-- Open by itself while a recovery code's note stands: that note's link leads here, and
                  a closed section under it would be one more press to the thing it asked for. -->
             <details open={recoveryNote.note !== undefined}>
@@ -217,7 +217,7 @@
             {:else}
             <!-- Offered wherever the rule does not require the factor, to every account: the proof
                  is the step-up's, with whatever the account holds (ADR-0075 §3), so an account
-                 without a password is no longer turned away here. -->
+                 without a password is not turned away here. -->
             <details>
               <summary>{t('app.mfa.disable_summary')}</summary>
               <Stack gap="150">

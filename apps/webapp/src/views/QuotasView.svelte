@@ -1,10 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // What this workspace may use, and how close it is (`multi-tenancy.md` §4, H-08).
+  // What this workspace may use, and how close it is (`multi-tenancy.md` §4).
   //
   // **There is no control to raise a limit, and the screen says who to ask.**
-  // `/admin/tenants/{id}/quotas` is the installation operator's (0.6.0 decision 6). A button the
+  // `/admin/tenants/{id}/quotas` is the installation operator's (multi-tenancy.md §4). A button the
   // server would refuse is worse than no button — it teaches somebody that the product is broken
   // rather than that the decision is somebody else's.
   //

@@ -67,7 +67,7 @@
   <!-- The three pages about the software, and the reason they are on the page that already
        carries the versions: what somebody quotes when they report a problem and where they report
        a barrier are the same errand, and this is the route the account group offers for it
-       ("About Hubtask"). Until F10 the statement was in a footer on every screen; one link does
+       ("About Hubtask"), not a footer on every screen: one link does
        not earn a landmark on a board (design-system.md §10).
 
        Outside the manifest's three states on purpose. The statement has to be reachable when the

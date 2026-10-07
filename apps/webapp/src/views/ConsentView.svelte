@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // "Do you allow this app?" — the screen `POST /oauth/authorize` has been waiting for (H-05).
+  // "Do you allow this app?" — the screen `POST /oauth/authorize` has been waiting for.
   //
   // **The app is named, and that is the whole security argument for the read behind it.** A consent
   // screen that showed an identifier would be asking somebody to approve a UUID, which is exactly

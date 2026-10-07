@@ -8,7 +8,7 @@
   // that is right (I-W4). An archived hub or collection does neither: the tree never asks for them,
   // the route leaves the parameter at `false`, and the container drops out of the navigation with
   // nothing anywhere to show it again. Archiving is offered as the reversible alternative to the
-  // trash, so a reversal with no route in the interface was the half that was missing (issue 933).
+  // trash, so a reversal with no route in the interface was the half that was missing.
   //
   // **It reads what exists and adds no endpoint.** The two levels `ListContainers` answers, with
   // `include_archived` on both: the hubs, and each hub's collections. One request per hub, which is

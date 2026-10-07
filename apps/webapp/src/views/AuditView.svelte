@@ -57,7 +57,7 @@
 
   let verifyFrom = $state('');
   let verifyTo = $state('');
-  /** Whether the check also reads the last anchor back from the target (issue 774). */
+  /** Whether the check also reads the last anchor back from the target. */
   let verifyAnchors = $state(false);
 
   // Where the chain's end is anchored, read from the workspace - the one place it is read back

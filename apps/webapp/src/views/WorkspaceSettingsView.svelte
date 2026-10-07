@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // How the workspace is set up: its name and what its members fall back to (F4-01). How they sign
+  // How the workspace is set up: its name and what its members fall back to. How they sign
   // in is the sign-in screen's alone (UC-ID-12 check 1).
   //
   // **The three defaults are stated as what they are.** The locale and the zone here are not "the

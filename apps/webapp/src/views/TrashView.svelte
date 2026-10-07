@@ -9,7 +9,7 @@
   // the invariant the batch exists for is "restoring is atomic", and an offer that broke it would
   // be a control the model has no answer for.
   //
-  // **Emptying is the one irreversible thing in this milestone**, and it is treated as one. It says
+  // **Emptying is irreversible**, and it is treated as such. It says
   // how many deletions and what goes with them, it is confirmed rather than offered as a plain
   // button, it carries the destructive tone, and it is never the default action of anything — the
   // dialog opens on Cancel's side and the confirm is named for what it does rather than "OK".

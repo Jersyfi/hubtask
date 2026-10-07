@@ -1,18 +1,18 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The workspace's identity providers, configured (H-04, SI-10).
+  // The workspace's identity providers, configured.
   //
   // **Plural, and two levels deep.** The listing carries this workspace's own rows and the ones its
   // installation offers every workspace on it. An inherited row is not this workspace's to change,
   // so it carries no field and no remove. Whether it is a way in here is the workspace's own call -
   // "Für alle Arbeitsbereiche angeboten, nirgends an: jeder Owner schaltet selbst" (ADR-0070 §2) -
-  // and since SC-06 that call, like switching any provider on or off, is made in one place: the list
+  // and that call, like switching any provider on or off, is made in one place: the list
   // of ways to sign in on the sign-in screen (UC-ID-11 check 8). This screen configures; it says
   // whether a provider is on here, and switches nothing.
   //
   // **The client secret goes one way, and this screen says so rather than pretending.** It is sealed
-  // on the way in and is a member of no answer (E-02), so editing an existing provider shows an empty
+  // on the way in and is a member of no answer, so editing an existing provider shows an empty
   // secret field with a sentence explaining that leaving it empty is not "no secret" — it is "the one
   // already sealed". A row of dots standing in for a value nobody can read would be a screen
   // inventing a fact.
@@ -71,8 +71,8 @@
   const inherited = $derived(identityProvider.inherited);
 
   /**
-   * A read that failed with `404` is an installation that does not serve the collection — the
-   * screen the workspace had before SI-10, which is nothing to configure here. Anything else is a
+   * A read that failed with `404` is an installation that does not serve the collection — and
+   * there is nothing to configure here. Anything else is a
    * refusal worth showing: a caller without the permission, a server that could not answer.
    */
   const unavailable = $derived(reading.status === 'failed' && reading.error.status === 404);

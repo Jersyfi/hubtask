@@ -1,11 +1,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The devices that hold a copy of this workspace for the reader (F6-07).
+  // The devices that hold a copy of this workspace for the reader.
   //
   // **A table, and the newest first** (ADR-0065 decision 3), for the reason the sessions beside it
   // are one: four facts a row, read across, is unreadable at the number of devices a year
-  // produces. **A forgotten device is blocked, not erased** (N-03), so the row says so rather than
+  // produces. **A forgotten device is blocked, not erased**, so the row says so rather than
   // going — what it has not sent yet, it keeps.
 
   import { untrack } from 'svelte';

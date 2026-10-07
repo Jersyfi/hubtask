@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The installation's own values, and where each lock came from (SI-17, ADR-0070 §2, §5).
+  // The installation's own values, and where each lock came from (ADR-0070 §2, §5).
   //
   // **Read and written here**, because the API is the product and this is one of its three doors:
   // "hubctl und das Dashboard sind zwei Clients davon — dieselbe Regel, die für die Anwendung gilt".
@@ -72,7 +72,7 @@
   const rows = $derived([
     ...Object.entries(settings?.sign_in ?? {}).map(([key, setting]) => ({ area: 'sign_in', key, setting })),
     ...Object.entries(settings?.legal ?? {}).map(([key, setting]) => ({ area: 'legal', key, setting })),
-    // The two areas SI-17 added: the defaults a workspace inherits, and the ceilings it falls back
+    // The two areas of the installation: the defaults a workspace inherits, and the ceilings it falls back
     // to. Drawn in the same table because they are the same model — a value, and who may change it.
     ...Object.entries(settings?.localisation ?? {}).map(([key, setting]) => ({ area: 'localisation', key, setting })),
     ...Object.entries(settings?.quotas ?? {}).map(([key, setting]) => ({ area: 'quotas', key, setting })),
