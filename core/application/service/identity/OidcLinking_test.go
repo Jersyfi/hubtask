@@ -60,8 +60,8 @@ func arrive(t *testing.T, f *oidcFixture) (SignInResult, error) {
 		Execute(t.Context(), CompleteOidcSignInCommand{Code: "x", State: start(t, f)})
 }
 
-// E2's failing test, kept as the regression: before SC-01 the arrival was linked to the owner's
-// account and a session opened, without the owner's password and without their second factor.
+// A provider's arrival must not be linked to the owner's account and open a session without the
+// owner's password and without their second factor.
 func TestAProviderCannotOpenAnAccountThatHoldsAPasswordAndAFactor(t *testing.T) {
 	f := linkFixture(t, true)
 

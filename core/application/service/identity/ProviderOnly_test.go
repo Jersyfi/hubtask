@@ -11,8 +11,8 @@ import (
 )
 
 // UC-ID-05 check 5: an account that signs in only through a provider holds no password, so
-// it is neither offered a password change nor asked for a password as a proof. Before SC-09 the
-// step-up named the password for everybody, and `/accounts/me` did not say whether there was one.
+// it is neither offered a password change nor asked for a password as a proof - the step-up names
+// only the methods the account holds, and `/accounts/me` says whether there is a password.
 
 // providerOnly is the step-up fixture's account with its password taken away.
 func providerOnly(t *testing.T) *sessionFixture {

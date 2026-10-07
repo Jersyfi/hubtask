@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// SC-25 (ADR-0077 §3): nobody is left without a way in. Where a workspace's last way in was an
+// ADR-0077 §3: nobody is left without a way in. Where a workspace's last way in was an
 // offer that ended, an account that only ever signed in through that provider holds no password the
 // fallback could open - so *Forgot your password?* mails it a link to set one, and that is how it gets
 // back in. Outside the fallback nothing changes: the provider mail, no link.

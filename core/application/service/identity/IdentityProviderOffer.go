@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// Whether a provider is a way into *this* workspace (the concept's §8).
+// Whether a provider is a way into *this* workspace (identity.md §10.2).
 //
 // **One verb, two stores, one question.** For a workspace's own provider the answer lives on the
 // row (`enabled`); for one the installation offers it lives in the workspace's settings, because

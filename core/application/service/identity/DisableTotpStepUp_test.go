@@ -19,8 +19,8 @@ import (
 
 // ADR-0075 §3, UC-ID-05 check 5, UC-ID-03 check 6: turning the second factor off takes the step-up
 // like every privileged action, so an account that holds no password proves it with what it holds.
-// Before SC-16 the route asked for the password in its own body, and a provider-only person with a
-// factor could not turn it off at all.
+// A route that asked for the password in its own body would leave a provider-only person with a
+// factor no way to turn it off at all.
 
 func TestTurningTheFactorOffTakesTheStepUp(t *testing.T) {
 	fixture := providerOnly(t)

@@ -32,15 +32,15 @@ const (
 )
 
 // The audit codes of the sign-in flow. Opening a way into the workspace and detecting a stolen
-// one are both the class of event a review looks for (audit.md §2, T-01).
+// one are both the class of event a review looks for (audit.md §4, T-01).
 const (
 	SignedInAction         audit.Action = "auth.signed_in"
 	SessionRefreshedAction audit.Action = "auth.session_refreshed"
 	RefreshReuseAction     audit.Action = "auth.refresh_reuse_detected"
 )
 
-// The metric reasons of hubtask_auth_failures_total, a closed set (§3.2). refresh_reused is the
-// one A-15's second half watches.
+// The metric reasons of hubtask_auth_failures_total, a closed set (observability-reliability.md
+// §3.2). refresh_reused is the one A-15's second half watches.
 const (
 	FailureWrongCredential = "wrong_credential" //nolint:gosec // G101: a metric label, not a credential
 	FailureLocked          = "locked"
@@ -88,13 +88,12 @@ type SessionWriter struct {
 	// Domains brings a typed address's domain to the ASCII form the stored one has, so that a
 	// person who types `anna@müller.de` finds the row that holds `anna@xn--mller-kva.de`.
 	Domains text.DomainEncoder
-	// Multi is decision 3's mode switch: in multi mode the tenant comes from the subdomain or
-	// the header, in single mode from the installation's only row - one code path, one special
-	// case (multi-tenancy.md §1).
+	// Multi is tenant resolution's mode switch (multi-tenancy.md §3): in multi mode the tenant
+	// comes from the subdomain or the header, in single mode from the installation's only row -
+	// one code path, one special case (multi-tenancy.md §1).
 	Multi bool
 
-	// The second factor's stores. Nil switches the second step off wholesale - the shape
-	// H-01 shipped - which is what lets the two tasks land in separate releases.
+	// The second factor's stores. Nil switches the second step off wholesale.
 	Enrollments repository.MfaEnrollments
 	Recovery    repository.RecoveryCodes
 	Pending     repository.PendingCredentials
@@ -102,14 +101,14 @@ type SessionWriter struct {
 	// thirty lines of arithmetic, storage never does.
 	Encryptor cryptoport.Encryptor
 	// Memberships and Policy answer the enforcement question: does this tenant demand a factor
-	// of this account's role (security.md §5).
+	// of this account's role (identity.md §8).
 	Memberships repository.Memberships
 	Policy      repository.TenantPolicy
 	// People reads the account an MFA operation acts for - the provisioning URI labels it by
 	// its address, which the actor deliberately does not carry.
 	People repository.Accounts
-	// StepUps and StepUpWindow are H-03's: the proof on the session, and how long it covers the
-	// one privileged action it is presented to.
+	// StepUps and StepUpWindow are the step-up's (identity.md §16): the proof on the session, and
+	// how long it covers the one privileged action it is presented to.
 	StepUps      repository.StepUps
 	StepUpWindow time.Duration
 	// Issuer is the label an authenticator shows beside the code.
@@ -121,8 +120,7 @@ type SessionWriter struct {
 	// Rule answers what ADR-0068's three levels say about this sign-in: whether the password that
 	// was just accepted still meets the workspace's rule, who a second factor is demanded of, and
 	// what bounds the session it is about to open. Nil switches the PASSWORD_CHANGE step off
-	// wholesale and falls back to `require_admin_totp`, which is the shape H-02 shipped - and what
-	// lets the two land in separate releases.
+	// wholesale and falls back to `require_admin_totp`.
 	Rule SignInRuleReader
 }
 
@@ -137,9 +135,9 @@ type SignInRuleReader interface {
 
 // sessionBounds is what a session opened without a password in hand answers to: the workspace's
 // two bounds, read through the same rule the password door reads (ADR-0068 §3). A provider arrival,
-// the second factor's step and a forced setup all end here, and every one of them opened unbounded
-// sessions until SC-03 - which is how a workspace that ends idle sessions after half an hour kept a
-// provider's open for a month (UC-ID-08 check 4).
+// the second factor's step and a forced setup all end here, so none of them opens an unbounded
+// session - a workspace that ends idle sessions after half an hour must not find a provider's open
+// for a month (UC-ID-08 check 4).
 //
 // Asked with no password, so the verdict's password answers stay silent and only the bounds (and
 // who a factor is demanded of) are read. Nil rule is the installation wired before there was one.
@@ -192,8 +190,8 @@ type SessionPair struct {
 }
 
 // SignInCommand carries what the sign-in route received. The client fields are hints recorded on
-// the session (T-01); the tenant fields are decision 3's sources, resolved before the credential
-// is checked.
+// the session (T-01); the tenant fields are tenant resolution's sources (multi-tenancy.md §3),
+// resolved before the credential is checked.
 type SignInCommand struct {
 	Email    string
 	Password secret.Secret
@@ -208,14 +206,14 @@ type SignInCommand struct {
 }
 
 // SignIn is the password sign-in: email and password in, an access/refresh pair and a
-// session row out - or, since H-02, the challenge a second factor demands first.
+// session row out - or the challenge a second factor demands first.
 type SignIn struct{ Writer SessionWriter }
 
 // Execute checks the credential and opens the session.
 //
 // Every credential failure is one generic refusal, byte for byte (T-02): the ledger and the
 // metric learn the difference, the caller never does. The tenant is resolved first, because
-// accounts are per-tenant and the lookup cannot run without a context (decision 3).
+// accounts are per-tenant and the lookup cannot run without a context (multi-tenancy.md §3).
 func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, error) {
 	w := h.Writer
 
@@ -557,8 +555,9 @@ func (w SessionWriter) pairFor(
 	}
 }
 
-// resolveTenant is decision 3, in code: subdomain, then header, and in single mode the only row -
-// with `tenant_mismatch` on contradiction and one refusal for "no workspace answers here".
+// resolveTenant is multi-tenancy.md §3 in code: subdomain, then header, and in single mode the
+// only row - with `tenant_mismatch` on contradiction and one refusal for "no workspace answers
+// here".
 func (w SessionWriter) resolveTenant(ctx context.Context, slug, header string) (shared.ID, error) {
 	var tenantID shared.ID
 

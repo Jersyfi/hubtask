@@ -25,7 +25,7 @@ const (
 	ListServiceAccountsName  = "ListServiceAccounts"
 
 	// ServiceAccountCreatedAction is the audit code. Creating one is granting a way in that
-	// outlives everybody, which is exactly the kind of act a trail exists for (audit.md §2).
+	// outlives everybody, which is exactly the kind of act a trail exists for (audit.md §4).
 	ServiceAccountCreatedAction audit.Action = "account.service_account_created"
 	// ServiceAccountsReadAction is what the listing performs.
 	ServiceAccountsReadAction audit.Action = "account.service_accounts_read"

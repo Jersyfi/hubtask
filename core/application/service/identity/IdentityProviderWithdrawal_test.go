@@ -13,10 +13,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// The date of ADR-0076, on the workspace's side: honoured where the offer is read (§2), so what is
-// asserted is every reader - the list, the sign-in card, the sign-in itself, and the switch. The
-// count is counted in the database where the installation reads it (ADR-0077 §1), and its test is
-// the integration test of the provider store.
+// The date of ADR-0076, on the workspace's side: honoured where the offer is read (ADR-0076 §2), so
+// what is asserted is every reader - the list, the sign-in card, the sign-in itself, and the
+// switch. The count is counted in the database where the installation reads it (ADR-0077 §1), and
+// its test is the integration test of the provider store.
 
 // detailOf is the refusal's message code, and empty where nothing was refused.
 func detailOf(err error) string {

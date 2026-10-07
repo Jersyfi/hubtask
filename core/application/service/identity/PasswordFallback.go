@@ -23,12 +23,12 @@ import (
 //
 // When the ways in a workspace's rule resolves to leave none that works - the password is not among
 // them and no provider is switched on here - the password opens again: for the accounts that hold
-// one, under the workspace's own password and second-factor rules. **Whatever the cause** (the
-// owner's decision of 2026-10-04, E2, #1138): an offer that ended, which is where ADR-0076 §4 began,
-// but just as much an installation default or lock without the password, a rescue lock lifted after
-// the provider went, a restore or an import that brought the settings without the providers, or two
-// administrators switching off the last two ways at once. The guards at the doors (the last way in,
-// SC-06) refuse what they can see; this is the net under all of them, so nothing else has to be
+// one, under the workspace's own password and second-factor rules. **Whatever the cause**
+// (identity.md §17.1): an offer that ended, which is where ADR-0076 §4 began, but just as much an
+// installation default or lock without the password, a rescue lock lifted after the provider went,
+// a restore or an import that brought the settings without the providers, or two administrators
+// switching off the last two ways at once. The guards at the doors (the last way in, identity.md
+// §4.1) refuse what they can see; this is the net under all of them, so nothing else has to be
 // perfect - no row lock for the race, no job on the day an offer ends. It is read wherever the ways
 // in are resolved, and it ends the moment an administrator switches on a way in, which is what the
 // screen asks them to do. An account without a password is let back in through its mailbox: the

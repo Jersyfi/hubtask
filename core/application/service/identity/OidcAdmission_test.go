@@ -13,8 +13,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// E1, decided 2026-09-30 (docs/backlog/milestone-SC.md): the admission ladder is one axis - who
-// comes in - and the three positions read, for a person arriving through the provider:
+// identity.md §10.4: the admission ladder is one axis - who comes in - and the three positions
+// read, for a person arriving through the provider:
 //
 //   - INVITED_ONLY: only somebody who already has an account here; nobody gets one by arriving.
 //   - DOMAINS: only somebody from the listed organisations; a newcomer from them gets an account.

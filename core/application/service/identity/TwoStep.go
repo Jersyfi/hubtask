@@ -43,14 +43,14 @@ const (
 	methodLink = "LINK"
 )
 
-// mfaSecretPurpose binds the sealed TOTP secret to its account, E-02's discipline: a ciphertext
+// mfaSecretPurpose binds the sealed TOTP secret to its account (security.md §8): a ciphertext
 // lifted onto another row no longer opens.
 func mfaSecretPurpose(accountID shared.ID) cryptoport.Purpose {
 	return cryptoport.Purpose("account_mfa.secret:" + accountID.String())
 }
 
 // mfaSubject is the attempt ledger's key for second-step guesses: per account, because the code
-// space is small and the address behind a phone changes (H-02 "rate-limits attempts per account").
+// space is small and the address behind a phone changes (identity.md §4.3).
 func mfaSubject(accountID shared.ID) string { return "mfa:" + accountID.String() }
 
 // challengeFor decides whether the password is the whole of this sign-in.
@@ -58,7 +58,7 @@ func mfaSubject(accountID shared.ID) string { return "mfa:" + accountID.String()
 // An armed enrolment demands its code. Under the tenant switch, an OWNER or ADMIN with no armed
 // enrolment is routed into enrolment instead of into a session - the pending credential it hands
 // out can do nothing else. Everybody else signs straight in, and an installation wired without
-// the second factor behaves exactly as H-01 shipped it.
+// the second factor never asks for one.
 func (w SessionWriter) challengeFor(
 	ctx context.Context, scope persistence.Scope, account domain.Account,
 	cmd SignInCommand, subjects []string,

@@ -16,10 +16,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// SC-33 (ADR-0078 §1, UC-ID-10 checks 1 and 6): in a workspace that switched the password off,
-// the link *Forgot your password?* mailed and a fresh sign-in at the provider are together the
-// account's proof at the provider's first arrival - in place of the password, never of the second
-// factor. The link is checked when the flow starts and spent only by an arrival that connects.
+// ADR-0078 §1, UC-ID-10 checks 1 and 6: in a workspace that switched the password off, the link
+// *Forgot your password?* mailed and a fresh sign-in at the provider are together the account's
+// proof at the provider's first arrival - in place of the password, never of the second factor. The
+// link is checked when the flow starts and spent only by an arrival that connects.
 
 // connectAt is the fixture clock the second factor's codes are computed against.
 var connectAt = now

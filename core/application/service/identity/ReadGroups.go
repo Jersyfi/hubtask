@@ -31,7 +31,7 @@ const (
 // a controller. It is the rule `GetAccount` records, reached the same way: a membership granted
 // to a group is unreadable until the group can be shown as the people it reaches, and a member
 // scoped to one hub holds nothing at the workspace that `READ` there could be judged against -
-// requiring it would leave exactly the members screen F3-07 builds without its groups. What a
+// requiring it would leave exactly the members screen without its groups. What a
 // group discloses is its name and its members' identifiers, and the identifiers resolve through
 // the same minimal read (`data-protection.md` §9). The token scope still applies (ADR-0005), and
 // the tenant boundary is the transaction's (ADR-0010).

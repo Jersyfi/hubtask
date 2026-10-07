@@ -13,9 +13,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// The singular surface, kept (the concept's first principle: "Keine Funktion verschwindet").
+// The singular surface, kept: no route of the contract disappears (api-guidelines.md §8).
 //
-// The two things worth asserting are the two a caller written before SI-10 depends on: that the
+// The two things worth asserting are the two a caller written against it depends on: that the
 // route still answers, and that what it answers is a row that caller may write. An installation's
 // provider is neither, which is why the skip is a test rather than a comment.
 
@@ -110,7 +110,7 @@ func TestTheSingularWriteDoesNotReplaceTheInstallationsRow(t *testing.T) {
 
 // Both through the registry, because the registry is what a request meets: a descriptor whose
 // declared keys and whose invocation disagree answers 422 to every caller and passes every direct
-// test (issue 432).
+// test.
 func TestTheSingularSurfaceIsReachableThroughTheRegistry(t *testing.T) {
 	f := newOfferFixture(time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC))
 

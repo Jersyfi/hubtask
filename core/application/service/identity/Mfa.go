@@ -25,7 +25,7 @@ const (
 )
 
 // The audit codes of the second factor's lifecycle. Arming and disarming a factor are the class
-// of event a review looks for (audit.md §2, security.md §5).
+// of event a review looks for (audit.md §4, identity.md §8).
 const (
 	MfaEnrollmentStartedAction audit.Action = "auth.mfa_enrollment_started"
 	MfaEnabledAction           audit.Action = "auth.mfa_enabled"
@@ -564,7 +564,7 @@ func (h DisableTotp) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: DisableTotpName,
 		Summary: "Removes the second factor and burns the remaining recovery codes. It demands " +
-			"a step-up like every privileged action (ADR-0075) - a live session is deliberately not " +
+			"a step-up like every privileged action - a live session is deliberately not " +
 			"enough, because a stolen session removing the factor is the attack the factor exists " +
 			"against. Where the workspace's rule requires the factor of this person it cannot be " +
 			"disabled at all.",
@@ -579,7 +579,7 @@ func (h DisableTotp) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "password", Kind: usecase.KindString,
-				Description: "Deprecated (ADR-0075 §3): the proof this operation took before the " +
+				Description: "Deprecated: the proof this operation took before the " +
 					"step-up. Still checked when sent without a step-up token, for one release.",
 			},
 		},

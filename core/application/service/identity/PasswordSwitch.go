@@ -14,10 +14,10 @@ import (
 // Whether the password is a way into a workspace at all (UC-ID-12 check 6).
 //
 // A workspace that switches the password off - "only through our directory" - means it: the sign-in
-// card hides the form, and every door the server has refuses a password there as well. Before this,
-// the switch was the screen's only, and an account that still held a password signed in with it
-// through the API, hubctl or any client that did not read the card - a second door the workspace had
-// closed, for a person its directory had already let go (P-02).
+// card hides the form, and every door the server has refuses a password there as well. A switch that
+// were only the screen's would let an account that still holds a password sign in with it through
+// the API, hubctl or any client that did not read the card - a second door the workspace had closed,
+// for a person its directory had already let go (P-02).
 //
 // **Nothing is taken from an account.** The stored password stays; switching the password back on
 // makes it work again. **The one exception** is ADR-0076 §4's fallback: a workspace left with no way in
@@ -59,7 +59,7 @@ func (w PasswordWriter) PasswordOpen(
 // and whether it is open only as the fallback. A door that lets the password through and records the
 // fallback records it from this answer - a second read could disagree with the one that opened the
 // door, and costs the same rows twice (E2). A writer whose rule cannot answer - built without
-// one, as the tests of other doors are - lets the password through, which is the shape before SC-24.
+// one, as the tests of other doors are - lets the password through.
 func (w SessionWriter) passwordDoor(
 	ctx context.Context, tenantID shared.ID,
 ) (fallback FallbackCause, err error) {

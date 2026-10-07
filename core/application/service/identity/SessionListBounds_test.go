@@ -14,8 +14,8 @@ import (
 )
 
 // UC-ID-06 check 5: a session that outlived the workspace's session rules - its maximum age, its
-// idle time, a required new password - is not listed as open. Before SC-19 the list dropped only
-// the revoked and the run-out, so a session the next request refused was still offered to be ended.
+// idle time, a required new password - is not listed as open. A list that dropped only the revoked
+// and the run-out would still offer to end a session the next request refuses.
 //
 // One definition of "open": each bound is proved against the same row both ways - the next request
 // refuses it, and the list leaves it out.

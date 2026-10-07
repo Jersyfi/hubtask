@@ -224,7 +224,7 @@ func TestSwitchingIsRecorded(t *testing.T) {
 
 // Through the registry rather than the handler, because the registry is what a request meets: a
 // descriptor that declares an input key the invocation does not use, or the other way round, is a
-// use case that answers 422 to every caller and passes every direct test (issue 432).
+// use case that answers 422 to every caller and passes every direct test.
 func TestTheSwitchIsReachableThroughTheRegistry(t *testing.T) {
 	f := newOfferFixture(time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC))
 	f.own(t, true)

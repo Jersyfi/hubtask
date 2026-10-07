@@ -80,7 +80,7 @@ type providerSealing interface {
 
 // IdentityProviderResealer moves the client secrets of one level.
 //
-// Plural since SI-10, and the purpose is still the level's rather than the row's, which is why
+// Providers are plural, and the purpose is the level's rather than the row's, which is why
 // Reseal takes the tenant: a ciphertext is bound to the workspace it was sealed for, so every row
 // of that workspace opens under the same purpose.
 //

@@ -22,9 +22,9 @@ const GetAccountName = "GetAccount"
 //
 // `ActivityEntry.actor`, an assignee, a member row: each carries `{type, id}` and no label, and the
 // contract gives the reason - "the account is one request away and this record is deleted with its
-// entry, so there is nothing for a copy of somebody's name to outlive". The request it names did
-// not exist, so a client could name exactly one person: the one reading. F2-15 shipped a history in
-// which everybody else is "Somebody", which is honest and unusable in a shared workspace.
+// entry, so there is nothing for a copy of somebody's name to outlive". This is that request.
+// Without it a client could name exactly one person, the one reading, and a history in which
+// everybody else is "Somebody" is honest and unusable in a shared workspace.
 //
 // What it answers is less than `GetOwnAccount` does, and the difference is the point. A caller sees
 // the name, the kind and the status - not the email, the locale, the time zone or the first day of

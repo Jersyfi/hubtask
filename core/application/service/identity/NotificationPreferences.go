@@ -232,7 +232,7 @@ type SetNotificationPreferenceCommand struct {
 // SetNotificationPreference writes what an account wants to be told about, one pair at a time.
 //
 // Switching a category off makes the next notification of that category SUPPRESSED with the
-// record saying why - the decision C-09 built reads this row (core/application/service/
+// record saying why - the delivery decision reads this row (core/application/service/
 // notification/Decide.go), and this is the write that reaches it from a client. The invitation is
 // the one category no preference switches off: a row against it is stored like any other and
 // never consulted, which is the domain's rule rather than a refusal here. `include_title: false`
@@ -325,7 +325,7 @@ func (h SetNotificationPreference) recordAudit(
 		TargetType: accountTarget,
 		TargetID:   after.AccountID,
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-		// Codes and booleans throughout - none of it is user content (audit.md §2).
+		// Codes and booleans throughout - none of it is user content (audit.md §4).
 		Changes: audit.Changes(
 			audit.Change{Field: "category", Classification: audit.Open, To: string(after.Category)},
 			audit.Change{Field: "channel", Classification: audit.Open, To: string(after.Channel)},

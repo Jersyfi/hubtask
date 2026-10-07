@@ -72,9 +72,10 @@ func (s *enrollmentsStore) RecordStep(
 	return true, nil
 }
 
-// StartReplacement and SwapReplacement are the two statements of SC-17, with their guards written
-// out: only an armed factor takes a replacement, and only the session that began it swaps it in,
-// inside its window, while the waiting secret is still the one verified.
+// StartReplacement and SwapReplacement are the two statements of the authenticator's replacement
+// (identity.md §8), with their guards written out: only an armed factor takes a replacement, and
+// only the session that began it swaps it in, inside its window, while the waiting secret is still
+// the one verified.
 func (s *enrollmentsStore) StartReplacement(
 	_ context.Context, accountID shared.ID, sealed cryptoport.Sealed,
 	sessionID shared.ID, expiresAt, _ time.Time,
@@ -492,7 +493,7 @@ func TestARecoveryCodeWorksOnceAndCountsDown(t *testing.T) {
 	}
 }
 
-// The pending credential can reach no other route, proved by trying (H-02's acceptance).
+// The pending credential can reach no other route, proved by trying.
 func TestThePendingCredentialCanDoNothingElse(t *testing.T) {
 	fixture := mfaFixture(now)
 	fixture.withAccount("bert@example.org", "correct horse battery")
@@ -631,8 +632,9 @@ func recoveryCodesOf(fixture *sessionFixture) []string {
 	return codes
 }
 
-// The channel round trip: every H-01/H-02 use case invoked through its descriptor, the way REST,
-// MCP and automation all reach it - which is also what proves the projections each channel reads.
+// The channel round trip: every session and second-factor use case invoked through its descriptor,
+// the way REST, MCP and automation all reach it - which is also what proves the projections each
+// channel reads.
 func TestTheAuthUseCasesRoundTripThroughTheRegistry(t *testing.T) {
 	fixture := mfaFixture(now)
 	fixture.withAccount("bert@example.org", "correct horse battery")

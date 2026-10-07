@@ -62,7 +62,7 @@ func TestRegeneratingBurnsTheOldSetAndAnswersATenNew(t *testing.T) {
 	if store.replacements != 1 {
 		t.Errorf("%d replacements, want one - the burn and the write are one act", store.replacements)
 	}
-	// The second factor's family since SC-29, spelled out rather than read from the constant: the
+	// The second factor's family, spelled out rather than read from the constant: the
 	// name is what an auditor filters on.
 	if len(fixture.audit.entries) != 1 ||
 		fixture.audit.entries[0].Action != "auth.mfa_recovery_regenerated" {

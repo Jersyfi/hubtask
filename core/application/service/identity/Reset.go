@@ -60,7 +60,7 @@ type ForgetPassword struct {
 	// Notifier is the queue. Nil sends nothing, which is what an installation with no mail server
 	// configured does - and it still answers the same `202`.
 	Notifier Notifier
-	// Multi is decision 3's mode switch, SessionWriter's.
+	// Multi is tenant resolution's mode switch (multi-tenancy.md §3), SessionWriter's.
 	Multi bool
 	// Tenants resolves the host.
 	Tenants repository.TenantDirectory
@@ -392,7 +392,7 @@ func (w PasswordWriter) firstPasswordOpens(
 // connect a provider (ADR-0078 §1): an active person whom no provider switched on here lets in, while
 // one is switched on to connect. An account connected to a provider that works here keeps the mail
 // that points to it. A writer that cannot ask - built without the provider stores, as tests of other
-// doors are - answers no, the shape before SC-33.
+// doors are - answers no.
 func (w PasswordWriter) connectOpens(
 	ctx context.Context, tenantID shared.ID, account domain.Account,
 ) (bool, error) {

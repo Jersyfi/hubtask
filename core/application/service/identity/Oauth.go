@@ -65,7 +65,7 @@ type OauthWriter struct {
 	// for access, the service accounts' permission.
 	Authorizer Authorizer
 	// KnownScopes bounds what a person can consent to: the catalogue's own vocabulary, no
-	// parallel one (decision 5).
+	// parallel one (identity.md §15.3).
 	KnownScopes []string
 	// Text brings a client's name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer

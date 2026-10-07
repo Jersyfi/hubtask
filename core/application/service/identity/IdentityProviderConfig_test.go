@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// providerStore is the collection, in memory. Plural since SI-10, and it keeps the installation's
+// providerStore is the collection, in memory. Plural, and it keeps the installation's
 // rows beside a workspace's - because the read the use cases make sees both and the write does not.
 type providerStore struct {
 	rows    []domain.IdentityProvider
@@ -312,8 +312,8 @@ func TestConfiguringAndRemovingAreRecorded(t *testing.T) {
 	if got := f.session.audit.entries[1].Action; got != IdentityProviderRemovedAction {
 		t.Errorf("the second entry is %q", got)
 	}
-	// The row is the target since SI-10: there are several, and which one changed is the first
-	// thing a reader of the trail needs.
+	// The row is the target: there are several, and which one changed is the first thing a reader
+	// of the trail needs.
 	for _, entry := range f.session.audit.entries {
 		if entry.TargetID.IsZero() {
 			t.Error("the entry names no provider")

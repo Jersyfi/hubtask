@@ -987,8 +987,8 @@ func (punycode) ToASCII(domain string) (string, error) {
 	return domain, nil
 }
 
-// The row holds the ASCII form; the person types the Unicode one; the two are one mailbox (M-10,
-// i18n-l10n.md §7). The attempt ledger is keyed the same way, so the two spellings share a lock.
+// The row holds the ASCII form; the person types the Unicode one; the two are one mailbox
+// (i18n-l10n.md §7). The attempt ledger is keyed the same way, so the two spellings share a lock.
 func TestASignInFindsTheAccountUnderTheAddressAsTheDNSHoldsIt(t *testing.T) {
 	fixture := newSessionFixture(now)
 	fixture.writer.Domains = punycode{}

@@ -23,11 +23,11 @@ import (
 
 const RedeemInvitationName = "RedeemInvitation"
 
-// InvitationRedeemedAction is the moment an invited account becomes a person (audit.md §2). The
+// InvitationRedeemedAction is the moment an invited account becomes a person (audit.md §4). The
 // target type is InviteAccount's accountTarget: redemption is the invitation's other half.
 const InvitationRedeemedAction audit.Action = "auth.invitation_redeemed"
 
-// MintRedemptionToken mints the credential an invitation mail carries (H-01, data-catalog.md
+// MintRedemptionToken mints the credential an invitation mail carries (data-catalog.md
 // §7.5): shown once in the mail, stored only as a hash under its own purpose label, dead on
 // redemption or after its fortnight.
 //
@@ -298,7 +298,7 @@ func (h RedeemInvitation) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "password", Kind: usecase.KindString, Required: true,
-				Description: "The first password, at least twelve characters (security.md §5).",
+				Description: "The first password, at least twelve characters.",
 			},
 			{
 				Name: "user_agent", Kind: usecase.KindString,

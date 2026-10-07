@@ -15,10 +15,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// SC-32, the first half: a sign-in begun on the invitation card carries the invitation, and the
-// flow remembers the account it invites (ADR-0078 §1). The token is checked without being spent;
-// an invitation that cannot be redeemed is refused before the browser leaves, with the one sentence
-// the redemption answers.
+// A sign-in begun on the invitation card carries the invitation, and the flow remembers the account
+// it invites (ADR-0078 §1). The token is checked without being spent; an invitation that cannot be
+// redeemed is refused before the browser leaves, with the one sentence the redemption answers.
 
 // invitationFor mints an invitation for an invited account and stores it as the redemption lookup
 // answers it. Expiry relative to the fixture's clock.

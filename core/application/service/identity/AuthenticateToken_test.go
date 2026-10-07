@@ -424,9 +424,9 @@ func TestTheActorCarriesTheAccountLabel(t *testing.T) {
 	}
 }
 
-// A suspended workspace refuses at authentication, once, for every route (H-06,
-// multi-tenancy.md §5): the credential is real, so the answer is forbidden with the lifecycle's
-// own code rather than unauthenticated.
+// A suspended workspace refuses at authentication, once, for every route (multi-tenancy.md §5): the
+// credential is real, so the answer is forbidden with the lifecycle's own code rather than
+// unauthenticated.
 func TestASuspendedTenantRefusesAuthentication(t *testing.T) {
 	raw, credential := mintCredential(t)
 	credential.TenantStatus = identity.TenantSuspended
@@ -445,8 +445,8 @@ func TestASuspendedTenantRefusesAuthentication(t *testing.T) {
 	}
 }
 
-// The slug rides with the actor so the middleware can compare §3's weaker sources without a
-// second lookup.
+// The slug rides with the actor so the middleware can compare multi-tenancy.md §3's weaker sources
+// without a second lookup.
 func TestTheActorCarriesTheWorkspaceSlug(t *testing.T) {
 	raw, credential := mintCredential(t)
 	credential.TenantSlug = "acme"
@@ -468,8 +468,8 @@ type weekByLocale map[string]string
 
 func (w weekByLocale) WeekStartOf(locale string) string { return w[locale] }
 
-// §4's rule for the week: the account's own preference, then the locale's day, then Monday -
-// the last being what a build without the port answers, and what every query before 0.8.0 got.
+// i18n-l10n.md §4's rule for the week: the account's own preference, then the locale's day, then
+// Monday - the last being what a build without the port answers.
 func TestTheWeekStartsWhereTheAccountOrItsLocaleSays(t *testing.T) {
 	raw, credential := mintCredential(t)
 

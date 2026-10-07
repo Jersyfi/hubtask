@@ -12,9 +12,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// SC-24 (UC-ID-12 check 6): where a workspace has switched the password off, the server
-// refuses it at every door - not only the sign-in card. The refusal is the same for every address,
-// stored passwords are kept, and ADR-0076 §4's fallback is the one exception (PasswordFallback_test).
+// UC-ID-12 check 6: where a workspace has switched the password off, the server refuses it at every
+// door - not only the sign-in card. The refusal is the same for every address, stored passwords are
+// kept, and ADR-0076 §4's fallback is the one exception (PasswordFallback_test).
 
 // passwordOff switches the workspace the fixture resolves to providers only - and switches its own
 // provider on, which is what the last-way-in guard demands of the screen. Without it the workspace has

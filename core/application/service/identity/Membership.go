@@ -37,7 +37,7 @@ type GrantMembershipCommand struct {
 	GroupID   shared.ID
 	Scope     domain.Scope
 	Role      domain.Role
-	// StepUpToken is the fresh proof granting OWNER demands (security.md §5).
+	// StepUpToken is the fresh proof granting OWNER demands (identity.md §16.3).
 	StepUpToken string
 }
 
@@ -81,7 +81,7 @@ func (h GrantMembership) Execute(
 		return domain.Grant{}, err
 	}
 
-	// Handing out OWNER is changing the OWNER role (security.md §5): the privileged act demands
+	// Handing out OWNER is changing the OWNER role (identity.md §16.3): the privileged act demands
 	// a fresh proof, and the proof is consumed by this one grant.
 	if grant.Role == domain.RoleOwner {
 		if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
@@ -150,7 +150,7 @@ func (h GrantMembership) recordAudit(
 }
 
 // grantChanges is what both entries record. Everything about a grant is a code or an identifier -
-// none of it is user content, and all of it is what a review needs to read (audit.md §2).
+// none of it is user content, and all of it is what a review needs to read (audit.md §4).
 func grantChanges(grant domain.Grant) map[string]any {
 	subject, subjectID := "account", grant.AccountID
 	if grant.AccountID.IsZero() {
@@ -216,7 +216,7 @@ func (h GrantMembership) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "step_up_token", Kind: usecase.KindString,
-				Description: "The fresh proof granting OWNER demands (security.md §5).",
+				Description: "The fresh proof granting OWNER demands.",
 			},
 		},
 		StepUp: "granting the OWNER role",
@@ -358,7 +358,8 @@ func (h RevokeMembership) Execute(
 		return err
 	}
 
-	// Taking OWNER away is changing the OWNER role as much as handing it out is (security.md §5).
+	// Taking OWNER away is changing the OWNER role as much as handing it out is
+	// (identity.md §16.3).
 	if grant.Role == domain.RoleOwner {
 		if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
 			return err
@@ -427,7 +428,7 @@ func (h RevokeMembership) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "step_up_token", Kind: usecase.KindString,
-				Description: "The fresh proof revoking an OWNER membership demands (security.md §5).",
+				Description: "The fresh proof revoking an OWNER membership demands.",
 			},
 		},
 		StepUp: "revoking an OWNER membership",

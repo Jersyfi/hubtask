@@ -27,8 +27,8 @@ import (
 const LastUsedInterval = 5 * time.Minute
 
 // AuthenticateToken turns a presented credential into the actor of the request - a personal
-// access token, or since H-01 a session access token, told apart by their public prefixes before
-// either is verified.
+// access token or a session access token, told apart by their public prefixes before either is
+// verified.
 //
 // It authenticates and nothing more. Whether the actor may perform the operation is a separate
 // question, answered by the use case that performs it (ADR-0005) - which is why this returns an
@@ -40,13 +40,12 @@ type AuthenticateToken struct {
 	// Sessions and Signer serve the session path. The signature refuses forgeries before any
 	// database work; the row is read all the same, because "may this account still act" and
 	// "was this session revoked a second ago" are the row's answers - which is what makes
-	// revoking one refuse its pair immediately (H-01's acceptance) while the token stays
+	// revoking one refuse its pair immediately (identity.md §14.1) while the token stays
 	// verifiable without a lookup wherever only integrity matters.
 	Sessions repository.Sessions
 	Signer   cryptoport.SessionTokenSigner
 	// WeekStarts answers the week's first day where a locale is spoken, for an account that set
-	// none of its own (i18n-l10n.md §4). Nil is Monday for everybody, which is what every
-	// installation before 0.8.0 answered.
+	// none of its own (i18n-l10n.md §4). Nil is Monday for everybody.
 	WeekStarts i18n.WeekStarts
 	// SessionScopes is what a session-authenticated person may exercise: every scope this build
 	// declares, because a session is the person themselves rather than a bounded credential.
@@ -353,8 +352,8 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-// weekStart is §4's rule: the account's own preference, otherwise the locale's day, otherwise
-// Monday - the last of the three being what a build without the port answers.
+// weekStart is i18n-l10n.md §4's rule: the account's own preference, otherwise the locale's day,
+// otherwise Monday - the last of the three being what a build without the port answers.
 func (a AuthenticateToken) weekStart(preference, locale string) string {
 	if preference != "" {
 		return preference

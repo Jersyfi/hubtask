@@ -239,7 +239,7 @@ func (h ConfirmAuthenticatorReplacement) Execute(
 func (h StartAuthenticatorReplacement) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: StartAuthenticatorReplacementName,
-		Summary: "Begins replacing the authenticator (SC-17): a new secret, kept beside the armed " +
+		Summary: "Begins replacing the authenticator: a new secret, kept beside the armed " +
 			"one as a second, unconfirmed enrolment. Nothing changes yet - the armed factor and its " +
 			"recovery codes keep working until the replacement is confirmed. Behind a step-up with " +
 			"whatever the account holds; bound to the session that began it, for ten minutes.",

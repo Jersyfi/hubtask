@@ -239,7 +239,7 @@ func authorize(t *testing.T, fixture *oauthFixture, clientID shared.ID, challeng
 	return minted
 }
 
-// The whole dance, scripted (H-05's acceptance): register, authorize, consent recorded,
+// The whole dance, scripted (identity.md §15.3): register, authorize, consent recorded,
 // exchange, the pair leashed, revoke, the next exchange refused.
 func TestTheFullCodePKCEFlow(t *testing.T) {
 	fixture := newOauthFixture(now)

@@ -247,8 +247,8 @@ type GetSignInRules struct {
 	// come is not a button (ADR-0076 §2). Nil reads every announced withdrawal as still ahead,
 	// which is the shape before the date existed.
 	Clock clock.Clock
-	// Multi is decision 3's mode switch, SessionWriter's: in single mode there is one workspace
-	// and no subdomain to read.
+	// Multi is tenant resolution's mode switch (multi-tenancy.md §3), SessionWriter's: in single
+	// mode there is one workspace and no subdomain to read.
 	Multi bool
 }
 
@@ -338,7 +338,7 @@ func (h GetSignInRules) resolveTenant(ctx context.Context, slug, header string) 
 // fallback, if it does: none of them works (ADR-0076 §4), or an operator opened it (ADR-0078 §3) -
 // read from the same rows at the same moment.
 //
-// Plural since SI-10, and both levels: what a workspace configured and what its installation offers
+// Plural, and both levels: what a workspace configured and what its installation offers
 // every workspace, which is what the read policy admits together (migration 0103). A provider that
 // is switched off is not a way in and is not in the answer - a button that leads to a refusal is
 // worse than no button.

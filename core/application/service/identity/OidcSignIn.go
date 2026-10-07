@@ -84,8 +84,8 @@ type OidcWriter struct {
 // StartOidcSignIn is the first half: where to send the browser.
 type StartOidcSignIn struct{ Writer OidcWriter }
 
-// StartOidcSignInCommand carries the tenant hints of decision 3, and a login hint if the caller
-// has one.
+// StartOidcSignInCommand carries the tenant hints of tenant resolution (multi-tenancy.md §3), and a
+// login hint if the caller has one.
 type StartOidcSignInCommand struct {
 	// ProviderID names the way in. Zero is allowed while a workspace has exactly one, which keeps
 	// a caller that predates the plural working; with a choice to make, not making it is refused
@@ -454,10 +454,9 @@ func (w OidcWriter) settleAccount(
 			if !invitedID.IsZero() && found.ID != invitedID {
 				return turnedAway(invitationAddressDiffers())
 			}
-			// Connected before, and still invited: an arrival before SC-24 connected the provider
-			// on its word alone, and SC-24 then accepted the invitation on the next one. A link
-			// made without a second proof activates nothing (ADR-0078 §1): the arrival has to
-			// bring the proof now, as a first arrival would.
+			// Connected before, and still invited: such a connection may have been made on the
+			// provider's word alone, and a link made without a second proof activates nothing
+			// (ADR-0078 §1): the arrival has to bring the proof now, as a first arrival would.
 			if found.Status == domain.AccountInvited {
 				if err := w.secondProof(ctx, scope, configured, arriving, found, invitedID); err != nil {
 					return err
@@ -485,9 +484,9 @@ func (w OidcWriter) settleAccount(
 		}
 
 		// A first arrival, and the first gate is admission: may this provider bring this person
-		// into this workspace at all (the concept's §8). Under DOMAINS an address outside
-		// the configured list is refused here - not provisioned a desk of its own, which is what
-		// made the mode indistinguishable from ANY.
+		// into this workspace at all (identity.md §10.4). Under DOMAINS an address outside
+		// the configured list is refused here - not provisioned a desk of its own, which would
+		// make the mode indistinguishable from ANY.
 		if !configured.MayAdmit(admissionOf(arriving)) {
 			existing, err := w.notAdmitted(ctx, configured, arriving)
 			if err != nil {

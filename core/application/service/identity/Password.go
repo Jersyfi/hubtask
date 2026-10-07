@@ -43,13 +43,14 @@ const (
 
 // PasswordChangedAction is a password replaced, whichever door it came through. Warning rather than
 // notice: a password change is what an account takeover looks like from the trail, and a reader
-// scanning for one should see it (audit.md §2).
+// scanning for one should see it (audit.md §4).
 const PasswordChangedAction audit.Action = "account.password_changed"
 
-// PasswordBlocklist is the operator's own list of refused passwords, read offline (security.md §5).
+// PasswordBlocklist is the operator's own list of refused passwords, read offline (identity.md
+// §5.1).
 //
 // A port rather than a file path in the service, because what an installation points at is its
-// business: a text file today, and whatever a later milestone wires. Nil is "no list configured",
+// business: a text file or anything else it wires. Nil is "no list configured",
 // which is not an error - `sign_in.blocklist_file` is how an installation says it wants one.
 type PasswordBlocklist interface {
 	// Contains reports whether the folded candidate carries an entry. The folding is the domain's
@@ -92,7 +93,7 @@ type PasswordWriter struct {
 
 	// Text is NFKC. Applied before the rule counts anything and before the hash is computed, so
 	// that what was counted is what is stored (ADR-0068 §7). Named as every other constructor that
-	// stores text names it, which is what the gate M-07 left behind checks.
+	// stores text names it, which is what test/architecture/normalizer_test.go checks.
 	Text       text.Normalizer
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock

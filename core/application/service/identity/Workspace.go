@@ -75,8 +75,8 @@ type WorkspaceWriter struct {
 // ReadWorkspace answers the workspace the caller is in.
 //
 // `READ` or the auditor's read-only configuration permission: how a workspace is set up is
-// configuration, and G-12 split `READ_CONFIGURATION` out precisely so that an auditor can read it
-// without holding `READ` and without gaining the right to change anything.
+// configuration, and `READ_CONFIGURATION` exists precisely so that an auditor can read it without
+// holding `READ` and without gaining the right to change anything.
 type ReadWorkspace struct{ Writer WorkspaceWriter }
 
 // Execute reads it.
@@ -352,7 +352,7 @@ func workspaceOutput(
 	if !workspace.UpdatedAt.IsZero() {
 		out["updated_at"] = workspace.UpdatedAt
 	}
-	// The anchoring target is read here and written by ConfigureAuditAnchoring (issue 774): a
+	// The anchoring target is read here and written by ConfigureAuditAnchoring: a
 	// screen that sets a value it cannot read back is guessing. Absent, not null, where anchoring
 	// is off, so that the adapter answers the contract's null from one place.
 	if !workspace.Settings.AuditAnchorTargetID.IsZero() {

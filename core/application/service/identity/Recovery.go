@@ -16,24 +16,24 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// Recovery codes are the account's, not the factor's (milestone decision 5).
+// Recovery codes are the account's, not the factor's (identity.md §9).
 //
-// H-02 shipped them as part of the enrolment: ten codes shown once, replaced only by enrolling
-// again - which meant disabling the factor first, with the password, and re-arming an authenticator
-// that was working. Somebody who has burned eight of ten had no way to get ten back that did not
-// involve taking their own second factor off for a minute.
+// Were they only part of the enrolment, replaced only by enrolling again, somebody who has burned
+// eight of ten could get ten back only by disabling the factor and re-arming an authenticator that
+// was working - taking their own second factor off for a minute.
 //
-// So they move. Their own route, their own audit action, and a count that is answered where somebody
-// can act on it. The shape is also what makes them still right when a passkey is the second factor:
-// the codes are the fallback for whatever the account holds, and nothing about them mentions TOTP.
+// So they stand alone: their own route, their own audit action, and a count that is answered where
+// somebody can act on it. The shape is also what makes them still right when a passkey is the second
+// factor: the codes are the fallback for whatever the account holds, and nothing about them mentions
+// TOTP.
 
 const RegenerateRecoveryCodesName = "RegenerateRecoveryCodes"
 
 // RecoveryRegeneratedAction is a fresh set. Notice rather than info: the old ten stopped working at
 // that moment, and somebody reading the trail after being locked out needs to see it.
 //
-// Named in the second factor's family since SC-29; entries written before keep
-// `mfa.recovery_regenerated`, and the trail finds both (audit.Renamed).
+// Named in the second factor's family; older entries carry `mfa.recovery_regenerated`, and the trail
+// finds both (audit.Renamed).
 const RecoveryRegeneratedAction audit.Action = "auth.mfa_recovery_regenerated"
 
 // RegenerateRecoveryCodes answers `POST /auth/mfa/recovery:regenerate`.

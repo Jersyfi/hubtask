@@ -244,8 +244,8 @@ func TestALapsedInvitationIsNotAcceptedThroughAnAuthoritativeProvider(t *testing
 	assertStillInvited(t, f, invitation)
 }
 
-// A connection made earlier while the account was invited, without a second proof - SC-24's
-// arrivals, or an earlier provider's word - activates nothing on the next arrival through it. Through
+// A connection made earlier while the account was invited, without a second proof - an arrival on
+// the provider's word alone - activates nothing on the next arrival through it. Through
 // the link it does, and the connection is made afresh: what was connected before the proof is
 // dropped in the activation's transaction.
 func TestAnEarlierLinkWithoutProofActivatesNothing(t *testing.T) {

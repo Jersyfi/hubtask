@@ -205,7 +205,7 @@ func TestTheVerifierConsumesOnceAndExpiresByTheClock(t *testing.T) {
 }
 
 // demandedMethods reads the methods a refusal named, which is what a client builds its prompt
-// from (issue 544).
+// from.
 func demandedMethods(t *testing.T, err error) string {
 	t.Helper()
 	var domainErr *shared.Error
@@ -241,7 +241,7 @@ func TestTheDemandNamesTheAccountsOwnMethods(t *testing.T) {
 	}
 }
 
-// The demand reaches the operations security.md §5 names: an OWNER grant without a proof is
+// The demand reaches the operations identity.md §16.3 names: an OWNER grant without a proof is
 // refused with the one demand, and with a proof it passes.
 func TestAnOwnerGrantDemandsTheProof(t *testing.T) {
 	fixture := stepUpFixture(now)
