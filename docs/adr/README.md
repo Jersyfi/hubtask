@@ -4,10 +4,13 @@ An ADR records **why and when** a decision was taken. The rule itself lives in a
 (`docs/architecture/`, `docs/design/`), and each ADR names it in its `**Rule lives in:**` line —
 read that section for what holds today ([ADR-0081](./ADR-0081-how-work-is-organised.md)).
 
-- One file per decision, short: context, decision, consequences, and the `Rule lives in` line.
-- Not edited once accepted, apart from its status line (a few older ADRs carry addenda from before
-  this rule). A change is a new ADR plus the change in the
-  subject document, in the same pull request; the new one says what it supersedes.
+- One file per decision, short: context, decision, consequences, and the `Rule lives in` line in
+  its header, under the status. `make gate-docs` refuses an ADR without that line and a link in it
+  that does not resolve; that the named section still holds the rule is checked by reading.
+- Not edited once accepted, apart from its status line, its `Rule lives in` line and a link whose
+  target moved. No amendments: a change is a new ADR plus the change in the subject document, in
+  the same pull request, and the new one says what it supersedes. A few older ADRs carry amendments
+  from before this rule. No gate holds this; the review does.
 - Take the number from all remote branches right before writing the file, not from this folder:
   unmerged branches hold numbers too.
 - An ADR accepted before anything implements it gets a task in a milestone, in the pull request that
