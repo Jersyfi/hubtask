@@ -272,7 +272,7 @@ func TestACommentOnAnEntryThatIsGoneTellsNobody(t *testing.T) {
 	}
 }
 
-// The system acting for nobody - the automatic assignment (C-02) - must not suppress the
+// The system acting for nobody - the automatic assignment - must not suppress the
 // recipient's own notification by matching a zero actor against them.
 func TestAnAssignmentNobodyMadeStillTellsTheAssignee(t *testing.T) {
 	fixture := consumer(t, bert)

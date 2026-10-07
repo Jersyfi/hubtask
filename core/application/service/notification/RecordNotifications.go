@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package notification is the application half of the Notification context: the consumer that
-// turns events into records, and the delivery that turns a record into a message (C-09).
+// turns events into records, and the delivery that turns a record into a message.
 //
 // Neither is a use case, and both are deliberately absent from the catalogue in domain-model.md §5.
 // The catalogue is the list of things a person, an agent or a rule can ask for (arc42 §4), and
@@ -319,7 +319,7 @@ func oneOf(envelope event.Envelope, key string) ([]shared.ID, error) {
 }
 
 // actorOf is who caused the event, where a person did. Zero for the system and for automation: the
-// automatic assignment acts for nobody (C-02), and a record that named a person who did not act
+// automatic assignment acts for nobody, and a record that named a person who did not act
 // would suppress their own notification for a decision they never made.
 func actorOf(envelope event.Envelope) shared.ID {
 	if envelope.Actor.Kind != shared.ActorUser {

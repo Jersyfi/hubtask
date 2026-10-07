@@ -16,7 +16,7 @@ import (
 )
 
 // RecordRuleDisabled tells the writer of an automation rule that it has switched itself off after a
-// run of failures (G-07, automation.md §2).
+// run of failures (automation.md §2).
 //
 // The same path RecordWebhookDisabled takes, and for the same reasons: the preference is honoured,
 // the record is deduplicated, and the send is a job like every other. A rule that stopped acting and

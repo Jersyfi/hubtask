@@ -15,7 +15,7 @@ import (
 )
 
 // RecordWebhookDisabled tells the owner of a webhook subscription that this system has stopped
-// calling their server (G-03, automation.md §3.1).
+// calling their server (automation.md §3.1).
 //
 // The notification path C-09 built rather than a new channel: the preference is honoured, the
 // record is deduplicated, and the send is a job like every other. What is different is only what

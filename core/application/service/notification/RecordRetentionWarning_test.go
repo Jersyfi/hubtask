@@ -151,7 +151,7 @@ func TestSomebodyWhoQualifiesTwiceIsToldOnce(t *testing.T) {
 }
 
 // A preference switched off suppresses the record rather than dropping it: the trail of what was
-// decided about somebody is the point of writing it at all (C-09).
+// decided about somebody is the point of writing it at all.
 func TestAWarningSomebodySwitchedOffIsSuppressedRatherThanLost(t *testing.T) {
 	preferences := newPreferences()
 	preferences.switchOff(anna, domain.CategoryRetention)

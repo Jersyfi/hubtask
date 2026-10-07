@@ -157,8 +157,7 @@ func TestAnEmailIsRenderedInTheRecipientsLocale(t *testing.T) {
 }
 
 // A reminder rides the same delivery as everything else, and gets the one pair of message codes
-// with no actor in it: nobody caused it, and a sentence naming somebody would name the clock
-// (D-03).
+// with no actor in it: nobody caused it, and a sentence naming somebody would name the clock.
 func TestAReminderIsRenderedInItsOwnWordsAndInTheRecipientsLocale(t *testing.T) {
 	fixture := delivery(t, domain.CategoryReminder, true)
 	fixture.delivery.Accounts = newAccounts(
@@ -378,7 +377,7 @@ func (m *redemptionMinter) MintRedemptionToken(
 	return secret.New(m.token), nil
 }
 
-// The invitation mail carries the redemption token (H-01): minted at delivery, in the URL
+// The invitation mail carries the redemption token: minted at delivery, in the URL
 // fragment where no server log sees it, and in no other category's mail.
 func TestAnInvitationMailCarriesTheRedemptionLink(t *testing.T) {
 	fixture := delivery(t, domain.CategoryInvitation, false)
@@ -450,7 +449,7 @@ func (w workspaceOf) Find(context.Context) (identity.Workspace, error) {
 
 // §2's chain for a recipient who has not chosen a language - which an invited person, by
 // definition, has not: the workspace's default, then the installation's, and only then the
-// source (#603, found by the QS-08 walk).
+// source (found by the QS-08 walk).
 func TestARecipientWithoutALocaleIsWrittenToInTheWorkspacesLanguage(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
