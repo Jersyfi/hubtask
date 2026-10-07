@@ -10,7 +10,8 @@ read that section for what holds today ([ADR-0081](./ADR-0081-how-work-is-organi
 - Not edited once accepted, apart from its status line, its `Rule lives in` line and a link whose
   target moved. No amendments: a change is a new ADR plus the change in the subject document, in
   the same pull request, and the new one says what it supersedes. A few older ADRs carry amendments
-  from before this rule. No gate holds this; the review does.
+  from before this rule. `make gate-pr` refuses any other change to an ADR that is no longer
+  proposed.
 - Take the number from all remote branches right before writing the file, not from this folder:
   unmerged branches hold numbers too.
 - An ADR accepted before anything implements it gets a task in a milestone, in the pull request that

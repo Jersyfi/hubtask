@@ -24,6 +24,8 @@ import (
 //     case never takes an ID an earlier file carried.
 //   - A change to a use case's Goal, How to check or Where it ends is named in the description as
 //     a correction or as the owner's decision (usecasetext.go).
+//   - A settled ADR keeps its text; only its status line, its Rule lives in line and link targets
+//     move (adr.go).
 //
 // What it cannot see: whether the record is good and whether the review was independent, and
 // whether the owner did decide what a description says was decided. Those stay with the people
@@ -45,6 +47,7 @@ type branchFacts struct {
 	altered    []change
 	ucText     []ucTextChange
 	reused     []reusedID
+	adrEdited  []string
 	beforeCode func(path string) ([]byte, error)
 }
 
@@ -105,6 +108,9 @@ func historyProblems(body string, facts branchFacts, read func(string) ([]byte, 
 
 	if heldTo(facts.opened, ucTextSince) {
 		problems = append(problems, ucTextProblems(body, facts.ucText)...)
+	}
+	if heldTo(facts.opened, adrSince) {
+		problems = append(problems, adrProblems(facts.adrEdited)...)
 	}
 	if !heldTo(facts.opened, readinessSince) {
 		return problems

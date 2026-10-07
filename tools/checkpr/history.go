@@ -69,6 +69,9 @@ func readHistory(root, base, head string, opened time.Time) (branchFacts, error)
 	if facts.reused, err = reusedUseCaseIDs(root, base, head, changed); err != nil {
 		return branchFacts{}, err
 	}
+	if facts.adrEdited, err = settledADRChanges(root, base, head, changed); err != nil {
+		return branchFacts{}, err
+	}
 
 	for _, commit := range commits {
 		paths, err := git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", commit)
