@@ -206,7 +206,7 @@ func TestTheRecordKeepsItsOwnCopyOfTheDigest(t *testing.T) {
 }
 
 // A proposal no prompt produced carries no prompt, and one that carries half of the pair is a
-// record that resolves to nothing (K-04).
+// record that resolves to nothing.
 func TestAProposalCarriesAPromptAndItsVersionOrNeither(t *testing.T) {
 	for _, testCase := range []struct {
 		name        string

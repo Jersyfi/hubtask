@@ -6,13 +6,11 @@ package shared
 import "slices"
 
 // DataClass is what a piece of data *is*, in the six classes `data-protection.md` §3 names and
-// ADR-0018 decision 1 makes a property of the model rather than a document (E-11).
+// ADR-0018 decision 1 makes a property of the model rather than a document.
 //
-// One vocabulary, here, because there were three. The concept named six classes, the data
-// catalogue's legend named five - it had lost `SPECIAL_CATEGORY_RISK` - and `audit.md` §4 named
-// three, which are not classes at all but a *masking* policy derived from them. A gate cannot
-// reconcile three vocabularies; it can reconcile one and a derivation, which is what this type and
-// `audit.MaskingFor` are.
+// One vocabulary, here. The three levels `audit.md` §4 names are not classes at all but a *masking*
+// policy derived from them. A gate cannot reconcile several vocabularies; it can reconcile one and
+// a derivation, which is what this type and `audit.MaskingFor` are.
 type DataClass string
 
 const (

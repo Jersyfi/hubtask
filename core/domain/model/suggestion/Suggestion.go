@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package suggestion is what AI proposed, and did not do (J-05, ADR-0012).
+// Package suggestion is what AI proposed, and did not do (ADR-0012).
 //
 // It is its own package rather than a corner of `work` or `integration`, and the reason is the one
 // ai-first.md opens with: "what it does not mean: AI in the domain model". A suggestion influences
@@ -39,9 +39,9 @@ type Suggestion struct {
 	// InputDigest is the fingerprint of what the suggestion was made from.
 	InputDigest []byte
 	// DroppedNodes is how many parts of the provider's answer the narrowing dropped before the
-	// payload was stored - for a template, the nodes the profile refused, each with its subtree
-	// (issue 767). Recorded here rather than left in the job's result, because the suggestion is
-	// what a client renders and a draft that is not the whole answer should say so.
+	// payload was stored - for a template, the nodes the profile refused, each with its subtree.
+	// Recorded here rather than left in the job's result, because the suggestion is what a client
+	// renders and a draft that is not the whole answer should say so.
 	DroppedNodes int
 	CreatedAt    time.Time
 	DecidedAt    time.Time
@@ -58,8 +58,8 @@ type Provenance struct {
 	Source Source
 	// Model is what the provider said answered, which is not always what was configured - a
 	// provider resolving an alias answers under the resolved name. For a proposal read off the
-	// embedding index rather than from a completion, it is the *embedding* model whose vectors
-	// were compared: a similarity means nothing outside one model's space (K-04).
+	// embedding index rather than from a completion, it is the *embedding* model whose vectors were
+	// compared: a similarity means nothing outside one model's space.
 	Model string
 	// PromptID and PromptVersion resolve to the words that produced this, because prompt files
 	// are versioned in their names and the old ones stay (ADR-0049 decision 3). Both empty for a
@@ -84,7 +84,7 @@ const (
 	TargetWorkItem    TargetType = "WORK_ITEM"
 	TargetJumbleEntry TargetType = "JUMBLE_ENTRY"
 	// TargetContainer is a collection: a summary of how it stands is about the collection rather
-	// than about anything in it (K-05).
+	// than about anything in it.
 	TargetContainer TargetType = "CONTAINER"
 )
 
@@ -110,15 +110,15 @@ const (
 	// KindDecomposition proposes a tree of entries under the target.
 	KindDecomposition Kind = "DECOMPOSITION"
 	// KindDuplicates says which entries look like the target, and is the one kind nothing accepts
-	// (K-04). It follows the rule above rather than breaking it: what accepting *would* do is
-	// nothing, because deciding two entries are the same is a person's act through the ordinary
-	// use cases - archive one, trash one, move one under the other - and a proposal cannot know
-	// which of those they mean. So it is a kind of its own precisely because its effect is its
+	// (ai-first.md §2). It follows the rule above rather than breaking it: what accepting *would*
+	// do is nothing, because deciding two entries are the same is a person's act through the
+	// ordinary use cases - archive one, trash one, move one under the other - and a proposal cannot
+	// know which of those they mean. So it is a kind of its own precisely because its effect is its
 	// own, and `:dismiss` is what closes it.
 	KindDuplicates Kind = "DUPLICATES"
-	// KindTemplate proposes a template for the collection it targets (P-11). Its own kind by the
-	// rule above: accepting it defines a template rather than changing an entry, and the payload
-	// is a template's input rather than an entry's fields or a tree under one.
+	// KindTemplate proposes a template for the collection it targets. Its own kind by the rule
+	// above: accepting it defines a template rather than changing an entry, and the payload is a
+	// template's input rather than an entry's fields or a tree under one.
 	KindTemplate Kind = "TEMPLATE"
 )
 
@@ -206,9 +206,9 @@ func New(in NewInput) (Suggestion, error) {
 	if (provenance.PromptID == "") != (provenance.PromptVersion == "") {
 		// A prompt and its version, or neither. Neither is what a proposal no prompt produced
 		// carries - the nearest neighbours of an entry's vector are a query, and the honest answer
-		// to "which prompt produced this" is that none did (K-04) - and half of the pair is a
-		// record that resolves to nothing, which is what the versioning exists to prevent
-		// (ADR-0049 decision 3).
+		// to "which prompt produced this" is that none did - and half of the pair is a record that
+		// resolves to nothing, which is what the versioning exists to prevent (ADR-0049 decision
+		// 3).
 		return Suggestion{}, shared.ErrInternal.WithDetail("suggestions.provenance_incomplete")
 	}
 	provenance.ProducedAt = provenance.ProducedAt.UTC()
