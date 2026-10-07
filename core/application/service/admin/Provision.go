@@ -7,7 +7,7 @@
 // Authorisation here is the scope alone, checked in this layer (rule 2): the role matrix is a
 // tenant's internal order, and the operator acting on the control plane is deliberately not a
 // member of the tenants they administer. `admin:tenants` is carried only by a personal access
-// token minted for exactly this - never by a session (0.6.0 decision 6, catalogue.SessionScopes).
+// token minted for exactly this - never by a session (identity.md §15.4, catalogue.SessionScopes).
 package admin
 
 import (
@@ -464,7 +464,7 @@ func (h ProvisionTenant) Descriptor() usecase.Descriptor {
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "the control plane acts on workspaces, not on items; the history is an " +
-				"item's (domain-model.md §3.5). The evidence lives in the audit trail and the " +
+				"item's. The evidence lives in the audit trail and the " +
 				"instance journal instead.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
@@ -535,11 +535,11 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 // to canonical later is one update rather than a column that has to be filled in first.
 //
 // Silent where the store or the host is not wired: nothing resolves a request through this table, so
-// a build without it provisions exactly as it did before migration 0104.
+// a build without it provisions as if the table did not exist.
 //
 // Only reached in multi mode, because provisioning is: single mode's whole contract is one workspace
 // and no selection, and its `tenant_host` therefore stays empty - which costs nothing while nothing
-// resolves through it, and is the first thing the milestone that does will have to fill in.
+// resolves through it, and has to be filled before anything does.
 func (h ProvisionTenant) seedHost(
 	ctx context.Context, tenant domain.Tenant, now time.Time,
 ) error {

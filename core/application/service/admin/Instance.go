@@ -372,8 +372,8 @@ func (h RemoveOperator) Execute(
 
 // instanceLevelOutput is the projection the control plane reads and writes back.
 //
-// **Every switch, decided or not.** The concept names eighteen for this milestone, and answering
-// only the decided ones left a screen showing four — with no way for a reader to learn that the
+// **Every switch, decided or not.** The catalogue has eighteen, and answering only the decided
+// ones would leave a screen showing four — with no way for a reader to learn that the
 // other fourteen exist, let alone that this installation has left them to each workspace. A
 // catalogue the client hard-coded instead would be the thing `/meta/capabilities` exists to
 // prevent: wrong on somebody's installation the day a switch is added.

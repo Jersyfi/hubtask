@@ -115,7 +115,7 @@ func TestTheDeletionRequestSchedulesTheWholeSection5Phase(t *testing.T) {
 		t.Error("the step-up proof was not consumed")
 	}
 
-	// Two jobs, seeded by the request's own write (decision 6): the grace job at the deadline,
+	// Two jobs, seeded by the request's own write (multi-tenancy.md §2.1): the grace job at the deadline,
 	// and the tenant's backup poller pulled forward for the final archive.
 	if len(f.jobs.requests) != 2 {
 		t.Fatalf("%d jobs, want 2: %+v", len(f.jobs.requests), f.jobs.requests)

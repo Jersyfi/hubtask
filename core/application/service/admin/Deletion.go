@@ -46,7 +46,7 @@ type RequestTenantDeletionCommand struct {
 	TenantID shared.ID
 	// Confirmation is the workspace's display name, typed exactly - the restore precedent.
 	Confirmation string
-	// StepUpToken is H-03's proof, consumed by this one request.
+	// StepUpToken is the step-up proof (identity.md §16), consumed by this one request.
 	StepUpToken string
 }
 
@@ -58,9 +58,10 @@ type DeletionScheduled struct {
 
 // RequestTenantDeletion moves the workspace to PENDING_DELETION (§5): access blocked from the
 // next request on, automations disabled visibly, the export machinery woken one last time, and
-// the hard delete seeded as a job by this very write (decision 6: nothing enumerates tenants, so
+// the hard delete seeded as a job by this very write (multi-tenancy.md §2.1: nothing enumerates
+// tenants, so
 // there is no sweeper to find pending deletions - the request that creates the debt creates the
-// job). It demands H-03's step-up and the typed workspace name, the restore precedent: the two
+// job). It demands a step-up and the typed workspace name, the restore precedent: the two
 // things a stolen admin token does not have.
 type RequestTenantDeletion struct {
 	Tenants     adminrepo.Tenants
@@ -138,7 +139,7 @@ func (h RequestTenantDeletion) Execute(
 		// The export, provided through the machinery that already knows how (§5): the tenant's
 		// backup poller is pulled forward, so every configured schedule writes its final archive
 		// while the grace runs. A workspace that configured no backup channel has none to write
-		// to - the operator-triggered export is H-07's task.
+		// to - the operator-triggered export, ExportTenant, is the way out for that one.
 		if _, err := h.Jobs.Enqueue(ctx, queue.Request{
 			Kind: queue.KindBackupSchedule, TenantID: cmd.TenantID,
 			DedupeKey: cmd.TenantID.String(), RunAt: now.UTC(),
@@ -210,7 +211,7 @@ func (h RequestTenantDeletion) Descriptor() usecase.Descriptor {
 			Severity: audit.SeverityCritical, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "the control plane acts on workspaces, not on items (domain-model.md §3.5).",
+			Exempt: "the control plane acts on workspaces, not on items.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
