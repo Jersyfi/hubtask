@@ -15,7 +15,7 @@ import (
 )
 
 // The DST proof arc42 §11 R-07 asks for and §10.2 QS-07 names, as files rather than as assertions
-// in prose (D-05).
+// in prose.
 //
 // Files, for two reasons. A table in Go is read by whoever is changing the code; a file of local
 // times and instants is read by whoever is asking what this system promises about a night when the
