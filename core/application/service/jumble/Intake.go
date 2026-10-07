@@ -36,7 +36,7 @@ const (
 	IntakeRotatedAction audit.Action = "jumble.intake_rotated"
 )
 
-// RotateJumbleIntake mints the address the jumble accepts webhooks on, and replaces it (G-10).
+// RotateJumbleIntake mints the address the jumble accepts webhooks on, and replaces it.
 //
 // The inbound trigger's discipline applied to the inbox: one address per tenant, minted and
 // replaced in a single statement, answered once, stored as a hash under the intake's own purpose
@@ -155,7 +155,7 @@ func (h RotateJumbleIntake) invoke(
 }
 
 // IntakeJumbleEntry is the unauthenticated half: a delivery arrives on the tenant's address and
-// becomes an entry (G-10).
+// becomes an entry.
 //
 // Not a catalogue entry, for StartInboundRun's reason: there is no actor to authorise - the token
 // authenticates the tenant, never a person - and the registry is the vocabulary of what a

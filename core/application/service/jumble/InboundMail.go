@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// AttachmentIngest is the half of the media pipeline an intake needs (G-11): bytes this server
+// AttachmentIngest is the half of the media pipeline an intake needs: bytes this server
 // already holds become sealed objects, with no actor to authorise.
 //
 // Declared here and satisfied by the media service, the way the conversion declares the slice of
@@ -30,7 +30,7 @@ type AttachmentIngest interface {
 	) ([]shared.ID, error)
 }
 
-// IntakeMail turns one inbound message into a jumble entry (G-11).
+// IntakeMail turns one inbound message into a jumble entry.
 //
 // The transport-independent half of the mail intake. What reaches this is a message somebody has
 // already parsed - a bridge's delivery today, a JMAP fetch if one is ever built (ADR-0040) - and
@@ -93,7 +93,7 @@ func (h IntakeMail) Execute(
 	scope := persistence.Scope{TenantID: tenantID}
 
 	// Before anything is stored. An unknown address costs one indexed lookup, and every reason not
-	// to serve answers the same not-found (T-21, G-10).
+	// to serve answers the same not-found (T-21).
 	if err := h.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
 		opens, err := h.Intake.VerifyToken(ctx, delivery.Token)
 		if err != nil {
@@ -147,7 +147,7 @@ func (h IntakeMail) Execute(
 			return nil
 		}
 		// The system as the actor: the token authenticates the tenant, and naming an account would
-		// invent an author for something nobody in this workspace did (G-10).
+		// invent an author for something nobody in this workspace did.
 		envelope, err := event.NewJumbleEntryReceived(
 			h.IDs.NewID(), entry, event.Actor{Kind: shared.ActorSystem}, entry.ReceivedAt,
 			event.Cause{})
