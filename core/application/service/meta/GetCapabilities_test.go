@@ -56,7 +56,7 @@ func (p profiles) ListSystem(context.Context) ([]work.CapabilityProfile, error) 
 	return p.list, p.err
 }
 
-// languages is what the installation can index, as the database answers it (C-08).
+// languages is what the installation can index, as the database answers it.
 type languages struct {
 	tags []string
 	err  error
@@ -301,7 +301,7 @@ func TestTheManifestReportsTheRoleMatrix(t *testing.T) {
 
 // The languages this installation can index come from the database, in the same transaction as
 // the profiles: both are answers about this installation rather than about the product, and a
-// client's language picker is built from the list rather than from a constant (C-08, ADR-0034).
+// client's language picker is built from the list rather than from a constant (ADR-0034).
 func TestTheManifestAnswersWhichLanguagesCanBeIndexed(t *testing.T) {
 	uow := &unitOfWork{}
 
@@ -333,7 +333,7 @@ func TestAnUnreadableLanguageListFailsTheManifest(t *testing.T) {
 	}
 }
 
-// The two backup flags (E-03). What is configured rather than what is implemented: a client that
+// The two backup flags. What is configured rather than what is implemented: a client that
 // offers "add an S3 target" on an installation with no encryption keyring is offering a form that
 // will be refused at the end.
 func TestTheManifestSaysWhetherABackupTargetCanBeConfigured(t *testing.T) {
@@ -381,7 +381,7 @@ func TestTheManifestSaysWhetherABackupTargetCanBeConfigured(t *testing.T) {
 
 // The settings form is data: the categories a person can be told about are the domain's closed
 // set, published rather than compiled into a client, and the one channel this installation sends
-// on is beside them (F3-02).
+// on is beside them.
 func TestTheManifestAnswersTheNotificationCategoriesAndChannels(t *testing.T) {
 	capabilities, err := handler(profiles{list: systemDefaults()}, &unitOfWork{}).
 		Execute(t.Context(), appshared.Anonymous("en", "UTC"))
@@ -429,7 +429,7 @@ func (r *resolverFake) For(context.Context, appshared.ActorContext) (aiprovider.
 	return r.provider, nil
 }
 
-// store is the embedding store's presence, as the database answers it (J-09, ADR-0050).
+// store is the embedding store's presence, as the database answers it (ADR-0050).
 type store struct{ present bool }
 
 func (s store) Available(context.Context) (bool, error) { return s.present, nil }
@@ -569,7 +569,7 @@ func TestBothKeysArePresentEvenWhenTheAnswerIsNo(t *testing.T) {
 
 // Whether names sort under the ICU root collation is the database's answer, read from it, and a
 // build wired without the seam says false - names still sort then, in the database's own order,
-// which is why the honest default is the safe one (M-08, i18n-l10n.md §5).
+// which is why the honest default is the safe one (i18n-l10n.md §5).
 func TestTheManifestSaysWhichCollationNamesSortUnder(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
@@ -595,7 +595,7 @@ func TestTheManifestSaysWhichCollationNamesSortUnder(t *testing.T) {
 	}
 }
 
-// locales stands in for the renderer: the catalogues present, as rows (M-05).
+// locales stands in for the renderer: the catalogues present, as rows.
 type locales []i18n.LocaleInfo
 
 func (l locales) SupportedLocales() []i18n.LocaleInfo { return l }
@@ -629,7 +629,7 @@ func TestTheManifestListsTheCataloguesPresent(t *testing.T) {
 }
 
 // A model this process knows the index cannot hold is a search that is lexical for as long as it
-// stays configured (#569, ADR-0054), and the manifest says so rather than offering a control for
+// stays configured (ADR-0054), and the manifest says so rather than offering a control for
 // what the product cannot do. A width not yet known is not "does not fit".
 func TestAModelKnownToBeTooWideOffersNoMeaning(t *testing.T) {
 	for _, c := range []struct {

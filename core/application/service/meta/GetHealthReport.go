@@ -29,7 +29,7 @@ const (
 	// opsReadScope is the scope a credential needs for the reduced answer. Deliberately not
 	// `admin:…`: `catalogue.SessionScopes` filters on that prefix, so a scope named that way could
 	// never be carried by a session - and a session is exactly the reader this answer exists for
-	// (0.6.0 decision 6, K-06).
+	// (0.6.0 decision 6).
 	opsReadScope = "ops:read"
 	// adminTenantsScope is the installation's own credential, and holding it is what makes a reader
 	// the operator. No membership in any workspace can answer for an installation, so the bound is
@@ -56,7 +56,7 @@ type Authorizer interface {
 //
 // The report itself has existed since A-04 and is served on the operations listener; what was
 // missing until K-06 is the authenticated door the contract declares, left "until A-06" in a
-// comment that outlived A-06 by six milestones (#507).
+// comment that outlived A-06 by six milestones.
 //
 // **One route, two answers**, the way `GetCapabilities` puts it: the same endpoint, a different
 // answer, decided by the scope the use case opens rather than by a branch in an adapter.
