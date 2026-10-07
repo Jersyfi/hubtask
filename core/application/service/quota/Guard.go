@@ -12,7 +12,7 @@ import (
 )
 
 // Signals is the metric slice the guard reports through: the approach ratio, which is what
-// finally gives A-18 something to watch (observability-reliability.md §4).
+// alert A-18 watches (observability-reliability.md §4).
 type Signals interface {
 	// QuotaUsage records used/limit for one quota of one workspace. The tenant travels as an
 	// identifier and reaches the series only when the operator enabled the tenant label (§3.2).
@@ -116,7 +116,7 @@ func (g Guard) ExportJobs(ctx context.Context, tenant string) error {
 // round for a bound whose purpose is to stop a runaway loop rather than to bill exactly.
 //
 // Not a refusal error, for `AutomationRuns`' reason: the caller's vocabulary for "out of budget" is
-// already `ai.unavailable` - the one refusal J-01's port answers for every reason a provider is out
+// already `ai.unavailable` - the one refusal the provider port answers for every reason a provider is out
 // of reach - and a second shape would be a second thing for every caller to handle.
 func (g Guard) AiTokens(ctx context.Context, tenant string, now time.Time) (bool, error) {
 	limits, err := g.limits(ctx)

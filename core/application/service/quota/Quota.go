@@ -18,7 +18,7 @@ import (
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
 
-// The quota names, exactly the §4 rows this milestone enforces per tenant. They are the
+// The quota names, exactly the multi-tenancy.md §4 rows enforced per tenant. They are the
 // contract's enum, the settings document's keys, the capacity codes' suffixes and the metric's
 // `quota` label - one vocabulary, spelled once.
 const (

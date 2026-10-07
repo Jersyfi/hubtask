@@ -55,7 +55,7 @@ func (s Standing) Ratio() *float64 {
 
 // ReadQuotas answers the workspace's own quota standing: every §4 limit as it applies
 // here. A quota is workspace configuration, so the auditor's read-only configuration permission
-// opens it too (G-12's pair).
+// opens it too (domain-model.md §3.2).
 type ReadQuotas struct {
 	Store      repository.Store
 	Usage      repository.Usage
@@ -174,7 +174,7 @@ func StandingOutputs(standings []Standing) []usecase.Output {
 func (h ReadQuotas) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ReadQuotasName,
-		Summary: "Answers every §4 limit as it applies to this workspace: the resolved ceiling " +
+		Summary: "Answers every quota limit as it applies to this workspace: the resolved ceiling " +
 			"(0 means unlimited), the live count where one exists, and the approach ratio.",
 		TokenScope: quotasRead,
 		ReadOnly:   true,
@@ -182,8 +182,7 @@ func (h ReadQuotas) Descriptor() usecase.Descriptor {
 			Action: QuotaReadAction, TargetType: quotaTarget, Severity: audit.SeverityInfo,
 		},
 		Activity: usecase.ActivityDeclaration{
-			Exempt: "a quota is workspace configuration, not an item; the history is an item's " +
-				"(domain-model.md §3.5).",
+			Exempt: "a quota is workspace configuration, not an item; the history is an item's.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

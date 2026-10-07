@@ -344,7 +344,7 @@ func TestTheAiBudgetDefaultsToTheModesNumber(t *testing.T) {
 }
 
 // The guard reports room against what the day has spent, and reports the ratio on the way - the
-// same metric A-18 watches for every other quota, which is why the alert needed no new rule.
+// same metric A-18 watches for every other quota, so the alert needs no new rule.
 func TestTheAiBudgetIsMeasuredAgainstTheDaysSpend(t *testing.T) {
 	for name, c := range map[string]struct {
 		limit, spent int64
