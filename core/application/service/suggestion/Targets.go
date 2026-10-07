@@ -34,12 +34,12 @@ var _ Targets = EntryTargets{}
 // `acceptance`'s reason: what this package can read is exactly what it can name.
 var readers = map[domain.TargetType]string{
 	domain.TargetWorkItem: "GetWorkItem",
-	// There is no GetJumbleEntry: the inbox is read as a list (G-10). The list is filtered to the
+	// There is no GetJumbleEntry: the inbox is read as a list. The list is filtered to the
 	// one entry here rather than a read being added to the contract for this, because a use case
 	// existing only so that another package can fingerprint something is a use case nobody asked
 	// for - and the list already carries the permission check this needs.
 	domain.TargetJumbleEntry: "ListJumbleEntries",
-	// A collection, for the summary of how it stands (K-05).
+	// A collection, for the summary of how it stands.
 	domain.TargetContainer: "GetContainer",
 }
 
@@ -77,7 +77,7 @@ func (t EntryTargets) Digest(
 	return domain.Digest(out.String("title"), out.String("notes")), nil
 }
 
-// containerDigest fingerprints a collection: its name, and nothing else (K-05).
+// containerDigest fingerprints a collection: its name, and nothing else.
 //
 // Deliberately *not* the entries it holds, although a summary of how a collection stands is made
 // from them. A fingerprint over the contents would go stale the moment anybody ticked anything off
@@ -107,13 +107,13 @@ func (t EntryTargets) containerDigest(
 // the sentence above. A converted or dismissed entry left the NEW list, so this answered
 // not-found, so every suggestion *about* that entry became unreadable: `ListSuggestions` runs this
 // first as its visibility check. Settlement was hiding the record of what AI had proposed, which
-// is the one thing a suggestion being a record rather than a change exists to prevent (J-05).
+// is the one thing a suggestion being a record rather than a change exists to prevent.
 //
 // The listing is **unfiltered**, and it said `status: NEW` until J-16 - which did the opposite of
 // the paragraph above. A converted or dismissed entry left the NEW list, so this answered
 // not-found, so every suggestion *about* that entry became unreadable: the visibility check above
 // runs this first. Settlement was hiding the record of what AI had proposed, which is the one
-// thing a suggestion being a record rather than a change exists to prevent (J-05).
+// thing a suggestion being a record rather than a change exists to prevent.
 func (t EntryTargets) entryDigest(
 	ctx context.Context, actor appshared.ActorContext, name string, entryID shared.ID,
 ) ([]byte, error) {

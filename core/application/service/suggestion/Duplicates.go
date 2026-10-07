@@ -30,7 +30,7 @@ const SuggestDuplicatesName = "SuggestDuplicates"
 // anywhere - which is worth being able to tell apart in a trail rather than inferring.
 const DuplicatesAskedAction audit.Action = "ai.duplicates_asked"
 
-// Neighbours is the slice of the embedding store this use case needs (K-04).
+// Neighbours is the slice of the embedding store this use case needs.
 type Neighbours interface {
 	Near(ctx context.Context, itemID shared.ID, floor float64, limit int) (workrepo.Nearby, error)
 }
@@ -56,7 +56,7 @@ type Readers interface {
 	) ([]bool, error)
 }
 
-// SuggestDuplicates answers which entries look like one entry (K-04).
+// SuggestDuplicates answers which entries look like one entry.
 //
 // **The one AI feature in this product that asks nothing of a provider.** Two entries are near
 // each other in the embedding space or they are not, and J-10 already maintains the vector that
@@ -177,7 +177,7 @@ func (h SuggestDuplicates) Execute(
 		Payload: duplicatesPayload(visible),
 		Provenance: domain.Provenance{
 			// The embedding model, because that is what produced the vectors that were compared -
-			// and no prompt, because none was asked (K-04).
+			// and no prompt, because none was asked.
 			Model: near.Model, ProducedAt: c.Clock.Now(),
 		},
 		InputDigest: digest,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package suggestion is the application layer of what AI proposed (J-05).
+// Package suggestion is the application layer of what AI proposed.
 //
 // Three use cases and one rule that shapes all of them: **accepting is an ordinary write**. There
 // is no path in this package that changes an entry — what `AcceptSuggestion` does is call the use
@@ -46,7 +46,7 @@ const (
 	suggestionTarget = "ai_suggestion"
 )
 
-// The audit codes. Creating one is the producer's (J-06); answering one is a person's, and the two
+// The audit codes. Creating one is the producer's; answering one is a person's, and the two
 // answers are separate actions because "accepted" and "turned down" are different facts about a
 // workspace's relationship with its AI.
 const (
@@ -287,16 +287,16 @@ type accepted struct {
 // `deferredActions` draws for automation kinds.
 var acceptance = map[applierKey]accepted{
 	{domain.TargetWorkItem, domain.KindFields}: {Applier: updateWorkItemName},
-	// Accepting a proposal about a jumble entry is converting it (J-06), which is why the
+	// Accepting a proposal about a jumble entry is converting it, which is why the
 	// acceptance takes overrides: a model cannot name a destination collection, and
 	// ConvertJumbleEntry requires one.
 	{domain.TargetJumbleEntry, domain.KindFields}: {Applier: "ConvertJumbleEntry"},
-	// A decomposition is not one call but a walk (J-07): one CreateWorkItem per node, in order,
+	// A decomposition is not one call but a walk: one CreateWorkItem per node, in order,
 	// each with the accepting person's rights at its destination.
 	{domain.TargetWorkItem, domain.KindDecomposition}: {
 		Applier: createWorkItemName, Walk: true,
 	},
-	// A summary of how a collection stands is something to read (K-05). There is nowhere to put
+	// A summary of how a collection stands is something to read. There is nowhere to put
 	// it: a collection's description says what it is *for*, not how its week went, and writing a
 	// status into it would overwrite the one with the other.
 	{domain.TargetContainer, domain.KindFields}: {Refusal: "suggestions.nothing_to_apply"},
@@ -304,7 +304,7 @@ var acceptance = map[applierKey]accepted{
 	// (P-11): the payload is the template's input, the scope is the target, and the rights asked
 	// are the ones defining a template asks for - STRUCTURE at the collection.
 	{domain.TargetContainer, domain.KindTemplate}: {Applier: createTemplateName, TargetKey: "scope_id"},
-	// The one kind nothing accepts (K-04). Not "not built yet": there is nothing to build. A
+	// The one kind nothing accepts. Not "not built yet": there is nothing to build. A
 	// duplicate is two entries and a decision about them - archive one, trash one, move one under
 	// the other - and which of those somebody means is theirs to say, through the use case that
 	// owns it.
@@ -368,8 +368,8 @@ func (c Cases) apply(
 		return c.plant(ctx, actor, name, proposal, overrides)
 	}
 
-	// What the acceptance grows itself never reaches the applier's input: `subtasks` is a walk
-	// (K-01), and the registry would refuse a key `ConvertJumbleEntry` does not declare.
+	// What the acceptance grows itself never reaches the applier's input: `subtasks` is a walk,
+	// and the registry would refuse a key `ConvertJumbleEntry` does not declare.
 	grows := grown[applierKey{proposal.TargetType, proposal.Kind}]
 
 	in := usecase.Input{}
@@ -396,7 +396,7 @@ func (c Cases) apply(
 	}
 	in[targetKey] = proposal.TargetID.String()
 
-	// An applier that would be handed nothing but the target is not called (#696). Every key a
+	// An applier that would be handed nothing but the target is not called. Every key a
 	// classification proposes about a work item is grown - the labels, the column, the custom
 	// fields are each their own use case - so `UpdateWorkItem` would be asked to update nothing
 	// and would refuse, and a refusal there would be the acceptance failing for a proposal that
@@ -535,7 +535,7 @@ func (c Cases) date(
 	return err
 }
 
-// fill writes the values a classification proposed for the fields a collection declared (K-03).
+// fill writes the values a classification proposed for the fields a collection declared.
 //
 // One ordinary `SetCustomField` per key, as the accepting person, because that is how a custom
 // field is written: one key per call, since the merge rule is per key. `UpdateWorkItem` has no such
@@ -574,7 +574,7 @@ func (c Cases) fill(
 	return nil
 }
 
-// tag puts the labels a classification chose on the entry (K-02).
+// tag puts the labels a classification chose on the entry.
 //
 // One ordinary `AddLabel` each, as the accepting person, because a label is a set entry and not a
 // field: `UpdateWorkItem` - the use case that applies the rest of a FIELDS proposal - has no such
@@ -605,7 +605,7 @@ func (c Cases) tag(
 	return nil
 }
 
-// place puts the entry in the column a classification chose (K-02).
+// place puts the entry in the column a classification chose.
 //
 // Through `MoveWorkItem`, which is the use case that owns putting an entry somewhere: a card going
 // into another column is a move, and the permission check, the history entry and the event a
@@ -633,7 +633,7 @@ func (c Cases) place(
 	return err
 }
 
-// grow creates the work a jumble entry implied, under the item the conversion just made (K-01).
+// grow creates the work a jumble entry implied, under the item the conversion just made.
 //
 // J-07's walk over a different shape: one ordinary `CreateWorkItem` per title, in order, with the
 // accepting person's rights and the ordering keys `Ordering.go` produces. What it is not is a

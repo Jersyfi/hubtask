@@ -155,7 +155,7 @@ func TestThroughTheRegistryApplyDefaultsToProposing(t *testing.T) {
 	}
 }
 
-// The other two thirds of §2's Summarisation row (K-05): the same audit action, their own prompts,
+// The other two thirds of §2's Summarisation row: the same audit action, their own prompts,
 // and one of them about a collection rather than an entry.
 func TestTheTwoSummariesAskTheirOwnQuestionsAboutTheirOwnTargets(t *testing.T) {
 	for _, testCase := range []struct {

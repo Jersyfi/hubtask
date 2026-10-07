@@ -402,7 +402,7 @@ func TestAnEmptyDecompositionRecordsNothingAndIsNotAnError(t *testing.T) {
 	}
 }
 
-// The board travels as the options, and the answer is a choice from what it was shown (K-02).
+// The board travels as the options, and the answer is a choice from what it was shown.
 func TestAClassificationChoosesABucketFromTheBoardItWasShown(t *testing.T) {
 	produce, world := producer(`{"label_ids":["` + movingLabel + `"],"bucket_id":"` + doingBucket + `"}`)
 	world.buckets, world.labels = board(), vocabulary()
@@ -564,7 +564,7 @@ func TestABucketNameThatReadsAsAnInstructionIsANameOnly(t *testing.T) {
 }
 
 // The labels are the same shape as the column, and for a stronger reason: a label a workspace has
-// not agreed on is vocabulary, and words a model invented could never be applied at all (K-02).
+// not agreed on is vocabulary, and words a model invented could never be applied at all.
 func TestAClassificationChoosesLabelsFromTheVocabularyItWasShown(t *testing.T) {
 	produce, world := producer(
 		`{"label_ids":["` + homeLabel + `","` + movingLabel + `","0192f000-0000-7000-8000-0000000000ff","invented","` + homeLabel + `"]}`)
@@ -624,7 +624,7 @@ func TestAnEntryWithNoVocabularyIsProposedNoLabels(t *testing.T) {
 	}
 }
 
-// The values of the fields a workspace declared, which is where "priority" lives (K-03). The
+// The values of the fields a workspace declared, which is where "priority" lives. The
 // declaration is the closed set; the validation is the declaration's own.
 func TestAClassificationFillsTheFieldsTheCollectionDeclared(t *testing.T) {
 	produce, world := producer(`{"custom_fields":{
@@ -771,7 +771,7 @@ func TestOnlyTheQuestionThatChoosesReadsTheBoard(t *testing.T) {
 }
 
 // A discussion is what a thread summary is made from: the comments, oldest first, and the entry's
-// own fingerprint so that accepting it into the notes is judged against the notes (K-05).
+// own fingerprint so that accepting it into the notes is judged against the notes.
 func TestAThreadSummaryIsMadeFromTheComments(t *testing.T) {
 	produce, world := producer(`{"notes":"Ada and Grace agreed to ship on Friday."}`)
 	world.comments = []usecase.Output{
@@ -936,7 +936,7 @@ type producerWorld struct {
 	buckets []usecase.Output
 	labels  []usecase.Output
 	fields  []usecase.Output
-	// The material the two summaries are made from (K-05).
+	// The material the two summaries are made from.
 	comments    []usecase.Output
 	level       []usecase.Output
 	bucketsFail error
@@ -1017,7 +1017,7 @@ func (w *producerWorld) Invoke(
 	case "ListJumbleEntries":
 		// `data`, which is the key ListJumbleEntries actually answers under. A fake that invented
 		// `items` is how the wrong key survived until an end-to-end session asked for a
-		// suggestion (J-16).
+		// suggestion.
 		return usecase.Output{"data": []usecase.Output{{
 			"id": targetID.String(), "raw_subject": w.subject, "raw_body": w.body,
 		}}}, nil

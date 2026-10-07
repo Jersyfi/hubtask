@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The scope a suggestion job's reads are made with (J-16).
+// The scope a suggestion job's reads are made with.
 //
 // This exists because it was missing: `AiSuggestion` built the asking person's actor with no scopes
 // at all, so every read the job made was refused - which means no suggestion could ever be produced
@@ -134,7 +134,7 @@ func TestWithoutAScopeSourceNothingIsGranted(t *testing.T) {
 	}
 }
 
-// A proposal is narrowed to what the use case that would apply it declares (J-16).
+// A proposal is narrowed to what the use case that would apply it declares.
 //
 // `suggest-fields` proposes a title, notes, a due date and labels; a proposal about a jumble entry
 // is applied by `ConvertJumbleEntry`, which declares `title` and not the other three - and the

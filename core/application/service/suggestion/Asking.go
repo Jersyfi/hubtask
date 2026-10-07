@@ -172,7 +172,7 @@ func boolText(value bool) string {
 	return "false"
 }
 
-// SuggestDecomposition asks the workspace's provider what work sits under one entry (J-07).
+// SuggestDecomposition asks the workspace's provider what work sits under one entry.
 //
 // The second of the two suggestions the roadmap names, and the one that uses the level model for
 // what it is for: a task the size of a project described in a sentence, and the work packages and

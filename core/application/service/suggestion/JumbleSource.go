@@ -49,7 +49,7 @@ func (s CatalogueSources) Material(
 		return s.item(ctx, actor, targetID, promptID)
 	case domain.TargetContainer:
 		// A collection is read for two questions, and the source that reads it is the one the
-		// prompt names (K-05, P-11).
+		// prompt names (P-11).
 		if promptID == templatePrompt {
 			return s.templateMaterial(ctx, actor, targetID)
 		}
@@ -59,8 +59,8 @@ func (s CatalogueSources) Material(
 	}
 }
 
-// entry is the subject and the body of one inbox arrival - the least trusted text in the system
-// (G-10), which travels to a provider as user content and never as instruction.
+// entry is the subject and the body of one inbox arrival - the least trusted text in the system,
+// which travels to a provider as user content and never as instruction.
 //
 // The listing is unfiltered, for `entryDigest`'s reason: a `status: NEW` filter here meant that
 // asking about an entry somebody had already converted answered nothing at all, rather than
@@ -161,7 +161,7 @@ func (s CatalogueSources) set(
 	}
 }
 
-// The two prompts whose material is not the target's own text (K-05), named here because the source
+// The two prompts whose material is not the target's own text, named here because the source
 // dispatches on them: a discussion is read from the comments, and a collection from its entries.
 const (
 	threadPrompt     = "summarize-thread"
@@ -183,7 +183,7 @@ const (
 	maxSummarisedEntries  = 100
 )
 
-// thread is one entry's discussion, oldest first and bounded (K-05).
+// thread is one entry's discussion, oldest first and bounded.
 //
 // The digest is the *entry's*, not the discussion's, and it has to be: the acceptance recomputes
 // the target's fingerprint and refuses a proposal made from a different state, so a digest over the
@@ -239,7 +239,7 @@ func writtenAt(comment usecase.Output) string {
 	return "unknown"
 }
 
-// collection is how a collection stands: its name, and the entries directly in it (K-05).
+// collection is how a collection stands: its name, and the entries directly in it.
 //
 // One level and bounded, which the prompt says as well: what is under a task is that task's
 // business, and a summary that walked the tree would be reading a workspace to answer a question
@@ -323,7 +323,7 @@ const (
 	fieldsKey = "custom_fields"
 )
 
-// closedKinds are the custom field kinds a value can be *chosen* for (K-03).
+// closedKinds are the custom field kinds a value can be *chosen* for.
 //
 // The open ones - TEXT, NUMBER, DATE, URL - are deliberately absent, and so is USER. The row says
 // "classification", and classifying into an open set is not classification: a model writing a
