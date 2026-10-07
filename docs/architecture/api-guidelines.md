@@ -1,9 +1,8 @@
 # API Guidelines (API First)
 
-The contract: [`../../api/openapi.yaml`](../../api/openapi.yaml) (OpenAPI 3.1). The specification
-is written **before** the code; server interfaces and client SDKs are generated from it
-(`oapi-codegen`). A CI job fails if the generated code and the specification drift apart
-([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
+The contract is [`api/openapi.yaml`](../../api/openapi.yaml) (OpenAPI 3.1), written **before** the
+code; server interfaces and client SDKs are generated from it (`oapi-codegen`), and CI fails when
+they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
 
 ---
 
@@ -12,7 +11,7 @@ is written **before** the code; server interfaces and client SDKs are generated 
 1. **Nothing exists only in the UI.** Every use case is reachable through the API (coverage test against `usecase.Registry`).
 2. **One major path:** `/api/v1`. Additive changes (new fields, new endpoints, new enum values in *responses*) are compatible and need no new version.
 3. **Clients must be tolerant:** ignore unknown fields. This is documented in the contract.
-4. **Self-describing:** `GET /api/v1/meta/capabilities` returns item types, capability profiles, field types, enum values, limits, supported locales, layout hints, query fields, automation triggers/actions, and event types. Frontends and agents configure themselves from it rather than hard-coding. An optional surface is announced under `features`; a client that does not find its flag renders what it had before and calls no route of that surface.
+4. **Self-describing:** `GET /api/v1/meta/capabilities` answers the vocabulary (item types, capability profiles, field types, enum values, limits, locales, query fields, automation, event types); frontends and agents configure themselves from it rather than hard-coding. An optional surface is announced under `features`; a client that does not find its flag renders what it had before and calls no route of that surface.
 5. **No display text from the server** (see [i18n-l10n.md](./i18n-l10n.md)) — codes and parameters only.
 6. **Consistent plural resource names**, `snake_case` for JSON fields, ISO-8601/RFC 3339 for instants, ISO-8601 durations for relative values, IANA names for time zones.
 
@@ -20,47 +19,30 @@ is written **before** the code; server interfaces and client SDKs are generated 
 
 ## 2. Resource overview
 
-The contract lists every route; this table is the map. Paths are below `/api/v1`.
+[`api/openapi.yaml`](../../api/openapi.yaml) lists every route and operation; paths are below
+`/api/v1`. What the shape of a route decides:
 
-| Resource | Path | Core operations |
-|---|---|---|
-| Capabilities/meta | `/meta/capabilities`, `/meta/health` | `GET` |
-| The workspace itself | `/tenant` | `GET`, `PATCH` — one workspace as its members see it: the display name, the two defaults every member falls back to, and the switch that demands a second factor of its administrators. Not `/admin/tenants`, which crosses workspaces and is the installation operator's |
-| Installation (admin) | `/admin/tenants`, `/admin/settings`, `/admin/operators`, `/admin/identity-providers`, `/admin/encryption`, `/admin/overview`, `/admin/journal` | `GET`, `POST`; tenant actions `:suspend`, `:resume`, `:delete`, `:export`, `:open-password`, `:close-password`; `/admin/encryption:reseal` ([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md)) |
-| Accounts | `/accounts:invite`, `/accounts/me`, `/accounts/{id}`, `…/preferences`, `…/notification-preferences` | `GET`, `POST`, `PATCH`, `PUT` |
-| Sign-in and credentials | `/auth/sessions`, `/auth/password`, `/auth/mfa/…`, `/auth/step-up`, `/auth/tokens`, `/auth/service-accounts`, `/auth/oidc:…`, `/oauth/…`, `/identity-provider(s)` | see the contract; the rules are in [identity.md](./identity.md) |
-| Groups, memberships | `/groups`, `/memberships` | CRUD; `GET`, `POST`, `DELETE` |
-| Containers (hub/collection) | `/containers` | CRUD, `:move`, `:reorder`, `:archive`, `:unarchive`, `:restore`, `PUT …/policies` |
-| Items | `/items` | CRUD, `:query`, `:move`, `:reorder`, `:complete`, `:reopen`, `:duplicate`, `:bulk`, `:archive`, `:unarchive`, `:restore`, `:purge`, `:retain`, `:assign`, `:unassign`, `:auto-assign` |
-| Buckets, labels | `/containers/{id}/buckets`, `/containers/{id}/labels` | CRUD; buckets also `:reorder` |
-| An entry's labels, members, attachments | `/items/{id}/labels/{labelId}`, `/items/{id}/members/{accountId}`, `/items/{id}/attachments/{mediaId}` | `PUT`, `DELETE` |
-| Custom fields | `/custom-fields`; values at `/items/{id}/custom-fields/{key}` | CRUD; a value is `PUT` one key per call (`null` clears), because the merge rule is per key |
-| An entry's due date, cover | `/items/{id}/due`, `/items/{id}/cover` | `PUT`, `DELETE` — the due trio travels together; the same three fields on create and update dispatch into the same writer |
-| Comments, history | `/items/{id}/comments`, `/items/{id}/activity` | CRUD; `GET` |
-| Media | `/media`, `/media/{id}`, `:confirm`, `:content` | `POST` (presigned), `GET`, `DELETE` |
-| Reminders, recurrence | `/items/{id}/reminders`, `/items/{id}/recurrence` | CRUD; `GET`, `PUT`, `DELETE`, `:skip` — a rule a client can set it can also read back |
-| Templates | `/templates` | CRUD, `:instantiate`, `:generate` |
-| Views | `/views` | CRUD, `:share`, `:export` |
-| Search | `/search` | `POST` only. What somebody is looking for is their content, and a query string travels through access logs, proxies and browser history |
-| Jumble | `/jumble/entries` | `GET`, `POST`, `:convert`, `:suggest`, `:dismiss` |
-| Jumble intake | `/jumble/intake:rotate-token`, `/jumble/inbound/{token}`, `/jumble/mail/{token}` | `POST` (the address, shown once); `POST` (public, token-protected, capped); `POST` with `message/rfc822` and a bound of its own. The token authenticates the tenant rather than a person, and every reason not to serve answers the same `404` |
-| Automation | `/automation/rules`, `/automation/runs`, `/automation/inbound/{token}` | CRUD, `:enable`, `:disable`, `:check`, `:test`, `:trigger`, `:rotate-inbound-token`, `:replay` |
-| Webhooks, outbound calls | `/integrations/webhooks`, `…/deliveries`, `/integrations/http-requests` | CRUD, `:send`, `:replay`, `:rotate-secret` |
-| Trigger polling (Zapier/n8n) | `/integrations/triggers/{eventType}` | `GET` (sorted by `since`/cursor, deduplicable) |
-| Calendar | `/integrations/calendar-feeds`, `/calendar/{token}.ics`, `/caldav/` | `GET`, `POST`, `DELETE`; `GET` (public, token-protected); WebDAV outside the contract (§7) |
-| AI | `/ai-provider`, `/items/{id}:decompose` and the other assistance actions, `/suggestions` | `GET`, `PUT`, `DELETE`; `POST`; `GET`, `:accept`, `:dismiss` ([ai-first.md](./ai-first.md)) |
-| Backup and restore | `/backup-targets`, `/backup-schedules`, `/backups`, `/restores` | `GET`, `POST`, `PATCH`, `DELETE`, `:test`, `:verify`. Deleting a target a schedule still names is a `409`; nothing at the target is ever touched |
-| Retention, trash, holds | `/retention-policies`, `/trash`, `/legal-holds` | `GET`, `POST`, `PATCH`, `DELETE`, `:preview`; `GET`, `:empty`; `:release` |
-| Audit | `/audit`, `/audit:verify`, `/audit:export`, `/audit/anchoring` | `GET`, `POST`, `PUT` |
-| Privacy | `/privacy/requests`, `/privacy/consents:withdraw`, `/accounts/{id}:restrict` | `GET`, `POST`, `PATCH` |
-| Imports, quotas | `/imports`, `/quotas` | `POST`, `GET` |
-| Jobs | `/jobs/{id}`, `/jobs/{id}:cancel` | `GET`, `POST` (§5) |
-| Sync | `/sync:snapshot`, `/sync:pull`, `/sync:push`, `/sync/devices` | `POST`; `GET`, `DELETE` ([offline-sync.md](./offline-sync.md)) |
-| Event stream | `/stream` (SSE) | `GET` |
-| MCP | `/mcp` | Streamable HTTP, outside the OpenAPI document |
-
-**Actions** use the suffix pattern `POST /items/{id}:complete` (Google AIP style) — clearer than
-status fields for operations with side effects, and easier for agents to understand.
+* **Actions** use the suffix pattern `POST /items/{id}:complete` (Google AIP style) — clearer than
+  status fields for operations with side effects, and easier for agents.
+* `/tenant` is one workspace as its members see it (display name, the members' two defaults, the
+  administrators' second-factor switch); `/admin/…` crosses workspaces and is the installation
+  operator's.
+* **Search is `POST /search` only**: what somebody looks for is their content, and a query string
+  travels through access logs, proxies and browser history. `/items:query` is a `POST` for the same
+  reason.
+* A collection's buckets and labels are answered as a plain array, unpaged.
+* An entry's labels, members and attachments are `PUT`/`DELETE` on
+  `/items/{id}/{labels|members|attachments}/{id}`. A custom field value is `PUT` one key per call at
+  `/items/{id}/custom-fields/{key}` (`null` clears), because the merge rule is per key. The due trio
+  travels together at `/items/{id}/due`, and the same fields on create and update dispatch into the
+  same writer. A reminder or recurrence a client can set it can also read back.
+* `/items/{id}/activity` is the only reader of an entry's history.
+* Deleting a backup target a schedule still names is a `409`; nothing at the target is ever touched.
+* The intake doors (`/jumble/inbound/{token}`, `/jumble/mail/{token}`, `/automation/inbound/{token}`)
+  authenticate a tenant or a rule, never a person, are capped, and answer every reason not to serve
+  with the same `404`.
+* `/mcp` (streamable HTTP, [ai-first.md](./ai-first.md)) and `/caldav/` (WebDAV, §7) are outside the
+  OpenAPI document.
 
 ---
 
@@ -97,21 +79,21 @@ One endpoint serves list, board, and timeline: `POST /api/v1/items:query`.
 
 | Element | Rules |
 |---|---|
-| Scope | Required: exactly one of `container_id` and `item_id`. An unanchored query is a scan of the whole tenant, and the permission is checked against the scope once for the whole result. `include_descendants: false` narrows it to one level |
+| Scope | Required: exactly one of `container_id` and `item_id` — an unanchored query would scan the tenant — and the permission is checked against it once for the whole result. `include_descendants: false` narrows it to one level |
 | Operators | `AND`, `OR`, `NOT` (exactly one node); `EQ`, `NEQ`, `IN`, `NOT_IN`, `LT`, `LTE`, `GT`, `GTE`, `BETWEEN`, `IS_NULL`, `CONTAINS`, `CONTAINS_ANY`, `CONTAINS_ALL`, `STARTS_WITH`, `MATCHES` (full text) |
 | Placeholders | `@me`, `@now`, `@today`, `@end_of_day`, `@start_of_week`, `@end_of_week`, `@start_of_month`, `@end_of_month`, each but `@me` with an optional signed ISO 8601 offset (`@today+P3D`). Resolved server-side in the actor's time zone; an end is the last instant of its period; the week starts at the actor's `week_start` (the account's, else the locale's; [i18n-l10n.md](./i18n-l10n.md) §4) |
 | Nesting | Maximum depth 5, maximum 50 nodes |
 | Cost | An estimate over the parsed tree, capped at 50: a plain comparison costs 1, a prefix 2, a text scan (`CONTAINS`/`MATCHES`) 5, a list 1 plus one per twenty values, a `NOT` doubles its subtree. Past the cap → `422 query.filter_too_expensive` naming the estimate and the ceiling, refused before it runs ([multi-tenancy.md](./multi-tenancy.md) §4) |
 | Fields | Only the fields `/meta/capabilities` lists under `query_fields`. An unknown field, or one no use case writes yet, is refused by name as `422 query.field_unknown` |
-| Custom fields | `custom_fields.<key>` is recognised by its shape, with the key bound as a parameter, and is not listed in `query_fields`; which keys exist is `/custom-fields`' answer. A client offers each key the definitions name for the collection on screen, with the comparisons its kind takes. A key nothing defines matches nothing |
-| `group_by` | Returns groups, each with its own cursor, so board columns page independently. A group is continued by asking for that group: its key as a filter, its cursor as the cursor. A cursor together with `group_by` is refused |
+| Custom fields | `custom_fields.<key>` is recognised by its shape, the key bound as a parameter, and not listed in `query_fields`; `/custom-fields` says which keys exist, and a client offers those defined for the collection on screen. A key nothing defines matches nothing |
+| `group_by` | Groups, each with its own cursor, so board columns page independently; a group is continued by asking for it (its key as a filter, its cursor as the cursor). A cursor together with `group_by` is refused |
 | `expand` | `labels` is served; any other relation is refused as `items.expand_not_supported` |
 | Timeline | `sort=[start_at]`, filter `BETWEEN` on `start_at`/`due_at` |
 | Determinism | Sorting always ends implicitly on `id ASC`, so that cursors stay stable. Without a sort, the manual order (`order_key ASC`) |
 
-`SavedView` stores exactly this object plus `layout` and `visible_fields`. A saved query is
-validated against the query catalogue when it is written. The server does not interpret
-`layout`, so a new view in a client needs no backend change.
+`SavedView` stores exactly this object plus `layout` and `visible_fields`, validated against the
+query catalogue at the write. The server does not interpret `layout`, so a new view in a client
+needs no backend change.
 
 `POST /search` takes the same filter grammar, limits and cost estimate; it has no `group_by`,
 `expand` or `count`. Its `words` are optional when a filter is given; without words the order is
@@ -135,13 +117,12 @@ assembled at run time. The boundary is **no byte that arrived in a request ever 
 4. **A fuzz gate proves it:** `FuzzCompile` asserts that compiled SQL is drawn from the closed
    vocabulary, that placeholders and arguments agree, and that no fragment of the input appears in
    the SQL text (`make gate-fuzz` nightly, seeded in `make gate-unit`).
-5. **sqlc keeps everything else**, this endpoint's `COUNT` included. A second hand-built statement
-   anywhere else is a review finding. Search and saved views reuse the same AST and compiler.
+5. **sqlc keeps everything else**, this endpoint's `COUNT` included; a second hand-built statement
+   is a review finding. Search and saved views reuse the same AST and compiler.
 
-The compiled statement runs on the unit of work's transaction, under row level security, and the
-pool's interactive `statement_timeout` keeps an expensive but legal filter finite. Adding a
-filterable field is a change in two tables: the catalogue in the domain and the column mapping in
-the compiler.
+The statement runs on the unit of work's transaction under row level security, and the pool's
+interactive `statement_timeout` keeps an expensive but legal filter finite. A new filterable field
+is a change in two tables: the domain's catalogue and the compiler's column mapping.
 
 ---
 
@@ -163,13 +144,13 @@ the compiler.
 
 | Mechanism | Implementation |
 |---|---|
-| **Idempotency** | The `Idempotency-Key` header (a UUID; anything else is `422 idempotency.key_malformed`) on `POST`s; the answer is stored per tenant, key and route and replayed identically on a repeat for at least 24 h — mandatory for automation and agent use. `PUT` and `DELETE` repeat harmlessly by definition, and `PATCH` is guarded by `If-Match`. Two answers are not stored, and the key is released for the repeat instead: a `5xx` (not a decision the server stands behind) and `403 auth.step_up_required` (the request was not attempted for want of a proof — the retry carrying the proof is the same intent under the same key) |
-| **Optimistic locking** | `ETag` on `GET`, `If-Match` on `PATCH`/`PUT`. A stale `If-Match` answers `409 version_conflict` with the current version in the payload — **not** `412`, and the same code answers a conflict found without a precondition, because the client's recovery is the same: re-read and reapply ([ADR-0025](../adr/ADR-0025-precondition-failures.md)). A `412 precondition_failed` could only ever be added beside it, never instead |
+| **Idempotency** | The `Idempotency-Key` header (a UUID; anything else is `422 idempotency.key_malformed`) on `POST`s; the answer is stored per tenant, key and route and replayed identically for at least 24 h — mandatory for automation and agents. `PUT` and `DELETE` repeat harmlessly, and `PATCH` is guarded by `If-Match`. Not stored, the key released for the repeat: a `5xx` (no decision the server stands behind) and `403 auth.step_up_required` (not attempted; the retry with the proof is the same intent) |
+| **Optimistic locking** | `ETag` on `GET`, `If-Match` on `PATCH`/`PUT`. A stale `If-Match` answers `409 version_conflict` with the current version — **not** `412`, and the same code answers a conflict found without a precondition, since the recovery is the same: re-read and reapply ([ADR-0025](../adr/ADR-0025-precondition-failures.md)). A `412` could only ever be added beside it |
 | **Partial updates** | `PATCH` with JSON Merge Patch (RFC 7396); `null` deletes a field explicitly |
-| **Bulk** | `POST /items:bulk` with at most 500 operations; the response contains a result per operation (`207`-like in the body, HTTP 200), and `atomic: true` enforces all-or-nothing |
-| **Bounded, synchronous** | `/views/{id}:export` and `/templates/{id}:instantiate` answer in the request. Each is bounded by a limit in `/meta/capabilities` (`max_export_rows`, `max_template_nodes`); an export that reached its cap says so in the `Export-Truncated` header |
-| **Long running** | Work that cannot be bounded to one request — a tenant's export or deletion, an audit export, a backup and its verification, a restore, an import, a re-seal, a re-index — answers `202 Accepted` with `/jobs/{id}`. Other `202`s (an AI suggestion, a triggered rule, a webhook send) say in the contract what they hand back |
-| **Jobs** | Cancelling is cooperative: the pass stops at its next write boundary and leaves nothing behind in the database, though what it already put outside (bytes at a backup target, a handed-off mail) stays. A job already finished, failed or cancelled answers `409`. A job that cannot measure its progress answers `progress: null` rather than an invented number |
+| **Bulk** | `POST /items:bulk` with at most 500 operations; a result per operation (`207`-like in the body, HTTP 200); `atomic: true` enforces all-or-nothing |
+| **Bounded, synchronous** | `/views/{id}:export` and `/templates/{id}:instantiate` answer in the request, bounded by `max_export_rows` and `max_template_nodes` in `/meta/capabilities`; a capped export says so in `Export-Truncated` |
+| **Long running** | Work that cannot be bounded to one request (a tenant's export or deletion, an audit export, a backup and its verification, a restore, an import, a re-seal, a re-index) answers `202 Accepted` with `/jobs/{id}`. Other `202`s say in the contract what they hand back |
+| **Jobs** | Cancelling is cooperative: the pass stops at its next write boundary and leaves nothing in the database, though what it already put outside stays. A finished, failed or cancelled job answers `409`. A job that cannot measure progress answers `progress: null` |
 | **Rate limits** | Per token and tenant; headers `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, and `Retry-After` on `429` |
 
 ---
@@ -192,52 +173,47 @@ the compiler.
 }
 ```
 
-* `code` is stable and machine-readable (part of the contract, and SemVer-relevant).
-* `detail_code` plus `params` let the client produce a localised message without any server-side
-  prose ([ADR-0011](../adr/ADR-0011-i18n-message-codes.md)). A `field_errors[].path` is a JSON
-  Pointer.
-* No free text that clients would have to parse.
-* A `500 internal` carries no `detail_code` and no `params` — only the code and the `request_id`.
-  Every other status, `503` included, keeps them.
+* `code` is stable and machine-readable (part of the contract, SemVer-relevant).
+* `detail_code` plus `params` let the client localise without server-side prose
+  ([ADR-0011](../adr/ADR-0011-i18n-message-codes.md)); no free text clients would have to parse. A
+  `field_errors[].path` is a JSON Pointer.
+* A `500 internal` carries only the code and the `request_id`; every other status, `503` included,
+  keeps `detail_code` and `params`.
 
-The standard mapping (`presentation/rest/Problem.go` is the table): `400 malformed_request`,
-`401 unauthenticated`, `403 forbidden`, `404 not_found`, `405 method_not_allowed`,
-`409 conflict|version_conflict`, `410 gone` (permanently deleted), `413 payload_too_large`,
-`422 validation_failed|capability_not_supported`, `429 rate_limited`, `500 internal`,
-`503 dependency_unavailable`. A refused query names its problem in `detail_code` (`query.*`). A
-capacity quota refuses as `422` with `capacity.<quota>` naming the quota and the ceiling — waiting
-does not help, which is what separates it from `429`. AI that is off or out of reach is
+The standard codes are `core/domain/model/shared/Errors.go`'s, their statuses the table in
+`presentation/rest/Problem.go` (`400 malformed_request`, `409 conflict|version_conflict`,
+`410 gone`, `422 validation_failed|capability_not_supported`, `503 dependency_unavailable`, …). A refused query names its
+problem in `detail_code` (`query.*`). A capacity quota refuses as `422` with `capacity.<quota>`
+naming the quota and ceiling — waiting does not help, unlike `429`. AI that is off or out of reach is
 `503 dependency_unavailable` with `ai.unavailable`.
 
 ---
 
 ## 7. Authentication at the API
 
-The API authenticates with a bearer token and never with a cookie; CORS therefore never allows
-credentials. Token shapes, lifetimes and storage are in [identity.md](./identity.md) §14 and §15.
+The API authenticates with a bearer token, never a cookie; CORS therefore never allows credentials.
+Token shapes, lifetimes and storage are in [identity.md](./identity.md) §14 and §15.
 
 | Method | Used for | Note |
 |---|---|---|
-| Session access token (`hbt_sat_`) | The first-party clients | Issued by `/auth/sessions` after any sign-in method, including a provider's; short-lived, renewed through `/auth/sessions:refresh` with a rotating refresh token (`hbt_srt_`). A provider's own token is never an API credential |
+| Session access token (`hbt_sat_`) | The first-party clients | Issued by `/auth/sessions` after any sign-in method; short-lived, renewed through `/auth/sessions:refresh` with a rotating refresh token (`hbt_srt_`). A provider's own token is never an API credential |
 | Personal access token (`hbt_pat_`) | Scripts, n8n, Zapier, the CLI | Scoped, stored hashed, with an expiry date |
 | Service account token | Automation, AI agents | Its own actor type in the audit |
-| OAuth 2 authorization code + PKCE | Third-party apps (the Zapier marketplace) | PKCE is required; consent is given only to scopes the catalogue names |
+| OAuth 2 authorization code + PKCE | Third-party apps (the Zapier marketplace) | PKCE is required; consent only to scopes the catalogue names |
 | Signed feed token (`hbt_cal_`) | ICS calendar | Read-only on one view, revocable |
-| Personal access token as an HTTP Basic password | CalDAV clients (`/caldav/`) | The one place Basic is taken, because a calendar client can send nothing else; the user name is read and discarded, the password is the token. The tree is outside the OpenAPI document because WebDAV's methods are not the contract's. It offers no `MKCALENDAR`: a calendar exists because a calendar feed does |
+| Personal access token as an HTTP Basic password | CalDAV clients (`/caldav/`) | The one place Basic is taken, since a calendar client can send nothing else; the user name is discarded. Outside the OpenAPI document because WebDAV's methods are not the contract's. No `MKCALENDAR`: a calendar exists because a calendar feed does |
 
-**Scopes.** `catalogue.Scopes()` is the source: it is derived from the use case descriptors, so a
-scope no operation checks cannot exist. `GET /meta/capabilities` and the contract list them; this
-document does not keep a copy. The rules:
+**Scopes.** `catalogue.Scopes()` is the source, derived from the use case descriptors, so a scope no
+operation checks cannot exist; `GET /meta/capabilities` and the contract list them.
 
 * A session carries every scope except `admin:*` and `agent:destructive` (`catalogue.SessionScopes`).
-  The admin surface is entered by a deliberately minted credential — with one exception: a
-  registered operator's session raised by a step-up carries `admin:tenants` for an hour
+  The admin surface needs a deliberately minted credential — except that a registered operator's
+  session raised by a step-up carries `admin:tenants` for an hour
   ([ADR-0070](../adr/ADR-0070-the-instance-layer.md) §4). A scope a signed-in person needs is
-  therefore named something else (`ops:read`).
-* Watching and acting are separate scopes where a token minted to watch has no business acting:
+  therefore named otherwise (`ops:read`).
+* Watching and acting are separate scopes where a watching token has no business acting:
   `jobs:read` / `jobs:cancel`, `audit:read` / `audit:export`.
-* Without a matching scope → `403 forbidden` with `access.insufficient_scope`, naming the scope
-  required.
+* Without a matching scope → `403 forbidden` with `access.insufficient_scope`, naming the scope.
 
 ---
 
@@ -253,14 +229,12 @@ document does not keep a copy. The rules:
 | Deprecation | The `Deprecation` (RFC 9745) and `Sunset` (RFC 8594) headers plus an entry in `/meta/capabilities` and the changelog |
 
 **How a request field is deprecated:** in `openapi.yaml`, `deprecated: true` with
-`x-deprecated-since` (the day), `x-removed-in` (the major version it goes with), `x-replaced-by` (the
-`operationId` or header that takes its place — identifiers, not prose; the field's description says
-the rest) and, once a day is set, `x-sunset`. `make generate` reads them into the REST adapter's
-table (`tools/deprecations`); from it the manifest lists `deprecations`, and a request that sends
-such a field is answered with `Deprecation` and, where a day is set, `Sunset`. A request that does
-not send it hears nothing. A mark without its day, version or replacement fails the generator, and
-so does a mark nothing can announce — a deprecated parameter, operation, nested or response-only
-member: only a top-level property of a schema a JSON request body references is.
+`x-deprecated-since` (the day), `x-removed-in` (the major), `x-replaced-by` (an `operationId` or
+header, not prose) and, once a day is set, `x-sunset`. `make generate` reads them into the REST
+adapter's table (`tools/deprecations`); the manifest lists `deprecations`, and only a request that
+sends such a field is answered with `Deprecation` (and `Sunset` where a day is set). The generator
+fails on a mark missing its day, version or replacement, and on a mark nothing can announce: only a
+top-level property of a schema a JSON request body references can be deprecated.
 
 Breaking changes are: removing or renaming a field, changing a type, adding a required field,
 removing an enum value from *requests*, changing semantics, changing a default, removing an error
