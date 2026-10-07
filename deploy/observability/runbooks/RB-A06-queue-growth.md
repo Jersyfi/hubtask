@@ -27,7 +27,7 @@ psql -c "SELECT kind, count(*), min(run_at) FROM job
   process first.
 * **RUNNING but slow** → read `hubtask_job_duration_seconds` for the kind; a duration that
   jumped points at the dependency the handler calls (database, SMTP, a webhook target).
-* **One tenant's flood** → the fairness of the claim is round-robin per tenant (H-08); a flood
+* **One tenant's flood** → the fairness of the claim is round-robin per tenant; a flood
   slows its own tenant first. If the depth is all one tenant, this is capacity, not defect.
 
 ## Diagnostic queries

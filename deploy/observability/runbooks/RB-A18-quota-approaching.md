@@ -12,7 +12,7 @@ says which wall: `items`, `media_bytes`, `webhook_targets`, `export_jobs`,
 the wall, the refusal is `capacity.<quota>` (422) for capacity rows and `429` for the rate —
 visible to the workspace's own people, with the ceiling in the answer.
 
-`ai_tokens_per_day` is the one that refuses differently, and deliberately (J-15). A workspace over
+`ai_tokens_per_day` is the one that refuses differently, and deliberately. A workspace over
 its AI budget is not shown a problem document: suggestions stop being offered and everything else
 keeps working, exactly as when no provider is configured. So this alert is the *only* place the
 approach is visible before somebody notices the feature has gone quiet — which is why it fires at

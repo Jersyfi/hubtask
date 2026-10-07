@@ -11,7 +11,7 @@ Two alerts share this catalogue row because the row has two halves:
   credential-stuffing run, or a client somewhere is broken and retrying — a rotated secret
   whose consumer was not updated produces exactly this.
 * **The reuse** (page): a refresh token that had already been rotated away was presented again.
-  Two holders of one credential. H-01's rotation already revoked the whole session family the
+  Two holders of one credential. The rotation already revoked the whole session family the
   moment it happened — the machine's response is done; the page is for the human question of
   *how* there were two holders.
 
