@@ -72,7 +72,7 @@ type CreateContainerCommand struct {
 
 // CreateContainer creates a hub or a collection.
 //
-// It is the reference use case of this milestone: everything a write in this system owes is
+// It is the reference use case: everything a write in this system owes is
 // visible in one Execute - the permission check before the transaction, the invariants in the
 // domain, and inside one transaction the row, the event, the change log entry for offline clients
 // and the audit entry. A later use case that leaves one of them out is visibly different from

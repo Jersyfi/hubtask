@@ -236,7 +236,7 @@ func (h CreateBucket) readCollection(
 // The merge rule for every field of a bucket is last writer wins per field, decided by the HLC -
 // which is the rule the Definition of Done asks to be stated for each new field. `order_key` is a
 // fractional index and merges by itself, and `version` is derived server-side and never merged. A
-// bucket carries no set of its own; the one set in this milestone is an item's labels, which merge
+// bucket carries no set of its own; an item's sets, such as its labels, merge
 // as an OR-set (work.MergeSetElements).
 func (h CreateBucket) recordChange(
 	ctx context.Context, bucket domain.Bucket, collection domain.Container,
