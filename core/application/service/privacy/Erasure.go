@@ -179,7 +179,7 @@ func (e Eraser) Erase(
 //
 // The catalogue's path for `jumble_entry` is `RETENTION`, 90 days. That is right for a message
 // nobody ever converted; it is not an answer to an erasure, and PG-2 is what made the difference
-// visible - the address and the text were still there after everything else had gone (E-11).
+// visible - the address and the text were still there after everything else had gone.
 func (e Eraser) intake(
 	ctx context.Context, subject shared.ID, mode domain.ErasureMode,
 ) (int, error) {
@@ -270,7 +270,7 @@ func (e Eraser) finishAccount(
 // discardBytes removes what the object store holds, and counts what actually went.
 //
 // A medium the store will not release keeps its row and is left to the media reconciliation, which
-// is the job that exists for exactly this (C-06, data-protection.md §5). Failing the whole erasure
+// is the job that exists for exactly this (data-protection.md §5). Failing the whole erasure
 // over one file would leave the erasure half done and the case still open.
 func (e Eraser) discardBytes(
 	ctx context.Context, actor appshared.ActorContext, media []repository.Medium, now time.Time,

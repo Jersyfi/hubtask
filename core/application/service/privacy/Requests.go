@@ -79,7 +79,7 @@ type Cases struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	// Text brings the notes and a rejection's reason to normal form C on the way in
-	// (i18n-l10n.md §5, M-07).
+	// (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -145,7 +145,7 @@ func (h CreateDataSubjectRequest) Execute(
 
 		// The deadline watch is seeded by the write that creates the case, because nothing in
 		// this system may enumerate tenants: a scheduler cannot create one of these per tenant,
-		// and a workspace with no open case should cost nothing (E-10, alert A-19). The dedupe key
+		// and a workspace with no open case should cost nothing (alert A-19). The dedupe key
 		// is the tenant, so a second case joins the watch that is already running.
 		if _, err := h.Cases.Jobs.Enqueue(ctx, queue.Request{
 			Kind:      queue.KindPrivacyDeadlines,
@@ -673,8 +673,7 @@ func (h UpdateDataSubjectRequest) Descriptor() usecase.Descriptor {
 				Name: "status", Kind: usecase.KindString,
 				// RECEIVED is where a case starts and nothing moves back to it. It is in the set
 				// anyway, because refusing it here would answer a generic validation code where
-				// `privacy.transition_refused` names both ends of the step somebody tried to take
-				// (issue #427).
+				// `privacy.transition_refused` names both ends of the step somebody tried to take.
 				Enum: []string{
 					string(domain.StatusReceived), string(domain.StatusInProgress),
 					string(domain.StatusCompleted), string(domain.StatusRejected),

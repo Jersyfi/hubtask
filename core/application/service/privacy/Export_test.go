@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// The access export (E-10, Art. 15 and 20). What is under test here is the one thing this export
+// The access export (Art. 15 and 20). What is under test here is the one thing this export
 // changes about a backup: which rows go in. That the archive is a Hubtask archive is E-04's and
 // E-05's, and it is that *because* nothing here writes a format of its own.
 

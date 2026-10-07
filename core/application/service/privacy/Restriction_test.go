@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// Art. 18 as a technical state (E-10, data-protection.md §4): readable, not processed - and not a
+// Art. 18 as a technical state (data-protection.md §4): readable, not processed - and not a
 // lockout, which is the distinction the whole use case turns on.
 
 // subjectStore keeps the statuses an erasure and a restriction write.

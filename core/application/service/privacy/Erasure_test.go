@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/storage"
 )
 
-// The erasure (E-10, Art. 17, QS-19). What is under test is that every storage location is served,
+// The erasure (Art. 17, QS-19). What is under test is that every storage location is served,
 // that each removal leaves the two records that stop it coming back, and that the two modes differ
 // in exactly one thing: whether the person's own contributions go with them.
 
@@ -437,7 +437,7 @@ func TestAStorageLocationThatRefusesFailsTheErasure(t *testing.T) {
 
 // A full deletion is refused while a rule still acts as the person. The reference is `ON DELETE
 // RESTRICT`, so the alternative to this refusal is a foreign key violation reaching the caller as
-// a dependency error - which is what PG-2 found (E-11).
+// a dependency error - which is what PG-2 found.
 func TestAFullDeletionIsRefusedWhileARuleActsAsThePerson(t *testing.T) {
 	harness := newErasureHarness()
 	harness.storage.runningRules = 3
