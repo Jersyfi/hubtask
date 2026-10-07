@@ -6,9 +6,8 @@
 // Package s3test starts the S3-compatible server every suite that needs a real one runs against,
 // the way test/dbtest starts the PostgreSQL.
 //
-// One place rather than three, because the previous arrangement was three copies of the same
-// image pin plus two more in scripts/pitr-drill.sh - and when the vendor closed its registries
-// that made a one-line problem into a five-place one (#1029).
+// One place rather than one per suite, because copies of the same image pin drift - and when a
+// vendor closes its registries, a one-line problem becomes a problem in every copy.
 //
 // Two build tags, because two gates need it: the storage and backup suites run under
 // `integration` and RT-1 runs under `resilience`. test/dbtest needs only the first.

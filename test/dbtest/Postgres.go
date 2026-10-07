@@ -5,11 +5,10 @@
 
 // Package dbtest starts the PostgreSQL every suite that needs a real one runs against.
 //
-// Extracted from test/integration when a second suite needed it (B-10: the retention evidence runs
-// the whole deletion path, and it belongs beside the RE catalogue rather than among the repository
-// tests). A copy per suite would be two places for the migration step, the role grant and the type
-// registration to drift - and the third of those is the one that fails as a scan error nobody
-// connects to the setup.
+// More than one suite needs it - the retention evidence runs the whole deletion path, and it
+// belongs beside the RE catalogue rather than among the repository tests. A copy per suite would
+// be two places for the migration step, the role grant and the type registration to drift - and
+// the third of those is the one that fails as a scan error nobody connects to the setup.
 //
 // One container per test binary, not per test: starting PostgreSQL per test would cost minutes, and
 // the suites keep to their own tenants instead.
@@ -120,10 +119,10 @@ func startDatabase() (Database, error) {
 //
 // `db/schema.sql` says of the embedding table that "it is mirrored here because every gate that
 // starts a PostgreSQL runs one that has the extension, which is what lets support-matrix.md call
-// semantic search supported at all". That sentence was a comment, and it stopped being true on
-// 2026-09-09: the nightly's PostgreSQL 17 job composed `postgres:17-alpine`, and every night since
-// it died on `db/schema.sql does not apply: extension "vector" is not available` - a message about
-// a reference file, three steps away from the image that was wrong (#939).
+// semantic search supported at all". That sentence is a comment, and nothing enforces it: a job
+// that composes a plain `postgres:17-alpine` dies on `db/schema.sql does not apply: extension
+// "vector" is not available` - a message about a reference file, three steps away from the image
+// that is wrong.
 //
 // So the premise is checked where the suite's database is made, and says what to do about it. The
 // absence path is not weakened by this: ADR-0050 has the extension detected rather than demanded,
@@ -187,7 +186,7 @@ func goose(ctx context.Context, dsn string, arguments ...string) error {
 //
 // What it is for is the state *before* a migration: a test that has to prove what a migration does
 // to a populated table has to populate the table with the schema of the version before it, which
-// `up` cannot leave it in (C-08).
+// `up` cannot leave it in.
 func MigrateTo(ctx context.Context, dsn string, version int) error {
 	return goose(ctx, dsn, "up-to", strconv.Itoa(version))
 }
