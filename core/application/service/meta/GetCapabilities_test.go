@@ -220,9 +220,8 @@ func TestAReadFailureSurfaces(t *testing.T) {
 	}
 }
 
-// Issue 542: what starts a rule and what a rule may do are answered, and answered from the
-// domain and the catalogue rather than from a copy - the F4-13 editor read nothing here and could
-// save no rule.
+// What starts a rule and what a rule may do are answered, and answered from the domain and the
+// catalogue rather than from a copy - an editor with nothing here to read can save no rule.
 func TestTheManifestReportsTheAutomationVocabulary(t *testing.T) {
 	h := handler(profiles{list: systemDefaults()}, &unitOfWork{})
 	h.Actions = []string{"COMPLETE_WORK_ITEM", "CREATE_CONTAINER"}
@@ -244,7 +243,7 @@ func TestTheManifestReportsTheAutomationVocabulary(t *testing.T) {
 	}
 }
 
-// C-04: the manifest describes the role matrix, and describes it out of the matrix rather than
+// The manifest describes the role matrix, and describes it out of the matrix rather than
 // from a copy - so that a client renders the actions it offers from data.
 func TestTheManifestReportsTheRoleMatrix(t *testing.T) {
 	manifest, err := handler(profiles{list: systemDefaults()}, &unitOfWork{}).
@@ -474,7 +473,7 @@ func TestTheManifestNamesTheTwoFeaturesOneProviderCarries(t *testing.T) {
 
 // The reference stack until somebody configures a provider: deploy/docker/compose.yaml runs
 // pgvector, so the store is there and always empty. Publishing `semantic_search: true` would send
-// a client to render a control that silently answers a lexical search to every query (issue 502).
+// a client to render a control that silently answers a lexical search to every query.
 func TestAStoreWithNobodyToFillItIsNotSemanticSearch(t *testing.T) {
 	handler, _ := aiManifest(true, aiprovider.ProviderCapabilities{})
 

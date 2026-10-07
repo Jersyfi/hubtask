@@ -32,12 +32,9 @@ const APIVersion = "v1"
 // Capabilities is the self-description clients configure themselves from instead of hard-coding
 // values (api-guidelines.md §1).
 //
-// Nothing the schema declares is deliberately absent any more. The rule while something was:
-// an empty list would read as "this installation has none", which is a different statement from
-// "this part of the contract is not implemented yet" - and the first of those is a lie a client
-// would act on. The view layouts left that sentence with D-07, the event types with F4-15, the
-// retention kinds with F4-18 and the automation triggers and actions with issue 542, each with the
-// task that gave it a reader.
+// Nothing the schema declares is left out: an empty list reads as "this installation has none",
+// which is a different statement from "this part of the contract is not implemented" - and the
+// first of those, if untrue, is a lie a client would act on.
 type Capabilities struct {
 	ProductVersion string
 	APIVersion     string
@@ -56,10 +53,8 @@ type Capabilities struct {
 	// (api-guidelines.md §3).
 	ViewLayouts []view.Layout
 	// CompletionPolicies and AutoAssignStrategies are the closed sets a collection's policies are
-	// validated against (issue 773). Read from the domain, which has offered both lists "for
-	// /meta/capabilities" since the policies were built and which nothing answered from until
-	// now: a policies form built from a copy of the enum would offer a value the installation
-	// refuses on the day the domain gains one.
+	// validated against. Read from the domain: a policies form built from a copy of the enum
+	// would offer a value the installation refuses on the day the domain gains one.
 	CompletionPolicies   []work.CompletionPolicy
 	AutoAssignStrategies []work.AutoAssignStrategy
 	// EventTypes is every type this build emits, and therefore every type a webhook subscription
@@ -71,8 +66,8 @@ type Capabilities struct {
 	// AutomationTriggers is every way a rule may be started, and AutomationActions every use case
 	// a rule may perform, named the way a rule names them (automation.md §1.1, §1.3). A rule
 	// editor is built from these two lists rather than from a copy: a client with its own would be
-	// wrong on the installation that has one more, and the F4-13 editor built without them was
-	// complete and unusable (issue 542). The triggers are read from the domain, the actions handed
+	// wrong on the installation that has one more, and an editor built without them is complete
+	// and unusable. The triggers are read from the domain, the actions handed
 	// in for the reason the scopes are: the catalogue is assembled from these very use cases. The
 	// engine's own flow kinds - WAIT, BRANCH, STOP - are not actions in this sense and are not in
 	// the list; the contract says a client names those three itself.
@@ -216,8 +211,7 @@ type GetCapabilities struct {
 	Languages repository.TextLanguages
 	// Locales answers the catalogues present. Optional for the reason Semantic and
 	// Ordering are: a build wired without it answers the source language alone, which is the
-	// honest reading of "nothing here says otherwise" and what every installation before this
-	// milestone was.
+	// honest reading of "nothing here says otherwise".
 	Locales i18n.Locales
 	// Semantic answers whether this installation can search by meaning (ADR-0050). Optional:
 	// a build wired without it answers `false`, which is the honest reading of "nothing here says
@@ -229,7 +223,7 @@ type GetCapabilities struct {
 	// the honest reading of "nothing here says otherwise" - names still sort, in the database's
 	// own order.
 	Ordering repository.NaturalOrdering
-	// Providers answers what the caller's workspace can ask a model to do (issue 502). Optional,
+	// Providers answers what the caller's workspace can ask a model to do. Optional,
 	// like Semantic and for the same reason: a build wired without it answers `false`, which is
 	// the honest reading of "nothing here says otherwise".
 	Providers AiProviders
@@ -407,8 +401,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// discovers it here rather than by asking for "/" and reading the answer, which is
 			// the same reason every other optional part of the installation is in this map.
 			"web_ui": g.Config.UI.Enabled,
-			// Whether this installation can seal a backup target's credentials at all (E-02,
-			// E-03). A client that offers "add an S3 target" on an installation with no
+			// Whether this installation can seal a backup target's credentials at all. A client that offers "add an S3 target" on an installation with no
 			// encryption keyring is offering a form that will be refused at the end; the manifest
 			// says so first.
 			"backup_encryption": g.Config.Encryption.ActiveKeyID() != "",
@@ -416,14 +409,14 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// this installation serves one tenant - there the owner is the operator - and the
 			// operator's switch otherwise (backup-restore.md §2).
 			"backup_targets": g.Config.Tenancy != env.TenancyMulti || g.Config.Backup.TenantTargets,
-			// Whether the caller's workspace can ask a model for a suggestion (issue 502).
+			// Whether the caller's workspace can ask a model for a suggestion.
 			//
 			// Named `ai_suggestions` rather than `ai`, because it is the name /meta/health already
 			// gives the same feature in `degraded_features` (observability-reliability.md §7) -
 			// one feature, one name, whichever of the two a client reads. It is also the honest
 			// scope: what a person loses is suggestions, not "AI".
 			"ai_suggestions": ai.Completion,
-			// Whether the caller's workspace can search by meaning (ADR-0050, issue 502).
+			// Whether the caller's workspace can search by meaning (ADR-0050).
 			//
 			// Both halves, because either alone is not the feature. The store is read from the
 			// database rather than from configuration, for the reason the text languages are: the
