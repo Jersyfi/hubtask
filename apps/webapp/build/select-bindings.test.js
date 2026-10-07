@@ -4,9 +4,8 @@
 // Svelte 5 refuses a `bind:` whose initial value is `undefined` when the prop has a default
 // (`props_invalid_value`), and it refuses it during mount, which takes the whole screen with it.
 // `Select`'s `value` has a default, so every `bind:value` on one has to start from a string. The
-// mistake has been made twice - BackupView (issue 535), RunsView (issue 546) - and neither the type checker
-// nor the build sees it: `value?: string` accepts `undefined` in TypeScript, and the error is a
-// runtime one. So the source is read instead.
+// mistake is easy to make, and neither the type checker nor the build sees it: `value?: string`
+// accepts `undefined` in TypeScript, and the error is a runtime one. So the source is read instead.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

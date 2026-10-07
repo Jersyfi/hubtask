@@ -335,7 +335,6 @@ const server = createServer(async (request, response) => {
     return json(response, 200, {
       id: ACCOUNTS['jerome@example.eu'].id, kind: 'USER', status: 'ACTIVE',
       display_name: 'Jérôme Winkel', email: 'jerome@example.eu', locale: 'en',
-      // The number the contract has carried since H-02 and no screen had ever shown.
       recovery_codes_remaining: 3,
     });
   }
