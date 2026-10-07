@@ -27,8 +27,8 @@ Each measured against the deployments `D1`–`D7`:
 4. **Only the workspace can name the legal basis `NOT_OFFERED` needs**, so the installation's and the
    plan's lock can hold a workspace at `OFFERED` only (PH-03).
 5. **The extension's audit action is `dsr.extended`**, not `privacy.request_extended`: every action
-   of the privacy context is `dsr.*`, and `privacy.*` names its message codes (2026-10-07, the
-   owner, E11).
+   of the privacy context is `dsr.*`, and `privacy.*` names its message codes (the owner,
+   2026-10-07).
 
 ---
 
