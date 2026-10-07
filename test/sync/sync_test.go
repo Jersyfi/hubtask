@@ -3,16 +3,15 @@
 
 //go:build integration
 
-// Package sync is the evidence table of offline-sync.md §11 as a test package (N-14): one test
-// per row, SY-1 to SY-12, against a real PostgreSQL.
+// Package sync is the evidence table of offline-sync.md §11 as a test package: one test per row,
+// SY-1 to SY-12, against a real PostgreSQL.
 //
-// Ten of the rows arrived as integration tests with the task that built what they prove, and
-// they stay where the fixtures they lean on live - the shared workspace of test/integration, its
-// catalogue of use cases, its push. This package names each of them by file and function and
-// fails when one goes missing, so that the table stays a table of tests rather than of intentions.
-// The two that need a walk of their own rather than a use case - SY-4, a thousand reorderings
-// converging without renumbering, and SY-11, the cross-tenant pull - are written here, over a
-// workspace of this package's own.
+// Ten of the rows are integration tests that stay where the fixtures they lean on live - the
+// shared workspace of test/integration, its catalogue of use cases, its push. This package names
+// each of them by file and function and fails when one goes missing, so that the table stays a
+// table of tests rather than of intentions. The two that need a walk of their own rather than a
+// use case - SY-4, a thousand reorderings converging without renumbering, and SY-11, the
+// cross-tenant pull - are written here, over a workspace of this package's own.
 package sync
 
 import (
@@ -394,7 +393,7 @@ func TestSY11APullNeverReturnsAnotherTenantsChanges(t *testing.T) {
 	}
 }
 
-// The ten rows the tasks wrote where their fixtures live: named here by file and function, and
+// The ten rows written where their fixtures live: named here by file and function, and
 // checked to exist, so that a rename or a deletion in test/integration reads as a hole in §11.
 var referenced = []struct {
 	row      string
