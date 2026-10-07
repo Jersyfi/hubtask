@@ -113,8 +113,8 @@ type Schedule struct {
 	FullRRULE    string
 	IncludeMedia bool
 	IncludeAudit bool
-	// TrialRestore follows every FULL run with an INSPECT restore of the archive it wrote, in
-	// the same job, and fails the run when the archive cannot be read back (B-4, P-14).
+	// TrialRestore follows every FULL run with an INSPECT restore of the archive it wrote, in the
+	// same job, and fails the run when the archive cannot be read back (backup-restore.md §5, B-4).
 	TrialRestore bool
 	Retention    Retention
 	NotifyOn     []Notification
@@ -399,7 +399,7 @@ type Run struct {
 	VerifiedAt  time.Time
 	VerifyOK    *bool
 	// TrialReport is what the trial restore found, encoded as the restore's report, and TrialAt
-	// when; both zero where no trial ran (B-4, P-14).
+	// when; both zero where no trial ran (backup-restore.md §5, B-4).
 	TrialReport []byte
 	TrialAt     time.Time
 }
@@ -419,7 +419,7 @@ type Outcome struct {
 	// ErrorCode is the message code of the failure, never a message and never anything the run
 	// was working on (rules 8 and 10).
 	ErrorCode string
-	// TrialReport and TrialAt are the trial restore's, where one ran (B-4, P-14).
+	// TrialReport and TrialAt are the trial restore's, where one ran (backup-restore.md §5, B-4).
 	TrialReport []byte
 	TrialAt     time.Time
 }
