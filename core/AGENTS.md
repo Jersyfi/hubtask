@@ -27,7 +27,8 @@ authorisation happens, `core/port` the interfaces the adapters implement.
 ```bash
 make gate-unit          # domain: table tests, no infrastructure; application: fakes of the ports
 make gate-architecture  # layer boundaries, the goroutine ban, mandatory authorisation, parity
-make verify             # before the pull request leaves draft
+make verify             # while working
+make verify-pr          # before the pull request leaves draft
 ```
 
 A use case is finished when it is registered in `core/application/usecase.Registry`, not when it
