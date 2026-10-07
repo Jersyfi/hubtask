@@ -35,20 +35,21 @@ type lostSection struct {
 }
 
 // numberedSections maps each section number of a document to what stands under its heading, up to
-// the next heading of the same or a higher level - its subsections included. Headings inside a
-// code fence are text, not sections.
-func numberedSections(doc string) map[string]string {
+// the next heading of the same or a higher level - its subsections included - once for every
+// heading that carries the number: a document may hold two sections of one number, both cited.
+// Headings inside a code fence are text, not sections.
+func numberedSections(doc string) map[string][]string {
 	type open struct {
 		number string
 		level  int
 		body   strings.Builder
 	}
-	out := map[string]string{}
+	out := map[string][]string{}
 	var stack []*open
 	closeTo := func(level int) {
 		for len(stack) > 0 && stack[len(stack)-1].level >= level {
 			top := stack[len(stack)-1]
-			out[top.number] += top.body.String()
+			out[top.number] = append(out[top.number], top.body.String())
 			stack = stack[:len(stack)-1]
 		}
 	}
@@ -62,9 +63,6 @@ func numberedSections(doc string) map[string]string {
 			closeTo(level)
 			if m := numberedHeading.FindStringSubmatch(line); m != nil {
 				opened = &open{number: m[2], level: level}
-				if _, seen := out[m[2]]; !seen {
-					out[m[2]] = ""
-				}
 			}
 		}
 		for _, s := range stack {
@@ -97,18 +95,21 @@ func lostSections(path, before, after string) []lostSection {
 	was, is := numberedSections(before), numberedSections(after)
 	var out []lostSection
 	for _, number := range sortedNumbers(was) {
-		body, kept := is[number]
-		switch {
-		case !kept:
+		if len(is[number]) < len(was[number]) {
 			out = append(out, lostSection{path: path, number: number})
-		case strings.TrimSpace(body) == "" && strings.TrimSpace(was[number]) != "":
-			out = append(out, lostSection{path: path, number: number, bare: true})
+			continue
+		}
+		for i, body := range was[number] {
+			if strings.TrimSpace(is[number][i]) == "" && strings.TrimSpace(body) != "" {
+				out = append(out, lostSection{path: path, number: number, bare: true})
+				break
+			}
 		}
 	}
 	return out
 }
 
-func sortedNumbers(m map[string]string) []string {
+func sortedNumbers(m map[string][]string) []string {
 	out := make([]string, 0, len(m))
 	for n := range m {
 		out = append(out, n)

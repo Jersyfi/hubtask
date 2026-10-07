@@ -47,6 +47,15 @@ func TestLostSections(t *testing.T) {
 	}
 }
 
+// A document may carry two sections of one number, both cited; dropping either is a lost section.
+func TestLostSectionOfARepeatedNumber(t *testing.T) {
+	twice := subjectText + "\n## 3. Retention, again\n\nAlso cited.\n"
+	lost := lostSections("docs/architecture/audit.md", twice, strings.Replace(twice, "## 3. Retention\n\nKept.\n", "", 1))
+	if len(lost) != 1 || lost[0].number != "3" || lost[0].bare {
+		t.Fatalf("want §3 lost, got %+v", lost)
+	}
+}
+
 // The rule reads the history: a subject document the branch changes, at the merge base and the
 // head; anything outside docs/architecture and docs/design is not a subject document.
 func TestReadHistoryRenumberedSection(t *testing.T) {
