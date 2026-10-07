@@ -44,7 +44,7 @@ fixes its first instance.
 | **`id <> $moving_id` with an empty id** empties the level or answers 500. | rank-neighbour queries | never pass an empty id |
 | **The audit hash covers the stored shape**, not the one the caller built. | audit entries, renames | read back, then hash; never rewrite a stored row |
 | **Restore and import treat credentials differently.** A backup keeps password hashes; an export strips them with every token hash, so accounts brought in from an export have no password. A destructive restore ends the sessions and tokens of the accounts it rewrites. | restore, import | say what a person must do after; nobody is locked out without a way back |
-| **The integration tests share one database**: the hub level is tenant-wide, and `write()` opens a pool per call. | `test/integration` | own tenants and rank keys; one pool in a loop; run the whole package |
+| **The integration tests share one database**: the hub level is tenant-wide, and `write()` opens a pool per call. | `test/integration` | own tenants and rank keys; one pool in a loop; run the whole package; drop any object a test creates (index, constraint, function) in `t.Cleanup`, or the schema-reference test reports it as drift in a full run |
 
 ## Clients
 
@@ -79,6 +79,7 @@ fixes its first instance.
 | **A local composite action hides its pins**: the pin check scans only `.github/workflows`. | no third-party `uses:` under `.github/actions/` until the scan covers it |
 | **A red CodeQL check shows no detail**, and `make verify` cannot see it (gosec carries other queries). The alert belongs to `refs/pull/<n>/merge` and may sit in a file the pull request only touched — or one alert open on `main` already. CodeQL is not a required check. | read it with `gh api "repos/<owner>/<repo>/code-scanning/alerts?ref=refs/pull/<n>/merge"`; bind a bound to one variable, guard it, allocate from it, and drop the now unneeded `//nolint:gosec` |
 | **`Closes #n` closes one issue per bare line**; inside a code span it closes nothing, and `gate-pr` checks only that one bare line exists. | one bare `Closes #n` line per issue; confirm each issue's state after the merge |
+| **A decomposed fixture typed as text arrives composed**: editors normalise what they write, so a normalisation test proves nothing. | write decomposed fixtures as escapes and assert they differ from their composed twin |
 | **A premise in a task can be wrong** — "nothing does X" while the code has done it for months. | check every claim against the code (readiness record §1) |
 | **A proposal can promise a lever that does not exist.** | check every capability a proposal names against the code before it reaches the owner |
 

@@ -46,7 +46,10 @@ What deliberately is **not** in this milestone:
    workspace for a limited time; "authoritative for the address" is read as ADR-0078 §5 says.
 8. **SC-36 and SC-37 wait for the next cut.** SC-36 (#1145) and SC-37 (#1146) build what
    ADR-0078 §6 and §1 decided, and no check of the use cases they name describes it; they wait for
-   the next cut rather than widening this milestone.
+   the next cut rather than widening this milestone; the checks they need are asked in #1172.
+9. **Providers are offered best effort** (the owner, 2026-10-03). No real identity-provider account
+   is available to the project, so provider features are built and tested up to the provider, and
+   the evidence says what was not walked. Not a statement for the website.
 
 ---
 
@@ -648,9 +651,12 @@ notices; it overrides the workspace's switch and a lock; it can be closed early.
 
 **Use cases:** every check in `Delivers` — the walk confirms them and adds none.
 
-`/usecase-check` over the milestone, then a walk per deployment — `D1` fresh compose to first task;
+The use case checklist (`docs/usecases/README.md`, "Checking work against its use cases") over the
+milestone, then a walk per deployment — `D1` fresh compose to first task;
 `D2` a household without mail; `D4` a company on Entra; `D5` a consumer on an offered model — with
-the evidence under `docs/evidence/`. Every use case named in this milestone moves to `built` or
+the evidence under `docs/evidence/`. The project has no real identity-provider account (Entra ID,
+Google Workspace): the walks go up to the provider and say in their evidence that the provider
+itself was not walked (Decision 9). Every use case named in this milestone moves to `built` or
 `verified` with `checked_by`, or keeps its *Today* with the reason.
 
 **Acceptance:** the milestone's use cases have no *Today* entry that names an SC task.

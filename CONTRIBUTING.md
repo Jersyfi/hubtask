@@ -104,6 +104,12 @@ base=<branch> -f head=main` — rather than rebasing locally; with `git config r
 a resolution replays when `main` moves again. Two sessions merging at once race on the same
 `main`: merge from one place at a time.
 
+The server merge answers 409 on a conflict, which needs a checkout, and an empty answer when the
+branch already contains `main`. Its commit exists only on the remote: a checkout of that branch
+merges `origin/<branch>` before it pushes, or the push is rejected. A pull request whose base was
+squash-merged is retargeted to `main` and moved with `git rebase --onto origin/main <old-base>
+<branch>` and a force-push. Before calling a push done, `git status -sb` shows no divergence.
+
 ## Translating
 
 A translation is one file: `locales/<tag>.json`, named with a BCP 47 tag (`de`, `pt-BR`,

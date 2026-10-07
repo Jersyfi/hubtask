@@ -152,7 +152,7 @@ renewal and the upgrade.
 
 **Use cases:** every check in `Delivers` — the walk confirms them and adds none.
 
-`/usecase-check PH`, then a walk per deployment: `D2` a household with two parents, a teenager with a
+The use case checklist (`docs/usecases/README.md`, "Checking work against its use cases") over PH, then a walk per deployment: `D2` a household with two parents, a teenager with a
 private hub and a grandparent with a managed account; `D4` a company with a legal hold, an erasure
 request and AI made part of the work; `D5` a consumer alone in a workspace, where none of it appears.
 The evidence under `docs/evidence/`; the use cases move to `built` or `verified`.

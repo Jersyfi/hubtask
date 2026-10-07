@@ -651,9 +651,10 @@ cannot see the problem. An operator then opens the password for **one named work
 
 * 24 hours by default, at most seven days, counted from the opening; a second opening is a new one,
   not an extension. It can be closed early (`:close-password`) and ends on its own.
-* The requester (free text, a ticket reference will do) and the reason are required and recorded in
-  the workspace's trail and in the installation's journal; they live on the row only while the
-  opening does.
+* The requester (free text, a ticket reference will do) and the reason are required. Their texts
+  are recorded in the workspace's trail, read only with `READ_CONFIGURATION`; the installation's
+  journal records only that both were given (`requester_present`, `reason_present`). They live on
+  the row only while the opening does.
 * The workspace's administrators are told by mail when it opens and when it closes, and the sign-in
   settings show it with the requester and reason.
 * It is the fallback with cause `OPERATOR`: it overrides the workspace's switch and any installation

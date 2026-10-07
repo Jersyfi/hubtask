@@ -9,6 +9,8 @@ read that section for what holds today ([ADR-0081](./ADR-0081-how-work-is-organi
   subject document, in the same pull request; the new one says what it supersedes.
 - Take the number from all remote branches right before writing the file, not from this folder:
   unmerged branches hold numbers too.
+- An ADR accepted before anything implements it gets a task in a milestone, in the pull request that
+  accepts it, and an open point in its subject document; a decision no task owns stays unbuilt.
 - Every new ADR is named to the owner. When the code that implements a proposed ADR merges, the
   same pull request moves it to `accepted` here, in its header and in arc42 §9.
 
