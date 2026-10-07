@@ -19,26 +19,26 @@ import (
 
 // ScheduleHorizon is how far ahead the next occurrence of a rule is looked for.
 //
-// A year, the same answer E-05 gave: a rule that produces nothing in a year produces nothing
-// anybody is waiting for, and `FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29` is the shape that gets closest
-// and still lands inside four.
+// A year, the same answer the backup schedules give: a rule that produces nothing in a year
+// produces nothing anybody is waiting for, and `FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29` is the shape
+// that gets closest and still lands inside four.
 const ScheduleHorizon = 366 * 24 * time.Hour
 
 // scheduleBatch bounds one round. A backlog of missed moments - a worker that was down for a week -
 // becomes several rounds rather than a hundred jobs enqueued in one transaction.
 const scheduleBatch = 50
 
-// SchedulePass turns the SCHEDULE rules whose moment has come into runs (G-08, decision 5 of
-// milestone-0.5.0).
+// SchedulePass turns the SCHEDULE rules whose moment has come into runs (automation.md §1.1).
 //
 // One pass per tenant, and the tenant is the one the caller opens the transaction under. That is
-// the whole of the leader-versus-self-seeding question, answered the way E-05 answered it: nothing
-// in this system may enumerate tenants (multi-tenancy.md §2.1), so a scheduler cannot create one
-// job per tenant even if it wanted to. The write that creates or enables a rule seeds that tenant's
-// poller, each round reschedules itself to the next moment the tenant owes, and a tenant that owes
-// nothing lets its poller finish - the next write brings it back. A quiet tenant costs nothing.
+// the whole of the leader-versus-self-seeding question, answered the way the backup schedules
+// answer it: nothing in this system may enumerate tenants (multi-tenancy.md §2.1), so a scheduler
+// cannot create one job per tenant even if it wanted to. The write that creates or enables a rule
+// seeds that tenant's poller, each round reschedules itself to the next moment the tenant owes, and
+// a tenant that owes nothing lets its poller finish - the next write brings it back. A quiet tenant
+// costs nothing.
 //
-// It fires rules into the engine G-07 built. It evaluates no condition and performs no action: a
+// It fires rules into the engine (`RunRule`). It evaluates no condition and performs no action: a
 // schedule is a *producer*, and the run that follows is the same run an event's would have been.
 type SchedulePass struct {
 	Schedules repository.Schedules
@@ -62,7 +62,7 @@ type PassResult struct {
 	NextDue time.Time
 }
 
-// Hold takes the row lock on the pass's own job, for the reason D-03's reminders and E-05's backup
+// Hold takes the row lock on the pass's own job, for the reason the reminders and the backup
 // schedules take one: the pass decides when it next runs from the data, and a write committing
 // between that read and the reschedule would find the row RUNNING - where the queue's conflict
 // clause cannot pull a wake-up forward - and its schedule would wait for a wake-up nobody made.
@@ -175,8 +175,8 @@ func (p SchedulePass) occurrences(
 
 // fire queues one rule's run and moves the rule on to its next moment.
 //
-// The rule is advanced whether or not the run could be queued, exactly as E-05's schedules are: a
-// rule that stayed on a moment it could not act on would try again on every round for ever, and a
+// The rule is advanced whether or not the run could be queued, exactly as the backup schedules are:
+// a rule that stayed on a moment it could not act on would try again on every round for ever, and a
 // missed occurrence is a missed occurrence rather than a reason to stop.
 //
 // A rule whose recurrence this installation cannot read is advanced to *no* moment rather than
@@ -189,10 +189,11 @@ func (p SchedulePass) fire(
 	occurrence := rule.NextRunAt
 
 	// The next moment is measured from *now* when the occurrence is already behind, which is the
-	// one place this pass deliberately differs from E-05's. A worker that was down over a weekend
-	// leaves three missed nights on a nightly rule; advancing occurrence by occurrence would fire
-	// three runs on Monday morning, one after the other, for a rule whose author asked for "every
-	// night at three". One catch-up run and then forward from now is what a rule means.
+	// one place this pass deliberately differs from the backup schedules. A worker that was down
+	// over a weekend leaves three missed nights on a nightly rule; advancing occurrence by
+	// occurrence would fire three runs on Monday morning, one after the other, for a rule whose
+	// author asked for "every night at three". One catch-up run and then forward from now is what a
+	// rule means.
 	after := occurrence
 	if after.Before(now) {
 		after = now

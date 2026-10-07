@@ -54,10 +54,10 @@ const (
 	FindingAccountGone      = "automation.finding.account_gone"
 	FindingReferenceGone    = "automation.finding.reference_gone"
 	// FindingParameterMissing is a required parameter the rule does not carry and the run cannot
-	// supply: a step that fails every time it is reached (issue 856).
+	// supply: a step that fails every time it is reached.
 	FindingParameterMissing = "automation.finding.parameter_missing"
 	// FindingRunnerWithoutRole is an account that exists and holds no membership anywhere on the
-	// rule's scope path: a rule that finds no entry it may touch (issue 817).
+	// rule's scope path: a rule that finds no entry it may touch.
 	FindingRunnerWithoutRole = "automation.finding.runner_without_role"
 )
 
@@ -278,7 +278,7 @@ func (h CheckRules) inspect(ctx context.Context, rule domain.Rule) ([]domain.Fin
 	} else if h.Memberships != nil {
 		// An account that exists and holds nothing on the path can run and will find nothing:
 		// every entry action answers items.not_found, which is the right refusal for the API and
-		// useless to the rule's writer (issue 817). ATTENTION rather than BROKEN, because the run
+		// useless to the rule's writer. ATTENTION rather than BROKEN, because the run
 		// answers the question per action and a rule of outbound steps needs no role at all.
 		held, err := h.Memberships.Along(ctx, rule.RunAs, rule.Scope.Path())
 		if err != nil {
@@ -356,7 +356,7 @@ func (h CheckRules) inspectActions(
 		for _, field := range descriptor.Input {
 			declared[field.Name] = field.Kind
 			// A required parameter the rule does not carry and the run cannot supply is a step
-			// that fails every time it is reached (issue 856). The write accepts the absence on
+			// that fails every time it is reached. The write accepts the absence on
 			// purpose - it may be the entry - so the check is where the two are told apart.
 			if field.Required && !SuppliedByRun(field.Name) {
 				if _, carried := action.Params[field.Name]; !carried {

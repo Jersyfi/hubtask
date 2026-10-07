@@ -44,7 +44,7 @@ type TestRule struct {
 	Entries    Entries
 	Containers Containers
 	// Labels and Members are the entry's sets beside it, for a condition on `item.labels` or
-	// `item.members` (issue 807). Optional, as in condition.Values.
+	// `item.members`. Optional, as in condition.Values.
 	Labels     condition.Sets
 	Members    condition.Sets
 	Authorizer Authorizer

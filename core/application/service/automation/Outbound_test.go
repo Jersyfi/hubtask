@@ -19,8 +19,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// sealer is the E-02 encryptor as these tests see it: reversible and legible, so an assertion can
-// say what was sealed without a real key in the test.
+// sealer is the envelope encryptor as these tests see it: reversible and legible, so an assertion
+// can say what was sealed without a real key in the test.
 type sealer struct{ purposes []crypto.Purpose }
 
 func (e *sealer) Seal(_ context.Context, plaintext secret.Secret, purpose crypto.Purpose) (crypto.Sealed, error) {

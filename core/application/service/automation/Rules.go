@@ -43,7 +43,7 @@ const (
 	ruleTarget = "automation_rule"
 
 	// The audit codes. A rule is a standing instruction to act on this workspace with somebody's
-	// rights, so every change to one is an act a review looks for (audit.md §2) - and switching one
+	// rights, so every change to one is an act a review looks for (audit.md §4) - and switching one
 	// on is its own code, because letting a rule loose is the decision worth finding.
 	RuleCreatedAction  audit.Action = "automation.rule_created"
 	RuleUpdatedAction  audit.Action = "automation.rule_updated"
@@ -542,8 +542,7 @@ func permitsRead(
 	})
 }
 
-// authorizeWrite is the ordinary question plus the composition rule, and the composition rule is
-// this task's sharpest decision (automation.md §2).
+// authorizeWrite is the ordinary question plus the composition rule (automation.md §2.1).
 //
 // Writing a rule is not doing what the rule does - it is arranging for it to be done later, by
 // somebody else's account, without anybody looking. So the automation permission alone is not

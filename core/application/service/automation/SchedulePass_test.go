@@ -81,7 +81,7 @@ func (p *passQueue) Depth(context.Context) ([]queue.Depth, error)            { r
 
 // expander is the recurrence port, answering a fixed step so that a test states the moments rather
 // than the library does. The library's own answers are the golden files' subject
-// (infrastructure/recurrence/testdata), including G-08's 03:00 pair across both transitions.
+// (infrastructure/recurrence/testdata), including the 03:00 pair across both transitions.
 type expander struct {
 	step time.Duration
 	err  error
@@ -222,8 +222,9 @@ func TestOneRoundIsBounded(t *testing.T) {
 	}
 }
 
-// The seeding half of decision 5, and the half `multi-tenancy.md` §2.1 makes non-negotiable:
-// nothing enumerates tenants, so the write that makes something owed is what starts the poller.
+// The seeding half of the SCHEDULE trigger (automation.md §1.1), and the half `multi-tenancy.md`
+// §2.1 makes non-negotiable: nothing enumerates tenants, so the write that makes something owed is
+// what starts the poller.
 //
 // A rule is written switched off, so the write that makes something owed is the *enable* - and the
 // moment is recomputed from now rather than fired from wherever the rule was left, because "from

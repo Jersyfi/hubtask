@@ -39,8 +39,8 @@ const MaxConsecutiveFailures = 5
 // is what the rule stored.
 //
 // supplied is what the run knows and the rule cannot carry - the event a SEND_WEBHOOK delivers is
-// not a value anybody could write into a rule, because it happens later (automation.md §2.2's
-// fourth row: "the run is where the whole input exists"). The dispatcher merges a supplied value
+// not a value anybody could write into a rule, because it happens later (automation.md §2.2, what
+// the run supplies). The dispatcher merges a supplied value
 // only where the action's use case declares the field and the rule's own parameters left it unset,
 // so a rule's explicit choice always wins and no use case sees a key it never asked for.
 type Actions interface {
@@ -56,8 +56,8 @@ type Actions interface {
 // credential - it is not a token - so the scope bound, whose whole purpose is letting a *token* be
 // narrower than its owner, has nothing to narrow. Granting the action's own scope is what makes the
 // role the thing that decides, which is what "checked by the authoriser exactly as a person's would
-// be" means (ADR-0005, automation.md §2). G-05 applied the credential bound where it belongs: to
-// the person who wrote the rule.
+// be" means (ADR-0005, automation.md §2). The credential bound applies where it belongs: to the
+// person who writes the rule (automation.md §2.1).
 type Scopes interface {
 	ForAction(kind string) (string, bool)
 }
@@ -77,8 +77,14 @@ type RunSignals interface {
 }
 
 // DisabledByStreak is the one reason this engine ever switches a rule off: MaxConsecutiveFailures
-// runs failed in a row (automation.md §5). A closed set of one, named so the label has a source.
+// runs failed in a row (automation.md §2.0). A closed set of one, named so the label has a source.
 const DisabledByStreak = "consecutive_failures"
+
+// TenantRunBudget is the hourly ceiling over all of a workspace's rules (multi-tenancy.md §4) - the
+// slice this engine needs of quota.Guard.
+type TenantRunBudget interface {
+	AutomationRuns(ctx context.Context, tenant string, now time.Time) (bool, error)
+}
 
 // RunRule is one rule's reaction to one event: the engine (automation.md §2).
 //
@@ -89,14 +95,8 @@ const DisabledByStreak = "consecutive_failures"
 //
 // The engine gets no bypass. Every action goes through the same registry a person's request goes
 // through, as the `run_as` account, and the authoriser answers it the way it answers anybody
-// (rule 2). That is the whole point of `run_as`, and the reason G-05 spent its effort on who may
-// write a rule at all.
-// TenantRunBudget is the §4 hourly ceiling over all of a workspace's rules - the slice
-// this engine needs of quota.Guard.
-type TenantRunBudget interface {
-	AutomationRuns(ctx context.Context, tenant string, now time.Time) (bool, error)
-}
-
+// (rule 2). That is the whole point of `run_as`, and the reason who may write a rule at all is
+// decided with care (automation.md §2.1).
 type RunRule struct {
 	Quota      TenantRunBudget
 	Rules      repository.Rules
@@ -110,7 +110,7 @@ type RunRule struct {
 	Entries    Entries
 	Containers Containers
 	// Labels and Members are the entry's sets beside it, for a condition on `item.labels` or
-	// `item.members` (issue 807). Optional, as in condition.Values.
+	// `item.members`. Optional, as in condition.Values.
 	Labels  condition.Sets
 	Members condition.Sets
 	// Jumble is the read `payload` costs on a JUMBLE_ENTRY run: the entry, rendered as data for
@@ -627,10 +627,10 @@ func (h RunRule) evaluate(
 // rule says. RETRY is not decided here: it hands the job back to the queue, whose backoff and dead
 // letter are what "retry" means in this system, and the handler above translates it.
 //
-// A tree rather than a list since G-09: a BRANCH carries two arms and the run takes the one its
-// condition says, a STOP ends the run deliberately, and every result names its path. The arm a
-// branch did not take is recorded nowhere - it was never part of this run, and the rule itself is
-// where a reader sees what would have been there.
+// A tree rather than a list: a BRANCH carries two arms and the run takes the one its condition
+// says, a STOP ends the run deliberately, and every result names its path. The arm a branch did not
+// take is recorded nowhere - it was never part of this run, and the rule itself is where a reader
+// sees what would have been there.
 func (h RunRule) act(
 	ctx context.Context, actor appshared.ActorContext, rule domain.Rule, cmd Command,
 	values condition.Values, prior replay,
@@ -643,16 +643,6 @@ func (h RunRule) act(
 	return w.results, w.halted, w.pending
 }
 
-// supplied is what the run knows and a rule cannot carry (automation.md §2.2): the event the run
-// is about, and the entry - `item_id` for ADD_LABEL, COMPLETE_ITEM and every other action that
-// takes the entry an event was about, which arrives after the rule is written. The dispatcher
-// merges these only into fields the action's use case declares and the rule left unset, so a rule
-// that names an entry outright keeps its choice.
-//
-// The entry is read from the same place the conditions read it (condition.Values.EntryID), so the
-// gate and the chain of one run cannot be about two different entries. Before F8's walk nothing
-// supplied it, and every entry action on an event rule failed at the run with
-// `usecase.input_invalid` - the one input the registry validates in full, missing.
 // suppliedFields is every name supplied ever writes: what a rule may leave unset and still run.
 // The check reads it to tell a parameter the run brings from one nothing brings, and a
 // test holds supplied to it.
@@ -661,6 +651,16 @@ var suppliedFields = map[string]bool{"event_id": true, "item_id": true, "entry_i
 // SuppliedByRun says whether a run may supply the named parameter.
 func SuppliedByRun(name string) bool { return suppliedFields[name] }
 
+// supplied is what the run knows and a rule cannot carry (automation.md §2.2): the event the run
+// is about, and the entry - `item_id` for ADD_LABEL, COMPLETE_ITEM and every other action that
+// takes the entry an event was about, which arrives after the rule is written. The dispatcher
+// merges these only into fields the action's use case declares and the rule left unset, so a rule
+// that names an entry outright keeps its choice.
+//
+// The entry is read from the same place the conditions read it (condition.Values.EntryID), so the
+// gate and the chain of one run cannot be about two different entries. Without it every entry
+// action on an event rule fails at the run with `usecase.input_invalid` - the one input the
+// registry validates in full, missing.
 func (c Command) supplied(values condition.Values) map[string]any {
 	supplied := map[string]any{}
 	if !c.EventID.IsZero() {
@@ -964,7 +964,7 @@ func (h RunRule) settle(
 	h.announceFailure(ctx, rule, run, disabled, now)
 
 	if disabled && h.Owners != nil {
-		// The owner is told through the path C-09 built rather than a new channel: a rule that
+		// The owner is told through the notifications rather than a new channel: a rule that
 		// switched itself off is exactly the kind of thing somebody has to be told about, and a
 		// notification nobody receives is the same as no notification.
 		return h.Owners.RuleDisabled(ctx, rule, now)
@@ -1058,14 +1058,13 @@ func (h RunRule) publish(
 //
 // The place rather than the action's kind, because a rule may name one kind twice - "add this label
 // and that one" is two actions of one kind, and a key that collapsed them would perform the first
-// and silently skip the second. Since G-09 the place is a path rather than an index: a nested
-// action has no index at the top level, and two branches' first actions keyed by index would share
-// a key and the second would silently do nothing. A top-level action's path *is* its index, so
-// every key an earlier release wrote is unchanged.
+// and silently skip the second. The place is a path rather than an index: a nested action has no
+// index at the top level, and two branches' first actions keyed by index would share a key and the
+// second would silently do nothing. A top-level action's path *is* its index, so every key an
+// earlier release wrote is unchanged.
 //
 // The occasion is the event for an `EVENT` run and the thing that happened once for each of the
-// other five (Command.Occasion). §2 writes "event_id" because when it was written that was the only
-// way a run could start; what the sentence means is "the one occurrence this run answers", and a
+// other five (Command.Occasion, automation.md §1.1): "the one occurrence this run answers", and a
 // schedule's occurrence or a person's press is that occurrence exactly as an event is.
 func idempotencyKey(ruleID shared.ID, occasion string, path string) string {
 	return "automation:" + ruleID.String() + ":" + occasion + ":" + path

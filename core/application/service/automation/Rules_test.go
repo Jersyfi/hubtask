@@ -546,8 +546,8 @@ func TestADisabledServiceAccountIsRefused(t *testing.T) {
 	}
 }
 
-// The vocabulary a rule may use is the vocabulary that can be executed, at every commit. G-09's
-// pull request flips this one.
+// The vocabulary a rule may use is the vocabulary that can be executed, at every commit. With no
+// deferred kind there is nothing to run here; the next one the documentation names is checked.
 func TestAnActionNoReleaseServesIsRefusedByName(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -572,7 +572,7 @@ func TestAnActionNoReleaseServesIsRefusedByName(t *testing.T) {
 }
 
 // A kind nobody has ever named is a typo, and gets the code that says so rather than the one that
-// sends its author to the milestone.
+// says it is not available yet.
 func TestAnActionNobodyDeclaresIsRefusedAsUnknown(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -959,8 +959,8 @@ func (a answer) Evaluate(context.Context, expression.Activation) (expression.Val
 	return expression.Value{Bool: !a.no}, nil
 }
 
-// The other half of G-06's flip, and the half that proves the language is really wired: a rule's
-// condition is compiled when it is written, against exactly the names automation.md §1.2 declares.
+// The half that proves the language is really wired: a rule's condition is compiled when it is
+// written, against exactly the names automation.md §1.2 declares.
 
 func TestAValidConditionIsAcceptedAndCompiled(t *testing.T) {
 	h := newHarness()

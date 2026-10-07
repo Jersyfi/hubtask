@@ -34,8 +34,8 @@ const RelativeDatesConsumer = "automation-relative-dates"
 // **The recompute is the substance, not the firing.** "24 hours before it is due" is a moment that
 // moves whenever the due date does, and a system that worked it out at firing time would have to
 // look at every entry in the workspace to find out what is due. So the moment is stored per (rule,
-// entry) - D-02's shape - and this subscriber is what writes it: an entry whose anchor changed is
-// an event, and an event is where the recompute belongs.
+// entry) - the reminders' shape - and this subscriber is what writes it: an entry whose anchor
+// changed is an event, and an event is where the recompute belongs.
 //
 // **A cleared anchor owes nothing.** Somebody who removes a due date has removed the thing the rule
 // measures from, and a row left behind would fire at a deadline that no longer exists. The same is

@@ -342,9 +342,8 @@ func TestADeletionSeedsOneCheckForItsTenant(t *testing.T) {
 }
 
 // A required parameter the rule does not carry is a finding only when the run cannot supply it
-// either (issue 856): `body` on a comment is one, the entry an event is about is not. ATTENTION
-// at the parameter's path, and the rule stays on - the check names the step, the run answers
-// the rest.
+// either: `body` on a comment is one, the entry an event is about is not. ATTENTION at the
+// parameter's path, and the rule stays on - the check names the step, the run answers the rest.
 func TestAMissingParameterTheRunCannotSupplyIsFound(t *testing.T) {
 	commenting := func(id shared.ID, params map[string]any) domain.Rule {
 		rule := ruleAt(domain.Scope{Type: domain.ScopeTenant}, id)
@@ -385,9 +384,9 @@ func TestAMissingParameterTheRunCannotSupplyIsFound(t *testing.T) {
 	}
 }
 
-// An account that exists and holds no role anywhere on the rule's scope path is found at
-// /run_as (issue 817): the rule would run and every entry step would answer not-found. A role
-// at the hub of a hub-scoped rule is enough; the finding is ATTENTION and the rule stays on.
+// An account that exists and holds no role anywhere on the rule's scope path is found at /run_as:
+// the rule would run and every entry step would answer not-found. A role at the hub of a hub-scoped
+// rule is enough; the finding is ATTENTION and the rule stays on.
 func TestARunnerWithoutARoleOnTheScopeIsFound(t *testing.T) {
 	hub := shared.ID("01936f2a-7c1e-7000-8000-0000000000c4")
 	rule := ruleNaming(ruleID, labelID)

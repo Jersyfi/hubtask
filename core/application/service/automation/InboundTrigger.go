@@ -39,8 +39,8 @@ const (
 // replacement switches the rule off, which is the honest way to stop a rule acting.
 //
 // The token is answered **once**. It is hashed under its own purpose label and stored as a value
-// nobody can present, so no read afterwards can produce it - D-08's discipline, applied to a
-// credential that starts a run rather than one that reads a list.
+// nobody can present, so no read afterwards can produce it (automation.md §1.1) - the calendar
+// feed's discipline, applied to a credential that starts a run rather than one that reads a list.
 type RotateInboundTrigger struct {
 	Rules      repository.Rules
 	Inbound    repository.InboundTriggers
@@ -214,7 +214,7 @@ type InboundDelivery struct {
 	Token integration.InboundToken
 	// Payload is the parsed body, which the CEL environment reads as `payload`. Untrusted from end
 	// to end: it is data under one name and is never rendered as an instruction to anything
-	// (ai-first.md §4).
+	// (ai-first.md §1.3).
 	Payload map[string]any
 }
 
@@ -223,7 +223,7 @@ type InboundDelivery struct {
 // Every refusal is the same one. An unknown address, a rotated one, a rule that has been deleted, a
 // rule that is switched off and a rule whose trigger is no longer an inbound webhook all answer not
 // found, with the same body: distinguishing them would answer questions for whoever is trying
-// tokens (T-21, the discipline D-08 established).
+// tokens (T-21).
 func (h StartInboundRun) Execute(
 	ctx context.Context, delivery InboundDelivery,
 ) (TriggerRuleResult, error) {

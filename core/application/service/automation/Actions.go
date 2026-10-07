@@ -32,22 +32,13 @@ type Catalogue interface {
 // deferredActions are the kinds automation.md §1.3 documents and no release serves yet.
 //
 // They are refused by name and with a code that says so, rather than falling through to "no such
-// action". The difference matters to whoever is reading the answer: `HTTP_REQUEST` is in the
-// documentation, so being told it does not exist would send them looking for a typo they did not
-// make, and being told it is not built yet sends them to the milestone.
+// action". The difference matters to whoever is reading the answer: a kind that is in the
+// documentation and answered as nonexistent sends them looking for a typo they did not make.
 //
-// The list shrinks as the tasks land - the flow kinds with G-09's first step, the outbound pair
-// with the steps that build them, the AI kinds with their own milestone - and
-// TestNoDeferredActionIsAlreadyServed fails the build if a kind is left here after the catalogue
-// grew one, so removing the entry is not something anybody has to remember.
-// The list is empty, and that is the point of it: every kind automation.md §1.3 documents is now
-// served. The AI three left with J-08, the outbound pair with the G-09 steps that built them -
-// SEND_WEBHOOK through G-03's delivery pipeline, HTTP_REQUEST through the guarded client - and the
-// flow kinds with G-09's first step.
-//
-// It stays rather than being deleted. The next kind the documentation names before a release
-// serves it belongs here, and TestNoDeferredActionIsAlreadyServed is what stops an entry outliving
-// the task that removes its reason.
+// The list is empty: every kind automation.md §1.3 documents is served. It stays rather than being
+// deleted, because the next kind the documentation names before a release serves it belongs here -
+// and TestNoDeferredActionIsAlreadyServed fails the build if a kind is left here after the
+// catalogue grew one, so removing the entry is not something anybody has to remember.
 var deferredActions = []string{}
 
 // DeferredActions is the list, for the test that keeps it honest and for the manifest that will
@@ -172,12 +163,11 @@ func branchActions(
 
 // checkConditions compiles a rule's conditions, and its dedupe key with them.
 //
-// This is the flip G-06 promised: until the language existed, a non-empty condition was refused
-// with a code that said so, because a rule whose owner believes it is filtering and whose behaviour
-// says otherwise is worse than one they could not save. What replaced the refusal is a real
-// check - the expression is parsed and type-checked against exactly the names automation.md §1.2
-// declares, so a typo is answered to its author with a line and a column while they are still
-// looking at it, rather than to a log at three in the morning.
+// A rule whose owner believes it is filtering and whose behaviour says otherwise is worse than one
+// they could not save, so a condition is checked when it is written: the expression is parsed and
+// type-checked against exactly the names automation.md §1.2 declares, so a typo is answered to its
+// author with a line and a column while they are still looking at it, rather than to a log at three
+// in the morning.
 //
 // Compiled and discarded. What is being asked here is "would this run", and the engine that will
 // run it compiles its own - keeping the program would mean caching a rule's compilation in
@@ -185,7 +175,7 @@ func branchActions(
 func checkConditions(compiler expression.Compiler, rule domain.Rule) error {
 	if compiler == nil {
 		// Fail closed. A build with no evaluator wired cannot promise that a condition means what
-		// it says, and storing one on that promise is exactly the failure the refusal existed for.
+		// it says, and storing one on that promise is exactly the failure this check prevents.
 		if len(rule.Conditions) > 0 || rule.Throttle.DedupeKeyExpr != "" {
 			return shared.ErrInternal.WithDetail("automation.expression_engine_unavailable")
 		}
@@ -201,7 +191,7 @@ func checkConditions(compiler expression.Compiler, rule domain.Rule) error {
 	}
 	// A branch's condition is a condition, and it is compiled here for the reason the rule's own
 	// are: a branch whose expression cannot be read would take the same arm for ever, which is a
-	// rule whose author believes it is deciding something (E-08's lesson, applied one level down).
+	// rule whose author believes it is deciding something and is not.
 	findings = append(findings, branchFindings(compiler, environment, rule.Actions, "/actions")...)
 	// And an HTTP_REQUEST's body template is a template, compiled as one (Text, not Boolean): a
 	// body that cannot be rendered is answered to its author here rather than to a dead letter.
