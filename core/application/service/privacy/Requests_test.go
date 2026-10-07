@@ -74,8 +74,7 @@ func TestRecordingACaseAsksForTheAdministratorsLine(t *testing.T) {
 		t.Errorf("recording a case asked for the scope %q", asked.TokenScope)
 	}
 
-	// The entry names the occasion, which is the `legal_basis` field audit.md §2 has carried since
-	// phase 0 and nothing had ever written.
+	// The entry names the occasion, in the `legal_basis` field of audit.md §2.
 	if len(h.audit.entries) != 1 {
 		t.Fatalf("%d entries were written", len(h.audit.entries))
 	}

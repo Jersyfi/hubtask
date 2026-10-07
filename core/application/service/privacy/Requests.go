@@ -40,8 +40,7 @@ const (
 	privacyRead   = "privacy:read"
 	privacyManage = "privacy:manage"
 	// instanceScope is the credential bound on the one operation that crosses the tenant
-	// boundary. It is the scope api-guidelines.md §7 has listed since phase 0 for exactly this
-	// kind of act.
+	// boundary. It is the scope api-guidelines.md §7 lists for exactly this kind of act.
 	instanceScope = "admin:tenants"
 
 	requestTarget = "data_subject_request"
@@ -459,9 +458,9 @@ func PageSize(requested int) int {
 
 // record writes the entry a case owes.
 //
-// `legal_basis` is set on every one of them, which is the field `audit.md` §2 has carried for this
-// since phase 0 and nothing has ever written: a privacy-relevant entry names its occasion, and the
-// occasion of these is the right that was exercised.
+// `legal_basis` is set on every one of them, the field `audit.md` §2 carries for this: a
+// privacy-relevant entry names its occasion, and the occasion of these is the right that was
+// exercised.
 func (c Cases) record(
 	ctx context.Context, actor appshared.ActorContext, action audit.Action,
 	request domain.Request, severity audit.Severity, changes []audit.Change,
