@@ -96,7 +96,7 @@ type Answer struct {
 // it says the request was not attempted for want of a proof, and the retry that carries the
 // proof is, by the client's own account, the same intent under the same key. Replaying the
 // demand at it would make every privileged action impossible from a client that keeps its key,
-// which is exactly the client the key exists for (issue 543, api-guidelines.md §5).
+// which is exactly the client the key exists for (api-guidelines.md §5).
 func (a Answer) Replayable() bool {
 	return a.Status < serverErrorFloor && a.DetailCode != stepup.CodeRequired
 }
