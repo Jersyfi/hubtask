@@ -3,7 +3,7 @@
 <script lang="ts">
   // Something happened, and the reader does not have to do anything about it.
   //
-  // The rule F1-06 puts on it is the one toasts usually break: it is announced **without stealing
+  // The rule on it is the one toasts usually break: it is announced **without stealing
   // focus**. So there is no `autofocus`, no focus call, and no `role="alert"` on the ordinary case
   // - `role="status"` is announced at the next pause, which is what a completed save deserves. A
   // toast that took focus would throw a keyboard user out of the field they were typing in, which
@@ -13,7 +13,7 @@
   // offers must be reachable another way: it disappears, and what disappears cannot be tabbed to
   // by somebody who was reading further up the page.
   //
-  // Where the stack of them sits is the frame's decision (F1-10), not this component's. A toast
+  // Where the stack of them sits is the frame's decision, not this component's. A toast
   // that positioned itself would be a second answer to where notifications appear, and two toasts
   // would then sit on top of each other.
 

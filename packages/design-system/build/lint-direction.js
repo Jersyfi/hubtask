@@ -6,7 +6,7 @@
 //
 // This is design-system.md §3's "start/end only, never left/right" given teeth for every client
 // tree at once. The conventions test had the rule for the components alone, and the three
-// `padding-left` the RTL audit found were all in the application (F5-10): a rule that reads one
+// `padding-left` an RTL audit found were all in the application: a rule that reads one
 // tree is a rule the other tree does not have. The failure it catches is invisible in development
 // and total in Arabic, which is why it is a gate and not a review comment.
 //

@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The input only. What it searches is F2-13's, and this component deliberately knows none of it:
+  // The input only. What it searches is the application's, and this component deliberately knows none of it:
   // a search field that also decided when to send a request would be a second place the debounce
   // and the language live.
   //

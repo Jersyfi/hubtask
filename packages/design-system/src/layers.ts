@@ -3,8 +3,8 @@
 
 // One register that knows which layer is on top.
 //
-// design-system.md §9 asked for a layering scale because wave 1b lands `Tooltip`, `Menu`,
-// `Popover`, `Dialog` and `Toast` together with the rule that `Escape` closes one layer at a time.
+// The layering scale (design-system.md §6) exists because `Tooltip`, `Menu`, `Popover`, `Dialog`
+// and `Toast` come with the rule that `Escape` closes one layer at a time.
 // The scale in tokens.json answers *what paints over what*. This answers the other half - *what
 // `Escape` reaches* - and the two are not the same question. A tooltip paints above a dialog and
 // is not what `Escape` closes; a popover opened from inside a dialog is.

@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The axes as one row of chips (F9-03). Seven groups of buttons filled a phone's screen before
-  // the component came; a chip per axis says what is set, and opening one offers its values in a
+  // The axes as one row of chips. Seven groups of buttons would fill a phone's screen; a chip per
+  // axis says what is set, and opening one offers its values in a
   // `Popover`. The set still renders from lib/axes.ts and knows nothing else: adding an axis is
   // one entry there, and it appears here as one more chip.
   import Popover from '../../src/Popover.svelte';

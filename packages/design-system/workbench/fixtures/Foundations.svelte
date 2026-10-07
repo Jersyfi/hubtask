@@ -142,8 +142,8 @@
   <section class="block">
     <h2>The shell's measures</h2>
     <p class="note">
-      What the frame used to compose out of space steps, because a width may not be written at a
-      call site (ADR-0061). A bar is the same height in the dark, so these sit beside motion rather
+      The frame's widths and heights as tokens rather than sums of space steps, because a width
+      may not be written at a call site (ADR-0061). A bar is the same height in the dark, so these sit beside motion rather
       than under a mode.
     </p>
     {#each measures as [part, group] (part)}
@@ -262,8 +262,8 @@
     <p class="note">
       Three nested planes, the innermost in the signature bordeaux. It is <strong>not a finished
       mark</strong> — `design-system.md` §9 lists it as missing, and a brand mark is design work
-      with an owner rather than a session's output. It is here because it was the only drawn record
-      of the idea, and it moved with the page that used to hold it.
+      with an owner rather than a session's output. It is here because it is the only drawn record
+      of the idea.
     </p>
     <div class="logo">
       <svg class="logo-mark" viewBox="0 0 24 24" aria-hidden="true">

@@ -253,10 +253,10 @@
     border-top: var(--bw-hairline) solid var(--border-subtle);
   }
 
-  /* Opacity alone, and the `transform` that used to be here is the reason why. `animation-fill-mode:
+  /* Opacity alone, because a `transform` here is a trap. `animation-fill-mode:
      both` leaves the last keyframe standing, and a `transform: none` keyframe computes to an
      identity *matrix* rather than to `none` - which still makes the element a containing block for
-     every `position: fixed` descendant. A popover opened from inside this one was then laid out in
+     every `position: fixed` descendant. A popover opened from inside this one is then laid out in
      its box and clipped by its `overflow`. Rule 6 allows both properties; only one of them is safe
      for a surface that other overlays are opened from. */
   @keyframes open {

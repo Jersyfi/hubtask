@@ -108,7 +108,7 @@ test('every mark is drawn on the 24 grid the wrapper declares', () => {
 });
 
 test('the domain nouns the specification names all have a mark', () => {
-  // design-system.md §9 named these. A mark quietly dropped in a refactor is a domain noun the
+  // design-system.md §12 names these. A mark quietly dropped in a refactor is a domain noun the
   // product can no longer point at.
   for (const noun of ['hub', 'collection', 'task', 'work-package', 'activity', 'jumble', 'bucket', 'capability']) {
     assert.ok(noun in CUSTOM_ICONS, `there is no mark for '${noun}'`);

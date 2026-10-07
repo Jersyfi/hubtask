@@ -7,7 +7,7 @@
   const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long' | 'bands'; isRail?: boolean; opened?: string } = $props();
 
   // Hubs holding collections: the two-level container tree of domain-model.md §3.3, which is the
-  // shape F2-08 will hand this component for real.
+  // shape the application hands this component for real.
   const tree: NavNode[] = [
     {
       id: 'private',

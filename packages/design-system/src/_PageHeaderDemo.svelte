@@ -19,7 +19,7 @@
     { id: 'collection', label: isLong ? 'Renovierung der Küche im Erdgeschoss' : 'Renovation' },
   ]);
 
-  // The collection's menu, in the three groups the milestone decided: act on the object, set it
+  // The collection's menu, in its three groups (design-system.md §11.8): act on the object, set it
   // up, and trash - last and alone. The separators are the groups.
   const menu = $derived([
     { id: 'rename', label: isLong ? 'Umbenennen' : 'Rename', icon: 'pencil' as const },
@@ -63,7 +63,7 @@
         icon: 'plus',
         onclick: () => (chosen = 'create'),
         tour: 'create',
-        // The daily way to a template, beside the verb (backlog decision 5); the set-up way is in
+        // The daily way to a template, beside the verb (design-system.md §11.8); the set-up way is in
         // the page menu below. Folded, this list joins that menu.
         menu: { label: isLong ? 'Weitere Wege' : 'More ways to create', items: [{ id: 'template', label: isLong ? 'Aus einer Vorlage…' : 'From a template…', icon: 'layout-template' }], onselect: (id) => (chosen = id) },
       }}

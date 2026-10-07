@@ -22,7 +22,7 @@
   // there is no motion to reduce and no transform over a layout: while a drag is live the span is
   // simply computed at the candidate columns, which is also the clearest possible preview.
   //
-  // **The pointer rules are decision 13's, and they are the drag helper's.** A fine pointer begins
+  // **The pointer rules are design-system.md §11.9's, and they are the drag helper's.** A fine pointer begins
   // on movement past `hasLeftTheHandle`, a coarse one on `HOLD_MS` of stillness — a finger that
   // moves is scrolling the axis. The single-pointer alternative SC 2.5.7 asks for is the row
   // itself: it opens the entry, where the dates have a form.
@@ -413,7 +413,7 @@
   .timeline[data-scale='month'] { --column: var(--sp-050); }
 
   /* Positioned, so it is the containing block of what it scrolls: an absolutely positioned
-     descendant of an unpositioned scroller overflows the page instead (issue 874). */
+     descendant of an unpositioned scroller overflows the page instead. */
   .scroller { position: relative; overflow-x: auto; padding-block-end: var(--sp-050); }
 
   /* `max-content`, so the box is exactly as wide as the columns in it. A grid that filled its

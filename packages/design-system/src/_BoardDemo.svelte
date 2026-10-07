@@ -153,7 +153,7 @@
   /* The board scrolls sideways, not the page: a wide board that widened the document would take
      every other region with it. */
   .board {
-    /* Positioned, as the product's board is (issue 874): the containing block of what it scrolls. */
+    /* Positioned, as the product's board is: the containing block of what it scrolls. */
     position: relative;
     display: flex;
     gap: var(--sp-200);

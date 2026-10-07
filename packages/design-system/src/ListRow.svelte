@@ -83,7 +83,7 @@
 </div>
 
 <style>
-  /* A row wraps rather than crushing its title (issue 838): when the leading controls, the title's
+  /* A row wraps rather than crushing its title: when the leading controls, the title's
      least width and the trailing controls do not fit on one line, the trailing ones go under the
      title. That happens at a phone's width and in a 400 px pane, and never on a desk. */
   .row {

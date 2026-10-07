@@ -27,7 +27,7 @@ export const reconnecting: Story = {
 export const offline: Story = {
   name: 'Offline',
   about:
-    'The state is a `status` live region (F5-12): losing the server is announced once, when it happens, and the count that moves afterwards is not — a screen reader narrating a heartbeat would be noise. The live region is read whether or not anything is open, because the mark it belongs to says nothing aloud. The one state somebody has to see first is the bold form (ADR-0061): the warning accent under inverse text, and the word inside.',
+    'The state is a `status` live region: losing the server is announced once, when it happens, and the count that moves afterwards is not — a screen reader narrating a heartbeat would be noise. The live region is read whether or not anything is open, because the mark it belongs to says nothing aloud. The one state somebody has to see first is the bold form (ADR-0061): the warning accent under inverse text, and the word inside.',
   args: { mode: 'offline' },
 };
 

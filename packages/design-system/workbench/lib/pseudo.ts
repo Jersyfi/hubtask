@@ -7,9 +7,8 @@
 // measured against English." That rule is checked once, at the moment somebody looks at a longer
 // string, and never afterwards - so the workbench produces the longer string itself.
 //
-// Why a DOM transform rather than a locale. There is no message catalogue in the client yet
-// (F1-07), and waiting for one would mean rule 4 goes unchecked through two waves of components.
-// A transform over rendered text needs no cooperation from a component, which is also its
+// Why a DOM transform rather than a locale. The components carry no message catalogue of their
+// own, and rule 4 has to be checked without one. A transform over rendered text needs no cooperation from a component, which is also its
 // weakness: it cannot know that a string is an identifier. `data-workbench-verbatim` is the
 // escape hatch for that, and it is meant to be rare.
 

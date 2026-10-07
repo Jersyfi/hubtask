@@ -69,7 +69,7 @@
     isTitleInBar?: boolean;
     /**
      * Whether the frame draws this page's menu in the app bar instead of here (ADR-0061 §1's
-     * table, issue 904).
+     * table).
      *
      * The head still decides *what* is in it - the folding is this component's, and two foldings
      * would eventually disagree about which action is an action and which is an item - so it

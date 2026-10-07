@@ -8,7 +8,7 @@
 // later, it costs no dependency, and every engine on the support row has it - which the `engines`
 // job asks each of them, every run (ADR-0048, support-matrix.md §5). The measured fallback this
 // file once carried beside it went with that job: unreachable by any engine the client promises
-// to run in, and proven so rather than assumed (F6-02).
+// to run in, and proven so rather than assumed.
 //
 // One constraint shapes the lines below. **No inline style.** ADR-0028's policy is
 // `style-src 'self'` with no `'unsafe-inline'`, so `element.style.…` is exactly what may not be
@@ -144,7 +144,7 @@ export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement
  * Lays a spotlight over an element: the cut-out takes the element's box, by the same mechanism
  * `anchorTo` uses and with no measuring - `anchor()` for its edges and `anchor-size()` for its
  * size, resolved by the engine during layout, so the cut-out follows the element through a
- * resize or a scroll without a listener (ADR-0039; the onboarding tour, F6-14). The air around
+ * resize or a scroll without a listener (ADR-0039; the onboarding tour). The air around
  * the element is the caller's stylesheet's, as a margin on the cut-out.
  *
  * Raised to the top layer like every overlay, and first: the coach mark that is anchored to the

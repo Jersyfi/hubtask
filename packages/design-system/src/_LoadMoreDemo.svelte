@@ -13,8 +13,8 @@
 
   function loadMore() {
     isBusy = true;
-    // A page appended, never replacing what is there — which is what F2-03 taught the engine and
-    // the reason this is a button rather than a scroll.
+    // A page appended, never replacing what is there — which is what the engine does, and the
+    // reason this is a button rather than a scroll.
     setTimeout(() => {
       rows = [...rows, 'Seal the joints', 'Fit the splashback'];
       arrived = '2 more entries';

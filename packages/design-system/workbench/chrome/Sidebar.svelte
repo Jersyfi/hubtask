@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The index (ADR-0061 decision 5, F9-03): components in their waves, one row each.
+  // The index (ADR-0061 decision 5): components in their waves, one row each.
   //
   // It groups by the segment before the slash in a story's title, which is how
   // `design-system.md` §4's waves reach the sidebar without anybody maintaining a second list -
@@ -12,7 +12,7 @@
   //
   // The filter above it is an `<input type="search">` with no form around it, no submit and
   // nothing kept - it narrows the list already on the page and does nothing else, which is what
-  // `packages/design-system/AGENTS.md` means by a control that is not a form.
+  // design-system.md §2 means by a control that is not a form.
   import SearchField from '../../src/SearchField.svelte';
   import { componentOf, filtered } from '../lib/index.ts';
   import type { StoryGroup } from '../lib/story.ts';

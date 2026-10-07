@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The index: components in their waves, and a filter over them (ADR-0061 decision 5, F9-03).
+// The index: components in their waves, and a filter over them (ADR-0061 decision 5).
 //
 // The index lists components, not stories. Seventy-five components with two to five stories
 // each made two hundred and fifty rows in one column, all open, with no way to find one; a row

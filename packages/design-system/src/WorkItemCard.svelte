@@ -8,7 +8,7 @@
   // would render half the entries wrong rather than plainly.
   //
   // The colour cover is a `colorToken` like a label's, so it is one of the ten and the same pair
-  // that makes a chip legible in both themes. The image cover is a media object F3 uploads; this
+  // that makes a chip legible in both themes. The image cover is a media object the application uploads; this
   // renders one where it exists and never asks for one.
   //
   // It is a link, for `ListRow`'s reason: readers open cards in new tabs, and a `div` with a click
@@ -32,7 +32,7 @@
     /** Labels, a badge, a count. */
     footer?: Snippet;
     children?: Snippet;
-    /** A change on its way to the server (F6-06): the `pending` role beside a word. Resolved text. */
+    /** A change on its way to the server: the `pending` role beside a word. Resolved text. */
     pendingLabel?: string;
   }
 
@@ -93,7 +93,7 @@
 
   .card:hover { border-color: var(--border-default); }
 
-  /* A change waiting to be sent (F6-06): the `pending` role on the mark, opacity only, stilled
+  /* A change waiting to be sent: the `pending` role on the mark, opacity only, stilled
      under reduced motion; the word carries it too (rule 3). */
   .pending {
     display: inline-flex;

@@ -28,9 +28,8 @@ test('design-system.md §4 still reads as an inventory', () => {
   for (const wave of ['Wave 1', 'Wave 2', 'Wave 3', 'Wave 4']) {
     assert.ok(waves.has(wave), `${wave} is no longer readable from design-system.md §4`);
   }
-  // Wave 1 is the one F1 builds, and §4 names its twenty-one by hand - eighteen, plus the `Icon`
-  // that F1-03 brought forward because `IconButton` cannot be built before there is one, plus the
-  // `ProgressBar` F4-06 added when `UploadField` turned out to have hand-rolled one, plus the
+  // §4 names Wave 1's twenty-one by hand - eighteen, plus the `Icon` that `IconButton` cannot be
+  // built without, plus the `ProgressBar` that `UploadField` would otherwise hand-roll, plus the
   // `CodeField` the sign-in work added when three screens turned out to have hand-rolled a code
   // into an `Input`. If this number moves, a component was added or removed in the specification
   // and the waves need re-reading.

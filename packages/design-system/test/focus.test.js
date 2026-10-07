@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// F1-06's keyboard acceptance, as arithmetic.
+// The keyboard rules of design-system.md §4 (Wave 1), as arithmetic.
 //
 // "A menu is fully operable from the keyboard" and "focus returns to the trigger when a dialog
 // closes" are the two criteria that would otherwise need a driven browser. What can be checked
