@@ -18,7 +18,7 @@ presentation/    inbound adapters: rest, mcp, stream, calendar, intake, worker, 
 infrastructure/  outbound adapters: postgres, storage, mail, httpclient, …
 cmd/             the binaries; cmd/server/main.go is the composition root
 api/  db/        openapi.yaml, the contract's source; migrations (forward only), sqlc queries
-apps/            webapp (the product), website (hubtask.eu, information only)
+apps/            webapp (the product), website (hubtask.eu, information only) — never "apps/web"
 packages/  sdk/  design-system, api-client, sync-engine, connectors; generated clients
 ```
 

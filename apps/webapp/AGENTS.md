@@ -54,6 +54,9 @@ The product UI in the browser, embedded into the binary and wrapped by the shell
   `[partial: gate-unit; open: the source is not scanned, a foreign request shows only at run time]`
 * **No router library** — `src/lib/router.ts`, real paths, never `#/`. Any new dependency is a
   proposal, not a commit. `[owner]`
+* **No second unauthenticated health surface:** `/meta/health` is read only where the actor may read
+  it (`lib/data/health.svelte.ts`); a `401` or `403` is silence, not a message.
+  `[unchecked: no test refuses a second reader of the health route]`
 * **No import from `apps/website`**, and **no `.go` file** (rule 14).
   `[gate: ci:node, gate-architecture]`
 
