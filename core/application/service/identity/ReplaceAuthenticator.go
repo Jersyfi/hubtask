@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// Replacing the authenticator (SC-17): a new phone, a lost app. Before this the only way was to turn
+// Replacing the authenticator: a new phone, a lost app. Before this the only way was to turn
 // the factor off and set one up again - a moment without a factor, which a workspace that requires
 // one forbids. Now the new secret waits beside the armed one, and a code from the new app confirms a
 // swap that happens in one statement: the old factor and its codes work until it, and not after.
@@ -140,7 +140,7 @@ type ConfirmAuthenticatorReplacement struct{ Writer SessionWriter }
 //
 // The code is checked before anything is written, and a wrong one is recorded in a transaction of
 // its own - the refusal must land on the ledger even though the confirmation did not, as at every
-// second-factor door (settleRefusal, SC-22).
+// second-factor door (settleRefusal).
 func (h ConfirmAuthenticatorReplacement) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd ConfirmAuthenticatorReplacementCommand,
 ) ([]secret.Secret, error) {

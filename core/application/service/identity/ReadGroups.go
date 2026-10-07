@@ -25,7 +25,7 @@ const (
 	GroupReadAction audit.Action = "group.read"
 )
 
-// ListGroups answers the workspace's groups, by name (F3-01).
+// ListGroups answers the workspace's groups, by name.
 //
 // Any member of the workspace may read them, and the rule is written here rather than decided in
 // a controller. It is the rule `GetAccount` records, reached the same way: a membership granted
@@ -112,7 +112,7 @@ func (h ListGroups) invoke(
 	return pageOutput(rows, page.Info), nil
 }
 
-// GetGroup answers one group with who is in it (F3-01). Who may read it is who may list them -
+// GetGroup answers one group with who is in it. Who may read it is who may list them -
 // see ListGroups. The members are identifiers rather than names, for the reason every record
 // that says who is: the name is one request away, and a copy of it should not outlive the row.
 type GetGroup struct {

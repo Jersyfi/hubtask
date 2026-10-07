@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The switch, both levels and the guard (SI-10, ADR-0070 §2).
+// The switch, both levels and the guard (ADR-0070 §2).
 //
 // What these assert is the one thing two stores make easy to get wrong: which store answered. For a
 // workspace's own row the switch is the row; for one the installation offers, the row must come

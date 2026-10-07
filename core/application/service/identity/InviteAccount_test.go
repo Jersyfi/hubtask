@@ -71,7 +71,7 @@ func (s *accountStore) Find(_ context.Context, id shared.ID) (domain.Account, er
 	return account, nil
 }
 
-// Restricted answers from the store's own statuses (E-10). Nothing in this package processes
+// Restricted answers from the store's own statuses. Nothing in this package processes
 // automatically, so it is here to satisfy the port rather than to be asked.
 func (s *accountStore) Restricted(
 	_ context.Context, accountIDs []shared.ID,

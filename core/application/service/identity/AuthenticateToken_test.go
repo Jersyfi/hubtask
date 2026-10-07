@@ -32,11 +32,11 @@ type unitOfWork struct {
 	scopes []persistence.Scope
 	// ledger is rolled back when the work fails, as the real transaction rolls back everything it
 	// wrote (infrastructure/postgres UnitOfWork). A fake that kept a write the refusal undid is how
-	// the second factor's uncounted guesses passed every test here (#1117).
+	// the second factor's uncounted guesses passed every test here.
 	ledger *attemptsStore
 	// trail is rolled back the same way where a fixture opts in: an audit entry appended inside a
 	// transaction that then fails was never stored, which is how the provider's refusals went
-	// unrecorded while every test here read them (SC-32).
+	// unrecorded while every test here read them.
 	trail *auditSink
 }
 
@@ -217,7 +217,7 @@ func TestTheLookupRunsInTheTokensTenant(t *testing.T) {
 // The chain of i18n-l10n.md §2 for a person: the account's own preference first, then what the
 // request asked for, then the workspace's default, then the installation's. A preference set on
 // the account is not overridden by whichever browser somebody is sitting at - which is the rule
-// the client renders by too (M-04).
+// the client renders by too.
 func TestTheLocaleChainPrefersTheAccount(t *testing.T) {
 	raw, credential := mintCredential(t)
 	credential.Account.Locale = "fr"
@@ -463,7 +463,7 @@ func TestTheActorCarriesTheWorkspaceSlug(t *testing.T) {
 	}
 }
 
-// weekByLocale stands in for the renderer's table (M-06).
+// weekByLocale stands in for the renderer's table.
 type weekByLocale map[string]string
 
 func (w weekByLocale) WeekStartOf(locale string) string { return w[locale] }

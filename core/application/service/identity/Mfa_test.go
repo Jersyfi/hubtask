@@ -242,7 +242,7 @@ func (m membershipsFake) Administrators(context.Context, []domain.Scope) ([]shar
 // purpose binding: opening under another purpose fails as the real envelope would.
 // encryptorFake seals by purpose, the binding the tests are about. Each sealing is its own
 // ciphertext, as a real envelope's is, so two secrets under one purpose - an authenticator and its
-// replacement (SC-17) - stay two; sealedBy keeps the latest plaintext per purpose for the tests that
+// replacement - stay two; sealedBy keeps the latest plaintext per purpose for the tests that
 // read a secret back by its purpose.
 type encryptorFake struct {
 	sealedBy map[string]string
@@ -428,7 +428,7 @@ func TestTheTwoStepSignInCompletesWithACode(t *testing.T) {
 	}
 }
 
-// The same code never verifies twice (H-02): the replay floor advances with the acceptance.
+// The same code never verifies twice: the replay floor advances with the acceptance.
 func TestTheSameCodeNeverCompletesTwice(t *testing.T) {
 	fixture := mfaFixture(now)
 	fixture.withAccount("bert@example.org", "correct horse battery")

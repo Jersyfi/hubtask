@@ -293,7 +293,7 @@ func (m MintResetToken) MintResetToken(
 		HasPassword: !held.PasswordHash.IsEmpty(),
 	}
 	// A workspace that switched the password off gets the mail that points to its provider, for
-	// every account in it (SC-24): a link to set a password there would offer a closed door.
+	// every account in it: a link to set a password there would offer a closed door.
 	open, fallback, err := w.PasswordOpen(ctx, tenantID)
 	if err != nil {
 		return ResetLink{}, err
@@ -444,7 +444,7 @@ func (h ResetPassword) Execute(
 
 	tenantID := token.TenantID()
 	scope := persistence.Scope{TenantID: tenantID}
-	// A link mailed before the workspace switched the password off sets nothing after (SC-24).
+	// A link mailed before the workspace switched the password off sets nothing after.
 	open, fallback, err := w.PasswordOpen(ctx, tenantID)
 	if err := refuseShut(open, fallback, err); err != nil {
 		return SignInResult{}, err

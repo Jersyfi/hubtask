@@ -80,7 +80,7 @@ type PasswordWriter struct {
 	Accounts  repository.PasswordAccounts
 	Histories repository.PasswordHistories
 	Pending   repository.PendingCredentials
-	// StepUp is the bearer door's proof (H-03).
+	// StepUp is the bearer door's proof.
 	StepUp stepupport.Verifier
 
 	// WaysIn answers ADR-0076 §4's fallback for the sign-in's verdict. Its zero value answers none.
@@ -345,7 +345,7 @@ func (w PasswordWriter) Write(
 // endOthers ends every session of the account but the one the caller is holding - every one where
 // none is held, as after a reset.
 //
-// One statement, the one *Sign out everywhere else* uses (SC-23): a read followed by one revocation
+// One statement, the one *Sign out everywhere else* uses: a read followed by one revocation
 // per row could miss a session opened between the two, and a password that just changed must leave
 // no other door open. Personal access tokens are untouched: they are their own credentials with their
 // own expiry and their own list, and a person who minted one did not mint it in a browser.
@@ -381,7 +381,7 @@ func (w PasswordWriter) AccountFor(
 // ChangePasswordCommand is the bearer door.
 type ChangePasswordCommand struct {
 	Password secret.Secret
-	// StepUpToken is the proof of the old password (H-03). Demanded, because a bearer alone is a
+	// StepUpToken is the proof of the old password. Demanded, because a bearer alone is a
 	// stolen tab.
 	StepUpToken string
 }
@@ -828,7 +828,7 @@ func (h SetPasswordAndSignIn) Execute(
 	tenantID := token.TenantID()
 	scope := persistence.Scope{TenantID: tenantID}
 	// The step a password sign-in was owed: once the workspace switched the password off, it completes
-	// nothing (SC-24).
+	// nothing.
 	if err := refuseShut(w.PasswordOpen(ctx, tenantID)); err != nil {
 		return SessionPair{}, err
 	}

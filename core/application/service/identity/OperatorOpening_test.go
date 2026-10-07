@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// ADR-0078 §3 (SC-34): for a provider that is switched on but broken, an operator opens the password
+// ADR-0078 §3: for a provider that is switched on but broken, an operator opens the password
 // for one workspace for a limited time. It is the fallback with the cause OPERATOR: the workspace's
 // own switch and any installation lock give way to it, it ends on its own, and under it an account
 // without a password is mailed a link to set one.

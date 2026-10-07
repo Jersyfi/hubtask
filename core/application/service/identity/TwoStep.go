@@ -23,7 +23,7 @@ import (
 const CompleteSignInName = "CompleteSignIn"
 
 // RecoveryCodeUsedAction is a recovery code's consumption - audited, because a burned escape
-// hatch is something its owner should be able to find in the trail (H-02).
+// hatch is something its owner should be able to find in the trail.
 const RecoveryCodeUsedAction audit.Action = "auth.recovery_code_used"
 
 // FailureMfa is the metric reason of a refused second step.
@@ -53,7 +53,7 @@ func mfaSecretPurpose(accountID shared.ID) cryptoport.Purpose {
 // space is small and the address behind a phone changes (H-02 "rate-limits attempts per account").
 func mfaSubject(accountID shared.ID) string { return "mfa:" + accountID.String() }
 
-// challengeFor decides whether the password is the whole of this sign-in (H-02).
+// challengeFor decides whether the password is the whole of this sign-in.
 //
 // An armed enrolment demands its code. Under the tenant switch, an OWNER or ADMIN with no armed
 // enrolment is routed into enrolment instead of into a session - the pending credential it hands
@@ -242,7 +242,7 @@ type CompleteSignInCommand struct {
 	TenantHeader string
 }
 
-// CompleteSignIn presents the second factor and receives the pair (H-02).
+// CompleteSignIn presents the second factor and receives the pair.
 type CompleteSignIn struct{ Writer SessionWriter }
 
 // Execute verifies. The pending credential dies on use whatever happens next; a code verifies
@@ -298,7 +298,7 @@ func (h CompleteSignIn) Execute(
 		if err := lookup.Account.Verify(); err != nil {
 			return err
 		}
-		// The workspace's standing (H-06), Session's reasoning: the second step of a sign-in a
+		// The workspace's standing, Session's reasoning: the second step of a sign-in a
 		// suspension has overtaken completes nothing.
 		if err := lookup.TenantStatus.Verify(); err != nil {
 			return err
@@ -433,7 +433,7 @@ func (w SessionWriter) verifyTotpCode(
 //
 // Only marked: the transaction it is returned from rolls back - the refusal is an error - and
 // everything written inside it rolls back too, so a failure recorded there never lands. That is how
-// guesses at every second-factor door went uncounted (#1117). settleRefusal records it once the
+// guesses at every second-factor door went uncounted. settleRefusal records it once the
 // refusing transaction is over, in a transaction of its own, the way the password door always has.
 func countedRefusal(subject string, refusal error) error {
 	return mfaRefusal{subject: subject, refusal: refusal}

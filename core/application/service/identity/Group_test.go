@@ -196,7 +196,7 @@ func TestTheMemberListReplacesRatherThanAdds(t *testing.T) {
 	}
 }
 
-// Whoever the list no longer names is told what the group held for them (N-08); whoever it adds
+// Whoever the list no longer names is told what the group held for them; whoever it adds
 // or keeps is not.
 func TestAMemberTakenOutOfTheGroupIsToldWhatTheyLost(t *testing.T) {
 	second := shared.ID("01936f2a-7c1e-7000-8000-0000000000a3")
@@ -299,7 +299,7 @@ func TestDeletingAGroupIsRecordedAsAnAccessChange(t *testing.T) {
 	}
 }
 
-// Every member of a deleted group is told what it held for them (N-08), read before the group -
+// Every member of a deleted group is told what it held for them, read before the group -
 // and its grants with it - is gone.
 func TestDeletingAGroupTellsEveryMemberWhatTheyLost(t *testing.T) {
 	groups, told := newGroups(settledGroup(t)), &revoker{}

@@ -414,7 +414,7 @@ func TestAnAbsentServiceAccountIsNotFound(t *testing.T) {
 }
 
 // The agent capability is set on a token like any other scope, is stored on the row, and is in the
-// entry the mint writes (J-14).
+// entry the mint writes.
 //
 // "Set on the token, visible when the token is read, audited when it changes" is what ai-first.md
 // §1.3's "must be enabled explicitly" needs in order to be operable: an operator has to be able to

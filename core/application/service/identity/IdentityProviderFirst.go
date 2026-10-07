@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
-// The singular surface, kept (SI-10, the concept's §8 and its first principle).
+// The singular surface, kept (the concept's §8 and its first principle).
 //
 // `/identity-provider` was the whole of the provider surface before SI-10 made them plural. It
 // **stays**: "Keine Funktion verschwindet. Jede Route, jedes Feld, jeder Satz des Vertrags bleibt."

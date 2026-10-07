@@ -154,7 +154,7 @@ func TestAProviderWithoutAFreshAuthTimeIsRefused(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "auth.step_up_provider_not_fresh") {
 				t.Fatalf("%s answered %v", name, err)
 			}
-			// A refused proof counts, as a wrong code does (SC-22).
+			// A refused proof counts, as a wrong code does.
 			if got := f.session.attempts.standing[stepUpSubject(account)].Failures; got != 1 {
 				t.Errorf("%s left the ledger at %d, want 1", name, got)
 			}

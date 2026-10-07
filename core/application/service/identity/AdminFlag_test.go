@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// UC-ID-12 checks 1 and 2 (SC-06): `require_admin_totp` and `mfa_required_for` were two stored
+// UC-ID-12 checks 1 and 2: `require_admin_totp` and `mfa_required_for` were two stored
 // values, one of them writable without a step-up, a lock or the "no loosening" check - and they
 // disagreed in both directions. The old field is now read from the rule in force, and a write to it
 // is the same change to the rule, through every check the rule has.

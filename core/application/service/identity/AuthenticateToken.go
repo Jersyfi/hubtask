@@ -67,7 +67,7 @@ type AuthenticateTokenCommand struct {
 	// RequestedLocale is empty when the client expressed no preference. For a person it stands
 	// after the account's own preference and before the workspace's default (i18n-l10n.md §2):
 	// a preference somebody set on their account is not overridden by the browser they happen
-	// to be sitting at, and the client renders by the same rule (M-04).
+	// to be sitting at, and the client renders by the same rule.
 	RequestedLocale string
 	// FallbackLocale and FallbackTimeZone are the installation defaults, the last link of the
 	// chain.
@@ -120,7 +120,7 @@ func (a AuthenticateToken) Execute(
 			return err
 		}
 		// The workspace's own standing refuses before any use case runs: a suspension flips
-		// authentication itself (H-06, multi-tenancy.md §5).
+		// authentication itself (multi-tenancy.md §5).
 		if err := credential.TenantStatus.Verify(); err != nil {
 			return err
 		}
@@ -159,7 +159,7 @@ func (a AuthenticateToken) Execute(
 	return actor, nil
 }
 
-// executeSession is the session half (H-01). The signature is verified first - a forgery costs
+// executeSession is the session half. The signature is verified first - a forgery costs
 // no database work - and the row is read second, inside the tenant the signed claims name, which
 // is the only honest source of that context for a bearer credential.
 func (a AuthenticateToken) executeSession(
@@ -195,7 +195,7 @@ func (a AuthenticateToken) executeSession(
 		// The session's own bounds and the third comparison of ADR-0068 §3: a session opened
 		// before the workspace asked everybody for a new password is over. The cutoff is the
 		// workspace's rather than the session's, so it travels as a parameter - and the session
-		// list asks the same method, so what this refuses is never listed as open (SC-19).
+		// list asks the same method, so what this refuses is never listed as open.
 		if err := credential.Session.VerifyOpen(now, credential.RotationFrom); err != nil {
 			return err
 		}
@@ -216,7 +216,7 @@ func (a AuthenticateToken) executeSession(
 			}
 		}
 
-		// A grant session carries the grant's scopes and names its client (H-05); a person's
+		// A grant session carries the grant's scopes and names its client; a person's
 		// own session carries every declared scope, because it is the person.
 		scopes := a.SessionScopes
 		if credential.Session.Scopes != nil {

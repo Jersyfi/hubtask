@@ -47,7 +47,7 @@ const (
 	FailureRefreshRefused  = "refresh_refused"
 	FailureRefreshReused   = "refresh_reused"
 	FailureRedemption      = "redemption_refused"
-	// FailureOidc is every dead end of the relying-party flow (H-04): an unknown or spent
+	// FailureOidc is every dead end of the relying-party flow: an unknown or spent
 	// state, a provider that refused the code, a token that did not verify. One reason, because
 	// the answer is one refusal - the trail carries which it was.
 	FailureOidc = "oidc_refused"
@@ -86,19 +86,19 @@ type SessionWriter struct {
 	IDs        clock.IDGenerator
 	Entropy    clock.Entropy
 	// Domains brings a typed address's domain to the ASCII form the stored one has, so that a
-	// person who types `anna@müller.de` finds the row that holds `anna@xn--mller-kva.de` (M-10).
+	// person who types `anna@müller.de` finds the row that holds `anna@xn--mller-kva.de`.
 	Domains text.DomainEncoder
 	// Multi is decision 3's mode switch: in multi mode the tenant comes from the subdomain or
 	// the header, in single mode from the installation's only row - one code path, one special
 	// case (multi-tenancy.md §1).
 	Multi bool
 
-	// The second factor's stores (H-02). Nil switches the second step off wholesale - the shape
+	// The second factor's stores. Nil switches the second step off wholesale - the shape
 	// H-01 shipped - which is what lets the two tasks land in separate releases.
 	Enrollments repository.MfaEnrollments
 	Recovery    repository.RecoveryCodes
 	Pending     repository.PendingCredentials
-	// Encryptor opens and seals the TOTP secret (E-02): verification needs the plaintext for
+	// Encryptor opens and seals the TOTP secret: verification needs the plaintext for
 	// thirty lines of arithmetic, storage never does.
 	Encryptor cryptoport.Encryptor
 	// Memberships and Policy answer the enforcement question: does this tenant demand a factor
@@ -156,7 +156,7 @@ func (w SessionWriter) sessionBounds(
 	return verdict.Sessions, nil
 }
 
-// SignInChallenge is the second step a two-step sign-in owes (H-02).
+// SignInChallenge is the second step a two-step sign-in owes.
 type SignInChallenge struct {
 	Token     secret.Secret
 	ExpiresAt time.Time
@@ -207,7 +207,7 @@ type SignInCommand struct {
 	TenantHeader string
 }
 
-// SignIn is the password sign-in (H-01): email and password in, an access/refresh pair and a
+// SignIn is the password sign-in: email and password in, an access/refresh pair and a
 // session row out - or, since H-02, the challenge a second factor demands first.
 type SignIn struct{ Writer SessionWriter }
 
@@ -224,7 +224,7 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 		return SignInResult{}, err
 	}
 	// Before any account is looked up: where the workspace switched the password off, the answer is
-	// the same for every address (SC-24). Whether it is open only as the fallback is read here, once,
+	// the same for every address. Whether it is open only as the fallback is read here, once,
 	// and recorded below once the password has proved right.
 	fallback, err := w.passwordDoor(ctx, tenantID)
 	if err != nil {
@@ -290,7 +290,7 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 	if err := found.Account.Verify(); err != nil {
 		return SignInResult{}, err
 	}
-	// The workspace's own standing (H-06): a suspended tenant refuses sign-in with the same
+	// The workspace's own standing: a suspended tenant refuses sign-in with the same
 	// code every authenticated call answers, after the password so the refusal leaks nothing.
 	if err := found.TenantStatus.Verify(); err != nil {
 		return SignInResult{}, err
@@ -376,7 +376,7 @@ func (h RefreshSession) Execute(ctx context.Context, cmd RefreshSessionCommand) 
 		if err := credential.Account.Verify(); err != nil {
 			return err
 		}
-		// The workspace's standing refuses the exchange too (H-06): a suspension without this
+		// The workspace's standing refuses the exchange too: a suspension without this
 		// would pause access tokens while the refresh chain kept minting new ones.
 		if err := credential.TenantStatus.Verify(); err != nil {
 			return err
@@ -635,7 +635,7 @@ const recordFailureTimeout = 5 * time.Second
 // recordFailure advances every subject on the curve, in its own transaction: the refusal must
 // land even though the sign-in did not.
 //
-// Not cancelled with the request (SC-22): a client that disconnects the moment it reads the refusal
+// Not cancelled with the request: a client that disconnects the moment it reads the refusal
 // would otherwise take the count with it - the cheapest way to guess without being counted. Bounded
 // by its own deadline instead (rule 7). The count is added by the statement rather than computed
 // from a read, so failures arriving at once are each counted (AuthAttempts.Fail).

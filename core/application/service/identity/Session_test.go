@@ -45,7 +45,7 @@ type sessionsStore struct {
 	inserted []domain.Session
 	sessions map[shared.ID]repository.SessionCredential
 	listed   []domain.Session
-	// rotationFrom is the workspace's cutoff the listing reads beside the rows (SC-19).
+	// rotationFrom is the workspace's cutoff the listing reads beside the rows.
 	rotationFrom time.Time
 	extended     map[shared.ID]time.Time
 	touched      []shared.ID
@@ -944,7 +944,7 @@ func TestMintRedemptionTokenAnswersOnceAndStoresAHash(t *testing.T) {
 }
 
 // A suspended workspace refuses sign-in with the lifecycle's own code - after the password, so
-// the refusal proves nothing to somebody probing addresses (H-06, multi-tenancy.md §5).
+// the refusal proves nothing to somebody probing addresses (multi-tenancy.md §5).
 func TestASuspendedTenantRefusesSignInAfterThePassword(t *testing.T) {
 	fixture := newSessionFixture(now)
 	fixture.withAccount("bert@example.org", "correct horse battery")

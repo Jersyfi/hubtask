@@ -50,7 +50,7 @@ type CreateGroup struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -213,12 +213,12 @@ type UpdateGroup struct {
 	Groups     repository.Groups
 	Accounts   repository.Accounts
 	Authorizer Authorizer
-	// Revocations tells the devices of a member taken out of the group what they lost (N-08).
+	// Revocations tells the devices of a member taken out of the group what they lost.
 	Revocations Revoker
 	Audit       audit.Sink
 	UnitOfWork  persistence.UnitOfWork
 	Clock       clock.Clock
-	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -292,7 +292,7 @@ func (h UpdateGroup) Execute(
 
 // replaceMembers makes the group's membership exactly the list given. Additions are checked, and
 // the removals are whatever is no longer named - which is what "the complete membership" means.
-// Whoever is removed is told what the group held for them, once the removal is made (N-08).
+// Whoever is removed is told what the group held for them, once the removal is made.
 func (h UpdateGroup) replaceMembers(ctx context.Context, group domain.Group, members []shared.ID) error {
 	current, err := h.Groups.Members(ctx, group.ID)
 	if err != nil {
@@ -419,7 +419,7 @@ type DeleteGroupCommand struct {
 type DeleteGroup struct {
 	Groups     repository.Groups
 	Authorizer Authorizer
-	// Revocations tells every member's devices what the group held for them (N-08).
+	// Revocations tells every member's devices what the group held for them.
 	Revocations Revoker
 	Audit       audit.Sink
 	UnitOfWork  persistence.UnitOfWork

@@ -39,11 +39,11 @@ type ServiceAccounts struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Text brings the display name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the display name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
-// CreateServiceAccount creates an account that exists only to be acted through (G-01).
+// CreateServiceAccount creates an account that exists only to be acted through.
 type CreateServiceAccount struct{ Accounts ServiceAccounts }
 
 // Execute creates it.
@@ -52,7 +52,7 @@ type CreateServiceAccount struct{ Accounts ServiceAccounts }
 // account's tokens: an account is a way into the workspace, and one that is nothing but a way in
 // is administered by whoever answers for who has access.
 //
-// It is what a rule's run_as points at (G-05), which is why this task comes before the rule
+// It is what a rule's run_as points at, which is why this task comes before the rule
 // engine: a rule engine whose rules run as people is a rule engine whose rules die with their
 // author's departure.
 func (h CreateServiceAccount) Execute(

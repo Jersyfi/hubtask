@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// Recovery codes are the account's, not the factor's (milestone decision 5, SI-09).
+// Recovery codes are the account's, not the factor's (milestone decision 5).
 //
 // H-02 shipped them as part of the enrolment: ten codes shown once, replaced only by enrolling
 // again - which meant disabling the factor first, with the password, and re-arming an authenticator

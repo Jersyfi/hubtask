@@ -119,7 +119,7 @@ type passwordFixture struct {
 	audit     *auditSink
 	// providers is the workspace's ways in besides the password, which the fallback reads (ADR-0076
 	// §4). Empty, so a test that switches the password off switches on a provider as well, or it is
-	// testing a workspace with no way in - which signs in by password (E2, #1138).
+	// testing a workspace with no way in - which signs in by password (E2).
 	providers *providerStore
 }
 

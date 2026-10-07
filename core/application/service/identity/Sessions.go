@@ -35,7 +35,7 @@ const (
 
 // ListSessions answers the caller's own open sessions - and never anybody else's, whatever the
 // role: a session is the person's, and an administrator who suspects one acts by disabling the
-// account (H-01).
+// account.
 type ListSessions struct{ Writer SessionWriter }
 
 // Execute reads them, newest first, and marks the one answering this very call.
@@ -76,7 +76,7 @@ func (h ListSessions) Execute(
 	return sessions, actor.TokenID, nil
 }
 
-// RevokeSession ends one of the caller's own sessions (H-01).
+// RevokeSession ends one of the caller's own sessions.
 type RevokeSession struct{ Writer SessionWriter }
 
 // Execute revokes. Somebody else's session is not found rather than forbidden - whether a
@@ -116,7 +116,7 @@ func (h RevokeSession) Execute(
 	})
 }
 
-// RevokeAllSessions signs the caller out everywhere (H-01): every refresh family dies, and every
+// RevokeAllSessions signs the caller out everywhere: every refresh family dies, and every
 // access token still in flight refuses on its next request.
 type RevokeAllSessions struct{ Writer SessionWriter }
 

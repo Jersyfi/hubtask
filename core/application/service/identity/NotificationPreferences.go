@@ -39,7 +39,7 @@ type EffectivePreference struct {
 	IsDefault bool
 }
 
-// ListNotificationPreferences answers what an account wants to be told about (F3-02).
+// ListNotificationPreferences answers what an account wants to be told about.
 //
 // One row per category and channel the installation knows, in the order the domain lists them,
 // with the default filled in where nothing is stored. The categories are a closed set in a check
@@ -229,8 +229,7 @@ type SetNotificationPreferenceCommand struct {
 	IncludeTitle bool
 }
 
-// SetNotificationPreference writes what an account wants to be told about, one pair at a time
-// (F3-02).
+// SetNotificationPreference writes what an account wants to be told about, one pair at a time.
 //
 // Switching a category off makes the next notification of that category SUPPRESSED with the
 // record saying why - the decision C-09 built reads this row (core/application/service/

@@ -44,7 +44,7 @@ const (
 // to be limited by.
 const MaxProvidersPerWorkspace = 10
 
-// The audit codes of the relying party (H-04). Pointing a workspace at a provider, and taking
+// The audit codes of the relying party. Pointing a workspace at a provider, and taking
 // the pointer away, are both events a review looks for by name.
 const (
 	IdentityProviderConfiguredAction audit.Action = "identity.provider_configured"
@@ -53,7 +53,7 @@ const (
 )
 
 // ClientSecretPurpose binds a sealed client secret to the level it belongs to, so a ciphertext
-// lifted from one workspace's row into another's does not open (E-02, mfaSecretPurpose's reasoning).
+// lifted from one workspace's row into another's does not open (mfaSecretPurpose's reasoning).
 //
 // The level rather than the row, and a zero tenant is the installation's own - which is what lets
 // the control plane's providers use the same function as a workspace's. Exported for the one caller

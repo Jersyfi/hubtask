@@ -37,7 +37,7 @@ const (
 type GetOwnAccount struct {
 	Accounts   repository.Accounts
 	UnitOfWork persistence.UnitOfWork
-	// Recovery answers how many of the ten escape hatches are left (SI-09). The contract has
+	// Recovery answers how many of the ten escape hatches are left. The contract has
 	// carried that number at sign-in since H-02 and no client had ever read it, which is the
 	// smaller half of the problem - the larger half was that it was answered at the one moment
 	// nobody can act on it. Here it is beside the account, where the screen that makes new ones is.

@@ -63,13 +63,13 @@ type AccessTokenWriter struct {
 	// Entropy is where the secret half comes from. A port, so that production draws from
 	// crypto/rand and a test can fix the credential it asserts on (rule 4).
 	Entropy clock.Entropy
-	// Text brings the token's name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the token's name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 	// KnownScopes is every scope this build declares, which is the union of the descriptors'.
 	// It is passed in rather than read, because the catalogue is assembled from these very use
 	// cases and a package that imported it would close the circle (ADR-0001).
 	KnownScopes []string
-	// StepUp judges the fresh proof an admin-scoped mint demands (H-03, security.md §5).
+	// StepUp judges the fresh proof an admin-scoped mint demands (security.md §5).
 	StepUp stepup.Verifier
 	// Operators is the register of ADR-0070 §1. Nil is an installation wired before it, where the
 	// proof alone is the whole of the check - which is what this route did until the register
@@ -114,7 +114,7 @@ type CreateAccessTokenCommand struct {
 	Name      string
 	Scopes    []string
 	ExpiresAt time.Time
-	// StepUpToken is the fresh proof an admin-scoped mint demands (H-03).
+	// StepUpToken is the fresh proof an admin-scoped mint demands.
 	StepUpToken string
 }
 
@@ -128,7 +128,7 @@ type MintedToken struct {
 	Secret secret.Secret
 }
 
-// CreateAccessToken mints a personal access token and answers it once (G-01).
+// CreateAccessToken mints a personal access token and answers it once.
 type CreateAccessToken struct{ Writer AccessTokenWriter }
 
 // Execute mints the credential.

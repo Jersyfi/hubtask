@@ -280,7 +280,7 @@ func rulesProviders(rows ...domain.IdentityProvider) *providerStore {
 }
 
 // An installation's provider is **offered** to every workspace and is **on** in none of them until
-// somebody there switches it on (SI-10, the concept's §8).
+// somebody there switches it on (the concept's §8).
 //
 // That is the whole difference between offering and deciding: the installation says "this exists
 // for you", and the workspace says whether its people see a button for it. A provider that appeared

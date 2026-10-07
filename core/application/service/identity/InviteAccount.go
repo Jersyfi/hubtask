@@ -65,9 +65,9 @@ type InviteAccount struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	// Domains brings the address's domain to its ASCII form before it is stored or compared, so
-	// that two spellings of one mailbox are one row (i18n-l10n.md §7, M-10).
+	// that two spellings of one mailbox are one row (i18n-l10n.md §7).
 	Domains text.DomainEncoder
-	// Text brings the display name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the display name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -231,7 +231,7 @@ func accountOutput(account domain.Account) usecase.Output {
 			out[field] = value
 		}
 	}
-	// The moments (F6-12): a boolean and an instant, absent while the default applies - the same
+	// The moments: a boolean and an instant, absent while the default applies - the same
 	// distinction as above, kept in the types the contract gives them.
 	if account.Celebrations != nil {
 		out["celebrations"] = *account.Celebrations

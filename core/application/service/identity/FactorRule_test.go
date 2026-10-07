@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// UC-ID-12 check 3 and UC-ID-03 checks 5 and 6 (SC-06): turning one's own second factor off asks
+// UC-ID-12 check 3 and UC-ID-03 checks 5 and 6: turning one's own second factor off asks
 // the same rule signing in asks. Before SC-06 it read the old boolean and only for administrators,
 // so under *Everyone* any member could remove a factor the workspace demands of them.
 

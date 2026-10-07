@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// The singular surface, kept (SI-10, the concept's first principle: "Keine Funktion verschwindet").
+// The singular surface, kept (the concept's first principle: "Keine Funktion verschwindet").
 //
 // The two things worth asserting are the two a caller written before SI-10 depends on: that the
 // route still answers, and that what it answers is a row that caller may write. An installation's

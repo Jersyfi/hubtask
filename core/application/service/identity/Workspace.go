@@ -36,7 +36,7 @@ const (
 	workspaceTarget = "workspace"
 )
 
-// The workspace's own configuration, as the trail names it (F4-01).
+// The workspace's own configuration, as the trail names it.
 const (
 	WorkspaceReadAction    audit.Action = "workspace.read"
 	WorkspaceChangedAction audit.Action = "workspace.changed"
@@ -49,20 +49,20 @@ type WorkspaceWriter struct {
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
-	// Text brings the display name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the display name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 	// Resolver is the three levels of the sign-in rule (ADR-0068 §2). Nil on an installation
 	// wired before the instance layer, where a patch that touches the policy is refused rather
 	// than written into a row nothing would read.
 	Resolver SignInPolicyResolver
-	// Hosts is the hosts this workspace answers at (SI-12). Optional: a build wired without it
+	// Hosts is the hosts this workspace answers at. Optional: a build wired without it
 	// answers none, which is what an installation whose workspaces predate migration 0104 has -
 	// and nothing resolves a request through them, so an empty list costs nobody anything.
 	Hosts repository.TenantHosts
 	// Providers is the workspace's ways in beside the password, so that switching the password off
 	// is refused where no provider is on (UC-ID-12 check 6). Nil counts none.
 	Providers repository.IdentityProviders
-	// StepUp is the proof a policy change demands (H-03). A workspace's sign-in rule is what
+	// StepUp is the proof a policy change demands. A workspace's sign-in rule is what
 	// decides whether a stolen tab can weaken the way in, so the one patch that touches it asks
 	// the person to prove themselves afresh - and the name, the locale and the zone do not.
 	StepUp stepupport.Verifier
@@ -72,7 +72,7 @@ type WorkspaceWriter struct {
 	Permits Permitter
 }
 
-// ReadWorkspace answers the workspace the caller is in (F4-01).
+// ReadWorkspace answers the workspace the caller is in.
 //
 // `READ` or the auditor's read-only configuration permission: how a workspace is set up is
 // configuration, and G-12 split `READ_CONFIGURATION` out precisely so that an auditor can read it
@@ -137,7 +137,7 @@ type UpdateWorkspace struct{ Writer WorkspaceWriter }
 type UpdateWorkspaceCommand struct {
 	Change          domain.WorkspaceChange
 	ExpectedVersion int
-	// SignIn is the sign-in half (SI-07), empty where the patch says nothing about it.
+	// SignIn is the sign-in half, empty where the patch says nothing about it.
 	SignIn WorkspacePolicyChange
 	// RequireAdminTotp is the old boolean, where the caller sent it. It is not stored as itself:
 	// it is translated into the rule's `mfa_required_for` and meets every check the rule has
@@ -374,7 +374,7 @@ func workspaceOutput(
 		}
 		out["password_opening"] = answer
 	}
-	// The hosts this workspace answers at (SI-12). Read-only and absent where there are none: the
+	// The hosts this workspace answers at. Read-only and absent where there are none: the
 	// canonical one is derived from the slug and nothing resolves a request through the table yet,
 	// so an empty array would read as "this workspace is reachable nowhere".
 	if len(hosts) > 0 {

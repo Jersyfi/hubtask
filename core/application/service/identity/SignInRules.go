@@ -132,7 +132,7 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 }
 
 // Legal answers the links in force for a workspace, or the installation's own where the identifier
-// is zero (SI-12).
+// is zero.
 //
 // The manifest's own question, answered by the one resolver rather than by a second read: a footer
 // inside the application needs the same four links the signed-out card shows, and two resolutions of
@@ -166,7 +166,7 @@ type SignInRules struct {
 	Password      PasswordRulesView
 	Legal         domain.LegalLinks
 	// PasswordFallback is true while the password is among the methods only because no other way
-	// into the workspace works, whatever the cause (ADR-0076 §4; E2, #1138), or because an operator
+	// into the workspace works, whatever the cause (ADR-0076 §4; E2), or because an operator
 	// opened it here (ADR-0078 §3). The public card does not say which.
 	PasswordFallback bool
 }
@@ -387,7 +387,7 @@ func (h GetSignInRules) providersOf(
 	summaries := make([]ProviderSummary, 0, len(inForce))
 	for _, configured := range inForce {
 		// A provider the installation offers is not a button until this workspace took it: "für
-		// alle Arbeitsbereiche angeboten, nirgends an" (SI-10). A button that led to a way in
+		// alle Arbeitsbereiche angeboten, nirgends an". A button that led to a way in
 		// nobody here chose would be the installation deciding for the workspace.
 		if configured.Issuer == "" || !offeredHere(configured, settings, now) {
 			continue

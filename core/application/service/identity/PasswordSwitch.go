@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// Whether the password is a way into a workspace at all (SC-24, #1119, UC-ID-12 check 6).
+// Whether the password is a way into a workspace at all (UC-ID-12 check 6).
 //
 // A workspace that switches the password off - "only through our directory" - means it: the sign-in
 // card hides the form, and every door the server has refuses a password there as well. Before this,
@@ -21,7 +21,7 @@ import (
 //
 // **Nothing is taken from an account.** The stored password stays; switching the password back on
 // makes it work again. **The one exception** is ADR-0076 §4's fallback: a workspace left with no way in
-// that works - whatever the cause (E2, #1138) - signs in by password again. **The refusal is the same
+// that works - whatever the cause (E2) - signs in by password again. **The refusal is the same
 // for every address**, asked before any account is looked up, so it says nothing about who has one -
 // only what the public sign-in rules already say about the workspace.
 
@@ -58,7 +58,7 @@ func (w PasswordWriter) PasswordOpen(
 // passwordDoor asks the rule once whether the password is open here: the refusal where it is not,
 // and whether it is open only as the fallback. A door that lets the password through and records the
 // fallback records it from this answer - a second read could disagree with the one that opened the
-// door, and costs the same rows twice (E2, #1138). A writer whose rule cannot answer - built without
+// door, and costs the same rows twice (E2). A writer whose rule cannot answer - built without
 // one, as the tests of other doors are - lets the password through, which is the shape before SC-24.
 func (w SessionWriter) passwordDoor(
 	ctx context.Context, tenantID shared.ID,

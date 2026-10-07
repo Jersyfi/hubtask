@@ -100,7 +100,7 @@ func TestTheSecondFactorsMoveUnderTheirOwnPurposeAndAForeignKeyIsSkipped(t *test
 	}
 }
 
-// A replacement waiting to be confirmed (SC-17) is a sealed value too, under the same purpose as the
+// A replacement waiting to be confirmed is a sealed value too, under the same purpose as the
 // factor it will become: the census counts it, so the re-seal moves it.
 func TestAWaitingReplacementMovesUnderTheFactorsPurpose(t *testing.T) {
 	waiting := shared.MustParseID("018f2a1b-0000-7000-8000-0000000000c4")

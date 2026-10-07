@@ -127,7 +127,7 @@ type EnrollTotpCommand struct {
 	PendingToken secret.Secret
 }
 
-// EnrollTotp begins the enrolment (H-02): mints the secret, seals it, mints the codes, and
+// EnrollTotp begins the enrolment: mints the secret, seals it, mints the codes, and
 // answers all of it for the only time. Nothing is armed yet.
 type EnrollTotp struct{ Writer SessionWriter }
 
@@ -222,7 +222,7 @@ type ConfirmedEnrollment struct {
 	Pair *SessionPair
 }
 
-// ConfirmTotp arms the enrolment (H-02): the caller proves the authenticator holds the secret.
+// ConfirmTotp arms the enrolment: the caller proves the authenticator holds the secret.
 type ConfirmTotp struct{ Writer SessionWriter }
 
 // Execute confirms. For the enforcement flow the confirmation also opens the session - both
@@ -323,7 +323,7 @@ type DisableTotpCommand struct {
 	Password secret.Secret
 }
 
-// DisableTotp removes the factor (H-02): the one case where "recently signed in" is not enough,
+// DisableTotp removes the factor: the one case where "recently signed in" is not enough,
 // because a stolen session removing the second factor is the attack.
 type DisableTotp struct{ Writer SessionWriter }
 
@@ -405,7 +405,7 @@ func (w SessionWriter) proveByPassword(
 	}
 	// The hash is read in one transaction and verified outside it, sign-in's reasoning: Argon2id
 	// is deliberately slow, and a connection held through it would let a burst drain the pool.
-	// A password guess like any other (SC-22): it meets the lock first, and a wrong one is counted
+	// A password guess like any other: it meets the lock first, and a wrong one is counted
 	// on the step-up's subject - this proof is the step-up's predecessor.
 	subject := stepUpSubject(actor.AccountID)
 	var stored secret.Secret

@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// SC-33 (#1140, ADR-0078 §1, UC-ID-04 check 8): in a workspace that switched the password off,
+// SC-33 (ADR-0078 §1, UC-ID-04 check 8): in a workspace that switched the password off,
 // *Forgot your password?* mails an account that no provider switched on there lets in a link to
 // connect one - instead of the provider mail that would point to nothing. An account a provider
 // there does let in keeps that mail; where the password is open, SC-25's links stand unchanged.
@@ -106,7 +106,7 @@ func TestAnAccountAProviderLetsInKeepsTheProviderMail(t *testing.T) {
 }
 
 // Only an active person is mailed a link to connect: an invited account accepts its invitation
-// through the invitation's own link (SC-32), and a service account signs in with a token.
+// through the invitation's own link, and a service account signs in with a token.
 func TestOnlyAnActivePersonIsMailedAConnectLink(t *testing.T) {
 	for name, change := range map[string]func(*domain.Account){
 		"an invited account": func(held *domain.Account) { held.Status = domain.AccountInvited },

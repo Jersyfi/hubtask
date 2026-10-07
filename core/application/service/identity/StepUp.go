@@ -21,7 +21,7 @@ import (
 
 const StepUpName = "StepUp"
 
-// StepUpAction is the proof itself, audited with its method and never its credential (H-03).
+// StepUpAction is the proof itself, audited with its method and never its credential.
 const StepUpAction audit.Action = "auth.step_up"
 
 // stepUpSubject is the attempt ledger's key for step-up guesses, mfaSubject's reasoning.
@@ -64,7 +64,7 @@ type StepUpGrant struct {
 	Method    domain.StepUpMethod
 }
 
-// StepUp is the fresh re-authentication a privileged action demands (H-03, security.md §5).
+// StepUp is the fresh re-authentication a privileged action demands (security.md §5).
 type StepUp struct{ Writer SessionWriter }
 
 // Execute proves. Only a session may step up - the proof is recorded on it, and a personal
@@ -162,7 +162,7 @@ func (h StepUp) prove(
 ) (domain.StepUpMethod, error) {
 	w := h.Writer
 	subject := stepUpSubject(actor.AccountID)
-	// A password the workspace switched off proves nothing here either (SC-24): the account proves
+	// A password the workspace switched off proves nothing here either: the account proves
 	// itself at its provider or with its factor. Asked before the proof's own transaction.
 	if !cmd.Password.IsEmpty() {
 		if err := w.passwordShut(ctx, actor.TenantID); err != nil {
@@ -273,7 +273,7 @@ func (w SessionWriter) stepUpWindow() time.Duration {
 	return 5 * time.Minute
 }
 
-// StepUpVerifier is the port's implementation (H-03): the seam E-06 cut, filled without changing
+// StepUpVerifier is the port's implementation: the seam E-06 cut, filled without changing
 // shape. Available is finally true; Satisfied judges and burns the proof in one statement.
 type StepUpVerifier struct{ Writer SessionWriter }
 
@@ -319,7 +319,7 @@ func (v StepUpVerifier) Methods(
 ) ([]stepupport.Method, error) {
 	w := v.Writer
 	methods := []stepupport.Method{}
-	// Not offered where the workspace switched the password off (SC-24): a field for it would ask
+	// Not offered where the workspace switched the password off: a field for it would ask
 	// for a proof the step-up refuses.
 	passwordOpen := w.passwordShut(ctx, tenantID) == nil
 	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID, ActorID: accountID},

@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// UC-ID-12 check 6 and UC-ID-11 check 8 (SC-06): the last remaining way in cannot be switched off -
+// UC-ID-12 check 6 and UC-ID-11 check 8: the last remaining way in cannot be switched off -
 // at every door that can switch one off. The provider switch guarded it since SI-10; the password's
 // switch (`methods`), the provider's own form and its removal did not, so a workspace could still be
 // left with no way in by any of those three.

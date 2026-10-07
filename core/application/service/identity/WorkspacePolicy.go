@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The workspace's half of the sign-in rule (ADR-0068 §2, SI-07).
+// The workspace's half of the sign-in rule (ADR-0068 §2).
 //
 // A workspace only ever tightens, and a switch the level above locked is not its to touch. Both are
 // decided in the domain; what this file does is bring the patch a `PATCH /tenant` carried to it, and

@@ -36,7 +36,7 @@ const (
 	nonceBytes = 32
 )
 
-// The audit codes of a sign-in through somebody else's provider (H-04).
+// The audit codes of a sign-in through somebody else's provider.
 const (
 	// OidcSignInStartedAction is the first half, EnrollTotp's precedent: a two-step flow whose
 	// beginning is worth recording, because a workspace full of starts that never complete is
@@ -50,8 +50,8 @@ const (
 	// OidcLinkedAction is the one that matters most in a review: an arriving subject took over
 	// an account that already existed, on the strength of a verified address.
 	OidcLinkedAction audit.Action = "identity.provider_linked"
-	// OidcRefusedAction is a subject the provider vouched for and this workspace would not have
-	// (SI-10): somebody admission turned away, nobody invited, an account that signs in another
+	// OidcRefusedAction is a subject the provider vouched for and this workspace would not have:
+	// somebody admission turned away, nobody invited, an account that signs in another
 	// way, or an invited account arriving without its second proof (ADR-0078 §1). A trail of these
 	// is either a provisioning rule set too tight or somebody trying the door, and both are worth
 	// reading. Written in a transaction of its own, since the refused arrival's is rolled back.
@@ -62,7 +62,7 @@ const (
 type OidcWriter struct {
 	Session   SessionWriter
 	Providers repository.IdentityProviders
-	// Workspaces answers which of the installation's providers this workspace took (SI-10): a flow
+	// Workspaces answers which of the installation's providers this workspace took: a flow
 	// through one it did not take, or one whose withdrawal has come, is refused here whatever
 	// identifier the caller sends - the card not drawing a button is not what refuses it. Nil reads
 	// "nothing taken", so an installation's provider opens no flow on a build wired without it.
@@ -71,9 +71,9 @@ type OidcWriter struct {
 	External   repository.ExternalAccounts
 	Accounts   repository.Accounts
 	Relying    provider.Port
-	// Domains brings a provisioned address's domain to its ASCII form (M-10).
+	// Domains brings a provisioned address's domain to its ASCII form.
 	Domains text.DomainEncoder
-	// Text brings a provisioned display name to normal form C (i18n-l10n.md §5, M-07).
+	// Text brings a provisioned display name to normal form C (i18n-l10n.md §5).
 	Text text.Normalizer
 	// RedirectURL is where the provider sends the browser back, and it is this installation's
 	// own - computed by the composition root from the configured base URL. Never from a request:
@@ -98,7 +98,7 @@ type StartOidcSignInCommand struct {
 	// began on the invitation card (ADR-0078 §1). Empty for every other sign-in.
 	InvitationToken secret.Secret
 	// ConnectToken is the CONNECT link a workspace without the password mailed, when the sign-in
-	// began on the card that link opens (ADR-0078 §1, SC-33). Empty for every other sign-in.
+	// began on the card that link opens (ADR-0078 §1). Empty for every other sign-in.
 	ConnectToken secret.Secret
 }
 
@@ -215,7 +215,7 @@ func (w OidcWriter) invitationOf(
 			w.Session.failure(ctx, FailureRedemption)
 			return redemptionRefused()
 		}
-		// The workspace's standing (H-06), as the redemption asks it: an invitation into a
+		// The workspace's standing, as the redemption asks it: an invitation into a
 		// suspended workspace waits the suspension out.
 		if err := found.TenantStatus.Verify(); err != nil {
 			return err
@@ -227,7 +227,7 @@ func (w OidcWriter) invitationOf(
 }
 
 // connectLinkOf reads the CONNECT link a sign-in starts from and answers its credential, or zero
-// where the sign-in carries none (ADR-0078 §1, SC-33).
+// where the sign-in carries none (ADR-0078 §1).
 //
 // Checked and **not spent**: the flow keeps which credential it carries, and only an arrival that
 // connects the provider spends it. Unknown, expired, spent and another workspace's are one refusal,
@@ -485,7 +485,7 @@ func (w OidcWriter) settleAccount(
 		}
 
 		// A first arrival, and the first gate is admission: may this provider bring this person
-		// into this workspace at all (SI-10, the concept's §8). Under DOMAINS an address outside
+		// into this workspace at all (the concept's §8). Under DOMAINS an address outside
 		// the configured list is refused here - not provisioned a desk of its own, which is what
 		// made the mode indistinguishable from ANY.
 		if !configured.MayAdmit(admissionOf(arriving)) {
@@ -596,7 +596,7 @@ func (w OidcWriter) settleAccount(
 	})
 	// A refusal is recorded after the arrival's transaction is over, in one of its own: everything
 	// that transaction wrote is rolled back with the refusal, and the entry is what an operator
-	// reads to see a provider turning people away (SC-32).
+	// reads to see a provider turning people away.
 	var refusal turnedAwayError
 	if errors.As(err, &refusal) {
 		if recordErr := w.recordRefusal(ctx, scope, configured); recordErr != nil {
@@ -610,7 +610,7 @@ func (w OidcWriter) settleAccount(
 	return account, owed, nil
 }
 
-// connectByMail is the arrival of a sign-in begun from a CONNECT link (ADR-0078 §1, SC-33): the
+// connectByMail is the arrival of a sign-in begun from a CONNECT link (ADR-0078 §1): the
 // mailbox proved by the link, and a fresh sign-in at the provider, are together the account's proof -
 // in place of the password, and of an identity at an offer that ended. They are never the second
 // factor's: an armed one is still asked, and the connection is written at the end of that step.
@@ -665,11 +665,11 @@ func (w OidcWriter) connectByMail(
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_not_fresh"))
 		}
 		// The address the link was mailed to, and no other: a differently addressed identity is
-		// connected from a signed-in session, never at the front door (ADR-0078 §1, SC-37).
+		// connected from a signed-in session, never at the front door (ADR-0078 §1).
 		if !arriving.EmailVerified || !w.sameAddress(arriving.Email, held.Email) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_address_differs"))
 		}
-		// Admission as for every arrival that brings its own proof (SC-32): the mailbox is that proof,
+		// Admission as for every arrival that brings its own proof: the mailbox is that proof,
 		// under INVITED_ONLY and under DOMAINS alike - the list decides who comes in new.
 		if !configured.MayAdmitWithProof(admissionOf(arriving)) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_admitted"))
@@ -871,7 +871,7 @@ func (w OidcWriter) secondProof(
 
 // activateInvited accepts the invitation through the provider and connects the arriving identity,
 // in the arrival's own transaction: the account becomes ACTIVE as redeeming would make it, the
-// invitation is spent, and the arriving subject is connected - or none of it (SC-24, ADR-0078 §1).
+// invitation is spent, and the arriving subject is connected - or none of it (ADR-0078 §1).
 //
 // Whatever was connected to the account before this second proof is dropped first. Such a link was
 // made on a provider's word alone, which is no credential; the person makes it again by signing in.
@@ -909,7 +909,7 @@ func (w OidcWriter) activateInvited(
 }
 
 // sameAddress compares two addresses the way an account's address is looked up: case and an
-// internationalised domain's spelling do not make two addresses (M-10).
+// internationalised domain's spelling do not make two addresses.
 func (w OidcWriter) sameAddress(arriving, held string) bool {
 	if arriving == "" || held == "" {
 		return false
@@ -919,8 +919,8 @@ func (w OidcWriter) sameAddress(arriving, held string) bool {
 
 // linkNeedsMailbox is the refusal of an existing account that holds no credential, arriving from a
 // provider that is not authoritative for its address. Its sentence names the way back that works:
-// *Forgot your password?* mails the account a link - to set a password where the password is open
-// (SC-25), to connect the provider where it is off (SC-33).
+// *Forgot your password?* mails the account a link - to set a password where the password is open,
+// to connect the provider where it is off.
 func linkNeedsMailbox() error {
 	return shared.ErrForbidden.WithDetail("identity_provider.link_needs_mailbox")
 }
@@ -1136,7 +1136,7 @@ func openProvider(
 		}
 		// The purpose is the level's, so a row of the installation's opens under the installation's
 		// purpose and a workspace's under its own - which is what keeps a ciphertext from opening
-		// in a workspace it was not sealed for (E-02).
+		// in a workspace it was not sealed for.
 		plaintext, err := session.Encryptor.Open(ctx, sealed, ClientSecretPurpose(found.TenantID))
 		if err != nil {
 			return err
@@ -1247,7 +1247,7 @@ func (w OidcWriter) recordStart(
 // recordRefusal notes a subject that was turned away. No address and no subject: what a reader
 // needs is that this provider refused somebody, and which issuer it was.
 //
-// In a transaction of its own (SC-32), because the arrival's was rolled back with the refusal - an
+// In a transaction of its own, because the arrival's was rolled back with the refusal - an
 // entry written inside it was never stored, which no test over a unit of work that keeps every write
 // could show. Not cancelled with the request and bounded by its own deadline, `recordFailure`'s
 // reasoning: a client that disconnects the moment it reads the refusal does not take the entry with
