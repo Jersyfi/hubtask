@@ -244,8 +244,7 @@ type GetSignInRules struct {
 
 	UnitOfWork persistence.UnitOfWork
 	// Clock is the moment an offer is read at: an installation's provider whose withdrawal has
-	// come is not a button (ADR-0076 §2). Nil reads every announced withdrawal as still ahead,
-	// which is the shape before the date existed.
+	// come is not a button (ADR-0076 §2). Nil reads every announced withdrawal as still ahead.
 	Clock clock.Clock
 	// Multi is tenant resolution's mode switch (multi-tenancy.md §3), SessionWriter's: in single
 	// mode there is one workspace and no subdomain to read.

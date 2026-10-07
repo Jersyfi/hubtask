@@ -42,14 +42,11 @@ type GetOwnAccount struct {
 	// screen that makes new ones is.
 	// Nil answers nothing, which is what an installation wired without the second factor does.
 	Recovery repository.RecoveryCodes
-	// Enrollments answers the one question no read in the contract answered: whether this account
-	// holds a second factor at all.
+	// Enrollments answers whether this account holds a second factor at all.
 	//
-	// The security screen said so in its own comment and worked around it - it offered enrolment
-	// and let the server refuse one that was already armed. That is survivable for enrolment and
-	// wrong for everything beside it. Without this, a screen cannot tell an account with no
-	// authenticator from one whose codes have all been spent, so it showed somebody with no
-	// authenticator a red "none left" and offered them two actions the server would refuse.
+	// Without it, a screen cannot tell an account with no authenticator from one whose codes have
+	// all been spent: it would show somebody with no authenticator a red "none left" and offer them
+	// two actions the server would refuse.
 	Enrollments repository.MfaEnrollments
 	// Factor answers whether the workspace's rule demands a second factor of this person - the
 	// reading signing in and turning the factor off make (UC-ID-03 check 5). Nil answers false,
