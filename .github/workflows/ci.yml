@@ -597,11 +597,13 @@ jobs:
     # never shows the template, and dropped the sections they judged irrelevant - "Does this need
     # an ADR?" among them, on a change to a gate (2026-09-30).
     #
-    # Pull requests only, and never a bot's: Dependabot writes its own description and nobody
-    # reviews it against this template. The description is read from the API rather than from the
+    # Pull requests only, and never Dependabot's: it writes its own description, nobody reviews it
+    # against this template, and a version bump settles nothing. Named by login, not by account
+    # type: any other bot - a tool that steers the work under a GitHub App identity - is held to
+    # the readiness record, the migration and use case rules like a person. The description is read from the API rather than from the
     # event, so re-running this job - which `pr-description-rerun.yml` does when the description
     # is edited - judges the description as it stands now, not as it was when the run began.
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && github.event.pull_request.user.type != 'Bot'
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read

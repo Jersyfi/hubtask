@@ -60,7 +60,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `security` | `make gate-security` (`govulncheck` and the suites under `test/security`: cross-tenant, RLS, SSRF, uploads, authorisation, redaction) and `make gate-privacy` (PG-1, PG-3…PG-6, PG-8) | SG and PG gates |
 | `data` | `make gate-data` (retention RE-1…RE-9, backup round trip BK-1 for every target, sync SY-1…SY-12, audit) and `make gate-privacy-full` (PG-2 and PG-7 against a migrated database) | Data guarantees |
 | `docs` | `make gate-docs` (§3.1). Behind no filter | Documentation |
-| `pr-description` | `make gate-pr` over the description read from the API. Not for a bot's pull request (§3.1) | The description |
+| `pr-description` | `make gate-pr` over the description and the title read from the API. Not for Dependabot's pull requests (§3.1) | The description |
 | `node` | Per workspace package, when it or something it consumes changed: the workspace map lint, then build, lint, typecheck and test; for the website also `make website` before any build | Clients and packages |
 | `engines` | The built web application in Chromium, Firefox and WebKit through Playwright, pinned ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), asserting [ADR-0044](../adr/ADR-0044-browser-support-row.md)'s feature table in each (`pnpm --filter @hubtask/webapp test:engines`). The one job that runs a browser | The browser row of the support matrix |
 | `tokens-drift` | `make tokens`; the committed `LabelTokens.go` must not change | Design tokens |
@@ -127,7 +127,7 @@ checks links and anchors; and holds the newest `docs/evidence/COVERAGE-<date>.md
 `catalogue.Descriptors()` — one row per use case the catalogue serves, none for one it does not
 serve, and no omission "nobody built it" without an issue number.
 
-**`pr-description` reads the description, not the tree.** On every pull request that is not a bot's,
+**`pr-description` reads the description, not the tree.** On every pull request that is not Dependabot's,
 `tools/checkpr` holds the description to `.github/PULL_REQUEST_TEMPLATE.md`: every section present,
 in order, filled or marked n/a; `Closes #n` at the start of a line or `No issue: <why>`; use cases
 that exist; one ADR answer ticked and named; every Definition of Done item ticked or n/a; no
