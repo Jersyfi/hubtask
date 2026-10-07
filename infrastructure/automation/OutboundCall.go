@@ -39,7 +39,7 @@ type Entries = condition.Entries
 // Containers is the container half of the same contract.
 type Containers = condition.Containers
 
-// OutboundCall performs one HTTP_REQUEST action's call (G-09): the riskiest surface in the
+// OutboundCall performs one HTTP_REQUEST action's call: the riskiest surface in the
 // milestone, treated the way a backup target is.
 //
 //   - Every call goes through the guarded client (rule 6, T-07): private and link-local ranges

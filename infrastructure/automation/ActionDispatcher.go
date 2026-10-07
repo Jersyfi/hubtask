@@ -64,7 +64,7 @@ func (d ActionDispatcher) Actions() []string {
 // happens after the rule is written (automation.md §2.2). A supplied value is merged only where
 // the use case declares the field and the rule's own parameters left it unset: the rule's explicit
 // choice always wins, and a use case that never asked for a name never sees it, because the
-// registry refuses undeclared input keys (C-07) and an unconditional merge would fail every action
+// registry refuses undeclared input keys and an unconditional merge would fail every action
 // on exactly the runs that carry an event.
 //
 // What it deliberately does not do: derive the idempotency key, count the causal depth, and record
