@@ -35,7 +35,7 @@ func (c byNameCatalogue) Invoke(
 	return nil, shared.ErrNotFound
 }
 
-// The Python SDK's example against the in-process server (P-03): the generated client, the
+// The Python SDK's example against the in-process server: the generated client, the
 // example's walk and the router the same specification generated, driven by whatever python3
 // the runner has. Skipped by name where there is none - a runner without Python is not a
 // failure of the client, and the generator's own tests hold the Python source without one.

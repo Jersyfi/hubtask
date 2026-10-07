@@ -37,7 +37,7 @@ type schema struct {
 	AdditionalProperties any                `yaml:"additionalProperties"`
 	// Deprecated marks a member that is still accepted and goes with the next major version.
 	Deprecated bool `yaml:"deprecated"`
-	// Since and RemovedIn are a deprecated member's day and the major version it goes with (SC-28).
+	// Since and RemovedIn are a deprecated member's day and the major version it goes with.
 	Since     string `yaml:"x-deprecated-since"`
 	RemovedIn string `yaml:"x-removed-in"`
 	// AllOf is read but not composed: the validator does not need it, and InputEnums refuses a

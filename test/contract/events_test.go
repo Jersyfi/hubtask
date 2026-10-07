@@ -70,9 +70,9 @@ func containerCreated(t *testing.T) event.Envelope {
 	return envelope
 }
 
-// The acceptance criterion of A-07: what the system publishes matches the schema it publishes it
-// under. The schema is the contract a subscriber writes against (ADR-0007), so it is judged
-// against a real event rather than against an example somebody kept up to date.
+// What the system publishes matches the schema it publishes it under. The schema is the contract a
+// subscriber writes against (ADR-0007), so it is judged against a real event rather than against an
+// example somebody kept up to date.
 func TestTheContainerCreatedEventMatchesItsSchema(t *testing.T) {
 	spec := loadEventSchema(t, event.ContainerCreated)
 
@@ -254,8 +254,8 @@ func TestTheItemUpdatedEventMatchesItsSchema(t *testing.T) {
 	}
 }
 
-// The acceptance criterion of B-05: the event names the fields that changed and carries the content
-// of no other field. A rename must not put somebody's notes into every subscriber's log.
+// The event names the fields that changed and carries the content of no other field. A rename must
+// not put somebody's notes into every subscriber's log.
 func TestTheItemUpdatedEventCarriesOnlyWhatChanged(t *testing.T) {
 	body, err := json.Marshal(eventbus.ToCloudEvent(itemUpdated(t), "urn:hubtask:test"))
 	if err != nil {
@@ -405,7 +405,7 @@ func completedItem(t *testing.T) work.WorkItem {
 }
 
 // What the system publishes matches the schema it publishes it under - for the two directions of
-// completion as much as for the create (B-07).
+// completion as much as for the create.
 func TestTheCompletionEventsMatchTheirSchemas(t *testing.T) {
 	done := completedItem(t)
 	reopened := done
@@ -453,8 +453,8 @@ func TestTheCompletionEventsMatchTheirSchemas(t *testing.T) {
 	}
 }
 
-// The two announcements the scheduler makes (D-03). Nobody caused them, so the actor is the
-// system - and both carry a threshold, which is what lets one consumer read both.
+// The two announcements the scheduler makes. Nobody caused them, so the actor is the system - and
+// both carry a threshold, which is what lets one consumer read both.
 func TestTheSchedulingAnnouncementsMatchTheirSchemas(t *testing.T) {
 	due := time.Date(2026, 9, 4, 15, 0, 0, 0, time.UTC)
 	item := completedItem(t)
@@ -571,7 +571,7 @@ func TestACompletionEventRefusesAnInconsistentItem(t *testing.T) {
 	}
 }
 
-// The move event, judged by the schema it is published under (B-08).
+// The move event, judged by the schema it is published under.
 func TestTheItemMovedEventMatchesItsSchema(t *testing.T) {
 	spec := loadEventSchema(t, event.ItemMoved)
 
@@ -898,10 +898,10 @@ func TestAChangeEventRefusesAnEmptyChangeSet(t *testing.T) {
 	}
 }
 
-// The bucket a board is made of (B-09). `wip_limit` and `color_token` are explicit nulls in the
-// payload rather than omissions, for the reason the response carries them that way: a subscriber
-// that had to tell "no limit" from "this producer does not know about limits" would have to fetch
-// the column, which is what a snapshot exists to avoid.
+// The bucket a board is made of. `wip_limit` and `color_token` are explicit nulls in the payload
+// rather than omissions, for the reason the response carries them that way: a subscriber that had
+// to tell "no limit" from "this producer does not know about limits" would have to fetch the
+// column, which is what a snapshot exists to avoid.
 func TestTheBucketCreatedEventMatchesItsSchema(t *testing.T) {
 	spec := loadEventSchema(t, event.BucketCreated)
 	limit := 4
@@ -1064,7 +1064,7 @@ func TestTheBucketDeletedEventMatchesItsSchema(t *testing.T) {
 	}
 }
 
-// A label as a collection defines it (B-09).
+// A label as a collection defines it.
 func TestTheLabelCreatedEventMatchesItsSchema(t *testing.T) {
 	spec := loadEventSchema(t, event.LabelCreated)
 
@@ -1229,9 +1229,9 @@ func TestAnItemLabelEventNeedsALabel(t *testing.T) {
 	}
 }
 
-// The four events of C-01, against the schemas they are published under. All four carry a reference
-// and no snapshot of the entry, which is what the schemas declare and what a subscriber writes
-// against.
+// The four assignment and member events, against the schemas they are published under. All four
+// carry a reference and no snapshot of the entry, which is what the schemas declare and what a
+// subscriber writes against.
 func TestTheAssignmentAndMemberEventsMatchTheirSchemas(t *testing.T) {
 	item := work.WorkItem{
 		ID:           shared.MustParseID("0192f000-0000-7000-8000-00000000000e"),
@@ -1284,7 +1284,7 @@ func TestTheAssignmentAndMemberEventsMatchTheirSchemas(t *testing.T) {
 	}
 }
 
-// The lifecycle events of both aggregates, against the schemas they are published under (B-10).
+// The lifecycle events of both aggregates, against the schemas they are published under.
 //
 // Built from real transitions rather than from hand-written fixtures: the stamp a payload carries is
 // the one the domain wrote, so a builder that reported the wrong state would fail here rather than
@@ -1460,7 +1460,7 @@ func TestALifecycleEventCannotContradictItsOwnName(t *testing.T) {
 	}
 }
 
-// The three events of C-03, against the schemas they are published under. Each carries the whole
+// The three comment events, against the schemas they are published under. Each carries the whole
 // comment - its own entity, not a field of the item - and the deleted one carries a null body,
 // which is the tombstone's shape and what a subscriber writes against.
 func TestTheCommentEventsMatchTheirSchemas(t *testing.T) {
@@ -1597,7 +1597,7 @@ func TestACloudEventRendersExactlyAsThePublishedGolden(t *testing.T) {
 	}
 }
 
-// The five extension attributes ADR-0007 names, plus the one E-06 added. They are attributes
+// The five extension attributes ADR-0007 names, plus its `replay`. They are attributes
 // rather than payload fields because a broker and a webhook subscription filter on them without
 // parsing `data` - which is what makes "every event of this tenant" a routing rule rather than a
 // consumer's problem.
@@ -1648,7 +1648,7 @@ func TestTheExtensionAttributesAreTheOnesTheADRNames(t *testing.T) {
 	}
 }
 
-// The two clocks (N-10, offline-sync.md §8): an event raised online carries one instant as
+// The two clocks (offline-sync.md §8): an event raised online carries one instant as
 // `time` and `receivedat` and no push; one a device brought in carries the device's moment as
 // `time`, the server's as `receivedat`, and names the push - so that a consumer written before
 // the field existed reads `time` as it always did, and one written after can tell the two apart.

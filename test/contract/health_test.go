@@ -69,9 +69,8 @@ func mustValidate(t *testing.T, body []byte) {
 	}
 }
 
-// The acceptance criterion of A-04: /meta/health returns the schema from openapi.yaml. Checked
-// against the specification itself, so the two cannot drift - the specification is the source,
-// not the result (ADR-0004).
+// /meta/health returns the schema from openapi.yaml. Checked against the specification itself, so
+// the two cannot drift - the specification is the source, not the result (ADR-0004).
 func TestTheHealthyReportMatchesTheSchema(t *testing.T) {
 	registry := healthadapter.NewRegistry("0.1.0", []string{"api"})
 	registry.Register(staticProbe{name: "postgres", required: true, status: port.StatusOK})
@@ -134,9 +133,8 @@ func TestTheDownReportAnswers503AndStillMatchesTheSchema(t *testing.T) {
 	mustValidate(t, body)
 }
 
-// The other half of the acceptance criterion: config.backup_not_configured has to arrive as a
-// warning code, because it is the signal a self-hosted installation with no Prometheus gets
-// (§5).
+// And the warning: config.backup_not_configured has to arrive as a warning code, because it is the
+// signal a self-hosted installation with no Prometheus gets (§5).
 func TestTheBackupWarningReachesTheResponse(t *testing.T) {
 	registry := healthadapter.NewRegistry("0.1.0", []string{"api"})
 	registry.SetWarnings([]port.Warning{{Code: "config.backup_not_configured", Severity: "warn"}})
@@ -180,7 +178,8 @@ func TestTheReportIsNotCacheable(t *testing.T) {
 }
 
 // reducedReader answers the shape a reader who is not the installation's operator receives: the
-// status, the version and what is degraded, and nothing that describes the installation (K-06).
+// status, the version and what is degraded, and nothing that describes the installation
+// (observability-reliability.md §5).
 type reducedReader struct{ report port.Report }
 
 func (r reducedReader) Execute(

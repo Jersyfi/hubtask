@@ -18,7 +18,7 @@ import (
 // made the two agree, and the way they fail is silent: the descriptor refuses the value first, so
 // the domain rule written for that exact value never runs and its purpose-written message code is
 // unreachable. What the caller gets instead is a generic `usecase.field_not_in_enum`, which reads
-// like ordinary input validation rather than like a defect (issue #427).
+// like ordinary input validation rather than like a defect.
 //
 // The check is deliberately one-directional. A contract value the descriptor does not accept is
 // the defect above. The opposite - a descriptor enum where the contract closes nothing, or a

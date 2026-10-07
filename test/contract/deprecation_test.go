@@ -22,9 +22,9 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/rest"
 )
 
-// SC-28: a deprecated field says so. Every member the contract marks deprecated is listed in the
-// manifest a client reads - judged from the specification itself, independently of the generator -
-// with the day it was, the major version it goes with and what replaces it.
+// A deprecated field says so. Every member the contract marks deprecated is listed in the manifest
+// a client reads - judged from the specification itself, independently of the generator - with the
+// day it was, the major version it goes with and what replaces it.
 func TestEveryDeprecatedFieldIsInTheManifest(t *testing.T) {
 	spec := contractSpec(t)
 	want := map[string]bool{}

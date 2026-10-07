@@ -21,7 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/sdk/go/hubtask"
 )
 
-// The Go SDK against the server it is generated for (P-02). Not a test of the generator - that is
+// The Go SDK against the server it is generated for. Not a test of the generator - that is
 // oapi-codegen's - but of the two halves meeting: the client's path, method and body reach the
 // router the same specification generated, and the answer the router writes decodes into the
 // type the client expects. A drift between the client's generation configuration and the
