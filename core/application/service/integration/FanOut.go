@@ -161,9 +161,9 @@ func (f FanOut) enqueue(
 
 // DisableNotifier is how the owner of a subscription is told it stopped.
 //
-// The notification category C-09 built rather than a new channel: "auto-disable after sustained
-// unreachability, plus a notification to the owner" is one sentence in automation.md §3.1, and the
-// second half of it is a thing this system already knows how to do.
+// A notification category rather than a new channel: "auto-disable after sustained unreachability,
+// plus a notification to the owner" is one sentence in automation.md §3.1, and the second half of
+// it is a thing this system already knows how to do.
 type DisableNotifier interface {
 	WebhookDisabled(ctx context.Context, tenantID, recipient, subscriptionID shared.ID) error
 }

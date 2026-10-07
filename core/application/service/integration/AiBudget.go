@@ -19,7 +19,7 @@ type AiProviderResolver interface {
 	For(ctx context.Context, actor appshared.ActorContext) (aiprovider.Provider, error)
 }
 
-// AiBudget is the slice of the quota guard this needs (H-08's machinery).
+// AiBudget is the slice of the quota guard this needs (multi-tenancy.md §4).
 type AiBudget interface {
 	// AiTokens reports whether the workspace's daily budget still has room.
 	AiTokens(ctx context.Context, tenant string, now time.Time) (bool, error)

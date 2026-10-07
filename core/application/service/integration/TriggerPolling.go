@@ -71,8 +71,9 @@ type Page struct {
 
 // PollTriggerEvents answers the tenant's events of one type, oldest first, from a cursor.
 //
-// The pull half of the stream G-03 pushes (automation.md §3.2), for a platform with no address a
-// webhook could reach. The same events, the same document, the same identifier to deduplicate on.
+// The pull half of the stream the subscriptions push (automation.md §3.2), for a platform with no
+// address a webhook could reach. The same events, the same document, the same identifier to
+// deduplicate on.
 //
 // Three boundaries hold it together, and each is drawn once, here:
 //
