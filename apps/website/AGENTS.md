@@ -48,6 +48,10 @@ it into `dist/`, and `.github/workflows/website.yml` publishes that on a push to
 * A count that grows (the use cases the registry serves) is rounded down, so the claim stays true
   as the number moves.
   `[unchecked: whether a number is rounded down is a judgement of the sentence]`
+* **The privacy page's hosting section rests on confirmed facts:** the agreement on processing on
+  behalf with IONOS (Art. 28 GDPR), concluded on 2026-08-27 and part of IONOS's terms since
+  2022-07-19, and a webspace in Germany — confirmed by the owner on 2026-10-07. A change of host,
+  tariff or data centre changes that section in the same pull request. `[owner]`
 
 ## How to check a change
 
