@@ -48,9 +48,8 @@ type ObjectStore interface {
 	// adapter must not buffer the object to serve it (T-17).
 	Get(ctx context.Context, key string) (Object, error)
 
-	// Delete removes one object. Removing what is not there succeeds - deletion is the state
-	// the caller asked for, and the reconciliation job that calls this retries (C-06,
-	// data-protection.md §5).
+	// Delete removes one object. Removing what is not there succeeds - deletion is the state the
+	// caller asked for, and the reconciliation job that calls this retries (data-protection.md §5).
 	Delete(ctx context.Context, key string) error
 }
 

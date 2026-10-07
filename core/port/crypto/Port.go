@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package crypto is the port for keeping a value unreadable to whoever holds the storage it sits
-// on (E-02, backup-restore.md §4, security.md §3).
+// Package crypto is the port for keeping a value unreadable to whoever holds the storage it sits on
+// (backup-restore.md §4, security.md §8).
 //
 // Two seams, because there are two questions. Sealing a value the server itself has to read back -
 // a target's credential - is envelope encryption under a master key the installation supplies:
@@ -51,9 +51,9 @@ type Purpose string
 // Encryptor seals a value under the installation's current master key and opens one sealed under
 // any master key the installation still holds.
 //
-// It takes a context because an implementation may have to reach a key management service to use
-// a key (open point S-2, `0.6.0`); the one this milestone ships holds its keys in memory and
-// ignores it, and a port shaped so that it could not wait would make that adapter impossible.
+// It takes a context because an implementation may have to reach a key management service to use a
+// key; the in-memory keyring ignores it, and a port shaped so that it could not wait would make
+// that adapter impossible.
 type Encryptor interface {
 	// Seal encrypts under the current key. ErrUnavailable with `crypto.no_encryption_key` when
 	// the installation has none configured - a refusal rather than a silent plaintext write.

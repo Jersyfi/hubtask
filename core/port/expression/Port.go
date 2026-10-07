@@ -149,8 +149,8 @@ type Position struct {
 // pointing at the right part of the right condition.
 //
 // A type rather than a coded error alone, because the position is structured and a caller has to
-// put it somewhere: G-05's rule conditions render it into `/conditions/0/expr` with the line and
-// column as parameters, and a retention rule renders it into `/condition`.
+// put it somewhere: an automation rule's conditions render it into `/conditions/0/expr` with the
+// line and column as parameters, and a retention rule renders it into `/condition`.
 type Refusal struct {
 	// Code is the message code, `expression.` something.
 	Code string

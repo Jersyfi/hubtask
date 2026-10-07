@@ -18,9 +18,9 @@
 // instruction and a user's note into one blob without deleting the distinction the guardrail is
 // made of.
 //
-// What is deliberately not here: streaming, tool calling, and images. None of 0.7.0's four features
-// asks for any of them (ADR-0049), and a port that declares what nothing implements is a promise a
-// client would find empty.
+// What is deliberately not here: streaming, tool calling, and images. None of the AI features of
+// ai-first.md §2 asks for any of them (ADR-0049), and a port that declares what nothing implements
+// is a promise a client would find empty.
 package ai
 
 import (
@@ -40,7 +40,7 @@ const Dependency = "ai_provider"
 const Feature = "ai_suggestions"
 
 // FeatureSemanticSearch is the second thing a provider outage costs: search stops finding entries
-// by what they mean and finds them only by the words in them (J-10, ADR-0050). The same name
+// by what they mean and finds them only by the words in them (ADR-0050). The same name
 // /meta/capabilities answers under, so a client reading either learns about one feature.
 //
 // Named unconditionally, even in an installation whose database has no pgvector and therefore never
@@ -48,16 +48,16 @@ const Feature = "ai_suggestions"
 // what to call itself, which is a probe that fails during exactly the outage it exists to report -
 // and an installation that cannot search by meaning already answers `semantic_search: false` from
 // /meta/capabilities, which is where a client looks before it offers the feature at all. That
-// manifest entry needs the store *and* a provider that embeds (issue 502); this one is a name.
+// manifest entry needs the store *and* a provider that embeds; this one is a name.
 const FeatureSemanticSearch = "semantic_search"
 
 // ErrUnavailable is every refusal this port can produce, and there is deliberately only one.
 //
-// It is what NoopAi answers, what a tenant without ai_processing_allowed answers (J-02), what an
-// exhausted budget answers (J-15) and what an open circuit answers (J-03). A caller's correct
-// response to all four is the same - carry on without the suggestion - and four codes would invite
-// four handlings of one situation. Which of them it was is a matter for the log and the metric,
-// where it is a label rather than a contract.
+// It is what NoopAi answers, what a tenant without ai_processing_allowed answers, what an exhausted
+// budget answers and what an open circuit answers. A caller's correct response to all four is the
+// same - carry on without the suggestion - and four codes would invite four handlings of one
+// situation. Which of them it was is a matter for the log and the metric, where it is a label
+// rather than a contract.
 //
 // The category is Unavailable, so it reaches the wire as 503 with a problem document, which is the
 // shape arc42 QS-09 fixes.
@@ -88,9 +88,9 @@ type Message struct {
 // CompletionRequest is one question, already rendered from a prompt.
 //
 // PromptID and PromptVersion travel with it rather than being derived from the messages, because
-// they end up in a suggestion's provenance (J-05): "which prompt produced this" has to be
-// answerable a year later, when the messages are long gone and the prompt has been rewritten
-// twice. They are the store's own coordinates (ADR-0049 decision 3).
+// they end up in a suggestion's provenance: "which prompt produced this" has to be answerable a
+// year later, when the messages are long gone and the prompt has been rewritten twice. They are the
+// store's own coordinates (ADR-0049 decision 3).
 type CompletionRequest struct {
 	PromptID      string
 	PromptVersion string
@@ -131,9 +131,8 @@ type EmbeddingResult struct {
 	Usage      Usage
 }
 
-// Usage is what the call cost, in the only unit every provider reports. It feeds the metric and
-// the tenant's budget (J-15) and nothing else - it is not a price, and this project does not
-// have one.
+// Usage is what the call cost, in the only unit every provider reports. It feeds the metric and the
+// tenant's budget and nothing else - it is not a price, and this project does not have one.
 type Usage struct {
 	InputTokens  int
 	OutputTokens int
@@ -163,12 +162,12 @@ type ProviderCapabilities struct {
 	// width is known to exceed it is refused before anything is sent, and reported as such. What
 	// fills it is the adapter's own knowledge - a documented width for a hosted model, an answer
 	// from a local server's model description, or the width of the first batch this process saw -
-	// kept per process the way breaker state is (#569).
+	// kept per process the way breaker state is.
 	EmbeddingDimensions int
 }
 
 // Measured is a provider that can say how wide its embedding vectors are before it is asked for
-// one (#569).
+// one.
 //
 // Optional rather than part of Provider, because not every provider can say: an OpenAI-compatible
 // endpoint serving a model nobody documented cannot, and answering zero is the honest answer -

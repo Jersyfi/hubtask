@@ -77,12 +77,12 @@ const (
 	Secret Classification = "SECRET"
 )
 
-// MaskingFor derives what the trail may carry from what the data *is* (E-11).
+// MaskingFor derives what the trail may carry from what the data *is*.
 //
 // Three masking levels from six classes, and the derivation is the whole point of writing it down:
 // `data-protection.md` §3 says what a field is, `audit.md` §4 says how a value of it appears in the
-// trail, and until E-11 those were two vocabularies with no stated relationship - so every use case
-// decided the masking for itself and nothing could check the decision.
+// trail, and two vocabularies with no stated relationship would leave every use case deciding the
+// masking for itself and nothing able to check the decision.
 //
 // The one exception is stated rather than derived: the actor's *label* is `PERSONAL_BASIC` and is
 // carried in clear, because an entry that only pointed at a foreign key becomes unreadable once
@@ -121,10 +121,10 @@ func Changes(changes ...Change) map[string]any {
 	for _, change := range changes {
 		switch change.Classification {
 		case "":
-			// Fail closed. An unclassified field used to fall through to OPEN, which is the one
-			// direction that cannot be taken back: a title written into the trail in clear text
-			// is a copy no deletion reaches (§4). Gate PG-1 refuses one at build time; this
-			// refuses one at run time, in case something builds a change from a variable.
+			// Fail closed. An unclassified field falling through to OPEN would be the one direction
+			// that cannot be taken back: a title written into the trail in clear text is a copy no
+			// deletion reaches (§4). Gate PG-1 refuses one at build time; this refuses one at run
+			// time, in case something builds a change from a variable.
 			masked[change.Field] = map[string]any{"changed": true, "unclassified": true}
 		case Secret:
 			continue

@@ -2,23 +2,15 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package stepup is the seam a destructive act asks for a second, stronger proof of identity
-// through (E-06, backup-restore.md §8.3, security.md §5).
+// through (identity.md §16, backup-restore.md §8.3, security.md §5).
 //
-// It exists before anything can satisfy it, and that is the point rather than an accident.
-// Sessions and multi-factor authentication arrive in `0.6.0`; a restore that replaces a tenant is
-// being built now. The choice was between letting the destructive modes proceed with the
-// confirmation skipped - a promise the documents make and the code does not keep - and defining
-// where the proof arrives, refusing without it, and saying plainly that this installation cannot
-// produce one yet.
+// The proof is a fresh re-authentication on the current session, consumed by the one privileged
+// action it is presented to, and the refusal every demanding operation answers without one lives
+// here, so that two operations cannot describe the same demand differently.
 //
-// A confirmation that is structurally impossible to give is a stronger position than one that is
-// skipped: the refusal is visible, it names its own reason, and the day an installation can issue
-// a step-up the mode starts working without anything here changing shape.
-//
-// That day was H-03: the verifier exists - a fresh re-authentication on the current session,
-// consumed by the one privileged action it is presented to - and the refusal every demanding
-// operation answers without one lives here, so that two operations cannot describe the same
-// demand differently.
+// Where no proof can be given, the act is refused rather than let through with the confirmation
+// skipped: a confirmation that is structurally impossible to give is a stronger position than one
+// that is skipped, because the refusal is visible and names its own reason.
 package stepup
 
 import (
@@ -29,9 +21,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// CodeRequired is the demand every privileged operation surfaces without a satisfied step-up:
-// 403, naming the accepted methods, so a client knows to ask the person rather than to retry
-// (H-03).
+// CodeRequired is the demand every privileged operation surfaces without a satisfied step-up: 403,
+// naming the accepted methods, so a client knows to ask the person rather than to retry
+// (identity.md §16.2).
 const CodeRequired = "auth.step_up_required"
 
 // Method is one way a person proves themselves afresh, as `POST /auth/step-up` takes it.
@@ -51,10 +43,9 @@ const (
 )
 
 // Required is the demand itself, minted in exactly one place, naming the methods this account can
-// answer with - space-separated, in the order given, the way the contract describes the
-// parameter. A demand that names TOTP to an account without a factor sends the person to a
-// prompt for a code they cannot produce (issue 544), which is why the list is the account's and
-// not the endpoint's.
+// answer with - space-separated, in the order given, the way the contract describes the parameter.
+// A demand that names TOTP to an account without a factor sends the person to a prompt for a code
+// they cannot produce, which is why the list is the account's and not the endpoint's.
 func Required(methods ...Method) error {
 	if len(methods) == 0 {
 		methods = []Method{MethodPassword}
@@ -76,9 +67,9 @@ func requiredOf(methods []Method) *shared.Error {
 }
 
 // Demand is the check every privileged operation runs: a wired verifier, a presented token, a
-// satisfied proof - or the one refusal. A nil or unavailable verifier refuses rather than
-// permits, because a destructive mode permitted by omission is the failure E-06 built this seam
-// against; it names both methods, because nothing can look the account's up.
+// satisfied proof - or the one refusal. A nil or unavailable verifier refuses rather than permits,
+// because a destructive mode permitted by omission is the failure this seam exists against; it
+// names both methods, because nothing can look the account's up.
 func Demand(
 	ctx context.Context, verifier Verifier, tenantID, accountID shared.ID, token string,
 ) error {

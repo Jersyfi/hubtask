@@ -17,7 +17,7 @@ import (
 // the read: a search by either name, or by a family either belongs to, finds both (Aliases). Not
 // exported, so that nothing outside this file can add to it or take from it at run time.
 var renamed = map[Action]Action{
-	// SC-29: the second factor's actions are one family, `auth.mfa_*`.
+	// The second factor's actions are one family, `auth.mfa_*`.
 	Action("auth.mfa_recovery_regenerated"): Action("mfa.recovery_regenerated"),
 }
 

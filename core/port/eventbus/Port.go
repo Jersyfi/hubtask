@@ -96,8 +96,7 @@ const RetentionWindow = 7 * 24 * time.Hour
 // Once runs work for one event and one consumer, exactly once, and reports whether it ran.
 //
 // This is the library function ADR-0007's third countermeasure names, and the whole of it. Every
-// consumer of the stream calls this rather than reimplementing it - the dispatcher today, the
-// webhook delivery of G-03 and the rule engine of G-07 next - because the order of the two
+// consumer of the stream calls this rather than reimplementing it, because the order of the two
 // operations is the part that is easy to get wrong, and getting it wrong is invisible until an
 // event is acted on twice.
 //

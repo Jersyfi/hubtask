@@ -28,8 +28,8 @@ type DomainEncoder interface {
 // index, one token to the search document, and one comparison to the query language.
 //
 // The domain constructor of each text kind applies it on the way in - once, where the text is
-// trimmed and bounded - and nothing stored is rewritten: rows written before M-07 stay as they
-// were, which §5 says is the consequence and the owner decided (#577).
+// trimmed and bounded - and nothing stored is rewritten: a row written before normalisation existed
+// keeps its bytes until its next edit (i18n-l10n.md §5, "No backfill").
 type Normalizer interface {
 	// NFC answers the text in normal form C. Text that already is stays byte-identical.
 	NFC(text string) string

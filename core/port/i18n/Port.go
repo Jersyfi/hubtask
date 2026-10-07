@@ -11,8 +11,8 @@
 //
 // The recipient's locale is the whole reason this is a port at all. An adapter could render into
 // whatever language the process was started with and nobody would notice until the day two accounts
-// in one workspace speak different languages - which is exactly the acceptance test C-09 carries.
-// Making the locale an argument means there is no call that can forget it.
+// in one workspace speak different languages. Making the locale an argument means there is no call
+// that can forget it.
 package i18n
 
 // Renderer turns a message code into a sentence in one locale.

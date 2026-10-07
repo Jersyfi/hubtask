@@ -59,17 +59,17 @@ const (
 	KindPasswordResetEmail Kind = "notification.password_reset"
 
 	// KindPasswordOpeningEmail tells one administrator of a workspace that an operator opened the
-	// password there, or that the opening ended (ADR-0078 §3, SC-34). Queued in the transaction
-	// that opened or closed it, one job per administrator, so the act and its notices commit
-	// together. Not a notification record, for KindPasswordResetEmail's reason: it is the one
-	// message about the way into a workspace that no preference may silence, and a category that
-	// existed only to be an exception would be the wrong shape for it.
+	// password there, or that the opening ended (ADR-0078 §3, identity.md §17.2). Queued in the
+	// transaction that opened or closed it, one job per administrator, so the act and its notices
+	// commit together. Not a notification record, for KindPasswordResetEmail's reason: it is the
+	// one message about the way into a workspace that no preference may silence, and a category
+	// that existed only to be an exception would be the wrong shape for it.
 	KindPasswordOpeningEmail Kind = "notification.password_opening"
 
-	// KindNotificationDeliver sends one notification (C-09). One job per record rather than one
-	// per tenant, because the retry belongs to the message: an address the server refuses must not
-	// hold up everybody else's mail, and the queue's own attempt budget and dead letter are
-	// exactly the retry observability-reliability.md §7 promises for "the reminder arrives late".
+	// KindNotificationDeliver sends one notification. One job per record rather than one per
+	// tenant, because the retry belongs to the message: an address the server refuses must not hold
+	// up everybody else's mail, and the queue's own attempt budget and dead letter are exactly the
+	// retry observability-reliability.md §7 promises for "the reminder arrives late".
 	//
 	// Queued by the outbox consumer in the dispatcher's transaction, so the record and the job to
 	// send it commit together - and detached when it runs, because an SMTP server inside a
@@ -77,7 +77,7 @@ const (
 	KindNotificationDeliver Kind = "notification.deliver"
 
 	// KindReminderFire is the first job in this system that exists because of a stored future
-	// timestamp rather than because something just happened (D-03).
+	// timestamp rather than because something just happened.
 	//
 	// One job per tenant, seeded by the write that made something due - a reminder written, a due
 	// date moved - with RunAt at the moment that write brought forward, because nothing may
@@ -88,7 +88,7 @@ const (
 	KindReminderFire Kind = "reminder.fire"
 
 	// KindRecurrenceMaterialize turns one tenant's series into the entries their rolling windows
-	// owe (D-05, ADR-0008).
+	// owe (ADR-0008).
 	//
 	// The same shape as the reminder's wake-up and for the same reason: nothing may enumerate
 	// tenants, so the write that made something owed seeds it - a rule written, an occurrence
@@ -97,7 +97,7 @@ const (
 	// its pass finishes and the completion seeds the next one.
 	KindRecurrenceMaterialize Kind = "recurrence.materialize"
 
-	// KindAiSuggest asks the workspace's AI provider what one thing should become (J-06).
+	// KindAiSuggest asks the workspace's AI provider what one thing should become.
 	//
 	// A job rather than a call inside the request, because ai-first.md §2 forbids an AI call in
 	// the critical path and because a provider's latency is somebody else's machine. One job per
@@ -110,7 +110,7 @@ const (
 	// being a record rather than a change.
 	KindAiSuggest Kind = "ai.suggest"
 
-	// KindAiEmbed brings one workspace's embeddings up to date with its entries (J-10).
+	// KindAiEmbed brings one workspace's embeddings up to date with its entries.
 	//
 	// One job per tenant that reschedules itself, the retention sweep's shape rather than the
 	// suggestion's - because what it does is a backlog rather than a question. An entry whose
@@ -133,8 +133,8 @@ const (
 	// deletion scheduling its own cleanup is also the more honest statement of what has to happen.
 	KindRetentionSweep Kind = "retention.sweep"
 
-	// KindMediaReconcile makes one tenant's media reference counts honest and reclaims what
-	// nothing points at (C-06, data-protection.md §5).
+	// KindMediaReconcile makes one tenant's media reference counts honest and reclaims what nothing
+	// points at (data-protection.md §5).
 	//
 	// One job per tenant, rescheduling itself forever, seeded by a write in the tenant for the
 	// reason the retention sweep is: nothing in this system may enumerate tenants, so a scheduler
@@ -142,7 +142,7 @@ const (
 	// upload is the first thing that can ever need reclaiming - and a deletion pulls it forward.
 	KindMediaReconcile Kind = "media.reconcile"
 
-	// KindBackupRun writes one archive to one target (E-05, backup-restore.md §5).
+	// KindBackupRun writes one archive to one target (backup-restore.md §5).
 	//
 	// One job per run rather than per tenant, because a run is a thing somebody asked for and can
 	// cancel, and because the deduplication key is the target: two requests to back up the same
@@ -160,7 +160,7 @@ const (
 	// open for.
 	KindBackupVerify Kind = "backup.verify"
 
-	// KindBackupRestore reads one archive back into a tenant (E-06, backup-restore.md §8.3).
+	// KindBackupRestore reads one archive back into a tenant (backup-restore.md §8.3).
 	//
 	// Detached and long, for the reasons a run is: it streams an archive from somebody else's
 	// machine and writes it in batches, each of which is its own transaction - which is what §8.3
@@ -171,7 +171,7 @@ const (
 	KindBackupRestore Kind = "backup.restore"
 
 	// KindBackupSchedule is one tenant's wake-up: what does this tenant owe now, and when does it
-	// owe the next one (E-05).
+	// owe the next one (backup-restore.md §5).
 	//
 	// The same shape as the reminder's and the recurrence's, and for the same reason: nothing in
 	// this system may enumerate tenants, so a scheduler cannot create one job per tenant even if
@@ -180,29 +180,29 @@ const (
 	// leader's duty instead - see the scheduler.
 	KindBackupSchedule Kind = "backup.schedule"
 
-	// KindAuditAnchor is one tenant's daily anchoring (A-2, P-13, audit.md §3): the chain's
-	// end written to the backup target the workspace named. One job per tenant, seeded by the
-	// configuration's write and rescheduling itself to the next day, for the backup schedule's
-	// reason: nothing in this system may enumerate tenants.
+	// KindAuditAnchor is one tenant's daily anchoring (audit.md §3): the chain's end written to the
+	// backup target the workspace named. One job per tenant, seeded by the configuration's write
+	// and rescheduling itself to the next day, for the backup schedule's reason: nothing in this
+	// system may enumerate tenants.
 	KindAuditAnchor Kind = "audit.anchor"
 
 	// KindAuditExport writes a period of the audit trail to a backup target as a signed archive
-	// (E-09, audit.md §5).
+	// (audit.md §5).
 	//
 	// A job rather than a request, and the reason is in the numbers: an export over four hundred
 	// days is as large as the tenant was busy, and it is the second operation this system has that
-	// cannot be bounded - which is why `/jobs/{id}` had to exist before this task could start.
-	// Deduplicated on the export rather than on the tenant: two jobs for one export are the same
-	// work, and two exports of different periods in one tenant are two legitimate questions.
+	// cannot be bounded - which is why it reports through `/jobs/{id}`. Deduplicated on the export
+	// rather than on the tenant: two jobs for one export are the same work, and two exports of
+	// different periods in one tenant are two legitimate questions.
 	KindAuditExport Kind = "audit.export"
-	// KindImport applies a file somebody exported elsewhere as collections under a hub (P-08):
-	// converted into archive records and landed through the restore's applier. One per import,
-	// deduplicated by the import's identifier.
+	// KindImport applies a file somebody exported elsewhere as collections under a hub
+	// (backup-restore.md §9): converted into archive records and landed through the restore's
+	// applier. One per import, deduplicated by the import's identifier.
 	KindImport Kind = "import.run"
 
 	// KindPrivacyRequest carries out a data subject request that has been started: the archive an
-	// access or portability case produces, or the erasure an erasure case is (E-10,
-	// data-protection.md §4).
+	// access or portability case produces, or the erasure an erasure case is (data-protection.md
+	// §4).
 	//
 	// A job because both are as large as the person's presence in the workspace, and because the
 	// erasure serves every storage location in the data catalogue - rows, media, the search index,
@@ -211,8 +211,8 @@ const (
 	// started once.
 	KindPrivacyRequest Kind = "privacy.request"
 
-	// KindPrivacyDeadlines watches the statutory deadlines of one tenant's open cases (E-10,
-	// data-protection.md §4): "without deadline monitoring, the right gets violated in practice
+	// KindPrivacyDeadlines watches the statutory deadlines of one tenant's open cases
+	// (data-protection.md §4): "without deadline monitoring, the right gets violated in practice
 	// even though the feature exists".
 	//
 	// The shape of the reminder poller, and for the same reason: nothing in this system may
@@ -221,7 +221,7 @@ const (
 	// a tenant that owes nothing costs a row that is not there.
 	KindPrivacyDeadlines Kind = "privacy.deadlines"
 
-	// KindWebhookDeliver sends one event to one subscription (G-03, automation.md §3.1).
+	// KindWebhookDeliver sends one event to one subscription (automation.md §3.1).
 	//
 	// One job per delivery rather than one per event, and that is the whole retry discipline: a
 	// target that is down must not hold up the events of every other subscriber, and eight
@@ -230,7 +230,7 @@ const (
 	// the event as it was, so a retry sends what the first attempt would have.
 	KindWebhookDeliver Kind = "webhook.deliver"
 
-	// KindBusPublish puts one event on the optional message bus (H-14, ADR-0042).
+	// KindBusPublish puts one event on the optional message bus (ADR-0042).
 	//
 	// A job and not a step of the dispatch, for the reason this package states about every
 	// subscriber: a subscriber runs inside the dispatcher's transaction and must not call the
@@ -243,7 +243,7 @@ const (
 	// does - so a retry publishes what the first attempt would have.
 	KindBusPublish Kind = "bus.publish"
 
-	// KindAutomationRun is one rule's reaction to one event (G-07, automation.md §2).
+	// KindAutomationRun is one rule's reaction to one event (automation.md §2).
 	//
 	// One job per matching rule rather than one per event: failure isolation per rule, the queue's
 	// backoff per rule, and a dead letter naming which rule rather than which batch. An event
@@ -255,7 +255,7 @@ const (
 	// and the queue's existing uniqueness does the rest.
 	KindAutomationRun Kind = "automation.run"
 
-	// KindAutomationHTTP performs one HTTP_REQUEST action's call (G-09, automation.md §1.3).
+	// KindAutomationHTTP performs one HTTP_REQUEST action's call (automation.md §1.3).
 	//
 	// A job rather than a call inside the engine's transaction, for the webhook deliverer's
 	// reason: an external call from inside one holds a database connection for as long as
@@ -265,7 +265,7 @@ const (
 	// would have.
 	KindAutomationHTTP Kind = "automation.http"
 
-	// KindAutomationSchedule is one tenant's wake-up for its SCHEDULE rules (G-08).
+	// KindAutomationSchedule is one tenant's wake-up for its SCHEDULE rules (automation.md §1.1).
 	//
 	// The same shape as the reminders', the recurrence materialisation's and the backup schedules':
 	// one job per tenant, rescheduling itself to the moment the tenant next owes something, seeded
@@ -280,27 +280,27 @@ const (
 	// check on demand, which is what makes "after an update" true without enumerating tenants.
 	KindAutomationCheck Kind = "automation.check"
 
-	// KindTenantExport writes one workspace's complete, documented archive to a configured
-	// backup target (H-07, tenant-export.md): the control plane's act, working for every
-	// lifecycle state - the suspended and the leaving are exactly who needs it. One job per
-	// request; the §4 concurrency quota is enforced where the job is created.
+	// KindTenantExport writes one workspace's complete, documented archive to a configured backup
+	// target (tenant-export.md): the control plane's act, working for every lifecycle state - the
+	// suspended and the leaving are exactly who needs it. One job per request; the §4 concurrency
+	// quota is enforced where the job is created.
 	KindTenantExport Kind = "tenant.export"
 
-	// KindTenantHardDelete carries out §5's final act after the 30-day grace (H-06): the media
-	// bytes store-first, the tables the cascade cannot reach, the audit trail through the one
-	// narrow purge, and the tenant row whose cascade takes the rest - each store counted into
-	// the evidence entry that outlives them all.
+	// KindTenantHardDelete carries out multi-tenancy.md §5's final act after the 30-day grace: the
+	// media bytes store-first, the tables the cascade cannot reach, the audit trail through the one
+	// narrow purge, and the tenant row whose cascade takes the rest - each store counted into the
+	// evidence entry that outlives them all.
 	//
-	// Seeded by the deletion request's own write (decision 6: nothing enumerates tenants, so
-	// there is no sweeper to find pending deletions - the request that created the debt creates
-	// the job), with RunAt at the grace's end. The handler re-reads the two facts the grace
+	// Seeded by the deletion request's own write (multi-tenancy.md §2.1: nothing enumerates
+	// tenants, so there is no sweeper to find pending deletions - the request that created the debt
+	// creates the job), with RunAt at the grace's end. The handler re-reads the two facts the grace
 	// could have changed and deletes nothing if either moved.
 	KindTenantHardDelete Kind = "tenant.hard_delete"
 
 	// KindPasswordOpeningEnd records the end of an operator's opening of the password once its time
-	// has passed (ADR-0078 §3, SC-34): the trail entry, the journal entry and the notices. The
-	// password itself closed at that moment whether or not this has run - the end is honoured where
-	// the opening is read - so the job is bookkeeping, not the end.
+	// has passed (ADR-0078 §3, identity.md §17.2): the trail entry, the journal entry and the
+	// notices. The password itself closed at that moment whether or not this has run - the end is
+	// honoured where the opening is read - so the job is bookkeeping, not the end.
 	//
 	// Seeded by the opening's own write, with RunAt at its end and the tenant as the dedupe key
 	// (per-tenant work is seeded by a write in that tenant, never by a sweep). An opening replaced
@@ -317,11 +317,11 @@ const (
 	KindSecretReseal Kind = "secret.reseal"
 
 	// KindSearchReindex rewrites the search documents of one workspace that were built under a
-	// configuration the installation has since replaced or gained (M-09, ADR-0034): the rows
-	// whose recorded configuration differs from what the resolver answers today, in batches, in
-	// the job's own transactions. One job per tenant, enqueued by a workspace administrator's
-	// request - a workspace's operation, because nothing may enumerate tenants - and
-	// deduplicated per tenant, so asking twice before the walk has finished queues nothing new.
+	// configuration the installation has since replaced or gained (ADR-0034): the rows whose
+	// recorded configuration differs from what the resolver answers today, in batches, in the job's
+	// own transactions. One job per tenant, enqueued by a workspace administrator's request - a
+	// workspace's operation, because nothing may enumerate tenants - and deduplicated per tenant,
+	// so asking twice before the walk has finished queues nothing new.
 	KindSearchReindex Kind = "search.reindex"
 )
 
@@ -424,9 +424,9 @@ type Detached interface {
 //
 // The runner calls Release once, when a job goes to the dead letter. Without it, a lock whose row
 // says RUNNING outlives the job that would have finished it: every later backup at that target is
-// refused for ever, and nothing on any dashboard says why (#207). Release is the reconciliation at
-// the moment the queue's own account of the work ends - not a retry, not a second attempt at the
-// job, only the honest closing of what the job left open.
+// refused for ever, and nothing on any dashboard says why. Release is the reconciliation at the
+// moment the queue's own account of the work ends - not a retry, not a second attempt at the job,
+// only the honest closing of what the job left open.
 //
 // It must be safe to call for a job that never took its lock (the row may not exist, or may be
 // terminal already) and safe to call twice - the runner promises one call per dead-lettered job,
@@ -441,13 +441,13 @@ type Releaser interface {
 	Release(ctx context.Context, job Job)
 }
 
-// Reporter is how a long job says how far along it is (E-05).
+// Reporter is how a long job says how far along it is.
 //
 // A second interface rather than a method on Queue, for the reason persistence.Snapshot is one:
 // almost no job needs it. Most finish in milliseconds and the honest answer to "how far along" is
-// the null E-01 documented - a client renders an indeterminate bar for it rather than a number
-// nobody measured. A method on Queue would put it on every double in the repository for the sake of
-// the one handler that runs for minutes.
+// the null api-guidelines.md §5 documents - a client renders an indeterminate bar for it rather
+// than a number nobody measured. A method on Queue would put it on every double in the repository
+// for the sake of the one handler that runs for minutes.
 type Reporter interface {
 	// Report writes the fraction, between 0 and 1, and is fenced on the job's lease like every
 	// other statement a handler runs: a worker that fell so far behind that somebody else took the
@@ -503,7 +503,7 @@ type Queue interface {
 	// when a dedupe key collapses the request into a job that is already there, the answer is that
 	// job's. A caller answering a 202 has to name something the caller of *that* can poll, and
 	// naming a row that was never written would be a job resource answering 404 for work that is
-	// happening (E-01, E-05). A caller that does not answer a 202 discards it.
+	// happening. A caller that does not answer a 202 discards it.
 	Enqueue(ctx context.Context, request Request) (shared.ID, error)
 
 	// Claim takes the next batch and marks it running until the lease expires. Implementations
@@ -513,12 +513,12 @@ type Queue interface {
 
 	// Hold takes the row lock on one claimed job for the rest of the caller's transaction.
 	//
-	// It exists for the one duty whose correctness depends on it (D-03). A job that decides when
-	// it next runs reads that moment from the data, and a write committing between that read and
-	// the reschedule would find the row RUNNING - where Enqueue's conflict clause cannot pull a
-	// wake-up forward - and its reminder would wait for a wake-up nobody scheduled. Held from the
-	// start of the pass, such a write instead waits for the pass to end and then meets either a
-	// pending row it can pull forward or a finished one it may replace.
+	// It exists for the one duty whose correctness depends on it, the reminders' wake-up. A job
+	// that decides when it next runs reads that moment from the data, and a write committing
+	// between that read and the reschedule would find the row RUNNING - where Enqueue's conflict
+	// clause cannot pull a wake-up forward - and its reminder would wait for a wake-up nobody
+	// scheduled. Held from the start of the pass, such a write instead waits for the pass to end
+	// and then meets either a pending row it can pull forward or a finished one it may replace.
 	//
 	// Every other handler is welcome to ignore it: a poller that always comes back has nothing to
 	// lose by missing a pull-forward.

@@ -28,7 +28,7 @@ type Config struct {
 	// Issuer identifies the provider and is checked against every ID token's `iss` exactly.
 	Issuer   string
 	ClientID string
-	// ClientSecret is opened from its E-02 envelope for the length of one exchange.
+	// ClientSecret is opened from its envelope (security.md §8) for the length of one exchange.
 	ClientSecret secret.Secret
 	// RedirectURL is this installation's own callback, derived from its base URL. It is never
 	// taken from a request: a redirect target a caller chooses is how authorization codes end

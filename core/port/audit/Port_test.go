@@ -131,8 +131,8 @@ func TestTheVocabularyMatchesTheSchema(t *testing.T) {
 	}
 }
 
-// The derivation E-11 states: six classes in, three masking levels out. It is written down so that
-// a gate can check a use case's decision rather than each use case deciding alone.
+// The derivation: six classes in, three masking levels out. It is written down so that a gate can
+// check a use case's decision rather than each use case deciding alone.
 func TestEveryClassDerivesItsMasking(t *testing.T) {
 	want := map[shared.DataClass]Classification{
 		shared.ClassNonPersonal:         Open,
