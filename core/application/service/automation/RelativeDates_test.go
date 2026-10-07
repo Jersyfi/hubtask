@@ -156,7 +156,7 @@ func TestARelativeDateRuleOwesItsMomentAtTheOffset(t *testing.T) {
 	}
 }
 
-// The test that matters (G-08): the moment moves when the anchor does. A system that worked the
+// The test that matters: the moment moves when the anchor does. A system that worked the
 // moment out at firing time would have to look at every entry in the workspace to find out.
 func TestTheMomentMovesWhenTheDueDateMoves(t *testing.T) {
 	due := now.Add(72 * time.Hour)

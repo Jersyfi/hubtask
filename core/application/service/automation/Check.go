@@ -24,7 +24,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// The check (ADR-0060, F8-03): every reference a rule carries resolved against what exists now,
+// The check (ADR-0060): every reference a rule carries resolved against what exists now,
 // before it fails at three in the morning.
 //
 // The two things the engine already does about a rule that cannot work - refusing it at the write
@@ -54,10 +54,10 @@ const (
 	FindingAccountGone      = "automation.finding.account_gone"
 	FindingReferenceGone    = "automation.finding.reference_gone"
 	// FindingParameterMissing is a required parameter the rule does not carry and the run cannot
-	// supply: a step that fails every time it is reached (F8-19, issue 856).
+	// supply: a step that fails every time it is reached (issue 856).
 	FindingParameterMissing = "automation.finding.parameter_missing"
 	// FindingRunnerWithoutRole is an account that exists and holds no membership anywhere on the
-	// rule's scope path: a rule that finds no entry it may touch (F8-19, issue 817).
+	// rule's scope path: a rule that finds no entry it may touch (issue 817).
 	FindingRunnerWithoutRole = "automation.finding.runner_without_role"
 )
 
@@ -95,7 +95,7 @@ type CheckRules struct {
 	Rules      repository.Rules
 	References repository.References
 	// Memberships answers whether the account the rule runs as holds a role anywhere on the
-	// rule's scope path (F8-19). Nil in a build that does not ask - the question is then not
+	// rule's scope path. Nil in a build that does not ask - the question is then not
 	// asked, as a nil Conditions asks nothing about the conditions.
 	Memberships identityrepository.Memberships
 	Catalogue   Catalogue

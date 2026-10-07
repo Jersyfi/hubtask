@@ -31,7 +31,7 @@ const (
 )
 
 // RotateInboundTrigger mints the address an INBOUND_WEBHOOK rule answers on, and replaces it
-// (G-08, automation.md §1.1).
+// (automation.md §1.1).
 //
 // One call for both, and that is the whole of "revocable by rotating": there is exactly one address
 // per rule, minting a second one replaces the first in the same statement, and a rule with two live
@@ -189,7 +189,7 @@ func (h RotateInboundTrigger) invoke(
 	}, nil
 }
 
-// StartInboundRun is the unauthenticated route's way into the engine (G-08).
+// StartInboundRun is the unauthenticated route's way into the engine.
 //
 // It is **not** a use case and is deliberately not in the catalogue, for ReadCalendarFeed's reason:
 // a catalogue entry is something a person, an agent or a rule may ask for, and this is a route

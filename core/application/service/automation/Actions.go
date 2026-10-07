@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package automation holds the use cases that write the rules (G-05, automation.md §1).
+// Package automation holds the use cases that write the rules (automation.md §1).
 //
 // Running one is somebody else's task. What is here is everything that has to be true before a rule
 // is allowed to exist, which is most of the work: a rule is data that will later be executed with a
@@ -69,7 +69,7 @@ type checkedAction struct {
 //   - a kind the documentation names and no release serves - not built yet, and the code says so;
 //   - a kind nobody has ever named - a typo, and the code says that instead;
 //   - a parameter the use case does not declare, which is the same refusal the call itself would
-//     give (C-07). A rule saved with a misspelled `parent_id` would fail at a moment nobody is
+//     give. A rule saved with a misspelled `parent_id` would fail at a moment nobody is
 //     watching, and the writer is the one person who could still fix it.
 //
 // What is *not* checked here: whether a required parameter is present, and whether its value has
@@ -174,13 +174,13 @@ func branchActions(
 //
 // This is the flip G-06 promised: until the language existed, a non-empty condition was refused
 // with a code that said so, because a rule whose owner believes it is filtering and whose behaviour
-// says otherwise is worse than one they could not save (E-08). What replaced the refusal is a real
+// says otherwise is worse than one they could not save. What replaced the refusal is a real
 // check - the expression is parsed and type-checked against exactly the names automation.md §1.2
 // declares, so a typo is answered to its author with a line and a column while they are still
 // looking at it, rather than to a log at three in the morning.
 //
 // Compiled and discarded. What is being asked here is "would this run", and the engine that will
-// run it compiles its own (G-07) - keeping the program would mean caching a rule's compilation in
+// run it compiles its own - keeping the program would mean caching a rule's compilation in
 // the use case that wrote it, which is the wrong place for a cache and the wrong lifetime.
 func checkConditions(compiler expression.Compiler, rule domain.Rule) error {
 	if compiler == nil {

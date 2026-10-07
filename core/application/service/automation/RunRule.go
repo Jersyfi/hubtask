@@ -42,7 +42,7 @@ const MaxConsecutiveFailures = 5
 // not a value anybody could write into a rule, because it happens later (automation.md §2.2's
 // fourth row: "the run is where the whole input exists"). The dispatcher merges a supplied value
 // only where the action's use case declares the field and the rule's own parameters left it unset,
-// so a rule's explicit choice always wins and no use case sees a key it never asked for (C-07).
+// so a rule's explicit choice always wins and no use case sees a key it never asked for.
 type Actions interface {
 	Dispatch(
 		ctx context.Context, runAs appshared.ActorContext, kind string,
@@ -80,7 +80,7 @@ type RunSignals interface {
 // runs failed in a row (automation.md §5). A closed set of one, named so the label has a source.
 const DisabledByStreak = "consecutive_failures"
 
-// RunRule is one rule's reaction to one event: the engine (G-07, automation.md §2).
+// RunRule is one rule's reaction to one event: the engine (automation.md §2).
 //
 // It runs inside the queue runner's transaction, which is what makes at-least-once delivery safe to
 // build on. The run row, the effects its actions had, the idempotency records that make a redelivery
@@ -91,7 +91,7 @@ const DisabledByStreak = "consecutive_failures"
 // through, as the `run_as` account, and the authoriser answers it the way it answers anybody
 // (rule 2). That is the whole point of `run_as`, and the reason G-05 spent its effort on who may
 // write a rule at all.
-// TenantRunBudget is the §4 hourly ceiling over all of a workspace's rules (H-08) - the slice
+// TenantRunBudget is the §4 hourly ceiling over all of a workspace's rules - the slice
 // this engine needs of quota.Guard.
 type TenantRunBudget interface {
 	AutomationRuns(ctx context.Context, tenant string, now time.Time) (bool, error)
@@ -114,13 +114,13 @@ type RunRule struct {
 	Labels  condition.Sets
 	Members condition.Sets
 	// Jumble is the read `payload` costs on a JUMBLE_ENTRY run: the entry, rendered as data for
-	// the conditions (G-10). Optional; without it the name resolves to an empty document.
+	// the conditions. Optional; without it the name resolves to an empty document.
 	Jumble condition.JumbleEntries
 	Guard  Idempotency
 	Owners Owners
 	// Signals carries the run into the metrics. Nil skips; the composition root always wires it.
 	Signals RunSignals
-	// Jobs is where a WAIT parks its resume (G-09). The engine runs inside the queue runner's
+	// Jobs is where a WAIT parks its resume. The engine runs inside the queue runner's
 	// transaction, so the suspended run and the job that will resume it commit together - a
 	// process that dies between them leaves neither.
 	Jobs       Queue
@@ -149,7 +149,7 @@ type Idempotency interface {
 	// Claim reserves the key and reports whether this attempt is the first. False means a previous
 	// attempt already did the work.
 	Claim(ctx context.Context, actor appshared.ActorContext, key string) (bool, error)
-	// Release lets a claim go, for the one attempt that claimed and then failed (G-09). The claim
+	// Release lets a claim go, for the one attempt that claimed and then failed. The claim
 	// and the failure commit together, so a claim that outlived its failure would make a replay
 	// find the key taken and "complete" the action without ever performing it - the claim is a
 	// record of work done, and a failed action did none.
@@ -172,7 +172,7 @@ type Command struct {
 	// run that then minted its own identifier would answer a different one. Zero everywhere else,
 	// and the engine mints one.
 	RunID shared.ID
-	// Trigger is which of the rule's six ways of starting produced this job (G-08).
+	// Trigger is which of the rule's six ways of starting produced this job.
 	//
 	// It is checked against the rule rather than trusted: a job queued by the schedule pass and a
 	// rule that has since been edited into an `EVENT` rule are a run that must not happen, and the
@@ -287,7 +287,7 @@ func (h RunRule) Execute(
 	return finished, nil
 }
 
-// resume picks a suspended run up where its WAIT parked it (G-09).
+// resume picks a suspended run up where its WAIT parked it.
 //
 // The run row is the memory: its recorded results are replayed without acting - a BRANCH descends
 // the arm its recorded answer names, a performed action is not performed again - and live
@@ -419,7 +419,7 @@ func (h RunRule) decide(
 		return run.Throttle(now), nil
 	}
 
-	// The tenant's hourly budget (H-08, multi-tenancy.md §4), after the rule's own throttle: a
+	// The tenant's hourly budget (multi-tenancy.md §4), after the rule's own throttle: a
 	// rule-throttled run consumes nothing of it. Over budget is the same visible verdict - a
 	// THROTTLED run - because a problem document has nobody to read it here. Nil skips;
 	// the composition root always wires it.
@@ -470,7 +470,7 @@ func (h RunRule) decide(
 	return run.Complete(conditions, actions, now), nil
 }
 
-// park enqueues the job that will resume a suspended run when its WAIT has passed (G-09).
+// park enqueues the job that will resume a suspended run when its WAIT has passed.
 //
 // The queue's own run_at is the delay - no worker sleeps, and a restart changes nothing, because
 // the moment lives on the job row rather than in a process. The job carries what the original
@@ -654,7 +654,7 @@ func (h RunRule) act(
 // supplied it, and every entry action on an event rule failed at the run with
 // `usecase.input_invalid` - the one input the registry validates in full, missing.
 // suppliedFields is every name supplied ever writes: what a rule may leave unset and still run.
-// The check reads it to tell a parameter the run brings from one nothing brings (F8-19), and a
+// The check reads it to tell a parameter the run brings from one nothing brings, and a
 // test holds supplied to it.
 var suppliedFields = map[string]bool{"event_id": true, "item_id": true, "entry_id": true}
 
@@ -671,7 +671,7 @@ func (c Command) supplied(values condition.Values) map[string]any {
 	}
 	if c.Trigger == domain.TriggerJumbleEntry && !c.SubjectID.IsZero() {
 		// The entry a JUMBLE_ENTRY run is about, for CONVERT_JUMBLE_ENTRY and
-		// DISMISS_JUMBLE_ENTRY (G-10): not a value a rule can carry, because the entry arrives
+		// DISMISS_JUMBLE_ENTRY: not a value a rule can carry, because the entry arrives
 		// after the rule is written.
 		supplied["entry_id"] = c.SubjectID.String()
 	}
@@ -891,7 +891,7 @@ func (h RunRule) dispatch(
 	if _, err = h.Dispatcher.Dispatch(ctx, runAs, action.Kind, action.Params, supplied); err != nil {
 		if h.Guard != nil {
 			// The claim is a record of work done, and this action did none: released, in the same
-			// transaction the failure commits in, so a replay of the run performs it (G-09).
+			// transaction the failure commits in, so a replay of the run performs it.
 			if releaseErr := h.Guard.Release(ctx, actor, key); releaseErr != nil {
 				return releaseErr
 			}

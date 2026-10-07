@@ -865,7 +865,7 @@ func TestTwoOccasionsOfOneRuleDoNotShareAnIdempotencyKey(t *testing.T) {
 
 // The engine's own guarantees do not belong to `EVENT`. Whatever started a run, the depth bound and
 // the throttle answer the same way and the run is recorded either way - which is what "each
-// producing into the engine G-07 built rather than a second execution path" means (G-08).
+// producing into the engine G-07 built rather than a second execution path" means.
 func TestEveryTriggerCarriesTheDepthBoundAndTheThrottle(t *testing.T) {
 	kinds := []domain.TriggerKind{
 		domain.TriggerEvent, domain.TriggerSchedule, domain.TriggerRelativeDate,
@@ -920,7 +920,7 @@ func TestEveryTriggerCarriesTheDepthBoundAndTheThrottle(t *testing.T) {
 	}
 }
 
-// The flow vocabulary (G-09). A branch is a nested condition, a STOP is a deliberate end, and the
+// The flow vocabulary. A branch is a nested condition, a STOP is a deliberate end, and the
 // run log names every action by its path.
 
 func branchOf(condition string, then, otherwise []map[string]any) domain.Action {
@@ -1130,7 +1130,7 @@ func TestABranchConditionThatCannotBeEvaluatedFailsTheAction(t *testing.T) {
 	}
 }
 
-// WAIT (G-09): the run suspends and a job resumes it. A WAIT of a day holds no worker, survives a
+// WAIT: the run suspends and a job resumes it. A WAIT of a day holds no worker, survives a
 // restart - the moment lives on the job row - and resumes on time, proved with the fixed clock.
 
 func waitingRule() domain.Rule {
@@ -1452,7 +1452,7 @@ func TestTheRunSuppliesTheEntryTheEventIsAbout(t *testing.T) {
 	}
 }
 
-// The JUMBLE_ENTRY runs (G-10): the conditions read the entry as data under `payload`, and the
+// The JUMBLE_ENTRY runs: the conditions read the entry as data under `payload`, and the
 // run supplies the entry to the actions a rule cannot carry it for.
 
 type jumbleEntries struct{ entry jumbledomain.Entry }
@@ -1509,7 +1509,7 @@ func TestAJumbleRunReadsTheEntryAndSuppliesIt(t *testing.T) {
 }
 
 // tenantBudgetFake answers the verdict directly - the resolution is the quota engine's, tested
-// there; this engine owes that an exhausted workspace budget throttles visibly (H-08).
+// there; this engine owes that an exhausted workspace budget throttles visibly.
 type tenantBudgetFake struct {
 	allowed bool
 	asked   int

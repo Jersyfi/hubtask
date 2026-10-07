@@ -29,7 +29,7 @@ import (
 const RelativeDatesConsumer = "automation-relative-dates"
 
 // RelativeDates keeps the moments a RELATIVE_DATE rule owes in step with the anchors it measures
-// from (G-08, automation.md §1.1).
+// from (automation.md §1.1).
 //
 // **The recompute is the substance, not the firing.** "24 hours before it is due" is a moment that
 // moves whenever the due date does, and a system that worked it out at firing time would have to

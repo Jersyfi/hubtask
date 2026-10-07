@@ -87,7 +87,7 @@ type Writer struct {
 	// Conditions compiles a rule's expressions when it is written. A port, so that the use case
 	// never learns which engine evaluates one (ADR-0009, rule 1).
 	Conditions expression.Compiler
-	// Expander works out when a SCHEDULE rule next fires, at the moment it is written (G-08).
+	// Expander works out when a SCHEDULE rule next fires, at the moment it is written.
 	//
 	// Here rather than only in the pass, for two reasons. A rule this installation cannot expand is
 	// refused to its author while they are looking at it rather than failing at three in the
@@ -96,7 +96,7 @@ type Writer struct {
 	// Jobs seeds this tenant's schedule poller. The write that makes something owed is what starts
 	// it, because nothing may enumerate tenants (multi-tenancy.md §2.1).
 	Jobs Queue
-	// Encryptor seals an HTTP_REQUEST's header secret when the rule is written (E-02, T-21). The
+	// Encryptor seals an HTTP_REQUEST's header secret when the rule is written (T-21). The
 	// application never stores a plaintext and the repository never holds a key: the sealing
 	// happens here, between the two.
 	Encryptor  crypto.Encryptor
@@ -105,7 +105,7 @@ type Writer struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Text brings the name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings the name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -224,7 +224,7 @@ func (h CreateRule) Execute(
 	}
 
 	// After every check and before the write: from here on the rule stores ciphertext or nothing,
-	// and the plaintext a caller sent exists nowhere (E-02, T-21).
+	// and the plaintext a caller sent exists nowhere (T-21).
 	if err := sealOutboundSecrets(ctx, w.Encryptor, &rule, nil); err != nil {
 		return domain.Rule{}, err
 	}
@@ -347,7 +347,7 @@ func (h UpdateRule) Execute(
 	}
 
 	// A fresh secret is sealed; the mask copies the stored one forward from the same position
-	// (E-02, T-21). After this line the new definition carries ciphertext or nothing.
+	// (T-21). After this line the new definition carries ciphertext or nothing.
 	if err := sealOutboundSecrets(ctx, w.Encryptor, &wanted, &current); err != nil {
 		return domain.Rule{}, err
 	}
@@ -502,7 +502,7 @@ func (w Writer) authorize(
 	})
 }
 
-// authorizeRead is the same question with the auditor's answer added (A-4, G-12): a rule is
+// authorizeRead is the same question with the auditor's answer added (A-4): a rule is
 // configuration, and reading how the workspace is configured to act on its own data is what an
 // auditor is for. It carries nothing else - every write above still asks the automation
 // permission on its own.
@@ -594,7 +594,7 @@ func (w Writer) authorizeWrite(
 				WithParams(map[string]string{"scope": scope})
 		}
 	}
-	// And the agent's own bound, which the scopes above do not cover (J-14).
+	// And the agent's own bound, which the scopes above do not cover.
 	//
 	// A rule runs as an *automation*, not as an agent, so the guardrail that closes a destructive
 	// use case to an agent would not fire when the rule fires. Without this an agent that may not

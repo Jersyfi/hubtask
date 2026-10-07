@@ -27,7 +27,7 @@ const (
 	RuleTriggeredAction audit.Action = "automation.rule_triggered"
 )
 
-// TriggerRuleManually starts a run because somebody asked for one (G-08, automation.md §1.1).
+// TriggerRuleManually starts a run because somebody asked for one (automation.md §1.1).
 //
 // The smallest of the five triggers this task adds, and deliberately so: it produces into the
 // engine G-07 built rather than running anything itself. What it decides is the two things a

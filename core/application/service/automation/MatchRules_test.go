@@ -31,7 +31,7 @@ type matching struct{ rules []domain.Rule }
 
 func (m matching) ForEventType(context.Context, event.Type) ([]domain.Rule, error) {
 	// The real query answers only enabled EVENT rules; the fake mirrors that much, because the
-	// jumble delivery (G-10) depends on the two kinds not leaking into each other's paths.
+	// jumble delivery depends on the two kinds not leaking into each other's paths.
 	var of []domain.Rule
 	for _, rule := range m.rules {
 		if rule.Trigger.Kind == domain.TriggerEvent {
@@ -390,7 +390,7 @@ func (rendered) Evaluate(ctx context.Context, in expression.Activation) (express
 	return expression.Value{Text: subject}, nil
 }
 
-// The JUMBLE_ENTRY trigger (G-10): an arrival fires the engine, one job per rule, with the entry
+// The JUMBLE_ENTRY trigger: an arrival fires the engine, one job per rule, with the entry
 // as subject and occasion.
 
 func jumbleArrival() event.Envelope {

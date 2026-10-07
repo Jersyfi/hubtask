@@ -170,7 +170,7 @@ func runRequest(scope domain.Scope, action audit.Action, target shared.ID) acces
 	}
 }
 
-// readRunRequest is the same question with the auditor's answer added (A-4, G-12): what a rule has
+// readRunRequest is the same question with the auditor's answer added (A-4): what a rule has
 // done to the workspace's own data is a configuration read, and reading it carries nothing.
 func readRunRequest(scope domain.Scope, action audit.Action, target shared.ID) access.Request {
 	request := runRequest(scope, action, target)
@@ -266,7 +266,7 @@ func (h ListRuleRuns) invoke(
 			WithParams(map[string]string{"kind": query.Trigger.String()}).
 			WithFields(shared.FieldError{Path: "/trigger", Code: "automation.trigger_kind_unknown"})
 	}
-	// The window (F8-02): each end parsed where it is named, and a window that ends before it
+	// The window: each end parsed where it is named, and a window that ends before it
 	// starts refused rather than answered empty - an empty page reads as "nothing ran", which
 	// is not what a reversed window means.
 	for _, field := range []struct {

@@ -243,7 +243,7 @@ func TestBothDescriptorsAreReadOnlyAndScoped(t *testing.T) {
 	}
 }
 
-// The window (F8-02) reaches the repository as two instants, half-open as the contract says; an
+// The window reaches the repository as two instants, half-open as the contract says; an
 // end that is not after the start is refused with the field named rather than answered empty,
 // and an instant that does not parse is refused at its own field.
 func TestTheWindowIsPassedThroughAndAReversedOneIsRefused(t *testing.T) {
