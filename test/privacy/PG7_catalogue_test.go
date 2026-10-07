@@ -48,7 +48,7 @@ var personalColumns = map[string]bool{
 	"user_agent": true, "ip_class": true, "subject_hash": true,
 	"redemption_token_hash": true, "secret_enc": true, "code_hash": true,
 	// A sealed API key is not personal content, but it is a SECRET the catalogue has to account
-	// for: the row that holds it says where a workspace's content may be sent (J-02).
+	// for: the row that holds it says where a workspace's content may be sent.
 	"api_key_enc": true,
 }
 
@@ -122,10 +122,10 @@ func TestPG7EveryTableWithPersonalContentIsInTheCatalogue(t *testing.T) {
 }
 
 // And the reverse, as a reading rather than a failure: a catalogue row naming a table this schema
-// does not have is either a plan (`account_mfa` and `account_identity` arrive with the sign-in flow
-// in 0.6.0) or a leftover. The gate says which names are unmatched and leaves the judgement to the
-// person reading it - failing here would make the document unable to describe anything before it
-// exists, which is what a record of processing activities is often written to do.
+// does not have is either a plan (a table a coming migration brings) or a leftover. The gate says
+// which names are unmatched and leaves the judgement to the person reading it - failing here would
+// make the document unable to describe anything before it exists, which is what a record of
+// processing activities is often written to do.
 func TestPG7TheCatalogueNamesNoTableThatVanished(t *testing.T) {
 	ctx := context.Background()
 	pool := dbtest.AdminPool(ctx, t)

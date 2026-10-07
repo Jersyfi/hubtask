@@ -13,11 +13,11 @@ import (
 // PG-3: the access export contains every field classified as personal - the catalogue reconciled
 // against the export's schema (data-protection.md §10).
 //
-// The export is the archive of E-04 filtered to one person (E-10), so "the export's schema" is two
-// things: which entities the archive carries, and which column of each makes a row somebody's. This
-// gate holds the second against the first. A table the archive carries and the export has made no
-// decision about is the failure it exists for - silence means "not exported", and the person's copy
-// is quietly short.
+// The export is the backup archive (backup-restore.md §3) filtered to one person, so "the export's
+// schema" is two things: which entities the archive carries, and which column of each makes a row
+// somebody's. This gate holds the second against the first. A table the archive carries and the
+// export has made no decision about is the failure it exists for - silence means "not exported",
+// and the person's copy is quietly short.
 func TestPG3EveryArchivedTableIsDecidedForTheExport(t *testing.T) {
 	byPerson, byAddress, excluded := privacyservice.SubjectTables()
 

@@ -17,7 +17,7 @@ import (
 // The second half is what this gate holds, because it is the half a build can decide: a period
 // below the documented floor is refused, a chain that runs past the operator's ceiling needs a
 // justification, and both refusals name the number the caller may not go past. That the job then
-// deletes and records what it deleted is E-07's own suite against a real database
+// deletes and records what it deleted is the retention suite's against a real database
 // (`test/retention`), which the nightly runs - a gate cannot prove a job ran by reading code.
 //
 // It exercises the rule rather than asserting that a test exists somewhere. A gate that checked
