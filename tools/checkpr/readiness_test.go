@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,7 +15,12 @@ import (
 	"time"
 )
 
-const readyRecord = "# PH-02 — Extending a deadline\n\n**Task:** PH-02 · issue #1087\n**Verdict:** ready <!-- exactly one of -->\n\n## 3. Decisions\n\n- [x] D1 … — decided by: worker\n\n## 4. Proof and steps\n"
+const readyRecord = "# PH-02 — Extending a deadline\n\n**Task:** PH-02 · issue #1087\n**Verdict:** ready <!-- exactly one of -->\n\n" +
+	"## 1. Premise — what is true today\n\nThe deadline is fixed · true · core/x.go:12\n\n" +
+	"## 2. Coverage and the matrix\n\n<!-- guidance -->\n(a) check 1 → this task\n\n" +
+	"## 3. Decisions\n\n- [x] D1 … — decided by: worker\n\n" +
+	"## 4. Proof and steps\n\n1. The domain rule.\n\n" +
+	"## 5. Review\n\nA second agent, fresh context: no findings; checked § 1 against the code.\n"
 
 func files(m map[string]string) func(string) ([]byte, error) {
 	return func(p string) ([]byte, error) {
@@ -51,6 +57,14 @@ func TestHistoryRules(t *testing.T) {
 			beforeCode: func(string) ([]byte, error) {
 				return []byte(strings.Replace(readyRecord, "**Verdict:** ready", "**Verdict:** waiting on the owner", 1)), nil
 			}}, record, ""},
+		{"a record without a review", "", branchFacts{known: true, opened: after, tasks: []string{"PH-02"}},
+			map[string]string{"docs/backlog/ready/PH-02.md": readyRecord[:strings.Index(readyRecord, "## 5. Review")] + "## 5. Review\n\n<!-- Who attacked this record -->\n"}, "a record without a review"},
+		{"a record whose review heading is gone", "", branchFacts{known: true, opened: after, tasks: []string{"PH-02"}},
+			map[string]string{"docs/backlog/ready/PH-02.md": readyRecord[:strings.Index(readyRecord, "## 5. Review")]}, "a record without a review"},
+		{"an empty premise", "", branchFacts{known: true, opened: after, tasks: []string{"PH-02"}},
+			map[string]string{"docs/backlog/ready/PH-02.md": strings.Replace(readyRecord, "The deadline is fixed · true · core/x.go:12\n", "<!-- claims -->\n", 1)}, "nothing under section 1"},
+		{"an empty proof section", "", branchFacts{known: true, opened: after, tasks: []string{"PH-02"}},
+			map[string]string{"docs/backlog/ready/PH-02.md": strings.Replace(readyRecord, "1. The domain rule.\n", "", 1)}, "nothing under section 4"},
 		{"a record naming another task", "", branchFacts{known: true, opened: after, tasks: []string{"PH-02"}},
 			map[string]string{"docs/backlog/ready/PH-02.md": strings.Replace(readyRecord, "**Task:** PH-02", "**Task:** PH-03", 1)}, "does not name PH-02"},
 		{"a contract change without a task", "", branchFacts{known: true, opened: after, changed: []string{"api/openapi.yaml"}}, nil, "needs settling first (it changes api/openapi.yaml)"},
@@ -86,6 +100,24 @@ func TestHistoryRules(t *testing.T) {
 				t.Fatalf("want a problem containing %q, got:\n%s", c.want, got)
 			}
 		})
+	}
+}
+
+// The template copied unchanged is guidance only: once its comments are stripped, every one of its
+// numbered sections reads as empty - which also proves the gate finds the template's headings.
+func TestTemplateSectionsAreEmpty(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "docs", "backlog", "ready", "TEMPLATE.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := htmlComment.ReplaceAllString(string(raw), "")
+	for n := 1; n <= recordSections; n++ {
+		if !strings.Contains(string(raw), fmt.Sprintf("\n## %d. ", n)) {
+			t.Errorf("the template has no section %d", n)
+		}
+		if body := strings.TrimSpace(numberedSection(record, n)); body != "" {
+			t.Errorf("section %d of the template carries text outside a comment: %q", n, body)
+		}
 	}
 }
 
