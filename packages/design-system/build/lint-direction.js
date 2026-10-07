@@ -63,7 +63,7 @@ export const RULES = [
   {
     what: 'a signed translation',
     pattern: /\btranslate(?:X|3d)?\(\s*-?(?:[1-9]\d*|0?\.\d+)/,
-    instead: 'a custom property the `:dir(rtl)` rule negates, or a logical inset',
+    instead: "a custom property a [dir='rtl'] rule negates, or a logical inset",
   },
   {
     what: 'a physical resize cursor',

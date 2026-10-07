@@ -29,6 +29,9 @@ make db-up && make migrate
 make verify         # the fast gates
 ```
 
+A new worktree has no `.tools`: run `make tools` (and `make tools-node`) in it. A copied
+`.tools/pnpm` is a shim that breaks outside its checkout.
+
 Access to the integration and production environments is the maintainers', and its credentials
 are never in this repository.
 
@@ -100,15 +103,31 @@ Everything else — the rules, the loop, the Definition of Done — is in [`AGEN
 
 A squash merge rewrites the base of every pull request stacked on it. Merge in order, and after each
 merge bring the next one up to date on the server — `gh api repos/Jersyfi/hubtask/merges -f
-base=<branch> -f head=main` — rather than rebasing locally; with `git config rerere.enabled true`
-a resolution replays when `main` moves again. Two sessions merging at once race on the same
-`main`: merge from one place at a time.
+base=<branch> -f head=main` — rather than rebasing locally. Two sessions merging at once race on the
+same `main`: merge from one place at a time. A `BEHIND` or `DIRTY` read right after a push is stale;
+read it again half a minute later.
 
 The server merge answers 409 on a conflict, which needs a checkout, and an empty answer when the
 branch already contains `main`. Its commit exists only on the remote: a checkout of that branch
 merges `origin/<branch>` before it pushes, or the push is rejected. A pull request whose base was
 squash-merged is retargeted to `main` and moved with `git rebase --onto origin/main <old-base>
 <branch>` and a force-push. Before calling a push done, `git status -sb` shows no divergence.
+
+After a squash, git has no common base for the next branch: every file the previous pull request
+touched comes back as a conflict.
+
+- Check the cheap case first: if the previous branch was up to date with `main` before it was
+  squashed, `git diff <previous tip> origin/main` is empty, and `git merge -s ours origin/main` on
+  the next branch loses nothing. The previous tip is `refs/pull/<n>/head` — head branches are
+  deleted on merge.
+- Otherwise resolve each file three-way against the fork point (`git merge-file` with
+  `git merge-base <branch> <previous tip>`), never "ours wins": that drops what `main` gained.
+  `rerere` does not replay across a squash, because the base differs.
+- Afterwards `git diff origin/main --stat` shows only the branch's own change.
+- A change that lands on `main` mid-stack (a lint, a catalogue entry) is fixed on every remaining
+  branch at once.
+- `gh pr merge --delete-branch` fails in a worktree while `main` is checked out elsewhere, after
+  the merge already happened: read the pull request's state, not the command's exit status.
 
 ## Translating
 

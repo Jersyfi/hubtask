@@ -32,7 +32,9 @@ cover is extended there, not in a private stub, so the next walk and the engine 
 a real server, because the fixture agrees with whatever the client sends.
 
 1. A server and a database: `make db-up && make migrate && make run ROLES=api`, or the image through
-   `deploy/docker/compose.yaml` (`make gate-compose` builds it).
+   `deploy/docker/compose.yaml` (`make gate-compose` builds it). `make run` is `go run`: stopping
+   the parent leaves the server on its port, so a walk driven by a process manager runs a built
+   binary (`go build -o`).
 2. A workspace somebody can sign in to: `scripts/dev-workspace.sh --bootstrap`, then
    `scripts/dev-workspace.sh` — through the product's own operations, password included.
 3. Raise `HUBTASK_RATE_LIMIT_BURST` for the walk (600 is enough): a cold entry page is a burst of

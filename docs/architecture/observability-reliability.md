@@ -359,7 +359,9 @@ else, because a rule reading a series the installation has no component for is s
   without one.
 * `promtool check rules` checks every expression; `promtool test rules` drives every alert's
   condition from crafted series and matches its labels and annotations in full, one test file per
-  rule file. The burn pair proves the negative too: an outage that ended fires neither A-01 nor A-02.
+  rule file. The burn pair proves the negative too: an outage that ended fires neither A-01 nor A-02. An
+  expected annotation includes the trailing newline a YAML `>` block leaves: take it from
+  promtool's "got" output rather than typing it.
 * The dashboards: the shipped set is the one this section names, no two share a uid, `slo.json`
   has a row for every objective, and every `tenant.json` panel reading `tenant_id` carries its
   notice.

@@ -175,7 +175,8 @@ in every `.svelte` and `.css` file under `apps/` and `packages/`, and `conventio
 selftest before trusting it. A line that has to name a side carries `design-system-lint-ignore`
 with its reason. An icon that points the way the text runs — an arrow, a chevron, the two marks that
 draw a flow — turns round with it by itself: `Icon` reads the mirrored set `build/icons.js` declares
-and flips the glyph under `:dir(rtl)`, so no call site has to know the direction.
+and flips the glyph under `[dir='rtl']`, so no call site has to know the direction. Not `:dir(rtl)`:
+Chromium does not match it on an element inserted after its ancestor's `dir` was set.
 
 The scale is in `px` rather than `rem`, which is a decision and not an oversight: the steps are a
 type scale rather than a set of multiples, and a `rem` scale would move all of them the moment a
@@ -1042,7 +1043,7 @@ language, the time zone and the first day of the week
   two colour values it may name are `currentColor` and `none`.
 * **The stroke scales with the box**: 1.5 at 24 px, 2.25 at 16 px, so every size reads as one set.
 * Every icon carries an accessible name or is marked decorative (§10, 1.1.1). A directional mark is
-  in the mirrored set and turns round under `:dir(rtl)` (§3).
+  in the mirrored set and turns round under `[dir='rtl']` (§3).
 * **A mark joins the list when it names a concept the product repeats**, not when it decorates one
   row. A row whose concept appears once takes the nearest mark the set already has. A mark is added
   by naming it in `build/icons.js` under the group that asks for it and running `make icons`; an

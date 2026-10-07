@@ -41,7 +41,7 @@ fixes its first instance.
 | **Migration and ADR numbers taken by unmerged branches collide.** A migration collision turns several container jobs red at once, and only the Go jobs print `goose: duplicate version`; two ADRs collide on the index rows of `docs/adr/README.md` and `arc42.md` §9 too. | new migrations, new ADRs | take the number from all remote branches right before writing the file, and again before leaving draft; on a collision `main` keeps the number — the branch renumbers (a migration only if it was never applied anywhere, with no commit left holding two files at one version) and rewrites every reference |
 | **`CONCURRENTLY` cannot run in a `DO` block**, and `CREATE EXTENSION` needs a superuser. | conditional migrations | separate the conditional part; document the grant. An index on a table the same block just created is built without `CONCURRENTLY` (nobody reads it yet — say so in a comment); a migration without the right to create an extension treats `insufficient_privilege` as absence. A bare `exit 1` from `gate-compose` or `gate-e2e`: read `compose logs migrate` |
 | **Rank keys need byte order** (`COLLATE "C"`); a glibc collation interleaves them, and CI's musl image hides it. | `order_key` queries | state the collation in the query |
-| **`id <> $moving_id` with an empty id** empties the level or answers 500. | rank-neighbour queries | never pass an empty id |
+| **`id <> $x` with an empty or null `$x`** compares against nothing: the level comes back empty, or the query answers 500. | rank-neighbour and "all but this one" queries | `id IS DISTINCT FROM sqlc.narg('x')::uuid`, as `Work.sql` and `Structure.sql` do |
 | **The audit hash covers the stored shape**, not the one the caller built. | audit entries, renames | read back, then hash; never rewrite a stored row |
 | **Restore and import treat credentials differently.** A backup keeps password hashes; an export strips them with every token hash, so accounts brought in from an export have no password. A destructive restore ends the sessions and tokens of the accounts it rewrites. | restore, import | say what a person must do after; nobody is locked out without a way back |
 | **The integration tests share one database**: the hub level is tenant-wide, and `write()` opens a pool per call. | `test/integration` | own tenants and rank keys; one pool in a loop; run the whole package; drop any object a test creates (index, constraint, function) in `t.Cleanup`, or the schema-reference test reports it as drift in a full run |
@@ -77,7 +77,7 @@ fixes its first instance.
 | **A message code runs the Go lane**: `locales/**` is in CI's `go` filter because the binary embeds the catalogue, so a client-only pull request adding a code runs every Go gate — and waits for a red `gate-security` on `main` to be fixed. | expect the Go gates; fix an open advisory first (take the named version, `make licenses`) |
 | **`grep -q` after a pipe under `set -o pipefail` reports a match as a failure**: `grep` exits on the first match and the writer dies of SIGPIPE. | match a variable or a here-string |
 | **A local composite action hides its pins**: the pin check scans only `.github/workflows`. | no third-party `uses:` under `.github/actions/` until the scan covers it |
-| **A red CodeQL check shows no detail**, and `make verify` cannot see it (gosec carries other queries). The alert belongs to `refs/pull/<n>/merge` and may sit in a file the pull request only touched — or one alert open on `main` already. CodeQL is not a required check. | read it with `gh api "repos/<owner>/<repo>/code-scanning/alerts?ref=refs/pull/<n>/merge"`; bind a bound to one variable, guard it, allocate from it, and drop the now unneeded `//nolint:gosec` |
+| **A red CodeQL check shows no detail**, and `make verify` cannot see it (gosec carries other queries). The alert belongs to `refs/pull/<n>/merge` and may sit in a file the pull request only touched — or one alert open on `main` already. CodeQL is not a required check. | read it with `gh api "repos/<owner>/<repo>/code-scanning/alerts?ref=refs/pull/<n>/merge"`, and the flow behind it from the analysis (`…/code-scanning/analyses?ref=…`, fetched with `Accept: application/sarif+json`) before renaming anything — an identifier containing "password" is sensitive to CodeQL by its name alone; bind a bound to one variable, guard it, allocate from it, and drop the now unneeded `//nolint:gosec` |
 | **`Closes #n` closes one issue per bare line**; inside a code span it closes nothing, and `gate-pr` checks only that one bare line exists. | one bare `Closes #n` line per issue; confirm each issue's state after the merge |
 | **A decomposed fixture typed as text arrives composed**: editors normalise what they write, so a normalisation test proves nothing. | write decomposed fixtures as escapes and assert they differ from their composed twin |
 | **A premise in a task can be wrong** — "nothing does X" while the code has done it for months. | check every claim against the code (readiness record §1) |
@@ -87,7 +87,10 @@ fixes its first instance.
 
 One red on a diff that does not touch the area: re-run the job once before reading code. Two in a
 row is a real failure — except `make tools`: when the failing step in every red job is `make tools`
-and the error names a `sum.golang.org` tile, re-run up to three times, then call it an outage.
+and the error names a `sum.golang.org` tile, re-run up to three times, then call it an outage. Two `make verify` runs in parallel worktrees, or a
+walk's Docker stack beside the web app's engine tests, load the machine into timeouts: run them one
+after another and read a wall of timeouts as load first. `gh run rerun --failed` is refused while
+the run is still going.
 
 | Test | Symptom |
 |---|---|
@@ -96,4 +99,5 @@ and the error names a `sum.golang.org` tile, re-run up to three times, then call
 | `TestTheSessionSweepStaysInsideTheTenantAndTakesOnlyTheOver` | wall-clock sensitive in the shared integration database |
 | hubctl e2e, AI-stub section | "no suggestion arrived within 90s" while the stub image is still being pulled |
 | engines, Firefox | `cursor` `undefined` on the first assertion; green on re-run |
+| RT-1's container test | a Docker Hub token error pulling `nginx:alpine`; green on re-run |
 | a Testcontainers gate run locally | `address already in use` on a random high port: another worktree's container on the shared Docker daemon took it — re-run the gate alone. A fixed port (18081, 19091) is a real collision |

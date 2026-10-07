@@ -5,7 +5,8 @@ An ADR records **why and when** a decision was taken. The rule itself lives in a
 read that section for what holds today ([ADR-0081](./ADR-0081-how-work-is-organised.md)).
 
 - One file per decision, short: context, decision, consequences, and the `Rule lives in` line.
-- Not edited once accepted, apart from its status line. A change is a new ADR plus the change in the
+- Not edited once accepted, apart from its status line (a few older ADRs carry addenda from before
+  this rule). A change is a new ADR plus the change in the
   subject document, in the same pull request; the new one says what it supersedes.
 - Take the number from all remote branches right before writing the file, not from this folder:
   unmerged branches hold numbers too.

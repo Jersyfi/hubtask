@@ -98,6 +98,9 @@ branch's first commit. Its verdict is `ready`, or `waiting on the owner` naming 
 issues — code that does not depend on them may start, but the pull request leaves draft only when
 the verdict is `ready`. After the merge the record is a snapshot: nobody updates it.
 
+After creating a milestone's issues, compare each issue body with its task in the milestone file —
+the issue is only a copy, and copies have been created shifted by one.
+
 ## Decisions
 
 A question for the owner is a GitHub issue labelled `decision`, opened from its template: what it is
