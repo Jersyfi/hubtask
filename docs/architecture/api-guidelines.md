@@ -28,7 +28,7 @@ The contract lists every route; this table is the map. Paths are below `/api/v1`
 | The workspace itself | `/tenant` | `GET`, `PATCH` — one workspace as its members see it: the display name, the two defaults every member falls back to, and the switch that demands a second factor of its administrators. Not `/admin/tenants`, which crosses workspaces and is the installation operator's |
 | Installation (admin) | `/admin/tenants`, `/admin/settings`, `/admin/operators`, `/admin/identity-providers`, `/admin/encryption`, `/admin/overview`, `/admin/journal` | `GET`, `POST`; tenant actions `:suspend`, `:resume`, `:delete`, `:export`, `:open-password`, `:close-password`; `/admin/encryption:reseal` ([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md)) |
 | Accounts | `/accounts:invite`, `/accounts/me`, `/accounts/{id}`, `…/preferences`, `…/notification-preferences` | `GET`, `POST`, `PATCH`, `PUT` |
-| Sign-in and credentials | `/auth/sessions`, `/auth/password`, `/auth/mfa/…`, `/auth/step-up`, `/auth/tokens`, `/auth/service-accounts`, `/auth/oidc:…`, `/oauth/…`, `/identity-provider(s)` | see the contract; the rules are in [security.md](./security.md) §5 |
+| Sign-in and credentials | `/auth/sessions`, `/auth/password`, `/auth/mfa/…`, `/auth/step-up`, `/auth/tokens`, `/auth/service-accounts`, `/auth/oidc:…`, `/oauth/…`, `/identity-provider(s)` | see the contract; the rules are in [identity.md](./identity.md) |
 | Groups, memberships | `/groups`, `/memberships` | CRUD; `GET`, `POST`, `DELETE` |
 | Containers (hub/collection) | `/containers` | CRUD, `:move`, `:reorder`, `:archive`, `:unarchive`, `:restore`, `PUT …/policies` |
 | Items | `/items` | CRUD, `:query`, `:move`, `:reorder`, `:complete`, `:reopen`, `:duplicate`, `:bulk`, `:archive`, `:unarchive`, `:restore`, `:purge`, `:retain`, `:assign`, `:unassign`, `:auto-assign` |
@@ -214,7 +214,7 @@ does not help, which is what separates it from `429`. AI that is off or out of r
 ## 7. Authentication at the API
 
 The API authenticates with a bearer token and never with a cookie; CORS therefore never allows
-credentials. Token shapes, lifetimes and storage are in [security.md](./security.md) §5.
+credentials. Token shapes, lifetimes and storage are in [identity.md](./identity.md) §14 and §15.
 
 | Method | Used for | Note |
 |---|---|---|

@@ -31,8 +31,8 @@
 
   $effect(() => {
     // The digest below reads what the other screens read, which is why they are opened here: the
-    // concept's overview shows the *values* — "Minimum length 12 · second factor for admins 🔒 ·
-    // Google, Microsoft offered" — rather than a list of links to go and find them.
+    // overview shows the *values* — the password minimum, the second factor, the providers offered —
+    // rather than a list of links to go and find them.
     const stops = untrack(() => [
       instance.openOverview(),
       instance.openSettings(),
@@ -64,7 +64,7 @@
     };
   });
 
-  /** The installation's providers, by name, which is what the concept's own mock-up prints. */
+  /** The installation's providers, by name, as the overview prints them. */
   const offered = $derived(instance.providers.map((provider) => provider.display_name));
 
   /** The newest journal entry, as the overview's one line of "what happened". */
@@ -73,9 +73,8 @@
   /**
    * The areas this level will hold and does not yet.
    *
-   * Held open rather than left out: the concept's §5.3 says of the rows it defers that "hier wird
-   * nur der Platz dafür freigehalten", and a reader who cannot see that a thing is coming cannot
-   * tell it apart from a thing nobody thought of.
+   * Held open rather than left out: a reader who cannot see that a thing is coming cannot tell it
+   * apart from a thing nobody thought of (P-11).
    */
   const later = [
     { id: 'ai', code: 'app.instance.later_ai' },
