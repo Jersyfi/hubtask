@@ -20,7 +20,8 @@ import (
 //   - every use case cites personas, deployments and principles that exist in docs/vision, so a
 //     reviewer following `serves: [P-06]` lands on the principle it names;
 //   - every use case carries the three sections that make it checkable - Goal, How to check (with
-//     at least one numbered check) and Where it ends - and a Today section while it is not built;
+//     at least one numbered check) and Where it ends - and, while it is not built, a Today section
+//     with one line per check not met, which is gone once it is built;
 //   - the index lists every use case with the state the file declares, because the index is what a
 //     reader skims and a state that drifted there is a promise nobody is keeping;
 //   - every UC-… cited anywhere in the repository exists; what a milestone delivers is in
@@ -251,10 +252,49 @@ func checkUseCase(root string, uc useCase, personas, deployments, principles map
 	if checks, ok := sections["How to check"]; ok && !numbered.MatchString(checks) {
 		add("## How to check has no numbered check")
 	}
-	if state == "specified" || state == "partial" {
-		if _, ok := sections["Today"]; !ok {
-			add("a %s use case says in ## Today what is not met yet", state)
+	today, hasToday := sections["Today"]
+	switch {
+	case (state == "specified" || state == "partial") && !hasToday:
+		add("a %s use case says in ## Today what is not met yet", state)
+	case (state == "built" || state == "verified") && hasToday:
+		add("a %s use case has no ## Today - every check is met, so nothing is left to list", state)
+	}
+	if hasToday {
+		problems = append(problems, todayProblems(uc.path, today, numberedChecks(sections["How to check"]))...)
+	}
+	return problems
+}
+
+// todayProblems holds a Today section to what it is for: one line per check not met yet, naming
+// the check, and nothing else - a Today that narrates is a second description of the use case that
+// drifts from the first.
+func todayProblems(path, today string, checks map[int]bool) []string {
+	var problems []string
+	listed := map[int]bool{}
+	for _, line := range strings.Split(today, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
 		}
+		m := todayLine.FindStringSubmatch(line)
+		if m == nil {
+			short := strings.TrimSpace(line)
+			if len(short) > 60 {
+				short = short[:60] + "…"
+			}
+			problems = append(problems, fmt.Sprintf("%s: ## Today has %q - each line is \"* Check n: not met — …\" for one check", path, short))
+			continue
+		}
+		n, _ := strconv.Atoi(m[1])
+		switch {
+		case !checks[n]:
+			problems = append(problems, fmt.Sprintf("%s: ## Today lists check %d, which ## How to check does not have", path, n))
+		case listed[n]:
+			problems = append(problems, fmt.Sprintf("%s: ## Today lists check %d twice - one line per check", path, n))
+		}
+		listed[n] = true
+	}
+	if len(listed) == 0 {
+		problems = append(problems, fmt.Sprintf("%s: ## Today names no check - it lists each check not met yet, one line each", path))
 	}
 	return problems
 }
