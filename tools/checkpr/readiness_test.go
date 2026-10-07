@@ -61,6 +61,15 @@ func TestHistoryRules(t *testing.T) {
 		{"a merged migration changed", "", branchFacts{known: true, opened: before, altered: []change{{"M", "db/migrations/0001_init.sql"}}}, nil, "is a merged migration"},
 		{"a merged migration changed by an ADR", "Changes a merged migration: ADR-0052", branchFacts{known: true, opened: before, altered: []change{{"M", "db/migrations/0001_init.sql"}}}, nil, ""},
 		{"a use case deleted", "", branchFacts{known: true, opened: before, altered: []change{{"D", "docs/usecases/work/UC-WRK-01-x.md"}}}, nil, "never removed"},
+		{"a use case's checks changed without a word", "", branchFacts{known: true, opened: after, ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md"}}}, nil, "changes the Goal, How to check or Where it ends of UC-WRK-01"},
+		{"a use case's checks changed as a correction", "Readiness: n/a — a wrong number\n\n## Use cases\n\n- UC-WRK-01: check 4 — correction, it named check 5\n",
+			branchFacts{known: true, opened: after, ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md"}}}, nil, ""},
+		{"a use case's checks changed by a decision", "Readiness: n/a — the owner's answer\n\n## Use cases\n\n- UC-WRK-01: Where it ends — decision #1201\n",
+			branchFacts{known: true, opened: after, ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md"}}}, nil, ""},
+		{"the word on another use case's line", "Readiness: n/a — x\n\n## Use cases\n\n- UC-WRK-01: check 1 — met\n- UC-WRK-02: correction\n",
+			branchFacts{known: true, opened: after, ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md"}}}, nil, "of UC-WRK-01"},
+		{"a new use case needs no correction", "", branchFacts{known: true, opened: after, ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md", added: true}}}, nil, ""},
+		{"a use case's checks changed before the rule", "", branchFacts{known: true, opened: before, ucText: []ucTextChange{{id: "UC-WRK-01", path: "docs/usecases/work/UC-WRK-01-x.md"}}}, nil, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -75,8 +84,10 @@ func TestHistoryRules(t *testing.T) {
 	}
 }
 
-// The history is read from a real repository: the trailer, the changed paths, and the record as it
-// stood before the first commit outside docs/.
+const useCaseFile = "---\nid: x\n---\n\n## Goal\n\nA person keeps a hub private.\n\n## How to check\n\n1. A person sees it.\n\n## Where it ends\n\nHere.\n\n## Today\n\n* Check 1: not met — x\n"
+
+// The history is read from a real repository: the trailer, the changed paths, the use cases whose
+// owner-held text changed, and the record as it stood before the first commit outside docs/.
 func TestReadHistory(t *testing.T) {
 	dir := t.TempDir()
 	run := func(args ...string) {
@@ -102,6 +113,8 @@ func TestReadHistory(t *testing.T) {
 	}
 	run("init", "-q", "-b", "main")
 	write("db/migrations/0001_init.sql", "-- one\n")
+	write("docs/usecases/work/UC-WRK-01-a.md", useCaseFile)
+	write("docs/usecases/work/UC-WRK-02-b.md", useCaseFile)
 	run("add", "-A")
 	run("commit", "-q", "-m", "base")
 	run("checkout", "-q", "-b", "work")
@@ -110,12 +123,19 @@ func TestReadHistory(t *testing.T) {
 	run("commit", "-q", "-m", "docs: the record\n\nTask: PH-02")
 	write("core/x.go", "package x\n")
 	write("db/migrations/0001_init.sql", "-- changed\n")
+	write("docs/usecases/work/UC-WRK-01-a.md", strings.Replace(useCaseFile, "1. A person sees it.", "1. A person sees it at once.", 1))
+	write("docs/usecases/work/UC-WRK-02-b.md", strings.Replace(useCaseFile, "* Check 1: not met", "* Check 1: not met in the web app", 1))
+	write("docs/usecases/work/UC-WRK-03-c.md", strings.Replace(useCaseFile, "A person", "Another person", 1))
 	run("add", "-A")
 	run("commit", "-q", "-m", "feat: the code\n\nTask: PH-02")
 
 	facts, err := readHistory(dir, "main", "work", time.Time{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(facts.ucText) != 2 || facts.ucText[0].id != "UC-WRK-01" || facts.ucText[0].added ||
+		facts.ucText[1].id != "UC-WRK-03" || !facts.ucText[1].added {
+		t.Errorf("the use case text changes: want UC-WRK-01 changed and UC-WRK-03 added, a Today edit not counted; got %+v", facts.ucText)
 	}
 	if len(facts.tasks) != 1 || facts.tasks[0] != "PH-02" {
 		t.Errorf("tasks: %v", facts.tasks)

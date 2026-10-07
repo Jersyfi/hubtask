@@ -9,7 +9,8 @@ every task is checked against. The format and the states are in [`README.md`](./
   owner.** If the code cannot meet a check, or a check asks for the wrong thing, stop and report it
   in a `decision` issue and the pull request. A check rewritten to match what was built is the drift
   this folder exists to prevent. A wrong reference, check number or typo is a correction: fix it,
-  and mark it `correction` in the pull request's *Use cases* section.
+  and mark it `correction` on that use case's line in the pull request's *Use cases* section; a
+  change the owner decided is marked `decision #<issue>` there.
 * **No use case deleted or renumbered.** One that no longer applies moves to `state: retired` with
   a line saying why. An ID is never reused.
 * **No new use case unless the owner asked for it**, in the conversation or the task — and then

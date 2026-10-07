@@ -89,7 +89,9 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
   request — one per batch, never on a task branch — that closes the issues. `[owner]`
 - No pull request is stacked on a task `waiting on the owner`. `[unchecked: not yet gated]`
 - A use case's *Goal*, *How to check* and *Where it ends*, and anything in `docs/vision/`, change
-  only by the owner's decision. `[owner]`
+  only by the owner's decision; the description names each such change in a use case as
+  `correction` or `decision #<issue>`. `[partial: gate-pr; open: whether the owner decided, and
+  docs/vision/]`
 - A rule lives in its subject document; an ADR records why and names that place. Numbered sections
   of subject documents are never renumbered. `[partial: gate-docs; open: a renumbered section]`
 - No file named `CLAUDE.md`, `CLAUDE.local.md` or `AGENTS.override.md` is committed — it would hide

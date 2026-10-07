@@ -20,9 +20,12 @@ import (
 //   - A merged migration never changes (rule 12) unless the description names the ADR that
 //     allows it: `Changes a merged migration: ADR-nnnn`.
 //   - A use case is never deleted; one that no longer applies is retired, its ID kept.
+//   - A change to a use case's Goal, How to check or Where it ends is named in the description as
+//     a correction or as the owner's decision (usecasetext.go).
 //
-// What it cannot see: whether the record is good and whether the review was independent. Those
-// stay with the people who read it.
+// What it cannot see: whether the record is good and whether the review was independent, and
+// whether the owner did decide what a description says was decided. Those stay with the people
+// who read it.
 
 // readinessSince is when the readiness rule took effect. A pull request opened before it was
 // written under the earlier process and is not held to it.
@@ -38,7 +41,14 @@ type branchFacts struct {
 	tasks      []string
 	changed    []string
 	altered    []change
+	ucText     []ucTextChange
 	beforeCode func(path string) ([]byte, error)
+}
+
+// ucTextChange is a use case whose Goal, How to check or Where it ends the branch changes.
+type ucTextChange struct {
+	id, path string
+	added    bool
 }
 
 var (
@@ -78,6 +88,9 @@ func historyProblems(body string, facts branchFacts, read func(string) ([]byte, 
 		}
 	}
 
+	if heldTo(facts.opened, ucTextSince) {
+		problems = append(problems, ucTextProblems(body, facts.ucText)...)
+	}
 	if !heldTo(facts.opened, readinessSince) {
 		return problems
 	}
