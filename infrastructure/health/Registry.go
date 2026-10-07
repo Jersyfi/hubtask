@@ -138,7 +138,7 @@ func (r *Registry) Report(ctx context.Context) port.Report {
 		}
 
 		// The probe's own code where it gave one, so a client can tell "cannot be reached" from
-		// "configured with something this installation cannot use" (#569); the generic code where
+		// "configured with something this installation cannot use"; the generic code where
 		// it did not, which is every outage.
 		reason := "dependency.unavailable"
 		if res.ErrorCode != "" {

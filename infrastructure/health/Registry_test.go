@@ -219,7 +219,7 @@ func TestReadinessFollowsTheLifecycle(t *testing.T) {
 }
 
 // A probe that gives its own reason is quoted, so a client can tell "cannot be reached" from
-// "configured with something this installation cannot use" (#569); one that gives none is the
+// "configured with something this installation cannot use"; one that gives none is the
 // generic outage, which is every dependency that is simply down.
 func TestAProbesOwnReasonReachesTheDegradedFeature(t *testing.T) {
 	registry := startedRegistry(
