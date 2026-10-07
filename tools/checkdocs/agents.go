@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -32,8 +33,53 @@ func checkRuleTags(root string) []string {
 	return ruleTagProblems(agents, targets, jobs)
 }
 
-func ruleTagProblems(agents string, targets, jobs map[string]bool) []string {
+// frozenHeadings are cited by older documents, migrations and ADRs by their words ("CLAUDE.md rule
+// N", "The loop for every task", step 6): they stay as they are, and so do the rule numbers and the
+// loop's step numbers.
+var frozenHeadings = []string{"Rules that do not bend", "What you do not decide yourself", "The loop for every task", "Which command checks what"}
+
+var (
+	ruleNumber = regexp.MustCompile(`(?m)^\|\s*(\d+)\s*\|`)
+	loopStep   = regexp.MustCompile(`(?m)^(\d+)\.\s`)
+)
+
+// frozenProblems holds the cited headings to their words, the rules to the numbers 1 to 15 and on
+// without a gap, and the loop to its steps 1 to 7.
+func frozenProblems(agents string) []string {
 	var problems []string
+	for _, title := range frozenHeadings {
+		if _, ok := sectionBody(agents, title); !ok {
+			problems = append(problems, fmt.Sprintf("AGENTS.md: the heading %q is gone - it is cited by its words, so it stays as it is", title))
+		}
+	}
+	if rules, ok := sectionBody(agents, "Rules that do not bend"); ok {
+		numbers := ruleNumber.FindAllStringSubmatch(rules, -1)
+		for i, m := range numbers {
+			if m[1] != strconv.Itoa(i+1) {
+				problems = append(problems, fmt.Sprintf("AGENTS.md § Rules that do not bend: rule %s stands where rule %d belongs - a rule's number is permanent, a new rule takes the next one", m[1], i+1))
+				break
+			}
+		}
+		if len(numbers) < 15 {
+			problems = append(problems, fmt.Sprintf("AGENTS.md § Rules that do not bend: %d rules, not 15 - a rule is never removed, its number is cited", len(numbers)))
+		}
+	}
+	if loop, ok := sectionBody(agents, "The loop for every task"); ok {
+		// The steps are the list before the first subsection; "Reading" numbers its own.
+		loop, _, _ = strings.Cut(loop, "\n### ")
+		var steps []string
+		for _, m := range loopStep.FindAllStringSubmatch(loop, -1) {
+			steps = append(steps, m[1])
+		}
+		if strings.Join(steps, " ") != "1 2 3 4 5 6 7" {
+			problems = append(problems, fmt.Sprintf("AGENTS.md § The loop for every task: the steps are numbered %v, not 1 to 7 - the step numbers are cited", steps))
+		}
+	}
+	return problems
+}
+
+func ruleTagProblems(agents string, targets, jobs map[string]bool) []string {
+	problems := frozenProblems(agents)
 	for _, section := range taggedSections {
 		body, ok := sectionBody(agents, section)
 		if !ok {
@@ -139,12 +185,21 @@ func makeTargets(makefile string) map[string]bool {
 	return out
 }
 
-var ciJob = regexp.MustCompile(`(?m)^  ([a-z0-9][a-z0-9-]*):\s*$`)
+var ciJob = regexp.MustCompile(`^  ([a-z0-9][a-z0-9-]*):\s*$`)
 
+// ciJobs reads the job ids under `jobs:` - only there: `on:` has keys at the same depth (`push:`,
+// `pull_request:`) that are no job a rule could be checked by.
 func ciJobs(workflow string) map[string]bool {
 	out := map[string]bool{}
-	for _, m := range ciJob.FindAllStringSubmatch(workflow, -1) {
-		out[m[1]] = true
+	inJobs := false
+	for _, line := range strings.Split(workflow, "\n") {
+		if line != "" && line[0] != ' ' && line[0] != '#' {
+			inJobs = strings.TrimSpace(line) == "jobs:"
+			continue
+		}
+		if m := ciJob.FindStringSubmatch(line); inJobs && m != nil {
+			out[m[1]] = true
+		}
 	}
 	return out
 }

@@ -21,7 +21,9 @@
 //   - Every statement of the Go version agrees with go.mod. It is repeated in thirty places
 //     across eight files, and a base image bumped on its own would have the release built by a
 //     compiler no gate ever ran.
-//   - Every rule in AGENTS.md says what checks it, and a gate it names exists (agents.go).
+//   - Every rule in AGENTS.md says what checks it, and a gate or CI job it names exists; the
+//     headings older text cites keep their words, the rules their numbers, the loop its steps
+//     (agents.go).
 //   - Every ADR says where its rule lives now, because an ADR is the record of why and the
 //     current rule is in a subject document (agents.go).
 //   - Code cites what keeps resolving: every "file.md §N" exists, and no comment cites a task, an
