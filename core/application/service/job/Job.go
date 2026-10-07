@@ -4,8 +4,7 @@
 // Package job is the caller's half of the queue: finding out how a piece of background work is
 // getting on, and stopping it.
 //
-// It is the application layer for a resource three `202 Accepted` responses have been pointing at
-// since A-06. Nothing here claims, leases or retries anything - that is the runner's side, and it
+// It is the application layer for the resource the `202 Accepted` responses point at. Nothing here claims, leases or retries anything - that is the runner's side, and it
 // lives in presentation/worker over core/port/queue.
 package job
 
@@ -85,8 +84,8 @@ type Query struct {
 // anchored to nothing - no hub, no collection, no entry - so there is no path to resolve a
 // hub-scoped membership along. What that costs is named rather than hidden: somebody whose
 // membership sits on one hub cannot poll a job, and the day a job kind exists that an ordinary
-// member starts, the row will have to say who started it. Every job kind this milestone creates -
-// a backup, a restore, a retention sweep - is the workspace's rather than one hub's.
+// member starts, the row will have to say who started it. A backup, a restore and a
+// retention sweep are the workspace's rather than one hub's.
 func (h GetJob) Execute(
 	ctx context.Context, actor appshared.ActorContext, query Query,
 ) (domain.Job, error) {
