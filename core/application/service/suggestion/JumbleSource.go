@@ -24,8 +24,8 @@ import (
 // another and the staleness check would pass for a suggestion made from something else.
 type CatalogueSources struct {
 	Catalogue Catalogue
-	// Profiles is the shape a template may take (P-11), read for that one prompt. Nil in a
-	// build that never asks it, and the question then fails by name.
+	// Profiles is the shape a template may take, read for that one prompt. Nil in a build that
+	// never asks it, and the question then fails by name.
 	Profiles metarepo.CapabilityProfiles
 }
 
@@ -49,7 +49,7 @@ func (s CatalogueSources) Material(
 		return s.item(ctx, actor, targetID, promptID)
 	case domain.TargetContainer:
 		// A collection is read for two questions, and the source that reads it is the one the
-		// prompt names (P-11).
+		// prompt names.
 		if promptID == templatePrompt {
 			return s.templateMaterial(ctx, actor, targetID)
 		}
@@ -76,10 +76,9 @@ func (s CatalogueSources) entry(
 	if err != nil {
 		return Material{}, err
 	}
-	// `data`, which is what a page answers under (api-guidelines.md §4). It was `items` until
-	// J-16: the key was wrong, so the loop below always saw an empty list and every suggestion
-	// about a jumble entry was refused `suggestions.not_found` - and the test fakes invented the
-	// wrong key too, so nothing but a real registry could say so.
+	// `data`, which is what a page answers under (api-guidelines.md §4). Any other key makes the
+	// loop below see an empty list, so no entry is ever found to ask about - and a test fake that
+	// invents the same wrong key agrees with the defect, so only a real registry can tell.
 	entries, _ := out["data"].([]usecase.Output)
 	for _, entry := range entries {
 		if entry.String("id") != entryID.String() {
@@ -154,7 +153,8 @@ func (s CatalogueSources) set(
 		return s.vocabulary(ctx, actor, item)
 	default:
 		// A key named in `choiceSets` and read by nothing would be a set a model is asked to
-		// choose from and never shown - which is the leak the whole milestone is about.
+		// choose from and never shown, and a model may pick only from a set it was shown
+		// (ai-first.md §2).
 		return Choices{}, shared.ErrInternal.
 			WithDetail("suggestions.choices_unknown").
 			WithParams(map[string]string{"key": key})

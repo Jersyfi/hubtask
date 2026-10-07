@@ -95,7 +95,7 @@ type Cases struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	// Requests holds the words a question is asked with where it has no material of its own to
-	// read (P-11), and IDs names the row. Both nil in a build that asks no such question.
+	// read, and IDs names the row. Both nil in a build that asks no such question.
 	Requests repository.Requests
 	IDs      clock.IDGenerator
 }
@@ -300,9 +300,9 @@ var acceptance = map[applierKey]accepted{
 	// it: a collection's description says what it is *for*, not how its week went, and writing a
 	// status into it would overwrite the one with the other.
 	{domain.TargetContainer, domain.KindFields}: {Refusal: "suggestions.nothing_to_apply"},
-	// A template drafted for a collection is defined by CreateTemplate as the accepting person
-	// (P-11): the payload is the template's input, the scope is the target, and the rights asked
-	// are the ones defining a template asks for - STRUCTURE at the collection.
+	// A template drafted for a collection is defined by CreateTemplate as the accepting person: the
+	// payload is the template's input, the scope is the target, and the rights asked are the ones
+	// defining a template asks for - STRUCTURE at the collection.
 	{domain.TargetContainer, domain.KindTemplate}: {Applier: createTemplateName, TargetKey: "scope_id"},
 	// The one kind nothing accepts. Not "not built yet": there is nothing to build. A
 	// duplicate is two entries and a decision about them - archive one, trash one, move one under
@@ -311,8 +311,9 @@ var acceptance = map[applierKey]accepted{
 	{domain.TargetWorkItem, domain.KindDuplicates}: {Refusal: "suggestions.decided_by_hand"},
 }
 
-// The use cases this package calls for something other than applying a payload: J-07's walk and
-// K-01's, which are the same walk over two shapes, and K-02's move.
+// The use cases this package calls for something other than applying a payload: the breakdown's
+// walk (`plant`) and a jumble entry's subtasks (`grow`), which are the same walk over two shapes,
+// and the move onto a board column (`place`).
 //
 // Named here rather than written at the call site for `appliers`' reason: what this package can do
 // to a workspace is exactly what it can name, and a short list is what makes that reviewable.
@@ -447,10 +448,10 @@ func (c Cases) apply(
 
 // describe writes the notes a proposal made for an entry a conversion just created.
 //
-// `ConvertJumbleEntry` takes a title and no notes, so a proposal's notes were dropped by the
-// narrowing and every jumble suggestion since J-06 paid a provider for a paragraph nobody read -
-// which is most of what reading an arriving mail is for. They are written by `UpdateWorkItem`,
-// which is the use case that owns an entry's own fields, as the accepting person.
+// `ConvertJumbleEntry` takes a title and no notes, so without this a proposal's notes would be
+// dropped by the narrowing and every jumble suggestion would pay a provider for a paragraph nobody
+// reads - which is most of what reading an arriving mail is for. They are written by
+// `UpdateWorkItem`, which is the use case that owns an entry's own fields, as the accepting person.
 //
 // Only for a jumble entry: `UpdateWorkItem` declares `notes`, so a proposal about a work item hands
 // them to the applier and this never runs.
@@ -635,8 +636,8 @@ func (c Cases) place(
 
 // grow creates the work a jumble entry implied, under the item the conversion just made.
 //
-// J-07's walk over a different shape: one ordinary `CreateWorkItem` per title, in order, with the
-// accepting person's rights and the ordering keys `Ordering.go` produces. What it is not is a
+// `plant`'s walk over a different shape: one ordinary `CreateWorkItem` per title, in order, with
+// the accepting person's rights and the ordering keys `Ordering.go` produces. What it is not is a
 // second write path - the entry was converted by the use case that owns that, and each child is
 // created by the use case that owns creating.
 //

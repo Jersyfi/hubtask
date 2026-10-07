@@ -53,7 +53,7 @@ func TestEachActionAsksItsOwnQuestion(t *testing.T) {
 			if job.Payload["kind"] != string(domain.KindFields) {
 				t.Errorf("kind %v", job.Payload["kind"])
 			}
-			// A proposal unless it is said, which is the milestone's whole shape.
+			// A proposal unless it is said, which is the shape of every AI feature.
 			if _, said := job.Payload["apply"]; said {
 				t.Error("the job says apply when nobody asked for it")
 			}

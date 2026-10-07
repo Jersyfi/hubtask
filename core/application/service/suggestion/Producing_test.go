@@ -120,8 +120,8 @@ func TestOnlyTheFieldsTheModelWasAskedForSurvive(t *testing.T) {
 	}
 }
 
-// The subtasks the material implies, which `suggest-fields` has asked for since J-06 and the allow
-// list discarded until K-01. Titles alone, in the order they were proposed.
+// The subtasks the material implies, which `suggest-fields` asks for and the allow list has to
+// keep. Titles alone, in the order they were proposed.
 func TestTheSubtasksAJumbleEntryImpliesAreKept(t *testing.T) {
 	produce, world := producer(`{"title":"Move house","subtasks":["Book a van","Pack the kitchen"]}`)
 
@@ -200,9 +200,9 @@ func TestASubtaskListThatIsNotOneIsDroppedWithoutTheSuggestion(t *testing.T) {
 	}
 }
 
-// The narrowing J-16 added, and the one key that gets past it. `subtasks` is not an input of
-// `ConvertJumbleEntry` and never will be - the acceptance walks it - while a key that is neither
-// declared nor grown is dropped as it always was.
+// The narrowing to what the applier declares, and the one key that gets past it. `subtasks` is not
+// an input of `ConvertJumbleEntry` and never will be - the acceptance walks it - while a key that
+// is neither declared nor grown is dropped.
 func TestWhatTheAcceptanceGrowsSurvivesTheNarrowingAndNothingElseDoes(t *testing.T) {
 	produce, world := producer(
 		`{"title":"Move house","notes":"a note","subtasks":["Book a van"]}`)
@@ -1106,7 +1106,7 @@ func (fixedPrompts) Get(id string) (aiprovider.Prompt, error) {
 
 func (fixedPrompts) IDs() []string { return []string{"suggest-fields"} }
 
-// declaredFields is the registry's answer about what a use case takes, as J-16 wired it.
+// declaredFields is the registry's answer about what a use case takes.
 type declaredFields map[string][]string
 
 func (f declaredFields) InputsOf(name string) ([]string, bool) {

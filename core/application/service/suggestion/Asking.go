@@ -18,10 +18,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// SuggestDecompositionName is the catalogue name. It is added to domain-model.md §5 in the pull
-// request that builds it, the way every use case name in this project arrives - the catalogue is
-// the list a person, an agent and a rule all read, and a use case that is not in it is reachable
-// through none of the three.
+// SuggestDecompositionName is the catalogue name, registered in core/application/catalogue the way
+// every use case name is - the catalogue is the list a person, an agent and a rule all read, and a
+// use case that is not in it is reachable through none of the three.
 const SuggestDecompositionName = "SuggestDecomposition"
 
 // DecompositionAskedAction records that somebody asked. Its own action rather than the jumble's,
@@ -55,15 +54,15 @@ type Ask struct {
 
 // queue checks and queues one question.
 //
-// The target type travels because K-05 gave the shape a second one: a collection's status is a
+// The target type travels because the shape has more than one: a collection's status is a
 // question about a container, and everything else about asking it - the permission, the
 // availability, the read that proves it exists, the job, the audit entry - is the same.
 //
 // `text` is what a question is asked *with*, where it has no material of its own to read: a
-// template is drafted from a description that exists in no row the workspace holds (P-11). It is
-// held under row level security for the job that will read it, and the job's payload names the
-// row - the queue carries references and nothing else. Empty for every question that reads its
-// material from the target.
+// template is drafted from a description that exists in no row the workspace holds. It is held
+// under row level security for the job that will read it, and the job's payload names the row - the
+// queue carries references and nothing else. Empty for every question that reads its material from
+// the target.
 func (a Ask) queue(
 	ctx context.Context, actor appshared.ActorContext,
 	targetType domain.TargetType, targetID shared.ID,
@@ -124,8 +123,8 @@ func (a Ask) queue(
 		if apply {
 			// `automation.md` §1.3's "or applied directly, configured explicitly". The flag is on
 			// the job rather than a second job kind, because what differs is one step at the end;
-			// and it is written only when it is true, so a job without it is a proposal, which is
-			// the default this whole milestone is built around.
+			// and it is written only when it is true, so a job without it is a proposal - an AI
+			// result is a suggestion unless somebody said otherwise (ai-first.md §2).
 			payload["apply"] = true
 		}
 		if text != "" {

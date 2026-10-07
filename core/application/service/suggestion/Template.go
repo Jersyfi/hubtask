@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
-// The last of ai-first.md §2's seven rows (P-11): a template drafted from a description in the
+// The Template generation row of ai-first.md §2: a template drafted from a description in the
 // caller's words, for the collection it would belong to.
 const (
 	AiGenerateTemplateName = "AiGenerateTemplate"
@@ -171,7 +171,7 @@ func (s CatalogueSources) templateMaterial(
 // reason.
 const maxProposedTemplateNodes = 64
 
-// templateFrom reads a model's answer as a template's input for the target collection (P-11).
+// templateFrom reads a model's answer as a template's input for the target collection.
 //
 // The name is required and the tree is one root node the profile lets sit in a collection; a node
 // of a type the profile refuses under its parent is dropped with everything under it and counted,

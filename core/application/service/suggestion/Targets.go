@@ -55,9 +55,9 @@ func (t EntryTargets) Digest(
 ) ([]byte, error) {
 	name, served := readers[targetType]
 	if !served {
-		// A target kind this build does not produce suggestions for yet - J-06 adds the jumble
-		// entry's. Not-found rather than an internal error: from a caller's side there is no such
-		// suggestion to answer, which is exactly true.
+		// A target kind this build does not produce suggestions for. Not-found rather than an
+		// internal error: from a caller's side there is no such suggestion to answer, which is
+		// exactly true.
 		return nil, shared.ErrNotFound.WithDetail("suggestions.not_found")
 	}
 
@@ -103,17 +103,12 @@ func (t EntryTargets) containerDigest(
 // changes about an entry between the asking and the accepting is its *settlement*, not its text,
 // so a settled entry is refused by the conversion rather than by the fingerprint.
 //
-// The listing is **unfiltered**, and it said `status: NEW` until J-16 - which did the opposite of
-// the sentence above. A converted or dismissed entry left the NEW list, so this answered
-// not-found, so every suggestion *about* that entry became unreadable: `ListSuggestions` runs this
-// first as its visibility check. Settlement was hiding the record of what AI had proposed, which
-// is the one thing a suggestion being a record rather than a change exists to prevent.
-//
-// The listing is **unfiltered**, and it said `status: NEW` until J-16 - which did the opposite of
-// the paragraph above. A converted or dismissed entry left the NEW list, so this answered
-// not-found, so every suggestion *about* that entry became unreadable: the visibility check above
-// runs this first. Settlement was hiding the record of what AI had proposed, which is the one
-// thing a suggestion being a record rather than a change exists to prevent.
+// The listing is **unfiltered**. Narrowed to `status: NEW` it would do the opposite of the
+// sentence above: a converted or dismissed entry leaves the NEW list, so this would answer
+// not-found, so every suggestion *about* that entry would become unreadable - `ListSuggestions`
+// runs this first as its visibility check. Settlement would hide the record of what AI had
+// proposed, which is the one thing a suggestion being a record rather than a change exists to
+// prevent.
 func (t EntryTargets) entryDigest(
 	ctx context.Context, actor appshared.ActorContext, name string, entryID shared.ID,
 ) ([]byte, error) {
@@ -121,10 +116,10 @@ func (t EntryTargets) entryDigest(
 	if err != nil {
 		return nil, err
 	}
-	// `data`, which is what a page answers under (api-guidelines.md §4). It was `items` until
-	// J-16: the key was wrong, so the loop below always saw an empty list and every suggestion
-	// about a jumble entry was refused `suggestions.not_found` - and the test fakes invented the
-	// wrong key too, so nothing but a real registry could say so.
+	// `data`, which is what a page answers under (api-guidelines.md §4). Any other key makes the
+	// loop below see an empty list and refuses every suggestion about a jumble entry
+	// `suggestions.not_found` - and a test fake that invents the same wrong key agrees with the
+	// defect, so only a real registry can tell.
 	entries, _ := out["data"].([]usecase.Output)
 	for _, entry := range entries {
 		if entry.String("id") != entryID.String() {
