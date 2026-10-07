@@ -14,6 +14,7 @@ var agentsSample = "# Working on Hubtask\n\n" +
 	"| 1 | Inwards. | `[gate: gate-architecture]` |\n| 2 | Auth. | `[partial: gate-security; open: an adapter]` |\n" +
 	moreRules(3, 15) + "\n" +
 	"## Working rules\n\n- A draft first.\n  `[partial: ci:ci-required; open: a skipped run]`\n- Merge on the word. `[unchecked: one identity]`\n\n" +
+	"### Steps and commits\n\n- One step, one commit. `[unchecked: CI checks the head only]`\n\n" +
 	"## Working with the owner\n\n- Fresh session. `[owner]`\n\n" +
 	"## The loop for every task\n\n1. **Understand.** Read.\n2. Plan.\n3. Specify.\n4. Build.\n5. Test.\n6. Check.\n7. Finish.\n\n" +
 	"### Reading\n\n1. The use cases.\n2. The model.\n\n" +
@@ -47,6 +48,7 @@ func TestRuleTags(t *testing.T) {
 		{"unchecked without a reason", "`[unchecked: one identity]`", "`[unchecked]`", "without saying why"},
 		{"a section gone", "## Code comments", "## Comments", "is missing"},
 		{"a cited heading reworded", "## What you do not decide yourself", "## What the owner decides", `the heading "What you do not decide yourself" is gone`},
+		{"a cited subsection renamed", "### Steps and commits", "### Commits", `the heading "Steps and commits" is gone`},
 		{"the command table renamed", "## Which command checks what", "## Commands", `the heading "Which command checks what" is gone`},
 		{"a rule renumbered", "| 7 | Rule 7.", "| 8 | Rule 7.", "rule 8 stands where rule 7 belongs"},
 		{"a rule removed", "| 15 | Rule 15. | `[gate: gate-architecture]` |\n", "", "14 rules, not 15"},

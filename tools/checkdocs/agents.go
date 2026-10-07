@@ -40,7 +40,19 @@ func checkRuleTags(root string) []string {
 // frozenHeadings are cited by older documents, migrations and ADRs by their words ("CLAUDE.md rule
 // N", "The loop for every task", step 6): they stay as they are, and so do the rule numbers and the
 // loop's step numbers.
-var frozenHeadings = []string{"Rules that do not bend", "What you do not decide yourself", "The loop for every task", "Which command checks what"}
+// "Steps and commits" is a subsection of "Working rules"; ADR-0079 cites it by name.
+var frozenHeadings = []string{"Rules that do not bend", "What you do not decide yourself", "The loop for every task", "Which command checks what", "Steps and commits"}
+
+// hasHeading is whether the document has a heading of any level with exactly these words.
+func hasHeading(doc, title string) bool {
+	for _, line := range strings.Split(doc, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") && strings.TrimSpace(strings.TrimLeft(trimmed, "#")) == title {
+			return true
+		}
+	}
+	return false
+}
 
 var (
 	ruleNumber = regexp.MustCompile(`(?m)^\|\s*(\d+)\s*\|`)
@@ -52,7 +64,7 @@ var (
 func frozenProblems(agents string) []string {
 	var problems []string
 	for _, title := range frozenHeadings {
-		if _, ok := sectionBody(agents, title); !ok {
+		if !hasHeading(agents, title) {
 			problems = append(problems, fmt.Sprintf("AGENTS.md: the heading %q is gone - it is cited by its words, so it stays as it is", title))
 		}
 	}
