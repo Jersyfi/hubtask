@@ -3,8 +3,8 @@
 
 // Package automation runs what a rule decided to do.
 //
-// The rule engine itself - triggers, CEL conditions, throttling, the run log - arrives with its
-// own task. What is here is the half that matters for parity: every action of a rule is an
+// The rule engine itself - triggers, CEL conditions, throttling, the run log - lives in the
+// application layer. What is here is the half that matters for parity: every action of a rule is an
 // adapter over a use case, so the list of available actions grows with the catalogue rather than
 // with a table somebody maintains (automation.md §1.3).
 package automation
