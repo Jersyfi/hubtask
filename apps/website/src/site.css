@@ -1299,9 +1299,9 @@ em {
   max-width: 84ch;
 }
 
-/* ── The API reference (P-01) ──────────────────────────────────────────────────────────────
+/* ── The API reference ──────────────────────────────────────────────────────────────
 
-   Rendered from the contract, made of wave 4's components. Everything here is prefixed
+   Rendered from the contract, made of the Wave 4 components of design-system.md §4. Everything here is prefixed
    `site-api-` because the page renders `ApiEndpointCard`, `ParameterTable`, `CodeBlock` and
    `Callout`, and build/check-classes.test.js refuses a class those components also carry. */
 
