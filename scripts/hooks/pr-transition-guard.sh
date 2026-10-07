@@ -18,6 +18,13 @@ esac
 
 command="$(printf '%s' "$input" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("tool_input", {}).get("command", ""))' 2>/dev/null)" || exit 0
 
+# The checkout is the one the worker runs in, which the input names: a session in its own worktree
+# would otherwise be judged by the main checkout's HEAD and stamp, and could never leave draft.
+cwd="$(printf '%s' "$input" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("cwd", ""))' 2>/dev/null)"
+if [[ -n "$cwd" && -d "$cwd" ]]; then
+	cd "$cwd" || exit 0
+fi
+
 refuse() {
 	printf '%s\n' "$1" >&2
 	exit 2
