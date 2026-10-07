@@ -53,8 +53,8 @@ type NewLabelInput struct {
 	ColorToken   string
 	Description  string
 
-	// Text brings the name and the description to normal form C before they are bounded and
-	// stored (i18n-l10n.md §5, M-07); NewWorkItemInput says why it is handed in.
+	// Text brings the name and the description to normal form C before they are bounded and stored
+	// (i18n-l10n.md §5); NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 

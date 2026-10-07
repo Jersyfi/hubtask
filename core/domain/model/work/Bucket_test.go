@@ -101,9 +101,9 @@ func TestNewBucketChecksTheName(t *testing.T) {
 }
 
 // Zero is how a caller clears the limit, and the column refuses it as a value - so nothing is lost
-// by reading it that way. A negative one is a caller's mistake and is named as one.
-// A column's name is stored in normal form C, on creation and on update (i18n-l10n.md §5, M-07):
-// "Spa\u0308ter" and "Sp\u00e4ter" are one name to the unique index because they are one string here.
+// by reading it that way. A negative one is a caller's mistake and is named as one. A column's name
+// is stored in normal form C, on creation and on update (i18n-l10n.md §5): "Spa\u0308ter" and
+// "Sp\u00e4ter" are one name to the unique index because they are one string here.
 func TestABucketNameIsStoredInNormalFormC(t *testing.T) {
 	in := baseBucket
 	in.Name = "Spa\u0308ter"

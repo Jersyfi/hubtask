@@ -34,9 +34,9 @@ type Reminder struct {
 	Channels []ReminderChannel
 	// Recipients is who is reminded, and empty means the assignee and the entry's members.
 	//
-	// Empty is stored as empty and resolved when the reminder fires (D-03), never expanded here:
-	// a list written down today would remind exactly the people who were on the entry today, and
-	// somebody added tomorrow would never hear about it.
+	// Empty is stored as empty and resolved when the reminder fires, never expanded here: a list
+	// written down today would remind exactly the people who were on the entry today, and somebody
+	// added tomorrow would never hear about it.
 	Recipients []shared.ID
 	State      ReminderState
 	// FireAt is the computed moment, and nil when there is none: a relative reminder whose entry
@@ -73,7 +73,7 @@ const MaxReminderRecipients = 50
 const MaxReminderOffsetSpecLength = 64
 
 // DueSoonLead is how far ahead of a deadline `item.due_soon` is announced, and DueSoonThresholdSpec
-// is the same value as the event carries it (D-03, domain-model.md §4).
+// is the same value as the event carries it (domain-model.md §4).
 //
 // A fixed lead rather than one derived from the entry's own reminders, and the decision is worth
 // keeping: a rule that reacts to "due soon" has to mean the same thing for every entry in a
@@ -93,9 +93,9 @@ const MaxReminderOffset = 3650 * 24 * time.Hour
 // ReminderState is how far a reminder got.
 //
 // The states are the schema's, and only the first is a client's business: a reminder is written
-// PENDING, the scheduler moves it to SENT when it has fired (D-03), and CANCELLED is the answer
-// for one that never will. Deleting a reminder removes the row rather than cancelling it - what
-// somebody deleted is gone, and a tombstone with a state would be a reminder they could still see.
+// PENDING, the scheduler moves it to SENT when it has fired, and CANCELLED is the answer for one
+// that never will. Deleting a reminder removes the row rather than cancelling it - what somebody
+// deleted is gone, and a tombstone with a state would be a reminder they could still see.
 type ReminderState string
 
 const (
@@ -103,7 +103,7 @@ const (
 	ReminderSent      ReminderState = "SENT"
 	ReminderCancelled ReminderState = "CANCELLED"
 	// ReminderLapsed is a reminder whose moment passed while the data was in an archive
-	// (backup-restore.md §8.4, E-06). It is set by a restore and by nothing else.
+	// (backup-restore.md §8.4). It is set by a restore and by nothing else.
 	//
 	// Not CANCELLED, which would be the cheap answer and the wrong one: somebody cancelled that,
 	// and an auditor reading a workspace after a restore would find hundreds of cancellations
@@ -240,8 +240,8 @@ func offsetInvalid(code, spec string) error {
 // parseISODuration reads an ISO-8601 duration, signed, of weeks down to seconds.
 //
 // Written here rather than taken from a library, for the reason the domain has no libraries at all
-// (ADR-0001, rule 1): this is twenty lines of arithmetic over a closed grammar, and the one
-// dependency this milestone takes is the RRULE expansion D-04 needs, which is not.
+// (ADR-0001, rule 1): this is twenty lines of arithmetic over a closed grammar, and the RRULE
+// expansion behind core/port/recurrence is not.
 func parseISODuration(text string) (time.Duration, error) {
 	sign := time.Duration(1)
 	switch {
@@ -362,8 +362,8 @@ func NewReminder(input NewReminderInput) (Reminder, error) {
 		return Reminder{}, err
 	}
 	if offset.Relative && input.Due == nil {
-		// The backlog's rule, and the reason for it: fire_at would mean nothing. Refused rather
-		// than stored dormant, because a person setting "an hour before" on an entry with no
+		// A relative reminder needs a due date: without one fire_at would mean nothing. Refused
+		// rather than stored dormant, because a person setting "an hour before" on an entry with no
 		// deadline has misunderstood what they are getting, and silence would confirm it.
 		return Reminder{}, shared.ErrValidation.
 			WithDetail("reminders.due_date_required").

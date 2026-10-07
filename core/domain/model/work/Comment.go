@@ -16,10 +16,9 @@ import (
 // Comment is one contribution to the discussion beside an entry (domain-model.md §3.5).
 //
 // Its own entity rather than a field of the item, because the two obey different merge rules:
-// comments append and never merge (offline-sync.md §4.2, "appending lists"), so each is its own
-// row with its own change log entries, and only an edit needs a rule at all - last writer wins
-// over the body, with the displaced text not preserved. That mechanism belongs to §5 and to
-// 0.8.5, and pretending to have it early would promise a recovery this milestone cannot keep.
+// comments append and never merge (offline-sync.md §4.2, "appending lists"), so each is its own row
+// with its own change log entries, and only an edit needs a rule at all - last writer wins over the
+// body, with the displaced text not preserved (offline-sync.md §4.2).
 type Comment struct {
 	ID       shared.ID
 	TenantID shared.ID
@@ -40,10 +39,10 @@ type Comment struct {
 	EditedAt  *time.Time
 	DeletedAt *time.Time
 	Version   int
-	// Kind tells what somebody wrote from what the server filed on their behalf (N-06,
-	// offline-sync.md §5). SystemCode and SystemParams are a system comment's heading - a
-	// message code and its parameters, never a sentence the server composed (rule 8) - and
-	// empty on a comment somebody wrote.
+	// Kind tells what somebody wrote from what the server filed on their behalf (offline-sync.md
+	// §5). SystemCode and SystemParams are a system comment's heading - a message code and its
+	// parameters, never a sentence the server composed (rule 8) - and empty on a comment somebody
+	// wrote.
 	Kind         CommentKind
 	SystemCode   string
 	SystemParams map[string]string
@@ -82,8 +81,8 @@ type NewCommentInput struct {
 	SystemCode   string
 	SystemParams map[string]string
 
-	// Text brings the body to normal form C before it is bounded and stored (i18n-l10n.md §5,
-	// M-07); NewWorkItemInput says why it is handed in.
+	// Text brings the body to normal form C before it is bounded and stored (i18n-l10n.md §5);
+	// NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 
@@ -147,12 +146,11 @@ func NewComment(input NewCommentInput) (Comment, error) {
 
 // Edited returns the comment with its body rewritten.
 //
-// The displaced text is not preserved: an edit is last writer wins over the body
-// (offline-sync.md §4.2), and the mechanism that files a displaced version belongs to §5 and to
-// milestone 0.8.5. Editing a deleted comment is refused - the text is gone, and an edit that
-// resurrected it would be an undelete nobody declared.
+// The displaced text is not preserved: an edit is last writer wins over the body (offline-sync.md
+// §4.2). Editing a deleted comment is refused - the text is gone, and an edit that resurrected it
+// would be an undelete nobody declared.
 //
-// The normaliser is handed in for the reason NewComment takes one (M-07).
+// The normaliser is handed in for the reason NewComment takes one (i18n-l10n.md §5).
 func (c Comment) Edited(body string, form text.Normalizer, at time.Time) (Comment, error) {
 	if c.DeletedAt != nil {
 		return Comment{}, shared.ErrConflict.
@@ -177,8 +175,8 @@ func (c Comment) Edited(body string, form text.Normalizer, at time.Time) (Commen
 }
 
 // Removed returns the comment as its tombstone: the text gone, the identity, the author and the
-// timestamps kept, so that a reply does not dangle (C-03's acceptance). EditedAt survives - that
-// the words had been rewritten is part of the thread's history, what they were is not.
+// timestamps kept, so that a reply does not dangle. EditedAt survives - that the words had been
+// rewritten is part of the thread's history, what they were is not.
 //
 // Idempotent: a comment already deleted comes back untouched, so that nothing is written, no
 // version is spent and nothing is announced.
@@ -194,8 +192,8 @@ func (c Comment) Removed(at time.Time) Comment {
 // validCommentBody applies the two body rules: not empty once trimmed, and at most
 // MaxCommentBodyLength code points. Newlines are fine - a comment is prose, not a title - and the
 // text is stored as sent apart from Unicode normal form C, which it is brought to here for the
-// reason a container's name is (i18n-l10n.md §5, M-07): two spellings of the same word must
-// compare equal, and the length is the length of what a person sees.
+// reason a container's name is (i18n-l10n.md §5): two spellings of the same word must compare
+// equal, and the length is the length of what a person sees.
 func validCommentBody(raw string, form text.Normalizer) (string, error) {
 	body, err := shared.NFC(raw, form)
 	if err != nil {

@@ -29,10 +29,10 @@ type nameCodes struct{ empty, tooLong, malformed string }
 
 // structureName normalises, trims and checks the name of a bucket or a label.
 //
-// Trimmed and brought to normal form C here rather than in the adapter, because that form is
-// what the uniqueness index compares: " Doing" and "Doing" are the same name to a person, and so
-// are the two spellings of "Später" (i18n-l10n.md §5, M-07); a check that disagrees with a person
-// is a bug report waiting.
+// Trimmed and brought to normal form C here rather than in the adapter, because that form is what
+// the uniqueness index compares: " Doing" and "Doing" are the same name to a person, and so are the
+// two spellings of "Später" (i18n-l10n.md §5); a check that disagrees with a person is a bug report
+// waiting.
 func structureName(raw string, codes nameCodes, form text.Normalizer) (string, error) {
 	name, err := shared.NFC(strings.TrimSpace(raw), form)
 	if err != nil {

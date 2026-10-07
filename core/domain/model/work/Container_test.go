@@ -92,10 +92,9 @@ func TestNewContainerChecksTheName(t *testing.T) {
 	}
 }
 
-// I-C1 in both directions.
-// The name and the description are stored in normal form C (i18n-l10n.md §5, M-07): two spellings
-// of one visible character are one name to the unique index because they are one string here.
-// Without the port, a name that is not ASCII is refused rather than stored as it came.
+// I-C1 in both directions. The name and the description are stored in normal form C (i18n-l10n.md
+// §5): two spellings of one visible character are one name to the unique index because they are one
+// string here. Without the port, a name that is not ASCII is refused rather than stored as it came.
 func TestNewContainerStoresItsTextInNormalFormC(t *testing.T) {
 	in := baseHub
 	in.Name = " U\u0308bersicht "

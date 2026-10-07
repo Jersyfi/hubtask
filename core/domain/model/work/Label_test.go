@@ -73,9 +73,9 @@ func TestNewLabelChecksTheName(t *testing.T) {
 
 // A label is rendered as a chip and nothing else. With no colour there is nothing to render it as,
 // and a client would have to invent one - which is how two clients come to render one label
-// differently. So the colour is required, unlike a bucket's.
-// A label's name and description are stored in normal form C, on creation and on update
-// (i18n-l10n.md §5, M-07), for the reason a column's name is.
+// differently. So the colour is required, unlike a bucket's. A label's name and description are
+// stored in normal form C, on creation and on update (i18n-l10n.md §5), for the reason a column's
+// name is.
 func TestALabelIsStoredInNormalFormC(t *testing.T) {
 	in := baseLabel
 	in.Name, in.Description = "Bu\u0308ro", "Alles fu\u0308rs Bu\u0308ro"

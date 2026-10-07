@@ -30,10 +30,10 @@ type DueDate struct {
 
 // NewDueDate builds the trio or explains why it cannot be one.
 //
-// The two absences the backlog names are refused here: a zone without a date and a flag without a
-// date each qualify something that is not there, and storing either would be a row whose meaning
-// depends on a field it does not have. The nil answer with no error is a due date deliberately
-// absent - which is what lets a merge patch express "clear it" through the same door that sets it.
+// Two absences are refused here: a zone without a date and a flag without a date each qualify
+// something that is not there, and storing either would be a row whose meaning depends on a field
+// it does not have. The nil answer with no error is a due date deliberately absent - which is what
+// lets a merge patch express "clear it" through the same door that sets it.
 func NewDueDate(at *time.Time, dateOnly bool, zone string) (*DueDate, error) {
 	zone = strings.TrimSpace(zone)
 	if at == nil || at.IsZero() {
@@ -71,8 +71,8 @@ func NewDueDate(at *time.Time, dateOnly bool, zone string) (*DueDate, error) {
 	return &DueDate{At: at.UTC(), DateOnly: dateOnly, TimeZone: zone}, nil
 }
 
-// Anchor is the instant everything counting from a due date counts from (D-02, and the recurrence
-// that follows it).
+// Anchor is the instant everything counting from a due date counts from (reminders, and the
+// recurrence that follows it).
 //
 // For a due date that is an instant, that is the instant. For an all-day due date it is the start
 // of that date in its own zone, which is the only reading that survives a time change: "the day it

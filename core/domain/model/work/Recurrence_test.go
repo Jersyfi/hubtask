@@ -224,7 +224,7 @@ func TestOnlyATaskCarriesASeries(t *testing.T) {
 	}
 }
 
-// The horizon is a window, and the window is what the materialisation will owe (D-05).
+// The horizon is a window, and the window is what the materialisation will owe.
 func TestTheHorizonIsAWindowFromAMoment(t *testing.T) {
 	rule, err := draftSeries(t, weekly())
 	if err != nil {

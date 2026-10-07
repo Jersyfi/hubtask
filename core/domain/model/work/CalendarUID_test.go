@@ -11,9 +11,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The UID a calendar client knows an entry by (P-07, issue #721). What the domain holds it to is
-// what a path segment can carry, because the tree answers the entry at `{uid}.ics`; what it says
-// about the value is nothing else - the string is the client's and opaque.
+// The UID a calendar client knows an entry by. What the domain holds it to is what a path segment
+// can carry, because the tree answers the entry at `{uid}.ics`; what it says about the value is
+// nothing else - the string is the client's and opaque.
 
 func TestAnEntryKeepsTheUIDACalendarClientChose(t *testing.T) {
 	for _, uid := range []string{

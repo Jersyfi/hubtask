@@ -39,8 +39,8 @@ type RecurrenceRule struct {
 	// EndsAt and MaxCount are the two spellings of the end, and at most one of them is set.
 	EndsAt   *time.Time
 	MaxCount int
-	// LastMaterializedAt is how far the materialisation has come (D-05). The server's bookkeeping:
-	// nothing a client sends ever reaches it.
+	// LastMaterializedAt is how far the materialisation has come. The server's bookkeeping: nothing
+	// a client sends ever reaches it.
 	LastMaterializedAt *time.Time
 	CreatedAt          time.Time
 	UpdatedAt          *time.Time
@@ -287,7 +287,7 @@ func ensureRuleCarriesOnlyTheRule(rule string) error {
 	}
 	if strings.ContainsAny(rule, "\n\r") {
 		// One line, one rule. A multi-line body is an RRULE set - EXDATE, RDATE, several rules -
-		// and this milestone stores one series per entry (domain-model.md §3.5).
+		// and an entry has one series (domain-model.md §3.5).
 		return recurrenceInvalid("recurrence.rrule_not_single", "/rrule", nil)
 	}
 	return nil

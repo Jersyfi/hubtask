@@ -133,8 +133,8 @@ type NewCustomFieldInput struct {
 	Now          time.Time
 
 	// Text brings the options to normal form C before they are bounded and stored (i18n-l10n.md
-	// §5, M-07): an option is a value a person typed once and every entry then picks from, so a
-	// choice has to meet it in one form. NewWorkItemInput says why it is handed in.
+	// §5): an option is a value a person typed once and every entry then picks from, so a choice
+	// has to meet it in one form. NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 
@@ -211,7 +211,7 @@ const (
 // it was permitted when it was written. It stops being offered, and the next write of that field
 // is refused unless it picks from the new list.
 //
-// The normaliser is handed in for the reason NewCustomFieldDefinition takes one (M-07).
+// The normaliser is handed in for the reason NewCustomFieldDefinition takes one (i18n-l10n.md §5).
 func (d CustomFieldDefinition) Updated(
 	attributes CustomFieldAttributes, form text.Normalizer, at time.Time,
 ) (CustomFieldDefinition, []FieldChange, error) {
@@ -426,9 +426,9 @@ func customFieldError(path, code string, params map[string]string) error {
 // A NUMBER arriving as a string is refused rather than parsed: a client that sent "3" meant a
 // string, and guessing turns a typo into stored data (domain-model.md §6).
 //
-// The normaliser is for the kinds that hold text a person typed (M-07): a TEXT value is stored
-// in normal form C like a note, and a choice is brought to the form the options were stored in
-// before it is looked for among them.
+// The normaliser is for the kinds that hold text a person typed (i18n-l10n.md §5): a TEXT value is
+// stored in normal form C like a note, and a choice is brought to the form the options were stored
+// in before it is looked for among them.
 func (d CustomFieldDefinition) ValidateValue(value any, form text.Normalizer) (any, error) {
 	if value == nil {
 		if d.IsRequired {
