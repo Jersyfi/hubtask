@@ -77,11 +77,11 @@ func TestAnAddressThatCannotBeOneIsRefused(t *testing.T) {
 }
 
 // An invitation that names nobody still has to show something beside every action the account
-// takes; the local part is a better answer than an empty cell.
-// The display name is stored in normal form C (i18n-l10n.md §5, M-07): it stands beside
-// everything a person does, and stands there in one spelling. The three doors an account comes
-// in through - an invitation, a service account, an identity provider - all bring it there, and
-// without the port a name that is not ASCII is refused rather than stored as it came.
+// takes; the local part is a better answer than an empty cell. The display name is stored in normal
+// form C (i18n-l10n.md §5): it stands beside everything a person does, and stands there in one
+// spelling. The three doors an account comes in through - an invitation, a service account, an
+// identity provider - all bring it there, and without the port a name that is not ASCII is refused
+// rather than stored as it came.
 func TestADisplayNameIsStoredInNormalFormC(t *testing.T) {
 	invited, err := Invite(accountID, tenantID, "anna@example.org", " Anna Mu\u0308ller ", nil, text.Composing{})
 	if err != nil {
@@ -195,7 +195,8 @@ func TestApplyingPreferencesDoesNotMutate(t *testing.T) {
 	}
 }
 
-// encoder stands in for the idna adapter (M-10): one Unicode domain, and one the DNS refuses.
+// encoder stands in for the idna adapter (i18n-l10n.md §7): one Unicode domain, and one the DNS
+// refuses.
 type encoder struct{}
 
 func (encoder) ToASCII(domain string) (string, error) {

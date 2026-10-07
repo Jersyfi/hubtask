@@ -140,7 +140,7 @@ func validMint() NewAccessTokenInput {
 	}
 }
 
-// The name is stored in normal form C (i18n-l10n.md §5, M-07), like every label a person types.
+// The name is stored in normal form C (i18n-l10n.md §5), like every label a person types.
 func TestATokenNameIsStoredInNormalFormC(t *testing.T) {
 	in := validMint()
 	in.Name, in.Text = "der na\u0308chtliche Export", text.Composing{}

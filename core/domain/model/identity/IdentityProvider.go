@@ -18,11 +18,11 @@ import (
 // pastes a directory into.
 const MaxAllowedEmailDomains = 10
 
-// Provisioning is who a provider may bring in at all (SI-10, the concept's §8).
+// Provisioning is who a provider may bring in at all (identity.md §10.4).
 //
 // One axis, three positions, and the axis is **who comes in** - not how freely somebody claims an
-// account that already exists. That is the reading the concept fixes, and the difference is one
-// case: a subject whose address is outside `AllowedEmailDomains`.
+// account that already exists. That is the reading identity.md §10.4 fixes, and the difference is
+// one case: a subject whose address is outside `AllowedEmailDomains`.
 //
 //   - INVITED_ONLY - only somebody who was invited here first. A verified address must meet an
 //     account that already exists; anything else is refused and nothing is created. The mode a
@@ -66,9 +66,9 @@ func ParseProvisioning(raw string) (Provisioning, error) {
 // problem this field will not solve.
 const MaxProviderPosition = 99
 
-// IdentityProvider is a provider people sign in through (H-04, ADR-0005, SI-10).
+// IdentityProvider is a provider people sign in through (identity.md §10, ADR-0005).
 //
-// Plural since SI-10, and with a level above the workspace: a zero `TenantID` is the
+// Plural, and with a level above the workspace (identity.md §10.2): a zero `TenantID` is the
 // installation's own row - the one every workspace reads and none writes. What lives here is the
 // part that has rules: an issuer that must look like an issuer, a preset the issuer has to belong
 // to, and a provisioning mode the preset may forbid.
@@ -93,7 +93,7 @@ type IdentityProvider struct {
 	Enabled            bool
 	// OfferedHere is whether this provider is a way into the workspace that is reading it. Not a
 	// column: for a workspace's own row it *is* `Enabled`, and for the installation's it is the
-	// reading workspace's own switch, which lives in its settings (SI-10).
+	// reading workspace's own switch, which lives in its settings (identity.md §10.2).
 	OfferedHere bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -209,8 +209,8 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 	// the number of workspaces that take the offer. One with a directory claim is bounded by the
 	// directories it names; one without - a self-hosted issuer - is bounded by nothing but the
 	// address domain, which is the wrong thing to authorise on (ADR-0071 §1). Offered as
-	// INVITED_ONLY it admits the people each workspace invited and nobody else, which is what
-	// ADR-0071's addendum (E2, 2026-09-30) replaced "never an installation provider" with.
+	// INVITED_ONLY it admits the people each workspace invited and nobody else (ADR-0071's
+	// addendum).
 	if in.TenantID.IsZero() && preset.DirectoryClaim == "" && provisioning != ProvisionInvitedOnly {
 		return IdentityProvider{}, shared.ErrValidation.
 			WithDetail("identity_provider.installation_invited_only").
@@ -298,11 +298,12 @@ func resolvedKind(stated, issuer string) (ProviderKind, ProviderPreset, error) {
 			WithDetail("identity_provider.kind_mismatch").
 			WithParams(map[string]string{"kind": string(kind), "issuer": issuer})
 	}
-	// A multi-directory endpoint used to be refused here, because ADR-0036 compares `iss` exactly
-	// and a token minted behind `common` names the *directory* rather than `common`. ADR-0071 §3
-	// keeps the exact comparison and changes what it compares against: the issuer template the
-	// provider itself publishes, with the token's `tid` substituted. What the endpoint needs
-	// instead is a bound - `AllowedDirectories` - and that is checked below, where the list is.
+	// A multi-directory endpoint is not refused for itself, although ADR-0036 compares `iss`
+	// exactly and a token minted behind `common` names the *directory* rather than `common`.
+	// ADR-0071 §3 keeps the exact comparison and changes what it compares against: the issuer
+	// template the provider itself publishes, with the token's `tid` substituted. What the endpoint
+	// needs instead is a bound - `AllowedDirectories` - and that is checked below, where the list
+	// is.
 	if kind == KindMicrosoft && multiDirectoryIssuer(issuer) && !preset.SupportsTemplatedIssuer {
 		return "", ProviderPreset{}, shared.ErrValidation.
 			WithDetail("identity_provider.issuer_multi_directory").
@@ -372,13 +373,13 @@ func multiDirectoryIssuer(issuer string) bool {
 // One refusal: a **public** issuer may only be INVITED_ONLY. Anything else means every person who
 // holds an account at that provider - which is everybody - is provisioned one here.
 //
-// There used to be a second - "a preset whose addresses this installation cannot vouch for may not
-// be INVITED_ONLY, because that mode gives an existing account away on the strength of an address".
-// It protected nothing: the modes it left such a provider claimed existing accounts on exactly the
-// same signal and created new ones besides. What stops an address from handing over an account is
-// now the account's own proof, asked when an arrival would connect to an account that already holds
-// a credential (ADR-0071's addendum, E2). INVITED_ONLY is therefore the strictest mode for every
-// preset, and every preset may have it.
+// There is deliberately no second - "a preset whose addresses this installation cannot vouch for
+// may not be INVITED_ONLY, because that mode gives an existing account away on the strength of an
+// address". It would protect nothing: the other modes claim existing accounts on exactly the same
+// signal and create new ones besides. What stops an address from handing over an account is the
+// account's own proof, asked when an arrival would connect to an account that already holds a
+// credential (ADR-0071's addendum, identity.md §11). INVITED_ONLY is therefore the strictest mode
+// for every preset, and every preset may have it.
 //
 // Nothing stated is the safe value rather than the permissive one: a public provider, and an
 // installation's provider with no directory to bound it, default to INVITED_ONLY; everything else to
@@ -521,13 +522,13 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 //
 // Everything `MayAdmit` admits, and under `INVITED_ONLY` and `DOMAINS` one more: an address the
 // provider verified but would not admit on its own word - not authoritative for it, or outside the
-// directory or domain list. Authority and the list decide who comes in *new*, on the provider's word
-// alone - a new account, an invitation activated without its link. An existing account that brings
-// its own proof - its password at the LINK step, its mailbox through the connect link, an
+// directory or domain list. Authority and the list decide who comes in *new*, on the provider's
+// word alone - a new account, an invitation activated without its link. An existing account that
+// brings its own proof - its password at the LINK step, its mailbox through the connect link, an
 // invitation's link - is not coming in new: it is a member connecting a provider, with the
 // provider's verified address equal to its own (the caller checks that), and nothing is created
-// through this (the owner's decision of 2026-10-06 for DOMAINS, SC-32's for INVITED_ONLY). `ANY`
-// admits every verified address already, and a mode this build does not know admits nobody.
+// through this (identity.md §10.4). `ANY` admits every verified address already, and a mode this
+// build does not know admits nobody.
 func (p IdentityProvider) MayAdmitWithProof(arriving Arriving) bool {
 	if p.MayAdmit(arriving) {
 		return true
@@ -647,8 +648,9 @@ func IssuerHost(issuer string) string {
 	return parsed.Host
 }
 
-// OidcFlowPrefix labels the state a sign-in flow hands the browser, so a value found in a log or
-// a bug report says what it was without anybody having to guess (D-08's prefix catalogue).
+// OidcFlowPrefix labels the state a sign-in flow hands the browser, so a value found in a log or a
+// bug report says what it was without anybody having to guess (the `hbt_` prefixes of
+// api-guidelines.md §7).
 const OidcFlowPrefix = "hbt_osf_"
 
 // OidcFlowLifetime is how long a sign-in may sit between leaving for the provider and coming
@@ -734,7 +736,7 @@ func NewOidcFlow(in NewOidcFlowInput) (OidcFlow, error) {
 // the only thing about that leg this installation minted itself.
 func ParseOidcFlowState(raw string) (Token, error) { return parsePrefixed(raw, OidcFlowPrefix) }
 
-// ProvisionExternal builds the account a subject gets on its first arrival (H-04).
+// ProvisionExternal builds the account a subject gets on its first arrival (identity.md §10.4).
 //
 // Active immediately and with no password, which is the whole difference from an invitation: the
 // provider has just vouched for this person, so there is nothing left for them to prove here, and

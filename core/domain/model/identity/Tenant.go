@@ -14,8 +14,8 @@ import (
 )
 
 // TenantStatus is the workspace's standing in the lifecycle multi-tenancy.md §5 draws. It rides
-// with every credential read (H-06): a suspension has to flip authentication itself, not each
-// use case separately.
+// with every credential read: a suspension has to flip authentication itself, not each use case
+// separately.
 type TenantStatus string
 
 const (
@@ -50,9 +50,9 @@ const (
 	MaxTenantSlugLength = 40
 )
 
-// Tenant is a workspace as the control plane sees it (H-06, multi-tenancy.md §5). Deliberately
-// not the settings document: what a tenant configures is the tenant's; this is what the
-// installation provisions.
+// Tenant is a workspace as the control plane sees it (multi-tenancy.md §5). Deliberately not the
+// settings document: what a tenant configures is the tenant's; this is what the installation
+// provisions.
 type Tenant struct {
 	ID              shared.ID
 	Slug            string
@@ -74,8 +74,8 @@ type NewTenantInput struct {
 	DefaultTimeZone string
 	Now             time.Time
 
-	// Text brings the display name to normal form C before it is bounded and stored
-	// (i18n-l10n.md §5, M-07); work.NewWorkItemInput says why it is handed in.
+	// Text brings the display name to normal form C before it is bounded and stored (i18n-l10n.md
+	// §5); work.NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 
@@ -126,8 +126,8 @@ func NewTenant(in NewTenantInput) (Tenant, error) {
 	}, nil
 }
 
-// ValidDisplayName is the name rule, shared by provisioning and by a workspace changing its own
-// (F4-01) so that one refusal cannot drift into two. The name is stored in normal form C (M-07).
+// ValidDisplayName is the name rule, shared by provisioning and by a workspace changing its own so
+// that one refusal cannot drift into two. The name is stored in normal form C (i18n-l10n.md §5).
 func ValidDisplayName(value string, form text.Normalizer) (string, error) {
 	name, err := shared.NFC(strings.TrimSpace(value), form)
 	if err != nil {

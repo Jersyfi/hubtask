@@ -98,10 +98,10 @@ func TestWithAppliesOnlyWhatMoved(t *testing.T) {
 	}
 }
 
-// A value the workspace cannot hold is refused as a field error, by the same rule provisioning
-// uses - which is the reason the three validators are shared rather than written twice.
-// The workspace's display name is stored in normal form C (i18n-l10n.md §5, M-07), and the
-// audit's field change records the composed form.
+// A value the workspace cannot hold is refused as a field error, by the same rule provisioning uses
+// - which is the reason the three validators are shared rather than written twice. The workspace's
+// display name is stored in normal form C (i18n-l10n.md §5), and the audit's field change records
+// the composed form.
 func TestWithStoresTheDisplayNameInNormalFormC(t *testing.T) {
 	changed, moved, err := workspace(t).With(identity.WorkspaceChange{DisplayName: setting("Mu\u0308ller & So\u0308hne")}, text.Composing{})
 	if err != nil {

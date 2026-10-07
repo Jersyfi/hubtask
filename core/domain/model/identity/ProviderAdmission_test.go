@@ -187,8 +187,8 @@ func TestThePersonalAccountEndpointIsOneDirectoryAndNeedsNoList(t *testing.T) {
 // A second proof the person brings - the invitation's own link, or an existing account's own proof
 // at the LINK step or through the connect link - admits one more arrival: under INVITED_ONLY a
 // verified address the provider is not authoritative for, and under DOMAINS one outside the list
-// (ADR-0078 §1; DOMAINS decided 2026-10-06). It never admits an unverified one, and without a proof
-// the list stays the gate.
+// (ADR-0078 §1, identity.md §10.4). It never admits an unverified one, and without a proof the list
+// stays the gate.
 func TestTheInvitationLinkAdmitsOnlyWhatInvitedOnlyNeeds(t *testing.T) {
 	verified := Arriving{Email: "ada@example.org", EmailVerified: true}
 	unverified := Arriving{Email: "ada@example.org"}

@@ -267,9 +267,9 @@ func HistoryViolation(count int) PasswordViolation {
 // deliberately does not draw, and one field error per violated rule, each carrying its own code
 // and parameters.
 //
-// The path is `/password` for every one of them. A rule is not a field of its own: the field is
-// the password, and the list under it is what says which rule refused - which is decision 7 of
-// the milestone, and SC 3.3.1's answer as well.
+// The path is `/password` for every one of them. A rule is not a field of its own: the field is the
+// password, and the list under it is what says which rule refused - which is WCAG 3.3.1's answer
+// (design-system.md §10).
 func PasswordRefused(violations []PasswordViolation) error {
 	if len(violations) == 0 {
 		return nil

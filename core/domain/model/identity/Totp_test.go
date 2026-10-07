@@ -53,8 +53,8 @@ func TestVerifyTotpAllowsOneStepOfDriftEitherSide(t *testing.T) {
 	}
 }
 
-// H-02's replay refusal: the same step never verifies twice, and the drift window cannot be
-// used to slide backwards past an accepted step.
+// The replay refusal (identity.md §8): the same step never verifies twice, and the drift window
+// cannot be used to slide backwards past an accepted step.
 func TestVerifyTotpRefusesReplay(t *testing.T) {
 	now := time.Unix(1111111111, 0)
 	code := TotpCode(rfcSecret, TotpStep(now))

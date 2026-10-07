@@ -17,19 +17,19 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// RFC 6238, dependency-free (0.6.0 decision 4): the whole of TOTP is crypto/hmac, crypto/sha1
-// and crypto/subtle, and a library would be a supply chain decision for thirty lines of
-// arithmetic. The parameters are the RFC's defaults, because every authenticator app ships them:
-// an installation that deviated would be one whose QR codes quietly produce wrong codes in half
-// the apps people actually use.
+// RFC 6238, dependency-free (security.md §11, identity.md §8): the whole of TOTP is crypto/hmac,
+// crypto/sha1 and crypto/subtle, and a library would be a supply chain decision for thirty lines of
+// arithmetic. The parameters are the RFC's defaults, because every authenticator app ships them: an
+// installation that deviated would be one whose QR codes quietly produce wrong codes in half the
+// apps people actually use.
 const (
 	// TotpSecretBytes is 160 bits, RFC 4226 §4's requirement for HMAC-SHA-1.
 	TotpSecretBytes = 20
 	// TotpDigits and TotpStepSeconds are the defaults every authenticator assumes.
 	TotpDigits      = 6
 	TotpStepSeconds = 30
-	// TotpDrift is how many steps either side of now a code may verify: one, per H-02 - a phone
-	// whose clock is half a minute out still signs in, and a code is never good for more than
+	// TotpDrift is how many steps either side of now a code may verify: one (identity.md §8) - a
+	// phone whose clock is half a minute out still signs in, and a code is never good for more than
 	// ninety seconds end to end.
 	TotpDrift = 1
 )
@@ -57,8 +57,8 @@ func TotpCode(secret []byte, step int64) string {
 }
 
 // VerifyTotp judges a presented code: within one step of drift either side, in constant time per
-// candidate, and never at or below the last accepted step - the same code verifying twice is a
-// code somebody shoulder-read (H-02).
+// candidate, and never at or below the last accepted step - the same code verifying twice is a code
+// somebody shoulder-read (identity.md §8).
 //
 // The accepted step is returned so the caller can record it; the boolean is the answer. Every
 // candidate window is checked even after a match, so a wrong code and a right one cost the same
@@ -80,8 +80,8 @@ func VerifyTotp(secret []byte, presented string, now time.Time, lastStep int64) 
 }
 
 // TotpProvisioningURI is what a client renders the QR image from (the rendering is the client's
-// job, H-02). The otpauth scheme is the de-facto contract every authenticator reads; the secret
-// travels base32 without padding, as they expect it.
+// job). The otpauth scheme is the de-facto contract every authenticator reads; the secret travels
+// base32 without padding, as they expect it.
 func TotpProvisioningURI(issuer, account string, secret []byte) string {
 	label := url.PathEscape(issuer) + ":" + url.PathEscape(account)
 	query := url.Values{}
@@ -94,8 +94,8 @@ func TotpProvisioningURI(issuer, account string, secret []byte) string {
 }
 
 // MfaReplacementLifetime is how long a replacement of the authenticator waits to be confirmed
-// (SC-17): long enough to install an app and scan a code, short enough that a replacement somebody
-// walked away from does not lie around sealed beside the factor in force.
+// (identity.md §8): long enough to install an app and scan a code, short enough that a replacement
+// somebody walked away from does not lie around sealed beside the factor in force.
 const MfaReplacementLifetime = 10 * time.Minute
 
 // TotpSecretBase32 is the secret as a person types it where no camera reaches the QR.
@@ -103,8 +103,9 @@ func TotpSecretBase32(secret []byte) string {
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(secret)
 }
 
-// The recovery codes (H-02): ten, single-use, shown once. Eighty bits each - far past guessable
-// behind the attempt ledger, short enough to read to a phone's support hotline digit by digit.
+// The recovery codes (identity.md §9): ten, single-use, shown once. Eighty bits each - far past
+// guessable behind the attempt ledger, short enough to read to a phone's support hotline digit by
+// digit.
 const (
 	RecoveryCodeCount = 10
 	RecoveryCodeBytes = 10
@@ -134,8 +135,8 @@ func NormalizeRecoveryCode(raw string) string {
 	return strings.ReplaceAll(cleaned, " ", "")
 }
 
-// The pending credential of a two-step sign-in (H-02): the password answered it, and it can do
-// nothing but complete the sign-in it belongs to.
+// The pending credential of a two-step sign-in (identity.md §4.2): the password answered it, and it
+// can do nothing but complete the sign-in it belongs to.
 const (
 	// PendingTokenPrefix marks it, with the session tokens' reasoning.
 	PendingTokenPrefix = "hbt_mfa_" //nolint:gosec // G101: a public format marker, not a credential

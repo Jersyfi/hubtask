@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The token shapes of security.md §5, as law rather than as design (0.6.0 decision 2).
+// The token shapes of identity.md §14.1, as law rather than as design.
 const (
 	// AccessTokenLifetime is how long the signed half of the pair lives. Short enough that a
 	// stolen one is a fifteen-minute problem (T-01); long enough that a client is not refreshing
@@ -22,9 +22,8 @@ const (
 	// far a session's horizon slides on each rotation. A session nobody touches for thirty days
 	// runs out with the token that could have renewed it.
 	RefreshTokenLifetime = 30 * 24 * time.Hour
-	// RedemptionLifetime is how long an invitation's token stays redeemable. Two weeks: long
-	// enough to survive a holiday, short enough that the credential is not lying around for
-	// months - which is the reason the token exists only from this milestone at all
+	// RedemptionLifetime is how long an invitation's token stays redeemable. Two weeks: long enough
+	// to survive a holiday, short enough that the credential is not lying around for months
 	// (data-catalog.md §7.5).
 	RedemptionLifetime = 14 * 24 * time.Hour
 )
@@ -86,9 +85,9 @@ type Session struct {
 	// ExpiresAt is the horizon of the newest refresh token. Rotation slides it.
 	ExpiresAt time.Time
 	RevokedAt time.Time
-	// GrantID and Scopes are H-05's leash: set for a session an OAuth exchange issued. Nil
-	// scopes is a person's own session, bounded by nothing but their role; a grant session
-	// carries the grant's scopes and is ended by the grant's revocation.
+	// GrantID and Scopes are the OAuth grant's leash (identity.md §15.3): set for a session an
+	// OAuth exchange issued. Nil scopes is a person's own session, bounded by nothing but their
+	// role; a grant session carries the grant's scopes and is ended by the grant's revocation.
 	GrantID shared.ID
 	Scopes  []string
 	// HardExpiresAt is the moment this session may not outlive however often it is refreshed
@@ -130,7 +129,7 @@ func (s Session) Elevated(now time.Time) Session {
 	return s
 }
 
-// The ways a session can be opened, as the contract's closed set (ADR-0068 §3, SI-08).
+// The ways a session can be opened, as the contract's closed set (ADR-0068 §3, identity.md §14.1).
 //
 // A list rather than a boolean per way, because the next one is a passkey and the one after that is
 // whatever comes next: a set the contract names is a set a client can draw, and a set assembled

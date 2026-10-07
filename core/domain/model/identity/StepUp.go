@@ -9,7 +9,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The step-up (H-03, security.md §5): a fresh re-authentication on the current session,
+// The step-up (identity.md §16, security.md §5): a fresh re-authentication on the current session,
 // recorded there, valid for a configured window, consumed by the one privileged action it is
 // presented to.
 

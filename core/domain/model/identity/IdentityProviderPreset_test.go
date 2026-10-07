@@ -100,9 +100,9 @@ func TestWhatAPresetPermitsAsProvisioning(t *testing.T) {
 		t.Errorf("a public provider defaults to %q, want INVITED_ONLY", configured.Provisioning)
 	}
 
-	// A self-hosted issuer may be INVITED_ONLY since ADR-0071's addendum (E2): the strictest mode
-	// for every preset. What once made it dangerous - connecting an existing account on the
-	// strength of an address - now asks for the account's own proof whatever the mode.
+	// A self-hosted issuer may be INVITED_ONLY (ADR-0071's addendum): the strictest mode for every
+	// preset. Connecting an existing account on the strength of an address asks for the account's
+	// own proof whatever the mode.
 	generic := providerInput()
 	generic.Provisioning = "INVITED_ONLY"
 	invitedOnly, err := NewIdentityProvider(generic)

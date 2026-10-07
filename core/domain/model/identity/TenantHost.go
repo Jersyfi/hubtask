@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The hosts a workspace answers at (SI-12).
+// The hosts a workspace answers at.
 //
 // **The model a custom domain needs, and none of the feature.** Today a workspace is reached at the
 // host its slug makes under the installation's own domain, and the resolution still reads the slug.
@@ -19,11 +19,11 @@ import (
 // invitation link have to name one host rather than whichever the request arrived at, and that is
 // what `Canonical` answers.
 
-// HostState is how far a host has got (the concept's §6.5).
+// HostState is how far a host has got.
 //
 // Four, and the fourth is the one that makes the model worth landing early: a host that *was*
-// serving and stopped is not a host that never worked, and §6.6's fallback - the provider host
-// becomes canonical again by itself - is keyed on exactly that difference.
+// serving and stopped is not a host that never worked, and the fallback - the provider host becomes
+// canonical again by itself - is keyed on exactly that difference.
 type HostState string
 
 const (
@@ -47,7 +47,7 @@ const (
 const MaxHostLength = 253
 
 // HostVerificationPrefix labels the mark a zone has to carry, so a value found in a DNS record says
-// what it is without anybody having to guess (D-08's prefix catalogue).
+// what it is without anybody having to guess (the `hbt_` prefixes of api-guidelines.md §7).
 //
 // It is **not** a secret and is deliberately not hashed: it is published in a TXT record an operator
 // reads out and anybody can look up. What it proves is control of a zone, and only somebody who

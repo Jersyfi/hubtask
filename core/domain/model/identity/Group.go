@@ -47,8 +47,8 @@ type NewGroupInput struct {
 	Name        string
 	Description string
 
-	// Text brings the name and the description to normal form C before they are bounded and
-	// stored (i18n-l10n.md §5, M-07); work.NewWorkItemInput says why it is handed in.
+	// Text brings the name and the description to normal form C before they are bounded and stored
+	// (i18n-l10n.md §5); work.NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 
@@ -102,7 +102,8 @@ func (g Group) Describe(description string, form text.Normalizer) (Group, error)
 // Normalisation before checking, so that a name that is only whitespace is refused as empty rather
 // than accepted as three spaces - and so that the uniqueness index, which compares lower case and
 // unaccented, compares what a person would call the same name. Normal form C for the same reason
-// (M-07): unaccent() knows the composed letter, and a combining mark on its own is not one.
+// (i18n-l10n.md §5): unaccent() knows the composed letter, and a combining mark on its own is not
+// one.
 func groupName(raw string, form text.Normalizer) (string, error) {
 	name, err := shared.NFC(strings.TrimSpace(raw), form)
 	if err != nil {

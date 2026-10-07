@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// An operator opens the password for one workspace (ADR-0078 §3, SC-34).
+// An operator opens the password for one workspace (ADR-0078 §3, identity.md §17.2).
 //
 // For a provider that is switched on but broken - unreachable, or admitting nobody - nothing inside
 // the workspace can help: the administrators who could switch the password back on cannot sign in to
@@ -84,9 +84,9 @@ func NewOpening(
 	}, nil
 }
 
-// openingText trims one of the two texts and brings it to normal form C (M-07). Its own function, with
-// no message code among its arguments, because the text it answers is recorded: a call handed a code
-// spelled "password_…" is what CodeQL's heuristic reads as a password source.
+// openingText trims one of the two texts and brings it to normal form C (i18n-l10n.md §5). Its own
+// function, with no message code among its arguments, because the text it answers is recorded: a
+// call handed a code spelled "password_…" is what CodeQL's heuristic reads as a password source.
 func openingText(raw string, form text.Normalizer) (string, error) {
 	return shared.NFC(strings.TrimSpace(raw), form)
 }

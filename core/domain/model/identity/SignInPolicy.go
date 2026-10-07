@@ -57,8 +57,8 @@ type MfaRequirement string
 const (
 	// MfaForNobody is the shipped value: enforcement is a decision, never a default.
 	MfaForNobody MfaRequirement = "NONE"
-	// MfaForAdmins is what `require_admin_totp` has meant since 0.6.0. The old boolean derives
-	// from this one and writes back to it, so no stored row and no client has to move.
+	// MfaForAdmins is what `require_admin_totp` means. The old boolean derives from this one and
+	// writes back to it, so no stored row and no client has to move.
 	MfaForAdmins MfaRequirement = "ADMINS"
 	// MfaForEveryone reaches every person of the workspace - and no service account, which has
 	// no authenticator and no person behind it to hold one.
@@ -250,9 +250,8 @@ const (
 	LockNone LockOrigin = ""
 	// LockInstance is the operator's.
 	LockInstance LockOrigin = "INSTANCE"
-	// LockPlan is the plan's. Nothing writes it yet - plans are their own milestone - and the
-	// origin exists from the first row so that the plan layer is not a migration through the
-	// sign-in path later.
+	// LockPlan is the plan's. Nothing writes it (plans have no writer, identity.md §18), and the
+	// origin exists so that the plan layer needs no migration through the sign-in path.
 	LockPlan LockOrigin = "PLAN"
 )
 
