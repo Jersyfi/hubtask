@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// PrivacyDeadlines watches one tenant's statutory deadlines (E-10, alert A-19).
+// PrivacyDeadlines watches one tenant's statutory deadlines (alert A-19).
 //
 // The reminder poller's shape, and for the reason that one has it: nothing in this system may
 // enumerate tenants, so a scheduler cannot create one of these per tenant. The write that records a

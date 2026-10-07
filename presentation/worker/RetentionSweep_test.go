@@ -101,7 +101,7 @@ type emptyHistory struct{}
 func (emptyHistory) DeleteExpired(context.Context, time.Time, int) (int, error) { return 0, nil }
 func (emptyHistory) CountExpired(context.Context, time.Time, int) (int, error)  { return 0, nil }
 
-// emptyInbox is a jumble with nothing due, wired for emptyHistory's reason exactly (G-10).
+// emptyInbox is a jumble with nothing due, wired for emptyHistory's reason exactly.
 type emptyInbox struct{}
 
 func (emptyInbox) DeleteExpired(context.Context, time.Time, int) (int, error) { return 0, nil }

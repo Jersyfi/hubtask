@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Todo is one entry as a CalDAV calendar of todos shows it (P-06, RFC 5545 §3.6.2).
+// Todo is one entry as a CalDAV calendar of todos shows it (RFC 5545 §3.6.2).
 //
 // A VTODO rather than a VEVENT: an entry with a due date is something to do, and a calendar
 // client that speaks CalDAV is a client that shows todos - Reminders, Tasks, Thunderbird's

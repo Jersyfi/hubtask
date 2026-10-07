@@ -17,9 +17,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// The two halves of #207 at this adapter: a job refused for a busy target comes back rather than
-// reporting success over an archive it never wrote, and a job the queue gives up on closes the run
-// row that holds the target's lock.
+// The two halves of the target lock at this adapter: a job refused for a busy target comes back
+// rather than reporting success over an archive it never wrote, and a job the queue gives up on
+// closes the run row that holds the target's lock.
 
 // stubTargets answers one target and panics on anything the paths under test never reach.
 type stubTargets struct{ repository.Targets }
@@ -74,7 +74,7 @@ func backupRunJob() queue.Job {
 }
 
 // A busy target is not a success: the job was asked for an archive and has not written one, so it
-// comes back when the target should be free instead of reporting SUCCEEDED over nothing (#207).
+// comes back when the target should be free instead of reporting SUCCEEDED over nothing.
 func TestABusyTargetSendsTheJobBackRatherThanSucceeding(t *testing.T) {
 	handler := BackupRun{Performer: service.Performer{
 		Targets: stubTargets{}, Runs: busyRuns{},
@@ -93,7 +93,7 @@ func TestABusyTargetSendsTheJobBackRatherThanSucceeding(t *testing.T) {
 	}
 }
 
-// The dead letter closes the run row, which is what frees the one-run-per-target lock (#207).
+// The dead letter closes the run row, which is what frees the one-run-per-target lock.
 func TestReleaseClosesTheAbandonedRun(t *testing.T) {
 	runs := &closingRuns{}
 	handler := BackupRun{Performer: service.Performer{

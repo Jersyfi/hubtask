@@ -130,7 +130,8 @@ func TestThePolicyIsExactlyThis(t *testing.T) {
 	t.Parallel()
 
 	// Written out rather than compared to itself, because the point of this test is to make a
-	// change to the policy a change to two files. F4-05 hands the browser to an identity
+	// change to the policy a change to two files. Signing in through a provider hands the browser
+	// to an identity
 	// provider, which is the first time this application sends somebody to a foreign origin, and
 	// the first question anybody asks is whether the policy had to be widened for it. It did not:
 	// a top-level navigation is not a fetch, `connect-src` does not govern one, and both calls the

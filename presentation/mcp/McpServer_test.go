@@ -125,8 +125,8 @@ func TestInitializeAnnouncesWhatThisServerCanDo(t *testing.T) {
 	if _, tools := capabilities["tools"]; !tools {
 		t.Errorf("the server does not announce tools: %v", capabilities)
 	}
-	// Resources arrived with J-11, so they are claimed now - and with both flags false, because
-	// this server initiates nothing until the streaming half of the transport exists.
+	// Resources are claimed - and with both flags false, because this server is wired without a
+	// stream to carry a notification.
 	resources, declared := capabilities["resources"].(map[string]any)
 	if !declared {
 		t.Fatalf("the server does not announce the resources it serves: %v", capabilities)
@@ -135,7 +135,7 @@ func TestInitializeAnnouncesWhatThisServerCanDo(t *testing.T) {
 		t.Errorf("the server promises notifications it cannot send: %v", resources)
 	}
 	// Prompts are still not claimed: a client that believes in a capability and finds nothing
-	// behind it has no way to recover (J-12).
+	// behind it has no way to recover.
 	if _, prompts := capabilities["prompts"]; prompts {
 		t.Error("the server announces prompts it does not serve")
 	}
@@ -359,7 +359,7 @@ func TestAMethodTheTransportDoesNotDefineIsRefused(t *testing.T) {
 	}
 }
 
-// Every call through this door is an agent's, whatever the credential behind it says (J-14).
+// Every call through this door is an agent's, whatever the credential behind it says.
 //
 // Authentication answers USER or SERVICE_ACCOUNT from the account that owns the token, which is the
 // right answer to "who owns this" and the wrong one to "what is acting". A person calling /mcp with

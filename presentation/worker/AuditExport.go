@@ -12,8 +12,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// AuditExport is the queue's way into writing a period of the trail to a backup target (E-09,
-// audit.md §5).
+// AuditExport is the queue's way into writing a period of the trail to a backup target
+// (audit.md §5).
 //
 // Detached, for the reason a backup run is: it streams as much evidence as the tenant produced to
 // somebody else's machine, and doing that inside the runner's own transaction would hold one open

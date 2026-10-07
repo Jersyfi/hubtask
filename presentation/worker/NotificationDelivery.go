@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// NotificationDelivery is the queue's way into sending one notification (C-09): an inbound
+// NotificationDelivery is the queue's way into sending one notification: an inbound
 // adapter, like every other handler, translating a job into a call on the application layer.
 //
 // Detached, and it has to be. The delivery reaches an SMTP server between two writes, and a

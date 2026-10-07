@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// AuditAnchoring is one tenant's daily anchoring (A-2, P-13, audit.md §3): the chain's end
+// AuditAnchoring is one tenant's daily anchoring (audit.md §3): the chain's end
 // written to the backup target the workspace named, then the next day's moment.
 //
 // The backup schedule's shape - one job per tenant, seeded by the configuration's write,

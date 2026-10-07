@@ -12,8 +12,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// PrivacyRequest carries out a data subject request that has been started (E-10,
-// data-protection.md §4): the archive an access or portability case produces, or the erasure an
+// PrivacyRequest carries out a data subject request that has been started
+// (data-protection.md §4): the archive an access or portability case produces, or the erasure an
 // erasure case is.
 //
 // Detached, for the reason the backup run is: an erasure serves every storage location in the data

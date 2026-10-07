@@ -32,17 +32,13 @@ type Catalogue interface {
 // through this door is checked by the same application layer as a person reaching it through
 // REST, which is what makes an agent's action as safe, and as auditable, as anybody else's
 // (ADR-0005, ADR-0012).
-//
-// Deliberately not implemented yet: the SSE half of the streamable transport (J-13). It is a
-// separate promise, and answering "method not found" is honest where an empty list would claim this
-// installation has none.
 type Server struct {
 	Catalogue Catalogue
-	// Prompts is the store the outbound adapters read, published here (J-12). Nil is an
+	// Prompts is the store the outbound adapters read, published here. Nil is an
 	// installation running without it, and then the prompts capability is not declared and the two
-	// methods answer "method not found" - the rule this file has always stated about itself.
+	// methods answer "method not found": a capability is claimed only where something serves it.
 	Prompts Prompts
-	// Sessions mints and checks the `Mcp-Session-Id` a handshake hands out (J-13). Nil is an
+	// Sessions mints and checks the `Mcp-Session-Id` a handshake hands out. Nil is an
 	// installation running without the streaming half: no session is issued, none is checked, and
 	// `GET /mcp` is not served.
 	Sessions Sessions
@@ -122,8 +118,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 	case http.MethodGet:
-		// The server-initiated stream (J-13). It used to be a 405 with a comment saying this
-		// server initiates nothing; J-11 and J-12 gave it lists that can change.
+		// The server-initiated stream: the resource and prompt lists can change.
 		s.stream(w, r)
 		return
 	case http.MethodDelete:
@@ -181,8 +176,8 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //
 // **It stamps the actor as an agent**, and that is this adapter's one substantive act rather than a
 // detail of it. `ai-first.md` §1.1 promises every call through this door is audited as
-// `actor.type = AI_AGENT`, and §1.3 wants an agent held to guardrails a person is not - and until
-// J-14 nothing in the running system ever produced that kind. Authentication answers `USER` or
+// `actor.type = AI_AGENT`, and §1.3 wants an agent held to guardrails a person is not - and
+// nothing but this door produces that kind. Authentication answers `USER` or
 // `SERVICE_ACCOUNT` from the account behind the credential, which is the right answer to "who owns
 // this token" and the wrong one to "what is acting": the same service account may drive a nightly
 // import through REST and an agent through here, and an auditor has to be able to tell those apart
@@ -235,13 +230,10 @@ func (s Server) answer(ctx context.Context, call request) response {
 	case "initialize":
 		answer.Result = map[string]any{
 			"protocolVersion": ProtocolVersion,
-			// Tools and resources. Prompts are declared when they exist (J-12), because a client
-			// that believes in a capability and finds nothing behind it has no way to recover.
-			//
-			// Both resource flags are false and both are honest: this server initiates nothing
-			// until the streaming half of the transport arrives (J-13), so it cannot tell a client
-			// that a list changed or that a resource it subscribed to has moved - and a client
-			// that believed otherwise would wait for a message that never comes.
+			// Tools and resources. Prompts are declared when they exist, because a client
+			// that believes in a capability and finds nothing behind it has no way to recover -
+			// and a resource flag claimed without a stream to carry it would leave a client
+			// waiting for a message that never comes.
 			"capabilities": s.capabilities(),
 			"serverInfo":   map[string]any{"name": s.Name, "version": s.Version},
 		}
@@ -336,15 +328,14 @@ func (s Server) call(ctx context.Context, params json.RawMessage) (map[string]an
 // Nothing is claimed that is not served: a client that believes in a capability and finds nothing
 // behind it has no way to recover, which is why prompts appear only where a store was wired.
 //
-// Every flag is false, and each one is honest. This server initiates nothing until the streaming
-// half of the transport arrives (J-13), so it cannot tell a client that a list has changed or that
-// a resource it subscribed to has moved.
+// `listChanged` on resources is true only where a stream can carry the notification; every other
+// flag is false, because nothing behind it would ever send one.
 func (s Server) capabilities() map[string]any {
 	capabilities := map[string]any{
 		// The tool list is generated from the use case registry, which does not change while a
 		// process runs, so a notification about it would be a message that is never sent.
 		"tools": map[string]any{"listChanged": false},
-		// Resources move whenever a workspace does, and since J-13 this server says so - but only
+		// Resources move whenever a workspace does, and this server says so - but only
 		// where a stream can actually carry the notification. `subscribe` stays false: MCP's
 		// subscription is per resource URI, and what this server watches is a workspace.
 		"resources": map[string]any{"subscribe": false, "listChanged": s.notifies()},

@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// TenantExport is the queue's way into the workspace export (H-07): an inbound adapter that
+// TenantExport is the queue's way into the workspace export: an inbound adapter that
 // translates the job the control plane seeded into one call on the archivist.
 //
 // Detached, the audit export's reason: the pass streams an archive to a target between reads,

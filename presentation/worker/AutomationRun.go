@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// AutomationRun is the queue's way into the engine (G-07).
+// AutomationRun is the queue's way into the engine.
 //
 // An inbound adapter like every other handler: it translates a job into a call on the application
 // layer and the answer into the queue's vocabulary. What is particular to it is `on_error: RETRY` -
@@ -100,8 +100,8 @@ func (a AutomationRun) next(
 //
 // Data rather than a domain object, because the row outlives the process that wrote it - a type that
 // changed shape in between would take the job with it. That is also why an absent `trigger` reads as
-// `EVENT`: a job queued before G-08 named no kind because there was only one, and a rolling update
-// has both shapes in the table at once.
+// `EVENT`: a job queued by an older release names no kind because there was only one, and a
+// rolling update has both shapes in the table at once.
 func commandOf(job queue.Job) (automation.Command, error) {
 	ruleID, err := idPayload(job, "rule_id")
 	if err != nil {
@@ -136,7 +136,7 @@ func commandOf(job queue.Job) (automation.Command, error) {
 
 	occasion, _ := job.Payload["occasion"].(string)
 	payload, _ := job.Payload["payload"].(map[string]any)
-	// A resume job (G-09): the path of the WAIT the run parked on, and the rule's version as the
+	// A resume job: the path of the WAIT the run parked on, and the rule's version as the
 	// suspended run knew it. Absent on every fresh run.
 	resumeFrom, _ := job.Payload["resume_from"].(string)
 

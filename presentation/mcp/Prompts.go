@@ -12,7 +12,7 @@ import (
 	port "github.com/Jersyfi/hubtask/core/port/ai"
 )
 
-// The prompts an agent may ask for (J-12, ai-first.md §1.1).
+// The prompts an agent may ask for (ai-first.md §1.1).
 //
 // **Why this is not display text, and why rule 8 is not being bent.** Rule 8 forbids the backend
 // producing what a person reads: a sentence in the product's interface is a message code plus

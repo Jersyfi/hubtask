@@ -15,7 +15,7 @@ import (
 
 // MediaReconciliation is the queue's way into the reclamation of uploaded files: an inbound
 // adapter, like every other handler, that translates a job into a call on the application layer and
-// its answer into the queue's vocabulary (C-06).
+// its answer into the queue's vocabulary.
 //
 // It reschedules itself rather than being rescheduled, for the reason the retention sweep does:
 // nothing in this system may enumerate tenants, so a scheduler cannot create one job per tenant

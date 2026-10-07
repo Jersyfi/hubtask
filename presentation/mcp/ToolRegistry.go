@@ -105,9 +105,9 @@ func InputSchema(fields []usecase.Field) map[string]any {
 // format rather than a type of its own - JSON Schema has no uuid type, and an agent that only
 // reads `type` still gets something it can satisfy.
 //
-// A list of identifiers is an array, and said so from here on. It was a string until B-12, which is
-// a shape no caller could satisfy: an agent that read the schema for `member_ids` was told to send
-// text and then refused for sending it.
+// A list of identifiers is an array, and said so. A string would be a shape no caller could
+// satisfy: an agent that read the schema for `member_ids` would be told to send text and then
+// refused for sending it.
 func jsonType(kind usecase.Kind) string {
 	switch kind {
 	case usecase.KindBool:

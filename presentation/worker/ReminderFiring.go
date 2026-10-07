@@ -15,7 +15,7 @@ import (
 )
 
 // ReminderFiring is the queue's way into the first duty this system has that is caused by a stored
-// future timestamp rather than by something somebody just did (D-03).
+// future timestamp rather than by something somebody just did.
 //
 // An inbound adapter like every other handler: it translates a job into a call on the application
 // layer and the answer into the queue's vocabulary. What is particular to it is the shape of the

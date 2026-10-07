@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The resource half of the server (J-11, ADR-0051). What is asked here is that a URI becomes a
+// The resource half of the server (ADR-0051). What is asked here is that a URI becomes a
 // catalogue call and nothing else: no permission is decided in this package, no tenant is resolved
 // in it, and a refusal comes back as the application layer wrote it.
 

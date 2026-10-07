@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
-// The server-initiated half (J-13). What is asked here is the handshake, the binding, the caps this
+// The server-initiated half. What is asked here is the handshake, the binding, the caps this
 // stream shares with the browser's, and the two ways a stream ends that are not the client leaving.
 
 var (

@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The mail parser (G-11): arbitrary bytes from the internet become the four things a jumble entry
+// The mail parser: arbitrary bytes from the internet become the four things a jumble entry
 // is made of - a sender, a subject, a text and some attachments.
 //
 // It is the durable half of the mail intake and it is transport-independent on purpose. What

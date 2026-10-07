@@ -14,7 +14,7 @@ import (
 )
 
 // PasswordOpeningEnd is the queue's way into recording the end of an operator's opening of the
-// password (ADR-0078 §3, SC-34). Not detached: it reads and writes one workspace's rows and nothing
+// password (ADR-0078 §3). Not detached: it reads and writes one workspace's rows and nothing
 // outside the database, so the runner's transaction in that workspace is the right one. While the
 // opening it finds is still running - a later one replaced the one it was seeded for - it comes back
 // at that opening's end.

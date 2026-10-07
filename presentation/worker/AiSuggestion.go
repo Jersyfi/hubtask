@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// AiSuggestion is the queue's way into asking a provider what something should become (J-06): an
+// AiSuggestion is the queue's way into asking a provider what something should become: an
 // inbound adapter, like every other handler, translating a job into a call on the application
 // layer.
 //
@@ -56,8 +56,8 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 			WithParams(map[string]string{"value": string(targetType)})
 	}
 
-	// Absent means FIELDS, which is what the jumble's asking queued before decompositions existed
-	// (J-06). A default rather than a refusal, so a job written by the previous release still runs
+	// Absent means FIELDS, which is what the jumble's asking queued before decompositions existed.
+	// A default rather than a refusal, so a job written by the previous release still runs
 	// after an upgrade - the payload outlives the process that wrote it (core/port/queue).
 	kind := domain.Kind(payloadString(job, "kind"))
 	if kind == "" {
@@ -84,7 +84,7 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 		PromptID: payloadString(job, "prompt"),
 		Apply:    payloadBool(job, "apply"),
 	}
-	// The words the question was asked with, where the payload names them (P-11): a reference
+	// The words the question was asked with, where the payload names them: a reference
 	// to a row the workspace holds, never the words themselves.
 	if _, named := job.Payload["request_id"]; named {
 		requestID, err := payloadID(job, "request_id")

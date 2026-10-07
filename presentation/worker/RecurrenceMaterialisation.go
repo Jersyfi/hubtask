@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// RecurrenceMaterialisation is the queue's way into what a series owes (D-05): an inbound adapter
+// RecurrenceMaterialisation is the queue's way into what a series owes: an inbound adapter
 // like every other handler, translating a job into a call on the application layer and its answer
 // into the queue's vocabulary.
 //

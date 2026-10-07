@@ -38,7 +38,7 @@ func (r *recording) Invoke(_ context.Context, name string, actor appshared.Actor
 	r.version++
 	id := in.String("id")
 	if name == createWorkItemUseCase && id == "" {
-		// The server mints the identifier of a created entry (issue #721); the fake mints a
+		// The server mints the identifier of a created entry; the fake mints a
 		// recognisable one, so a test can see it travel into the completion that follows.
 		id = mintedID.String()
 	}
@@ -62,7 +62,7 @@ func (f *fakeItems) Execute(_ context.Context, _ appshared.ActorContext, query w
 	}
 	if query.ItemID.IsZero() {
 		// By the UID a calendar client chose, the way the repository's partial unique index
-		// answers it (issue #721).
+		// answers it.
 		for _, item := range f.items {
 			if item.CalendarUID == query.CalendarUID {
 				return item, nil
@@ -199,7 +199,7 @@ func TestCreatingThroughPut(t *testing.T) {
 	c, rec := writable()
 	me := accountID.String()
 	// A random UID, as Reminders mints one: the address is the client's and the identifier is
-	// the server's (issue #721).
+	// the server's.
 	const uid = "8B2C1D2E-0000-4000-8000-000000000000"
 	body := "BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\nUID:" + uid + "\r\nSUMMARY:Made in Reminders\r\nDUE;VALUE=DATE:20260930\r\nSTATUS:COMPLETED\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"
 
@@ -245,7 +245,7 @@ func TestCreatingThroughPut(t *testing.T) {
 	}
 }
 
-// The round trip a client keyed by UID depends on (issue #721): an entry made under a client's
+// The round trip a client keyed by UID depends on: an entry made under a client's
 // UID lives at that address, renders that UID back unchanged, is found there when the view no
 // longer answers it, and is edited under the identifier the server minted.
 func TestAnEntryLivesAtTheUIDItsClientChose(t *testing.T) {
