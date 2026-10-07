@@ -28,7 +28,7 @@ export const WEEK_STARTS = ['MONDAY', 'SUNDAY', 'SATURDAY'] as const;
  *
  * Not `null`, and the difference is not cosmetic. A server before 0.9.0 read an explicit JSON
  * null as a field nobody sent — `usecase.Input.Present()` reports a present-but-nil entry as
- * absent — and the value stayed (issue 709). The empty string is what every version clears on.
+ * absent — and the value stayed. The empty string is what every version clears on.
  */
 export function clearedOr(value: string): string {
   return value.trim();
@@ -39,7 +39,7 @@ export function clearedOr(value: string): string {
  *
  * A choice, not a placeholder: `Select`'s placeholder is unselectable, which is right for a field
  * that starts empty and wrong for one somebody wants to put back — a person who once chose a first
- * day of the week could never un-choose it (the F5-09 walk). The empty value is what `clearedOr`
+ * day of the week could never un-choose it. The empty value is what `clearedOr`
  * sends, and what the server clears on.
  */
 export function withWorkspaceChoice(

@@ -7,7 +7,7 @@
  * **The engine does not learn what a hub is.** It reads `entity`, `entity_id`, `container_id` and
  * `op`, hands them here, and invalidates what comes back — so this function is the one place that
  * knows a comment lives under `/items/{id}/comments` and a label under a container. That split is
- * `packages/sync-engine/AGENTS.md`'s: the seam is the network, the paths are the product.
+ * `project-structure.md` §2.1's: the seam is the network, the paths are the product.
  *
  * **A record is a signal to re-read, never data to apply.** Nothing here touches `payload`. Applying
  * it would be a merge, and merging is the server's (ADR-0021, `offline-sync.md` §4) — which is also
@@ -15,8 +15,8 @@
  * invalidation of everything.
  *
  * **The names are `touches.ts`'s**, the same ones a write declares, so the write's answer and the
- * record for it agree on what is stale (issue 877 - `/items` here re-read an entry's thread, its
- * reminders and its series for a retitled entry, and each record of the write did it again).
+ * record for it agree on what is stale - naming `/items` here would re-read an entry's thread, its reminders
+ * and its series for a retitled entry, once for the write and again for each record of it.
  * `entity_id` is the record's own entity - a reminder's id on a reminder record, not its entry's -
  * which is why the reminders, the threads and the series are named with a star in place of the
  * entry: the record cannot name it, and only the open entry's are watched.

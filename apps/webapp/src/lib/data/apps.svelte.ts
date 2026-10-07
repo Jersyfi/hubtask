@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The workspace's registered third-party apps (H-05).
+ * The workspace's registered third-party apps.
  *
  * **A confidential client's secret exists in one answer.** Registration carries it; nothing after
  * that does. So this module hands it to its caller and keeps no copy, exactly as the token store

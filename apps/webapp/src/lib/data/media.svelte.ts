@@ -7,7 +7,7 @@
  * **Three steps, and the middle one does not go to the API.** `POST /media` stages the object and
  * answers where to put the bytes; the bytes go there through the seam's `transfer`, with no bearer
  * and no cookie, because the URL is its own credential; `POST /media/{id}:confirm` reads them back,
- * judges them and seals the object. Nothing may use an object before that judgement (C-06, T-11),
+ * judges them and seals the object. Nothing may use an object before that judgement (T-11),
  * so this store never hands a PENDING object to a caller as if it were usable.
  *
  * **A cancelled upload leaves a PENDING object behind, and that is by design.** The reconciliation
@@ -45,7 +45,7 @@ export interface UploadOptions {
   /** Told the staged object as soon as there is one, so a cancel can say what it left behind. */
   readonly onStaged?: (object: MediaObject) => void;
   /**
-   * The type to claim instead of the file's own. An import claims the kind's type (F6-09): what
+   * The type to claim instead of the file's own. An import claims the kind's type: what
    * a browser guesses for a `.csv` differs by platform, and the server judges the bytes anyway.
    */
   readonly contentType?: string;

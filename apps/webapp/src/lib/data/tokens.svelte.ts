@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * Personal access tokens: one's own, and a service account's (G-01, `security.md` §5).
+ * Personal access tokens: one's own, and a service account's (`security.md` §5).
  *
  * **The credential exists in one answer and nowhere else.** `POST /auth/tokens` carries it; every
  * later read carries a hash's shadow and not the value. So this module hands the minted token
@@ -10,7 +10,7 @@
  * afterwards is metadata about a credential, never the credential.
  *
  * **A token's shape is never checked here.** The security scheme accepts three kinds of credential
- * and a client enforcing one pattern refuses the other two (`apps/webapp/AGENTS.md`).
+ * and a client enforcing one pattern refuses the other two (identity.md §14.4).
  *
  * **`account_id` is the one exception to "a token is its holder's".** Omitted means the caller's
  * own; naming a service account lists or mints that account's, which needs the permission that

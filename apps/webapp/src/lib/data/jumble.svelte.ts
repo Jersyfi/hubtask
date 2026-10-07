@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The jumble: things arrive, and become work or do not (G-10, `automation.md` §4).
+ * The jumble: things arrive, and become work or do not (`automation.md` §4).
  *
  * **An entry is decided about exactly once.** `NEW` becomes `PROCESSED` or `DISMISSED` and
  * `settled_at` says when. A dismissal is a state and not a deletion — the row stays readable and
@@ -15,7 +15,7 @@
  *
  * **AI is asked through `suggestions.svelte.ts`**, not here: `:suggest` records a proposal about the
  * entry, and accepting it is the suggestion's own operation, which converts the entry with the
- * proposed fields (F5-03). This store keeps the conversion a person makes by hand.
+ * proposed fields. This store keeps the conversion a person makes by hand.
  */
 
 import type { ResourceState } from '@hubtask/sync-engine';

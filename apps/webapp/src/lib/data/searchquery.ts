@@ -260,7 +260,7 @@ export function write(token: Pick<Token, 'key' | 'value' | 'negated'>): string {
  *
  * A collection, a label, a kind, a state, a date, `me` — none of them is anybody's text. What is
  * left out is the words and `title:`/`note:`, which are, and which stay under the handle in
- * `sessionStorage` where the words already live (`searchhandle.ts`, issue 997).
+ * `sessionStorage` where the words already live (`searchhandle.ts`).
  */
 export function structural(parsed: Parsed): string {
   return parsed.tokens.filter((token) => !CONTENT_KEYS.has(token.key)).map(write).join(' ');

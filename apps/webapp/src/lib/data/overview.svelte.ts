@@ -11,8 +11,8 @@
  * their time zone and on whether a date is a day or an instant (`data/due.ts`), and a server that
  * answered two lists would have to ask it twice.
  *
- * **It is askable at all because of ADR-0064.** `POST /search` took words and nothing else until
- * F10-18; a filter with no words is now a question, and this is the screen that exists to ask it.
+ * **It is askable at all because of ADR-0064.** A filter with no words is a question to
+ * `POST /search`, and this is the screen that exists to ask it.
  * A narrowing of "mine, open, dated" is also the one read in this client that is deliberately
  * unanchored — the overview is a workspace-wide question, and anchoring it to a container would
  * make it a different one.

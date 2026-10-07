@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * Automation rules: written, read back, switched on (G-05, `automation.md` §1).
+ * Automation rules: written, read back, switched on (`automation.md` §1).
  *
  * **A rule is created switched off**, and `:enable` and `:disable` are what move it — so the trail
  * says which of the two somebody did. There is no `enabled` field to write, which is why the form
@@ -28,7 +28,7 @@ const PATH = '/automation/rules';
  * One step of a rule, as `RuleAction` answers it: a kind and its parameters. `BRANCH` nests inside
  * `params` - `then` and `else` are what the kind takes, beside `condition` - because that is where
  * the domain reads them and where a finding's path points; the shape that put the arms beside
- * `params` was refused on every write and read back empty (issue 853).
+ * `params` was refused on every write and read back empty.
  */
 export interface RuleAction {
   readonly kind: string;
@@ -65,7 +65,7 @@ export interface Rule {
   /** What the check found (ADR-0060), and when it last ran; empty and absent for a rule never checked. */
   readonly findings?: readonly RuleFinding[];
   readonly checked_at?: string | null;
-  /** The most recent run - when it started and how it ended - read beside the rule (F8-21); absent for a rule that never ran. */
+  /** The most recent run - when it started and how it ended - read beside the rule; absent for a rule that never ran. */
   readonly last_run?: { readonly at: string; readonly status: string } | null;
   readonly version: number;
 }

@@ -30,7 +30,7 @@ test('six months over a year end is still six months', () => {
 });
 
 test('a window that holds no work opens on the work instead', () => {
-  // The walk of 2026-09-22: two dated entries, one on the 25th and one on 2 October. The day
+  // Two dated entries, one on the 25th and one on 2 October. The day
   // scale reaches both, so today is where it opens.
   assert.equal(anchorOf(['2026-09-25', '2026-10-02'], '2026-09-22', 'day', MONDAY), '2026-09-22');
   // A collection whose only dated entry is a season away opens on it rather than on today.

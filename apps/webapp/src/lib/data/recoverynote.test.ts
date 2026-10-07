@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// UC-ID-02 check 6 (SC-18): after a sign-in with a recovery code the first page carries a note with
+// UC-ID-02 check 6: after a sign-in with a recovery code the first page carries a note with
 // the number left - and it stays in the tab across a reload until it is closed or the authenticator
 // is replaced, because the number arrived with this sign-in and with nothing after it.
 

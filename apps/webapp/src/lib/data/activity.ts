@@ -7,7 +7,7 @@
  * The rule that shapes all of it is `domain-model.md` §3.5: **`verb` is a code**. `item.completed`
  * is stored, `activity.item_completed` is what a client renders, and a module that wrote
  * "Completed" would be the message catalogue growing a second copy — which ADR-0011 forbids and
- * F1-07 built the renderer to prevent. So nothing here produces text; it produces codes and
+ * the renderer exists to prevent. So nothing here produces text; it produces codes and
  * parameters, and `messages.t` turns them into words.
  *
  * Two model facts this must not smooth over.
@@ -70,7 +70,7 @@ export function changesOf(changeSet: Record<string, unknown> | undefined): reado
 /**
  * The change-set fields whose values are people rather than text.
  *
- * The four verbs C-01 added — `item.assigned`, `item.unassigned`, `item.member_added`,
+ * The four assignment verbs — `item.assigned`, `item.unassigned`, `item.member_added`,
  * `item.member_removed` — carry an account identifier where every other change carries a value a
  * reader can read. Showing the identifier would be showing a UUID to somebody asking who took the
  * entry over, so the name is looked up and the field list says which ones to look up.

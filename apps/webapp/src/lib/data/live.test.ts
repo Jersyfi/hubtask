@@ -14,7 +14,7 @@ const record = (over: Partial<ChangeRecord>): ChangeRecord =>
 test('an entry makes its lists, its own document and its history stale - and nothing under it', () => {
   const paths = pathsFor(record({ entity_id: 'i-1', container_id: 'c-1' }));
   assert.deepEqual(paths, ['/items:query', '/items/i-1$', '/items/i-1/activity']);
-  // Issue 877: `/items` covered the thread, the reminders and the series of a retitled entry.
+  // Naming `/items` would cover the thread, the reminders and the series of a retitled entry.
   assert.equal(paths.some((name) => matchesPath(name, '/items/i-1/comments')), false);
   assert.equal(paths.some((name) => matchesPath(name, '/items/i-1?expand=labels')), true, 'the document, as the page reads it');
   // A deletion is a row of the trash as well.

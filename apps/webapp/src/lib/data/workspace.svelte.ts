@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The workspace as the people inside it see it, and the four things they may change (F4-01).
+ * The workspace as the people inside it see it, and the four things they may change.
  *
  * **`/tenant`, not `/admin/tenants`.** That listing crosses workspaces and belongs to the
  * installation operator; this answers one workspace to the people inside it and answers no other.

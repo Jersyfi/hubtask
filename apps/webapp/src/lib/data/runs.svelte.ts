@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * What rules did, what one would do, and how a failed run is finished (G-07, `automation.md` §3).
+ * What rules did, what one would do, and how a failed run is finished (`automation.md` §3).
  *
  * **The dry run writes nothing.** `POST /automation/rules:test` evaluates a rule against a sample
  * event and answers what it *would* do — both arms of every branch, because the honest answer to
@@ -134,7 +134,7 @@ class Runs {
   /**
    * Reads the first page again, in place. A run is recorded by the worker and no change record
    * announces it, so a listing opened before the run happened would show the rule as never run
-   * until the page reloaded (F8's walk found it that way); the editor asks for this when its Runs
+   * until the page reloaded; the editor asks for this when its Runs
    * tab is opened. The subscription `open` holds is what receives the answer.
    */
   async reload(filter: RunFilter = {}): Promise<void> {
@@ -155,7 +155,7 @@ class Runs {
   }
 
   /**
-   * Dry-runs a definition as it stands - the canvas's, not the stored rule's (F8-06, decision 9) -
+   * Dry-runs a definition as it stands - the canvas's, not the stored rule's (automation.md §1.5) -
    * so that an unsaved change is what is tested. The same document a write takes, checked by the
    * same validation; `payload` is what an inbound delivery would have carried.
    */

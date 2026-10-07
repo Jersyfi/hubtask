@@ -79,7 +79,7 @@ export interface Verification {
 }
 
 /**
- * What the read-back of the anchor found (issue 774), as the three facts it can be: the copy
+ * What the read-back of the anchor found, as the three facts it can be: the copy
  * agrees, the copy disagrees - which is the finding anchoring exists to produce - or no copy
  * could be read, with the server's reason. Nothing where the check was not asked for, or the
  * workspace anchors nowhere.

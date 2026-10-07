@@ -4,15 +4,13 @@
 /**
  * Who is signed in, and what they prefer.
  *
- * `GET /accounts/me` is what F1-08 added for exactly this, and this is the client task it named as
- * its consumer. The account carries `locale`, `time_zone` and `week_start`, and a binding client
- * requirement says those are what the application speaks and shows (`roadmap.md` phase 5,
- * `i18n-l10n.md` §2).
+ * `GET /accounts/me` is the read for exactly this. The account carries `locale`, `time_zone` and `week_start`, and a binding client
+ * requirement says those are what the application speaks and shows (`i18n-l10n.md` §2).
  *
  * Read only when there is a bearer, and quiet when refused - the same shape as the health report
  * and for a smaller reason: an anonymous client asking who it is gets a `401` it already knew
- * about. Until F1-11 puts a token behind the platform seam, `platform.bearer()` answers
- * `undefined` and nothing is read at all, which is the honest state of an application nobody has
+ * about. Without a token behind the platform seam, `platform.bearer()` answers `undefined` and
+ * nothing is read at all, which is the honest state of an application nobody has
  * signed into.
  *
  * **There is no theme here, by decision.** `Account` carries locale, time zone and week start and
@@ -121,13 +119,12 @@ class Actor {
 
     return engine.subscribe<Account>({ path: PATH }, (next) => {
       if (next.status === 'failed' && (next.error.status === 401 || next.error.status === 403)) {
-        // Not signed in after all. F1-11 takes this as its cue to ask for a token again; here it
-        // is simply nobody, which is what `idle` means.
+        // Not signed in after all: here it is simply nobody, which is what `idle` means.
         this.#state = { status: 'idle' };
         return;
       }
       // Remembered beside the pair, so that a tab reloading while the server is away still knows
-      // whose replica to open (F6-04).
+      // whose replica to open.
       if (next.status === 'ready') platform.rememberAccount(next.data.id);
       this.#state = next;
     });

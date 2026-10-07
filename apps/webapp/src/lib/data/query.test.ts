@@ -50,7 +50,7 @@ const today = {
   text_languages: ['en', 'de'],
 } as unknown as Capabilities;
 
-/** The same installation a milestone later: one more field, one more operator, one more language. */
+/** The same installation a release later: one more field, one more operator, one more language. */
 const tomorrow = {
   query_fields: [
     ...(today.query_fields ?? []),

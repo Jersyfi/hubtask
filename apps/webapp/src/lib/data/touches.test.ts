@@ -27,7 +27,7 @@ const covered = (names: readonly string[]) =>
   Object.entries(OPEN).filter(([, path]) => names.some((name) => matchesPath(name, path))).map(([what]) => what);
 
 test('a write to one entry re-reads its document, its history and the lists - and nothing that hangs under it', () => {
-  // Issue 877: `/items` re-read the thread, the reminders, the series and the attachments for a title.
+  // A title touches the entry, its history and the list - not its thread, reminders, series or attachments.
   assert.deepEqual(covered(touchesOf(ID)), ['document', 'history', 'list']);
 });
 

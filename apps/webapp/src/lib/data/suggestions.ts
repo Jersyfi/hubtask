@@ -55,8 +55,8 @@ export interface Offer {
  * Which operations the installation and the entry allow, with the reason for each that does not.
  *
  * `ai_suggestions` off means no menu at all - the caller renders nothing, and this answers an
- * empty list so that a caller who forgot the rule still offers nothing (decision 4: absence is
- * absence). `semantic_search` off means `duplicates` has no vectors to compare, which the contract
+ * empty list so that a caller who forgot the rule still offers nothing (design-system.md §4,
+ * CapabilityGate: absence is absence). `semantic_search` off means `duplicates` has no vectors to compare, which the contract
  * answers `204` for; it is listed with the reason rather than omitted, because a person who has
  * seen it elsewhere would otherwise look for it. An entry without comments has no discussion to
  * summarise, and an archived entry is not written to, so nothing that accepts into it is asked.
@@ -130,7 +130,7 @@ export type Shape =
   | {
       readonly shape: 'fields';
       readonly proposals: readonly FieldProposal[];
-      /** The titles the material implied, about a jumble entry (K-01): accepting creates them under the converted entry. */
+      /** The titles the material implied, about a jumble entry: accepting creates them under the converted entry. */
       readonly subtasks: readonly string[];
     }
   | {
@@ -141,14 +141,14 @@ export type Shape =
     }
   | { readonly shape: 'breakdown'; readonly nodes: readonly ProposedNode[] }
   | { readonly shape: 'duplicates'; readonly neighbours: readonly Neighbour[] }
-  /** A template drafted for the collection (P-11): a `TemplateInput`, its tree flattened the way a breakdown is. */
+  /** A template drafted for the collection: a `TemplateInput`, its tree flattened the way a breakdown is. */
   | {
       readonly shape: 'template';
       readonly name: string;
       readonly description?: string;
       readonly rootType: string;
       readonly nodes: readonly ProposedNode[];
-      /** The nodes the collection's profile refused, absent from the tree and counted (issue 767). */
+      /** The nodes the collection's profile refused, absent from the tree and counted. */
       readonly dropped: number;
     }
   | { readonly shape: 'unknown' };
@@ -295,7 +295,7 @@ export function headingCodeOf(shape: Shape): string {
   }
 }
 
-/** The verb accepting is (§7.3): what it does, not "OK". `DUPLICATES` has none, because nothing accepts it (K-04). */
+/** The verb accepting is (§7.3): what it does, not "OK". `DUPLICATES` has none, because nothing accepts it. */
 export function acceptCodeOf(shape: Shape): string | undefined {
   switch (shape.shape) {
     case 'fields':

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The queue, as the frame reads it (F6-06): what `engine.queue()` publishes, bound to runes, and
+ * The queue, as the frame reads it: what `engine.queue()` publishes, bound to runes, and
  * each change spelled as what and where - the kind in the catalogue's words, the entry's title
  * from the copy. The engine's `QueueState` is the fact; this is how a person reads it.
  */
@@ -76,7 +76,7 @@ class QueueView {
     return this.#state.conflicts;
   }
 
-  /** Whether a change to this entry is waiting to be sent (F6-06): the row's `pending` mark. */
+  /** Whether a change to this entry is waiting to be sent: the row's `pending` mark. */
   isPending(itemId: string): boolean {
     return this.#pendingItems.has(itemId);
   }
@@ -129,7 +129,7 @@ class QueueView {
  * The sentence for a refusal. The two codes §6 and §7 name are rendered by name; any other
  * through the server's own message code where the catalogue has it - a validation the applier
  * answered (`items.collection_or_parent_required`) reads as what it is rather than as "not
- * accepted" (issue 777) - and through the floor where it does not.
+ * accepted" - and through the floor where it does not.
  */
 function reasonOf(record: RejectedMutation): string {
   const code = record.messageCode ?? record.code;

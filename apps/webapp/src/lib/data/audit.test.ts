@@ -101,7 +101,7 @@ test('the anchor is reported only when there is one', () => {
   assert.equal(never.kind === 'holds' ? never.sealedUntil : 'set', undefined);
 });
 
-test('the anchor read-back is one of three facts, and nothing where it was not asked for (issue 774)', () => {
+test('the anchor read-back is one of three facts, and nothing where it was not asked for', () => {
   assert.equal(readAnchor({ valid: true, checked: 34 }), undefined);
   assert.equal(readAnchor({ valid: true, checked: 34, anchoring_configured: true, anchor_agrees: null }), undefined);
   assert.deepEqual(

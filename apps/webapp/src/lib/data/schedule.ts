@@ -13,10 +13,9 @@
  * shows six. One control, because the two are one question — a fortnight ruled by months says
  * nothing and half a year ruled by days is unreadable.
  *
- * **The window opens where the work is, not on the current month.** The collection walked on
- * 2026-09-22 had two dated entries, one on 25 September and one on 2 October, and the timeline
- * opened on 1-30 September: the first was drawn and the second was outside the window with
- * nothing saying so (ADR-0063 decision 12). So the anchor is today where today's window holds any
+ * **The window opens where the work is, not on the current month.** A window pinned to the month
+ * draws an entry due this month and leaves one due early next month outside, with nothing saying
+ * so (ADR-0063 decision 12). So the anchor is today where today's window holds any
  * of the work, and otherwise the dated day nearest to it.
  *
  * Every date here is `YYYY-MM-DD` and every sum goes through `due.ts`'s UTC arithmetic: a day is a

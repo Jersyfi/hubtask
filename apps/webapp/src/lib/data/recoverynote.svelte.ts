@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The note a sign-in with a recovery code leaves on the pages after it (UC-ID-02 check 6, SC-18).
+ * The note a sign-in with a recovery code leaves on the pages after it (UC-ID-02 check 6).
  *
  * Held in the tab (`recoverynote.ts` says why), shown at the top of the content area until the
  * person closes it or replaces the authenticator, and gone at sign-out with the session it is about.

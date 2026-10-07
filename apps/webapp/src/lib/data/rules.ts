@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The address a calling system posts to for an `INBOUND_WEBHOOK` rule (issue 775): the route
+ * The address a calling system posts to for an `INBOUND_WEBHOOK` rule: the route
  * under the API at the origin that serves it, with the token as the whole credential
  * (`automation.md` §1.1). Composed here for `caldavAddressOf`'s reason - the API and the
  * interface come from one origin (ADR-0028), so the screen knows where the route is - and as a

@@ -28,7 +28,7 @@ class Imports {
 
   /**
    * Starts the import and watches its job. The key is minted here: a retry of the same request
-   * is a second import, and P-08 makes that a no-op on the server anyway.
+   * is a second import, and the server makes that a no-op anyway.
    */
   async start(request: ImportRequest): Promise<JobRef> {
     const accepted = await engine.mutate<JobRef>('POST', IMPORTS, request, {

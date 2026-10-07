@@ -4,10 +4,10 @@
 /**
  * What a write to an entry makes stale, named precisely.
  *
- * Every write used to name `/items` - the prefix of everything - and so a retitled entry re-read
+ * A write that named `/items` - the prefix of everything - would make a retitled entry re-read
  * its comments, its reminders, its attachments and its series along with itself, none of which
- * had moved; on a real server a title saved once was twenty-one requests, and the third write of
- * a session met the credential's burst (issue 877). The engine's names take two marks since then:
+ * moved; on a real server a title saved once is then twenty-one requests, and the third write of
+ * a session meets the credential's burst. So the engine's names take two marks:
  * a trailing `$` ends the name at the path itself, and `*` stands for one segment - so these are
  * the three things an entry's own write changes, and the one shape a write that may reach other
  * entries takes.

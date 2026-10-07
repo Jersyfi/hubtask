@@ -3,7 +3,7 @@
 
 /**
  * The two things a provider sign-in needs that are not requests: reading what came back in the
- * address, and deciding whether an authorization URL may be navigated to (H-04).
+ * address, and deciding whether an authorization URL may be navigated to.
  *
  * Pure, and separate from `oidc.svelte.ts` for the reason `capability.ts` and `stepup.ts` are:
  * the interesting part is the decisions, and a module that reached for `location` itself could

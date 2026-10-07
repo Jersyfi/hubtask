@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * One entry's comments: reading the thread, and the three writes C-03 gave it.
+ * One entry's comments: reading the thread, and its three writes.
  *
  * **Oldest first, by cursor.** The API has no page numbers, so neither does this. `LoadMore`
  * appends, which is what the engine's `loadMore` does, and what a reader who pressed it expects.

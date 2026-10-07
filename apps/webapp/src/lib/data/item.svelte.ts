@@ -12,7 +12,7 @@
  * **A container has no history**, and this module could not read one if a screen asked: the entity
  * is keyed on `itemId` and `/items/{id}/activity` is the only reader the contract declares. What a
  * hub or a collection changed lives in the audit trail, which is a different read with a different
- * permission (`audit.md` §1) and F4's work.
+ * permission (`audit.md` §1).
  */
 
 /** The path a history is read from. One place, because a paged path spelled twice is two walks. */
@@ -22,7 +22,7 @@ export function activityPath(itemId: string): string {
 
 export function itemPath(itemId: string): string {
   // With the labels, as the list's query asks for them: without `expand=labels` the entry
-  // answers no `label_ids`, and the entry page drew none (issue 875). The engine's invalidation
+  // answers no `label_ids`, and the entry page drew none. The engine's invalidation
   // matches `/items` by prefix, so the query string changes nothing there.
   return `/items/${itemId}?expand=labels`;
 }

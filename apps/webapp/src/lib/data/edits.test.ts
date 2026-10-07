@@ -14,7 +14,7 @@ test('a form nobody touched writes nothing', () => {
   assert.deepEqual(entryEditOf(opened, { ...opened, title: ' Order lunch ' }), {});
 });
 
-test('only the field that moved is in the write (issue 779)', () => {
+test('only the field that moved is in the write', () => {
   assert.deepEqual(entryEditOf(opened, { ...opened, notes: 'for thirteen' }), { notes: 'for thirteen' });
   assert.deepEqual(entryEditOf(opened, { ...opened, title: 'Order dinner' }), { title: 'Order dinner' });
   assert.deepEqual(entryEditOf(opened, { ...opened, language: 'de' }), { content_language: 'de' });

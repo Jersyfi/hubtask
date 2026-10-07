@@ -15,7 +15,7 @@
  * be one request per hub for rows nobody has asked to see, and it would make the tree's expanded
  * state decorative rather than the thing that decides what is fetched.
  *
- * Every write names what it invalidates, because F2-03's default drops everything the client holds
+ * Every write names what it invalidates, because the engine's default drops everything the client holds
  * — correct, and enough to make renaming a collection empty every other level as well.
  */
 
@@ -36,7 +36,7 @@ const collectionsPath = (hubId: string) => `/containers?parent_id=${hubId}&page_
  * The same two levels, with what has been put aside in them.
  *
  * `include_archived` defaults to `false`, so the tree above does not hold an archived hub or
- * collection at all — it leaves the navigation and nothing shows it again (issue 933). These are
+ * collection at all — it leaves the navigation and nothing shows it again. These are
  * the archive screen's own reads, kept apart from the tree's: a tree that carried archived rows
  * would put a read-only container back among the ones somebody works in, which is the opposite of
  * what archiving is for.
@@ -201,7 +201,7 @@ class Containers {
     await engine.refresh<ContainerPage>({ path: HUBS });
   }
 
-  /** One hub's collections read again - what an import that landed under it calls (F6-09). */
+  /** One hub's collections read again - what an import that landed under it calls. */
   async refreshLevel(hubId: string): Promise<void> {
     await engine.refresh<ContainerPage>({ path: collectionsPath(hubId) });
   }
@@ -257,8 +257,7 @@ class Containers {
    * Ranks a container within its own level.
    *
    * A **hub** has no other way: it sits in nothing, so `:move` — whose `target_parent_id` is
-   * required — cannot express it. That is what F2-04 added, and this is the client its pull request
-   * named as the consumer.
+   * required — cannot express it, and `:reorder` can.
    */
   async reorder(
     id: string,

@@ -9,8 +9,8 @@
  * browser nor a compiler.
  *
  * **Two of the contract's six modes are not here.** `INSTANCE` and `NEW_TENANT` cross or create a
- * tenant, which is the installation operator's business rather than one workspace's (F4's decision
- * 6). They are absent from the type rather than filtered at the end, so nothing in this client can
+ * tenant, which is the installation operator's business rather than one workspace's
+ * (backup-restore.md §8.2). They are absent from the type rather than filtered at the end, so nothing in this client can
  * compose one by accident.
  */
 

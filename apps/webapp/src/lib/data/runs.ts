@@ -4,7 +4,7 @@
 const RUNS = '/automation/runs';
 
 /**
- * What the listing can be narrowed by: the three the contract had, and the window F8-02 added -
+ * What the listing can be narrowed by: the rule, the status and the trigger, and the window -
  * `from` inclusive and `to` exclusive on the run's own moment, as RFC 3339 instants.
  */
 export interface RunFilter {

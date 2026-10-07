@@ -13,7 +13,7 @@
  * visual language, which is a design decision nobody took.
  *
  * **`INSTALLATION` is not among the scopes here.** It crosses the tenant boundary, needs the
- * `admin:tenants` scope and is the provider's path rather than a tenant's (F4's decision 6). It is
+ * `admin:tenants` scope and is the provider's path rather than a tenant's (data-protection.md §4.1). It is
  * absent from the type rather than filtered at the end.
  */
 
