@@ -15,8 +15,7 @@ import (
 // rather than written down a second time: the headings come from .github/PULL_REQUEST_TEMPLATE.md,
 // so a section added there is required here on the same day.
 //
-// What each rule is for, because each one was skipped at least once (2026-09-30, #1085, #1094,
-// #1095):
+// What each rule is for, because each one has been skipped before:
 //
 //   - Every section of the template is present, in its order. A description written from scratch
 //     drops exactly the sections its author judged irrelevant - and "Does this need an ADR?" is

@@ -13,8 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/catalogue"
 )
 
-// The coverage report half of the gate (docs/evidence/COVERAGE-<date>.md, milestone-F6.md
-// decision 16).
+// The coverage report half of the gate (docs/evidence/COVERAGE-<date>.md, ci-cd.md §3.1).
 //
 // The report is one row per use case the catalogue serves, with where a client reaches it or why
 // it does not. It is a document rather than a snapshot only if it cannot drift: a use case added
@@ -46,7 +45,7 @@ func checkCoverageReport(root string) []string {
 		}
 	}
 	if newest == "" {
-		return []string{evidenceDir + "/COVERAGE-<date>.md is missing - decision 16 holds the catalogue to it"}
+		return []string{evidenceDir + "/COVERAGE-<date>.md is missing - the use case catalogue is held to the newest one"}
 	}
 	relative := evidenceDir + "/" + newest
 	report := read(root, relative)
@@ -79,7 +78,7 @@ func checkCoverageReport(root string) []string {
 		}
 	}
 	// An omission has a reason or an issue; "nobody built it" without a number is the one
-	// sentence decision 16 refuses.
+	// sentence the gate refuses.
 	for _, line := range strings.Split(report, "\n") {
 		if strings.Contains(line, "omitted — nobody built it") && !strings.Contains(line, "| #") {
 			problems = append(problems, fmt.Sprintf("%s: an omission that nobody built names no issue: %s", relative, strings.TrimSpace(line)))

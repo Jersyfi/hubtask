@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Command locales reports how complete each translation is (M-03, ADR-0055).
+// Command locales reports how complete each translation is (ADR-0055).
 //
 // One command rather than a diff: a contributor runs it before a pull request, and the number it
 // prints is the number the gate in test/architecture computes - both read the catalogues through
