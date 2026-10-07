@@ -51,8 +51,8 @@ func transitionRefused(from, to Status) error {
 		WithFields(shared.FieldError{Path: "/status", Code: CodeTransitionRefused})
 }
 
-// bounded trims, brings to normal form C (M-07), and refuses text longer than a column should
-// carry.
+// bounded trims, brings to normal form C (i18n-l10n.md §5), and refuses text longer than a column
+// should carry.
 func bounded(value string, limit int, code, field string, form text.Normalizer) (string, error) {
 	trimmed, err := shared.NFC(strings.TrimSpace(value), form)
 	if err != nil {

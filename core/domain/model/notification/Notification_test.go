@@ -186,9 +186,8 @@ func TestOnlyTheInvitationCannotBeSwitchedOff(t *testing.T) {
 	}
 }
 
-// A record names one subject (issue 814): an entry, a rule or a subscription. Two is refused
-// before the table refuses it, so a caller learns it from the domain rather than from a
-// constraint's name.
+// A record names one subject: an entry, a rule or a subscription. Two is refused before the table
+// refuses it, so a caller learns it from the domain rather than from a constraint's name.
 func TestARecordNamesOneSubject(t *testing.T) {
 	base := notification.NewInput{
 		ID: shared.ID("01936f2a-7c1e-7000-8000-000000000001"), TenantID: tenant,
