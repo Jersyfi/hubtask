@@ -16,12 +16,16 @@ are in [`AGENTS.md`](AGENTS.md). This file is the human way in.
 - **Work closely on a part of Hubtask** with your own tools: you take a milestone of your own, follow
   `AGENTS.md`, and put questions for the owner as `decision` issues.
 
-## Setting up a machine
+## Working from a new machine
 
-Any machine works; nothing depends on one in particular.
+Any machine works, with any coding tool; nothing depends on one in particular or on notes kept
+outside this repository.
 
-- Go (the version in `go.mod`), Docker, `git`, and the GitHub CLI `gh`.
+- Go (the version in `go.mod`), Docker with Compose (running — the container gates and
+  `make db-up` need it), `git`, and the GitHub CLI `gh`.
 - Node.js (the version in `.nvmrc`) only for `apps/` and `packages/`.
+- `gh auth login` once, as the GitHub account you work with; `gh` opens draft pull requests and
+  reads issues, and `make verify-pr` reads the pull request's description through it.
 
 ```bash
 make tools          # the Go tools, pinned, into .tools
@@ -33,8 +37,15 @@ make verify         # the fast gates
 A new worktree has no `.tools`: run `make tools` (and `make tools-node`) in it. A copied
 `.tools/pnpm` is a shim that breaks outside its checkout.
 
-Access to the integration and production environments is the maintainers', and its credentials
-are never in this repository.
+Building, testing and running Hubtask locally needs no secret. The accesses beyond that are the
+maintainers', handed over by the owner on request and never written into this repository:
+
+- **The integration environment:** an SSH key for its host; what runs there and how to rebuild it
+  is in [deploy/integration/README.md](deploy/integration/README.md). Its deploy credential lives
+  only in the GitHub environment `integration`, for CI.
+- **The repository's settings, secrets and environments on GitHub:** the owner's account.
+- **Production:** no credential exists in this repository or its workflows; the cluster pulls a
+  published release ([deployment.md](docs/architecture/deployment.md) §4).
 
 ## Signing in locally
 
@@ -104,7 +115,7 @@ Everything else — the rules, the loop, the Definition of Done — is in [`AGEN
 
 A squash merge rewrites the base of every pull request stacked on it. Merge in order, and after each
 merge bring the next one up to date on the server — `gh api repos/Jersyfi/hubtask/merges -f
-base=<branch> -f head=main` — rather than rebasing locally. Two sessions merging at once race on the
+base=<branch> -f head=main` — rather than rebasing locally. Two workers merging at once race on the
 same `main`: merge from one place at a time. A `BEHIND` or `DIRTY` read right after a push is stale;
 read it again half a minute later.
 
