@@ -47,6 +47,7 @@ var citationExempt = map[string]bool{
 	"tools/checkdocs/agents_test.go":         true,
 	"tools/checkdocs/citations.go":           true,
 	"tools/checkdocs/citations_test.go":      true,
+	"tools/checkdocs/milestones.go":          true,
 	"tools/checkdocs/usecases.go":            true,
 	"tools/checkdocs/main.go":                true,
 	"tools/checkpr/main.go":                  true,

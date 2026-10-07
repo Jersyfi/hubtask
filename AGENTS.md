@@ -73,8 +73,8 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
   pushed `HEAD`. `[partial: ci:ci-required; open: a skipped local run — CI fails instead]`
 - A pull request description is a copy of `.github/PULL_REQUEST_TEMPLATE.md` with every section; it
   closes its issue (`Closes #n`) or says `No issue:` and why. `[gate: gate-pr]`
-- A task of a released milestone carries only checks from the milestone's `Delivers`.
-  `[unchecked: not yet gated]`
+- A task of a released milestone carries only checks from the milestone's `Delivers`, and a
+  milestone closes only when its use cases list none of those checks as unmet. `[gate: gate-docs]`
 - One concern per commit; each commit builds, carries a Conventional Commit title and a
   `Task: <ID>` trailer, and keeps its tests beside the code. History is rewritten only while the
   pull request is a draft. `[unchecked: what one concern is, is judgement; CI checks the head]`

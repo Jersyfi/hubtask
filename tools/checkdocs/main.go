@@ -32,6 +32,8 @@
 //   - The use cases cite personas, deployments and principles that exist, carry the sections that
 //     make them checkable, agree with their index, and every UC-… cited anywhere exists
 //     (see usecases.go).
+//   - Every task of a milestone carries checks its `Delivers` line names, and a closed milestone
+//     has no Delivers check a use case still lists as unmet (see milestones.go).
 package main
 
 import (

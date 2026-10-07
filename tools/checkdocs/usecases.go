@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -22,8 +23,8 @@ import (
 //     at least one numbered check) and Where it ends - and a Today section while it is not built;
 //   - the index lists every use case with the state the file declares, because the index is what a
 //     reader skims and a state that drifted there is a promise nobody is keeping;
-//   - every UC-… cited anywhere in the repository exists, and a milestone that names use cases for
-//     one task names them for all of them.
+//   - every UC-… cited anywhere in the repository exists; what a milestone delivers is in
+//     milestones.go.
 //
 // The front matter is a deliberately flat subset of YAML - `key: value` and `key: [a, b]` - read by
 // hand here rather than through a YAML library, because a dependency is a supply-chain decision
@@ -103,7 +104,7 @@ func checkUseCases(root string) []string {
 
 	problems = append(problems, checkUseCaseIndex(root, cases)...)
 	problems = append(problems, checkUseCaseReferences(root, seen)...)
-	problems = append(problems, checkMilestoneUseCases(root)...)
+	problems = append(problems, checkMilestones(root, cases)...)
 	return problems
 }
 
@@ -349,33 +350,17 @@ func checkUseCaseReferences(root string, known map[string]string) []string {
 	return problems
 }
 
-// checkMilestoneUseCases holds a milestone to its own choice: one that names the use cases a task
-// serves names them for every task, because a task without the line is the one a session builds on
-// its own reading.
-func checkMilestoneUseCases(root string) []string {
-	files, err := filepath.Glob(filepath.Join(root, "docs", "backlog", "milestone-*.md"))
-	if err != nil {
-		return []string{fmt.Sprintf("listing the backlog: %v", err)}
+// todayLine is one line of a Today section: "* Check 4: not met — …".
+var todayLine = regexp.MustCompile(`(?m)^\*\s+Check (\d+)\b`)
+
+// todayChecks are the checks a Today section lists as not met.
+func todayChecks(text string) map[int]bool {
+	out := map[int]bool{}
+	for _, m := range todayLine.FindAllStringSubmatch(text, -1) {
+		n, _ := strconv.Atoi(m[1])
+		out[n] = true
 	}
-	var problems []string
-	for _, file := range files {
-		relative, _ := filepath.Rel(root, file)
-		content := read(root, relative)
-		if !strings.Contains(content, "**Use cases:**") {
-			continue
-		}
-		headings := taskHeading.FindAllStringSubmatchIndex(content, -1)
-		for i, at := range headings {
-			end := len(content)
-			if i+1 < len(headings) {
-				end = headings[i+1][0]
-			}
-			if !strings.Contains(content[at[0]:end], "**Use cases:**") {
-				problems = append(problems, fmt.Sprintf("%s: %s names no use cases, and the milestone names them for its other tasks", relative, content[at[2]:at[3]]))
-			}
-		}
-	}
-	return problems
+	return out
 }
 
 func setOf(matches [][]string) map[string]bool {
