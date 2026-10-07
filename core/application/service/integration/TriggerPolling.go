@@ -76,7 +76,7 @@ type Page struct {
 //
 // Three boundaries hold it together, and each is drawn once, here:
 //
-// The window is the outbox's retention period, which is the tenant's own (G-02, ADR-0020). A cursor
+// The window is the outbox's retention period, which is the tenant's own (ADR-0020). A cursor
 // older than it is refused rather than answered from the beginning of what is left: a poller that
 // missed more than the window has to be told that it missed, or it goes on reporting a consistency
 // it does not have.

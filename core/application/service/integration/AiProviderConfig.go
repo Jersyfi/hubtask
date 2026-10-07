@@ -49,7 +49,7 @@ type AiProviderWriter struct {
 	Providers  repository.AiProviders
 	Authorizer Authorizer
 	// Encryptor seals the API key. The application never stores a plaintext and the repository
-	// never holds a key: the sealing happens here, between the two (E-02).
+	// never holds a key: the sealing happens here, between the two.
 	Encryptor  crypto.Encryptor
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -181,7 +181,7 @@ type RemoveAiProvider struct{ Writer AiProviderWriter }
 //
 // Nothing else is undone. A suggestion somebody already accepted was that person's own write and
 // stays exactly as it is, which is the whole reason accepting is a use case rather than a side
-// effect (J-05).
+// effect.
 func (h RemoveAiProvider) Execute(ctx context.Context, actor appshared.ActorContext) error {
 	w := h.Writer
 	if err := w.Authorizer.Authorize(ctx, actor, aiRequest(AiProviderRemovedAction)); err != nil {
@@ -338,7 +338,7 @@ func (h ConfigureAiProvider) invoke(
 		cmd.ProcessingAllowed = in.Bool("processing_allowed")
 	}
 	// Present-but-empty clears the key and absent keeps it, which is the one place in this input
-	// where the difference between the two is the whole meaning (Input.Present, C-07).
+	// where the difference between the two is the whole meaning (Input.Present).
 	if in.Present("api_key") {
 		cmd.APIKeyPresent = true
 		cmd.APIKey = secret.New(in.String("api_key"))

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package integration holds the use cases that let another system reach into this one, and this
-// one reach out: today the webhook subscriptions (G-03), later the trigger polling and the jumble's
+// one reach out: today the webhook subscriptions, later the trigger polling and the jumble's
 // inbound routes.
 //
 // The calendar feeds are deliberately not here. They live beside the saved views, because minting
@@ -84,7 +84,7 @@ type Writer struct {
 	Deliveries    repository.WebhookDeliveries
 	Authorizer    Authorizer
 	// Encryptor seals the signing secret. The application never stores a plaintext and the
-	// repository never holds a key: the sealing happens here, between the two (E-02).
+	// repository never holds a key: the sealing happens here, between the two.
 	Encryptor  crypto.Encryptor
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -105,8 +105,8 @@ type MintedSubscription struct {
 	Secret       secret.Secret
 }
 
-// CreateWebhookSubscription subscribes an external system to the event stream (G-03).
-// TargetQuota is the §4 webhook-targets ceiling (H-08).
+// CreateWebhookSubscription subscribes an external system to the event stream.
+// TargetQuota is the §4 webhook-targets ceiling.
 type TargetQuota interface {
 	WebhookTargets(ctx context.Context, tenant string) error
 }
@@ -150,7 +150,7 @@ func (h CreateWebhookSubscription) Execute(
 
 	var created domain.WebhookSubscription
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		// The targets ceiling (H-08, multi-tenancy.md §4). Nil skips - fixtures predate the
+		// The targets ceiling (multi-tenancy.md §4). Nil skips - fixtures predate the
 		// wall; the composition root always wires it.
 		if h.Quota != nil {
 			if err := h.Quota.WebhookTargets(ctx, actor.TenantID.String()); err != nil {
@@ -399,7 +399,7 @@ func (w Writer) authorize(
 	})
 }
 
-// authorizeRead is the same question with the auditor's answer added (A-4, G-12): where a
+// authorizeRead is the same question with the auditor's answer added (A-4): where a
 // workspace's events are being sent is configuration, and reading it is what an auditor does with
 // the trail beside it. It reaches no secret - the signing key is never in a read (§ below).
 func (w Writer) authorizeRead(

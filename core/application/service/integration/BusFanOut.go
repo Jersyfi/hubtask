@@ -16,7 +16,7 @@ import (
 const BusFanOutName = "bus"
 
 // BusFanOut is the outbox's consumer for the optional message bus: one event in, one publish job
-// out (H-14, ADR-0007's "and optionally NATS JetStream").
+// out (ADR-0007's "and optionally NATS JetStream").
 //
 // It knows nothing about NATS, and that is the point of it being here rather than in the adapter.
 // What it does is the one thing the port allows a subscriber to do with work that has a network on

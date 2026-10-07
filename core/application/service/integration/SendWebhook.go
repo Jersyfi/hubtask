@@ -35,7 +35,7 @@ type EventSource interface {
 	FindEvent(ctx context.Context, id shared.ID) (event.Envelope, error)
 }
 
-// SendWebhook delivers one event to one named subscription (G-09, automation.md §1.3).
+// SendWebhook delivers one event to one named subscription (automation.md §1.3).
 //
 // Through G-03's one pipeline: the same delivery table, the same signature, the same retry ladder
 // and the same dead letter. It enqueues rather than calls - the actual HTTP happens on the

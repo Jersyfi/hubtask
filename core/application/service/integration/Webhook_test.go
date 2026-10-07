@@ -152,7 +152,7 @@ func (d *deliveryStore) List(_ context.Context, query repository.DeliveryQuery) 
 	return found, nil
 }
 
-// FindPendingOfPush and Repoint are the fan-out's collapse (N-10): the newest pending delivery
+// FindPendingOfPush and Repoint are the fan-out's collapse: the newest pending delivery
 // of the push, and its event replaced in place.
 func (d *deliveryStore) FindPendingOfPush(
 	_ context.Context, subscriptionID shared.ID, key domain.CollapseKey,
@@ -525,7 +525,7 @@ func TestTheFiveReachTheirWorkThroughTheirDescriptors(t *testing.T) {
 }
 
 // targetQuotaFake refuses when told to - the resolution is the quota engine's; this package
-// owes that the wall holds the subscription door (H-08).
+// owes that the wall holds the subscription door.
 type targetQuotaFake struct{ refused error }
 
 func (q targetQuotaFake) WebhookTargets(context.Context, string) error { return q.refused }

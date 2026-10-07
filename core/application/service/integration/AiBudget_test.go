@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// The per-tenant AI budget (J-15). What is asked here is the shape of the degradation - a workspace
+// The per-tenant AI budget. What is asked here is the shape of the degradation - a workspace
 // over its budget looks exactly like one with no provider - and the order of the two calls, which
 // is the whole design: a budget cannot be reserved, so it is checked before and written after.
 
@@ -49,7 +49,7 @@ func (w *budgetWorld) For(context.Context, appshared.ActorContext) (aiprovider.P
 	return budgetProvider{world: w}, nil
 }
 
-// MeasureEmbedding is the width question, answered from the world (#569).
+// MeasureEmbedding is the width question, answered from the world.
 func (p budgetProvider) MeasureEmbedding(context.Context) (int, error) { return p.world.measures, nil }
 
 // unmeasurable is a provider without the optional method, which is what the interface assertion
@@ -261,7 +261,7 @@ func TestWithoutABudgetTheResolverIsUntouched(t *testing.T) {
 
 // The budget wrapper forwards the width question to a provider that can answer it, and answers
 // zero for one that cannot - and meters nothing either way, because no budget counts a question
-// about a model (#569). Without this test, dropping the forwarding would send every pass back to
+// about a model. Without this test, dropping the forwarding would send every pass back to
 // the after-call path and every other test would still pass.
 func TestTheBudgetWrapperForwardsTheWidthQuestionAndMetersNothing(t *testing.T) {
 	world := &budgetWorld{room: true, measures: 3072, measurable: true}

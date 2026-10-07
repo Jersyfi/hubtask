@@ -13,13 +13,13 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// AiProviderResolver is what answers which provider a workspace uses (J-03). The adapter satisfies
+// AiProviderResolver is what answers which provider a workspace uses. The adapter satisfies
 // it; this file wraps it.
 type AiProviderResolver interface {
 	For(ctx context.Context, actor appshared.ActorContext) (aiprovider.Provider, error)
 }
 
-// AiBudget is the slice of the quota guard this needs (J-15, H-08's machinery).
+// AiBudget is the slice of the quota guard this needs (H-08's machinery).
 type AiBudget interface {
 	// AiTokens reports whether the workspace's daily budget still has room.
 	AiTokens(ctx context.Context, tenant string, now time.Time) (bool, error)
@@ -27,8 +27,7 @@ type AiBudget interface {
 	MeterAi(ctx context.Context, at time.Time, tokens int64) error
 }
 
-// Budgeted is the provider resolver with `ai-first.md` §2's per-tenant budget counter around it
-// (J-15).
+// Budgeted is the provider resolver with `ai-first.md` §2's per-tenant budget counter around it.
 //
 // **In the application layer rather than in the adapter**, which ADR-0049 decision 1 asked for and
 // this is the first thing that needed it: the budget is a quota, a quota is read from the
