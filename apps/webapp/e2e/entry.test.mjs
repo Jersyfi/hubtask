@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The entry as head, subtree, details and tabs (F9-08, ADR-0061 decision 4): the trail through
+// The entry as head, subtree, details and tabs (ADR-0061 decision 4): the trail through
 // the levels, completion from the page, the title and the notes edited in place with the same
 // write, every details row opening its editor and giving focus back, the whole subtree with its
 // counts and a child created from it, and the tabs. Chromium only, as the other walks.
@@ -25,7 +25,7 @@ test.after(() => served.close());
 /**
  * The rows a **task** holds, by their ids and the heading of the editor each opens.
  *
- * A task, because the column is the capability matrix drawn (issue 916): a work package carries
+ * A task, because the column is the capability matrix drawn: a work package carries
  * neither a cover nor a repeat, and an activity carries five capabilities of fourteen. The dates
  * are one row, because `DuePanel` is one editor.
  */
@@ -86,7 +86,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.waitForTimeout(300);
   const titleWrite = written.find((w) => w.method === 'PATCH' && w.path.endsWith(`/items/${ENTRY.id}`) && 'title' in (w.body ?? {}));
   assert.deepEqual(titleWrite?.body, { title: 'Order the tiles, both rooms' });
-  // What a title costs (issue 877): the write, the entry, its history and the subtree in one
+  // What a title costs: the write, the entry, its history and the subtree in one
   // query - and not the thread, the reminders or the attachments, none of which moved.
   const afterTitle = written.slice(beforeTitle).map((w) => `${w.method} ${w.path.replace(/^.*\/api\/v1/, '')}`).sort();
   assert.deepEqual(afterTitle, [
@@ -132,7 +132,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   // The set value reads on its row; the empty one says "add".
   assert.equal((await page.locator('[data-detail="labels"]').textContent()).includes('Materials'), true);
   assert.equal((await page.locator('[data-detail="due"]').textContent()).includes('Add'), true);
-  // An entry that repeats never is not asked for its series (issue 882): the row says so, the
+  // An entry that repeats never is not asked for its series: the row says so, the
   // editor says so, and no GET went out to answer 404 in the console.
   await page.locator('[data-detail="recurrence"]').click();
   await page.getByText('This entry does not repeat.').waitFor({ timeout: 5_000 });
@@ -177,7 +177,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
 
   // The trail leads somewhere. Last, because it leaves the page: the entry screen is the one that
   // is rendered without the frame's navigator unless it is handed one, and a crumb that only
-  // looked like a link is what issue 914 was.
+  // looks like a link is the trap.
   await trail.getByRole('link', { name: COLLECTION.name }).click();
   await page.waitForFunction((id) => location.pathname === `/collections/${id}`, COLLECTION.id, { timeout: 5_000 }).catch(() => {});
   assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`, 'the trail did not navigate');
@@ -308,7 +308,7 @@ test('chromium: 1280 px — the details column is the capability matrix, and not
 
   // A task carries all fourteen; a work package neither a cover nor a repeat; an activity five of
   // the fourteen, and among them neither notes nor labels. `domain-model.md` §2, which the
-  // manifest answers and this client may not second-guess (issue 916).
+  // manifest answers and this client may not second-guess.
   const task = await rowsOf(ENTRY.id);
   assert.deepEqual(task, ['assignee', 'due', 'labels', 'reminders', 'recurrence', 'language', 'cover', 'attachments']);
 
@@ -319,7 +319,7 @@ test('chromium: 1280 px — the details column is the capability matrix, and not
   const activity = await rowsOf(CHILDREN[CHILDREN[ENTRY.id][0].id][0].id);
   assert.deepEqual(activity, ['assignee', 'due', 'reminders', 'language']);
   assert.equal(await page.locator('.notes-field').count(), 0, 'an activity was offered notes it cannot keep');
-  // And no conversation either: the tab used to stand there with a gate inside it saying so.
+  // And no conversation either: no tab standing there with a gate inside it saying so.
   assert.deepEqual(
     (await page.getByRole('tablist', { name: "The entry's history" }).getByRole('tab').allTextContents()).map((each) => each.trim()),
     ['History'],

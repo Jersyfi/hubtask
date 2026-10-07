@@ -26,8 +26,8 @@ const item = (n, title, extra = {}) => ({ id: `01a0e2e0-0000-7000-8000-000000000
  * A date this many days from today, as the one dated entry carries.
  *
  * Relative, and it has to be: the timeline opens on a window around *today*, so a fixture pinned to
- * a calendar date is a fixture that expires. `2026-09-25` did, on 2026-09-30, and the drag test
- * went red on every branch at once — nothing to do with the diff that happened to be in flight.
+ * a calendar date is a fixture that expires: the day the window passes it, the drag test goes red
+ * on every branch at once — nothing to do with the diff that happens to be in flight.
  * Two days out rather than zero, so the entry sits inside the window on any scale without landing
  * on the marker for today.
  */
@@ -79,8 +79,8 @@ export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
   const path = url.pathname;
-  // The stream, **accepted and empty**: the connection is what the mark in the bar reads since
-  // issue 1017, so a walk that refused it would draw *Reconnecting…* on every screenshot of every
+  // The stream, **accepted and empty**: the connection is what the mark in the bar reads,
+  // so a walk that refused it would draw *Reconnecting…* on every screenshot of every
   // screen. It carries the server's own reconnect suggestion and no records; what a walk needs
   // from the stream is that it was opened.
   if (path.endsWith('/api/v1/stream')) {
@@ -166,15 +166,15 @@ export function fallback(route, request, path) {
   const read = path.replace(/^.*\/api\/v1/, '');
 
   // Bringing a container back, which is what the archive is for. Answered with the container it
-  // makes rather than with a page: the record below found this being guessed at in the walk whose
-  // subject it is.
+  // makes rather than with a page: a guess here would be a guess in the very walk whose subject
+  // it is.
   if (read === `/containers/${ARCHIVED.id}:unarchive`) {
     const { archived_at: _put, ...back } = ARCHIVED;
     return route.fulfill({ json: { ...back, version: ARCHIVED.version + 1 } });
   }
   if (read === '/search') return route.fulfill({ json: { ...PAGE, data: [] } });
 
-  // The three writes the walks make and had been guessing at, each answered with the entry it
+  // The three writes the walks make, each answered with the entry it
   // makes. Two of them are the subject of the walk that makes them - the timeline's drag sets a
   // due date, the board's carry reorders - so a guess here is a walk that cannot claim to have
   // exercised what it is named after.
@@ -205,7 +205,7 @@ const ARRAYS = new Set([
   '/auth/service-accounts', '/auth/tokens', '/auth/sessions', '/sync/devices',
   '/backup-targets', '/backup-schedules', '/backups', '/integrations/webhooks',
   '/integrations/calendar-feeds',
-  // The provider surface, plural since SI-10 and read by the administration's sign-in screen. Both
+  // The provider surface, plural and read by the administration's sign-in screen. Both
   // answer a bare array, and a page envelope here is what "this.all.filter is not a function" looks
   // like from the outside.
   '/identity-providers', '/identity-provider-presets',

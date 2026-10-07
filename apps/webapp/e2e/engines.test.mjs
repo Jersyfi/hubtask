@@ -11,7 +11,7 @@
 // The API is stubbed at the network edge, once, with the two answers the frame needs to draw a
 // signed-in workspace - an account and one hub - and nothing else: the stream is refused, every
 // other call answers an empty page. That is the least a workspace can be, and it is enough for a
-// dialog, a focus ring and a hidden label; deeper screens are F5's and F6's own walks.
+// dialog, a focus ring and a hidden label; deeper screens have walks of their own.
 //
 // `node --test e2e/` rather than the package's `test` script: this needs the three browsers
 // installed (`pnpm exec playwright install --with-deps`), and the unit tests must keep running
@@ -35,7 +35,7 @@ const ACCOUNT = {
   email: 'engines@example.invalid',
   status: 'ACTIVE',
   locale: 'en',
-  // Taken already, so that the walk below is not led through the tour (F6-14); the tour has a
+  // Taken already, so that the walk below is not led through the tour; the tour has a
   // walk of its own at the end, as an account that never took it.
   onboarding_completed_at: '2026-09-01T00:00:00Z',
 };
@@ -54,7 +54,7 @@ const EMPTY_PAGE = { data: [], items: [], page: { next_cursor: null, has_more: f
 async function stub(route) {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/api/v1/stream')) return route.abort();
-  // The initial synchronisation (F6-03): the hub, and the cursor line that ends it.
+  // The initial synchronisation: the hub, and the cursor line that ends it.
   if (url.pathname.endsWith('/api/v1/sync:snapshot')) {
     const record = JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: HUB.id, container_id: null, payload: HUB });
     return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${record}\n{"cursor":"c-e2e"}\n` });
@@ -103,7 +103,7 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     page.on('pageerror', (error) => failures.push(String(error)));
 
     await page.goto(`${served.origin}/`);
-    // The workspace page's primary action (issue 879); the tree at the side offers the same
+    // The workspace page's primary action; the tree at the side offers the same
     // verb, which is why the name alone is not enough.
     const createHub = page.locator('[data-opener="add-hub"]');
     await createHub.waitFor({ state: 'visible', timeout: 15_000 });
@@ -192,7 +192,7 @@ for (const [name, engine] of Object.entries(ENGINES)) {
         assert.fail(`${name}: focus did not return to the trigger but sits on ${landed}`);
       });
 
-    // The replica (F6-03): the engine opened this account's database in this engine's IndexedDB
+    // The replica: the engine opened this account's database in this engine's IndexedDB
     // and kept the snapshot's cursor in it - one database per origin and account, and gone whole
     // at sign-out (offline-sync.md §9.6). Asked of the engine itself, because a fake IndexedDB
     // in Node proves the store's logic and not the engine's behaviour.
@@ -211,13 +211,13 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     }), database);
     assert.equal(position?.cursor, 'c-e2e', `${name}: the cursor in the store is ${JSON.stringify(position)}`);
 
-    // Reads answered by the replica (F6-04): the server goes away, the tab reloads, and the tree
+    // Reads answered by the replica: the server goes away, the tab reloads, and the tree
     // is drawn from the copy with the one line that says so - as of the store's last
     // synchronisation. What the copy does not hold is named `sync.needs_connection`.
     await context.unroute('**/api/v1/**');
     await context.route('**/api/v1/**', (route) => route.abort('connectionfailed'));
     // Counted while the server is away: a read that fails is read again on the reconnect and
-    // not before (issue 881 found a loop that read the account nine hundred times instead).
+    // not before: a read retried on every failure is a loop as tight as the network lets it be.
     let accountReads = 0;
     const countAccountReads = (request) => { if (new URL(request.url()).pathname.endsWith('/accounts/me')) accountReads += 1; };
     page.on('request', countAccountReads);
@@ -241,7 +241,7 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.waitForFunction(() => ![...document.querySelectorAll('[role=status]')].some((el) => el.textContent?.includes("Shown from this device's copy")), null, { timeout: 30_000 })
       .catch(() => assert.fail(`${name}: the replica's state was not replaced after the server came back`));
 
-    // The account, which the copy does not hold, comes back with the server too (issue 881):
+    // The account, which the copy does not hold, comes back with the server too:
     // the engine reads again what it could not answer, so the menu says the name and not "You".
     await page.getByRole('button', { name: 'Engine Walker' }).waitFor({ timeout: 15_000 })
       .catch(() => assert.fail(`${name}: the account was not read again after the server came back`));
@@ -254,7 +254,7 @@ for (const [name, engine] of Object.entries(ENGINES)) {
       .catch(() => assert.fail(`${name}: the replica's database survived the sign-out`));
     assert.deepEqual(failures, [], `${name}: the bundle threw during the walk`);
 
-    // The tour (F6-14): an account that never took it is led through on arrival. The spotlight's
+    // The tour: an account that never took it is led through on arrival. The spotlight's
     // cut-out is positioned by CSS - anchor positioning gives it the element's box (ADR-0039) -
     // so the engine, not a measurement, decides where it is: the computed `position-anchor`
     // names the element's anchor, no inline offset is written, and the box is the element's with

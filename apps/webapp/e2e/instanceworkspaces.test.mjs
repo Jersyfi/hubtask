@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// An operator opens the password for one workspace, walked as they meet it (ADR-0078 §3, SC-34): the
+// An operator opens the password for one workspace, walked as they meet it (ADR-0078 §3): the
 // dialog says what it costs, sends the hours, the requester and the reason, the row then says until
 // when and for whom, and one press closes it again. A refusal lands at the field it is about.
 //

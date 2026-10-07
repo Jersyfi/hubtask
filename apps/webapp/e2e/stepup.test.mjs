@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The step-up with whatever the account holds (ADR-0075, SC-16), walked in the browser against a
+// The step-up with whatever the account holds (ADR-0075), walked in the browser against a
 // stubbed API: a provider-only administrator with no second factor changes a sign-in rule by
 // confirming at their provider - the browser leaves for it and comes back - and an account that
 // holds every way is offered every way.
@@ -105,7 +105,7 @@ async function changeARule(page) {
 }
 
 // UC-ID-05 check 5, UC-ID-12: the provider-only administrator without a factor - the account D4 to
-// D6 produce - changes a sign-in rule. Before SC-16 the dialog had nothing to offer them.
+// D6 produce - changes a sign-in rule.
 test('chromium: a provider-only administrator confirms at the provider and the change goes through', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

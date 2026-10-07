@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Measures the initial synchronisation in a real engine (F6-04, offline-sync.md §12 SY-B): the
+// Measures the initial synchronisation in a real engine (offline-sync.md §12 SY-B): the
 // built bundle, an account and a snapshot file `hubctl sync snapshot --out` wrote, and the time
 // from navigation until the replica holds the cursor - which is written after the last record.
 //
