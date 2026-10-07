@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The MCP session identifier (J-13). What is asked here is the property that makes it work on a
+// The MCP session identifier. What is asked here is the property that makes it work on a
 // horizontally scaled role at all - any pod can check it - and the four ways it must not work.
 
 var (

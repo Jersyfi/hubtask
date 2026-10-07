@@ -33,7 +33,7 @@ const (
 	MediaTokenDownload MediaTokenPurpose = "download"
 )
 
-// MediaTokenIssuer signs the content routes' capability tokens (C-06): on a local-storage
+// MediaTokenIssuer signs the content routes' capability tokens: on a local-storage
 // installation, /media/{id}:content plays the part a presigned URL plays on an object-storage
 // one, and the token is what makes the URL the credential - bound to one object, one direction,
 // and an expiry.

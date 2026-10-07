@@ -39,7 +39,7 @@ const McpSessionLifetime = 12 * time.Hour
 // probing how far their forgery got, which is the page cursor's reasoning applied to a session.
 var ErrMcpSessionUnknown = errors.New("unknown MCP session")
 
-// McpSessionIssuer mints and checks the `Mcp-Session-Id` of the MCP transport (J-13).
+// McpSessionIssuer mints and checks the `Mcp-Session-Id` of the MCP transport.
 //
 // **A signed statement rather than a row**, and that is the decision worth reading. MCP lets a
 // server hand a client a session identifier at `initialize` and expects it back on every later
