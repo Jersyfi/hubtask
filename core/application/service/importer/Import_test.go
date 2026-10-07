@@ -206,7 +206,7 @@ type importRepo struct {
 }
 
 // newImportRepo holds the hub the import lands under: the collection names it as its parent, and
-// a parent nowhere to be found is withheld rather than written (#693).
+// a parent nowhere to be found is withheld rather than written.
 func newImportRepo() *importRepo {
 	return &importRepo{rows: map[string]map[string]map[string]any{
 		"container": {hubID.String(): {"id": hubID.String(), "type": "HUB"}},
