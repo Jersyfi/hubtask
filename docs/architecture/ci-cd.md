@@ -239,6 +239,10 @@ permissions:
 ([ADR-0022](../adr/ADR-0022-github-platform.md)): it may comment, suggest and draft; it never sets
 a status, merges, publishes, or replaces a gate. The gate that decides is `CI required` (§3.2).
 
+No workflow calls a model today, and none reviews or works on its own (§5.1). The table and the
+rules below are the outer limit for an AI workflow should one be added; adding one is the owner's
+decision, recorded in an ADR.
+
 | Use | What it may do | What it must not do |
 |---|---|---|
 | Review assistance | Check the diff against the architecture rules and comment with locations | Set a status, or merge anything |
@@ -261,9 +265,9 @@ Rules for any AI workflow:
 
 No workflow reviews a pull request or starts work by itself, and none offers a trigger that would.
 The author reviews a change against the rules no gate checks (Definition of Done item 19); a
-person or an AI agent of any make works on a task in a session. A tool that steers coding agents
-later works through the same issues, labels and pull requests ([backlog README](../backlog/README.md)
-§ "For tools that steer the work"), under its own GitHub identity.
+person or an AI agent of any make works on a task. A tool that steers coding agents later works
+through the same issues, labels and pull requests ([backlog README](../backlog/README.md)
+§ "For tools that steer the work"), under its own GitHub App identity, without the right to merge.
 
 ### 5.2 An image scan describes the published image
 
