@@ -654,7 +654,7 @@ func TestNothingOfTheContentReachesTheManifestOrTheChecksums(t *testing.T) {
 }
 
 // The exporter writes no log line at all, which is the cheapest way to keep rule 10 on a code path
-// that handles every row a tenant has. A metric and a span belong to the job that drives it (E-05),
+// that handles every row a tenant has. A metric and a span belong to the job that drives it,
 // where they can be labelled by target and run rather than by anything a row contains.
 func TestTheExporterLogsNothing(t *testing.T) {
 	root, err := filepath.Abs("../../core/application/archive")

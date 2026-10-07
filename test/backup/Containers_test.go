@@ -69,7 +69,7 @@ func registry(t *testing.T, localRoot string) backupstorage.Registry {
 }
 
 // startS3 runs one S3-compatible server and answers the endpoint it listens on, with the bucket
-// made. The server, and why it is no longer MinIO, is in test/s3test (#1029).
+// made. The server, and why it is the one it is, is in test/s3test.
 //
 // The bucket is made through the server's own shell rather than by this adapter: creating a
 // bucket is not something a backup target does, and an adapter that could would be an adapter
