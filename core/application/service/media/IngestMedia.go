@@ -128,7 +128,7 @@ func (h IngestMedia) one(
 		SizeLimit:    h.Config.Request.MaxUploadBytes,
 		Usage:        media.UsageAttachment,
 		// No uploader. The intake authenticates the tenant and nobody else, and an account here
-		// would be an author this system invented (G-10's reasoning for the entry's own actor).
+		// would be an author this system invented.
 		CreatedBy: "",
 		Now:       now,
 		Text:      h.Text,
@@ -150,7 +150,7 @@ func (h IngestMedia) one(
 	if err != nil {
 		// The bytes are removed where they got as far as being written, and the PENDING record is
 		// left to the reconciliation. Removing the record here would be a second deletion path for
-		// media, which is the one thing C-06 keeps in one place.
+		// media, and media deletion is kept in one place.
 		h.discard(ctx, object)
 		return "", err
 	}
