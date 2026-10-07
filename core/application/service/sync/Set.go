@@ -15,7 +15,7 @@ import (
 
 // SET_ADD and SET_REMOVE (offline-sync.md §4.2's sets row): the OR-set on the request path.
 // The mutation names the set, the element and the device's tag; the server reads the element's
-// stored tags, merges the device's in with the rule SetElement.go has held since C-03, and applies
+// stored tags, merges the device's in with the rule SetElement.go holds, and applies
 // whatever the merged element says through the use case that owns the set - under the device's
 // tag, so the row carries the reading that decided. An addition a later removal already undid,
 // and a removal of an element that was never there, change nothing and answer MERGED.

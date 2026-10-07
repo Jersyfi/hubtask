@@ -274,8 +274,8 @@ func TestAReadingBeyondTheSkewIsBoundedToServerTime(t *testing.T) {
 	}
 }
 
-// Every use case a push performs runs under the push's name and the device's moment (N-10,
-// offline-sync.md §8): the mutation's bounded reading, or the latest of a patch's fields', so
+// Every use case a push performs runs under the push's name and the device's moment
+// (offline-sync.md §8): the mutation's bounded reading, or the latest of a patch's fields', so
 // that the events it raises carry the moment the person acted beside the server's time.
 func TestAMutationIsAppliedUnderThePushAndTheDevicesMoment(t *testing.T) {
 	f := pushing(t)

@@ -311,7 +311,7 @@ func indexOfKind(kind string) int {
 }
 
 // SnapshotRequest is what `:pull` takes for an initial synchronisation without a cursor or a
-// page size (SY-C, P-12): the device, what it says about itself, and what it wants to hold.
+// page size (SY-C): the device, what it says about itself, and what it wants to hold.
 type SnapshotRequest struct {
 	DeviceID    shared.ID
 	Platform    string
@@ -324,8 +324,8 @@ type SnapshotRequest struct {
 // decided how much one transaction should carry.
 const snapshotBatch = PullLimitMax
 
-// WalkAll serves the initial synchronisation as one walk rather than a page sequence (SY-C,
-// P-12): every record the page sequence would answer, in the same order, handed to `emit` as it
+// WalkAll serves the initial synchronisation as one walk rather than a page sequence (SY-C):
+// every record the page sequence would answer, in the same order, handed to `emit` as it
 // is read, and the delta cursor the sequence would end on answered last.
 //
 // The same reads, the same permission per record, the same scope filter and the same cursor - the

@@ -416,8 +416,8 @@ func TestAnUnansweredAuthorisationQuestionIsNotARefusal(t *testing.T) {
 	}
 }
 
-// A cursor from an older epoch is refused the way a cursor past the window is (N-11,
-// backup-restore.md §12 B-5): a restore wrote rows that are in no change log entry, and the
+// A cursor from an older epoch is refused the way a cursor past the window is
+// (backup-restore.md §12 B-5): a restore wrote rows that are in no change log entry, and the
 // walk is what hands them to the device. Every position minted - at the head, past a batch, at
 // the end of a walk - carries the current epoch.
 func TestACursorFromAnOlderEpochIsRefusedAndEveryPositionCarriesTheCurrentOne(t *testing.T) {

@@ -103,7 +103,7 @@ func TestAPullAnswersPagesInCursorOrderAndSaysWhetherThereIsMore(t *testing.T) {
 	}
 }
 
-// The C-10 criterion, again: a record the caller may not read is not in the page, and the cursor
+// A record the caller may not read is not in the page, and the cursor
 // advances past it rather than stalling on it.
 func TestAPullWithholdsWhatTheCallerMayNotReadAndAdvancesPastIt(t *testing.T) {
 	pull, f := pulling(t, entry(1, readable), entry(2, hidden), entry(3, readable))
@@ -307,8 +307,9 @@ func TestAPullValidatesItsRequest(t *testing.T) {
 	}
 }
 
-// Until N-02, a device with no cursor is told the initial synchronisation is not served rather
-// than handed an empty page and a fresh cursor - which would be a client believing it is current.
+// Where the initial synchronisation is not wired, a device with no cursor is told it is not served
+// rather than handed an empty page and a fresh cursor - which would be a client believing it is
+// current.
 func TestANullCursorIsRefusedUntilTheInitialSynchronisationExists(t *testing.T) {
 	pull, _ := pulling(t, entry(1, readable))
 

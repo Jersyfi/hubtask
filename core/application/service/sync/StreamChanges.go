@@ -47,8 +47,8 @@ type Cursors interface {
 type Position struct {
 	Seq      int64
 	IssuedAt time.Time
-	// Epoch is the workspace's synchronisation epoch the position was minted under (N-11,
-	// backup-restore.md §12 B-5). A restore into the workspace advances the epoch, and a
+	// Epoch is the workspace's synchronisation epoch the position was minted under
+	// (backup-restore.md §12 B-5). A restore into the workspace advances the epoch, and a
 	// cursor from an older one is refused as too old: the rows a restore wrote are in no change
 	// log entry, so a delta past them would leave the device believing itself current.
 	Epoch int64
@@ -105,7 +105,7 @@ type Record struct {
 // StreamChanges reads the change log on behalf of one connection.
 //
 // The authorisation is applied per record and at the moment the record is read, never by trusting
-// what a subscription stated (ADR-0005, and the acceptance criterion of C-10). Permission lost
+// what a subscription stated (ADR-0005, offline-sync.md §3.3). Permission lost
 // while a connection is open therefore stops the records for that container without the client
 // having to do anything, and without this package having to be told.
 type StreamChanges struct {
