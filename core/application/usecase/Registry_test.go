@@ -204,8 +204,8 @@ func TestTheInputIsCheckedAgainstTheDeclaration(t *testing.T) {
 		"a fraction where an integer belongs": {in: Input{"type": "HUB", "name": "x", "position": 1.5}, path: "/position", code: "usecase.field_type_invalid"},
 		"a number where a string belongs":     {in: Input{"type": "HUB", "name": 7}, path: "/name", code: "usecase.field_type_invalid"},
 		// Both shapes of a list pass: a decoded JSON document arrives as []any, an in-process
-		// caller hands the typed slice - the same pair StringList reads (C-13 found the REST
-		// path for a definition's options refused at this gate).
+		// caller hands the typed slice - the same pair StringList reads, and the REST path for a
+		// definition's options passes this gate.
 		"a decoded list where a list belongs": {in: Input{"type": "HUB", "name": "x", "labels": []any{"a", "b"}}, valid: true},
 		"a typed list where a list belongs":   {in: Input{"type": "HUB", "name": "x", "labels": []string{"a", "b"}}, valid: true},
 		"a number where a list belongs":       {in: Input{"type": "HUB", "name": "x", "labels": 7}, path: "/labels", code: "usecase.field_type_invalid"},

@@ -268,7 +268,7 @@ func TestAChainIsWalkedToTheFullArchiveOrRefused(t *testing.T) {
 
 // A path the target holds nothing at is not a broken chain - there is no chain. The distinction
 // matters to a caller who sent the manifest's identifier where the path belongs: "chain broken"
-// sent them looking for a missing parent (issue 548).
+// would send them looking for a missing parent.
 func TestAnArchiveThatIsNotThereIsNotFoundRatherThanABrokenChain(t *testing.T) {
 	store := newStore()
 	_, err := NewReader(store, &reversible{}).Chain(t.Context(), "0198f0a0-0000-7000-8000-000000000001")

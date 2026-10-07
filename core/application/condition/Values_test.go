@@ -333,9 +333,9 @@ func (s sets) List(_ context.Context, itemID shared.ID) ([]shared.ID, error) {
 }
 
 // `item.labels` and `item.members` are the entry's sets beside it, as identifiers, read only when
-// `item` is (issue 807): automation.md §1's own example, `item.labels.exists(l, l == '<id>')`, was
-// a promise the engine did not keep - the document had no `labels` key, so the condition compiled
-// and failed at every run. Without the readers the document is the entry alone, as before.
+// `item` is: automation.md §1's own example, `item.labels.exists(l, l == '<id>')`, has to run -
+// without a `labels` key the condition compiles and fails at every run. Without the readers the
+// document is the entry alone.
 func TestTheItemCarriesItsLabelsAndMembersBesideIt(t *testing.T) {
 	entries, containers := workspace()
 	label := shared.ID("01936f2a-7c1e-7000-8000-0000000000a1")

@@ -95,11 +95,11 @@ func TestScopesAreTheDescriptorsOwnSetSortedAndUnique(t *testing.T) {
 	}
 }
 
-// Sessions never carry the control plane (0.6.0 decision 6), nor the agent capability:
+// Sessions never carry the control plane (identity.md §15.4), nor the agent capability:
 // whatever this build declares, SessionScopes leaves those two out - and changes nothing
 // else.
 // The action kinds the manifest answers are exactly the ones the rule writer accepts: one name
-// per use case, sorted, and each resolvable through the lookup the writer uses (issue 542).
+// per use case, sorted, and each resolvable through the lookup the writer uses.
 func TestAutomationActionsAreTheDescriptorsOwnKindsSortedAndUnique(t *testing.T) {
 	actions := catalogue.AutomationActions()
 	if len(actions) != len(catalogue.Descriptors()) {

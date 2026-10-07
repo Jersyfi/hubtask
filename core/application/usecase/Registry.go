@@ -73,8 +73,9 @@ type ActivityDeclaration struct {
 
 // Descriptor is one entry of the catalogue.
 type Descriptor struct {
-	// Name is the stable use case name in PascalCase, as the catalogue in domain-model.md §5
-	// writes it: CreateContainer. Every channel identity is derived from it.
+	// Name is the stable use case name in PascalCase, as the catalogue
+	// (core/application/catalogue) registers it: CreateContainer. Every channel identity is
+	// derived from it.
 	Name string
 	// Summary and SideEffects are what an agent reads before deciding to call the tool
 	// (ai-first.md §1.1). English prose, and protocol documentation rather than display text -

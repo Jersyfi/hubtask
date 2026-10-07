@@ -20,7 +20,7 @@ type Entries interface {
 }
 
 // Sets is the read `item.labels` and `item.members` need: the identifiers an entry carries, which
-// live beside the aggregate rather than on it (issue 807). Narrow, like Entries, so that nothing
+// live beside the aggregate rather than on it. Narrow, like Entries, so that nothing
 // holding an activation can write through it; the label and the member repositories both fit.
 type Sets interface {
 	List(ctx context.Context, itemID shared.ID) ([]shared.ID, error)
@@ -52,15 +52,15 @@ type Values struct {
 	// event-triggered run is unaffected by this field existing.
 	Subject shared.ID
 	// payload is the body an inbound delivery carried. Untrusted from end to end: it is read as
-	// *data* under one name and never rendered as an instruction to anything (ai-first.md §4,
+	// *data* under one name and never rendered as an instruction to anything (ai-first.md §1.3,
 	// automation.md §1.1).
 	Payload    map[string]any
 	Entries    Entries
 	Containers Containers
 	// Labels and Members answer the entry's two sets beside it, so that `item.labels` and
-	// `item.members` are the lists automation.md §1 promises rather than absent keys (issue 807).
+	// `item.members` are the lists automation.md §1 promises rather than absent keys.
 	// Read only when `item` is - the same laziness - and optional: without them the document is
-	// the entry alone, as it was.
+	// the entry alone.
 	Labels  Sets
 	Members Sets
 	// JumbleID names the entry a JUMBLE_ENTRY run is about; `payload` is rendered from it, lazily

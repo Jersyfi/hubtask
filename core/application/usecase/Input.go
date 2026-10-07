@@ -361,8 +361,7 @@ func checkField(field Field, value any) (shared.FieldError, bool) {
 	case KindList:
 		// []string beside []any: a decoded JSON document arrives as []any, an in-process caller
 		// hands the typed slice - which StringList already accepts, and a shape the reader takes
-		// must not be one the gate in front of it refuses (C-13 found the REST path for a
-		// definition's options failing exactly here).
+		// must not be one the gate in front of it refuses.
 		switch value.(type) {
 		case []any, []string:
 		default:

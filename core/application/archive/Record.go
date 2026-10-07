@@ -485,12 +485,12 @@ func Entities() []Entity { return slices.Clone(entities) }
 // that one is what happened at the other end - `excluded` is not in the archive at all, and this
 // is in the archive and stays there.
 var notRestored = map[string]string{
-	// audit.md §4 makes the trail a hash chain: each entry carries the digest of the one before
-	// it, and E-09's `:verify` walks that chain. Inserting last month's entries into the middle of
+	// audit.md §3 makes the trail a hash chain: each entry carries the digest of the one before
+	// it, and `:verify` walks that chain. Inserting last month's entries into the middle of
 	// a live chain is not a restore, it is a rewrite - and "the trail cannot be rewritten" is the
 	// property the whole audit surface rests on. The archive still carries it, which is what
 	// `include_audit` was for: the evidence is readable where it was written down.
-	"audit_log": "audit.md §4 - the live trail is a hash chain, and an insert into one is a rewrite",
+	"audit_log": "audit.md §3 - the live trail is a hash chain, and an insert into one is a rewrite",
 }
 
 // NotRestored answers what a restore reads and does not write back, and why.
@@ -608,7 +608,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// proposal about text that no longer says what it said - and it ages out in thirty days in the
 	// live system for that same reason.
 	"ai_suggestion": "a proposal about a state of an entry, which a restore has already replaced; the entry's own history carries what was accepted",
-	// The material of one job, held for minutes (P-11): the job that reads it deletes it, and a
+	// The material of one job, held for minutes: the job that reads it deletes it, and a
 	// restore that brought one back would revive a question nobody is waiting on the answer to.
 	"ai_request": "a job's material with minutes of life, deleted by the job that reads it; a restored one would be a question nobody asked twice",
 	// Derived, and derived from something the archive does carry. An embedding is a
@@ -646,9 +646,9 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"tombstone":   "carried as DELETE lines inside each entity's file, which is what makes a chain complete",
 	// The compliance machinery. Each of these is a live case with a deadline or an attestation,
 	// and a restored copy would revive a clock that has already run out.
-	"audit_anchor":         "it attests to the chain in the live audit log, not to a copy of one (E-09)",
-	"audit_pseudonym":      "the result of an erasure over a trail that is never written back; carrying it would let a restore reinstate a name, or remove one it did not (E-10)",
-	"data_subject_request": "a case with a legal deadline; a restored one revives a deadline that has passed (E-10)",
+	"audit_anchor":         "it attests to the chain in the live audit log, not to a copy of one",
+	"audit_pseudonym":      "the result of an erasure over a trail that is never written back; carrying it would let a restore reinstate a name, or remove one it did not",
+	"data_subject_request": "a case with a legal deadline; a restored one revives a deadline that has passed",
 	"privacy_incident":     "the same reasoning: an incident is handled once",
 	// The backup system's own bookkeeping. An archive describing the runs that produced it would
 	// be a mirror facing a mirror.
@@ -656,8 +656,8 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"backup_schedule": "the backup system's own bookkeeping",
 	"backup_run":      "the backup system's own bookkeeping",
 	"restore_run":     "the backup system's own bookkeeping",
-	"import_run":      "the import's own bookkeeping (P-08): what was asked and reported, never what landed - that is in the rows",
-	"retention_run":   "the retention engine's own bookkeeping (E-07)",
+	"import_run":      "the import's own bookkeeping: what was asked and reported, never what landed - that is in the rows",
+	"retention_run":   "the retention engine's own bookkeeping",
 	// A rule that says EXPORT_THEN_DELETE names a backup target, and a backup target is
 	// deliberately not restored - "an egress channel and a sealed credential; a restore must not
 	// silently recreate one". A rule carried back without it would either refuse the insert or,
