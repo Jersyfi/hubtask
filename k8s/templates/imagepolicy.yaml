@@ -1,5 +1,5 @@
 {{/*
-The signature at the door (CI-3, P-15). A Kyverno ClusterPolicy that refuses a pod whose image is
+The signature at the door (deployment.md §3.2). A Kyverno ClusterPolicy that refuses a pod whose image is
 not the one the release workflow signed: keyless, so what is checked is the identity the workflow
 ran under - GitHub's OIDC issuer and the workflow's own subject - rather than a key somebody has
 to keep. Off by default, because the kind does not exist without Kyverno and a policy is cluster

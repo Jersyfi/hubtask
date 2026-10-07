@@ -69,7 +69,7 @@ spec:
               value: {{ . | quote }}
             {{- end }}
             {{- if .Values.migration.appPasswordSecretKey }}
-            # The migrator is the operator that grants hubtask_app its login (A-11): the migration
+            # The migrator is the operator that grants hubtask_app its login (deployment.md §2.1): the migration
             # creates the role without one, because a credential has no business in a migration.
             # Only installations that hand it the password get the grant - a cluster that manages
             # the role itself leaves this unset.
