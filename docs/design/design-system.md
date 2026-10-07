@@ -1,9 +1,9 @@
 # Hubtask Design System — Specification
 
-Code-first, no external design tool.
-
-The rules for the *words* a component shows are the counterpart to this document and live beside
-it: [`voice-and-tone.md`](./voice-and-tone.md).
+Code-first, no external design tool. The rules for the *words* a component shows live beside it:
+[`voice-and-tone.md`](./voice-and-tone.md). What must not happen inside the package, and the
+commands that check it, are in
+[`packages/design-system/AGENTS.md`](../../packages/design-system/AGENTS.md).
 
 ---
 
@@ -14,15 +14,10 @@ There is exactly **one** place where a colour, a spacing value or a duration is 
 TypeScript, and the list of permitted label tokens for the Go backend
 ([ADR-0029](../adr/ADR-0029-design-system-tokens.md)).
 
-The reason is not tidiness. A design system always drifts at exactly the point where the same
-value is written down twice. If `#8A2438` appears in one file only, there cannot be three
-different bordeaux tones.
-
-From this follows one hard rule: **no hex value, no pixel number and no millisecond figure
-appears anywhere in application code.** Anyone who needs a value that does not exist adds it to
-`tokens.json` — or does not need it. `build/lint-no-literals.js` enforces it: a colour anywhere
-under `apps/` and `packages/`, a length or a duration in application code (`apps/` and
-`packages/design-system/src/`). A line that genuinely holds no design value carries
+**No hex value, no pixel number and no millisecond figure appears anywhere in application code.**
+A value that does not exist is added to `tokens.json` — or is not needed. `build/lint-no-literals.js`
+enforces it: a colour anywhere under `apps/` and `packages/`, a length or a duration in application
+code (`apps/` and `packages/design-system/src/`). A line that genuinely holds no design value carries
 `design-system-lint-ignore` with its reason, on the line or the comment above it.
 
 ---
@@ -46,19 +41,16 @@ core/domain/model/shared/LabelTokens.go
 src/                        Svelte components, wave by wave (§4)
 ```
 
-**Why a Go artefact.** The domain model stores a `colorToken` on `Label` and `cover`, not a hex
-value, so the backend must validate that a token comes from the permitted set. Only the **names**
-are generated, never a colour value — the core stays colour-blind while sharing one vocabulary with
-the frontend. The file carries the `Code generated … DO NOT EDIT.` line, is committed so that
-`go build ./...` works without Node, and a CI check fails when the generated and the committed
-version diverge.
+**The Go artefact carries names only.** `Label` and `cover` store a `colorToken`, so the backend
+validates a token against the permitted set and never holds a colour value. The file is generated
+(`Code generated … DO NOT EDIT.`), committed so that `go build ./...` works without Node, and CI
+fails when the generated and the committed version diverge.
 
-**The semantic layer exists only under `[data-theme]`**, with no `:root` fallback on purpose: a
-document without the attribute looks broken at once rather than half right. Every document sets it.
-In the web app `apps/webapp/src/lib/theme.ts` is the one module that sets `data-theme`. **The theme
-is a property of the device, not of the account** ([ADR-0043](../adr/ADR-0043-theme-per-device.md)):
-it follows `prefers-color-scheme`, and a person's own choice — System, Light or Dark — is kept on
-that device (§11.10). The account carries no appearance field.
+**The semantic layer exists only under `[data-theme]`**, with no `:root` fallback: a document
+without the attribute looks broken at once. Every document sets it; in the web app
+`apps/webapp/src/lib/theme.ts` is the one module that does. **The theme is a property of the
+device, not of the account** ([ADR-0043](../adr/ADR-0043-theme-per-device.md)): it follows
+`prefers-color-scheme`, and a choice of System, Light or Dark is kept on that device (§11.10).
 
 **The framework.** Every first-party client and the component layer are Svelte 5 with runes and
 TypeScript ([ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md)). The web app is a plain Vite
@@ -66,91 +58,62 @@ single-page application without SvelteKit, routed client-side over the History A
 SvelteKit with `adapter-static`, fully prerendered. Component styles compile to external
 stylesheets, so `style-src 'self'` holds without an exception.
 
-**What the tokens guarantee.** `test/contrast.test.js` measures the WCAG 2.2 contrast ratio of
-every pair `tokens.json` declares, in both modes, on every run of `pnpm test`. Text clears 4.5:1
-(SC 1.4.3) against every surface it may sit on — including the canvas under each `ambient`
-gradient, the two `accent.*-subtle` tints, the `status.*` surfaces and the `ai.*` surfaces. A
-control's boundary and the focus ring clear 3:1 (SC 1.4.11). Every semantic colour token carries a
-role in that file, and a token nobody has classified fails the suite rather than being skipped, so
-the guarantee cannot shrink as the token set grows. One rule follows from it and belongs at the call
-site: **`border.default` and `border.strong` draw controls, `border.subtle` does not.** A hairline
-that separates sections or edges a card carries no information and is exempt; a border that is the
-only thing saying "this is an input" is not.
+**What the tokens guarantee.** `test/contrast.test.js` measures the WCAG 2.2 contrast of every pair
+`tokens.json` declares, in both modes, on every `pnpm test`: text 4.5:1 (SC 1.4.3) against every
+surface it may sit on — the canvas under each `ambient` gradient, the `accent.*-subtle` tints, the
+`status.*` and `ai.*` surfaces included — and a control's boundary and the focus ring 3:1
+(SC 1.4.11). Every semantic colour token carries a role there; an unclassified one fails the suite.
+At the call site: **`border.default` and `border.strong` draw controls, `border.subtle` does not.**
+A hairline that separates sections or edges a card is exempt; a border that is the only thing
+saying "this is an input" is not.
 
 **Status is a surface, not a text colour.** `status.{info,success,warning,danger,neutral}` carries
 `surface`, `border`, `text` and `accent` per mode, in the shape `ai.*` has. `text.danger`,
-`text.success` and `text.warning` are aliases of the matching `status.*.text`. The emphasised form
-is `text.inverse` on `accent`. Which ramp step serves which role is the contrast test's verdict.
+`text.success` and `text.warning` alias the matching `status.*.text`. The emphasised form is
+`text.inverse` on `accent`. Which ramp step serves which role is the contrast test's verdict.
 
-**Layout measures are tokens.** `layout.appbar.height`, `layout.bottombar.height`,
-`layout.sidenav.width`, `layout.sidenav.rail`, `layout.pane.width` and `layout.content.max` are
-dimensions; the frame composes nothing out of space steps.
+**Layout measures are tokens** (`layout.*`); the frame composes nothing out of space steps.
 
-**The AI treatment.** Five `ai.*` tokens per mode (`surface`, `surface-strong`, `border`, `text`,
-`accent`): the surfaces at the neutrals' luminance and differing by hue, the border carrying the
-boundary (rule 3), no elevation (a proposal is a child of the entry it sits in, rule 1), and the
-`attach` motion role. `AISuggestion` is their only consumer, so switching AI off leaves no value
-behind.
+**The AI treatment.** `ai.*` carries `surface`, `surface-strong`, `border`, `text` and `accent` per
+mode: surfaces at the neutrals' luminance differing by hue, the border carrying the boundary
+(rule 3), no elevation (a proposal is a child of its entry, rule 1), and the `attach` motion role.
+`AISuggestion` is their only consumer, so switching AI off leaves no value behind.
 
 ---
 
 ## 2. Directory layout
 
-```
-packages/design-system/
-├── tokens/
-│   └── tokens.json           source
-├── build/                    the generators, and the gates
-├── dist/                     generated; gitignored (the Go target is written into the core)
-├── workbench/                the component workbench, and the generated foundations (ADR-0037)
-├── test/
-├── src/                      components, wave by wave
-├── AGENTS.md
-└── README.md
-```
+The package's layout, generators and commands are described in its
+[`README.md`](../../packages/design-system/README.md): `tokens/` the source, `build/` the generators
+and gates, `dist/` generated and ignored, `workbench/`, `test/`, `src/`.
 
 The **visual acceptance reference** is `workbench/fixtures/Foundations.stories.ts` — the token
-scales, read out of `dist/tokens.ts` rather than drawn beside it. A step added to the source appears
-there without anybody remembering to add it, and a step removed leaves nothing behind.
+scales read out of `dist/tokens.ts`, so a step added or removed in the source appears or disappears
+there by itself.
 
-**The workbench** ([ADR-0037](../adr/ADR-0037-component-workbench.md)) is a small Svelte application
-in the package, not Storybook, and it adds no supplier. It renders every story through an axis
-matrix, because §6's rules are rules one verifies by looking:
-
-| Axis | Values | The rule it makes visible |
-|---|---|---|
-| `theme` | `light` · `dark` · `both` | §6 throughout. The stage always sets `data-theme` (§1) |
-| `dir` | `ltr` · `rtl` · `both` | §3's `start`/`end` rule |
-| `text` | `normal` · `long` | Rule 4: a pseudo-locale expands every string by about 40 % and brackets it |
-| `motion` | `system` · `reduced` | Rule 6, and the per-user switch for celebrations (§7) |
-| `zoom` | `100` · `200` | WCAG 2.2 SC 1.4.4; the type scale is in `px` (§3) |
-| `width` | the five `primitive.breakpoint` values, or the pane | Every responsive decision (§6, §11) |
-| focus walk | a command | Rule 5: it steps through the stage in tab order and reports the sequence |
-
-The workbench's own index lists **components**, one row each with its stage badge and story count,
-in collapsible groups taken from the part of a story's `title` before the slash; a component's
-stories are tabs above the stage. The filter above the index is an `<input type="search">` with no
-form, no submit and no storage — it narrows the list already in the browser. The workbench is built
-on the shell (§11): `AppBar` and `NavDrawer` carry it.
+**The workbench** ([ADR-0037](../adr/ADR-0037-component-workbench.md)) is a small Svelte
+application in the package, not Storybook, and adds no supplier. It renders every story through an
+axis matrix — theme (the stage always sets `data-theme`), direction, text (a pseudo-locale +40 %,
+rule 4), motion, zoom (SC 1.4.4), the five widths, and a focus walk in tab order (rule 5); the
+README's table says what each axis makes visible. It is built on the shell (§11): `AppBar` and
+`NavDrawer` carry it. Its filter is an `<input type="search">` with no form, no submit and no
+storage.
 
 **A component without a story is a build failure.** `build/check-stories.js` runs in `pnpm test`:
 every component in `src/` has a story, every story names axes that exist, and every component in
-`src/` appears in one of §4's waves — which is why §4's wave headings, the `·` lists and the wave-3
-table keep their shape. Story modules are CSF-shaped (`title`, `component`, named exports with
-`args`) plus two fields of ours, `status` and `axes`.
+`src/` appears in one of §4's waves — so §4's wave headings, the `·` lists and the wave-3 table's
+first column keep their shape. Story modules are CSF-shaped (`title`, `component`, named exports
+with `args`) plus `status` and `axes`.
 
-**The workbench never reaches a user.** It has its own Vite config and scripts (`pnpm workbench`,
-`pnpm workbench:build`, `make workbench`), is not part of `pnpm build`, and nothing of it enters the
-web app's bundle. It is a tool, so `lint-no-literals` does not apply to its own chrome; colour is
-still banned there.
+**The workbench never reaches a user.** It is not part of `pnpm build`, and nothing of it enters the
+web app's bundle. `lint-no-literals` does not apply to its own chrome; colour is still banned there.
 
 ---
 
 ## 3. Typography
 
-IBM Plex in three cuts, OFL 1.1 — shippable with a self-hosted instance, with coverage for
-Arabic, Hebrew, Devanagari, Thai and CJK. Without that, "multilingual without backend changes"
-fails at the typeface.
+IBM Plex in three cuts, OFL 1.1, self-hosted, with coverage for Arabic, Hebrew, Devanagari, Thai and
+CJK.
 
 | Style | Family | Size / line height | Weight | Used for |
 |---|---|---|---|---|
@@ -164,48 +127,37 @@ fails at the typeface.
 | `code` | Plex Mono | 13 / 1.60 | 400 | Documentation, API examples |
 | `label` | Plex Sans | 12 / 1.30 | 600 | Field names in a details column, group titles in a navigation — `text.subtle`, so the name reads as a name beside the value |
 
-Font files ship with the product (`THIRD-PARTY-LICENSES.md`); they are not loaded from Google
-Fonts. A self-hosted Hubtask must not contact a foreign domain on load, which `font-src 'self'`
-enforces.
+Font files ship with the product (`THIRD-PARTY-LICENSES.md`), never from Google Fonts: a self-hosted
+Hubtask contacts no foreign domain on load, which `font-src 'self'` enforces.
 
-Alignment is `start`/`end` only, never `left`/`right` — anything else breaks RTL. That is a gate over
-every client tree, not a convention: `build/lint-direction.js` refuses a physical inline side — a
-`padding-left`, a bare `left:`, a `float: right`, a physical corner radius, a signed `translateX` —
-in every `.svelte` and `.css` file under `apps/` and `packages/`, and `conventions.test.js` runs its
-selftest before trusting it. A line that has to name a side carries `design-system-lint-ignore`
-with its reason. An icon that points the way the text runs — an arrow, a chevron, the two marks that
-draw a flow — turns round with it by itself: `Icon` reads the mirrored set `build/icons.js` declares
-and flips the glyph under `[dir='rtl']`, so no call site has to know the direction. Not `:dir(rtl)`:
-Chromium does not match it on an element inserted after its ancestor's `dir` was set.
+**Alignment is `start`/`end` only, never `left`/`right`.** `build/lint-direction.js` refuses a
+physical inline side — `padding-left`, a bare `left:`, `float: right`, a physical corner radius, a
+signed `translateX` — in every `.svelte` and `.css` file under `apps/` and `packages/`;
+`conventions.test.js` runs its selftest first. A line that has to name a side carries
+`design-system-lint-ignore` with its reason. An icon that points the way the text runs — an arrow, a
+chevron, the two flow marks — is in the mirrored set `build/icons.js` declares, and `Icon` flips it
+under `[dir='rtl']`, so no call site knows the direction. Not `:dir(rtl)`: Chromium does not match
+it on an element inserted after its ancestor's `dir` was set.
 
-The scale is in `px` rather than `rem`, which is a decision and not an oversight: the steps are a
-type scale rather than a set of multiples, and a `rem` scale would move all of them the moment a
-browser's default font size differs. The consequence is that WCAG 2.2 SC 1.4.4 is met through page
-zoom rather than through text resize, and the workbench's `zoom` axis therefore emulates page zoom.
+The scale is in `px`, not `rem`: the steps are a type scale, not multiples of a root size. WCAG 2.2
+SC 1.4.4 is therefore met through page zoom, which the workbench's `zoom` axis emulates.
 
 ---
 
 ## 4. Component inventory
 
-The order is a build order. The domain components are derived from
-`docs/architecture/domain-model.md`, not from a generic list. Every component named in a wave below
-is built unless its wave says otherwise.
+The order is a build order, derived from `docs/architecture/domain-model.md`. Every component named
+in a wave is built unless its wave says otherwise.
 
 ### Wave 0 — the primitives everything else is made of (4)
 `Box` · `Stack` · `Inline` · `VisuallyHidden`
 
-§0's rule means no component may write a bare spacing value, so every component that lays anything
-out reaches the space scale through these four. `VisuallyHidden` belongs with them: an accessible
-name that is not on screen is a layout concern, and every icon-only control needs one.
-
-They take spacing, direction and alignment as props and produce **no visual style of their own** —
-no colour, no border, no shadow. A primitive that decorates is a component, and belongs in a wave
-that plans it.
-
-The steps travel as `data-` attributes selected by a stylesheet, never as an inline `style`:
+Every component that lays anything out reaches the space scale through these four; `VisuallyHidden`
+gives an icon-only control its name. They take spacing, direction and alignment as props and produce
+**no visual style of their own** — no colour, border or shadow. The steps travel as `data-`
+attributes selected by a stylesheet, never as an inline `style`:
 [ADR-0028](../adr/ADR-0028-embedded-web-ui.md)'s `style-src 'self'` has no `'unsafe-inline'`, so a
-component that writes `style="gap: …"` writes a rule the browser refuses — silently, in production
-only. Every component inherits that constraint.
+`style="gap: …"` is refused — silently, in production only. Every component inherits that.
 
 ### Wave 1 — nothing works without these (≈ 21)
 Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · Radio · Switch ·
@@ -213,36 +165,28 @@ Tooltip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup
 ProgressBar
 
 `CodeField` is **one** native input drawn as its places — never one box per digit, which breaks
-pasting, breaks `Backspace`, and makes a screen reader announce six fields instead of one code. Six
-places or eight, because the contract allows both, and the group is a prop because that is where a
-human eye breaks a number. Every short code — the second step of a sign-in, the step-up prompt, the
-TOTP enrolment — is entered through it.
+pasting and `Backspace` and makes a screen reader announce six fields. Six places or eight, the group
+a prop. Every short code — a sign-in's second step, step-up, TOTP enrolment — is entered through it.
 
-`ProgressBar` is the platform's `<progress>` element rather than a filled div, because a proportion
-drawn by hand is arithmetic in an attribute and `style-src 'self'` refuses one. It has an
-indeterminate case for a job that answers `progress: null`.
+`ProgressBar` is the platform's `<progress>`, because `style-src 'self'` refuses a width in an
+attribute; it has an indeterminate case for a job that answers `progress: null`.
 
-`Icon` takes a name from one merged set — the declared subset of Lucide plus the marks only this
-domain needs — and nothing else in the wave knows which of the two a mark came from (§12).
+`Icon` takes a name from one merged set (§12).
 
 Three modules sit under the overlays: `anchor.ts` positions them (§6), `focus.ts` is the keyboard
-arithmetic, and `overlay.ts` is the four things opening a layer means, written once so that `Menu`
-and `Popover` cannot come to disagree about what dismisses them. Focus is trapped in a `Dialog` and
-returned to the trigger when it closes; a `Menu` is operable from the keyboard with arrows, `Home`,
-`End` and type-ahead; `Escape` closes one layer at a time, which is why `Dialog` refuses the
-platform's own `cancel` and asks the register instead; and a `Toast` is announced without taking
-focus, because the moment a save confirmation arrives is the moment somebody is typing.
+arithmetic, and `overlay.ts` is what opening a layer means, written once so `Menu` and `Popover`
+cannot disagree about what dismisses them. Focus is trapped in a `Dialog` and returned to the
+trigger on close; a `Menu` is operable with arrows, `Home`, `End` and type-ahead; `Escape` closes one
+layer at a time, which is why `Dialog` refuses the platform's `cancel` and asks the register; a
+`Toast` is announced without taking focus.
 
-**Status emphasis is a prop of `Badge`, not a tone.** `emphasis: 'subtle' | 'bold'`, subtle by
-default. Bold is for the one status on a screen that must be seen first — a failed run, a lost
-connection — and a screen with several bold badges has misread the rule. `Banner`, `Callout` and
-`Toast` take the surface and the border of their tone; their marks take the accent.
+**Status emphasis is a prop of `Badge`, not a tone**: `emphasis: 'subtle' | 'bold'`, subtle by
+default (rule 3). `Banner`, `Callout` and `Toast` take the surface and the border of their tone;
+their marks take the accent.
 
-Two rules of the wave apply to every component after it. **There is no `disabled` boolean
-anywhere:** setting `disabledReason` is what switches a control off, so a control the reader cannot
-use cannot come apart from the reason — `CapabilityGate`'s principle, applied by construction. And
-**`checked` is a value, not a state:** §5's rule that a boolean asks a question covers the booleans
-we invent, not the ones the platform names.
+Two rules apply to every component after this wave. **There is no `disabled` boolean:** setting
+`disabledReason` switches a control off, so a control cannot come apart from its reason. **`checked`
+is a value, not a state:** §5's boolean rule covers the booleans we invent, not the platform's.
 
 ### Wave 2 — structure (≈ 12)
 Breadcrumb *(five levels, collapsed to `Hub / … / Parent / Current` from `medium` down)* ·
@@ -250,41 +194,34 @@ Tabs · SideNav · Toolbar · Table · ListRow · Skeleton · EmptyState · Erro
 LoadMore *(cursor pagination — **no** page numbers, the API has none)* ·
 Drawer · SearchField
 
-`structure.ts` holds the trail's collapsing and the tree's flattening, beside `focus.ts` and
-`layers.ts`, because they are questions about a list that a test can answer without a browser.
-`Tabs`, `SideNav` and `Toolbar` carry a roving `tabindex`: one tab stop each, so a keyboard reader
-is not six presses from the content. `Drawer` is on the `overlay` rank, which is what makes a dialog
-opened from inside one close first.
+`structure.ts` holds the trail's collapsing and the tree's flattening as testable arithmetic.
+`Tabs`, `SideNav` and `Toolbar` carry a roving `tabindex`: one tab stop each. `Drawer` is on the
+`overlay` rank, so a dialog opened from inside one closes first.
 
-**`SideNav` is one component with two drawings, and a second tree is never built.** A row is mark ·
+**`SideNav` is one component with two drawings; a second tree is never built.** A row is mark ·
 label · twist: the mark at one inline position for every level, the indent on the label, the twist
-at the trailing edge (logical properties, so RTL mirrors it). Folded (`isRail`) it is a rail of one
-centred mark per row — no twist, no label, no indent; the label is the row's accessible name and
-its tooltip — and a branch pressed there opens the same tree as a flyout `Popover` beside the
-column, so nothing is unreachable while it is folded. The keyboard walk is one tab stop, the arrows,
-`Home` and `End`; in the rail the direction keys open and close the flyout.
+at the trailing edge. Folded (`isRail`) it is a rail of one centred mark per row — no twist, label or
+indent; the label is the accessible name and the tooltip — and a branch pressed there opens the same
+tree as a flyout `Popover`, so nothing is unreachable. One tab stop, the arrows, `Home` and `End`; in
+the rail the direction keys open and close the flyout.
 
-**`Drawer` at `block-end` keeps its head while its body scrolls.** With `isResizable` the reader
-sizes the sheet by a handle above the head — by pointer, or by the arrow keys, `Home` and `End` —
-between a third and nine tenths of the screen, and a drag let go below the floor closes it. `size`
-is bindable: where a reader's size is remembered is the caller's decision, never the component's.
+**`Drawer` at `block-end` keeps its head while its body scrolls.** With `isResizable` a handle above
+the head sizes it — by pointer, or by arrows, `Home` and `End` — between a third and nine tenths of
+the screen; a drag let go below the floor closes it. `size` is bindable: where a size is remembered
+is the caller's decision.
 
-`EmptyState` takes a required `kind` with no default, because [`voice-and-tone.md`](./voice-and-tone.md)
-§4 says an empty list has **three** causes — nothing made yet, a filter excluded everything, the
-emptiness is the good outcome — and one sentence cannot serve all three; it refuses a call to
-action on the third. A failure is not an empty state (§4.4 there), which is why `ErrorState` is a
-component of its own rather than a fourth kind.
+`EmptyState` takes a required `kind` with no default — the three causes of
+[`voice-and-tone.md`](./voice-and-tone.md) §4 — and refuses a call to action on the third. A failure
+is not an empty state (§4.4 there): `ErrorState` is its own component.
 
-**`LoadMore` is the only pager in this system.** It is a control the reader presses, never a load on
-scroll, so a keyboard or a screen reader can reach the end of a list; it exposes no page number and
-announces what arrived. `Table` gains no second pager: a list arrives whole or by cursor, and the
-ways to cope with a long one are to sort it, to narrow it, or to ask for the next page through
-`LoadMore` where there is a cursor to ask with. A client-side pager over a list already in the
-browser is refused too — one product has one model of "where am I in this list".
+**`LoadMore` is the only pager in this system.** A control the reader presses, never a load on
+scroll; no page number; it announces what arrived. `Table` gains no second pager, and a client-side
+pager over a list already in the browser is refused too: a long list is sorted, narrowed, or
+continued through `LoadMore` where there is a cursor.
 
-`Table` has a sticky head, sortable columns and an empty state that keeps the headings on screen.
-The sort cycle has a **third** press that returns the list to the order the caller handed over,
-because an order such as "this device first, then newest" is a statement, not a column.
+`Table` has a sticky head, sortable columns and an empty state that keeps the headings. The sort
+cycle's **third** press returns the caller's order, because an order such as "this device first,
+then newest" is a statement, not a column.
 
 `SearchField` knows nothing about when a request is sent; debouncing and sending are the caller's.
 
@@ -292,33 +229,33 @@ because an order such as "this device first, then newest" is a statement, not a 
 
 | Component | Why it follows from the model |
 |---|---|
-| `TaskRow` | `TASK`, `WORK_PACKAGE`, `ACTIVITY`: `type` says which mark and which indent, `expansion` says whether the row hides anything. A type the manifest reports and the icon set has no mark for still gets a row, because tolerance towards unknown fields is a binding client requirement. **Which levels of an entry's subtree are open is the device's** — direct children open by default, the choice kept per entry in `sessionStorage`, never on the account (§11.10). A row waiting to synchronise takes a `pendingLabel` and the `pending` motion role, in opacity alone |
-| `WorkItemCard` | Kanban, with `cover` as colour **or** image. A colour cover is a strip rather than a filled card, because a label token's background was measured against its own foreground and not against the card's. The card itself is what is dragged (§11.9) |
-| `BucketColumn` | `wipLimit` and `isDoneBucket` are **announced, never enforced**. The server accepts a card past the limit and completes nothing in a done column; the column says what each means and the board acts. A component that acted would be a component with a write in it |
-| `LabelChip` + `LabelPicker` | Ten `colorToken` values, nothing else. Each token is a **pair**, `bg` and `fg`, measured together — which is why a hex cannot serve. The picker is handed one collection's labels and no others, and the tick rather than the colour says which are on the entry, because every option is coloured |
-| `AssigneeControl` | `assigneeId` **or** `members[]`, depending on capability; the two are drawn as *Responsible* and *Also on it* (§11.8) |
+| `TaskRow` | `TASK`, `WORK_PACKAGE`, `ACTIVITY`: `type` gives the mark and the indent, `expansion` whether the row hides anything. A type the manifest reports and the icon set has no mark for still gets a row. Which levels of a subtree are open is the device's (§11.10). A row waiting to synchronise takes a `pendingLabel` and the `pending` motion role, in opacity alone |
+| `WorkItemCard` | Kanban, with `cover` as colour **or** image. A colour cover is a strip, not a filled card, because a label token's background was measured against its own foreground only. The card itself is what is dragged (§11.9) |
+| `BucketColumn` | `wipLimit` and `isDoneBucket` are **announced, never enforced** — the server accepts a card past the limit and completes nothing in a done column; the board acts, the component writes nothing |
+| `LabelChip` + `LabelPicker` | Ten `colorToken` values, each a **pair** (`bg`, `fg`) measured together. The picker is handed one collection's labels; the tick, not the colour, says which are on the entry |
+| `AssigneeControl` | `assigneeId` **or** `members[]`, by capability, drawn as *Responsible* and *Also on it* (§11.8) |
 | `DueDateControl` | `dueDateOnly` (all-day) vs. timed vs. differing `dueTimeZone`; it holds the start and the due together |
-| `RecurrenceEditor` | RRULE, `ON_SCHEDULE` vs. `ON_COMPLETION`. It shows what the rule is; no client expands an RRULE |
+| `RecurrenceEditor` | RRULE, `ON_SCHEDULE` vs. `ON_COMPLETION`. It shows the rule; no client expands an RRULE |
 | `ReminderEditor` | `REL:-PT1H` presets plus free entry, multiple channels |
 | `CustomFieldRenderer` | Eight field kinds from `CustomFieldDefinition` |
-| `CapabilityGate` | A control **with a reason** — `ErrCapabilityNotSupported` must never become silent ignoring. A refusal the client could have predicted from the manifest is a defect in the client; one it could not is rendered as a sentence, never swallowed. **An optional feature the installation does not serve is not rendered at all**; a feature it serves that is degraded right now is gated, with the reason `/meta/health` names. A control that never applies to this reader — another workspace's, an operator's — is absent, not gated |
+| `CapabilityGate` | A control **with a reason** — `ErrCapabilityNotSupported` never becomes silent ignoring. A refusal the manifest predicts is a client defect; one it could not is rendered as a sentence. **An optional feature the installation does not serve is not rendered at all**; a served feature degraded now is gated with the reason `/meta/health` names. A control that never applies to this reader is absent, not gated |
 | `CommentThread` | Nested, with "removed" as its own state |
-| `UploadField` | It moves no bytes — it hands the caller a `File` and renders the progress the caller reports, because the staging, the `PUT` and the confirmation are requests and this package makes none. The native file input stays in the accessibility tree and the drop target is an addition to it, never the only way in; the size limit is handed in and **announced**, because what an installation accepts is the installation's answer |
-| `ActivityFeed` | `verb` is an i18n code, and the component **never sees one** — every sentence arrives resolved. An ordered list with a real `<time datetime>`, since the order is the content; a step with no change set is a shorter sentence rather than an empty panel |
-| `Timeline` | The layout drawn as a **schedule**: an axis ruled by dated gridlines at the caller's `scale` (day · week · month) with **today marked across every row**, a **span** where `start_at` and `due_at` both exist and a **point** where only the due date does. What it cannot place it **trays**, folded beside the axis. The window opens where the work is, not on the current month. **A drag names columns, never dates**: the component knows the grid and the application knows the calendar. A bar moves both ends, an end moves one, a trayed entry carried onto the axis asks for its first dates, and the span **redraws where it would land** rather than being carried. A bar one column wide carries **no** end handles. The handle's target is the whole cell and the mark drawn in it is smaller; the alternative to every drag is the row itself, which opens the entry's date editor (§10, 2.5.7 and 2.5.8). The track is one cell per column and a span *marks* the cells it covers, because `style-src 'self'` refuses an inline `grid-column` |
-| `ViewSwitcher` | A **radio group**, not a tab strip: it switches between renderings of one subject and owns nothing. List, board and timeline, with "show what is inside" as a toggle within list; `LIST_COLLAPSED` and `LIST_EXPANDED` stay the stored values. A layout the manifest reports and the client cannot draw is shown **with the reason**. Switching layout keeps the selection: selection is a mode of the screen, not of a layout (§11.9) |
-| `QueryBuilder` | The query DSL made visible, knowing **no grammar** — the fields, the comparisons each permits and whether a comparison takes a value are handed to it, because `query_fields` grows with the installation. Changing the field resets the comparison |
-| `JumbleInboxItem` | `NEW` / `PROCESSED` / `DISMISSED`, optionally with an AI suggestion. The subject, the body and the sender **arrived from outside**, so they are drawn as text and never as markup or a live link, and the sender is labelled as what the transport claimed; `{@html}` is refused package-wide. `PROCESSED` links to what the conversion produced; `DISMISSED` is a state, not a deletion |
-| `AutomationRuleCard` | A rule as somebody scanning a list needs it: the name, what starts it, how many actions, whether it is on, what it runs as, its health word, the check's first finding, its last run in one line, and the consecutive failure count where there is one. It renders no CEL and no action parameters — a card is not an editor |
-| `RunStatusBadge` | **Seven** states: `SKIPPED` is a condition that did not match and is not a failure, `THROTTLED` is the rule protecting the workspace from itself, and `ABORTED_LOOP` is the causation depth stopping a rule that triggered itself. The dry run is the **variant**, not the status |
-| `RoleBadge` | Six roles, inherited across four scopes — the scope a role was granted at is half of what it means, so the badge says *where* |
-| `PermissionMatrix` | The role matrix as **this installation** enforces it, read from `/meta/capabilities`'s `roles` and never compiled in. A table of what the server says, not a control; `item_access` is rendered beside the permission columns rather than flattened into a tick |
-| `OneTimeSecret` | A value shown for the only time — a minted token, a webhook signing secret, a TOTP secret with its recovery codes, an inbound trigger address, a jumble intake address. Reveal, copy, and an acknowledgement the caller may require before dismissal. It renders no value it was not handed, writes to no storage, and holds nothing once it is gone |
-| `QrCode` | The TOTP provisioning URI as a picture an authenticator scans, beside the same secret written out ([ADR-0053](../adr/ADR-0053-totp-qr-code.md)). The encoder in `qr.ts` is ours and no QR dependency enters the lockfile: byte mode, level M, versions 1 to 13, held to the standard's published vectors and to a real decoder. Past version 13 it refuses by name and the screen shows the secret without an image. An SVG of one path, **dark on light in both modes**; the payload is never written into the DOM as text |
-| `SyncStatus` + `ConflictResolver` | `SyncStatus` is the connection mark in the app bar (§11.6), fed by `engine.queue()` and the stream's state, rendering **no sentence of its own**. Pressed, it lists every waiting change as *what* and *where*, and every refused one with its reason and a dismiss — a rejection is shown, never swallowed ([`offline-sync.md`](../architecture/offline-sync.md) §9). Losing the server is announced once through a `status` region; a count that moves is not. `ConflictResolver` is the dialog for a `CONFLICT` on the notes: both versions side by side as text — theirs in place, mine already a system comment the dialog links to — and two ways out: keep theirs, or write mine again as the caller's ordinary `PATCH`. **Never a merge of the two texts and never an automatic retry** ([ADR-0021](../adr/ADR-0021-offline-sync.md)). It opens from the mark's list and from the entry's own strip |
-| `Celebration` | §7's slot as one component: `tier` 1, 2 or 3, an asset per tier within the tokens' guardrails, in a slot no taller than `--motion-celebration-area` and moving no further than `--motion-celebration-travel`. **Never blocking**: the slot is `inert` and off the tree, the caller unmounts it on `onDone`, and the one sentence beside it is a `status` region heard once. Under reduced motion every tier is rule 6's colour change. Which animation carries which tier is an asset and may change; the tiers, the tokens and the triggers may not |
-| `Tour` + `CoachMark` | §8's pattern: a spotlight on one element of the real interface and a coach mark beside it. The cut-out is **positioned by CSS** — `spotlightTo` in `anchor.ts` — and the overlay of rule 2 is the cut-out's shadow, one surface. The element stays interactive. `CoachMark` is a caption and one body line, the count, and *next*, *back* and *skip*; a `dialog` for focus purposes and not a modal one — focus moves to the mark, `Escape` skips, and the tab order is the mark's controls and the element it points at. What a step says and where it points is the client's (`apps/webapp/src/lib/tour.ts`) |
-| `AISuggestion` | Visually separable through the `ai.*` tokens (§1), and gone without residue when AI is off. One component for every kind: the heading names the kind and says it is a proposal, the payload is the caller's slot rendered with the editor the product has for its shape, accept and dismiss are the caller's buttons, and the provenance is one line collapsed by default ([`voice-and-tone.md`](./voice-and-tone.md) §7). `pending` is the job still running and `stale` the target having moved. It arrives in the `attach` role, in opacity alone |
+| `UploadField` | Moves no bytes: it hands the caller a `File` and renders the progress the caller reports. The native file input stays in the accessibility tree and the drop target is an addition; the size limit is handed in and **announced** |
+| `ActivityFeed` | `verb` is an i18n code the component **never sees** — every sentence arrives resolved. An ordered list with a real `<time datetime>`; a step with no change set is a shorter sentence |
+| `Timeline` | A **schedule**: dated gridlines at the caller's `scale` (day · week · month), **today marked across every row**, a **span** where `start_at` and `due_at` exist and a **point** where only the due does; what it cannot place it **trays** beside the axis. The window opens where the work is. **A drag names columns, never dates.** A bar moves both ends, an end moves one, a trayed entry carried onto the axis asks for its first dates, and the span **redraws where it would land**. A bar one column wide has **no** end handles; a handle's target is the whole cell. The alternative to every drag is the row, which opens the date editor (§10, 2.5.7 and 2.5.8). One cell per column, a span *marks* its cells, because `style-src 'self'` refuses an inline `grid-column` |
+| `ViewSwitcher` | A **radio group**, not a tab strip. List, board and timeline, with "show what is inside" a toggle within list; `LIST_COLLAPSED` and `LIST_EXPANDED` stay the stored values. A layout the manifest reports and the client cannot draw is shown **with the reason**. Switching keeps the selection (§11.9) |
+| `QueryBuilder` | The query DSL made visible, knowing **no grammar** — fields, their comparisons and whether a comparison takes a value are handed in. Changing the field resets the comparison |
+| `JumbleInboxItem` | `NEW` / `PROCESSED` / `DISMISSED`, optionally with an AI suggestion. Subject, body and sender **arrived from outside**: drawn as text, never markup or a live link, the sender labelled as what the transport claimed; `{@html}` is refused package-wide. `PROCESSED` links to the result; `DISMISSED` is a state, not a deletion |
+| `AutomationRuleCard` | Name, trigger, action count, on/off, what it runs as, its health word, the check's first finding, its last run in one line, the consecutive failure count. No CEL and no action parameters — a card is not an editor |
+| `RunStatusBadge` | **Seven** states: `SKIPPED` is a condition that did not match, not a failure; `THROTTLED` the rule protecting the workspace; `ABORTED_LOOP` the causation depth stopping a self-triggering rule. The dry run is the **variant**, not the status |
+| `RoleBadge` | Six roles, inherited across four scopes; the badge says *where* the role was granted |
+| `PermissionMatrix` | The role matrix as **this installation** enforces it, read from `/meta/capabilities`'s `roles`, never compiled in. Not a control; `item_access` beside the permission columns, not flattened into a tick |
+| `OneTimeSecret` | A value shown for the only time — a minted token, a webhook signing secret, a TOTP secret with recovery codes, an inbound trigger or jumble intake address. Reveal, copy, an optional acknowledgement before dismissal. It renders no value it was not handed, writes to no storage and holds nothing once gone |
+| `QrCode` | The TOTP provisioning URI beside the same secret written out ([ADR-0053](../adr/ADR-0053-totp-qr-code.md)). Our own encoder in `qr.ts`, no dependency: byte mode, level M, versions 1–13, held to the standard's vectors and a real decoder; past 13 it refuses by name and the screen shows the secret alone. One SVG path, **dark on light in both modes**; the payload never in the DOM as text |
+| `SyncStatus` + `ConflictResolver` | `SyncStatus` is the connection mark (§11.6), fed by `engine.queue()` and the stream's state, with **no sentence of its own**. Pressed, it lists every waiting change as *what* and *where* and every refused one with its reason and a dismiss — never swallowed ([`offline-sync.md`](../architecture/offline-sync.md) §9). Losing the server is announced once through a `status` region; a moving count is not. `ConflictResolver` handles a `CONFLICT` on the notes: both versions as text — theirs in place, mine already a system comment it links to — and two ways out: keep theirs, or write mine again as an ordinary `PATCH`. **Never a merge, never an automatic retry** ([ADR-0021](../adr/ADR-0021-offline-sync.md)). It opens from the mark's list and from the entry's strip |
+| `Celebration` | §7's slot: `tier` 1–3, one asset per tier, no taller than `--motion-celebration-area`, moving no further than `--motion-celebration-travel`. **Never blocking**: `inert`, off the tree, unmounted by the caller on `onDone`, its one sentence a `status` region. Under reduced motion every tier is rule 6's colour change. Assets may change; tiers, tokens and triggers may not |
+| `Tour` + `CoachMark` | §8's pattern: a spotlight on one element of the real interface, positioned by CSS (`spotlightTo` in `anchor.ts`), the overlay of rule 2 being the cut-out's shadow; the element stays interactive. `CoachMark` is a caption, one body line, the count, and *next*, *back*, *skip*; a non-modal `dialog` — focus moves to it, `Escape` skips, the tab order is its controls and the element. The steps are the client's (`apps/webapp/src/lib/tour.ts`) |
+| `AISuggestion` | Separable through `ai.*` (§1), gone without residue when AI is off. One component for every kind: the heading names the kind as a proposal, the payload is the caller's slot in the product's editor for its shape, accept and dismiss are the caller's buttons, the provenance one collapsed line ([`voice-and-tone.md`](./voice-and-tone.md) §7). `pending` is the job running, `stale` the target moved. It arrives in the `attach` role, in opacity alone |
 
 **The automation rule editor is the web client's own**, in `apps/webapp/src/lib/automation/`
 ([`automation.md`](../architecture/automation.md) §1.5). The design system contributes
@@ -330,40 +267,33 @@ CodeBlock · ApiEndpointCard · ParameterTable · Callout · VersionSelector ·
 PricingTable · FeatureGrid · LicenceNotice
 
 The first four are built, for the API reference `hubtask.eu/developers/api/` renders from the
-contract; the other four wait for the 1.0 site. `CodeBlock` has **no highlighter** — a grammar per
-language is a dependency, and the website ships no script — so the copy control is the caller's to
-ask for, and a page without JavaScript passes no `copyLabel` and gets no dead button. `Callout` is
-**not a `Banner`**: a banner says something about this page now and is a live region for it; a
-callout is documentation, true whenever it is read, `role="note"`, never dismissed. `ParameterTable`
-is a **`Table` underneath**, with *required* as a word rather than an asterisk (rule 3), and a
-deprecated field marked and kept rather than hidden.
+contract; the other four wait for the 1.0 site. `CodeBlock` has **no highlighter**, and the copy
+control appears only when the caller passes `copyLabel`, so a page without JavaScript gets no dead
+button. `Callout` is **not a `Banner`**: documentation, true whenever read, `role="note"`, never
+dismissed. `ParameterTable` is a **`Table` underneath**, with *required* as a word (rule 3) and a
+deprecated field marked and kept.
 
 ### Wave 5 — the shell (5)
 AppBar · NavDrawer · BottomBar · PageHeader · DetailPane
 
-The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)). How
-the product uses them — what the bar holds at each width, the one navigation list, the sections —
-is §11.
+The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)); how
+the product uses them is §11.
 
-* **`AppBar`** — the bar at the top on every width: the navigation toggle at the start, the wordmark
-  or the page title, a slot for the entry to search in the middle, the controls at the end, and a
-  slot for the page's own folded menu. It has **no slot for a page action**. Sticky on
-  `layer.sticky`, a `<header>` landmark, a hairline and no shadow; the title is a span, never a
-  heading; the top safe-area inset is read into its padding.
-* **`NavDrawer`** — `Drawer` holding `SideNav`. Composition only: no second overlay code and no
-  second tree.
+* **`AppBar`** — on every width: the navigation toggle at the start, the wordmark or the page title,
+  a slot for search in the middle, the controls at the end, and a slot for the page's folded menu.
+  **No slot for a page action.** Sticky on `layer.sticky`, a `<header>` landmark, a hairline and no
+  shadow; the title is a span, never a heading; the top safe-area inset goes into its padding.
+* **`NavDrawer`** — `Drawer` holding `SideNav`; composition only.
 * **`BottomBar`** — three to five destinations with a mark and a word, `aria-current`, the bottom
-  safe-area inset added to its padding. It switches routes, not panels, so it is not `Tabs`. It hides
-  while an input has focus, by opacity, because a bar fixed to the bottom rides the on-screen
-  keyboard up over the field it belongs to.
+  safe-area inset in its padding. It switches routes, so it is not `Tabs`. It hides, by opacity,
+  while an input has focus, so it does not ride the on-screen keyboard over the field.
 * **`PageHeader`** — the breadcrumb (the parent only on `compact`), the title and an optional
-  subtitle line, **one** primary action, at most two secondary ones, a `Menu` for the rest, and an
-  optional second row for a `ViewSwitcher` or `Tabs`. It has no way to draw a fourth button: a
-  caller with more actions hands them in as the menu's items. With `isTitleInBar` it keeps its `h1`
-  for the reader and hands its title and its folded menu to the bar.
+  subtitle, **one** primary action, at most two secondary ones, a `Menu` for the rest, and an
+  optional second row for a `ViewSwitcher` or `Tabs`. It cannot draw a fourth button. With
+  `isTitleInBar` it keeps its `h1` and hands its title and folded menu to the bar.
 * **`DetailPane`** — the column beside the content from `large` up: a head with the type, a close
   and an "open as a page", and a slot. Below `large` it renders nothing and the caller navigates. An
-  `aside` landmark with its own heading; it takes no focus of its own and is not a dialog.
+  `aside` landmark with its own heading; it takes no focus and is not a dialog.
 
 ---
 
@@ -378,21 +308,18 @@ Component file:     PascalCase             TaskRow, BucketColumn
 Prop:               camelCase, question for booleans  size, tone, isDisabled, hasIcon
 ```
 
-Where script needs a token, it takes the custom-property reference from `tokens.ts`
-(`var(--accent-primary)`), never the resolved literal.
+Script takes the custom-property reference from `tokens.ts` (`var(--accent-primary)`), never the
+resolved literal.
 
-States (`hover`, `pressed`, `focus`, `disabled`) are never variants, always CSS states. A variant
-matrix that contains states explodes.
+States (`hover`, `pressed`, `focus`, `disabled`) are CSS states, never variants.
 
-**`size` and density are two different questions and neither is the other's third value.** `size`
-says how prominent one control is beside another and is a prop, because that is a decision per
-control. Density says how much air a whole region carries and is `data-density` on an ancestor, the
-way the theme travels as `data-theme`, because a list of two hundred rows is told once rather than
-two hundred times. Three steps: `compact`, `comfortable` (the default, set in `:root`, because it is
-right in the absence of a choice) and `spacious` — a 48 px control and a wider row, set on the frame
-below `medium` and wherever the pointer is coarse (§11.9). The two multiply rather than merge: `sm`
-in a compact region is the tightest control the tokens allow, and it is still 24 px, which is where
-WCAG 2.2 SC 2.5.8 puts the floor. The token test fails any step below it.
+**`size` and density are two questions.** `size` is how prominent one control is beside another — a
+prop, decided per control. Density is how much air a region carries — `data-density` on an ancestor,
+the way `data-theme` travels. Three steps: `compact`, `comfortable` (the default, set in `:root`) and
+`spacious` — a 48 px control and a wider row, set on the frame below `medium` and wherever the
+pointer is coarse (§11.9). The two multiply: `sm` in a compact region is the tightest control the
+tokens allow, and it is still 24 px, WCAG 2.2 SC 2.5.8's floor. The token test fails any step
+below it.
 
 ---
 
@@ -404,53 +331,42 @@ WCAG 2.2 SC 2.5.8 puts the floor. The token test fails any step below it.
    hairlines, with no elevation.
 2. **Only overlays blur.** Never more than one glass surface visible at a time. `backdrop-filter`
    always needs an opaque fallback that does not shift layout.
-3. **Colour never stands alone.** Every status also carries text or an icon. This matters for
-   colour vision deficiency, but equally for print and for greyscale documentation. A status has a
-   subtle and a bold form (`Badge`'s `emphasis`, subtle by default); bold is for the one status on a
-   screen that must be seen first, and a screen with several has misread it.
+3. **Colour never stands alone.** Every status also carries text or an icon. A status has a subtle
+   and a bold form (`Badge`'s `emphasis`, subtle by default); bold is for the one status on a screen
+   that must be seen first, and a screen with several has misread it.
 4. **Everything grows by 40 %.** German, Finnish and Russian break any layout measured against
    English. No fixed widths outside genuine exceptions.
-5. **Focus is always visible.** 2 px ring, 2 px offset, `--focus-ring`. The app is fully operable
-   by keyboard or it is not. A box sized in percent is `border-box`, and a scroll container keeps a
-   gutter no narrower than the focus ring it has to show — otherwise the ring falls into the gutter
-   and the container cuts it.
+5. **Focus is always visible.** 2 px ring, 2 px offset, `--focus-ring`. The app is fully operable by
+   keyboard. A box sized in percent is `border-box`, and a scroll container keeps a gutter no
+   narrower than the focus ring, or the container cuts the ring.
 6. **Motion only in `opacity` and `transform`.** Layout is never animated. A component animates
-   through a `motion.<role>` token — a duration paired with an easing — never through a primitive
-   duration or easing. The roles are `state`, `pending`, `attach`, `entrance`, `exit`, `emphasis`
-   and `celebration`; `attach` (arriving against the pointer, a tooltip) and `entrance` (arriving
-   away from it, a dialog) are different roles, not one role at two speeds. `--dur-instant` stays a
-   primitive, because the floor of this rule is the *absence* of movement. Under reduced motion the
-   completion celebration reduces to a colour change, and the acknowledgement is never absent.
-   Component CSS honours `[data-motion="reduced"]` alongside `prefers-reduced-motion`
-   ([ADR-0037](../adr/ADR-0037-component-workbench.md)), because a preference only the operating
-   system can set is not a preference. In the web app `apps/webapp/src/lib/motion.ts` is the one
-   module that sets `data-motion`: one module, one attribute, one owner. The choice is the
-   device's, kept beside the theme's (§11.10).
+   through a `motion.<role>` token — a duration paired with an easing — never a primitive. The roles
+   are `state`, `pending`, `attach`, `entrance`, `exit`, `emphasis` and `celebration`; `attach`
+   (arriving against the pointer, a tooltip) and `entrance` (arriving away from it, a dialog) are
+   different roles. `--dur-instant` stays a primitive: the floor is the *absence* of movement. Under
+   reduced motion the completion celebration reduces to a colour change and the acknowledgement is
+   never absent. Component CSS honours `[data-motion="reduced"]` alongside
+   `prefers-reduced-motion` ([ADR-0037](../adr/ADR-0037-component-workbench.md)); in the web app
+   `apps/webapp/src/lib/motion.ts` is the one module that sets `data-motion`, and the choice is the
+   device's (§11.10).
 
-**The layering scale.** `primitive.layer` in `tokens.json` is the only place a `z-index` comes
-from: `base` · `raised` · `sticky` · `overlay` · `dialog` · `popover` · `tooltip` · `toast`, ten
-apart so a component may sit one above its own layer without borrowing the next one's rank. A
-number written at a call site is the failure this exists to prevent.
+**The layering scale.** `primitive.layer` is the only source of a `z-index`: `base` · `raised` ·
+`sticky` · `overlay` · `dialog` · `popover` · `tooltip` · `toast`, ten apart so a component may sit
+one above its own layer. A number at a call site is the failure this prevents.
 
-**Overlays are positioned by CSS** ([ADR-0039](../adr/ADR-0039-overlay-positioning.md)): CSS anchor
+**Overlays are positioned by CSS** ([ADR-0039](../adr/ADR-0039-overlay-positioning.md)): anchor
 positioning (`anchor-name`, `position-area`, `position-try-fallbacks`) through `src/anchor.ts`
-alone. No component measures anything itself, no positioning library is used, and no offset is
-written as an inline style. Every engine on the browser support row
-([`support-matrix.md`](../architecture/support-matrix.md) §5) has anchor positioning, which the
-`engines` job proves, so there is no JavaScript fallback. Where the browser has it, an anchored
-overlay is raised into the **top layer**: the scale answers "what paints over what" only among
-elements in the same tree, and an overlay is otherwise laid out inside any ancestor that is a
-containing block for fixed elements — a transform, a filter, `contain` — and clipped by its
-`overflow`. The scale still decides for everything that stays in the flow.
+alone. No component measures anything, no positioning library, no offset as an inline style. Every
+engine on the support row ([`support-matrix.md`](../architecture/support-matrix.md) §5) has anchor
+positioning, which the `engines` job proves, so there is no JavaScript fallback. Where the browser
+has it, an anchored overlay is raised into the **top layer**, so no transformed, filtered or
+`contain` ancestor clips it; the scale still decides for everything in the flow.
 
-What paints over what and what `Escape` reaches are **not the same question**, so they are not the
-same list. A tooltip paints above a dialog and is never closed by a key; a popover opened from
-inside a dialog is closed first, whatever order the two were opened in. `src/layers.ts` holds that
-second order, and it is one register rather than one per component — `Escape` closing exactly one
-layer is only meaningful if something knows which one.
+What paints over what and what `Escape` reaches are **different lists**. A tooltip paints above a
+dialog and no key closes it; a popover opened from inside a dialog closes first, whatever the
+opening order. `src/layers.ts` holds that second order as one register for every component.
 
-**The five widths.** `primitive.breakpoint` carries five steps, each with a sentence in
-`tokens.json` saying what it does:
+**The five widths.** `primitive.breakpoint` carries five steps, each described in `tokens.json`:
 
 | Width | Navigation | Content | Detail |
 |---|---|---|---|
@@ -460,40 +376,35 @@ layer is only meaningful if something knows which one.
 | `large` 1240–1599 | `SideNav` pinned | the list | `DetailPane` beside it |
 | `xlarge` ≥ 1600 | as `large` | capped at `layout.content.max`, centred | as `large` |
 
-Width is not platform. Whether a bar or a drawer appears is answered by a media query written out
-from the token, never by `src/lib/platform/`; the desktop shell dragged to 500 px behaves like a
-phone, and the phone shell is the web app's phone layout and nothing more.
+Width is not platform. A media query written from the token decides whether a bar or a drawer
+appears, never `src/lib/platform/`; the desktop shell dragged to 500 px behaves like a phone, and
+the phone shell is the web app's phone layout.
 
 ---
 
 ## 7. Rewarding interactions
 
-Relevant actions feel rewarding — through moments a user experiences when completing work that
-matters, not through classic gamification. **Levels, points, badges, streaks and leaderboards are
-excluded**, deliberately and permanently: they turn finishing work into collecting rewards, and a
-task tool that pays out tokens trains people to farm the tokens.
+Completing work that matters is acknowledged through moments, not gamification. **Levels, points,
+badges, streaks and leaderboards are excluded**, permanently: a task tool that pays out tokens
+trains people to farm them.
 
-The moments and the slots that carry them are called **"celebration"** throughout — documentation,
-code, and tokens. Not "reward": a reward connotes something received and collectible. A celebration
-marks a moment; it hands over nothing.
+The moments and their slots are called **"celebration"** everywhere — documentation, code, tokens —
+never "reward": a celebration marks a moment and hands over nothing.
 
 ### The guardrails
 
-Celebrations must fit the existing principles — modern, plain, micro-animations, light/dark,
-dark red/dark blue — and must never make the application feel playful. Concretely:
+Modern, plain, micro-animations, light/dark, dark red/dark blue — never playful:
 
 * **Sparing and short.** A celebration is the exception that proves the calm default.
-* **On by default, and each user can switch it off.** One preference, all tiers. It is the
-  account's `celebrations` preference (`AccountPreferences`), not the device's: unlike the theme and
-  reduced motion, nothing but the person sets it. Off mounts no component at all.
-* **Reduced motion reduces automatically** to a subtle alternative (rule 6 fixes the floor: a
-  colour change). Switching off motion never switches off the acknowledgement.
+* **On by default, and each user can switch it off.** One preference for all tiers: the account's
+  `celebrations` preference (`AccountPreferences`), not the device's. Off mounts no component.
+* **Reduced motion reduces automatically** to rule 6's colour change; the acknowledgement stays.
 * **Never blocking.** No celebration delays input, navigation, or the next completion.
 * **Never on trivial actions.** Opening a menu is not a moment.
 
 ### The three tiers
 
-A special task is recognised not by heuristics but by the WorkItem hierarchy itself.
+The WorkItem hierarchy, not a heuristic, says what is special.
 
 | Tier | Trigger | Character |
 |---|---|---|
@@ -503,193 +414,158 @@ A special task is recognised not by heuristics but by the WorkItem hierarchy its
 
 ### Celebration slots, not fixed animations
 
-The design system defines **one celebration slot per tier**, with intensity guardrails as tokens
-under the `celebration` motion role: a duration per tier (tier 1 the role's pair, tiers 2 and 3
-longer and still short) and the two limits of the slot, `area` and `travel`, as dimensions. Which
-concrete animation fills a slot is an interchangeable design-system asset; it can change without
-touching trigger logic or this document.
+**One slot per tier**, with guardrails as tokens under the `celebration` motion role: a duration per
+tier (tier 1 the role's pair, tiers 2 and 3 longer and still short) and the slot's limits, `area`
+and `travel`. Which animation fills a slot is an interchangeable asset.
 
 ### Triggering
 
-Trigger evaluation runs **client-side**, from the completion the client just performed and the
-entries its local copy holds; nothing is added to the backend for it. The tier is decided in
-`apps/webapp/src/lib/celebration.ts` as a table over hierarchies — nothing heuristic, nothing random.
+Evaluated **client-side**, from the completion just performed and the entries the local copy holds;
+nothing is added to the backend. The tier is a table over hierarchies in
+`apps/webapp/src/lib/celebration.ts` — nothing heuristic, nothing random.
 
-The daily cap is kept in the local copy's own metadata, so it is **per device**: a person
-completing work in two browsers can see two tier-3 moments in a day. That is a known deviation from
-"per user", accepted because moving it to the account would cost a preference field for no
-observed need.
+The daily cap lives in the local copy's metadata, so it is **per device**: two browsers can show two
+tier-3 moments in a day. Accepted, because moving it to the account would cost a preference field
+for no observed need.
 
-A `celebrate` action type for the automation rule engine
-([ADR-0009](../adr/ADR-0009-automation-rules-cel.md)) — tenants defining their own moments — is a
-possible later decision of its own, not part of this section.
+A `celebrate` action for the automation rule engine
+([ADR-0009](../adr/ADR-0009-automation-rules-cel.md)) would be a decision of its own.
 
 ### Rejected alternatives
 
-* **Random celebrations**: variable reward feels arbitrary and playful, decouples the effect from
-  actual accomplishment, and invites reward-hacking — users toggling tasks to roll the dice.
-* **Overdue thresholds as triggers** ("finished something long overdue"): negative framing,
-  rewards procrastination, and misses every task without a due date.
-* **Behavioural heuristics or scoring of any kind**: if ever wanted, that is a new decision with
-  its own ADR — not an extension of this section.
+Not triggers: **randomness** (arbitrary, playful, invites toggling tasks to roll the dice);
+**overdue thresholds** (negative framing, rewards procrastination, misses undated tasks); and
+**behavioural heuristics or scoring of any kind**, which would be a new decision with its own ADR.
 
 ---
 
 ## 8. The onboarding tour
 
-On first start, the user is guided through the application's main features as a **guided
-click-through on the real interface** (coach marks, a spotlight on actual UI elements), one short,
-plain piece of information per feature. Never a separate slide show: a tour of screenshots teaches
-the screenshots.
+On first start a **guided click-through on the real interface** — coach marks, a spotlight on actual
+elements — gives one short, plain piece of information per feature. Never a slide show of
+screenshots.
 
 * **It starts while the account's `onboarding_completed_at` is null.** Finishing or skipping writes
-  it; *Take the tour again* in the account menu restarts the tour by clearing it. The field is the
-  account's (`AccountPreferences`), because whether somebody has been shown the product is a fact
-  about the person, not the browser.
-* **Skippable at every step.** What has been walked in this tab is kept in `sessionStorage` and dies
-  with the tab.
+  it; *Take the tour again* in the account menu clears it. The field is the account's
+  (`AccountPreferences`): having been shown the product is a fact about the person.
+* **Skippable at every step.** Progress in this tab is kept in `sessionStorage` and dies with it.
 * **The last step is the first celebration.** The tour ends by leading the user to create and
-  complete their first own task, whose completion fires the tier-3 onboarding moment (§7). A
-  completion while `onboarding_completed_at` is null also ends the tour, whether the tour led there
-  or was skipped.
-* The design system defines the **pattern** (`Tour`, `CoachMark`, §4) — presentation (spotlight,
-  glass overlay per rule 2), tone ([`voice-and-tone.md`](./voice-and-tone.md), no exclamation marks
-  doing the enthusiasm's work), interaction (next, back, skip, keyboard operable, focus visible per
-  rule 5). The steps are the client's, in `apps/webapp/src/lib/tour.ts`, anchored by `data-tour`
-  attributes on the elements they point at.
+  complete a first task, which fires the tier-3 onboarding moment (§7). Any completion while
+  `onboarding_completed_at` is null also ends the tour.
+* The design system defines the **pattern** (`Tour`, `CoachMark`, §4): presentation (spotlight,
+  glass overlay per rule 2), tone ([`voice-and-tone.md`](./voice-and-tone.md), no exclamation marks)
+  and interaction (next, back, skip, keyboard, visible focus). The steps are the client's, in
+  `apps/webapp/src/lib/tour.ts`, anchored by `data-tour` attributes.
 
 ---
 
 ## 9. Still missing
 
-- **Logo and wordmark** — the placeholder in the workbench's `Foundations/Tokens · The wordmark,
-  unfinished` story shows the idea (three nested planes, the innermost in bordeaux) but is not a
-  finished mark.
-- **The system conventions of the installed clients** — the back gesture and the swipe as the
-  history they already are, the share sheet, the keyboard's accessory row, the status bar's colour,
-  and the administration row drawn as [ADR-0032](../adr/ADR-0032-client-capability-matrix.md)'s
-  affordance in a build that excludes the routes. Everything else about platform adaptation is the
-  web app's layout, decided by width (§6, §11), and the shells render it as it is.
+- **Logo and wordmark** — the workbench's `Foundations/Tokens · The wordmark, unfinished` story
+  shows the idea (three nested planes, the innermost in bordeaux), not a finished mark.
+- **The system conventions of the installed clients** — the back gesture and swipe as history, the
+  share sheet, the keyboard's accessory row, the status bar's colour, and the administration row as
+  [ADR-0032](../adr/ADR-0032-client-capability-matrix.md)'s affordance in a build that excludes the
+  routes. All other platform adaptation is the web app's layout by width (§6, §11), which the shells
+  render as it is.
 
-Both are tracked in [roadmap.md](../roadmap.md). Gaps this section once listed are rules now:
-
-| Former gap | Where the rule lives |
-|---|---|
-| Iconography | §12 |
-| Contrast verification | §1 |
-| The layering scale | §6 |
-| Named motion roles | §6, rule 6 |
-| Density | §5 |
-| The AI surface treatment | §1, §4 (`AISuggestion`) |
-| A browser support row | [`support-matrix.md`](../architecture/support-matrix.md) §5 |
-| Platform adaptation for the web | §6, §11 |
+Both are tracked in [roadmap.md](../roadmap.md).
 
 ---
 
 ## 10. Accessibility
 
-This is the accessibility half of the binding client requirements — the list
-[`data-protection.md`](../architecture/data-protection.md) §7 points at rather than restates; the
-localisation half is [`i18n-l10n.md` §6](../architecture/i18n-l10n.md#6-text-direction-and-presentation).
-The European Accessibility Act lands here.
+The accessibility half of the binding client requirements, which
+[`data-protection.md`](../architecture/data-protection.md) §7 points at; the localisation half is
+[`i18n-l10n.md` §6](../architecture/i18n-l10n.md#6-text-direction-and-presentation). The European
+Accessibility Act lands here.
 
-**The bar is WCAG 2.2 level AA**, for the web app and for the shells that render it. The success
-criteria below are the ones the product commits to by number, and each names what proves it. Where
-a criterion is met by a rule above, the rule is the proof; where it needs a walk, the walk is
-evidence in `docs/evidence/`.
+**The bar is WCAG 2.2 level AA**, for the web app and the shells that render it. Each criterion
+below names its proof: a rule above, or a walk filed in `docs/evidence/`.
 
 | Criterion | What the product commits to | Proved by |
 |---|---|---|
-| 1.1.1 Non-text content | Every `Icon` carries a name or is marked decorative; an image a person uploads carries the description they gave it | The `Icon` contract (§12); the workbench story of every component that draws one; every icon on every route read from the tree ([A11Y-2026-09-16.md](../archive/evidence/A11Y-2026-09-16.md)) |
-| 1.3.1 Info and relationships | Structure is markup: headings, lists, tables, labels bound to controls, `VisuallyHidden` where a name is not on screen | The workbench's tab-order walk; the tree of every route (one `h1`, no skipped level, captions and `th`, lists of `li`); the residue test that holds every screen to one `h1`. The reader pass is still owed ([A11Y-2026-09-16.md](../archive/evidence/A11Y-2026-09-16.md) says which readers were not run and why) |
+| 1.1.1 Non-text content | Every `Icon` carries a name or is marked decorative; an uploaded image carries the description its uploader gave | The `Icon` contract (§12); the stories; every icon on every route read from the tree ([A11Y-2026-09-16.md](../archive/evidence/A11Y-2026-09-16.md)) |
+| 1.3.1 Info and relationships | Structure is markup: headings, lists, tables, labels bound to controls, `VisuallyHidden` where a name is not on screen | The tab-order walk; the tree of every route; the residue test (one `h1` per screen). The reader pass is still owed ([A11Y-2026-09-16.md](../archive/evidence/A11Y-2026-09-16.md)) |
 | 1.4.1 Use of colour | Colour never stands alone — rule 3 | Rule 3, reviewed per story |
-| 1.4.3 / 1.4.11 Contrast | Text 4.5:1, controls and the focus ring 3:1, in both modes, against every surface | `test/contrast.test.js` on every `pnpm test` (§1) |
-| 1.4.4 Resize text | 200 % through page zoom without loss, the trade §3 records | The workbench's zoom axis, repeated before `1.0.0` |
+| 1.4.3 / 1.4.11 Contrast | Text 4.5:1, controls and the focus ring 3:1, both modes, every surface | `test/contrast.test.js` (§1) |
+| 1.4.4 Resize text | 200 % through page zoom without loss (§3) | The zoom axis, repeated before `1.0.0` |
 | 1.4.10 Reflow | 320 CSS px without horizontal scrolling for content that does not require it | The workbench's five breakpoints |
-| 1.4.12 Text spacing | Nothing breaks when spacing is widened | Walked on every route with the text-spacing bookmarklet: no overflow, nothing clipped |
-| 2.1.1 / 2.1.2 Keyboard | Everything operable by keyboard, no trap; `Dialog` traps focus and returns it | Rule 5; `layers.ts` (§6); every route by `Tab`, no trap, every overlay entered and left ([A11Y-keyboard-2026-09-16.md](../archive/evidence/A11Y-keyboard-2026-09-16.md)) |
-| 2.4.1 Bypass blocks | The frame's first stop is a skip link to `<main>`, and every route renders exactly one `<main>` and one `h1` | The residue test over every route; the keyboard walk |
-| 2.4.3 Focus order | The order of the DOM is the order that makes sense; focus never falls to `body` after a write, an inline edit or a card changing column | Every route walked; `SyncEngine` keeps a `ready` state through a reload, and `focusFirst()` |
-| 2.4.7 / 2.4.11 Focus visible, not obscured | 2 px ring, 2 px offset, `--focus-ring`, never hidden by a sticky region | Rule 5; the layering scale (§6); every stop matched `:focus-visible` and drew the ring, none under a sticky region |
-| 2.5.7 Dragging movements | Every drag has a keyboard or button alternative — ordering by drag and drop is also ordering by a menu | The row's menu, the card's menu, the collection's toolbar — each announced, focus kept (§11.9) |
-| 2.5.8 Target size | 24 × 24 CSS px minimum in every density | `density` (§5) and its token test. **One documented exception**: a `Timeline` bar's end handles are one column wide, which is 24 px at the day scale and 8 or 4 px at the week and month scales. The column is the data's own width and cannot be widened, so this rests on SC 2.5.8's **Equivalent** clause, and the equivalent is the row's title: it opens the entry, where `DueDateControl` sets both dates with fields that meet the floor. Measured: 24 × 24 / 8 × 24 / 4 × 24 |
-| 2.3.3 Animation from interactions | Reduced motion honoured from the media query and from the product's own preference — the switch on *On this device*, kept on the device | Rule 6; `[data-motion="reduced"]`; `lib/motion.ts` |
-| 3.1.1 / 3.1.2 Language of page and parts | `lang` on the root from the negotiated locale; `lang` on an entry rendered in another language (`content_language`) | [`i18n-l10n.md`](../architecture/i18n-l10n.md) §6; the language picker, `lang` on title and notes; the tree (`h1[lang=pt-BR]`) |
-| 3.2.1 / 3.2.2 On focus, on input | Nothing navigates or submits on focus or on a change alone | Reviewed per story; no `onfocus` handler in either client tree, no `onchange` that navigates |
-| 3.3.1 / 3.3.3 Error identification and suggestion | A refusal names the field and says what would be accepted — the problem document's `fields[]`, rendered from codes; a form's refusal is an alert. **A refused password gets no banner**: the field is `aria-invalid`, the rules list names each rule broken, and the one live region announces the count once | The problem-details rendering; the tree of every route |
-| 3.3.7 Redundant entry | Nothing asks twice for what it already has in the same flow; a second proof for a second privileged action is the security exception, by the contract's one-grant-one-action rule | Reviewed per flow |
-| 3.3.8 Accessible authentication | No cognitive test at sign-in; the TOTP code may be pasted. **A new password is typed once**, in one field with the eye, wherever a password is set; no screen asks for it again | The sign-in, step-up and password surfaces |
-| 4.1.2 Name, role, value | Every control has a name, a role and a state the accessibility tree exposes — native elements first, ARIA only where nothing native exists | The workbench's tab-order walk; the tree of every route, every control named; the reader pass is still owed ([A11Y-2026-09-16.md](../archive/evidence/A11Y-2026-09-16.md)) |
-| 4.1.3 Status messages | A change that is not focused is announced — a save, a job ending, a proposal arriving, the health report, a bulk action's count — through the frame's one live region; a refusal beside its form is an alert | Every write in `lib/data/` audited; `announce.svelte.ts` |
+| 1.4.12 Text spacing | Nothing breaks when spacing is widened | Every route walked with the text-spacing bookmarklet |
+| 2.1.1 / 2.1.2 Keyboard | Everything operable by keyboard, no trap; `Dialog` traps focus and returns it | Rule 5; `layers.ts` (§6); every route by `Tab` ([A11Y-keyboard-2026-09-16.md](../archive/evidence/A11Y-keyboard-2026-09-16.md)) |
+| 2.4.1 Bypass blocks | The frame's first stop is a skip link to `<main>`; every route renders exactly one `<main>` and one `h1` | The residue test; the keyboard walk |
+| 2.4.3 Focus order | DOM order is the sensible order; focus never falls to `body` after a write, an inline edit or a card changing column | Every route walked; `SyncEngine` keeps a `ready` state through a reload, and `focusFirst()` |
+| 2.4.7 / 2.4.11 Focus visible, not obscured | 2 px ring, 2 px offset, `--focus-ring`, never hidden by a sticky region | Rule 5; the layering scale (§6); every stop walked |
+| 2.5.7 Dragging movements | Every drag has a keyboard or button alternative | The row's menu, the card's menu, the collection's toolbar — announced, focus kept (§11.9) |
+| 2.5.8 Target size | 24 × 24 CSS px minimum in every density | `density` (§5) and its token test. **One exception**: a `Timeline` bar's end handles are one column wide — 24, 8 or 4 px at the day, week and month scales. This rests on SC 2.5.8's **Equivalent** clause: the row's title opens the entry, where `DueDateControl` sets both dates at full size |
+| 2.3.3 Animation from interactions | Reduced motion from the media query and from the product's own switch on *On this device* | Rule 6; `[data-motion="reduced"]`; `lib/motion.ts` |
+| 3.1.1 / 3.1.2 Language of page and parts | `lang` on the root from the negotiated locale; `lang` on an entry in another language (`content_language`) | [`i18n-l10n.md`](../architecture/i18n-l10n.md) §6; the tree (`h1[lang=pt-BR]`) |
+| 3.2.1 / 3.2.2 On focus, on input | Nothing navigates or submits on focus or on a change alone | No `onfocus` handler in either client tree, no `onchange` that navigates |
+| 3.3.1 / 3.3.3 Error identification and suggestion | A refusal names the field and what would be accepted — the problem document's `fields[]`, rendered from codes; a form's refusal is an alert. **A refused password gets no banner**: the field is `aria-invalid`, the rules list names each rule broken, the live region announces the count once | The problem-details rendering; the tree of every route |
+| 3.3.7 Redundant entry | Nothing asks twice for what the flow already has; a second proof for a second privileged action is the security exception (one grant, one action) | Reviewed per flow |
+| 3.3.8 Accessible authentication | No cognitive test at sign-in; the TOTP code may be pasted. **A new password is typed once**, in one field with the eye | The sign-in, step-up and password surfaces |
+| 4.1.2 Name, role, value | Every control exposes a name, a role and a state — native elements first, ARIA only where nothing native exists | The tab-order walk; every control named in the tree; the reader pass is still owed |
+| 4.1.3 Status messages | An unfocused change is announced — a save, a job ending, a proposal arriving, the health report, a bulk count — through the frame's one live region; a refusal beside its form is an alert | Every write in `lib/data/` audited; `announce.svelte.ts` |
 
-**Two walks, filed as evidence.** A screen-reader pass with VoiceOver (macOS and iOS), NVDA
-(Windows) and Orca (GNOME), through every route in the capability manifest, filed as
-`docs/evidence/A11Y-<date>.md`; and the keyboard walk the workbench's tab-order axis makes per
-component, done once per route as a whole. Both are repeated before `1.0.0`.
+**Two walks, filed as evidence** and repeated before `1.0.0`: a screen-reader pass with VoiceOver
+(macOS and iOS), NVDA (Windows) and Orca (GNOME) through every route in the capability manifest, as
+`docs/evidence/A11Y-<date>.md`; and a keyboard walk of every route as a whole.
 
-**The accessibility statement.** What the European Accessibility Act expects of a product made
-available in the EU after 28 June 2025: a public statement naming the standard (EN 301 549, which
-carries WCAG 2.2 AA for web content), the conformance status, the known exceptions with their
-reasons and dates, a way to report a barrier, and the date of the last assessment. It is published
-on the website and reachable from the application, unversioned like the site, and updated whenever
-an assessment is — a statement that describes a walk two releases ago is a statement that is false.
+**The accessibility statement.** As the European Accessibility Act expects of a product made available in the EU after 28 June 2025: a public statement
+naming the standard (EN 301 549, carrying WCAG 2.2 AA), the conformance status, the known exceptions
+with reasons and dates, a way to report a barrier, and the date of the last assessment. Published on
+the website, reachable from the application, unversioned, and updated with every assessment.
 
-**Where the application offers it.** *About Hubtask* (`/installation`) while there is a session,
-beside the versions somebody quotes when they report anything. The foot of the screens before one —
-sign-in, an invitation, a consent — carries the **operator's** links, the accessibility statement
-among them, and only where the operator set one ([UC-ID-18](../usecases/identity/UC-ID-18-show-the-legal-information-before-sign-in.md)
-checks 4 and 5): the service a person is signing in to is the operator's, and the project's
-statement must not stand in for one the operator never wrote. It is deliberately **not** a footer on
-every screen: a landmark carrying one external link takes a band off every page and off the canvas
-of a board, for a link nobody follows while they are working.
+**Where the application offers it.** *About Hubtask* (`/installation`) while there is a session.
+Before one — sign-in, an invitation, a consent — the foot carries the **operator's** links, the
+accessibility statement among them, only where the operator set one
+([UC-ID-18](../usecases/identity/UC-ID-18-show-the-legal-information-before-sign-in.md) checks 4 and
+5): the project's statement never stands in for the operator's. It is **not** a footer on every
+screen.
 
-**What is deliberately not promised.** Level AAA anywhere; a sign-language or audio-description
-provision (the product has no video); and a conformance claim for a third-party client, which
-makes its own.
+**What is deliberately not promised.** Level AAA anywhere; sign language or audio description (the
+product has no video); a conformance claim for a third-party client.
 
 ---
 
 ## 11. The shell and navigation
 
-The shell is the frame every page of the web app is drawn in: the app bar, the navigation, the page
-head and the detail pane (wave 5, §4), drawn from the five widths (§6). The reasons are in
+The frame every page of the web app is drawn in: the app bar, the navigation, the page head and the
+detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 [ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md),
 [ADR-0063](../adr/ADR-0063-navigation-and-the-working-surface.md),
-[ADR-0065](../adr/ADR-0065-the-second-walk-of-the-shell.md) and
-[ADR-0066](../adr/ADR-0066-search-is-one-question.md). Three constraints bound everything here:
+[ADR-0065](../adr/ADR-0065-the-second-walk-of-the-shell.md),
+[ADR-0066](../adr/ADR-0066-search-is-one-question.md). Three constraints bound it:
 
 * **Parity across clients** ([ADR-0032](../adr/ADR-0032-client-capability-matrix.md)). A narrow
   layout may move a control, never remove one.
 * **One bundle in every shell** ([ADR-0031](../adr/ADR-0031-tauri-app-shell.md),
-  [ADR-0033](../adr/ADR-0033-shared-client-architecture.md)). What the web app draws is what an
-  installed app shows; there is no second frame for narrow widths.
+  [ADR-0033](../adr/ADR-0033-shared-client-architecture.md)). What the web app draws is what an installed app
+  shows; there is no second frame for narrow widths.
 * **Width is not platform** (§6). Width and the pointer decide; `src/lib/platform/` never does.
 
 ### 11.1 The anatomy of a page
 
-* **Regions.** The app bar at the top (§11.2); the navigation as a column, a drawer or a bottom bar
-  by width (§11.3); the content; and from `large` up the detail pane beside it (§11.8). The frame
-  is a plane of `bg.surface` above the content's `bg.canvas` (rule 1).
-* **One `<main>`, one `h1`, a skip link.** Every route renders exactly one `<main>` and one `h1`.
-  The frame's first tab stop is a skip link to `<main>`.
+* **Regions.** The app bar (§11.2); the navigation as a column, a drawer or a bottom bar by width
+  (§11.3); the content; from `large` up the detail pane (§11.8). The frame is `bg.surface` above the
+  content's `bg.canvas` (rule 1).
+* **One `<main>`, one `h1`, a skip link** to `<main>` as the frame's first tab stop.
 * **Every screen carries `PageHeader`**: the trail, the title, one primary action, at most two
-  secondary ones, and the rest in its menu.
-* **On `compact` the bar carries the title and the page menu.** Every screen that draws an `h1`
-  hands its title to the bar (`page.entitle`, `apps/webapp/src/lib/frame/page.svelte.ts`), and
-  `PageHeader` hands its folded menu up into the bar's menu slot. The `h1` stays in the content for
-  the reader and is not drawn twice. A frame never derives titles from routes.
-* **A notice about the page** — a refused write, a check's findings — is drawn by `PageHeader`,
-  because it is about the page. **If it would say the same thing on every screen, it belongs to the
-  bar** (§11.6).
-* **Width of content.** The reading measure belongs to running text — a paragraph, a hint, a
-  refusal sentence — and `app.css` gives it every paragraph. A form keeps a column wide enough for
-  its fields and no wider. A table, a list of rows, a matrix and a card take the region.
-* **A page that fills the region** (`page.fill()`) draws its own edges and takes the content region
-  whole — a width and a height. It is one screen: the frame gives it a definite height, what
-  scrolls inside it (a canvas, a panel) scrolls on its own, and the page itself does not scroll.
-  The automation rule editor is such a page and draws no border of its own.
+  secondary ones, the rest in its menu.
+* **On `compact` the bar carries the title and the page menu.** Every screen with an `h1` hands its
+  title to the bar (`page.entitle`, `apps/webapp/src/lib/frame/page.svelte.ts`), and `PageHeader`
+  hands its folded menu into the bar's menu slot. The `h1` stays in the content for the reader, not
+  drawn twice. The frame never derives titles from routes.
+* **A notice about the page** — a refused write, a check's findings — is drawn by `PageHeader`. **If
+  it would say the same on every screen, it belongs to the bar** (§11.6).
+* **Width of content.** The reading measure belongs to running text, and `app.css` gives it every
+  paragraph. A form keeps a column wide enough for its fields. A table, a list of rows, a matrix and
+  a card take the region.
+* **A page that fills the region** (`page.fill()`) takes the content region whole, width and height,
+  and draws its own edges: what scrolls inside it scrolls on its own, the page does not. The
+  automation rule editor is one and draws no border.
 * **Insets.** `index.html` declares `viewport-fit=cover`; the bars read the safe-area insets into
-  their padding and never write them. They are 0 in a browser.
+  their padding and never write them.
 
 ### 11.2 The app bar
 
@@ -699,49 +575,36 @@ head and the detail pane (wave 5, §4), drawn from the five widths (§6). The re
 | `medium` | ☰ | the wordmark · the search field | the notice mark · the connection mark · the account menu |
 | ≥ `expanded` | the rail toggle | the wordmark · the search field | the notice mark · the connection mark · the account menu |
 
-* **No page action in the bar.** A page's actions belong to `PageHeader`. The only page control the
-  bar carries is the page's own folded menu, on `compact`, handed up by the head.
-* **The search field sits in the middle of the bar**, from `medium` up (§11.4). On `compact` there
-  is no field; Search is a destination in the bottom bar.
-* **The bar carries the person, the menu carries their name.** The account trigger is the avatar
-  alone below `large` and the avatar with the display name from `large` up. The name and the e-mail
-  are the head inside the menu — an address is not navigation. On `compact` the account group is
-  *You* in the bottom bar.
+* **No page action in the bar.** Its only page control is the page's folded menu on `compact`.
+* **The search field sits in the middle**, from `medium` up (§11.4); on `compact` Search is a
+  bottom-bar destination.
+* **The bar carries the person, the menu their name.** The account trigger is the avatar alone below
+  `large`, avatar and display name from `large` up. The name and the e-mail head the menu. On
+  `compact` the account group is *You* in the bottom bar.
 * The two marks are §11.6. Nothing else moves into the bar.
 
 ### 11.3 One navigation list
 
-**`apps/webapp/src/lib/navigation.ts` is the one list of destinations, and every width draws it and
-nothing else.** A destination in one drawing and not in another is the defect this rule exists to
-prevent; a second list, a second tree or an "advanced" navigation is never built. Each destination
-carries a route, a group, an icon, a message code and, where the mobile build needs it, an `area`
-(§11.5).
+**`apps/webapp/src/lib/navigation.ts` is the one list of destinations; every width draws it and
+nothing else.** No second list, second tree or "advanced" navigation. Each destination carries a
+route, a group, an icon, a message code and, where the mobile build needs it, an `area` (§11.5).
 
-**Three bands, in this order and no other.** Nothing is drawn outside a band, and nothing is in
-two.
+**Three bands, in this order.** Nothing outside a band, nothing in two.
 
 | Band | What is in it | Where |
 |---|---|---|
 | `places` | Overview, Search, Jumble | At the top. Search is here on every width |
 | `tree` | The hubs and their collections | Under a group label carrying the "+" that makes a hub |
-| `keeping` | Archive, Trash | Pinned to the foot of the column on every width, separated by a hairline — where a reader looks when something is **missing** |
+| `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
 
 **The account group is not in the column.** It is the bar's account menu from `medium` up and *You*
-in the bottom bar on `compact`. Its rows, in this order:
-
-| Row | Mark | Shown |
-|---|---|---|
-| *(head)* the display name and the e-mail | — | always |
-| Your settings | `user` | always |
-| Workspace administration | `settings` | only where `GET /quotas` is not refused — `STRUCTURE`, or the auditor's `READ_CONFIGURATION` |
-| Installation | `gauge` | only for an account in the operator register, as the manifest answers ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)) |
-| Take the tour again | `compass` | always |
-| About Hubtask | `info` | always — it opens `/installation`; the row names the destination and never carries the version, because a build reference is forty characters of noise in a menu |
-| Sign out | `log-out` | always, and **last** — it is the last thing a reader does, and a row under it is a row somebody reaches past |
-
-A row that does not apply to this reader is **absent, not disabled**: somebody who is not an
-operator is not being refused the control plane — it is not theirs. The server refuses the screens
-regardless; who sees a section is never a client decision.
+on `compact`. Its rows, in `navigation.ts`'s order: the display name and e-mail as the head; *Your
+settings*; *Workspace administration*, only where `GET /quotas` is not refused (`STRUCTURE`, or the
+auditor's `READ_CONFIGURATION`); *Installation*, only for an account in the operator register, as the
+manifest answers ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)); *Take the tour again*; *About
+Hubtask*, opening `/installation` and never carrying the version; and *Sign out*, always **last**.
+A row that does not apply is **absent, not disabled**. The server refuses the screens regardless; who sees a
+section is never a client decision.
 
 **The drawings by width:**
 
@@ -752,139 +615,104 @@ regardless; who sees a section is never a client decision.
 | ≥ `expanded` | `SideNav` pinned, foldable to a rail (§4, wave 2); whether it is folded is the device's (§11.10) |
 
 In a build that excludes the administration area — the installed mobile clients
-([ADR-0032](../adr/ADR-0032-client-capability-matrix.md)) — the administration row is drawn as an
-entry naming where the capability lives, linked to the web app of the server the client is signed
-into, and nothing else about the list changes.
+([ADR-0032](../adr/ADR-0032-client-capability-matrix.md)) — the administration row names where the
+capability lives, linked to the web app of the signed-in server; nothing else changes.
 
 ### 11.4 Search
 
-**Search is a field and a place.** The field in the bar is where a search is typed; `/search` is
-the place a search is built, which somebody goes to with nothing typed at all — to press a
-narrowing, to open one they were sent, to go back to the one they were building. Both exist on
-every width from `medium` up; on `compact` the bottom bar's Search destination is the one way in.
-The bar's field and the screen's field carry different accessible names.
+**Search is a field and a place.** The bar's field is where a search is typed; `/search` is where
+one is built, also with nothing typed. Both exist from `medium` up; on `compact` the bottom bar's
+Search is the one way in. The two fields carry different accessible names.
 
-**One filter language, one state.** A search is a single string holding the words and the narrowing
-together — `Rechnungen who:me is:open in:Büro due:week` — defined by
-`apps/webapp/src/lib/data/searchquery.ts`. The chips, the field for the words and the text editor
-all read and write that one string, and nothing holds a second copy. Where the chips have no control
-for something the line says (`title:`, `note:`, `sort:`), the screen names it and offers editing it
-as text; it never refuses to open.
+**One filter language, one state.** A search is one string holding the words and the narrowing —
+`Rechnungen who:me is:open in:Büro due:week` — defined by `apps/webapp/src/lib/data/searchquery.ts`.
+Chips, the words field and the text editor all read and write it; nothing holds a second copy. What
+the chips cannot express (`title:`, `note:`, `sort:`) is named and offered as text; the screen never
+refuses to open.
 
-* **Chips** sit under the field, each opening a `Popover` with its values: where (hub or
-  collection), label, who (assignee or member), state (open · done · archived), when (overdue ·
-  today · this week · has no date), and type. Several values within a chip are an OR; several
-  chips are an AND. **A chip names what is chosen** — `Status: Open`, `Kind: Task +1`,
-  `Collection: Büro` — never a count.
-* **`sort:`** has a place in the line and no chip, because a sort beside words is refused by name
-  and a control that is dead half the time is worse than none.
-* **There is no language control.** The search document carries every word form of an entry
-  ([`i18n-l10n.md`](../architecture/i18n-l10n.md) §5), so nobody chooses a language to find a word.
-  The contract's `ItemSearchQuery.language` is not sent by this client.
-* **The quick narrowings** offered without words are a fixed set in `searchquery.ts`. Offering
-  saved views there is an open question about the contract: a saved view carries an anchor, and a
-  workspace-wide search has none.
+* **Chips** under the field, each a `Popover`: where (hub or collection), label, who (assignee or
+  member), state (open · done · archived), when (overdue · today · this week · no date), type. Values
+  within a chip OR, chips AND. **A chip names what is chosen** — `Status: Open`, `Kind: Task +1` —
+  never a count.
+* **`sort:`** has a place in the line and no chip: a sort beside words is refused by name.
+* **No language control.** The search document carries every word form of an entry
+  ([`i18n-l10n.md`](../architecture/i18n-l10n.md) §5); this client does not send
+  `ItemSearchQuery.language`.
+* **The quick narrowings** without words are a fixed set in `searchquery.ts`. Whether saved views join
+  them is open: a saved view carries an anchor, and a workspace-wide search has none.
 
-**The address carries the narrowing, never the words.** `POST /search` has no `GET` so that what
-somebody looks for never becomes a query string: a term in an address travels into access logs,
-proxies and browser history ([`security.md`](../architecture/security.md) §9). So:
+**The address carries the narrowing, never the words** — a term in an address reaches access logs,
+proxies and history ([`security.md`](../architecture/security.md) §9):
 
-* The narrowing travels as one parameter, `?f=`, written in the filter language — a kind, a state,
-  a label, a collection are structural, and they are what makes a search a link.
-* The words live in `sessionStorage` under a short handle in the address. The handle is minted,
-  never derived from the term — a hash of the words would be an oracle for them. Back, forward and
-  reload restore the search; a copied link carries the narrowing and nothing of the term; signing
-  out leaves nothing behind.
-* A fragment (`#q=`) is refused for the same reason the invitation token is removed from the
-  history before the first request leaves.
-* **Sharing and keeping a search is a saved view**, under the workspace's own permissions — not a
-  URL pasted into a chat.
+* The narrowing travels as one parameter, `?f=`, in the filter language.
+* The words live in `sessionStorage` under a short handle in the address, minted and never derived
+  from the term. Back, forward and reload restore the search; a copied link carries the narrowing
+  only; signing out leaves nothing behind.
+* No fragment (`#q=`) either.
+* **Sharing and keeping a search is a saved view**, under the workspace's permissions.
 
-**The bar answers.** Before typing, the field's menu offers the narrowings that need no words.
-While typing it shows the first five hits — a peek of one page that never touches the search
-screen's own state — with those narrowings offered for *these words*, and two ways on: **All
-results**, and **All results, with the filter open**. `Enter` presses what is highlighted; with
-nothing highlighted, it does what the menu draws the key on.
+**The bar answers.** Before typing, its menu offers the narrowings that need no words. While typing
+it shows the first five hits — a peek that never touches the search screen's state — with those
+narrowings for *these words*, and **All results** and **All results, with the filter open**. `Enter`
+presses what is highlighted, or with nothing highlighted, what the menu draws the key on.
 
-What the server answers — the workspace-wide read with a filter, its default order, and how a word
-and a word's beginning are matched — is [`api-guidelines.md`](../architecture/api-guidelines.md) and
+What the server answers — the workspace-wide read, its default order, word and prefix matching — is
+[`api-guidelines.md`](../architecture/api-guidelines.md) and
 [ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md).
 
 ### 11.5 Areas and sections
 
-**Every route in the web app's route table (`apps/webapp/src/lib/routes.ts`) declares its area**:
-`end-user`, `profile`, `administration` or `instance`. A test holds the `administration` area to
-exactly the routes under `/administration` and the `instance` area to exactly the routes under
-`/instance`. The installed mobile clients ship `end-user` and `profile` in full and exclude the other
-two ([ADR-0032](../adr/ADR-0032-client-capability-matrix.md),
+**Every route in `apps/webapp/src/lib/routes.ts` declares its area**: `end-user`, `profile`,
+`administration` or `instance`. A test holds `administration` to exactly the routes under
+`/administration` and `instance` to those under `/instance`. The installed mobile clients ship
+`end-user` and `profile` in full and exclude the other two
+([ADR-0032](../adr/ADR-0032-client-capability-matrix.md),
 [ADR-0070](../adr/ADR-0070-the-instance-layer.md)).
 
-**Own security is not administration.** Profile configuration is everything about the person
-themselves: the language and the clock, the device's appearance, notifications, the password, the
-second factor and the recovery codes, the sessions, the devices that synchronise, personal access
-tokens, and the third-party apps the person has allowed. Every client carries all of it.
+**Own security is not administration.** Profile configuration is everything about the person: the
+language and the clock, the device's appearance, notifications, the password, the second factor and
+recovery codes, the sessions, the synchronising devices, personal access tokens, and the third-party
+apps allowed. Every client carries all of it.
 
-**Three places are sections**: the administration, Your settings, and the installation level for
-operators. A section has one anatomy:
+**Three places are sections** — the administration, Your settings, and the installation level for
+operators — with one anatomy:
 
-* While the resolved route's **area** is the section's, the navigation column is the section's own
-  list and the workspace's tree is not drawn at all — the reader is in a place, not in a corner of
-  the workspace.
-* **The first row leads out**, back to the workspace. A section somebody cannot leave is a trap,
-  and the way back is looked for at the top.
-* **The section's own address opens its first screen** (`firstScreen` in `navigation.ts`). The
-  column lists every screen in it, so an index beside it would be the same list twice.
-* Every screen carries `PageHeader` with the trail *the section › this screen*, one primary action
-  and the rest in the menu, and it takes the region it is given (§11.1).
-* **A row's word and a screen's heading may differ, and only for room** — the row says *Signed in*,
-  the screen says *Where you are signed in*. Nothing else about them may differ.
+* While the route's **area** is the section's, the column is the section's own list and the
+  workspace tree is not drawn.
+* **The first row leads out**, back to the workspace.
+* **The section's own address opens its first screen** (`firstScreen` in `navigation.ts`); there is
+  no index page.
+* Every screen carries `PageHeader` with the trail *the section › this screen* and takes the region
+  it is given (§11.1).
+* **A row's word and a screen's heading may differ, only for room** (*Signed in*, *Where you are
+  signed in*); nothing else about them may.
 
-The sections' lists, as `navigation.ts` holds them:
-
-| Section | Group | Rows |
-|---|---|---|
-| Administration | — | ← back to the workspace |
-| | This workspace | Workspace, People, Groups, What each role means, Service accounts, Third-party apps |
-| | What runs by itself | Automation, What the rules did, Webhooks |
-| | What it holds | Limits, Backup, Retention and holds, Restore |
-| | The record | The trail, People's requests |
-| | How people get in | Sign-in, Sign-in provider, AI |
-| Your settings | — | ← back to the workspace |
-| | You | *Language and clock* → How the product speaks to you (the language, the clock, the first day of the week; `/profile`, the first screen) · *On this device* (the theme, reduced motion, celebrations) |
-| | What you are told about | *Notifications* → What you are told about: one row per category, one column per channel |
-| | How you get in | *Password and sign-in* (the password, the second factor, the recovery codes) · *Signed in* → Where you are signed in · *Devices* → Devices that synchronise |
-| | What may act for you | *Apps* → Apps you have allowed · *Access tokens* |
-| The installation | — | ← back to the workspace |
-| | The installation | Overview, Workspaces, Instance values, Sign-in providers, Keyring |
-| | Who and what happened | Operators, Journal |
-
-Where somebody is signed in and which devices hold a copy are tables, newest first, because they
-grow without bound and a reader scans one column rather than reading every row. The rules list is
-the way into automation and `/administration/runs` is the one record of every run
-([`automation.md`](../architecture/automation.md) §1.5).
+The sections' groups and rows are `navigation.ts`'s. Where somebody is signed in and which devices
+hold a copy are tables, newest first. The rules list is the way into automation and
+`/administration/runs` the one record of every run ([`automation.md`](../architecture/automation.md)
+§1.5).
 
 ### 11.6 What the application says about itself
 
-Two marks in the app bar, and nothing else, say what is true wherever the reader stands. Unpressed
-a mark says only that there is something; pressed it says all of it, in a `Popover` (a `Drawer` on
+Two marks in the app bar, and nothing else, say what is true wherever the reader stands. Unpressed a
+mark says only that there is something; pressed it says all of it in a `Popover` (a `Drawer` on
 `compact`).
 
-**The connection mark** (`SyncStatus`, §4) is drawn while there is a session:
+**The connection mark** (`SyncStatus`, §4), drawn while there is a session:
 
 | State | The mark | What it says without being asked |
 |---|---|---|
-| Connected, nothing waiting | The quiet dot, `status.success` | Nothing more: the ordinary case spends no line on itself, and it still has its colour |
+| Connected, nothing waiting | The quiet dot, `status.success` | Nothing more |
 | Writes waiting | The dot with the count | How many |
 | Reconnecting | The ring, turning in the `pending` motion role, `status.warning` | That it is trying |
 | Offline | The struck cloud, `status.danger` | That it is not connected |
 | Something was refused | The mark with a `status.danger` dot | That there is something to read |
 
-Pressed, it holds the sentence, when the copy last synchronised, what is queued, what the server
-refused and why, and the retry. **Connected means the stream was accepted**, not that a record has
-arrived: an idle workspace reads connected.
+Pressed: the sentence, the last synchronisation, what is queued, what was refused and why, and the
+retry. **Connected means the stream was accepted**, not that a record arrived.
 
 **The notice mark** (`apps/webapp/src/lib/frame/NoticeMark.svelte`) is drawn always, signed in or
-not, because the manifest is read before anybody signs in:
+not:
 
 | What | The mark | Pressed |
 |---|---|---|
@@ -893,27 +721,23 @@ not, because the manifest is read before anybody signs in:
 | The manifest could not be read | The mark with a dot | That it could not, and the way to ask again |
 | Several of these | The dot | All of them, the report first |
 
-The stage is stated by the application itself while it is not `stable`
-([ADR-0035](../adr/ADR-0035-one-product-version.md), [`versioning-release.md`](../architecture/versioning-release.md)),
-from the one constant in `apps/webapp/src/lib/maturity.ts` — never read from `/meta/capabilities`,
-because a stage is a statement about a release, not a runtime fact. It is not dismissible: nothing
-is in the way, so nothing has to be pushed out of it. No banner above a page states the stage or
-the health report.
+The stage comes from the one constant in `apps/webapp/src/lib/maturity.ts`
+([ADR-0035](../adr/ADR-0035-one-product-version.md),
+[`versioning-release.md`](../architecture/versioning-release.md)), never from `/meta/capabilities`.
+It is not dismissible. No banner above a page states the stage or the health report.
 
 ### 11.7 The overview, the archive and the trash
 
-**The overview (`/`)** is what is on the reader: what of theirs is overdue and what is due next,
-what waits in the jumble, what they opened last on this device — and, for a workspace with no hub
-yet, the one action that starts one. Its row's word is `app.nav.overview`. It is composed only of
-reads that already exist: the workspace-wide search with a filter
-([ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md)) and the jumble's count. What was opened
-last is the device's (§11.10) and is sent nowhere.
+**The overview (`/`)** is what is on the reader: their overdue and next-due work, what waits in the
+jumble, what they opened last on this device, and for a workspace with no hub yet the one action that
+starts one. Its row's word is `app.nav.overview`. It uses only existing reads — the workspace-wide
+search with a filter ([ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md)) and the jumble's
+count. What was opened last is the device's (§11.10) and sent nowhere.
 
-**The archive (`/archive`)** is what this workspace has put aside: the archived containers and the
-archived entries the reader may see, each with where it lives and the way to bring it back. It reads
-what exists — the container list and the collection's query with `include_archived` — and adds no
-endpoint. An archived entry also stays in its list and says so; an archived container leaves the
-tree, which is why the archive is a destination.
+**The archive (`/archive`)** lists the archived containers and entries the reader may see, each with
+where it lives and the way back, from the container list and the collection's query with
+`include_archived` — no new endpoint. An archived entry also stays in its list and says so; an
+archived container leaves the tree.
 
 **The trash (`/trash`)** is the other row of the `keeping` band.
 
@@ -921,20 +745,17 @@ tree, which is why the archive is a destination.
 
 **A container screen.** `PageHeader` with one primary action:
 
-* **On a hub**: *Create collection*, and *Import* as the secondary action. The import lives on the
-  hub because `POST /imports` needs `STRUCTURE` there; its file goes through the media flow, and
-  its report is drawn by the same component that draws a restore's dry run, with the refused rows
-  beneath it by number and code.
+* **On a hub**: *Create collection*, with *Import* as the secondary action (`POST /imports` needs
+  `STRUCTURE` on the hub). The file goes through the media flow; the report is drawn by the same
+  component as a restore's dry run, refused rows beneath it by number and code.
 * **On a collection**: *Add entry*, with a submenu for creating from a template, and the filter as
-  the secondary action with a count. The filter panel is inline from `expanded` up and a `Drawer`
-  below.
+  the secondary action with a count — inline from `expanded` up, a `Drawer` below.
 
 **The page menu has three groups in a fixed order**: act on it — select (a collection), rename,
 move, archive, rank up, rank down; set it up — labels, fields, views, templates, policies, people;
-and trash, last and alone. An item that cannot be used now stays in the menu with its reason. A
-set-up dialog used daily is also reachable where it is used — saved views from a star beside the
-layout switch, templates from the primary action's submenu, people from the member avatars in the
-head — opening the same dialog.
+and trash, last and alone. An item unusable now stays with its reason. A set-up dialog used daily is
+also reachable where it is used — saved views from a star beside the layout switch, templates from
+the primary action's submenu, people from the member avatars — opening the same dialog.
 
 Below `medium` the board shows one column with the columns as a strip above it; moving a card
 between columns is the card's menu (§11.9).
@@ -942,72 +763,66 @@ between columns is the card's menu (§11.9).
 **An entry screen**, top to bottom:
 
 1. **The head**: the completion checkbox, the title and the notes edited in place — an input that
-   looks like text until it has focus, the same `PATCH` and the same conflict path — and the set
-   values as chips. A cover, where one is set, is drawn above the title; nothing takes room for a
-   cover that is not there.
-2. **The whole subtree**: `EntryList` mounted with a `rootId`, so there is no second flatten, no
-   second row menu and no second drag. Every level carries its checkbox, type mark, twist and "done
-   of total" count; the section's heading is the manifest's name for the child type; a "+ <child
-   type>" ends every level the manifest lets take one, gated by `add_child`. Direct children are
-   open and deeper levels closed, with "expand all" in the section head; which levels are open is
-   the device's (§11.10). Depth comes from the tree, never from a type name. The bottom level has
-   no subtree; its breadcrumb, which runs through the entry levels, is the way up.
-3. **The details column**, beside the text from `expanded` up and below it on `compact` and inside
-   the `DetailPane`.
+   looks like text until focused, the same `PATCH` and conflict path — and the set values as chips.
+   A set cover is drawn above the title; no room is taken for an absent one.
+2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag. Every
+   level carries its checkbox, type mark, twist and "done of total" count; the section heading is the
+   manifest's name for the child type; a "+ <child type>" ends every level the manifest lets take
+   one, gated by `add_child`. Direct children open, deeper levels closed, "expand all" in the section
+   head; which levels are open is the device's (§11.10). Depth comes from the tree, never a type
+   name. The bottom level has no subtree; its breadcrumb is the way up.
+3. **The details column**, beside the text from `expanded` up, below it on `compact` and in the
+   `DetailPane`.
 4. **Comments and activity**, as tabs.
 
-**One way to edit.** There is no edit form. The title, the notes and the completion are edited in
-place; every other field is a row of the details column that opens its own editor in a `Popover`
-from `medium` up and a `Drawer` below. An empty field is a row that says "add".
+**One way to edit.** No edit form. Title, notes and completion are edited in place; every other
+field is a details row opening its editor in a `Popover` from `medium` up and a `Drawer` below. An
+empty field is a row that says "add".
 
 **The details column is the capability matrix, drawn.** A row exists only where
 `supports(item.type, capability)` permits it ([`domain-model.md`](../architecture/domain-model.md)
-§2): a work package is not offered a cover or a repeat, and an activity is not offered notes,
-labels, comments, attachments or custom fields. A refused capability is an absent row, not a dead
-one. The start and the due are one row, *Dates*, opening one editor that holds both.
+§2); a refused capability is an absent row, not a dead one. The start and the due are one row,
+*Dates*, with one editor for both.
 
-**Assignment is two named parts**, each with the sentence that distinguishes it: *Responsible* — one
+**Assignment is two named parts**, each with its distinguishing sentence: *Responsible* — one
 person, the entry is theirs, last write wins — and *Also on it* — several people who follow it and
-find it under theirs, added and removed one at a time. Auto-assign is offered only where the
-collection carries an enabled auto-assign policy; elsewhere the button is absent and the part says
-where a policy is set, with a link for a reader who may set one.
+find it under theirs, added and removed one at a time. Auto-assign is offered only where the collection has an enabled auto-assign policy; elsewhere
+the button is absent and the part says where a policy is set, linked for a reader who may set one.
 
-**The detail pane is a place, not a feature.** `/items/:id` is the entry's address and renders the
-full page on every width. `/collections/:id?item=:itemId` is the collection with an entry open: the
-list and the `DetailPane` from `large` up, a redirect to `/items/:itemId` below it. Opening from the
-list sets the parameter and keeps the row `aria-current` and the focus in the list.
+**The detail pane is a place, not a feature.** `/items/:id` renders the full page on every width.
+`/collections/:id?item=:itemId` is the collection with an entry open: the list and the `DetailPane`
+from `large` up, a redirect to `/items/:itemId` below. Opening from the list sets the parameter and
+keeps the row `aria-current` and the focus in the list.
 
 ### 11.9 Selection, drag and the pointer
 
-**Selection is a mode, off by default.** No list draws a selection control until somebody is
-selecting. It is entered by the page menu's *Select*, by a long press on a coarse pointer, or by
-`Ctrl`/`Cmd`-click on a row. While it is on, the rows carry the checkbox, the page head is replaced
-by the count and the bulk verbs, and `Escape` ends it. Otherwise a row's leading slot holds the
-completion checkbox only, and the type is a mark on the title's line. The list and the board share
-one selection store, and switching between them keeps what is selected.
+**Selection is a mode, off by default.** No list draws a selection control until somebody selects:
+the page menu's *Select*, a long press on a coarse pointer, or `Ctrl`/`Cmd`-click on a row. While on,
+rows carry the checkbox, the page head becomes the count and the bulk verbs, and `Escape` ends it.
+Otherwise a row's leading slot holds the completion checkbox only, and the type is a mark on the
+title's line. List and board share one selection store; switching keeps the selection.
 
-**The board's card is the thing you move.** There is no grip. A press that travels past the
-threshold starts a drag; a press that does not opens the entry. The card follows the pointer on both
-axes while it is carried, and the column under it is marked as the destination. The card menu's
-*move to column* stays, as SC 2.5.7's single-pointer alternative.
+**The board's card is the thing you move.** No grip. A press that travels past the threshold drags;
+one that does not opens the entry. The card follows the pointer on both axes and the column under it
+is marked. The card menu's *move to column* stays as SC 2.5.7's alternative.
 
-**Pointer and touch: one layout, two input rules.** The layout is a question of width alone.
-What the pointer changes is written here and nowhere else, and lives in
-`apps/webapp/src/lib/frame/viewport.svelte.ts` and the drag helper; no view branches on the input.
+**Pointer and touch: one layout, two input rules.** Layout is width alone. What the pointer changes
+is written here and lives in `apps/webapp/src/lib/frame/viewport.svelte.ts` and the drag helper; no
+view branches on the input.
 
-* `pointer: coarse` takes `density.spacious` and the 48 px control at every width. That size governs
-  controls in the frame, not marks drawn inside a data picture; where a mark cannot reach the
-  24 px floor, SC 2.5.8's *Equivalent* clause applies and the equivalent is named (§10, 2.5.8).
+* `pointer: coarse` takes `density.spacious` and the 48 px control at every width — for controls in
+  the frame, not marks inside a data picture; where a mark cannot reach the 24 px floor, SC 2.5.8's
+  *Equivalent* clause applies and the equivalent is named (§10, 2.5.8).
 * A drag starts on movement for a fine pointer and after a 300 ms hold for a coarse one, so a board
-  can still be scrolled with a finger.
-* A long press enters selection on a coarse pointer; a mouse has `Ctrl`/`Cmd`-click instead.
-* Nothing that appears only on hover may be the only way to reach a function. A row's actions are
-  its menu, a real control on every input.
+  still scrolls under a finger.
+* A long press enters selection on a coarse pointer; a mouse has `Ctrl`/`Cmd`-click.
+* Nothing that appears only on hover may be the only way to a function. A row's actions are its
+  menu, a real control on every input.
 
 ### 11.10 What the device keeps
 
 A device convenience is kept in the browser, never on the account, and sent nowhere. Every read and
-write of it falls back in silence where storage is refused.
+write falls back in silence where storage is refused.
 
 | What | Where | Owner |
 |---|---|---|
@@ -1020,9 +835,8 @@ write of it falls back in silence where storage is refused.
 | A resizable sheet's size | wherever its caller keeps it — the rule editor uses `localStorage` | the caller, never `Drawer` |
 | The last sign-in method used | `localStorage` | `lib/signin/lastMethod.ts` |
 
-The person's own preferences are the account's, because nothing but the person sets them: the
-language, the time zone and the first day of the week
-([`i18n-l10n.md`](../architecture/i18n-l10n.md) §2), and the celebrations and
+The person's own preferences are the account's: the language, the time zone and the first day of the
+week ([`i18n-l10n.md`](../architecture/i18n-l10n.md) §2), the celebrations and
 `onboarding_completed_at` (§7, §8).
 
 ---
@@ -1032,42 +846,40 @@ language, the time zone and the first day of the week
 **Lucide, cut down to a declared subset, behind one `Icon`**
 ([ADR-0041](../adr/ADR-0041-icon-set.md)).
 
-* `build/icons.js` holds the declared list and generates `src/icons/base.ts`, which is committed.
-  An icon nobody declared is not in `src/` at all. `lucide-static` is a devDependency of the design
-  system alone, and `icons.test.js` compares the committed file against a fresh render. `make icons`
-  regenerates the subset and prints its size.
+* `build/icons.js` holds the declared list and generates the committed `src/icons/base.ts`; an
+  undeclared icon is not in `src/`. `lucide-static` is a devDependency of the design system alone;
+  `icons.test.js` compares the committed file with a fresh render; `make icons` regenerates it.
 * **One `Icon` taking a name**, over one merged set of base icons and our own marks
   (`src/icons/custom.ts`). Icons are nodes — `[tag, attributes]` rendered as elements — never markup
   through `{@html}`.
-* **`currentColor`, never a token.** An icon takes the colour of the text it sits in, and the only
-  two colour values it may name are `currentColor` and `none`.
-* **The stroke scales with the box**: 1.5 at 24 px, 2.25 at 16 px, so every size reads as one set.
+* **`currentColor`, never a token.** The only colour values an icon may name are `currentColor` and
+  `none`.
+* **The stroke scales with the box**: 1.5 at 24 px, 2.25 at 16 px.
 * Every icon carries an accessible name or is marked decorative (§10, 1.1.1). A directional mark is
-  in the mirrored set and turns round under `[dir='rtl']` (§3).
-* **A mark joins the list when it names a concept the product repeats**, not when it decorates one
-  row. A row whose concept appears once takes the nearest mark the set already has. A mark is added
-  by naming it in `build/icons.js` under the group that asks for it and running `make icons`; an
-  upstream rename stops the build rather than dropping a glyph.
-* **Our own marks are domain nouns** from `domain-model.md`: the levels that share one aggregate,
-  the two container types, the bucket, the jumble, the capability, and the relationships a general
-  set has no word for. Where Lucide already says a domain noun well — a label is a `tag`, a comment a
-  `message-square`, a reminder a `bell` — nothing is drawn.
+  in the mirrored set and turns under `[dir='rtl']` (§3).
+* **A mark joins the list when it names a concept the product repeats**, not to decorate one row;
+  otherwise the row takes the nearest existing mark. It is added by naming it in `build/icons.js`
+  under the group that asks for it and running `make icons`; an upstream rename stops the build
+  rather than dropping a glyph.
+* **Our own marks are domain nouns** from `domain-model.md`: the levels sharing one aggregate, the
+  two container types, the bucket, the jumble, the capability, and the relationships a general set
+  has no word for. Where Lucide already says a noun well — a label `tag`, a comment
+  `message-square`, a reminder `bell` — nothing is drawn.
 * **An automation building block is drawn with its kind's icon from one table, falling back to its
   group's icon** (`apps/webapp/src/lib/automation/words.ts`), the same in the panel, the `+` popover
-  and on the card. Every icon that table names is declared in `build/icons.js` and nowhere else.
+  and the card. Every icon that table names is declared in `build/icons.js`.
 
 **A third-party brand mark is content, and the button stays ours**
 ([ADR-0069](../adr/ADR-0069-third-party-brand-marks.md)).
 
-* A sign-in button for a provider is `Button` with `tone="secondary"`, the label centred and the
-  provider's mark at the start edge. **No brand colour becomes a surface.**
-* A brand mark's colours are not tokens; they are data with an owner. Each colour carries the
-  `lint-no-literals` exemption with its reason; each mark is reproduced as its owner publishes it —
-  never recoloured or simplified, never given `currentColor`, except a mark whose own guideline is
-  monochrome; and each has an entry in `THIRD-PARTY-LICENSES.md` naming the source, the guideline
-  and the permitted use.
+* A provider's sign-in button is `Button` with `tone="secondary"`, the label centred and the mark at
+  the start edge. **No brand colour becomes a surface.**
+* A brand mark's colours are data with an owner, not tokens: each carries the `lint-no-literals`
+  exemption with its reason; each mark is reproduced as its owner publishes it — never recoloured or
+  simplified, never `currentColor` unless its guideline is monochrome; each has a
+  `THIRD-PARTY-LICENSES.md` entry naming the source, the guideline and the permitted use.
 * A mark ships only where its owner's guideline clearly permits the sign-in use. A provider without
-  a shipped mark gets a square tile with the first character of its name in one of the ten label
-  colours, derived from the name. There is no logo upload.
-* The marks live in the application, `apps/webapp/src/lib/signin/ProviderMark.svelte`, until a
-  second client draws one; then they move into the design system with a story and a row in §4.
+  one gets a square tile with the first character of its name in one of the ten label colours,
+  derived from the name. There is no logo upload.
+* The marks live in `apps/webapp/src/lib/signin/ProviderMark.svelte` until a second client draws
+  one; then they move into the design system with a story and a row in §4.

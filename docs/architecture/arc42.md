@@ -1,61 +1,44 @@
 # Architecture Documentation — Hubtask
 
-> Template: **arc42 8.2** · Language: English throughout — documentation, code, identifiers, and
-> commits.
+> Template: **arc42 8.2**.
 
-This document is the frame: the goals, the constraints, the building blocks and how they run. Each
-rule lives in exactly one subject document, linked from the chapter that needs it; an ADR records
-why and when a decision was taken.
+This document is the frame: goals, constraints, building blocks and how they run. Each rule lives in
+one subject document, linked from the chapter that needs it; an ADR records why a decision was taken.
 
 **Reading order for developers:** ch. 1 → 4 → 5 → [domain model](./domain-model.md) → [project structure](./project-structure.md) → [API guidelines](./api-guidelines.md) → ch. 8 → [security](./security.md) → [reliability](./observability-reliability.md).
 
-| Deep dive | File |
-|---|---|
-| **Vision: principles, personas, deployments, non-goals** | [../vision/README.md](../vision/README.md) |
-| **Use cases: what a person can do, and how it is checked** | [../usecases/README.md](../usecases/README.md) |
-| Domain model, aggregates, invariants, events, the operation catalogue's rules | [domain-model.md](./domain-model.md) |
-| The repository map, dependency rules, code conventions | [project-structure.md](./project-structure.md) |
-| API-first guidelines, errors, pagination, query DSL | [api-guidelines.md](./api-guidelines.md) |
-| Multi-tenancy & isolation | [multi-tenancy.md](./multi-tenancy.md) |
-| **Security concept, threat model, security gates** | [security.md](./security.md) |
-| **Accounts, sign-in, sessions, second factor, providers, step-up** | [identity.md](./identity.md) |
-| **Audit and traceability** | [audit.md](./audit.md) |
-| **Data protection (GDPR) and data subject rights** | [data-protection.md](./data-protection.md) |
-| **Backup, targets, restore** | [backup-restore.md](./backup-restore.md) |
-| The tenant export format | [tenant-export.md](./tenant-export.md) |
-| **Retention and lifecycle of business data** | [data-retention.md](./data-retention.md) |
-| **Offline capability and synchronisation** | [offline-sync.md](./offline-sync.md) |
-| **CI/CD and pipelines** | [ci-cd.md](./ci-cd.md) |
-| **Deployment, environments, rollout** | [deployment.md](./deployment.md) |
-| Supported runtimes, architectures, PostgreSQL majors | [support-matrix.md](./support-matrix.md) |
-| **Observability, SLOs, resilience, self-diagnosis** | [observability-reliability.md](./observability-reliability.md) |
-| Internationalisation & localisation | [i18n-l10n.md](./i18n-l10n.md) |
-| Automation, rules, webhooks, n8n/Zapier | [automation.md](./automation.md) |
-| AI-first concept (MCP, agents, ports) | [ai-first.md](./ai-first.md) |
-| Semantic versioning, release, branching | [versioning-release.md](./versioning-release.md) |
-| Licence (Apache-2.0) and the one edition | [licensing-editions.md](./licensing-editions.md) |
-| Test strategy, Definition of Ready and of Done | [engineering-guidelines.md](./engineering-guidelines.md) |
-| The design system and the shell | [../design/design-system.md](../design/design-system.md) |
-| Architecture decisions | [../adr/README.md](../adr/README.md) |
-| Data catalogue (record of processing activities) | [../privacy/data-catalog.md](../privacy/data-catalog.md) |
-| Implementation plan / milestones | [../roadmap.md](../roadmap.md) |
+**Deep dives**
+
+* Why and for whom: [vision](../vision/README.md),
+  [use cases](../usecases/README.md).
+* The model and the code: [domain-model.md](./domain-model.md),
+  [project-structure.md](./project-structure.md), [api-guidelines.md](./api-guidelines.md),
+  [engineering-guidelines.md](./engineering-guidelines.md).
+* Isolation and trust: [multi-tenancy.md](./multi-tenancy.md), [security.md](./security.md),
+  [identity.md](./identity.md), [audit.md](./audit.md).
+* Personal data and its lifetime: [data-protection.md](./data-protection.md),
+  [the data catalogue](../privacy/data-catalog.md), [data-retention.md](./data-retention.md),
+  [backup-restore.md](./backup-restore.md), [tenant-export.md](./tenant-export.md).
+* Behaviour: [offline-sync.md](./offline-sync.md), [automation.md](./automation.md),
+  [ai-first.md](./ai-first.md), [i18n-l10n.md](./i18n-l10n.md).
+* Operation and delivery: [observability-reliability.md](./observability-reliability.md),
+  [deployment.md](./deployment.md), [support-matrix.md](./support-matrix.md),
+  [ci-cd.md](./ci-cd.md), [versioning-release.md](./versioning-release.md),
+  [licensing-editions.md](./licensing-editions.md).
+* Clients: [the design system and the shell](../design/design-system.md).
+* Decisions and plan: [the ADRs](../adr/README.md), [the roadmap](../roadmap.md).
 
 ---
 
 ## 1. Introduction and goals
 
 Hubtask is an open, self-hostable task manager with five hierarchy levels
-(Hub → Collection → Task → Work Package → Activity). It serves private individuals (one container,
-one database, `docker compose up`) and service providers who run it multi-tenant for many
-customers (Kubernetes, horizontal scaling). Between the two poles lie seven shapes — a private
-person, a family, a club, a company running it itself, a provider for consumers, one for companies,
-a managed service provider — which [`docs/vision/deployments.md`](../vision/deployments.md) names
-D1–D7; with the principles and the personas they are the yardstick the use cases are written
-against ([`docs/vision/`](../vision/README.md)).
+(Hub → Collection → Task → Work Package → Activity). It runs for a private individual in one
+container with one database (`docker compose up`) and for a service provider multi-tenant on
+Kubernetes; the deployments in between are D1–D7 in [`docs/vision/deployments.md`](../vision/deployments.md).
 
-The application is built **backend first, API first, and AI first**: the business core and its API
-are the product; every frontend, every integration, and every AI agent is an equal client of the
-same public API.
+Hubtask is built **backend first, API first, and AI first**: the core and its API are the product;
+every frontend, integration and AI agent is an equal client of the same public API.
 
 ### 1.1 Requirements
 
@@ -63,26 +46,26 @@ same public API.
 
 | # | Requirement | Short description |
 |---|---|---|
-| F-01 | Hierarchy | A hub manages collections; a collection contains tasks; a task contains work packages; a work package contains activities |
-| F-02 | Task feature set | Status (done/open), due date, reminders, bucket/list, notes, coloured labels, members, history, comments, cover (colour/image) |
+| F-01 | Hierarchy | Hub → collection → task → work package → activity |
+| F-02 | Task feature set | Status, due date, reminders, bucket, notes, labels, members, history, comments, cover |
 | F-03 | Activity feature set | Status, due date, reminder, assignment |
-| F-04 | Recurring tasks | Recurrence rules per RFC 5545 (RRULE), correct across time zones |
-| F-05 | Templates | Templates for tasks including work packages and activities |
-| F-06 | Views | List (collapsed/expanded), kanban, timeline — as saved, server-defined views |
-| F-07 | Filtering & sorting | A generic, composable query DSL over every item field |
-| F-08 | Jumble | An inbox for unstructured arrivals (email, webhook, quick capture) with conversion into items |
-| F-09 | Trash | Soft delete, 30 days of retention, restore, then a hard delete |
-| F-10 | Archiving | Permanent archiving, restorable at any time |
-| F-11 | Automatic assignment | A fixed person, randomly across people/groups, extensible strategies |
-| F-12 | Integrations | Calendar (ICS feed, CalDAV), outbound webhooks, HTTP actions |
-| F-13 | Automation | A rule system trigger → condition → action with access to **all** business features |
-| F-14 | Collaboration | Members, roles, permissions, comments, activity history |
-| F-15 | Multi-tenancy | Complete data separation per tenant, provisioning, quotas, export, deletion |
-| F-16 | Multilingualism | Any language (BCP-47), time zones, calendar week and date formats, RTL-capable |
-| F-17 | Auditability | A tamper-evident log of security- and compliance-relevant events, queryable, exportable, verifiable ([audit.md](./audit.md)) |
-| F-18 | Backup | Freely chosen targets, schedules, encryption, generational retention, listing at the target, restore down to item level, import ([backup-restore.md](./backup-restore.md)) |
-| F-19 | Retention rules | Configurable periods per data kind and area with a grace period, advance warning, and safeguards — for example, deleting completed tasks after a year ([data-retention.md](./data-retention.md)) |
-| F-20 | Offline capability | Clients keep working without a network; per-field merging without losing other people's concurrent changes ([offline-sync.md](./offline-sync.md)) |
+| F-04 | Recurring tasks | RFC 5545 RRULE across time zones |
+| F-05 | Templates | Task trees as templates |
+| F-06 | Views | List, kanban, timeline as saved, server-defined views |
+| F-07 | Filtering & sorting | One query DSL over every item field |
+| F-08 | Jumble | An inbox for unstructured arrivals, converted into items |
+| F-09 | Trash | Soft delete, 30 days, restore, then a hard delete |
+| F-10 | Archiving | Permanent, restorable at any time |
+| F-11 | Automatic assignment | Fixed, random across people or groups, extensible |
+| F-12 | Integrations | ICS feed, CalDAV, outbound webhooks, HTTP actions |
+| F-13 | Automation | Trigger → condition → action over **all** business features |
+| F-14 | Collaboration | Members, roles, permissions, comments, history |
+| F-15 | Multi-tenancy | Complete separation per tenant, provisioning, quotas, export, deletion |
+| F-16 | Multilingualism | Any BCP-47 language, time zones, date formats, RTL |
+| F-17 | Auditability | A tamper-evident, verifiable log |
+| F-18 | Backup | Free targets, encryption, generations, item-level restore |
+| F-19 | Retention rules | Periods per data kind with grace period and safeguards |
+| F-20 | Offline capability | Work without a network, merged per field |
 
 **Core non-functional requirements:**
 
@@ -90,7 +73,7 @@ same public API.
 |---|---|
 | Q-01 | Operation in Docker/Podman (single node) **and** Kubernetes (multi node) from the same artefact |
 | Q-02 | Horizontally scalable, stateless processes |
-| Q-03 | A central, extensible core component (new levels/fields/features without a break) |
+| Q-03 | A central, extensible core (new levels, fields and features without a break) |
 | Q-04 | Open source (Apache-2.0); self-hosting with no feature restriction |
 | Q-05 | API completeness: no feature exists only in the UI |
 
@@ -100,32 +83,31 @@ Prioritised (1 = highest); in case of doubt these six goals win over everything 
 
 | Prio | Quality goal | Scenario (short) | Measure |
 |---|---|---|---|
-| 1 | **Extensibility / generalisation** | A sixth hierarchy level or a new field type is introduced | No change to the persistence schema structure and no breaking change to API v1; delivered in < 5 person-days |
-| 2 | **Integrability / automatability** | Every business operation is usable through the API, as an event, and as an automation action | 100% of use cases available as an API operation *and* as an automation action (the parity gate) |
-| 3 | **Security / tenant isolation** | Tenant A makes a manipulated request for tenant B's data | No cross-tenant access is possible; enforced at the database level (RLS), not just in code; the SG gates green |
-| 4 | **Reliability / self-diagnosis** | Object storage fails, a pod dies mid-job | No process exit, no data loss, the affected feature explicitly reported as `degraded`; SLO-1 ≥ 99.9%, SLO-8 data loss = 0 |
-| 5 | **Operability** | A private individual starts the full version; a provider scales to 50 pods | Self-hosting: one image plus PostgreSQL, `docker compose up` in < 5 min; the identical image in Kubernetes through Helm |
-| 6 | **Internationalisation** | Users in Tokyo and Cairo work in one collection | All times correct across time zones; no server-side hard-coded display text |
+| 1 | **Extensibility / generalisation** | A sixth level or a new field type | No schema restructuring, no breaking change to API v1; < 5 person-days |
+| 2 | **Integrability / automatability** | Every operation via API, event and automation | 100% of use cases are an API operation *and* an automation action (the parity gate) |
+| 3 | **Security / tenant isolation** | Tenant A requests tenant B's data | Impossible, enforced by RLS in the database, not just in code; the SG gates green |
+| 4 | **Reliability / self-diagnosis** | Object storage fails, a pod dies mid-job | No process exit, no data loss, the feature reported `degraded`; SLO-1 ≥ 99.9%, SLO-8 data loss = 0 |
+| 5 | **Operability** | A private individual starts it; a provider scales to 50 pods | One image plus PostgreSQL, `docker compose up` in < 5 min; the same image on Kubernetes through Helm |
+| 6 | **Internationalisation** | Users in Tokyo and Cairo share a collection | Times correct across time zones; no server-side display text |
 
 Secondary but binding: performance (P95 read < 200 ms at 10⁶ items per tenant), testability (the
-domain is testable without infrastructure), maintainability.
-
-Security and reliability are enforced baselines: every rule has an automated proof that breaks the
-build ([security.md](./security.md) §13, [observability-reliability.md](./observability-reliability.md) §12).
+domain is testable without infrastructure), maintainability. Security and reliability rules each
+have an automated proof that breaks the build ([security.md](./security.md) §13,
+[observability-reliability.md](./observability-reliability.md) §12).
 
 ### 1.3 Stakeholders
 
-The roles below are the architecture's; the people who use the product, and in which of the
-seven shapes, are [`docs/vision/personas.md`](../vision/personas.md).
+The architecture's roles; the people who use the product are
+[`docs/vision/personas.md`](../vision/personas.md).
 
 | Role | Expectation of the architecture |
 |---|---|
-| Private user (self-hoster) | One Compose file, low RAM requirements, all features, easy updates |
-| Service provider / enterprise | Tenant isolation, SSO/OIDC, quotas, observability, a Helm chart, data export |
+| Private user (self-hoster) | One Compose file, little RAM, all features, easy updates |
+| Service provider / enterprise | Tenant isolation, SSO/OIDC, quotas, observability, Helm, data export |
 | End user | A fast, multilingual, dependable app; data is never lost |
 | Backend developer | A clear hexagonal structure, generated API types, fast tests |
 | Frontend developer | A stable, complete, self-describing API; no UI assumptions in the backend |
-| Integration/automation user (n8n, Zapier) | A complete REST API, webhook subscriptions, stable event schemas |
+| Integration/automation user (n8n, Zapier) | A complete REST API, webhooks, stable event schemas |
 | AI agents / MCP clients | Deterministic, idempotent, machine-readable operations |
 | Operator/SRE | Health and readiness probes, OpenTelemetry, zero-downtime migrations |
 
@@ -138,33 +120,32 @@ seven shapes, are [`docs/vision/personas.md`](../vision/personas.md).
 | ID | Constraint | Consequence |
 |---|---|---|
 | C-01 | Backend language **Go**, the version `go.mod` pins ([support-matrix.md](./support-matrix.md)) | No JVM or Node dependencies in the core |
-| C-02 | The **hexagonal folder structure** of the in-house template (`core/`, `presentation/`, `Port.go`, PascalCase file names) | Kept and only extended, see [project-structure.md](./project-structure.md) |
-| C-03 | Operation in Docker, Podman **or** Kubernetes | A single-binary/multi-role design, 12-factor configuration |
-| C-04 | Horizontal scalability | No local state, no sticky sessions, no in-memory scheduler without leader election |
-| C-05 | Minimal mandatory dependencies for self-hosting | Only **PostgreSQL** is required; everything else is optional |
+| C-02 | The in-house **hexagonal folder structure** | Kept and only extended ([project-structure.md](./project-structure.md)) |
+| C-03 | Docker, Podman **or** Kubernetes | One binary, several roles, 12-factor configuration |
+| C-04 | Horizontal scalability | No local state, no sticky sessions, no scheduler without leader election |
+| C-05 | Minimal mandatory dependencies | Only **PostgreSQL** is required |
 | C-06 | CI/CD on **GitHub Actions**; Helm chart under `k8s/` | Every gate is a `make` target ([ci-cd.md](./ci-cd.md)) |
-| C-07 | **Semantic Versioning 2.0.0** | Conventional Commits, automated releases, API major versioning ([versioning-release.md](./versioning-release.md)) |
-| C-08 | Documentation follows **arc42** | This document is the frame; each rule lives in one subject document, each decision's reasoning in its ADR |
+| C-07 | **Semantic Versioning 2.0.0** | [versioning-release.md](./versioning-release.md) |
+| C-08 | Documentation follows **arc42** | This document is the frame; rules live in subject documents, reasons in ADRs |
 
 ### 2.2 Organisational and legal constraints
 
 | ID | Constraint |
 |---|---|
 | C-10 | The source is public; self-hosting by private individuals is unrestricted and free of charge |
-| C-11 | Hubtask is licensed under Apache-2.0 — the whole repository and every published version; contributions are inbound = outbound, without a CLA; the name is protected by [TRADEMARK.md](../../TRADEMARK.md), not by the licence ([licensing-editions.md](./licensing-editions.md)); the project makes no maintenance commitment |
-| C-12 | GDPR conformance from the ground up (Art. 25): access, export, rectification, erasure, restriction, processing on behalf, data residency — [data-protection.md](./data-protection.md), the record of processing activities in [../privacy/data-catalog.md](../privacy/data-catalog.md) |
+| C-11 | Apache-2.0 for the whole repository and every release; inbound = outbound; the name is protected separately ([licensing-editions.md](./licensing-editions.md)) |
+| C-12 | GDPR by design (Art. 25), data subject rights, processing on behalf, data residency ([data-protection.md](./data-protection.md)) |
 | C-13 | No feature crippling: one code path, one image, no licence key, no commercial edition |
-| C-14 | The backend makes no assumptions about clients, and the API stays client-blind. The first-party client stack is [ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md)–[ADR-0033](../adr/ADR-0033-shared-client-architecture.md) |
-| C-15 | Backup targets are not limited to particular providers; the target, timing, and retention are freely configurable |
-| C-16 | Offline operation must be compatible with multi-user collaboration — other people's changes are never silently lost |
+| C-14 | The backend makes no assumptions about clients; the API stays client-blind. The first-party client stack is [ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md)–[ADR-0033](../adr/ADR-0033-shared-client-architecture.md) |
+| C-15 | Backup targets are not limited to particular providers; target, timing and retention are freely configurable |
+| C-16 | Offline operation is compatible with collaboration — other people's changes are never silently lost |
 
 ### 2.3 Conventions
 
 * Business terms in the code are English: `Hub`, `Collection`, `Task`, `WorkPackage`, `Activity`, `Bucket`, `Label`, `Jumble`.
-* All instants are UTC server-side (`timestamptz`), additionally storing the originating IANA time zone where it matters to the business logic (recurrence, reminders).
+* Instants are UTC server-side (`timestamptz`), plus the originating IANA time zone where the logic needs it (recurrence, reminders).
 * IDs: **UUIDv7** (time-sortable, no sequential information leakage).
 * Money and quotas: integers, never floats.
-* No domain code knows about HTTP, SQL, JSON tags, or framework types.
 
 ---
 
@@ -172,47 +153,18 @@ seven shapes, are [`docs/vision/personas.md`](../vision/personas.md).
 
 ### 3.1 Business context
 
-```mermaid
-graph LR
-  U[End user]
-  ADMIN[Tenant admin]
-  OPS[Operator/SRE]
-  AUTO[Automation platform<br/>n8n, Zapier, Make]
-  AGENT[AI agent<br/>MCP client]
-  CAL[Calendar client<br/>ICS/CalDAV]
-  MAIL[Inbound email]
-  IDP[Identity provider<br/>OIDC]
-  SMTP[Outbound email]
-  OBJ[Object storage<br/>S3-compatible]
-  LLM[LLM provider<br/>optional/local]
-  EXT[Arbitrary HTTP targets<br/>webhook recipients]
-
-  HT((Hubtask))
-
-  U -->|REST/JSON, web app| HT
-  ADMIN -->|Admin API| HT
-  OPS -->|Health, metrics, traces| HT
-  AUTO <-->|REST + webhook subscriptions| HT
-  AGENT <-->|MCP tools / REST| HT
-  CAL <-->|ICS feed / CalDAV| HT
-  MAIL -->|Jumble intake| HT
-  HT -->|Authentication| IDP
-  HT -->|Notifications| SMTP
-  HT <-->|Attachments, covers| OBJ
-  HT -->|Suggestions, classification| LLM
-  HT -->|Automation actions| EXT
-```
-
 | Neighbour | Direction | Interface / contract |
 |---|---|---|
-| End user clients | Inbound | REST/JSON `/api/v1`, OpenAPI 3.1 as the contract |
-| Automation platforms | Bidirectional | The REST API, webhook subscriptions (CloudEvents, HMAC-signed), trigger polling |
-| AI agents | Bidirectional | The MCP server (tools = use cases), alternatively REST with a service account |
-| Identity provider | Outbound | OIDC discovery, authorization code + PKCE; local accounts beside it |
-| Object storage | Outbound | The S3 API (presigned URLs); self-hosting fallback: a local volume |
-| Email | Inbound and outbound | SMTP for sending. Intake is **webhook-only**: a bridge, an MTA or a provider's push posts the message to a token-protected URL per tenant; there is no IMAP ([ADR-0040](../adr/ADR-0040-no-imap-intake.md)). The parser is transport-independent |
-| Calendar | Bidirectional | An ICS feed per view; CalDAV: one `VTODO` calendar per calendar feed under HTTP Basic with a personal access token, read by any client and written back through the use cases — a completion, a due date, a title, and a todo made in the client, which keeps the UID the client chose while the server mints the identifier |
-| LLM provider | Outbound | The `core/port/ai` port; adapters for OpenAI-compatible APIs and local Ollama; disabled by default |
+| End users and tenant admins | Inbound | REST/JSON `/api/v1` (OpenAPI 3.1), the web app |
+| Automation platforms (n8n, Zapier, Make) | Both | REST, webhook subscriptions (CloudEvents, HMAC-signed), trigger polling |
+| HTTP targets | Outbound | Automation actions, webhook deliveries |
+| AI agents | Both | MCP (tools = use cases), or REST with a service account |
+| Identity provider | Outbound | OIDC ([identity.md](./identity.md) §10); local accounts beside it |
+| Object storage | Outbound | S3 with presigned URLs; fallback: a local volume |
+| Email | Both | SMTP out; intake into the jumble **webhook-only**, to a token-protected URL per tenant, no IMAP ([ADR-0040](../adr/ADR-0040-no-imap-intake.md)) |
+| Calendar | Both | An ICS feed per view; CalDAV with a personal access token, writing through the use cases ([security.md](./security.md) T-22) |
+| LLM provider | Outbound | `core/port/ai`, OpenAI-compatible and Ollama; off by default |
+| Operator/SRE | Inbound | Health, metrics, traces (§3.2) |
 
 ### 3.2 Technical context
 
@@ -232,32 +184,21 @@ graph LR
 
 | Goal/constraint | Approach |
 |---|---|
-| Extensibility (quality goal 1, Q-03) | **Generalisation instead of specialisation:** one polymorphic `WorkItem` aggregate root with an `ItemType` and a configurable **capability profile** per type, instead of four separate entities. New levels and features = new configuration, not a new schema. Plus typed `CustomField` definitions for tenant-specific fields. |
-| Integrability (quality goal 2, Q-05) | **The use case catalogue as the single truth:** every use case of the application layer is (a) a REST operation, (b) an MCP tool, (c) an automation action. The parity gate fails if a use case is missing from any of the three. |
-| Operability (quality goal 5, Q-01, Q-02) | **One artefact, several roles:** one container image, with roles (`api`, `worker`, `scheduler`, `automation`) selected by configuration. Self-hosting = all roles in one process; Kubernetes = one deployment per role. |
-| Few dependencies (C-05) | PostgreSQL as the database **and** the job queue (`SKIP LOCKED`) **and** the outbox **and** full-text search **and** the pub/sub fallback. NATS and S3 are interchangeable adapters, not prerequisites. |
-| Tenant isolation (quality goal 3, F-15) | `tenant_id` in every table plus **PostgreSQL row level security**; the application connects with a role *without* `BYPASSRLS` ([multi-tenancy.md](./multi-tenancy.md)). |
-| Frontend decoupled (C-14) | The backend supplies **generic building blocks**: the query DSL (filter/sort/group/cursor), `SavedView` with an opaque `layout` hint, and the capability manifest. Kanban, timeline, and lists are interpretations of the same query. |
-| AI first | The domain stays AI-free; AI is an adapter behind ports. Outwards: an MCP server, deterministic IDs, idempotency, machine-readable errors, and optional embeddings (pgvector) for semantic search. |
-| Architectural style | **Hexagonal + DDD + explicit architecture** after Herberto Graça: the core (domain/application) knows only ports; all technology lives in adapters. A modular monolith with cleanly cut bounded contexts that can be deployed as their own process when needed (automation is the first candidate) ([ADR-0002](../adr/ADR-0002-modular-monolith.md)). |
+| Extensibility (quality goal 1, Q-03) | **Generalisation:** one `WorkItem` with a **capability profile** per type and typed custom fields — a new level is configuration, not schema |
+| Integrability (quality goal 2, Q-05) | **One use case catalogue:** every use case is a REST operation, an MCP tool and an automation action (the parity gate) |
+| Operability (quality goal 5, Q-01, Q-02) | **One artefact, several roles** chosen by configuration (§7.1) |
+| Few dependencies (C-05) | PostgreSQL is database, job queue, outbox, full-text search and pub/sub fallback; NATS and S3 are optional |
+| Tenant isolation (quality goal 3, F-15) | `tenant_id` in every table plus **row level security** under a role without `BYPASSRLS` ([multi-tenancy.md](./multi-tenancy.md)) |
+| Frontend decoupled (C-14) | **Generic building blocks** — the query DSL, `SavedView` with an opaque `layout` hint, the capability manifest |
+| AI first | The domain stays AI-free, AI an adapter behind ports; outwards MCP, idempotency, machine-readable errors ([ai-first.md](./ai-first.md)) |
+| Architectural style | **Hexagonal + DDD:** the core knows only ports; a modular monolith whose contexts can run as their own process, automation first ([ADR-0002](../adr/ADR-0002-modular-monolith.md)) |
 
 ### 4.1 Technology decisions at a glance
 
-| Area | Decision | ADR |
-|---|---|---|
-| Language/runtime | Go (the version in `go.mod`), `net/http` (the standard mux), `log/slog` | — |
-| API definition | OpenAPI 3.1 spec-first, code generation with `oapi-codegen` | [ADR-0004](../adr/ADR-0004-api-first-openapi.md) |
-| Persistence | PostgreSQL ([support-matrix.md](./support-matrix.md)), `pgx/v5`, `sqlc`, migrations with `goose` | [ADR-0003](../adr/ADR-0003-postgresql-as-single-datastore.md) |
-| Domain model | A generalised `WorkItem` plus capability profiles, the tree as `parent_id` + `path` | [ADR-0006](../adr/ADR-0006-generalized-workitem.md) |
-| Jobs/scheduling | A PostgreSQL queue (`SKIP LOCKED`), advisory lock leader election, RRULE via `rrule-go` | [ADR-0008](../adr/ADR-0008-jobs-and-scheduling.md) |
-| Events | A transactional outbox → dispatcher; CloudEvents 1.0; an optional NATS JetStream adapter | [ADR-0007](../adr/ADR-0007-events-outbox-cloudevents.md) |
-| Automation | Declarative rules, conditions in **CEL** (no arbitrary code) | [ADR-0009](../adr/ADR-0009-automation-rules-cel.md) |
-| AuthN/AuthZ | OIDC plus local accounts; personal access tokens and service accounts; RBAC with roles inherited per scope | [ADR-0005](../adr/ADR-0005-authn-authz.md) |
-| Multi-tenancy | Shared schema + RLS | [ADR-0010](../adr/ADR-0010-multi-tenancy.md) |
-| i18n | Server-side only message codes; ICU MessageFormat, `golang.org/x/text`, CLDR | [ADR-0011](../adr/ADR-0011-i18n-message-codes.md) |
-| AI access | An MCP server as a presentation adapter, the AI provider behind a port | [ADR-0012](../adr/ADR-0012-ai-first-mcp.md) |
-| Clients | Svelte 5, the web app embedded in the binary, one product UI for every target | [ADR-0028](../adr/ADR-0028-embedded-web-ui.md), [ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md), [ADR-0033](../adr/ADR-0033-shared-client-architecture.md) |
-| Licence | Apache-2.0 for the whole repository; the SDKs, the contract and the connector packages carry a `LICENSE` file of their own so that each can be extracted | [ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md), [ADR-0057](../adr/ADR-0057-sdk-licence-and-extraction.md) |
+Go (the version in `go.mod`) on `net/http` and `log/slog`; OpenAPI 3.1 through `oapi-codegen`;
+PostgreSQL ([support-matrix.md](./support-matrix.md)) through `pgx/v5`, `sqlc` and `goose`;
+`rrule-go`, CEL and `golang.org/x/text`; Svelte 5 for the clients. Each choice and its alternatives
+is an ADR (§9); the full dependency list is `go.mod` and the `package.json` files.
 
 ---
 
@@ -265,140 +206,66 @@ graph LR
 
 ### 5.1 Level 1 — whitebox Hubtask
 
-```mermaid
-graph TB
-  subgraph P[presentation — inbound adapters]
-    REST[REST API v1<br/>incl. admin]
-    MCP[MCP server]
-    STREAM[Change stream<br/>SSE]
-    ICS[ICS/CalDAV]
-    INTAKE[Jumble intake<br/>mail/webhook]
-    WORKER[Worker<br/>jobs as requests]
-    WEBUI[Web UI<br/>embedded bundle]
-  end
+Dependencies point inwards: presentation and infrastructure depend on the core, never the reverse.
 
-  subgraph CORE[core — technology-free]
-    APP[application<br/>use cases, transactions, authorisation]
-    DOM[domain<br/>model, invariants, domain services, events]
-    PORTS[port<br/>interfaces to the outside]
-  end
+| Building block | Responsibility |
+|---|---|
+| `core/domain` | The business model, invariants, state transitions, domain events, pure domain services |
+| `core/application` | Use cases, orchestration, transaction boundaries, permission checks, event publication |
+| `core/port` | Interfaces to the outside (clock, IDs, storage, mail, bus, AI, environment, …) |
+| `presentation/*` | Inbound adapters — REST incl. admin, MCP, the change stream, ICS/CalDAV, jumble intake, worker, web UI: protocol ↔ use case, serialisation, localisation of messages; the web UI serves bytes only |
+| `infrastructure/*` | Outbound adapters — PostgreSQL (repositories, outbox, queue), object storage, SMTP, HTTP client, AI provider, OIDC, OpenTelemetry, NATS — without business rules |
 
-  subgraph INF[infrastructure — outbound adapters]
-    PG[(PostgreSQL<br/>repositories, outbox, queue)]
-    OBJ[Object storage]
-    MAILA[SMTP]
-    HTTPA[HTTP client<br/>webhooks/actions]
-    AIA[AI provider]
-    IDPA[OIDC]
-    OTEL[OpenTelemetry]
-    BUS[NATS optional]
-  end
-
-  REST --> APP
-  MCP --> APP
-  STREAM --> APP
-  ICS --> APP
-  INTAKE --> APP
-  WORKER --> APP
-  APP --> DOM
-  APP --> PORTS
-  DOM --> PORTS
-  PORTS -.implemented by.-> PG
-  PORTS -.-> OBJ
-  PORTS -.-> MAILA
-  PORTS -.-> HTTPA
-  PORTS -.-> AIA
-  PORTS -.-> IDPA
-  PORTS -.-> OTEL
-  PORTS -.-> BUS
-```
-
-| Building block | Responsibility | Forbidden dependencies |
-|---|---|---|
-| `core/domain` | The business model, invariants, state transitions, domain events, pure domain services | Everything except the standard library and the core's own packages |
-| `core/application` | Use cases, orchestration, transaction boundaries, permission checks, event publication | No frameworks, no SQL, no HTTP |
-| `core/port` | Interfaces (clock, IDs, storage, mail, bus, AI, environment, …) | No implementations |
-| `presentation/*` | Translation between protocol and use case, serialisation, localisation of messages; the web UI serves bytes only | No business logic |
-| `infrastructure/*` | The technical implementation of the ports | No business rules |
-
-The dependency rules and where each package lives: [project-structure.md](./project-structure.md).
+What each may import, and where each package lives: [project-structure.md](./project-structure.md) §1, §2.
 
 ### 5.2 Level 2 — bounded contexts in the core
 
 ```mermaid
 graph LR
-  IAM[Identity & Access]
-  WORK[Work Management]
-  SCHED[Scheduling]
-  TPL[Templates]
-  VIEW[Views & Query]
-  JUM[Jumble]
-  LIFE[Lifecycle]
-  AUTOM[Automation]
-  INTEG[Integration]
-  NOTIF[Notification]
-  AUD[Audit & Activity]
-  FILES[Media]
-  SEARCH[Search]
-  LIC[Quotas & Metering]
-  BAK[Backup]
-  PRIV[Privacy]
-  SYNC[Sync]
-  SUGG[Suggestions]
-
-  WORK --> IAM
-  SCHED --> WORK
-  TPL --> WORK
-  VIEW --> WORK
-  JUM --> WORK
-  LIFE --> WORK
-  AUTOM -->|Events| WORK
-  AUTOM --> INTEG
-  NOTIF --> SCHED
-  AUD --> WORK
-  FILES --> WORK
-  SEARCH --> WORK
-  LIC --> IAM
-  BAK --> WORK
-  PRIV --> IAM
-  SYNC --> WORK
-  SUGG --> WORK
+  SCHED[Scheduling] & TPL[Templates] & VIEW[Views & Query] & JUM[Jumble] & LIFE[Lifecycle] --> WORK[Work Management]
+  AUD[Audit & Activity] & FILES[Media] & SEARCH[Search] & BAK[Backup] & SYNC[Sync] & SUGG[Suggestions] --> WORK
+  WORK & LIC[Quotas & Metering] & PRIV[Privacy] --> IAM[Identity & Access]
+  AUTOM[Automation] -->|Events| WORK
+  AUTOM --> INTEG[Integration]
+  NOTIF[Notification] --> SCHED
 ```
 
 | Context | Aggregates / key terms | Note |
 |---|---|---|
-| **Identity & Access** | `Tenant`, `Account`, `Membership`, `Group`, `Role`, `AccessToken`, `Session`, `IdentityProvider`, `Invitation`, OAuth clients | The tenant is the topmost isolation boundary, above the hub |
-| **Work Management** | `Container` (hub, collection), `WorkItem` (TASK/WORK_PACKAGE/ACTIVITY), `Bucket`, `Label`, `Comment`, `Cover`, `CustomFieldDefinition`, `AutoAssignPolicy` | The business core, see [domain-model.md](./domain-model.md) |
-| **Scheduling** | `DueDate`, `Reminder`, `RecurrenceRule` | RFC 5545 RRULE, time zones per user. An occurrence *is* a `WorkItem` pointing at its rule; there is no occurrence table. The rule's `last_materialized_at` is how far the series has been dealt with, a skip moves it past an occurrence without creating one, and its compare-and-set is the exactly-once guarantee (§6.3) |
+| **Identity & Access** | `Tenant`, `Account`, `Membership`, `Group`, `Role`, `AccessToken`, `Session`, `IdentityProvider` | The tenant is the topmost isolation boundary, above the hub |
+| **Work Management** | `Container`, `WorkItem`, `Bucket`, `Label`, `Comment`, `Cover`, `CustomFieldDefinition`, `AutoAssignPolicy` | The business core ([domain-model.md](./domain-model.md)) |
+| **Scheduling** | `DueDate`, `Reminder`, `RecurrenceRule` | An occurrence *is* a `WorkItem`; no occurrence table (§6.3) |
 | **Templates** | `Template`, its node tree | Produces item trees |
-| **Views & Query** | `SavedView`, `QuerySpec`, the query field catalogue | The basis for list/kanban/timeline |
-| **Jumble** | `JumbleEntry` | Conversion into a `WorkItem` |
-| **Lifecycle** | Trash (30 days), archive (indefinite), retention rules, legal holds, the deletion journal | Restorability, the retention job |
+| **Views & Query** | `SavedView`, `QuerySpec`, the query field catalogue | List, kanban, timeline |
+| **Jumble** | `JumbleEntry` | Converted into a `WorkItem` |
+| **Lifecycle** | Trash, archive, retention rules, legal holds, the deletion journal | [data-retention.md](./data-retention.md) |
 | **Automation** | `AutomationRule`, `Run`, scheduled triggers, outbound calls | Separately deployable |
-| **Integration** | `WebhookSubscription`, `WebhookDelivery`, `CalendarFeed`, inbound tokens, AI provider settings | The REST hooks pattern for Zapier/n8n |
-| **Notification** | `Notification`, `NotificationPreference`, channel ports | Email is the channel that sends; webhook and push are named channels not yet built |
-| **Audit & Activity** | `ActivityEntry`, the audit trail | Append-only; the activity entry is the source of the item history |
+| **Integration** | `WebhookSubscription`, `CalendarFeed`, inbound tokens, AI provider settings | |
+| **Notification** | `Notification`, `NotificationPreference`, channel ports | Email is the only channel that sends; webhook and push are named channels not yet built |
+| **Audit & Activity** | `ActivityEntry`, the audit trail | Append-only; the activity entry is the item history |
 | **Media** | `MediaObject` | Covers and attachments, presigned upload (§8.4) |
-| **Search** | Full text (`tsvector`, language-dependent), optionally vector | |
-| **Quotas & Metering** | the quota guard, `UsageRecord` | Ceilings per workspace and daily usage tallies; operational, the same in every installation |
+| **Search** | Full text, optionally vector | |
+| **Quotas & Metering** | The quota guard, `UsageRecord` | §8.12 |
 | **Backup** | Targets, schedules, runs, restores | [backup-restore.md](./backup-restore.md) |
 | **Privacy** | Data subject requests, consent | [data-protection.md](./data-protection.md) |
 | **Sync** | Devices, mutations, the change log | [offline-sync.md](./offline-sync.md) |
-| **Suggestions** | `Suggestion` | AI proposals with provenance; nothing changes until a person accepts ([ai-first.md](./ai-first.md)) |
+| **Suggestions** | `Suggestion` | AI proposals; nothing changes until a person accepts ([ai-first.md](./ai-first.md)) |
 
-Imports and jobs are supporting packages (`importer`, `job`) rather than contexts of their own.
+Imports and jobs are supporting packages (`importer`, `job`), not contexts of their own.
 
 ### 5.3 Level 3 — whitebox Work Management (an extract)
 
+The rules behind each element are in [domain-model.md](./domain-model.md).
+
 | Element | Type | Responsibility |
 |---|---|---|
-| `WorkItem` | Aggregate root | Title, type, parent reference, status, ordering, bucket, labels, members, notes, cover, custom fields, and `version` for optimistic locking |
-| `ItemCapabilityProfile` | Domain policy | Which features an `ItemType` has (e.g. `ACTIVITY` without cover or comments), the maximum depth, the permitted child types |
-| `Hierarchy` | Domain service | Checks the permitted parent-child combination, depth, freedom from cycles, and moving subtrees |
-| `Ordering` | Value object | The sort key for drag and drop (a fractional index, low collision) |
-| `CompletionPolicy` | Domain policy | Optional: a parent item counts as complete once all its children are (configurable per collection) |
-| `AssignmentStrategy` | Interface + strategies | `FIXED`, `RANDOM_MEMBER`, `RANDOM_GROUP_MEMBER`, `ROUND_ROBIN`, `LEAST_LOADED` ([domain-model.md](./domain-model.md) §3.6) |
-| Work item repository | Repository interface | Loading and saving the aggregate, tree queries, executing the query DSL |
+| `WorkItem` | Aggregate root | The item, with `version` for optimistic locking |
+| `ItemCapabilityProfile` | Domain policy | An `ItemType`'s features, maximum depth and permitted child types |
+| `Hierarchy` | Domain service | Parent-child rules, depth, no cycles, moving subtrees |
+| `Ordering` | Value object | The sort key, a fractional index |
+| `CompletionPolicy` | Domain policy | Optional, per collection: a parent completes once all its children have |
+| `AssignmentStrategy` | Interface + strategies | `FIXED`, `RANDOM_MEMBER`, `RANDOM_GROUP_MEMBER`, `ROUND_ROBIN`, `LEAST_LOADED` (§3.6 there) |
+| Work item repository | Repository interface | The aggregate, tree queries, the query DSL |
 
 ---
 
@@ -406,59 +273,24 @@ Imports and jobs are supporting packages (`importer`, `job`) rather than context
 
 ### 6.1 Creating a task (the standard write path)
 
-```mermaid
-sequenceDiagram
-  participant C as Client
-  participant R as REST adapter
-  participant A as Application service
-  participant D as Domain
-  participant DB as PostgreSQL
-  participant O as Outbox dispatcher
+1. The client sends `POST /api/v1/items` with an `Idempotency-Key`.
+2. The REST adapter decodes and validates against the use case descriptor.
+3. The application service checks idempotency and permission, opens the transaction with
+   `SET LOCAL app.tenant_id`, lets the domain create the `WorkItem` and its event, writes the item,
+   the activity entry and the outbox event, and commits.
+4. The client receives `201 Created` with an `ETag`.
+5. The outbox dispatcher fans the event out to automation, webhooks, the change stream and the
+   search index.
 
-  C->>R: POST /api/v1/items (Idempotency-Key)
-  R->>R: Decode, validate against the use case descriptor, determine locale/time zone
-  R->>A: CreateWorkItem(cmd, actor)
-  A->>A: Check idempotency, check permissions
-  A->>DB: BEGIN; SET LOCAL app.tenant_id
-  A->>D: Hierarchy.Validate + WorkItem.New()
-  D-->>A: WorkItem + WorkItemCreated
-  A->>DB: INSERT work_item, activity_entry, outbox_event
-  A->>DB: COMMIT
-  A-->>R: DTO
-  R-->>C: 201 Created + ETag
-  O->>DB: Poll events (SKIP LOCKED)
-  O->>O: Fan out: automation, webhooks, change stream, search index
-```
-
-**The rules:** one transaction per use case; domain events are written to the outbox *within the
-same* transaction; outward side effects happen exclusively asynchronously through the dispatcher
-(at-least-once semantics, idempotent consumers).
+One transaction per use case, with no external call inside; outward side effects happen only through
+the dispatcher ([domain-model.md](./domain-model.md) §4).
 
 ### 6.2 An automation rule fires
 
-```mermaid
-sequenceDiagram
-  participant O as Outbox dispatcher
-  participant AU as Automation engine
-  participant CEL as CEL evaluator
-  participant A as Application services
-  participant H as HTTP adapter
-
-  O->>AU: ItemCompleted (CloudEvent)
-  AU->>AU: Load rules for the scope + trigger
-  AU->>CEL: Evaluate conditions (item snapshot, actor, time)
-  CEL-->>AU: true
-  AU->>AU: Create the run, check guards (rate limit, recursion depth)
-  loop per action
-    AU->>A: Execute the use case (as the rule's runner)
-    AU->>H: Webhook/HTTP call with retry + backoff
-  end
-  AU->>AU: Persist the run result
-```
-
-**Loop protection:** every event carries `causationId` and `causationDepth`; a chain of rules
-triggering each other is cut off beyond depth 5 and the run is marked `ABORTED_LOOP`
-([automation.md](./automation.md) §2).
+The dispatcher hands an event to the automation engine, which loads the matching rules, evaluates
+their CEL conditions, checks the run's guards and executes each action as a use case under the
+rule's runner, or as an HTTP call. A chain of rules triggering each other ends at causation depth 5
+with `ABORTED_LOOP` ([automation.md](./automation.md) §2).
 
 ### 6.3 A recurring task
 
@@ -466,25 +298,24 @@ triggering each other is cut off beyond depth 5 and the run is marked `ABORTED_L
 2. The scheduler materialises occurrences for a rolling window (`horizonDays`, 90 by default, 1–365) as jobs.
 3. Mode `ON_SCHEDULE` owes every moment of the grid out to the horizon; mode `ON_COMPLETION` owes exactly one, and only once nothing of the series is open, counted from the last completion.
 4. DST and time zone changes are resolved through the stored time zone, not through UTC offsets.
-5. **Each occurrence is created exactly once.** The pass that creates occurrences moves the rule's `last_materialized_at` by compare-and-set in the same transaction as the entries and their events, so a leader failover or two passes that wake together never mint one twice; the loser rolls back.
-6. A materialised occurrence is an ordinary entry: changing or removing the series leaves the occurrences already created alone, and skipping applies to an occurrence not yet created.
+5. **Each occurrence is created exactly once.** The pass that creates occurrences moves the rule's `last_materialized_at` (how far the series has been dealt with) by compare-and-set in the same transaction as the entries and their events, so a leader failover or two concurrent passes never mint one twice; the loser rolls back.
+6. A materialised occurrence is an ordinary entry: changing or removing the series leaves occurrences already created alone, and a skip moves `last_materialized_at` past an occurrence not yet created.
 
 ### 6.4 Jumble arrival → task
 
-Email/webhook/quick capture → a `JumbleEntry` (raw content + origin + attachments) → optionally an
-AI suggestion (title, due date, collection, labels) → the user confirms, or an automation rule
-converts it → a `WorkItem` with a back reference to the arrival.
+Email, webhook or quick capture → a `JumbleEntry` (raw content, origin, attachments) → optionally an
+AI suggestion → the user confirms, or a rule converts it → a `WorkItem` referring back to the arrival.
 
 ### 6.5 Further documented scenarios
 
-| Scenario | Key points |
+| Scenario | Where |
 |---|---|
-| Login (OIDC) | Authorization code + PKCE, just-in-time provisioning of the account. The workspace is resolved **before** the flow begins — from the subdomain or the tenant header ([multi-tenancy.md](./multi-tenancy.md) §3) — and travels inside the single-use `state`; it is never read from a claim, because the provider is configured per workspace and must be known before there is a token |
-| Kanban query | `POST /api/v1/items:query` with `group_by=bucket`, cursor pagination per group; a total only with `count=exact` |
-| Trash & retention | `DELETE` → `deleted_at` set, visibility filtered, the retention job hard-deletes after 30 days including media |
-| Tenant deletion | Block → provide the export → cascading hard delete → evidence in the audit log |
-| Zero-downtime migration | Expand/contract in separate releases ([versioning-release.md](./versioning-release.md) §4) |
-| Webhook delivery | HMAC signature, retry with exponential backoff up to a fixed number of attempts, then dead letter plus manual replay ([automation.md](./automation.md) §3.1) |
+| Login (OIDC) | [identity.md](./identity.md) §10. The workspace is resolved **before** the flow ([multi-tenancy.md](./multi-tenancy.md) §3) and travels in the single-use `state`, never in a claim, because the provider is configured per workspace |
+| Kanban query | `POST /api/v1/items:query` with `group_by`, a cursor per group ([api-guidelines.md](./api-guidelines.md)) |
+| Trash & retention | [data-retention.md](./data-retention.md) |
+| Tenant deletion | [multi-tenancy.md](./multi-tenancy.md) §5 |
+| Zero-downtime migration | [versioning-release.md](./versioning-release.md) §4 |
+| Webhook delivery | [automation.md](./automation.md) §3.1 |
 
 ---
 
@@ -500,67 +331,27 @@ HUBTASK_ROLES=api,worker,scheduler,automation   # default: all
 | Role | Task | Scaling |
 |---|---|---|
 | `api` | HTTP, MCP, the change stream, ICS/CalDAV, the web UI | Horizontal, stateless |
-| `worker` | Outbox dispatch, webhooks, mail, media, search index, jobs | Horizontal (PostgreSQL `SKIP LOCKED`) |
-| `scheduler` | Reminders, recurrence, retention | Exactly one active (advisory lock leader election) |
-| `automation` | Rule evaluation and execution | Horizontal; separately deployable, to decouple load spikes from the API |
+| `worker` | Outbox dispatch, webhooks, mail, media, search index, jobs | Horizontal (`SKIP LOCKED`) |
+| `scheduler` | Reminders, recurrence, retention | Exactly one active (advisory lock leader) |
+| `automation` | Rule evaluation and execution | Horizontal, separately deployable to keep spikes off the API |
 
 ### 7.2 Deployment "private individual" (Docker/Podman)
 
-```mermaid
-graph TB
-  subgraph Host
-    RP[Reverse proxy<br/>Caddy/Traefik, TLS]
-    APP[hubtask<br/>all roles, 1 replica]
-    PGC[(PostgreSQL)]
-    VOL[[Volume: media]]
-  end
-  RP --> APP
-  APP --> PGC
-  APP --> VOL
-```
-
-Two containers plus an optional proxy, and a one-shot migration. Object storage = a local volume.
-No NATS, no object store required. The full feature set ([deployment.md](./deployment.md) §2.1).
+All roles in one replica beside PostgreSQL, with a volume for media; no NATS, no object store, the
+full feature set ([deployment.md](./deployment.md) §2.1).
 
 ### 7.3 Deployment "provider" (Kubernetes)
 
-```mermaid
-graph TB
-  ING[Ingress / Gateway API]
-  subgraph K8s
-    D1[Deployment api<br/>HPA]
-    D2[Deployment worker<br/>HPA]
-    D3[Deployment scheduler<br/>leader lock]
-    D4[Deployment automation<br/>HPA]
-    JOB[Job: migrate<br/>Helm pre-install/pre-upgrade hook]
-  end
-  PG[(PostgreSQL HA<br/>operator)]
-  S3[(S3-compatible)]
-  NATS[(NATS JetStream optional)]
-  OTELC[OTel collector]
-
-  ING --> D1
-  D1 --> PG
-  D2 --> PG
-  D3 --> PG
-  D4 --> PG
-  D1 --> S3
-  D2 --> S3
-  D2 -.-> NATS
-  D4 -.-> NATS
-  D1 --> OTELC
-  JOB --> PG
-```
-
-The same image, the same configuration keys. The difference: role separation, PostgreSQL HA, S3, an
-optional event bus, autoscaling and network policies ([deployment.md](./deployment.md) §2.2).
+The same image and configuration keys: one deployment per role (`scheduler` behind the leader
+lock), the migration as a Job before the rollout, PostgreSQL through an operator, S3-compatible
+storage, optionally NATS JetStream, network policies ([deployment.md](./deployment.md) §2.2).
 
 ### 7.4 The configuration principle
 
-Exclusively environment variables with the `HUBTASK_` prefix (12-factor), bundled behind
-`core/port/environment/Port.go`. Every variable has a safe default for self-hosting.
-Secrets come from Docker secrets or Kubernetes secrets/external secrets; never from files in the
-image. The reference is [deployment.md](./deployment.md) §6.
+Only environment variables with the `HUBTASK_` prefix (12-factor), behind
+`core/port/environment/Port.go`; every variable has a safe default for self-hosting. Secrets come
+from Docker or Kubernetes secrets, never from files in the image. The reference is
+[deployment.md](./deployment.md) §6.
 
 ---
 
@@ -570,62 +361,50 @@ Each concept lives in its subject document; this chapter says where, and keeps o
 have no other home.
 
 ### 8.1 Domain model and generalisation
-[domain-model.md](./domain-model.md): one `WorkItem` aggregate root with an `ItemType` and a
-capability profile; containers generalised the same way; extension through configuration and typed
-custom fields rather than new tables.
+[domain-model.md](./domain-model.md): one `WorkItem` with an `ItemType` and a capability profile,
+containers generalised the same way, extension through configuration and typed custom fields.
 
 ### 8.2 Persistence
-PostgreSQL is the only mandatory component ([ADR-0003](../adr/ADR-0003-postgresql-as-single-datastore.md)).
-`sqlc` generates type-safe query functions; repositories map between the domain object and the row.
-Tree queries use `parent_id` plus a materialised `path`. Migrations use `goose`, forward only and
-expand/contract ([versioning-release.md](./versioning-release.md) §4). Optimistic locking through a
-`version` per aggregate, exposed as `ETag`/`If-Match`. The schema principles:
-[domain-model.md](./domain-model.md) §6.
+PostgreSQL is the only mandatory component ([ADR-0003](../adr/ADR-0003-postgresql-as-single-datastore.md)):
+`sqlc` queries, trees as `parent_id` plus a materialised `path`, migrations forward only
+([versioning-release.md](./versioning-release.md) §4), optimistic locking through a `version` per
+aggregate exposed as `ETag`/`If-Match`. Schema principles: [domain-model.md](./domain-model.md) §6.
 
 ### 8.3 Multi-tenancy
-[multi-tenancy.md](./multi-tenancy.md): shared schema, `tenant_id NOT NULL` everywhere, row level
-security as the enforced boundary, `SET LOCAL app.tenant_id` per transaction, an application role
-without `BYPASSRLS`; modes `SINGLE` and `MULTI`.
+[multi-tenancy.md](./multi-tenancy.md): shared schema, row level security, `SET LOCAL app.tenant_id`
+per transaction.
 
 ### 8.4 Security
-[security.md](./security.md) — the threat model, hardening, secrets and the SG gates;
-[identity.md](./identity.md) — accounts, sign-in, sessions and the step-up
+[security.md](./security.md) and [identity.md](./identity.md)
 ([ADR-0015](../adr/ADR-0015-security-baseline.md)). One rule lives here because the media code
-cites it: **the server never carries a client's file bytes on object storage.** An upload and a
-download go directly between the client and the store through presigned URLs; the server issues
-the URL and, on confirmation, reads the bytes back and judges them. On a local volume the server's
-own token-protected content routes stand in for the store, and a storage key is minted, never taken
+cites it: **the server never carries a client's file bytes on object storage.** Upload and download
+go directly between client and store through presigned URLs; the server issues the URL and, on
+confirmation, reads the bytes back and judges them. On a local volume the server's own
+token-protected content routes stand in for the store, and a storage key is minted, never taken
 from a request.
 
 ### 8.5 The API concept
-[api-guidelines.md](./api-guidelines.md): spec-first OpenAPI 3.1, one major path `/api/v1`, RFC 9457
-errors with stable codes, cursor pagination, `Idempotency-Key`, one query DSL for every view.
+[api-guidelines.md](./api-guidelines.md).
 
 ### 8.6 Events and integration
-[domain-model.md](./domain-model.md) §4: a transactional outbox → dispatcher → consumers
-(automation, webhook subscriptions, the change stream, the search index, optionally NATS);
-CloudEvents 1.0 with the type scheme `de.hubtask.<context>.<entity>.<action>.v<major>`.
+[domain-model.md](./domain-model.md) §4: a transactional outbox, a dispatcher, CloudEvents 1.0.
 
 ### 8.7 Automation
-[automation.md](./automation.md): the rule engine (trigger/condition/action) over the whole use case
-catalogue, plus webhook subscriptions and trigger polling for n8n, Zapier and Make.
+[automation.md](./automation.md).
 
 ### 8.8 Internationalisation
 [i18n-l10n.md](./i18n-l10n.md): the server delivers codes and parameters, never finished sentences.
 
 ### 8.9 AI integration
-[ai-first.md](./ai-first.md): the MCP server as an inbound adapter, `core/port/ai` as the outbound
-port; AI results are always *suggestions* with provenance; off by default.
+[ai-first.md](./ai-first.md): AI results are always *suggestions*; off by default.
 
 ### 8.10 Observability and self-diagnosis
 [observability-reliability.md](./observability-reliability.md)
-([ADR-0016](../adr/ADR-0016-observability-reliability.md)): OpenTelemetry, the four health levels,
-`degraded_features`, bounded label cardinality, a `request_id` in every error response.
+([ADR-0016](../adr/ADR-0016-observability-reliability.md)).
 
 ### 8.11 Error handling
-Domain errors are typed values, not strings; the application layer maps them to error categories;
-the adapter maps the category to an HTTP status plus problem details (the codes are in
-[api-guidelines.md](./api-guidelines.md) §6):
+Domain errors are typed values; the application layer maps them to a category, the adapter maps the
+category to an HTTP status and problem details (codes: [api-guidelines.md](./api-guidelines.md) §6):
 
 | Category | Status | Meaning |
 |---|---|---|
@@ -634,26 +413,23 @@ the adapter maps the category to an HTTP status plus problem details (the codes 
 | `FORBIDDEN` | 403 | Authenticated, but not permitted |
 | `NOT_FOUND` | 404 | Does not exist, or may not be known to exist |
 | `CONFLICT` | 409 | Clash with the current state, including a stale version |
-| `GONE` | 410 | Existed and was permanently deleted — the distinction from `NOT_FOUND` is what a synchronising client needs |
+| `GONE` | 410 | Existed and was permanently deleted — what a synchronising client tells apart from `NOT_FOUND` |
 | `RATE_LIMITED` | 429 | A limit reached |
 | `UNAVAILABLE` | 503 | A dependency unreachable or deliberately degraded — "later", not "wrong" |
-| `INTERNAL` | 500 | A defect. Anything unclassified lands here, and nothing of it reaches the client beyond the code and the `request_id` |
+| `INTERNAL` | 500 | A defect; anything unclassified. Nothing of it reaches the client beyond the code and the `request_id` |
 
-An error carries a stable `code`, an optional `detail_code`, and parameters — never a sentence
-(ADR-0011). The technical cause travels with the error for the log and is dropped at the adapter
-boundary: an unknown error may contain a connection string ([security.md](./security.md) §9).
+An error carries a stable `code`, an optional `detail_code` and parameters — never a sentence
+([ADR-0011](../adr/ADR-0011-i18n-message-codes.md)). The technical cause goes to the log and is
+dropped at the adapter boundary: it may contain a connection string ([security.md](./security.md) §9).
 
 ### 8.11.1 Resilience and controlled degradation
-[observability-reliability.md](./observability-reliability.md) §6, §7: timeouts everywhere, retry
-only for idempotent operations, a circuit breaker per external dependency, bulkheads, load
-shedding, dead letter instead of endless retry; panics caught per request and per job; concurrency
-only through `SafeGo`; an optional dependency's failure never stops a process or the core write path.
+[observability-reliability.md](./observability-reliability.md) §6, §7: an optional dependency's
+failure never stops a process or the core write path.
 
 ### 8.12 Quotas and metering
 One code path and one edition ([licensing-editions.md](./licensing-editions.md)). The quota guard
-enforces operational ceilings per workspace (items, media bytes, webhook targets, AI tokens), and
-`UsageRecord` keeps daily tallies for capacity planning. Both are about operating an installation,
-not about licensing it.
+enforces operational ceilings per workspace (`core/application/service/quota/Quota.go`), and
+`UsageRecord` keeps daily tallies for capacity planning — operating an installation, not licensing it.
 
 ### 8.13 Time, clock, IDs, randomness
 `Clock`, `IDGenerator`, and `RandomSource` are ports. No `time.Now()` and no `rand` in the domain or
@@ -661,27 +437,25 @@ application layers — the precondition for deterministic tests (among them rand
 architecture test enforces it.
 
 ### 8.14 Audit and traceability
-[audit.md](./audit.md): three separate records — the item history (`activity_entry`), the audit
-trail (`audit_log`, append-only, hash-chained per tenant, content-free) and technical logs.
+[audit.md](./audit.md): the item history, the audit trail and technical logs are three separate records.
 
 ### 8.15 Data protection
 [data-protection.md](./data-protection.md) and [the data catalogue](../privacy/data-catalog.md).
-Data subject rights are use cases with deadline tracking, not manual work. **Restriction of
-processing** (Art. 18) is a technical state of the account: the person keeps working, and no
-automation rule and no AI touches their data while it holds.
+Data subject rights are use cases with deadline tracking. **Restriction of processing** (Art. 18) is
+a state of the account: the person keeps working, and no automation rule and no AI touches their
+data while it holds.
 
 ### 8.16 Backup and restore
-[backup-restore.md](./backup-restore.md): backup is a feature of the application — interchangeable
-targets (local, S3-compatible, SFTP, WebDAV), schedules, client-side encryption, generational
-retention, a logical archive format listed from the manifests at the target, and selective restore.
+[backup-restore.md](./backup-restore.md): backup is an application feature with interchangeable
+targets, client-side encryption and selective restore.
 
 ### 8.17 Retention of business data
-[data-retention.md](./data-retention.md): periods are data, executed in two phases with a grace
-period; legal hold and restriction of processing take precedence.
+[data-retention.md](./data-retention.md): periods are data, executed with a grace period; legal hold
+and restriction of processing take precedence.
 
 ### 8.18 Offline capability and synchronisation
-[offline-sync.md](./offline-sync.md): server-authoritative delta sync over a per-tenant change log,
-merged per field, with hybrid logical clocks; the change log is separate from the event outbox.
+[offline-sync.md](./offline-sync.md): server-authoritative delta sync, merged per field; the change
+log is separate from the event outbox.
 
 ### 8.19 Clients and their capability matrix
 **Parity is the default:** every feature ships in every first-party client unless the matrix below
@@ -693,15 +467,11 @@ restricts it with a reason ([ADR-0032](../adr/ADR-0032-client-capability-matrix.
 | Profile configuration | full | full | full |
 | Administration | full | full | via the web app |
 
-* The web app always carries the complete feature set; it is the client every deployment has.
-* Mobile reaches administration through the web app: it is online-only, high-consequence and
-  changes faster than store review. Administrative areas appear on mobile as entries that link out
-  to the deployment's web app. Member and role management at container scope is collaboration, not
-  administration, and ships on mobile.
-* Client capability is a presentation concern only. The API serves every operation to every
-  authenticated client uniformly; the matrix governs what UI is built, never what the API permits.
-* A new restriction is a new row here with its reason, and an ADR. The web client's areas and
-  routes are in [design-system.md](../design/design-system.md) §11.5.
+The web app always carries the complete feature set. Mobile shows administrative areas as links to the web app (online-only, high-consequence,
+faster-changing than store review); member and role management at container scope is collaboration
+and ships on mobile. The matrix governs what UI is built, never what the API permits. A new restriction
+is a new row here with its reason, and an ADR. The web client's areas and routes:
+[design-system.md](../design/design-system.md) §11.5.
 
 ---
 
@@ -717,90 +487,68 @@ Every decision, with its context, options and consequences, is listed in
 
 ### 10.1 Quality tree
 
-```
-Quality
-├── Maintainability
-│   ├── Extensibility (prio 1)
-│   ├── Modularity / context boundaries
-│   └── Testability
-├── Functional suitability
-│   ├── API completeness
-│   └── Correctness of recurrence and reminders
-├── Security (prio 3)
-│   ├── Tenant isolation (RLS, fail closed)
-│   ├── Least privilege for tokens and database roles
-│   ├── Hardening of the attack surface (SSRF, uploads, injection)
-│   └── Supply chain integrity (SBOM, signatures, scans)
-├── Reliability (prio 4)
-│   ├── Availability / controlled degradation
-│   ├── Fault tolerance (timeouts, breakers, bulkheads)
-│   ├── Recoverability (backup-restore.md)
-│   └── Observability / self-diagnosis
-├── Portability / operability (prio 5)
-├── Interoperability (prio 2)
-└── Performance & scalability
-```
+The attributes and their priorities are the quality goals of §1.2.
 
 ### 10.2 Quality scenarios
 
-Where a scenario has been walked, its evidence file is linked.
+Where a scenario has been walked, its evidence file is linked; QS-24 to QS-27 are in [SY-2026-09-16.md](../archive/evidence/SY-2026-09-16.md).
 
 | ID | Scenario | Response / measure |
 |---|---|---|
-| QS-01 | A sixth level "milestone" is to be introduced above task | A new `ItemType` plus a capability profile plus a migration step for constraints; no new table, API v1 stays compatible; effort ≤ 5 person-days |
-| QS-02 | A tenant with 2 million items filters a kanban board by label and due date | P95 < 300 ms with cursor pagination, covered by composite indices; demonstrated in the load test |
-| QS-03 | An attacker sets a foreign `tenant_id` in the request | The response is 404/403; RLS prevents data access even with a code defect; a regression test per repository |
-| QS-04 | A webhook recipient is unreachable for 6 h | Retries with backoff, no data loss, dead letter, replay possible; the API stays unaffected |
-| QS-05 | A self-hoster updates from 1.4 to 1.5 | `docker compose pull && up -d`; the migration runs automatically, backwards compatible, no data loss, downtime < 30 s |
-| QS-06 | An automation rule produces an event that triggers the same rule | Abort at causality depth 5, the run is `ABORTED_LOOP`, the user sees a comprehensible message |
-| QS-07 | A user in São Paulo creates a daily recurrence, and a DST change occurs | The due time stays 09:00 local; test cases for every DST transition |
-| QS-08 | A new language (Arabic, for example) is added | Only translation resources plus enabling the locale; no code change; the RTL flag in the manifest. Holds for the server, mail, `hubctl` and the web app ([QS-08-2026-09-15.md](../archive/evidence/QS-08-2026-09-15.md)) |
-| QS-09 | The AI provider fails or is disabled | All core features stay available; AI endpoints respond `503` with detail code `ai.unavailable`, one code for every reason a provider is out of reach (ADR-0049). *Disabled* is `/meta/health` `ok` with no degraded feature and `ai_suggestions: false` in the manifest; *failing* is `down` with both features named, a reason and a timestamp ([QS-09-2026-09-09.md](../archive/evidence/QS-09-2026-09-09.md), [RT-1-2026-09-09.md](../archive/evidence/RT-1-2026-09-09.md)) |
-| QS-10 | 200 concurrent bulk imports of 5,000 items each | Backpressure through rate limits and the queue; no OOM; progress queryable through the job status |
-| QS-11 | Object storage is unreachable for 2 h | No process exit, the core write path unaffected; `media` reported as a `degraded_feature` with a reason and timestamp in `/meta/health`; automatic recovery without a restart (test RT-1) |
-| QS-12 | A pod is killed hard mid-job (`SIGKILL`) | The job lease expires, another instance resumes it, and thanks to idempotency it takes effect exactly once; no data loss (test RT-3) |
-| QS-13 | PostgreSQL is unreachable for 5 min | `/healthz` stays green (no kill loop), `/readyz` red, reconnection with backoff, then normal operation without a restart (test RT-2) |
-| QS-14 | The operator has configured no backup | `/meta/health` reports `config.backup_not_configured` as a warning; alert A-12 in provider operation |
-| QS-15 | An automation action targets `169.254.169.254` (cloud metadata) | `GuardedClient` refuses the connection before it is established, the rule run is logged as failed, threat T-07 is covered by test suite SG-6 |
-| QS-16 | A rolling update from N−1 to N under load | No `5xx`, no data loss; pods with an incompatible migration state do not become ready (test RT-8) |
-| QS-17 | A new repository method is introduced without a cross-tenant negative test | Gate SG-3 fails the build (methods reconciled against tests) |
-| QS-18 | An auditor demands gapless evidence of every permission change in the past year | `GET /audit` with a filter, `:export` as a job, `:verify` confirming the hash chain and the absence of gaps |
-| QS-19 | A data subject requests erasure of their data | A data subject request with a deadline; every storage location from the data catalogue is served; audit references are pseudonymised; backups expire over the documented retention period, and the deletion journal prevents return on restore |
-| QS-20 | The database and server are lost entirely, and only the S3 target credentials exist | Start a new instance, enter the target, the archives are listed from the manifests, and a `NEW_TENANT` restore reproduces the state (test BK-1) |
-| QS-21 | A user accidentally deletes a collection with 400 items, and the trash period has already elapsed | A selective restore from the last archive into the existing tenant, without touching any other data |
-| QS-22 | A tenant configures "delete completed tasks after 1 year" | The rule starts in notify-only mode when more than 5% would be affected; advance warning to those concerned, a 14-day grace period, a visible `retention` field, execution in batches, the scope in the audit |
-| QS-23 | A legal hold sits on a collection that a retention rule would delete | The deletion does not happen; the reason `legal_hold` appears in `retention_run.blocked_reasons` and on the object |
-| QS-24 | Two people edit the same item offline: A changes the due date, B the title | Both changes survive (per-field merging); no user decision is needed (test SY-1; [SY-2026-09-16.md](../archive/evidence/SY-2026-09-16.md)) |
-| QS-25 | A device has been offline for 90 days and knows items deleted in the meantime | `sync.cursor_too_old` forces a full sync; deleted objects do not come back (tests SY-5, RE-6; [SY-2026-09-16.md](../archive/evidence/SY-2026-09-16.md)) |
-| QS-26 | A user loses access to a collection while offline | `ACCESS_REVOKED` in the pull stream, the client deletes locally; mutations against it are rejected server-side (test SY-6; [SY-2026-09-16.md](../archive/evidence/SY-2026-09-16.md)) |
-| QS-27 | A device with a clock three hours out synchronises | The HLC bound stops it outvoting everyone else (test SY-2; [SY-2026-09-16.md](../archive/evidence/SY-2026-09-16.md)) |
+| QS-01 | A sixth level "milestone" above task | A new `ItemType` and capability profile, no new table, API v1 compatible; ≤ 5 person-days |
+| QS-02 | 2 million items, a kanban board filtered by label and due date | P95 < 300 ms with cursor pagination and composite indices (load test) |
+| QS-03 | An attacker sets a foreign `tenant_id` | 404/403; RLS stops access even with a code defect |
+| QS-04 | A webhook recipient is down for 6 h | Backoff, dead letter, replay, no data loss; the API unaffected |
+| QS-05 | A self-hoster updates 1.4 → 1.5 | `docker compose pull && up -d`; the migration runs by itself; no data loss, downtime < 30 s |
+| QS-06 | A rule's event triggers the same rule | Abort at causation depth 5, run `ABORTED_LOOP` |
+| QS-07 | A daily 09:00 recurrence in São Paulo across a DST change | Stays 09:00 local; a test per DST transition |
+| QS-08 | A new language (Arabic, for example) | Translations and enabling the locale, no code change; the RTL flag in the manifest ([QS-08-2026-09-15.md](../archive/evidence/QS-08-2026-09-15.md)) |
+| QS-09 | The AI provider fails or is disabled | Core features stay; AI endpoints answer `503` `ai.unavailable` ([ADR-0049](../adr/ADR-0049-ai-provider-surface.md)); health as [observability-reliability.md](./observability-reliability.md) §7 ([QS-09-2026-09-09.md](../archive/evidence/QS-09-2026-09-09.md), [RT-1-2026-09-09.md](../archive/evidence/RT-1-2026-09-09.md)) |
+| QS-10 | 200 concurrent imports of 5,000 items each | Backpressure through rate limits and the queue, no OOM, progress in the job status |
+| QS-11 | Object storage down for 2 h | No process exit, write path unaffected, `media` degraded in `/meta/health`, recovery without restart (RT-1) |
+| QS-12 | A pod `SIGKILL`ed mid-job | The lease expires, another instance resumes, the job takes effect once (RT-3) |
+| QS-13 | PostgreSQL down for 5 min | `/healthz` green (no kill loop), `/readyz` red, reconnect with backoff, no restart (RT-2) |
+| QS-14 | No backup configured | `/meta/health` warns `config.backup_not_configured`; alert A-12 for providers |
+| QS-15 | An automation action targets `169.254.169.254` | `GuardedClient` refuses before connecting; the run fails, logged (T-07, SG-6) |
+| QS-16 | A rolling update N−1 → N under load | No `5xx`, no data loss; a pod with an incompatible migration state stays unready (RT-8) |
+| QS-17 | A repository method without a cross-tenant negative test | Gate SG-3 fails the build |
+| QS-18 | An auditor wants every permission change of a year | `GET /audit` filtered, `:export` as a job, `:verify` proves the chain gapless |
+| QS-19 | A data subject requests erasure | Every location in the data catalogue served within the deadline; backups expire over the documented period, and the deletion journal stops a return on restore ([data-protection.md](./data-protection.md)) |
+| QS-20 | Database and server lost, only the S3 target credentials left | A new instance lists the archives from the manifests; a `NEW_TENANT` restore (BK-1) |
+| QS-21 | A collection of 400 items deleted, the trash period over | Selective restore from the last archive into the existing tenant, nothing else touched |
+| QS-22 | "Delete completed tasks after 1 year" | Notify-only above 5% affected; a warning and a 14-day grace period; the scope in the audit ([data-retention.md](./data-retention.md)) |
+| QS-23 | A legal hold on a collection a rule would delete | Nothing deleted; `legal_hold` in `retention_run.blocked_reasons` and on the object |
+| QS-24 | Offline, A changes an item's due date, B its title | Both survive, no user decision (SY-1) |
+| QS-25 | A device offline for 90 days knows items deleted since | `sync.cursor_too_old` forces a full sync; deleted objects stay gone (SY-5, RE-6) |
+| QS-26 | Access to a collection lost while offline | `ACCESS_REVOKED` in the pull stream, local deletion, mutations refused (SY-6) |
+| QS-27 | A device clock three hours out | The HLC bound stops it outvoting everyone else (SY-2) |
 
 ---
 
 ## 11. Risks and technical debt
 
-| ID | Risk / debt | Impact | Countermeasure |
-|---|---|---|---|
-| R-01 | The generalised `WorkItem` becomes a "god object" | Hard to maintain, unclear invariants | Capability profiles plus type-specific domain policies, architecture tests against field sprawl, ADR-0006 reviewed regularly |
-| R-03 | PostgreSQL as the queue/bus hits limits under high load | Latency, vacuum pressure | The adapter boundary exists → the NATS JetStream adapter can be enabled; the load suite (`test/load`) measures it |
-| R-04 | Frontend requirements contradict the generic API | Rework on the API | The query DSL plus the capability manifest are UI-agnostic, and the web app is built against the public API only |
-| R-05 | RLS becomes ineffective through faulty setting of the tenant context | Data leaks | Central transaction wrapper, a test of the connection pool boundaries, a role without `BYPASSRLS`, negative tests in CI |
-| R-06 | Automation can raise system load uncontrollably | Instability | Quotas per tenant, rate limits, a recursion bound, a separate deployment, circuit breakers |
-| R-07 | RRULE plus time zones plus DST is error-prone | Wrong due dates | A library rather than a home-grown implementation, extensive table tests, golden files for DST boundaries |
-| R-08 | Defects that only a person driving the finished product finds | Late insight | Walks of the finished screens against a real server; what remains of the risk is that the walk is done by the people who built it |
-| R-09 | The GDPR deletion concept overlooks derived data (search index, events, backups) | Legal risk | The data catalogue with deletion paths per storage location, deletion tests, documented retention periods |
-| R-10 | Public source plus automation as an HTTP primitive make the system an attractive SSRF/amplification tool | Abuse of third-party installations | `GuardedClient` as the only outbound route, an egress allowlist mandatory in provider operation, the SSRF test suite as a gate (SG-6), threat T-07 |
-| R-11 | Security gates get bypassed under time pressure, or baselines get softened | A creeping loss of protection | Suppression only with a justification in the code; softening a gate requires a new ADR (ADR-0015); `make gate-selftest` proves every gate still bites |
-| R-12 | Observability rots because new features produce no signals | Flying blind in production | Gate RT-12: reconciling the use case registry against metrics/spans fails the build |
-| R-13 | Metric cardinality explodes in provider operation (many tenants) | Cost, unusable monitoring | Hard label rules (no object IDs), the `tenant_id` label only when explicitly enabled |
-| R-14 | Degradation states multiply the test matrix and are not maintained | Undetected failure paths | The fixed test series RT-1…RT-12 with test containers instead of ad-hoc tests |
-| R-15 | Freely configurable backup targets are a data egress channel | Exfiltration, SSRF | Instance administrators only, `GuardedClient`, an audit obligation, an egress allowlist in provider operation, tenant-owned targets off by default ([ADR-0019](../adr/ADR-0019-backup-targets.md)) |
-| R-16 | Losing the backup passphrase makes every archive useless | Total loss despite backups | An unmissable notice and a logged confirmation at setup, rotation without losing old archives, a warning in `/meta/health` |
-| R-17 | A misconfigured retention rule destroys people's work | Irreversible data loss | A mandatory preview, the 5% safety switch, a grace period with advance warning, the `:retain` escape, the scope in the audit ([ADR-0020](../adr/ADR-0020-retention-policies.md)) |
-| R-18 | Our own archive format is a long-term commitment | Maintenance burden, import defects | The format version in the manifest, golden archives per major version in the repository, import test BK-4 as a gate |
-| R-19 | Per-field merging in the sync is complex and error-prone | Silent data loss for the user | Merge rules centralised in the sync service (`core/application/service/sync`), a table-driven field type mapping, the test catalogue SY-1…SY-12, and displaced versions are preserved |
-| R-20 | Offline caches on end devices are personal data held outside the server | A privacy risk if a device is lost | Binding client requirements (encryption at rest in the shells, deletion on sign-out and on access revocation), the conformance test `hubctl sync-conformance`, an entry in the data catalogue |
-| R-21 | Tombstone periods and backups effectively extend the deletion deadline | Tension with GDPR Art. 17 | Periods documented and configurable, the deletion journal on restore, transparency towards data subjects instead of silent continued storage |
+| ID | Risk / debt | Countermeasure |
+|---|---|---|
+| R-01 | The generalised `WorkItem` becomes a god object | Capability profiles, type-specific policies, architecture tests |
+| R-03 | PostgreSQL as queue/bus hits limits under load | The NATS JetStream adapter; measured by `test/load` |
+| R-04 | Frontend needs contradict the generic API | The query DSL and manifest; the web app uses the public API only |
+| R-05 | A faulty tenant context makes RLS ineffective — a data leak | One transaction wrapper, a pool-boundary test, no `BYPASSRLS`, negative tests in CI |
+| R-06 | Automation raises load uncontrollably | Quotas, rate limits, the recursion bound, a separate deployment, circuit breakers |
+| R-07 | RRULE, time zones and DST give wrong due dates | A library, table tests, golden files for DST boundaries |
+| R-08 | Defects only a person driving the finished product finds | Walks of finished screens against a real server; residue: builders walk their own work |
+| R-09 | GDPR deletion overlooks derived data (index, events, backups) | A deletion path per location in the data catalogue, deletion tests |
+| R-10 | Public source plus HTTP automation invite SSRF and amplification | `GuardedClient` as the only outbound route, a mandatory egress allowlist for providers, SG-6, T-07 |
+| R-11 | Gates bypassed or softened under pressure | Suppression only with a reason in the code; softening a gate needs an ADR; `make gate-selftest` |
+| R-12 | New features emit no signals | Gate RT-12 reconciles the use case registry against metrics and spans |
+| R-13 | Metric cardinality explodes with many tenants | No object IDs as labels; `tenant_id` only when explicitly enabled |
+| R-14 | Degradation states multiply the test matrix | The fixed series RT-1…RT-12 against containers |
+| R-15 | Free backup targets are an exfiltration and SSRF channel | Instance administrators only, `GuardedClient`, audited, tenant-owned targets off by default ([ADR-0019](../adr/ADR-0019-backup-targets.md)) |
+| R-16 | A lost backup passphrase makes every archive useless | An unmissable notice and logged confirmation at setup, rotation keeping old archives readable, a health warning |
+| R-17 | A misconfigured retention rule irreversibly destroys work | The safeguards of [data-retention.md](./data-retention.md) ([ADR-0020](../adr/ADR-0020-retention-policies.md)) |
+| R-18 | Our archive format is a long-term commitment | The format version in the manifest, golden archives per major version, import test BK-4 as a gate |
+| R-19 | Per-field merging can lose data silently | Merge rules in one place (`core/application/service/sync`), tests SY-1…SY-12, displaced versions kept |
+| R-20 | Offline caches are personal data on devices that get lost | Encryption at rest in the shells, deletion on sign-out and revocation, `hubctl sync-conformance` |
+| R-21 | Tombstones and backups extend the deletion deadline (GDPR Art. 17) | Documented, configurable periods; the deletion journal on restore |
 
 ---
 
@@ -808,25 +556,24 @@ Where a scenario has been walked, its evidence file is linked.
 
 | Term | Code identifier | Meaning |
 |---|---|---|
-| Hub | `Hub` | The topmost container; manages several collections |
-| Collection | `Collection` | A container for items; defines buckets, labels, policies |
+| Hub | `Hub` | The topmost container; holds collections |
+| Collection | `Collection` | Holds items; defines buckets, labels, policies |
 | Task | `Task` (`ItemType=TASK`) | An item with the full feature set |
 | Work package | `WorkPackage` | An item below a task, grouping subtasks |
 | Activity | `Activity` | An item with a reduced feature set |
-| List / bucket | `Bucket` | A grouping or status column within a collection (a kanban column) |
+| List / bucket | `Bucket` | A status column within a collection (a kanban column) |
 | Jumble | `Jumble` | The inbox for unstructured arrivals |
 | Trash | `Trash` | The soft-delete area, 30 days |
 | Archive | `Archive` | Indefinite storage, restorable |
 | Template | `Template` | A predefined item tree |
 | View | `SavedView` | A saved query plus a layout hint |
-| Tenant | `Tenant` | The topmost isolation boundary (a customer or organisation); a workspace |
-| Use case | `UC-…` | A person-level requirement with a goal and numbered checks in [`docs/usecases/`](../usecases/README.md) |
-| Operation | a use case of the application layer | What the application layer can do, registered in three channels ([domain-model.md](./domain-model.md) §5) |
-| Private hub | `container.private` | A hub only its own members reach; no role higher up flows into it ([ADR-0073](../adr/ADR-0073-private-hubs.md)) |
-| Managed account | `Account.sign_in_name` | An account without a mail address, signing in with a name and a start password ([ADR-0074](../adr/ADR-0074-managed-accounts.md)) |
-| Capability profile | `ItemCapabilityProfile` | Defines the permitted fields and features per item type |
+| Tenant | `Tenant` | The topmost isolation boundary; a workspace |
+| Use case | `UC-…` | A requirement with numbered checks ([`docs/usecases/`](../usecases/README.md)) |
+| Operation | a use case of the application layer | Registered in three channels ([domain-model.md](./domain-model.md) §5) |
+| Private hub | `container.private` | A hub only its members reach ([ADR-0073](../adr/ADR-0073-private-hubs.md)) |
+| Managed account | `Account.sign_in_name` | An account signing in with a name instead of a mail address ([ADR-0074](../adr/ADR-0074-managed-accounts.md)) |
+| Capability profile | `ItemCapabilityProfile` | The permitted fields and features per item type |
 | Rule | `AutomationRule` | A trigger plus conditions plus actions |
 | Rule run | `Run` | The execution log of a rule |
 | Event | Domain event / CloudEvent | A business state change, consumable externally |
-| Port | Port | An interface from the core to the outside world |
-| Adapter | Adapter | The technical implementation of a port |
+| Port / adapter | Port, adapter | An interface from the core outwards / its technical implementation |
