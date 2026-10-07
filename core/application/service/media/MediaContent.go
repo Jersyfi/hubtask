@@ -27,8 +27,8 @@ import (
 // The credential is the URL. There is no bearer token on these routes - that is the contract's
 // decision, and the same one a presigned bucket URL makes - so the adapter turns the signed token
 // into a Grant and this decides what may be done with it. Validating a signature is
-// authentication, which an adapter may do; everything after it is here (ADR-0005,
-// presentation/AGENTS.md).
+// authentication, which an adapter may do; everything after it is here (rule 2,
+// ADR-0005).
 type MediaContent struct {
 	Objects    repository.Objects
 	Store      storage.ObjectStore

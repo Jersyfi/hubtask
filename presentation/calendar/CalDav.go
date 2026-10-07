@@ -88,7 +88,7 @@ type ViewSelector interface {
 
 // ItemReader answers one entry by identifier or by the UID a calendar client chose, with the
 // caller's permission decided inwards of here: the write half's way of telling an address the
-// calendar does not answer from an entry that does not exist (issues 720, 721).
+// calendar does not answer from an entry that does not exist.
 type ItemReader interface {
 	Execute(ctx context.Context, actor appshared.ActorContext, query work.GetWorkItemQuery) (workmodel.WorkItem, error)
 }

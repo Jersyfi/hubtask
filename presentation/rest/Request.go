@@ -18,7 +18,7 @@ import (
 // Bounded caps what one request may cost: how much body it may send, and how long it may run.
 //
 // Both are the server's decision, not the client's. A handler that forgets its own deadline still
-// gets one here, which is what rule 7 of AGENTS.md asks for - no call without a deadline
+// gets one here, which is what rule 7 asks for - no call without a deadline
 // (ADR-0016) - and a body limit is the cheapest defence against T-17 there is.
 type Bounded struct {
 	Next http.Handler

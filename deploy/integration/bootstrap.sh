@@ -34,8 +34,8 @@ log() { printf '\n=== %s\n' "$*"; }
 
 # Downloads a file and refuses to go on unless it is the one that was reviewed. Both of these are
 # scripts and manifests from other people that run with root or cluster-admin rights; pinning the
-# version is not enough, because a tag can be moved (AGENTS.md: every dependency is a supply chain
-# decision). When an upgrade is wanted, the hash changes here in the same commit that changes the
+# version is not enough, because a tag can be moved (every dependency is a supply chain decision,
+# security.md §11). When an upgrade is wanted, the hash changes here in the same commit that changes the
 # version, and the diff says a human looked.
 fetch_verified() {
   local url="$1" target="$2" expected="$3" actual

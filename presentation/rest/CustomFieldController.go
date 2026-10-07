@@ -248,7 +248,7 @@ func (c *RestController) SetCustomField(
 
 	// The value travels as it arrived. What shape it may have is the definition's answer and the
 	// application layer's to ask; an adapter that coerced it here would be deciding a rule
-	// (presentation/AGENTS.md, ADR-0005).
+	// (rule 2, ADR-0005).
 	in := usecase.Input{"item_id": itemID.String(), "key": string(key), "value": body.Value}
 	if version, ok := versionFromIfMatch(params.IfMatch); ok {
 		in["expected_version"] = version

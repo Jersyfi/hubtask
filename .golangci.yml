@@ -141,7 +141,7 @@ linters:
             - pkg: github.com/jackc/pgx
               desc: "this package compiles statements and executes none (ADR-0026)"
 
-        # Rule 3 from AGENTS.md: every query goes through the transaction wrapper, which is the
+        # Rule 3: every query goes through the transaction wrapper, which is the
         # only place that sets `SET LOCAL app.tenant_id`. The driver therefore stays inside the
         # PostgreSQL adapter - and out of its tests, so that nothing bypasses the wrapper.
         database-driver:
