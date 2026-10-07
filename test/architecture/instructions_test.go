@@ -20,11 +20,45 @@ import (
 // Codex. Either can arrive without anybody meaning it - a tool's init command writes one - so the
 // gate refuses the file rather than trusting nobody to commit it.
 func TestNoInstructionFileHidesAgentsMD(t *testing.T) {
+	for _, file := range hidingInstructionFiles(trackedFiles(t)) {
+		t.Errorf("%s is committed; it would hide the AGENTS.md beside it from some coding agents - fold its content into AGENTS.md", file)
+	}
+}
+
+// hidingInstructionFiles are the files among the tracked ones that would hide an AGENTS.md.
+func hidingInstructionFiles(tracked []string) []string {
 	hiding := map[string]bool{"CLAUDE.md": true, "CLAUDE.local.md": true, "AGENTS.override.md": true}
-	for _, file := range trackedFiles(t) {
+	var out []string
+	for _, file := range tracked {
 		if hiding[path.Base(file)] {
-			t.Errorf("%s is committed; it would hide the AGENTS.md beside it from some coding agents - fold its content into AGENTS.md", file)
+			out = append(out, file)
 		}
+	}
+	return out
+}
+
+// The check catches each hiding file wherever it is committed, and only what is committed: a scratch
+// repository - never this one - commits all three beside files whose names merely resemble them.
+func TestHidingInstructionFilesAreCaught(t *testing.T) {
+	dir := t.TempDir()
+	gitIn(t, dir, "init", "-q", "-b", "main")
+	for _, name := range []string{"AGENTS.md", "CLAUDE.md", "apps/webapp/CLAUDE.local.md", "core/AGENTS.override.md",
+		"docs/CLAUDE.md.txt", "docs/NOT-CLAUDE.md", "untracked/CLAUDE.md"} {
+		full := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("instructions\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gitIn(t, dir, "add", "AGENTS.md", "CLAUDE.md", "apps", "core", "docs")
+	gitIn(t, dir, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "scratch")
+
+	tracked := strings.Fields(gitIn(t, dir, "ls-files"))
+	got := strings.Join(hidingInstructionFiles(tracked), " ")
+	if want := "CLAUDE.md apps/webapp/CLAUDE.local.md core/AGENTS.override.md"; got != want {
+		t.Fatalf("want %q caught, got %q", want, got)
 	}
 }
 
