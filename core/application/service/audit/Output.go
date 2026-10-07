@@ -129,8 +129,8 @@ func changesOutput(changes map[string]any) []map[string]any {
 
 // pageOutput is the shape of a paged answer: `{ "data": [...], "page": {...} }`
 // (api-guidelines.md §4). The REST adapter renders the audit list's own older spelling -
-// `items` and `next_cursor` - out of it, because that is what the contract has declared for this
-// path since phase 0.
+// `items` and `next_cursor` - out of it, because that is what the contract declares for this
+// path.
 func pageOutput(data []usecase.Output, info repository.PageInfo) usecase.Output {
 	page := map[string]any{"next_cursor": nil, "has_more": info.HasMore}
 	if info.NextCursor != "" {
