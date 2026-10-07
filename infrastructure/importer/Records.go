@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package importer holds the converters (P-08…P-10): one per foreign format, each turning a file
+// Package importer holds the converters: one per foreign format, each turning a file
 // into the archive records the restore applies. What they share is here - how a collection, a
 // bucket, a label, an entry, a link and a comment are spelled as records under identities derived
 // from the source's own, so that four converters cannot come to disagree about what a row is.
