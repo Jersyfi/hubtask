@@ -1,10 +1,7 @@
 # Working on Hubtask
 
-Instructions for everyone who changes this repository — a person or an AI coding agent of any make,
-here a worker. Binding. A directory with its own `AGENTS.md` adds rules for that directory. The
-items under "Rules that do not bend", "Working rules", "Working with the owner" and "Code comments"
-are rules, each tagged with what checks it: `[gate: …]`, `[partial: …; open: …]`, `[owner]` or
-`[unchecked: why]`. The other sections explain.
+Binding for everyone who changes this repository — a person or an AI coding agent of any make,
+here a worker. A directory's own `AGENTS.md` adds rules for that directory.
 
 ## What Hubtask is
 
@@ -65,11 +62,11 @@ documents cite them as "CLAUDE.md rule N", this file's name before 2026-10-07.
 
 ## Working rules
 
-The rules of this file are the items of four lists: the table above, this list with its
-subsection "Steps and commits", "Working with the owner" and "Code comments". Each names what checks it — `[gate: …]`, `[partial: …; open: …]`,
-`[owner]` or `[unchecked: why]` — and `make gate-docs` holds every item to a tag and every named
-gate to a Makefile target or a `ci.yml` job. The other sections explain. A directory's own
-`AGENTS.md` keeps its rules under "What must not happen here", tagged the same way.
+The rules are the items of four lists — the table above, this list with "Steps and commits",
+"Working with the owner" and "Code comments" — each tagged `[gate: …]`, `[partial: …; open: …]`,
+`[owner]` or `[unchecked: why]`; `make gate-docs` holds every item to a tag and every named gate to a
+target or a `ci.yml` job. A directory's `AGENTS.md` tags its rules under "What must not happen here".
+The other sections explain.
 
 - A task starts with its readiness record (`docs/backlog/ready/TEMPLATE.md`) as the branch's first
   commit, attacked by a reviewer who did not write it; code follows only once it says `ready` or
@@ -85,17 +82,16 @@ gate to a Makefile target or a `ci.yml` job. The other sections explain. A direc
 - One concern per commit; each commit builds, carries a Conventional Commit title and a
   `Task: <ID>` trailer, and keeps its tests beside the code. History is rewritten only while the
   pull request is a draft. `[unchecked: what one concern is, is judgement; CI checks the head]`
-- A finding outside the task is fixed on the branch if the rules allow — test first, own commit,
-  named in the pull request; bigger than a step, as a further pull request of the same task
-  (`PH-02b`). A document stating the current system wrongly is corrected in the same pull request;
-  a question on the owner's list becomes a `decision` issue; anything else a `finding`. `[owner]`
+- A finding outside the task is fixed on the branch where the rules allow — test first, own
+  commit, named in the pull request, or a further pull request of the same task when bigger than a
+  step; a document stating the system wrongly is corrected in the same pull request; a question on
+  the owner's list is a `decision` issue, anything else a `finding`. `[owner]`
 - The owner is asked only about items in § "What you do not decide yourself", after searching, as a
   `decision` issue in its form — at the cut or the task's start; during the build only when the
   code refutes a decision, naming the new fact. `[owner]`
-- An answer is recorded at once as a comment on its `decision` issue — the answer in the owner's
-  words or as the option chosen, the date, and where it will be written — and lands on `main` the
-  same day, where it governs, in its own small documentation pull request — one per batch, never on
-  a task branch — that closes the issues. `[owner]`
+- An answer is recorded at once on its `decision` issue (the option or words, the date, where it
+  goes) and lands on `main` the same day where it governs, in a small documentation pull request
+  per batch — never on a task branch — that closes the issues. `[owner]`
 - No pull request is stacked on a task `waiting on the owner`. `[unchecked: not yet gated]`
 - A use case's *Goal*, *How to check* and *Where it ends*, and anything in `docs/vision/`, change
   only by the owner's decision; the description names each such change in a use case as
@@ -122,22 +118,22 @@ gate to a Makefile target or a `ci.yml` job. The other sections explain. A direc
 
 - A step is one commit, pushed at once; the steps are the numbered list in the record's § 4. A step
   that adds a use case lands it end to end. `[partial: gate-architecture; open: a layer split that
-  stays green]`
+  stays green, a step left unpushed]`
 - `make gate-quick` is green at every commit, `make verify-pr` at the last. More than about eight
   files, or a title needing "and", is too big a step. No `wip`, `fixup` or `address review`
   commits. `[unchecked: CI checks the head only]`
 - Resuming: compare `git log --oneline main..HEAD` with the record's steps, run `make verify`,
-  continue at the first missing one, in an own worktree if the checkout is in use. Stopping: push
-  everything, make the record's steps match, name the next step on the draft pull request.
-  `[unchecked: a conversation is outside the repository]`
+  continue at the first missing one (in an own worktree if the checkout is in use). Stopping: push
+  everything and name the next step on the draft pull request. `[unchecked: a conversation is
+  outside the repository]`
 - Each gate on its own line: `make gate-x | tail` hides a red gate from `&&`, `git push | tail` a
   rejected push. `make gate-selftest` edits the tree; nothing runs beside it. `[unchecked: the
   worker's own shell]`
 
 ## Working with the owner
 
-- The owner sets the direction, decides and looks at results, through workers only; they do the
-  rest, administration and releases included. `[owner]`
+- The owner directs, decides and looks at results through workers, who do the rest, administration
+  and releases included. `[owner]`
 - A user-interface change is shown in the running app (`docs/evidence/README.md`, "How to walk")
   and refined on its draft pull request until the owner is content; feedback on a task in progress
   is part of that task. `[owner]`
@@ -152,25 +148,19 @@ gate to a Makefile target or a `ci.yml` job. The other sections explain. A direc
 
 ## The loop for every task
 
-1. **Understand and settle.** Read (§ "Reading"), write the readiness record, have it attacked,
-   commit it first.
-2. **Plan in steps** — in the record. Open a draft pull request that closes the issue.
-3. **Specification first.** `api/openapi.yaml`, a migration and sqlc queries, `make generate`.
-4. **Implement from the inside out:** domain → application → ports → adapters → presentation.
-5. **Test.** Domain logic with table tests; repositories with Testcontainers and a cross-tenant
-   negative test per new method; each use case check by a test that can prove it.
-6. **Check.** Each carried check met with evidence (`docs/usecases/README.md` § "Checking work");
-   a review against the rules no gate checks, findings named under *Definition of Done*;
-   `make verify-pr` green.
-7. **Finish.** Complete the template, move the use cases' `state:`, `checked_by:` and *Today*,
+1. **Understand and settle.** Read the task, its issue, its use cases and their principles,
+   `domain-model.md`, `project-structure.md`, `api-guidelines.md` for an endpoint, the concern's
+   subject document and `known-traps.md` — completely what you read; an ADR only for a rule's
+   reasoning. Write the readiness record, have it attacked, commit it first.
+2. **Plan in steps** in the record; a draft pull request that closes the issue.
+3. **Specification first:** `api/openapi.yaml`, a migration and sqlc queries, `make generate`.
+4. **Inside out:** domain → application → ports → adapters → presentation.
+5. **Test:** table tests for the domain; Testcontainers and a cross-tenant negative test per new
+   repository method; each use case check by a test that can prove it.
+6. **Check:** every carried check met with evidence (`docs/usecases/README.md`), a review against the
+   rules no gate checks, `make verify-pr` green.
+7. **Finish:** the template complete, the use cases' `state:`, `checked_by:` and *Today* moved,
    `gh pr ready`.
-
-### Reading
-
-Selectively, but completely what you read: the task, its issue, the use cases it names and their
-principles; `domain-model.md` and `project-structure.md`; `api-guidelines.md` before touching an
-endpoint; the concern's subject document; `known-traps.md`. An ADR only for a rule's reasoning, or
-before changing the rule.
 
 ## What you do not decide yourself
 
@@ -186,16 +176,13 @@ Bring these to the owner with a worked-out proposal:
   number is a correction.
 - A change to what a released milestone delivers.
 
-Everything else you decide and write down why — in the readiness record, and where the next reader
-of the code needs it.
+Everything else you decide and write down why, in the record and where the next reader needs it.
 
-**Asking.** Search `docs/vision`, `docs/architecture`, `docs/usecases`, the milestones' `Decisions`
-and closed `decision` issues; an answered question is cited. Otherwise a `decision` issue in its
-form: what it is about, in plain words; the problem, why you did not decide it, and an example from
-a person's view; the proposal — its effect on users, administrators and operators (operation, cost,
-migration, risk), why it fits the vision and the use cases, through D1–D7; serious alternatives;
-a question answerable with yes, an option or a sentence; what waits. Tell the owner once, with the
-list. A follow-up needs a new fact.
+**Asking.** Search `docs/`, the milestones' `Decisions` and closed `decision` issues first; an
+answered question is cited. Otherwise the `decision` issue form (`.github/ISSUE_TEMPLATE/`): the
+problem with a person's example, the proposal's effect on users, administrators and operators
+through D1–D7, the alternatives, one answerable question, what waits. Tell the owner once, with the
+list; a follow-up needs a new fact.
 
 ## Which command checks what
 
@@ -215,9 +202,8 @@ list. A follow-up needs a new fact.
 
 ## When CI runs
 
-On a ready pull request, not on a draft (`ci-cd.md` §3.4,
-[ADR-0079](docs/adr/ADR-0079-a-draft-is-checked-locally.md)). The hook in `.claude/settings.json`
-refuses Claude Code a `gh pr create` without `--draft` and a `gh pr ready` before `make verify-pr`.
+On a ready pull request, not on a draft (`ci-cd.md` §3.4). For Claude Code, the hook in
+`.claude/settings.json` refuses a non-draft `gh pr create` and `gh pr ready` before `make verify-pr`.
 
 ## Code comments
 
