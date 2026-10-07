@@ -88,7 +88,7 @@ type Descriptor struct {
 	// so that an agent client can ask for confirmation before the dangerous ones (ai-first.md).
 	ReadOnly    bool
 	Destructive bool
-	// StepUp says when this operation demands a fresh re-authentication (H-03, security.md §5),
+	// StepUp says when this operation demands a fresh re-authentication (security.md §5),
 	// in prose, the way Activity.Exempt gives a reason: "always", or the condition - "granting
 	// or revoking the OWNER role". Empty for the operations that never do. The declaration is
 	// what the architecture test reconciles against the privileged list, so the next privileged

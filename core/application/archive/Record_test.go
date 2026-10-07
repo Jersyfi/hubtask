@@ -351,7 +351,7 @@ func TestATombstonesTableNameFindsItsEntity(t *testing.T) {
 	}
 }
 
-// The declarations a restore reads (E-06): every entity says what identifies its rows, and every
+// The declarations a restore reads: every entity says what identifies its rows, and every
 // reference points at an entity the archive actually carries. A reference to something outside the
 // archive would be a remap a DUPLICATE restore could not perform.
 func TestEveryEntityDeclaresItsIdentity(t *testing.T) {

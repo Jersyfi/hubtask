@@ -46,11 +46,11 @@ type ActorContext struct {
 	Kind ActorKind
 	// TenantID is empty exactly when the actor is anonymous.
 	TenantID shared.ID
-	// TenantSlug is the workspace's public name, riding with the credential (H-06) so the
+	// TenantSlug is the workspace's public name, riding with the credential so the
 	// middleware can compare §3's weaker resolution sources - the subdomain and the header -
 	// against what the credential says without a second lookup.
 	TenantSlug string
-	// RateLimitPerMinute is the workspace's own request-rate ceiling (H-08), riding with the
+	// RateLimitPerMinute is the workspace's own request-rate ceiling, riding with the
 	// credential for the limiter's sake. 0 means none is configured - the installation's
 	// default applies, at the level that already enforces it.
 	RateLimitPerMinute int64
@@ -67,7 +67,7 @@ type ActorContext struct {
 	// Scopes are the token's bounds. They are a second, independent limit on top of the role: a
 	// token can never do more than its scopes allow, whatever role its owner holds (ADR-0005).
 	Scopes []string
-	// APIClient is the OAuth client the credential was issued to (H-05), empty for everything
+	// APIClient is the OAuth client the credential was issued to, empty for everything
 	// that is not a grant session. It is what the audit trail records as the acting app.
 	APIClient shared.ID
 	// Locale is BCP 47, resolved request → account → tenant → installation (i18n-l10n.md §2).
@@ -76,7 +76,7 @@ type ActorContext struct {
 	// it, so it travels with the actor rather than being looked up per use case.
 	TimeZone string
 	// WeekStart is `MONDAY`, `SUNDAY` or `SATURDAY`: the account's own preference where it set
-	// one, otherwise the day the week starts where its locale is spoken (i18n-l10n.md §4, M-06).
+	// one, otherwise the day the week starts where its locale is spoken (i18n-l10n.md §4).
 	// The week anchors of a query - `@start_of_week`, `@end_of_week` - are computed from it, so
 	// it travels here beside the zone rather than being looked up per use case. Empty is Monday.
 	WeekStart string
@@ -142,7 +142,7 @@ func ActorFrom(ctx context.Context) (ActorContext, bool) {
 	return actor, ok
 }
 
-// deviceKey carries the device a push comes from (N-04).
+// deviceKey carries the device a push comes from.
 type deviceKey struct{}
 
 // ContextWithDevice marks everything done under the context as one device's act, so that the
@@ -163,7 +163,7 @@ func DeviceFrom(ctx context.Context) shared.ID {
 	return deviceID
 }
 
-// readingsKey carries the clock readings a push applies its fields under (N-05).
+// readingsKey carries the clock readings a push applies its fields under.
 type readingsKey struct{}
 
 // ContextWithReadings marks the context with the readings a device wrote its fields under, by
@@ -182,7 +182,7 @@ func ReadingFrom(ctx context.Context, field string) (shared.HLC, bool) {
 	return reading, found && !reading.IsZero()
 }
 
-// pushKey carries the push a mutation arrives in (N-10).
+// pushKey carries the push a mutation arrives in.
 type pushKey struct{}
 
 // Push is one push as the events it raises need to know it (offline-sync.md §8): which push, so

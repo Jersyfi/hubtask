@@ -53,7 +53,7 @@ const (
 	//
 	// The second exception, and one use case has it: a custom field's value is a text, a number, a
 	// boolean, a date or a list depending on the definition the key names, and that definition is
-	// data a tenant wrote rather than anything the catalogue can pin (C-07, domain-model.md §6).
+	// data a tenant wrote rather than anything the catalogue can pin (domain-model.md §6).
 	// Declaring it as a string would make every other kind a type error before the definition was
 	// even read, and declaring five fields would be five ways to send one value. The catalogue
 	// therefore checks that something arrived and leaves the judgement to the definition, exactly
@@ -76,7 +76,7 @@ type Field struct {
 	// CallerOnly marks a field as the caller's plumbing rather than a decision of the use case's:
 	// the identifier a client minted for offline work, the version it last read for If-Match, a
 	// reserved switch. A person typing a call sets these; a rule never does, because the run has
-	// no version it read and mints nothing (F8-15). The manifest carries it as `rule: false`, so
+	// no version it read and mints nothing. The manifest carries it as `rule: false`, so
 	// that a rule editor hides the field without a list of names compiled into it; the registry
 	// validates the field exactly as before.
 	CallerOnly bool
@@ -332,7 +332,7 @@ func checkField(field Field, value any) (shared.FieldError, bool) {
 		// An empty optional field is a clearing, not a value: String reads it as absent and
 		// OptionalString reads it as "put the default back". Holding it to the enum as well left
 		// a preference that could be set and never unset - the contract promises an empty value
-		// clears it, and the registry refused the only spelling of one (issue #427).
+		// clears it, and the registry refused the only spelling of one.
 		if len(field.Enum) > 0 && strings.TrimSpace(text) != "" && !slices.Contains(field.Enum, text) {
 			return shared.FieldError{
 				Path:   "/" + field.Name,

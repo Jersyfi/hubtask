@@ -136,7 +136,7 @@ func TestAContextWithoutAnActorSaysSo(t *testing.T) {
 	}
 }
 
-// The two facts a push adds to every writer without touching one (N-04, N-05): the device the
+// The two facts a push adds to every writer without touching one: the device the
 // context is marked with, and the readings its fields were written under. Absent, both answer
 // nothing - which is what a write through the API is.
 func TestAContextCarriesTheDeviceAndTheReadingsAPushMarkedItWith(t *testing.T) {

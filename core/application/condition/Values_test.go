@@ -132,7 +132,7 @@ func TestTheActivationAnswersEveryDocumentedName(t *testing.T) {
 	}
 }
 
-// The event's two clocks (N-10, offline-sync.md §8): a change a device made three days ago and
+// The event's two clocks (offline-sync.md §8): a change a device made three days ago and
 // pushed today reads its occurred_at as the person's moment and its received_at as the server's,
 // and one raised online reads one instant in both.
 func TestTheEventDocumentCarriesBothClocks(t *testing.T) {
@@ -262,7 +262,7 @@ func TestARealReadFailurePropagates(t *testing.T) {
 	}
 }
 
-// The jumble half of `payload` (G-10): a JUMBLE_ENTRY run reads the entry's fields as data,
+// The jumble half of `payload`: a JUMBLE_ENTRY run reads the entry's fields as data,
 // lazily, and a swept entry reads as an empty document rather than a failure.
 
 type jumbleStore struct{ rows map[shared.ID]jumble.Entry }

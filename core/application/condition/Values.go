@@ -48,7 +48,7 @@ type Values struct {
 	// one run sees one instant (automation.md §1.2).
 	Now time.Time
 	// subject is the entry a run that no event started is about - a RELATIVE_DATE run measured
-	// from one entry's due date (G-08). The envelope's subject wins where there is one, so an
+	// from one entry's due date. The envelope's subject wins where there is one, so an
 	// event-triggered run is unaffected by this field existing.
 	Subject shared.ID
 	// payload is the body an inbound delivery carried. Untrusted from end to end: it is read as
@@ -64,7 +64,7 @@ type Values struct {
 	Labels  Sets
 	Members Sets
 	// JumbleID names the entry a JUMBLE_ENTRY run is about; `payload` is rendered from it, lazily
-	// and as data (G-10). Zero everywhere else - the envelope's own subject still lets an EVENT
+	// and as data. Zero everywhere else - the envelope's own subject still lets an EVENT
 	// rule on a jumble event read the same names.
 	JumbleID shared.ID
 	Jumble   JumbleEntries
@@ -80,8 +80,8 @@ func (v Values) Resolve(ctx context.Context, name string) (any, bool, error) {
 	case VarActor:
 		return actorDocument(v.Envelope), true, nil
 	case VarPayload:
-		// The body an inbound webhook delivered - or, on a jumble run, the entry's fields as data
-		// (G-10). Empty for a run that has neither, which is what an absent document means rather
+		// The body an inbound webhook delivered - or, on a jumble run, the entry's fields as data.
+		// Empty for a run that has neither, which is what an absent document means rather
 		// than a failure - a condition written for one trigger and used on another asks about
 		// something that is not there.
 		if len(v.Payload) > 0 {
