@@ -77,10 +77,10 @@ type ItemQuery struct {
 	Page            Page
 	// RestrictTo narrows the level to a named set of entries, or to all of them when it is empty.
 	//
-	// It carries the read half of C-04: an actor who holds no role on the collection may still
-	// hold a membership on entries inside it, and then the level is those entries rather than a
-	// refusal. Applied in the query rather than after it, so a page is a page - filtering the rows
-	// out afterwards would return short pages and a cursor that skips.
+	// It carries the read half of the share rule (domain-model.md §3.2): an actor who holds no role
+	// on the collection may still hold a membership on entries inside it, and then the level is
+	// those entries rather than a refusal. Applied in the query rather than after it, so a page is
+	// a page - filtering the rows out afterwards would return short pages and a cursor that skips.
 	//
 	// It is a narrowing and never a widening: everything else the query excludes stays excluded.
 	RestrictTo []shared.ID
@@ -104,8 +104,8 @@ type Level struct {
 //
 // The references travel beside the entry rather than on it, because they are not part of what the
 // domain models an entry as: `custom_field_refs` says which definition a value was written under,
-// which is what keeps a deleted-and-recreated key from resurrecting what the old one held (C-07,
-// migration 0018). The map is keyed exactly as the document is, and a document key without one is
+// which is what keeps a deleted-and-recreated key from resurrecting what the old one held
+// (migration 0018). The map is keyed exactly as the document is, and a document key without one is
 // a defect the adapter refuses rather than a value written under nothing.
 //
 // Everything else the copy decides - the new identifier, the path, the rank, the references the
@@ -291,8 +291,8 @@ type ItemSearch struct {
 	// one value for the whole scan. So the words are parsed under the searcher's configuration and
 	// under `simple`, which is two constants and two index scans.
 	Language string
-	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is
-	// empty - the read half of C-04, exactly as ItemQuery carries it for the plain level list.
+	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is empty -
+	// the read half of the share rule, exactly as ItemQuery carries it for the plain level list.
 	RestrictTo []shared.ID
 }
 
@@ -301,23 +301,23 @@ type ItemSearch struct {
 type TextSearch struct {
 	Anchor  Anchor
 	Request view.Search
-	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is
-	// empty - the read half of C-04, exactly as ItemSearch carries it for the query language.
+	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is empty -
+	// the read half of the share rule, exactly as ItemSearch carries it for the query language.
 	RestrictTo []shared.ID
 	// Meaning is the query embedded, and empty whenever the search is lexical (ADR-0050).
 	//
 	// It arrives already computed rather than being fetched here, and that is the seam: the
-	// application layer decides whether a provider could be asked and what to do when it could
-	// not, and the repository is handed either a vector or nothing. A repository that called a
-	// provider would be one that could fail a search because somebody else's machine was slow.
+	// application layer decides whether a provider could be asked and what to do when it could not,
+	// and the repository is handed either a vector or nothing. A repository that called a provider
+	// would be one that could fail a search because somebody else's machine was slow.
 	Meaning []float32
 	// MeaningModel is the model that produced Meaning, and the only rows the vector is compared
 	// with are the ones that name it. Vectors from two models are not comparable (ADR-0049
 	// decision 4), and between a reconfiguration and the end of the re-embedding pass the table
-	// holds both: without this a query from the new model was ranked against rows from the old
-	// one, and the semantic half of the ranking was noise. An entry embedded under another
-	// name is found by its words alone until the pass reaches it - J-10's own degradation for an
-	// entry not yet embedded, applied to one whose vector no longer counts.
+	// holds both: without this a query from the new model would be ranked against rows from the
+	// old one, and the semantic half of the ranking would be noise. An entry embedded under another
+	// name is found by its words alone until the pass reaches it - the degradation for an entry not
+	// yet embedded (ai-first.md §2), applied to one whose vector no longer counts.
 	MeaningModel string
 }
 
@@ -418,9 +418,9 @@ type Items interface {
 	Find(ctx context.Context, id shared.ID) (work.WorkItem, error)
 
 	// FindByCalendarUID returns the item a calendar client's UID names, or ErrNotFound if no entry
-	// of this tenant carries it (P-07). The same answer for the trash and the
-	// archive as Find, for the same reason: the tree decides what an address it cannot show
-	// means, and "gone" is a different thing from "free".
+	// of this tenant carries it (offline-sync.md §4.2). The same answer for the trash and the
+	// archive as Find, for the same reason: the tree decides what an address it cannot show means,
+	// and "gone" is a different thing from "free".
 	FindByCalendarUID(ctx context.Context, uid string) (work.WorkItem, error)
 
 	// List returns one page of one level of one collection, in the items' manual order.

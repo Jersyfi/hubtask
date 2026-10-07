@@ -106,7 +106,7 @@ type Embeddings interface {
 	//
 	// An entry with no vector answers `Embedded: false` and no candidates, which is not an error:
 	// the pass has not reached it, it is found by nobody and finds nobody until it has, and that
-	// is J-10's degradation rather than a gap.
+	// is the semantic search's degradation rather than a gap (ai-first.md §2).
 	Near(ctx context.Context, itemID shared.ID, floor float64, limit int) (Nearby, error)
 }
 

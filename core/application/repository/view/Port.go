@@ -31,7 +31,7 @@ type SavedViews interface {
 	// ListReachable answers the account's own views plus what is shared into the given scopes -
 	// the container identifiers along one path, with TENANT-wide shares included by their type.
 	// The scopes are the authorisation's answer bound into the statement, never a filter after
-	// the page (C-04's rule, applied here).
+	// the page (domain-model.md §3.2).
 	ListReachable(ctx context.Context, ownerID shared.ID, scopeIDs []shared.ID) ([]view.SavedView, error)
 
 	Insert(ctx context.Context, saved view.SavedView) error
