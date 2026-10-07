@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The other half of F5-05: with AI switched off in the manifest, the product never mentioned it.
+// With AI switched off in the manifest, the product never mentions it.
 //
 // `design-system.md` §4 asks `AISuggestion` to disappear "without residue" when AI is off, and
-// every screen this milestone gave a proposal to rendered it behind the same fact -
+// every screen that draws a proposal renders it behind the same fact -
 // `features.ai_suggestions` in `/meta/capabilities`. This proves it for the whole client rather
 // than per component: every view is rendered on the server with a fake manifest, once with AI off
 // and once with it on, and the HTML is searched for `data-ai` - the mark every AI root carries,
@@ -174,7 +174,7 @@ async function boot() {
   const stops = [manifest.start(), actor.start()];
   await engine.refresh({ path: '/meta/capabilities' });
   await engine.refresh({ path: '/accounts/me' });
-  // The entry as the view reads it - with the labels expanded (issue 875) - primed under that key.
+  // The entry as the view reads it - with the labels expanded - primed under that key.
   const { itemPath } = await import('../src/lib/data/item.svelte.ts');
   await engine.refresh({ path: itemPath(ITEM) });
   await engine.refresh({ path: `/containers/${COLLECTION}` });
@@ -229,7 +229,7 @@ async function views() {
     ['item', await load('ItemView'), { id: ITEM }],
     ['collection', await load('ContainerView'), { id: COLLECTION, onnavigate: noop }],
     ['sign-in-settings', await load('SignInSettingsView'), {}],
-    // The level above the workspaces (SI-17). Each draws its door until the session is raised,
+    // The level above the workspaces. Each draws its door until the session is raised,
     // which is the state every one of them is in here - and the one this test needs, because a
     // raised session is not a thing a server-rendered screen can have.
     ['instance', await load('InstanceOverviewView'), { onnavigate: noop }],
@@ -284,7 +284,7 @@ test('with AI off, no route renders anything the AI tokens style or anything tha
 });
 
 test('every screen renders exactly one h1 and one main between it and the frame', async () => {
-  // 2.4.1 and 1.3.1, as the F5-11 walk read them: one landmark to skip to, one heading that names
+  // 2.4.1 and 1.3.1, as design-system.md §10 reads them: one landmark to skip to, one heading that names
   // the page. A screen that rendered its own `<main>` would give a reader two, and a screen with
   // two `<h1>` - or none while it loads - would name itself twice or not at all.
   //
