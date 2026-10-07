@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package job is the caller's half of the queue: finding out how a piece of background work is
-// getting on, and stopping it (E-01).
+// getting on, and stopping it.
 //
 // It is the application layer for a resource three `202 Accepted` responses have been pointing at
 // since A-06. Nothing here claims, leases or retries anything - that is the runner's side, and it
