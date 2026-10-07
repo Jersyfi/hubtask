@@ -9,10 +9,11 @@
 // descriptions from scratch with `gh pr create --body`: GitHub shows the template only to somebody
 // who opens the form. This reads the description the way a reviewer would and names what is missing.
 //
-// Usage: checkpr -body <file> [-base <ref> [-head <ref>] [-opened <RFC 3339>]]
-// (or the description on stdin). With -base it also reads the branch's history: the readiness
-// record of every task it carries, merged migrations it changes, use cases it deletes
-// (readiness.go).
+// Usage: checkpr -body <file> [-opened <RFC 3339>] [-base <ref> [-head <ref>]]
+// (or the description on stdin). The Definition of Done is compared with the template's (dod.go).
+// With -base it also reads the branch's history: the readiness record of every task it carries,
+// merged migrations it changes, use cases it deletes (readiness.go). A rule added after a pull
+// request was opened (-opened) does not apply to it.
 package main
 
 import (
@@ -55,20 +56,28 @@ func main() {
 		fail(err)
 	}
 
+	dod, err := templateDoD(root)
+	if err != nil {
+		fail(err)
+	}
+
+	var opened time.Time
+	if *openedAt != "" {
+		if opened, err = time.Parse(time.RFC3339, *openedAt); err != nil {
+			fail(fmt.Errorf("reading -opened: %w", err))
+		}
+	}
 	var facts branchFacts
 	if *base != "" {
-		var opened time.Time
-		if *openedAt != "" {
-			if opened, err = time.Parse(time.RFC3339, *openedAt); err != nil {
-				fail(fmt.Errorf("reading -opened: %w", err))
-			}
-		}
 		if facts, err = readHistory(root, *base, *head, opened); err != nil {
 			fail(err)
 		}
 	}
 
 	problems := check(string(raw), required, useCases)
+	if heldTo(opened, dodSince) {
+		problems = append(problems, dodProblems(string(raw), dod)...)
+	}
 	problems = append(problems, historyProblems(string(raw), facts, func(path string) ([]byte, error) {
 		return os.ReadFile(filepath.Join(root, filepath.FromSlash(path))) //nolint:gosec // G304: docs/backlog/ready/<TASK>.md, the task taken from the branch's own trailers
 	})...)

@@ -78,7 +78,7 @@ func historyProblems(body string, facts branchFacts, read func(string) ([]byte, 
 		}
 	}
 
-	if !facts.opened.IsZero() && facts.opened.Before(readinessSince) {
+	if !heldTo(facts.opened, readinessSince) {
 		return problems
 	}
 	return append(problems, readinessProblems(body, facts, read)...)
