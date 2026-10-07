@@ -1,21 +1,20 @@
 # Retention and Lifecycle of Business Data
 
 Configurable retention rules for completed tasks, trash, archive, comments, attachments, jumble,
-notifications and the system's own records. [data-protection.md](./data-protection.md) §5 covers
-retention from the data protection angle; this is the business view. Decision:
-[ADR-0020](../adr/ADR-0020-retention-policies.md).
+notifications and the system's own records — the business view; [data-protection.md](./data-protection.md)
+§5 is the data protection view. Decision: [ADR-0020](../adr/ADR-0020-retention-policies.md).
 
 ---
 
 ## 1. Why this is not a cron job
 
-1. **Deletion is final.** A misconfigured rule destroys people's work, so it needs a preview, a grace period, a warning, a way to object, and a log.
-2. **Deletion collides with other commitments.** Legal hold, data subject requests, offline clients that still know the object ([offline-sync.md](./offline-sync.md)), and backups ([backup-restore.md](./backup-restore.md)) each impose their own requirements.
-3. **Retention is tenant-specific.** What one tenant calls tidying up is a compliance violation for another.
+1. **Deletion is final**, so it needs a preview, a grace period, a warning, a way to object, and a log.
+2. **Deletion collides with other commitments:** legal hold, data subject requests, offline clients that still know the object ([offline-sync.md](./offline-sync.md)), backups ([backup-restore.md](./backup-restore.md)).
+3. **Retention is tenant-specific.** One tenant's tidying up is another's compliance violation.
 
-Retention is therefore its own bounded context (`Lifecycle`) with rules as data. It is a separate
-mechanism from backup retention ([backup-restore.md](./backup-restore.md) §6): neither reads the
-other's tables, and they are not to be merged into one engine.
+Hence its own bounded context (`Lifecycle`) with rules as data, separate from
+backup retention ([backup-restore.md](./backup-restore.md) §6): neither reads the other's tables,
+and they are not to be merged into one engine.
 
 ---
 
@@ -23,14 +22,11 @@ other's tables, and they are not to be merged into one engine.
 
 ```json
 {
-  "id": "…",
   "scope": { "kind": "COLLECTION", "id": "…" },
   "data_kind": "COMPLETED_ITEM",
-  "condition": "item.completed_at != null && item.labels.exists(l, l == 'no-archive') == false",
-  "retain_days": 365,
-  "action": "ARCHIVE",
-  "then_after_days": 730,
-  "then_action": "TRASH",
+  "condition": "item.labels.exists(l, l == 'no-archive') == false",
+  "retain_days": 365, "action": "ARCHIVE",
+  "then_after_days": 730, "then_action": "TRASH",
   "grace_days": 14,
   "notify": { "before_days": 7, "recipients": ["ITEM_MEMBERS", "COLLECTION_ADMINS"] },
   "enabled": true,
@@ -41,28 +37,23 @@ other's tables, and they are not to be merged into one engine.
 | Field | Meaning |
 |---|---|
 | `scope` | `TENANT`, `HUB`, `COLLECTION` — the narrower rule wins over the wider one |
-| `data_kind` | See the catalogue in §3 |
-| `condition` | An optional CEL expression on the automation engine's port and limits ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md), [automation.md](./automation.md) §1.2). Its environment is only `item`, `now` and `tenant` — a retention pass has no event, actor or payload. Compiled when the rule is written, evaluated per candidate. A condition that cannot be evaluated **stops the pass** rather than defaulting either way |
+| `data_kind` | See §3 |
+| `condition` | Optional CEL on the automation engine's port and limits ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md), [automation.md](./automation.md) §1.2), over only `item`, `now` and `tenant`. Compiled on write, evaluated per candidate; one that cannot be evaluated **stops the pass** rather than defaulting either way |
 | `retain_days` | The period from the kind's anchor (§3) |
 | `action` | `ARCHIVE`, `TRASH`, `ANONYMIZE`, `HARD_DELETE`, `EXPORT_THEN_DELETE`, `NOTIFY_ONLY` |
-| `then_after_days` / `then_action` | A second stage: completed → archive after 1 year → delete after 2 more years |
-| `grace_days` | The grace period between announcement and execution |
+| `then_after_days` / `then_action` | A second stage (completed → archive after 1 year → delete after 2 more) |
+| `grace_days` | Between announcement and execution |
 | `notify` | Advance warning to those affected; can be switched off |
-
-**Example:** "keep completed to-dos for at most a year, then delete them" is
-`data_kind: COMPLETED_ITEM`, `retain_days: 365`, `action: HARD_DELETE` — better with an `ARCHIVE`
-stage first.
 
 **Rules about rules** (enforced when a rule is written):
 
-* **The anchor is the kind's, not the rule's.** A rule cannot point its period at another column. A
-  second stage counts from the column the first stage wrote — `ARCHIVE` leaves `archived_at`,
-  `TRASH` leaves `deleted_at` — so an action that leaves no column cannot have a stage after it.
-* **The lower bound is a refusal; the upper bound needs a justification.** A period below `min_days`
-  is refused, not raised. Above the operator's `max_days` (no kind has one by default) the rule
-  needs a `justification` and writes an audit entry.
-* **A kind nothing removes is refused** rather than configured, with a code saying so (§3, column
-  *Removed by*). So is an action the kind cannot take.
+* **The anchor is the kind's, not the rule's.** A second stage counts from the column the first
+  stage wrote — `ARCHIVE` leaves `archived_at`, `TRASH` leaves `deleted_at` — so an action that
+  leaves no column cannot have a stage after it.
+* **Bounds (§4 items 3–4):** a period below `min_days` is refused, not raised; no kind has a
+  `max_days` by default.
+* **A kind nothing removes is refused**, with a code saying so (§3, *Removed by*), and so is an
+  action the kind cannot take.
 * **The five-per-cent switch decides when the rule is written.** A rule whose first run would affect
   more than 5% of the holdings is stored as `NOTIFY_ONLY`, with a notice whose share comes from the
   same calculation a preview uses.
@@ -75,31 +66,30 @@ Rules live in `retention_rule`; `retention_policy` holds the operator's bounds p
 
 ## 3. Catalogue of data kinds
 
+The code's copy, in the same order, is `core/domain/model/lifecycle/Catalogue.go`; a new kind goes
+into both, needs no engine change, and needs something that removes it.
+
 | `data_kind` | Time anchor | Default | Removed by | Note |
 |---|---|---|---|---|
-| `COMPLETED_ITEM` | `completed_at` | off | The sweep | Completed tasks, work packages, activities |
-| `OPEN_ITEM_STALE` | `updated_at` | off | Nothing yet — a rule is refused | Untouched open items. Only `NOTIFY_ONLY` is ever offered: deleting open work automatically is dangerous |
-| `TRASH` | `deleted_at` | 30 days | The sweep | Lower bound 7 days. No marking phase (§5) |
-| `ARCHIVED_ITEM` | `archived_at` | off | The sweep | The archive is permanent; deletion only by an explicit rule |
-| `COMMENT` | `created_at` | off | Nothing yet — a rule is refused | Configurable separately, because comments often stay relevant longer than the case |
-| `ATTACHMENT` | `created_at` | off | Nothing yet — a rule is refused | Deleting the attachment would leave the item in place |
-| `JUMBLE_ENTRY` | `created_at` | 90 days | The sweep | Inbox entries **never converted**. An entry that became a work item is its provenance (`origin_jumble_id`) and is never due. No marking phase: nobody can take an entry out of the period. A tenant-wide legal hold stops the sweep |
-| `NOTIFICATION` | `created_at` | 90 days | The sweep | Notification history. No marking phase |
-| `AI_SUGGESTION` | `created_at` | 30 days | The sweep | What AI proposed. Short because a suggestion is about a state of an entry that moves on. Accepted and dismissed suggestions age out too — an accepted one is already the entry's history. No marking phase; a tenant-wide legal hold stops the sweep |
+| `COMPLETED_ITEM` | `completed_at` | off | The sweep | Tasks, work packages, activities |
+| `OPEN_ITEM_STALE` | `updated_at` | off | Nothing — a rule is refused | Only `NOTIFY_ONLY` is ever offered: deleting open work automatically is dangerous |
+| `TRASH` | `deleted_at` | 30 days | The sweep | Lower bound 7 days. No marking phase |
+| `ARCHIVED_ITEM` | `archived_at` | off | The sweep | Permanent; deletion only by an explicit rule |
+| `COMMENT` | `created_at` | off | Nothing — a rule is refused | Comments often outlive the case's relevance |
+| `ATTACHMENT` | `created_at` | off | Nothing — a rule is refused | Deleting the attachment would leave the item in place |
+| `JUMBLE_ENTRY` | `created_at` | 90 days | The sweep | Entries **never converted**; one that became a work item is its provenance (`origin_jumble_id`) and never due. No marking phase. A tenant-wide legal hold stops the sweep |
+| `NOTIFICATION` | `created_at` | 90 days | The sweep | No marking phase |
+| `AI_SUGGESTION` | `created_at` | 30 days | The sweep | Accepted and dismissed suggestions age out too. No marking phase; a tenant-wide legal hold stops the sweep |
 | `ACTIVITY_ENTRY` | `occurred_at` | Follows the item | With the item | Item history |
 | `RULE_RUN` | `started_at` | 30 days | The leader, as month partitions | Automation log |
-| `WEBHOOK_DELIVERY` | `created_at` | 30 days | **Nothing yet** — only with its subscription or the tenant | Delivery log. The 30 days are not enforced today |
-| `OUTBOX_EVENT` | `occurred_at` | 7 days | The sweep; whole months fall as partitions | Dispatched events ([ADR-0007](../adr/ADR-0007-events-outbox-cloudevents.md)). An event nobody has consumed is never due. A polling trigger's cursor older than this period is refused, not restarted ([automation.md](./automation.md) §3.2) |
+| `WEBHOOK_DELIVERY` | `created_at` | 30 days | **Nothing yet** — only with its subscription or the tenant | The 30 days are not enforced today |
+| `OUTBOX_EVENT` | `occurred_at` | 7 days | The sweep; whole months fall as partitions | ([ADR-0007](../adr/ADR-0007-events-outbox-cloudevents.md)). An event nobody has consumed is never due. A polling trigger's cursor older than this is refused, not restarted ([automation.md](./automation.md) §3.2) |
 | `SESSION` | `last_seen_at` | 30 days | The sweep | No marking phase |
-| `DEVICE` | `last_seen_at` | 30 days | The sweep | Synchronising devices. A device silent past the period loses its sign-in — its session is revoked before the row goes ([offline-sync.md](./offline-sync.md) §6). No marking phase |
-| `SYNC_LOG` | `occurred_at` | 90 days, the offline window | The leader (change log months) and the sweep (operation log, tombstones) | On one clock, `HUBTASK_TOMBSTONE_WINDOW`. The window is also the **lower bound**: shorter, a device that was offline could recreate what was deleted or apply a half-finished push twice ([offline-sync.md](./offline-sync.md) §7). A tenant may keep the records longer, never shorter. No marking phase |
+| `DEVICE` | `last_seen_at` | 30 days | The sweep | A silent device's session is revoked before its row goes ([offline-sync.md](./offline-sync.md) §6). No marking phase |
+| `SYNC_LOG` | `occurred_at` | 90 days, the offline window | The leader (change log months) and the sweep (operation log, tombstones) | One clock, `HUBTASK_TOMBSTONE_WINDOW`, which is also the **lower bound** ([offline-sync.md](./offline-sync.md) §7). No marking phase |
 | `AUDIT` | `occurred_at` | 400 days | **Nothing yet** — no `audit_log` partition is dropped today | Pseudonymisation instead of deletion ([audit.md](./audit.md) §6) |
-| `MEDIA_ORPHAN` | `created_at` | 7 days | Nothing under this kind — unreferenced media go by the reconciliation's own graces ([data-protection.md](./data-protection.md) §5) | Unreferenced objects |
+| `MEDIA_ORPHAN` | `created_at` | 7 days | Nothing — the media reconciliation's own graces ([data-protection.md](./data-protection.md) §5) | Unreferenced objects |
 | `DELETED_ACCOUNT_RESIDUE` | `deleted_at` | 30 days | Nothing yet | Residual data after account deletion |
-
-A new data kind is added here and to `core/domain/model/lifecycle/Catalogue.go` (same order) and is
-then configurable through the API with no change to the engine; what it needs besides is something
-that removes it.
 
 ---
 
@@ -108,88 +98,78 @@ that removes it.
 Evaluated in this order; the first that applies wins:
 
 1. **Legal hold** on a tenant, a container or an item → no deletion, no anonymisation. A hold on a
-   container reaches everything below it; a hold on an item reaches the item and what hangs off it,
-   and nothing beside it. Placed and lifted through `/legal-holds`; both ends carry a reason and an
-   author, and lifting is audited. A hold is never deleted — it gains an end, so an auditor can tell
-   "there was never a hold" from "somebody lifted it". An entry a hold keeps back carries the rule,
-   the action and `blocked_by: legal_hold`, with no date.
+   container reaches everything below it; on an item, the item and what hangs off it, nothing
+   beside it. Placed and lifted through `/legal-holds`, each end with a reason and an author;
+   lifting is audited. A hold is never deleted — it gains an end, so an auditor can tell "never a
+   hold" from "somebody lifted it". An entry it keeps back carries the rule, the action and
+   `blocked_by: legal_hold`, with no date.
 
-   **A hold on an `ACCOUNT` is refused** (`lifecycle.hold_account_scope_unavailable`). The value
-   stays in the model and the schema's check constraint so no migration is needed to honour it.
-   What it will cover is decided and not yet built
-   ([data-protection.md §4.1](./data-protection.md#41-three-decisions-of-2026-09-30)): the person's
-   contributions and the account, stopping their erasure and deletion but not their sign-in.
+   **A hold on an `ACCOUNT` is refused** (`lifecycle.hold_account_scope_unavailable`); the value
+   stays in the model and the check constraint so honouring it needs no migration. Its reach is
+   decided, not built
+   ([data-protection.md §4.1](./data-protection.md#41-three-decisions-of-2026-09-30)).
 2. **A restriction of processing** (GDPR Art. 18) → the object is neither deleted nor changed. The
-   restriction is carried by the **account** (status `RESTRICTED`, set by `RestrictProcessing`), not
-   by an open case: `RESTRICTION` is a kind of data subject request, and the case closes once the
-   restriction is in place ([data-protection.md](./data-protection.md) §4).
-3. **Lower bounds per data kind** (`min_days`) → no accidental immediate deletion; trash is at least
-   7 days.
-4. **Upper bounds per data kind** (`max_days`, where the operator has set one) → exceeding it requires
-   a `justification` and writes an audit entry.
-5. **The minimum tombstone period** → an object may disappear for good only once every known offline
-   device has had the chance to learn of the deletion ([offline-sync.md](./offline-sync.md) §7).
+   **account** carries it (status `RESTRICTED`), not an open case
+   ([data-protection.md](./data-protection.md) §4).
+3. **Lower bounds per data kind** (`min_days`) → no accidental immediate deletion; trash at least 7
+   days.
+4. **Upper bounds per data kind** (`max_days`, where the operator set one) → exceeding it requires a
+   `justification` and writes an audit entry.
+5. **The minimum tombstone period** → an object disappears for good only once every known offline
+   device could learn of the deletion ([offline-sync.md](./offline-sync.md) §7).
 6. **Referential safeguards** → **a parent is kept back for any descendant that is not going in the
-   same pass**, whatever its period. A shorter-lived child still present is one something holds — a
-   legal hold, a `:retain`, a restriction, or a rule that has not reached it — and deleting its parent
-   would remove the context of something deliberately kept. The engine observes "not going in this
-   pass", not a comparison of periods; the parent goes on the pass after its last child.
+   same pass**, whatever its period — a child still present is held by a legal hold, a `:retain`, a
+   restriction or a rule that has not reached it, and its parent is its context. The engine observes
+   "not going in this pass", not a comparison of periods; the parent goes on the pass after its last
+   child.
 
 ---
 
 ## 5. Execution
 
-* A job per tenant (`retention.sweep`), seeded by trashing an entry or a container and then
-  rescheduling itself ([multi-tenancy.md](./multi-tenancy.md) §2.1), throttled and in batches (1,000 objects per
-  transaction by default).
-* **Two-phase:** phase 1 marks and notifies (`retention_pending_until`); phase 2 executes once the
-  grace period has elapsed. In between, anyone with permission can take the object out by editing
-  it, moving it, or `:retain`.
-* **No marking phase where it would announce nothing actionable.** A kind that has a trash gets no
-  marking phase: the trash is its own grace period, and a second one would delay without warning
-  anybody more. The same holds for kinds nobody can take out of a period (jumble entries,
-  notifications, suggestions) and for machine records (sessions, devices, sync log) — the *Note*
-  column of §3 says which.
+* A job per tenant (`retention.sweep`), seeded by trashing an entry or a container, then
+  rescheduling itself ([multi-tenancy.md](./multi-tenancy.md) §2.1); throttled, 1,000 objects per
+  transaction by default.
+* **Two-phase:** phase 1 marks and notifies (`retention_pending_until`); phase 2 executes after the
+  grace period. In between, anyone with permission can take the object out by editing, moving, or
+  `:retain`.
+* **No marking phase where it would announce nothing actionable:** a kind with a trash (the trash is
+  its own grace period), kinds nobody can take out of a period (jumble entries, notifications,
+  suggestions) and machine records (sessions, devices, sync log) — §3 says which.
 * **Preview without effect:** `POST /retention-policies/{id}:preview` returns the count and sample
   objects.
 * **Completeness:** a hard delete covers every storage location in the data catalogue (row, media,
-  search index, vectors, derived counters). A test checks for orphans after a deletion run.
-* **Log:** one `retention_run` per run with the scope, duration, result and the rule; a summary in
-  the audit, never every object.
+  search index, vectors, derived counters); a test checks for orphans after a run.
+* **Log:** one `retention_run` per run (scope, duration, result, rule); a summary in the audit,
+  never every object.
 * **Partitioned kinds:** a month of `activity_entry`, `outbox_event`, `rule_run` or `change_log`
-  whose every row has aged out for every tenant is dropped as one partition by the leader, with
-  evidence in the instance journal; the tenant sweeps keep deleting rows inside newer months.
-* **Metrics:** `hubtask_retention_pending`, `hubtask_retention_deleted_total{data_kind}`,
-  `hubtask_retention_run_duration_seconds`, `hubtask_retention_blocked_total{reason}`.
+  aged out for every tenant is dropped as one partition by the leader, with evidence in the instance
+  journal; tenant sweeps delete rows inside newer months.
+* **Metrics:** listed in [observability-reliability.md](./observability-reliability.md).
 
 ---
 
 ## 6. Visibility for users
 
 * An object in its grace period carries `retention: { action, effective_at, policy_id, can_retain }`
-  in the API, and therefore in every client.
-* `GET /retention-policies?container_id=…&effective=true` answers "which rules apply here?",
-  including where each came from (inherited from the hub or the tenant). Each rule carries
-  `in_force`. A rule switched off in a collection lets the wider rule through — "off here" means
-  "the wider rule applies", not "nothing does".
+  in the API.
+* `GET /retention-policies?container_id=…&effective=true` answers "which rules apply here?" and
+  where each came from; each carries `in_force`. A rule switched off in a collection lets the wider
+  rule through — "off here" means "the wider rule applies", not "nothing does".
 * `EXPORT_THEN_DELETE` writes the archive to the configured backup target as an ordinary backup run
   with trigger `PRE_DELETE` — one archive per target per pass, scoped to the tenant
-  ([backup-restore.md](./backup-restore.md) §3). A rule that cannot write its archive **stops**; an
-  export-then-delete without the export is just a deletion.
+  ([backup-restore.md](./backup-restore.md) §3). A rule that cannot write its archive **stops**.
 
-**The advance warning.** The people the rule names are messaged through the notification path
-(preference honoured, a record written whether or not it is sent, delivery a job):
+**The advance warning** goes through the notification path (preference honoured, a record written
+whether or not it is sent, delivery a job):
 
-* **It goes out when the entry is marked**, not `notify.before_days` later. `before_days` bounds how
-  late a warning may be, which marking satisfies by construction: seven days' notice inside a
-  fourteen-day grace gets fourteen.
+* **It goes out when the entry is marked**, not `notify.before_days` later; `before_days` bounds how
+  late a warning may be, which marking satisfies by construction.
 * **An entry something holds back is not warned about.** It is not going; it carries `blocked_by`.
-* **`RETENTION` is its own notification category**, so a preference set for reminders cannot
-  silence the one message about work that is about to stop existing.
-* **Recipients** are resolved through what knows them: the entry's member list, and for
-  `COLLECTION_ADMINS` and `TENANT_ADMINS` the administrator roles of the matrix along the entry's
-  whole path (a role held on the hub administers its collections). Somebody who qualifies twice is
-  told once.
+* **`RETENTION` is its own notification category**, so a reminder preference cannot silence it.
+* **Recipients:** the entry's members, and for `COLLECTION_ADMINS` and `TENANT_ADMINS` the
+  administrator roles along the entry's whole path (a hub role administers its collections).
+  Somebody who qualifies twice is told once.
 
 ---
 
@@ -202,7 +182,7 @@ Evaluated in this order; the first that applies wins:
 | RE-3 | Lower bounds cannot be undercut, upper bounds enforce a `justification` |
 | RE-4 | Grace period: a marked object can be taken out and is then not deleted |
 | RE-5 | A hard delete leaves no orphans in media, the search index, vectors, or counters |
-| RE-6 | The minimum tombstone period is observed; a device offline for 60 days does not resurrect a deleted object — SY-5 of [offline-sync.md](./offline-sync.md) §11 is the same test: the full synchronisation does not bring the deleted entry back, a push naming it is `sync.gone`, and a cursor past the window is `cursor_too_old` |
+| RE-6 | The minimum tombstone period holds; a device offline for 60 days does not resurrect a deleted object — SY-5 of [offline-sync.md](./offline-sync.md) §11: a full sync does not bring it back, a push naming it is `sync.gone`, a cursor past the window is `cursor_too_old` |
 | RE-7 | The first activation of a broadly matching rule warns rather than deletes |
 | RE-8 | Cross-tenant: one tenant's rule never affects another tenant's objects |
 | RE-9 | A chained rule (completed → archive → deletion) passes correctly through every stage |
@@ -221,6 +201,5 @@ Retired — the rule-model rules are now in §2.
 |---|---|---|
 | R-4 | `retention.sweep` is seeded only by trashing an entry or a container. A workspace that never trashes anything is never swept, so its sessions, devices, notifications, jumble entries, suggestions and configured rules do not age out. Every write that creates due work (a rule, a session, a jumble entry) should seed it | Before `1.0.0` |
 
-Closed points cited elsewhere: R-1 (the advance warning) is §6; R-2 (a parent waits for every descendant) is §4 item 6;
-R-3 (what an `ACCOUNT` hold stops) is decided in
-[data-protection.md](./data-protection.md) §4.1 and not yet built.
+Closed points cited elsewhere: R-1 (the advance warning) → §6; R-2 (a parent waits for every
+descendant) → §4 item 6; R-3 (what an `ACCOUNT` hold stops) → [data-protection.md](./data-protection.md) §4.1.
