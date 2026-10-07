@@ -17,7 +17,7 @@ import (
 	port "github.com/Jersyfi/hubtask/core/port/audit"
 )
 
-// Reading the trail (E-09, audit.md §5). What is under test is the access model, which is §5's
+// Reading the trail (audit.md §5). What is under test is the access model, which is §5's
 // rather than the ordinary role matrix, and the narrowing that goes with it.
 
 func newListHarness(whole bool) (ListAuditEntries, *trailStore, *authorizerDouble, *unitOfWork) {
@@ -267,7 +267,7 @@ func TestEveryDeclaredFieldBecomesAFilter(t *testing.T) {
 	case asked.ActionPrefix != "auth.":
 		t.Errorf("the action prefix arrived as %q", asked.ActionPrefix)
 	case !slices.Equal(asked.ActionAlso, []string{"mfa.recovery_regenerated"}):
-		// A renamed action is found under its old name too (SC-29).
+		// A renamed action is found under its old name too.
 		t.Errorf("the renamed actions arrived as %v", asked.ActionAlso)
 	case asked.ActorID != colleagueID, asked.TargetID != targetID:
 		t.Errorf("the actor or target arrived as %s / %s", asked.ActorID, asked.TargetID)

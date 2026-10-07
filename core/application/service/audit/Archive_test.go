@@ -22,7 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// Writing the archive (E-09, audit.md §5). What is under test is the format: which members exist,
+// Writing the archive (audit.md §5). What is under test is the format: which members exist,
 // in which order they are closed, what the manifest says about the chain it covers, and that a
 // target which fails leaves no archive claiming to be complete.
 

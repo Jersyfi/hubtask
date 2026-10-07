@@ -26,7 +26,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// The audit export's archive (E-09, audit.md §5): what `POST /audit:export` writes at a backup
+// The audit export's archive (audit.md §5): what `POST /audit:export` writes at a backup
 // target, and the one place its shape is decided.
 //
 // It is not the backup archive of `core/application/archive`, and the difference is what it is

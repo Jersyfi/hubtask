@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package audit is the trail as somebody reads it: a page of it, an archive of it, and the check
-// that it has not been rewritten (E-09, audit.md §5).
+// that it has not been rewritten (audit.md §5).
 //
 // Writing is not here and never will be. An entry is written by the use case that caused it,
 // inside its transaction, through `core/port/audit.Sink` - and the one action this package writes
@@ -64,7 +64,7 @@ type Authorizer interface {
 	Permits(ctx context.Context, actor appshared.ActorContext, request access.Request) (bool, error)
 }
 
-// Pseudonyms answers the substitutions an erasure left behind (audit.md §6, E-10).
+// Pseudonyms answers the substitutions an erasure left behind (audit.md §6).
 //
 // The trail is exempt from erasure and cannot be edited in place - the grants, the trigger and the
 // hash chain all refuse it - so what an erased actor's entries lose is their *label*, here, on the
@@ -253,7 +253,7 @@ func (h ListAuditEntries) invoke(
 ) (usecase.Output, error) {
 	filter := repository.Filter{
 		ActionPrefix: in.String("action"),
-		// A renamed action is one action under two names (SC-29): stored entries keep the old one.
+		// A renamed action is one action under two names: stored entries keep the old one.
 		ActionAlso: port.Aliases(in.String("action")),
 		TargetType: in.String("target_type"),
 		Outcome:    port.Outcome(in.String("outcome")),
