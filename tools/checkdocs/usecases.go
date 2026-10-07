@@ -367,14 +367,14 @@ func checkUseCaseReferences(root string, known map[string]string, checks map[str
 			}
 			return nil
 		}
-		if !citesADRs(entry.Name()) {
+		relative, _ := filepath.Rel(root, path)
+		if !citesADRs(entry.Name()) || snapshot(relative) {
 			return nil
 		}
 		content, readErr := os.ReadFile(path) //nolint:gosec // G304: walking this repository is the job
 		if readErr != nil {
 			return readErr
 		}
-		relative, _ := filepath.Rel(root, path)
 		for _, id := range ucReference.FindAllString(string(content), -1) {
 			cited[id] = append(cited[id], relative)
 		}
