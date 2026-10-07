@@ -3,7 +3,7 @@
 
 // `pnpm --filter @hubtask/sync-engine conformance --base-url <url> --token <token> [--report <file>]`
 //
-// The engine's conformance run against a real instance (F6-08): the report on standard output,
+// The engine's conformance run against a real instance: the report on standard output,
 // one row per requirement on standard error as it is decided, and a non-zero exit where any check
 // failed. The credential may come as `HUBTASK_TOKEN` instead of `--token`, which keeps it out of
 // the process list on a shared machine.

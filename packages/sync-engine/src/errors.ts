@@ -4,7 +4,7 @@
 // What a call can fail with, as values rather than as strings.
 //
 // The shape follows the server's: RFC 9457 problem documents carry a `code` plus `params`, never a
-// finished sentence (ADR-0011), and the client renders them (F1-07). So the error a caller catches
+// finished sentence (ADR-0011), and the client renders them. So the error a caller catches
 // carries the code, and the sentence is somebody else's job - which is what stops an English string
 // being baked into the one place every request passes through.
 
@@ -112,7 +112,7 @@ export class TransportError extends Error {
    * is not lost, and the row moved underneath them. Re-read, then reapply.
    */
   /**
-   * Whether the server refused because it wants a fresh re-authentication (H-03).
+   * Whether the server refused because it wants a fresh re-authentication (identity.md §16).
    *
    * Its own question rather than a caller comparing the code, because the recovery is specific and
    * repeatable: prove yourself again, then present the grant on the very same request. A `403`

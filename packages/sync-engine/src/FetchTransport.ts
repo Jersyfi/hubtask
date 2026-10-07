@@ -73,7 +73,7 @@ export class FetchTransport implements Transport {
 
   /**
    * `GET /stream`, read from the body as it arrives - never through `EventSource`, which cannot
-   * carry a bearer, and a token in a URL is forbidden (`security.md`, `apps/webapp/AGENTS.md`).
+   * carry a bearer, and a token in a URL is forbidden (identity.md §14.4).
    * The cursor goes in `Last-Event-ID`, which the contract says a client that manages its own
    * connection should send explicitly.
    */
@@ -242,7 +242,7 @@ export class FetchTransport implements Transport {
       // The runtime streams, and the connection does not: Chromium sends a streamed request body
       // over HTTP/2 or HTTP/3 only and refuses the fetch over HTTP/1.1 before a byte leaves - a
       // plain-HTTP bucket, the reference Compose stack - and the feature test above cannot tell,
-      // because it is a property of the connection rather than of the runtime (issue 756). The
+      // because it is a property of the connection rather than of the runtime. The
       // same bytes once more, whole: a PUT is idempotent and nothing was acknowledged, and the
       // progress is then reported once at the end, as it is wherever streaming is unavailable.
       try {

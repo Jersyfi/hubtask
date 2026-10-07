@@ -56,8 +56,8 @@ test('a reload keeps what the reader has until the new answer arrives', async ()
   await engine.refresh(ME);
   const before = seen.length;
 
-  // A list torn down to its skeleton on every write is a list that drops the keyboard's focus
-  // (F5-11): the second read publishes nothing until it has something to say.
+  // A list torn down to its skeleton on every write is a list that drops the keyboard's focus:
+  // the second read publishes nothing until it has something to say.
   transport.answer('/accounts/me', { id: 'a1', locale: 'fr' });
   await engine.refresh(ME);
 
@@ -90,7 +90,7 @@ test('a failure reaches the subscriber as a TransportError rather than as a thro
   const failed = seen.at(-1);
   assert.equal(failed?.status, 'failed');
   const error = failed?.status === 'failed' ? failed.error : undefined;
-  // The code, not a sentence: the renderer resolves it against the catalogue (ADR-0011, F1-07).
+  // The code, not a sentence: the renderer resolves it against the catalogue (ADR-0011).
   assert.equal(error?.code, 'access.insufficient_scope');
   assert.equal(error?.status, 403);
 });
@@ -285,7 +285,7 @@ test('reset forgets everything, which is what sign-out means', async () => {
 
 test('an expired access token is exchanged once and the request is retried', async () => {
   // What a person never sees: fifteen minutes pass, the next read is refused, the pair is
-  // exchanged behind the screen, and the read succeeds (F4-03).
+  // exchanged behind the screen, and the read succeeds.
   const refused = new TransportError('problem', { status: 401, code: 'unauthenticated' });
   const transport = new FakeTransport().failOnce('/accounts/me', refused).answer('/accounts/me', { id: 'a' });
   let exchanges = 0;

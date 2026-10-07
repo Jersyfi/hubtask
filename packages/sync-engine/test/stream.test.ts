@@ -165,8 +165,8 @@ test('the reconnect asks for the position the stream last sent', async () => {
 });
 
 test('a read the server could not answer is read again when the stream comes back', async () => {
-  // Issue 881: the account is subscribed to once at start, and a tab whose server went away kept
-  // the failed state until a reload - the tree came back on the reconnect, the name did not.
+  // The account is subscribed to once at start, and a tab whose server went away must not keep
+  // the failed state until a reload - the tree comes back on the reconnect, and so must the name.
   const transport = new FakeTransport()
     .answer('/accounts/me', { id: 'me', display_name: 'Engine Walker' })
     .answer(`/items/${ITEM}`, { id: ITEM, title: 'refused' })
@@ -402,8 +402,8 @@ test('stopping the listener ends the connection and keeps what was read', async 
 });
 
 test('the connection says when it is attached, and when an attempt failed', async () => {
-  // Issue 1017: the client had no way to ask, so it inferred - "live" became true when the first
-  // record arrived, and an open stream that nobody wrote to read *Reconnecting…* for ever. What
+  // A client with no way to ask infers - "live" becomes true when the first record arrives, and an
+  // open stream that nobody writes to reads *Reconnecting…* for ever. What
   // the callback reports is the connection, and a record is not one.
   const transport = new FakeTransport()
     .answer(`/items/${ITEM}`, { id: ITEM, title: 'one' })

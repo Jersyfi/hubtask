@@ -111,11 +111,11 @@ test('IndexedDbStorage: a runtime with no IndexedDB is refused at construction, 
   assert.throws(() => new IndexedDbStorage('x', undefined), TypeError);
 });
 
-// The window issue 776 found: the writing transaction is kept for the next request, and between its
+// The window a reused transaction meets: the writing transaction is kept for the next request, and between its
 // last request's completion and its `complete` event it is finished but still held. A request
 // issued on it from a later task throws `TransactionInactiveError`; the store answers from a
 // fresh transaction rather than reporting the copy empty.
-test('IndexedDbStorage: a read or write after the writing transaction finished is answered, not thrown (issue 776)', async () => {
+test('IndexedDbStorage: a read or write after the writing transaction finished is answered, not thrown', async () => {
   const { factory } = fakeIndexedDb();
   const storage = new IndexedDbStorage(databaseNameFor('https://hubtask.example', 'account-2'), factory);
   await storage.put('items', 'i1', { title: 'first' });

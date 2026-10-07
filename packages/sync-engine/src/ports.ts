@@ -16,7 +16,7 @@
 /** How a request identifies itself to the server, and how long it may take. */
 export interface RequestOptions {
   /**
-   * The bearer the platform seam holds (F1-11). It is passed per call rather than held here,
+   * The bearer the platform seam holds. It is passed per call rather than held here,
    * because a token that lives in the transport is a token that outlives a sign-out.
    */
   readonly token?: string;
@@ -32,7 +32,8 @@ export interface RequestOptions {
    */
   readonly timeoutMs: number;
   /**
-   * The proof of a fresh re-authentication, where a privileged operation demanded one (H-03).
+   * The proof of a fresh re-authentication, where a privileged operation demanded one
+   * (identity.md §16).
    *
    * It travels as `X-Hubtask-Step-Up` and is consumed by the one action it is presented to, which
    * is why it is per call rather than held: a second privileged action needs a second proof. The
@@ -207,7 +208,7 @@ export interface TransportDocument {
  * because that is the intersection of IndexedDB and SQLite - and the intersection is the honest
  * port when two implementations are already known.
  *
- * Two implementations ship with the package (F6-03): `IndexedDbStorage`, one database per API
+ * Two implementations ship with the package: `IndexedDbStorage`, one database per API
  * origin and account, which the browser platform seam supplies; and `MemoryStorage`, which the
  * tests and the conformance runner use. `test/storage.test.ts` holds both to the same promises.
  */

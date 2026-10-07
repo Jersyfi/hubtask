@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The replica and the initial synchronisation (F6-03), headless: a scripted Transport, a memory
+// The replica and the initial synchronisation, headless: a scripted Transport, a memory
 // store, and a clock that does not move. What is asserted is what the store holds afterwards,
 // because that is what a screen reads while offline - and the points of offline-sync.md §9 the
 // engine owes as named tests: 3 (revocation empties the subtree), 4 (a cursor too old resyncs),
@@ -301,7 +301,7 @@ test('a stamp is the device\'s clock, and survives a reload through the store', 
 });
 
 // ---------------------------------------------------------------------------------------------
-// Reads answered by the replica (F6-04).
+// Reads answered by the replica.
 // ---------------------------------------------------------------------------------------------
 
 /** The application's `storeFor`, as small as one is: one entry by its path, nothing else. */
@@ -357,7 +357,7 @@ test('a refusal the server answered is never replaced by the copy', async () => 
 });
 
 test('a path the copy could not answer is read again once the server answers a pull', async () => {
-  // Issue 881, with a store: the copy answered the entry and not its history, which stayed failed.
+  // With a store: the copy answers the entry and not its history, which must not stay failed.
   const transport = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
   transport.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });
   const engine = new SyncEngine({ transport, clock: new FixedClock(), storeFor });
@@ -386,8 +386,8 @@ test('a path the copy could not answer is read again once the server answers a p
 });
 
 test('the initial synchronisation does not read again what the server already answered', async () => {
-  // Issue 877: everything watched was invalidated once the snapshot ended, so a first page load
-  // read every resource twice - once on arrival, once more a moment later.
+  // Invalidating everything watched once the snapshot ends would make a first page load read
+  // every resource twice - once on arrival, once more a moment later.
   const transport = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
   transport.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });
   transport.answer(`/items/${ITEM}`, { id: ITEM, title: 'from the server' });

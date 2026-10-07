@@ -51,7 +51,7 @@ export function mintUuidV7(clock: Clock): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-/** The version nibble says 7: what N-04 accepts as a client-minted identifier. */
+/** The version nibble says 7: what the server accepts as a client-minted identifier. */
 export function isUuidV7(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
