@@ -27,6 +27,8 @@ import (
 //     a correction or as the owner's decision (usecasetext.go).
 //   - A settled ADR keeps its text; only its status line, its Rule lives in line and link targets
 //     move (adr.go).
+//   - A numbered section of a subject document keeps its number; a section whose content moved
+//     keeps its heading with one sentence (sections.go).
 //
 // What it cannot see: whether the record is good and whether the review was independent, and
 // whether the owner did decide what a description says was decided. Those stay with the people
@@ -41,15 +43,17 @@ type change struct{ status, path string }
 // branchFacts is what the history says. known is false when no history was read (no -base): the
 // description alone is then all there is to check.
 type branchFacts struct {
-	known      bool
-	opened     time.Time
-	tasks      []string
-	changed    []string
-	altered    []change
-	ucText     []ucTextChange
-	reused     []reusedID
-	adrEdited  []string
-	beforeCode func(path string) ([]byte, error)
+	known     bool
+	opened    time.Time
+	tasks     []string
+	changed   []string
+	altered   []change
+	ucText    []ucTextChange
+	reused    []reusedID
+	adrEdited []string
+	// sectionsLost are the numbered sections of subject documents the head drops (sections.go).
+	sectionsLost []lostSection
+	beforeCode   func(path string) ([]byte, error)
 }
 
 // reusedID is a use case the branch adds under an ID an earlier file carried.
@@ -112,6 +116,9 @@ func historyProblems(body string, facts branchFacts, read func(string) ([]byte, 
 	}
 	if heldTo(facts.opened, adrSince) {
 		problems = append(problems, adrProblems(facts.adrEdited)...)
+	}
+	if heldTo(facts.opened, sectionsSince) {
+		problems = append(problems, sectionProblems(facts.sectionsLost)...)
 	}
 	if !heldTo(facts.opened, readinessSince) {
 		return problems

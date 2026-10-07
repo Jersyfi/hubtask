@@ -13,7 +13,8 @@
 // (or the description on stdin). The Definition of Done is compared with the template's (dod.go),
 // and the title is a Conventional Commit (title.go).
 // With -base it also reads the branch's history: the readiness record of every task it carries,
-// merged migrations it changes, use cases it deletes (readiness.go). A rule added after a pull
+// merged migrations it changes, use cases it deletes, settled ADRs it rewrites, section numbers of
+// subject documents it drops (readiness.go). A rule added after a pull
 // request was opened (-opened) does not apply to it.
 package main
 

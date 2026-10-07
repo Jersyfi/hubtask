@@ -102,7 +102,8 @@ gate to a Makefile target or a `ci.yml` job. The other sections explain. A direc
   `correction` or `decision #<issue>`. `[partial: gate-pr; open: whether the owner decided, and
   docs/vision/]`
 - A rule lives in its subject document; an ADR records why and names that place. Numbered sections
-  of subject documents are never renumbered. `[partial: gate-docs; open: a renumbered section]`
+  of subject documents are never renumbered. `[partial: gate-docs, gate-pr; open: a number kept for
+  other content]`
 - No file named `CLAUDE.md`, `CLAUDE.local.md` or `AGENTS.override.md` is committed — it would hide
   this file from some agents. `[gate: gate-architecture]`
 - Merge only on the owner's word; a tool that steers workers gets its own GitHub App identity,
