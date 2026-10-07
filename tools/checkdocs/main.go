@@ -14,8 +14,9 @@
 //     leaves a link that lands at the top of a long page, which reads as "the section is gone".
 //   - Every ADR is in the index, and every index entry has a file. An ADR nobody indexed is one
 //     nobody finds; an index entry without a file is a decision that looks recorded and is not.
-//   - Every ADR-xxxx named anywhere in the repository exists. Code cites ADR numbers in comments,
-//     and a typo there points a reader at nothing.
+//   - Every ADR-xxxx named anywhere in the repository exists, in every kind of file the code
+//     citations are read in. Code cites ADR numbers in comments, and a typo there points a reader
+//     at nothing.
 //   - Every statement of the Go version agrees with go.mod. It is repeated in thirty places
 //     across eight files, and a base image bumped on its own would have the release built by a
 //     compiler no gate ever ran.
@@ -245,9 +246,7 @@ func checkADRReferences(root string) []string {
 			}
 			return nil
 		}
-		switch filepath.Ext(entry.Name()) {
-		case ".go", ".md", ".sql", ".yaml", ".yml", ".tpl":
-		default:
+		if !citesADRs(entry.Name()) {
 			return nil
 		}
 		content, readErr := os.ReadFile(path) //nolint:gosec // G304: walking this repository is the job
@@ -273,6 +272,13 @@ func checkADRReferences(root string) []string {
 		problems = append(problems, fmt.Sprintf("ADR-%s is cited in %s and does not exist", number, strings.Join(unique(files), ", ")))
 	}
 	return problems
+}
+
+// citesADRs is whether a file is read for ADR numbers: every document, and every kind of file the
+// code citations are read in (citations.go).
+func citesADRs(name string) bool {
+	ext := filepath.Ext(name)
+	return codeExtensions[ext] || ext == ".tpl" || filepath.Base(name) == "Makefile" || filepath.Base(name) == "Dockerfile"
 }
 
 // markdownFiles collects every document, repository-relative.

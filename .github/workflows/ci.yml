@@ -575,7 +575,7 @@ jobs:
     # Behind no filter at all, like `secrets` and `licences`. It takes seconds and it is the only
     # thing standing behind three claims that a filter could skip: checkdocs reconciles the Go
     # version across go.mod, the workflows and the Dockerfile, reconciles the support matrix with
-    # the nightly's jobs, and resolves ADR citations in `.go`, `.md`, `.sql`, `.yaml` and `.tpl`
+    # the nightly's jobs, and resolves ADR citations in every kind of source file and document
     # alike. Behind a filter, a change confined to `db/` or `deploy/` would skip the gate that
     # reads it. A job this cheap has no business having a filter to get wrong.
     runs-on: ubuntu-latest

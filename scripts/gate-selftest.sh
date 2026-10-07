@@ -532,10 +532,12 @@ expect_docs_failure "a link to a heading that is not there" \
 
 [a section that moved](./architecture/arc42.md#a-heading-nobody-wrote)'
 
+# The number is split in two quotes: written whole, it would be a citation in this script, which
+# the gate reads too.
 expect_docs_failure "a citation of an ADR nobody wrote" \
 '# Probe
 
-The reasoning is in ADR-0099.'
+The reasoning is in ADR-''0999.'
 
 header "The chart (make gate-chart)"
 

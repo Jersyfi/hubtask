@@ -121,7 +121,7 @@ on the branch that gets released.
 stylesheet or a README included, so `secrets`, `dependencies` and `licences` never filter. `docs`
 takes seconds and reads files every filter could skip: `checkdocs` reconciles the Go version across
 `go.mod`, the workflows, the Dockerfile, the support matrix and the README; reconciles the support
-matrix with the nightly's jobs; resolves ADR citations in `.go`, `.md`, `.sql`, `.yaml` and `.tpl`;
+matrix with the nightly's jobs; resolves ADR citations in every kind of source file and document;
 checks links and anchors; and holds the newest `docs/evidence/COVERAGE-<date>.md` to
 `catalogue.Descriptors()` — one row per use case the catalogue serves, none for one it does not
 serve, and no omission "nobody built it" without an issue number.
