@@ -3,7 +3,7 @@
 <script lang="ts">
   // A container that has padding and nothing else.
   //
-  // design-system.md §4, wave 0: a primitive produces no visual style of its own - no colour, no
+  // design-system.md §4, Wave 0: a primitive produces no visual style of its own - no colour, no
   // border, no shadow. A primitive that decorates is a component, and belongs in a wave that plans
   // it. What it does have is the one thing §0's rule makes impossible to write at a call site: a
   // spacing value.

@@ -34,6 +34,6 @@ export const absolute: Story = {
 export const recipients: Story = {
   name: 'Naming who is reminded',
   about:
-    'The picker is a slot, so F3-07’s arrives without this component learning what a member is. With nobody named, the sentence in its place says who is reminded anyway: the assignee and the members, resolved when it fires. "Nobody" is what an empty list looks like, and it is not what happens.',
+    'The picker is a slot, so the application’s arrives without this component learning what a member is. With nobody named, the sentence in its place says who is reminded anyway: the assignee and the members, resolved when it fires. "Nobody" is what an empty list looks like, and it is not what happens.',
   args: { mode: 'recipients' },
 };

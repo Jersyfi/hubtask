@@ -41,7 +41,7 @@
 
   let anchor = $state<HTMLElement | null>(null);
   let surface = $state<HTMLElement | null>(null);
-  /** What had focus when it opened, so that closing puts it back (F1-06's acceptance). */
+  /** What had focus when it opened, so that closing puts it back (design-system.md §10, 2.4.3). */
   let opener: Element | null = null;
 
   const triggerProps = $derived({

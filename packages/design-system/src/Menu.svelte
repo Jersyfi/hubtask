@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A list of actions, fully operable from the keyboard - which is F1-06's acceptance and the
-  // reason the items are data rather than a snippet of children.
+  // A list of actions, fully operable from the keyboard (design-system.md §4, Wave 1) - which is
+  // the reason the items are data rather than a snippet of children.
   //
   // Roving focus, type-ahead and "which item is the third one" are questions about a list. A menu
   // that took children would have to read them back out of the DOM, and the arithmetic that

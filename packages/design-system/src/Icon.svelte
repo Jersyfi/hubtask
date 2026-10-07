@@ -76,7 +76,7 @@
   /* An arrow that means "forward" points the other way when the text runs the other way. The
      glyph is flipped here, once, rather than at every call site that would otherwise have to
      know the direction. The `dir` attribute is asked rather than `:dir(rtl)`, which Chromium does
-     not match on an element inserted after its ancestor's `dir` was set (F5-10); the second rule
+     not match on an element inserted after its ancestor's `dir` was set; the second rule
      lets a code block that keeps `dir="ltr"` inside an Arabic page keep its arrows too. */
   :global([dir='rtl']) .icon[data-mirrored] {
     transform: scaleX(-1);

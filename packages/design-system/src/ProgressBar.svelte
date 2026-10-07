@@ -6,7 +6,7 @@
   // **The element is `<progress>`, and that is what makes the determinate case possible at all.**
   // A bar drawn as a filled div needs a width, a width is arithmetic, and arithmetic in an
   // attribute is an inline style — which ADR-0028's `style-src 'self'` refuses, in production only
-  // (design-system.md §4, wave 0). The platform's own element takes a number and draws the
+  // (design-system.md §4, Wave 0). The platform's own element takes a number and draws the
   // proportion itself, so there is nothing here to compute and nothing to inline.
   //
   // **Indeterminate is a first-class case, not a missing number.** A job answers `progress: null`

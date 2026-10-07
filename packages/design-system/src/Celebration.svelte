@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The celebration slot (design-system.md §7, F6-13): one component, three tiers, an asset per
+  // The celebration slot (design-system.md §7): one component, three tiers, an asset per
   // tier that fills the slot within the tokens' guardrails - `--motion-celebration-*-duration`
   // for how long, `--motion-celebration-area` for the most it may claim of the screen,
   // `--motion-celebration-travel` for the furthest anything in it moves.

@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // One step of the tour (design-system.md §8, F6-14): a caption and one body line in
+  // One step of the tour (design-system.md §8): a caption and one body line in
   // voice-and-tone.md's register, the step count, and three verbs - back, next (or done on the
   // last step) and skip. Resolved text throughout (ADR-0011).
   //

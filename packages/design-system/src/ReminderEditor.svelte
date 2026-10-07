@@ -70,7 +70,7 @@
     /** What the recipients are called, and who they are when nobody is named. */
     recipientsLabel: string;
     defaultRecipientsLabel: string;
-    /** F3-07's picker, handed in. Absent means the caller is not offering a choice yet. */
+    /** The application's member picker, handed in. Absent means the caller offers no choice. */
     recipients?: Snippet;
     onChange?: (value: string) => void;
     onChannelsChange?: (channels: readonly string[]) => void;

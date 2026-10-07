@@ -88,7 +88,8 @@
   .mark { display: inline-flex; flex: none; }
 
   /* The one that is waiting rather than refusing turns, so the two are not the same still picture.
-     `pending` is the role for an indicator with no beginning and no end (F2-01). */
+     `pending` is the role for an indicator with no beginning and no end (design-system.md §6
+     rule 6). */
   .gate[data-status='undetermined'] .mark {
     animation: turn var(--motion-pending-duration) var(--motion-pending-easing) infinite;
   }

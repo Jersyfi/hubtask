@@ -6,8 +6,8 @@
   // §4 states the constraint in five words — "ten `colorToken` values, nothing else" — and
   // `domain-model.md` §3.5 gives the reason: "the colour is a token (not hex) → theming is possible
   // in the frontend". A chip that took a hex would be a chip that is unreadable in one of the two
-  // themes, because the pair behind each token is `bg` **and** `fg`, measured together by F1-02 for
-  // contrast in both. One value cannot carry that.
+  // themes, because the pair behind each token is `bg` **and** `fg`, measured together by
+  // `test/contrast.test.js` for contrast in both. One value cannot carry that.
   //
   // The token is validated by the backend against the same ten names (`LabelTokens.go`, generated
   // from `tokens.json`), so a chip and a row never disagree about which colours exist.

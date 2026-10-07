@@ -74,8 +74,8 @@
   );
 </script>
 
-<!-- Bold for the two states somebody has to act on (ADR-0061, F9-04): a failed run, and a rule
-     that stopped itself. Everything else is the subtle form, so that a list of twenty runs is
+<!-- Bold for the two states somebody has to act on (ADR-0061, design-system.md §6 rule 3): a
+     failed run, and a rule that stopped itself. Everything else is the subtle form, so that a list of twenty runs is
      twenty quiet rows and the one that matters is the one that is seen. -->
 <span
   class="run"

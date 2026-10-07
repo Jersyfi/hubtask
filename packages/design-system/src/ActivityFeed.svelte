@@ -6,7 +6,7 @@
   // **`verb` is a code, and this component never sees one.** `domain-model.md` §3.5 stores
   // `item.completed` and the client renders `activity.item_completed`; a feed that wrote
   // "Completed" would be the message catalogue growing a second copy inside a component, which
-  // ADR-0011 forbids and F1-07 built the renderer to prevent. So every string here arrives
+  // ADR-0011 forbids and the client's renderer exists to prevent. So every string here arrives
   // resolved, and the component's whole job is the shape of a history.
   //
   // **An ordered list, and a real `<time>`.** The order is the content — newest first is what the

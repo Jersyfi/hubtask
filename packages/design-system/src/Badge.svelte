@@ -20,8 +20,8 @@
   import type { IconName } from './icons/index.ts';
 
   /**
-   * How loudly the badge says it (ADR-0061, F9-04). `subtle` is a tinted surface with the tone's
-   * text - the form for a list, where every row has one. `bold` is the tone's accent with
+   * How loudly the badge says it (ADR-0061, design-system.md §6 rule 3). `subtle` is a tinted
+   * surface with the tone's text - the form for a list, where every row has one. `bold` is the tone's accent with
    * inverse text, for the one badge on a screen that must be seen first: a failed run, a lost
    * connection. A screen with three bold badges has misread the rule.
    */

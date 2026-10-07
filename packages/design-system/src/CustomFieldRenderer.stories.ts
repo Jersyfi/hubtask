@@ -20,7 +20,7 @@ export const kinds: Story = {
 export const user: Story = {
   name: '`USER` is a slot, not an import',
   about:
-    'Who may be named in this container is the domain’s answer (F3-07), so the picker is handed in. That is also what keeps this component from depending on the people half of the model to draw the seven kinds that have nothing to do with people.',
+    'Who may be named in this container is the domain’s answer, so the picker is handed in. That is also what keeps this component from depending on the people half of the model to draw the seven kinds that have nothing to do with people.',
   args: { mode: 'user' },
 };
 
