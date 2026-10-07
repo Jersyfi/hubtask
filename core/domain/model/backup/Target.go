@@ -130,9 +130,8 @@ var requiredConfig = map[TargetKind][]string{
 // The warnings a target carries about itself. They are the resource's vocabulary and are
 // deliberately not the installation's: `/meta/health` speaks `config.backup_*` about the
 // installation as a whole ("no target configured", "only one target"), and a target speaks
-// `backup.target_*` about itself. The two were named inconsistently across the specification and
-// backup-restore.md §10; E-03 settles it this way round because a warning is named after what it
-// describes, and `config.` names a thing an operator sets in the environment.
+// `backup.target_*` about itself (backup-restore.md §10). This way round, because a warning is
+// named after what it describes, and `config.` names a thing an operator sets in the environment.
 const (
 	WarningUnencrypted       = "backup.target_unencrypted"
 	WarningPlaintextProtocol = "backup.target_plaintext_protocol"
@@ -193,8 +192,8 @@ type NewTargetInput struct {
 	CreatedBy            shared.ID
 	Now                  time.Time
 
-	// Text brings the name and the region note to normal form C before they are bounded and
-	// stored (i18n-l10n.md §5, M-07); work.NewWorkItemInput says why it is handed in.
+	// Text brings the name and the region note to normal form C before they are bounded and stored
+	// (i18n-l10n.md §5); work.NewWorkItemInput says why it is handed in.
 	Text text.Normalizer
 }
 
