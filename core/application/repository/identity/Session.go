@@ -178,7 +178,7 @@ type SignInAccounts interface {
 
 	// PasswordHashOf answers one account's stored hash, for the operations that demand the
 	// password afresh of somebody already signed in - disabling the second factor is the first
-	// (security.md §5). Empty for an account that signs in some other way.
+	// (identity.md §16). Empty for an account that signs in some other way.
 	PasswordHashOf(ctx context.Context, accountID shared.ID) (secret.Secret, error)
 }
 
@@ -201,9 +201,9 @@ type AuthAttempts interface {
 	Clear(ctx context.Context, subject string) error
 }
 
-// TenantDirectory answers decision 3's question: which tenant is signing in, before any
-// credential exists to say so. One identifier or none, never a listing - the implementation is
-// the narrow SECURITY DEFINER path migration 0063 pins down.
+// TenantDirectory answers tenant resolution's question (multi-tenancy.md §3): which tenant is
+// signing in, before any credential exists to say so. One identifier or none, never a listing - the
+// implementation is the narrow SECURITY DEFINER path migration 0063 pins down.
 type TenantDirectory interface {
 	// Resolve maps a slug to its tenant. The empty slug answers the single-mode installation's
 	// only row. No match is an error wrapping shared.ErrNotFound.
@@ -318,7 +318,7 @@ type PendingCredentials interface {
 // settings document, so the application layer never parses a shape the adapter owns.
 type TenantPolicy interface {
 	// RequireAdminTotp reports whether this tenant demands TOTP of OWNER and ADMIN role holders
-	// (security.md §5). An absent switch is false: enforcement is a decision, never a default.
+	// (identity.md §8). An absent switch is false: enforcement is a decision, never a default.
 	RequireAdminTotp(ctx context.Context) (bool, error)
 }
 

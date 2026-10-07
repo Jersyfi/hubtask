@@ -26,14 +26,14 @@ type InstanceLevel struct {
 	// Localisation is the default language, time zone and week start a workspace inherits when it
 	// has set none of its own.
 	//
-	// **A default, never a lock** — the concept's §5.7 in its own words: "Eine Instanz gibt einen
-	// Standard, nie ein Schloss: ein Unternehmen, das nicht auf Deutsch arbeiten darf, weil der
-	// Betreiber es so eingestellt hat, ist ein Produktfehler." So there is no lock map beside it,
-	// which is the structural way of saying it rather than a check somebody can forget.
+	// **A default, never a lock** (ADR-0070 decision 6): a company that may not work in German
+	// because the operator set it so is a product defect. So there is no lock map beside it, which
+	// is the structural way of saying it rather than a check somebody can forget.
 	Localisation identity.LocalisationDefaults
 	// Quotas are the ceilings the installation sets for every workspace that sets none of its own:
-	// the middle level of `Effective(product, instance, plan, workspace)` (§6.7). A lock here is
-	// meaningful — an operator may forbid a workspace raising its own — so the locks travel.
+	// the middle level of `Effective(product, instance, plan, workspace)` (ADR-0070 decision 7). A
+	// lock here is meaningful — an operator may forbid a workspace raising its own — so the locks
+	// travel.
 	Quotas identity.QuotaDefaults
 	// BlocklistFile is the path to the operator's own list of refused passwords, read offline.
 	// Instance-only and deliberately not a workspace switch: the file is on the operator's disk,

@@ -29,8 +29,8 @@ type Credential struct {
 	TenantLocale   string
 	TenantTimeZone string
 	// TenantSlug and TenantStatus ride with every credential read: the middleware
-	// compares the slug against §3's weaker sources, and a suspension flips authentication
-	// itself rather than each use case separately.
+	// compares the slug against multi-tenancy.md §3's weaker sources, and a suspension flips
+	// authentication itself rather than each use case separately.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
 	// TokenRatePerMinute is the workspace's own request-rate ceiling, riding with the
@@ -115,14 +115,10 @@ type Memberships interface {
 }
 
 // Accounts is the store of people and service accounts.
-//
-// The write side is small on purpose: 0.2.0 invites an account and changes its preferences.
-// Accepting an invitation, changing an email address and disabling an account belong to the
-// sign-in flow and arrive with it (security.md §5).
 type Accounts interface {
 	// Find returns the account, or an error wrapping shared.ErrNotFound. The tenant is the
 	// transaction's; an account of another tenant is not found rather than forbidden, because
-	// anything else confirms that it exists (multi-tenancy.md §2).
+	// anything else confirms that it exists (T-04).
 	Find(ctx context.Context, accountID shared.ID) (identity.Account, error)
 
 	// FindByEmail is how an invitation notices that the person is already here. The address is
