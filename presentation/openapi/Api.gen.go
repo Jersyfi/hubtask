@@ -4257,7 +4257,7 @@ type BackupArchive struct {
 	Mode            *BackupArchiveMode `json:"mode,omitempty"`
 	ParentArchiveId *string            `json:"parent_archive_id,omitempty"`
 
-	// Path Where the archive lies at the target
+	// Path Where the archive lies at the target, and what `RestoreRequest.archive_id` takes.
 	Path           *string `json:"path,omitempty"`
 	ProductVersion *string `json:"product_version,omitempty"`
 	SchemaVersion  *string `json:"schema_version,omitempty"`
@@ -5662,7 +5662,7 @@ type ItemSearchQuery struct {
 	// ContainerId The hub or collection to search in. Omitted searches everything the caller may see.
 	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
 
-	// Filter Narrows the search, in the grammar `POST /items:query` uses: the fields `/meta/capabilities` names, the operators each one permits, at most five levels of nesting and fifty nodes, and the same cost estimate capped at 50. An unknown field is `422 invalid_query_field`; too expensive a tree is `422 query.filter_too_expensive`, refused before it runs.
+	// Filter Narrows the search, in the grammar `POST /items:query` uses: the fields `/meta/capabilities` names, the operators each one permits, at most five levels of nesting and fifty nodes, and the same cost estimate capped at 50. An unknown field is `422 query.field_unknown`; too expensive a tree is `422 query.filter_too_expensive`, refused before it runs.
 	Filter          *FilterNode `json:"filter,omitempty"`
 	IncludeArchived *bool       `json:"include_archived,omitempty"`
 	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
@@ -6356,7 +6356,7 @@ type PasswordReset struct {
 // PasswordRules What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 // Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
 type PasswordRules struct {
-	// BreachCheck Whether a breach corpus is consulted
+	// BreachCheck Whether a breach corpus is consulted, where one is configured.
 	BreachCheck bool `json:"breach_check"`
 
 	// CommonPasswords Whether an offline list is consulted - the embedded one, the operator's own file, or both. Which of them refused a password is deliberately not said: it would tell a guesser which corpus to avoid.
@@ -6377,7 +6377,7 @@ type PasswordRules struct {
 	// MinDigits Unicode category Nd. 0 is off.
 	MinDigits int `json:"min_digits"`
 
-	// MinLength The fewest characters
+	// MinLength The fewest characters, counted after NFKC.
 	MinLength int `json:"min_length"`
 
 	// MinLowercase Unicode category Ll. 0 is off.
@@ -7586,7 +7586,7 @@ type SyncChange struct {
 	ActorId     *openapi_types.UUID `json:"actor_id,omitempty"`
 	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
 
-	// DeviceId The device whose push caused it
+	// DeviceId The device whose push caused it, so that device can skip its own echo; absent for a change made through the API.
 	DeviceId *openapi_types.UUID `json:"device_id,omitempty"`
 	Entity   string              `json:"entity"`
 	EntityId openapi_types.UUID  `json:"entity_id"`
@@ -7618,7 +7618,7 @@ type SyncDevice struct {
 	DisplayName *string            `json:"display_name,omitempty"`
 	Id          openapi_types.UUID `json:"id"`
 
-	// LastCursor Where the device last stood in the log
+	// LastCursor Where the device last stood in the log, as an opaque cursor it could resume from.
 	LastCursor *string    `json:"last_cursor,omitempty"`
 	LastSeenAt *time.Time `json:"last_seen_at,omitempty"`
 	Platform   *string    `json:"platform,omitempty"`
@@ -7636,11 +7636,11 @@ type SyncMutation struct {
 	} `json:"fields,omitempty"`
 	Hlc *string `json:"hlc,omitempty"`
 
-	// ItemId Assigned by the client (UUIDv7)
+	// ItemId Assigned by the client (UUIDv7), including on CREATE
 	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
 	Kind   SyncMutationKind    `json:"kind"`
 
-	// OpId The idempotency key
+	// OpId The idempotency key. The server keeps it for the maximum offline window - the `tombstone_window_days` a pull answers, 90 days by default - so a mutation pushed again within that window takes effect exactly once.
 	OpId    openapi_types.UUID      `json:"op_id"`
 	Payload *map[string]interface{} `json:"payload,omitempty"`
 
@@ -7745,7 +7745,7 @@ type SyncPushRequest struct {
 
 // SyncPushResponse defines model for SyncPushResponse.
 type SyncPushResponse struct {
-	// Cursor The cursor after application
+	// Cursor The cursor after application, saving a pull.
 	Cursor     *string              `json:"cursor,omitempty"`
 	Results    []SyncMutationResult `json:"results"`
 	ServerTime *time.Time           `json:"server_time,omitempty"`
@@ -8565,7 +8565,7 @@ type ListAuditEntriesParamsOutcome string
 
 // VerifyAuditChainJSONBody defines parameters for VerifyAuditChain.
 type VerifyAuditChainJSONBody struct {
-	// Anchors Also read the last anchor back from the workspace's anchoring target and compare the chain end it holds with the chain at that sequence (A-2, P-13). A read of somebody else's machine, so it is asked for rather than always done; `anchored_until`, `anchor_agrees` and `anchor_error_code` answer it.
+	// Anchors Also read the last anchor back from the workspace's anchoring target and compare the chain end it holds with the chain at that sequence. A read of somebody else's machine, so it is asked for rather than always done; `anchored_until`, `anchor_agrees` and `anchor_error_code` answer it.
 	Anchors *bool     `json:"anchors,omitempty"`
 	From    time.Time `json:"from"`
 	To      time.Time `json:"to"`
@@ -8684,7 +8684,7 @@ type ListRuleRunsParams struct {
 	// Trigger Narrow to one way of starting. "Did the schedule fire last night" and "did anybody press the button" are two questions about the same rule.
 	Trigger *ListRuleRunsParamsTrigger `form:"trigger,omitempty" json:"trigger,omitempty"`
 
-	// From The start of the window, inclusive, on `started_at` (F8-02). Named as the audit trail names its window, so that a client that has learned one has learned both.
+	// From The start of the window, inclusive, on `started_at`. Named as the audit trail names its window, so that a client that has learned one has learned both.
 	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
 
 	// To The end of the window, exclusive, on `started_at`. A window that ends before it starts is refused with the field named rather than answered empty.
@@ -9379,7 +9379,7 @@ type CreateDataSubjectRequestParams struct {
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
 
-	// Effective Only the rules actually in force
+	// Effective Only the rules actually in force, including inheritance
 	Effective *bool `form:"effective,omitempty" json:"effective,omitempty"`
 }
 

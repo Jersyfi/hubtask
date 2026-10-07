@@ -1,27 +1,23 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# The contract is Apache-2.0 like the whole repository (ADR-0080): a third party may generate its
-# own client from it.
+# The contract is Apache-2.0 like the whole repository: a third party may generate its own client
+# from it (ADR-0080).
 openapi: 3.1.0
 info:
   title: Hubtask API
   version: 0.1.0
   summary: Task management with Hub / Collection / Task / Work Package / Activity
   description: |
-    The skeleton of the API contract (API first). This file is the single source of truth:
-    server interfaces and client SDKs are generated from it (`make generate`).
+    The Hubtask API contract (API first). This file is the single source of truth: server
+    interfaces and client SDKs are generated from it.
 
-    For the conventions see docs/architecture/api-guidelines.md:
+    The conventions:
       * one major path `/api/v1`, additive changes without a version bump
       * errors per RFC 9457 with a stable `code`
       * cursor pagination, `Idempotency-Key`, `ETag`/`If-Match`
       * actions as a suffix (`POST /items/{id}:complete`)
       * no display text, only codes and parameters
-
-    Not yet elaborated (deliberately open, to be added in phase 0/1): templates, views, jumble,
-    reminders, recurrence, automation, webhooks, media, search, SSE. admin/tenants left the list
-    with H-06: the control plane is part of the contract like everything else.
   license:
     name: Apache-2.0
     identifier: Apache-2.0
@@ -222,8 +218,8 @@ paths:
       summary: Ask AI to draft a template from a description
       description: >
         Asks the workspace's AI provider for a template — a name and a tree of nodes — from a
-        description in the caller's own words, for the collection the template would belong to
-        (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the
+        description in the caller's own words, for the collection the template would belong to.
+        The tree is held to the collection's capability profile: the
         prompt says which types may sit under which, and a node the profile refuses is dropped
         from the answer rather than stored.
 
@@ -424,13 +420,13 @@ paths:
 
         The view executes under the **caller's** authorisation, exactly as reading it does - two
         people exporting one shared view export two different files, and neither gets a row their
-        role hides (T-04, T-05).
+        role hides.
 
         Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as
         max_export_rows, and a result that reached it is answered whole up to the cap with the
-        Export-Truncated header set. The guidelines' "202 plus /jobs/{id}" is what the cap stands
-        in for while there is no /jobs resource - a truncation a caller is told about is honest,
-        and a silent one is not.
+        Export-Truncated header set. An export stays one synchronous answer rather than a job a
+        caller has to poll, and the cap is what keeps it one - a truncation a caller is told about
+        is honest, and a silent one is not.
 
         ICS renders the same document the calendar feed serves, from the same renderer: an entry
         with no due date is not a calendar entry and does not appear.
@@ -577,7 +573,7 @@ paths:
       summary: Ask AI what this entry should become
       description: >
         Asks the workspace's AI provider to propose a title, notes, a due date and labels for one
-        entry (J-06, `ai-first.md` §2). It **proposes** and changes nothing: what comes back is a
+        entry. It **proposes** and changes nothing: what comes back is a
         suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody
         converts the entry.
 
@@ -631,7 +627,7 @@ paths:
       summary: The workspace's automation rules
       description: >
         Newest first, and only the rules the caller may see: a member manages their own rules, and
-        an administrator the scope's (domain-model.md §3.2). Deleted rules are not among them - the
+        an administrator the scope's. Deleted rules are not among them - the
         deletion is soft so that the runs a rule produced stay readable, not so that the rule stays
         listed.
       parameters:
@@ -663,11 +659,11 @@ paths:
         Writing a rule needs the automation permission at its scope **and** the rights its own
         actions need. Without the second half a member with automation rights and nothing else
         would write a rule that runs as a generously-scoped service account and does what they may
-        not (automation.md §2).
+        not.
 
         What this build refuses, and says so by code rather than by silence: a condition that does
         not compile, or that names something this build does not publish; an action naming a kind
-        automation.md §1.3 documents and no release serves yet; a parameter the action's use case
+        this build does not serve; a parameter the action's use case
         does not declare.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -797,7 +793,7 @@ paths:
       operationId: checkRules
       summary: Check every rule of the workspace against what exists now
       description: >
-        The check ADR-0060 describes: every rule the caller may read, its references resolved -
+        Every rule the caller may read, its references resolved -
         the trigger's event type, each action's kind and parameter keys, each condition, the
         account it runs as, and every identifier a parameter carries - against what this
         installation and this workspace have now. What is found is written on the rules
@@ -828,7 +824,7 @@ paths:
       operationId: testRule
       summary: Dry-run a rule against a sample event
       description: >
-        The dry run automation.md §2 promises: a sample event in, which conditions matched and
+        A dry run: a sample event in, which conditions matched and
         which actions *would* run out - and no side effects, with the restore's dry-run
         discipline behind the promise: nothing below this route opens a writing transaction. No
         action dispatches, nothing is queued, and the run log records nothing.
@@ -862,7 +858,7 @@ paths:
       operationId: triggerRuleManually
       summary: Run a rule now
       description: >
-        The `MANUAL` trigger (automation.md §1.1): the one of the six a person pulls. It queues a
+        The `MANUAL` trigger: the one of the six a person pulls. It queues a
         run into the same engine every other trigger produces into - the conditions are evaluated,
         the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle
         apply exactly as they do to an event's run.
@@ -873,7 +869,7 @@ paths:
 
         Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one.
         Both refusals name themselves rather than answering an empty success - a call that appears
-        to work and does nothing is the failure `automation.md` §2.2 exists to avoid.
+        to work and does nothing is the failure this refusal exists to avoid.
 
         The answer carries the identifier the run will have. It is a `202`: the run happens on a
         worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log
@@ -898,7 +894,7 @@ paths:
       operationId: rotateInboundTrigger
       summary: Mint the address an inbound-webhook rule answers on
       description: >
-        The `INBOUND_WEBHOOK` trigger's credential (automation.md §1.1): a token-protected URL per
+        The `INBOUND_WEBHOOK` trigger's credential: a token-protected URL per
         rule, minted here and answered **once**. It is stored hashed under its own purpose label,
         so no later read can produce it.
 
@@ -927,7 +923,7 @@ paths:
       operationId: rotateJumbleIntake
       summary: Mint the address the jumble accepts webhooks on
       description: >
-        The tenant's one intake credential (G-10), the inbound trigger's discipline applied to
+        The tenant's one intake credential, the inbound trigger's discipline applied to
         the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over
         the whole presented string under the intake's own purpose label, and answered **once** -
         no later read can produce it.
@@ -955,8 +951,7 @@ paths:
         description: >
           The tenant's intake token, which is the whole credential: this route carries no bearer
           authentication, and the URL is what the bridge stores. It names the tenant in clear
-          inside itself because the lookup needs one before it can happen (multi-tenancy.md
-          §2.2).
+          inside itself because the lookup needs one before it can happen.
         schema: { type: string }
     post:
       tags: [jumble]
@@ -964,7 +959,7 @@ paths:
       security: []
       summary: Deliver something into the jumble from outside
       description: >
-        The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`,
+        The `WEBHOOK` channel: an external system posts a small JSON shape - `sender`,
         `subject`, `body`, all optional but not all empty - and it lands as an entry, fires
         `jumble.entry_received`, and waits for a person or a rule to decide about it.
 
@@ -975,7 +970,7 @@ paths:
 
         Every reason not to serve answers the same `404` with the same body - an unknown token, a
         rotated one, a tenant that never minted one. Distinguishing them would answer questions
-        for whoever is trying tokens (T-21).
+        for whoever is trying tokens.
       requestBody:
         required: true
         content:
@@ -1000,8 +995,7 @@ paths:
         description: >
           The tenant's intake token, exactly as `/jumble/inbound/{token}` carries one: the URL is
           the whole credential, this route carries no bearer authentication, and the token names
-          the tenant in clear inside itself because the lookup needs one before it can happen
-          (multi-tenancy.md §2.2).
+          the tenant in clear inside itself because the lookup needs one before it can happen.
         schema: { type: string }
     post:
       tags: [jumble]
@@ -1009,8 +1003,8 @@ paths:
       security: []
       summary: Deliver a mail into the jumble
       description: >
-        The `EMAIL` channel (G-11). The body is the message as it arrived - RFC 5322 bytes,
-        headers included - and what arrives in 0.5.0 is the **webhook-first** transport: an
+        The `EMAIL` channel. The body is the message as it arrived - RFC 5322 bytes, headers
+        included - and the transport is **webhook-first**: an
         operator points a mail-to-webhook bridge, their MTA or their provider's push at this
         address, and the bytes are what any of them can forward without agreeing on a shape.
 
@@ -1026,7 +1020,7 @@ paths:
         catch. A message that breaks one of the bounds is refused with the code that says which,
         because "raise the bound" and "look at the entry" are different answers.
 
-        Every reason not to serve answers the same `404`, as the webhook intake's does (T-21).
+        Every reason not to serve answers the same `404`, as the webhook intake's does.
       requestBody:
         required: true
         content:
@@ -1054,7 +1048,7 @@ paths:
           authentication, and the URL is what the calling system stores. It names the tenant in
           clear inside itself because the lookup needs one before it can happen - the table is
           behind row level security like every other, and a tenant taken from a header or a query
-          would be a way around it (multi-tenancy.md §2.2).
+          would be a way around it.
         schema: { type: string }
     post:
       tags: [automation]
@@ -1106,8 +1100,8 @@ paths:
       summary: What the rules have done
       description: >
         Every run, newest first: which rule, which event started it, how its conditions answered,
-        what each action did, and what went wrong if anything did. This is the log
-        `automation.md` §2 promises - retrievable, filterable, and the only place a person can find
+        what each action did, and what went wrong if anything did. This is the run log -
+        retrievable, filterable, and the only place a person can find
         out why a rule did or did not act.
 
         A run outlives the rule that produced it. Deleting a rule is soft for exactly this reason:
@@ -1142,7 +1136,7 @@ paths:
           in: query
           required: false
           description: >
-            The start of the window, inclusive, on `started_at` (F8-02). Named as the audit
+            The start of the window, inclusive, on `started_at`. Named as the audit
             trail names its window, so that a client that has learned one has learned both.
           schema: { type: string, format: date-time }
         - name: to
@@ -1201,7 +1195,7 @@ paths:
         Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run
         resumes by itself, a skipped or throttled one did what its rule says, and a disabled
         rule must not act. The conditions are evaluated again against the world as it stands -
-        the answer that decides an action is the answer of the day it runs (automation.md §2.1) -
+        the answer that decides an action is the answer of the day it runs -
         and the replay is audited with the replayer, because somebody looked at a failure and
         decided the world is ready for the rest.
 
@@ -1254,7 +1248,7 @@ paths:
 
         The target is an egress channel and is treated as one: it goes through the guarded client,
         so a private range or the cloud metadata address is refused unless the installation has
-        deliberately released private networks (T-07).
+        deliberately released private networks.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -1398,8 +1392,7 @@ paths:
         takes: the same delivery table, the same signature, the same retry ladder and the same
         dead letter. The subscription's own event-type filter is deliberately not consulted -
         naming the subscription is the point of the call - but a paused or disabled subscription
-        is refused, and an event a restore replayed is never delivered
-        (backup-restore.md §8.4).
+        is refused, and an event a restore replayed is never delivered.
 
         This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the
         subscription, and the run supplies the event it is about.
@@ -1461,7 +1454,7 @@ paths:
         One outbound call, through the guarded client: private and link-local ranges are refused
         unless the installation released them, redirects are limited, the call has a deadline and
         the response a size cap - and the response is then discarded, because a rule cannot read
-        an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after
+        an answer. The header secret is sealed at rest and masked everywhere after
         creation.
 
         This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request,
@@ -1492,7 +1485,7 @@ paths:
       summary: The pull half of the event stream
       description: >
         Events of one type, oldest first, for a platform that has no address a webhook could
-        reach - an n8n instance behind NAT, a Zapier polling trigger (automation.md §3.2). The
+        reach - an n8n instance behind NAT, a Zapier polling trigger. The
         body of each entry is the same CloudEvent a webhook subscription would have been POSTed:
         one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a
         consumer that already deduplicates on it needs to learn nothing new.
@@ -1594,7 +1587,7 @@ paths:
         404 in exactly the words an unknown token produces.
 
         Somebody else's feed is not found rather than forbidden, for the reason every other read
-        of somebody else's thing is (T-04).
+        of somebody else's thing is.
       responses:
         "204":
           description: Revoked
@@ -1611,7 +1604,7 @@ paths:
           authentication, and the URL is what a calendar client stores. It names the tenant in
           clear inside itself because the lookup needs one before it can happen - the table is
           behind row level security like every other, and a tenant taken from a header or a query
-          would be a way around it (multi-tenancy.md §2.2).
+          would be a way around it.
         schema: { type: string }
     get:
       tags: [calendar]
@@ -1623,7 +1616,7 @@ paths:
         stays put across a daylight saving transition.
 
         Minimal by default: the title, the dates and a link back, never the notes - the restraint
-        data-protection.md §9 puts on email applies here for the same reason, since a calendar
+        a notification email keeps applies here for the same reason, since a calendar
         entry is read on devices and screens nobody in this workspace controls.
 
         An unknown token, a revoked one, a feed whose view has been deleted and a feed whose owner
@@ -1696,16 +1689,16 @@ paths:
       operationId: listAuditEntries
       summary: Query audit entries
       description: |
-        Requires the `audit:read` scope. Who sees what is audit.md §5 rather than the ordinary
-        role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own
+        Requires the `audit:read` scope. Who sees what follows the audit trail's own rule rather
+        than the ordinary role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own
         tenant, and everybody else reads their own events - transparency towards the employee
         rather than a lesser administrator's view. A request that names somebody else's
         `actor_id` without the right to the whole trail is refused, and the refusal is itself an
         entry. Filtering by period, action, actor, target, and outcome; cursor pagination.
 
         A read that succeeds is not itself recorded. A trail that grew by being read would bury
-        what it is for - the second page would contain the reading of the first - and §4 does not
-        list reading among the mandatory events. What is recorded is the refusal, and the export.
+        what it is for - the second page would contain the reading of the first - and reading is
+        not among the events that must be recorded. What is recorded is the refusal, and the export.
       parameters:
         - { name: from, in: query, schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }
@@ -1760,7 +1753,7 @@ paths:
                   default: false
                   description: >
                     Also read the last anchor back from the workspace's anchoring target and
-                    compare the chain end it holds with the chain at that sequence (A-2, P-13).
+                    compare the chain end it holds with the chain at that sequence.
                     A read of somebody else's machine, so it is asked for rather than always
                     done; `anchored_until`, `anchor_agrees` and `anchor_error_code` answer it.
       responses:
@@ -1792,12 +1785,12 @@ paths:
                     format: date-time
                     description: >
                       When this tenant's chain was last anchored outside the database, and null
-                      when it never was (audit.md §3). The check proves the chain intact
+                      when it never was. The check proves the chain intact
                       *inside* the database; only an anchor says anything against somebody who
                       can rewrite all of it.
                   anchoring_configured:
                     type: boolean
-                    description: Whether the workspace names an anchoring target at all (P-13).
+                    description: Whether the workspace names an anchoring target at all.
                   anchored_until:
                     type: [string, "null"]
                     format: date-time
@@ -1830,7 +1823,7 @@ paths:
       operationId: configureAuditAnchoring
       summary: Name where the audit chain's end is anchored, or switch anchoring off
       description: >
-        External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end
+        External anchoring: once a day a job reads this workspace's chain end
         - the last sequence number and its hash - and writes it as
         `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the
         row `audit_anchor` with the target as its destination and the object's digest as its
@@ -1868,7 +1861,7 @@ paths:
         it covers - because an export over four hundred days is not something a request can
         hold; this answers a `JobRef` and the work happens in the background.
 
-        The export produces an audit entry of its own (audit.md §5). A copy of the evidence
+        The export produces an audit entry of its own. A copy of the evidence
         leaving the installation is itself an event an auditor asks about, and it is the first
         `audit.*` action the system records about itself.
       requestBody:
@@ -1932,7 +1925,7 @@ paths:
       summary: Remove a backup target from the workspace's configuration
       description: >
         Removes the target and its sealed credential. **Nothing at the target is touched.**
-        `backup-restore.md`'s rule that Hubtask never deletes a file it did not write applies at
+        The rule that Hubtask never deletes a file it did not write applies at
         least as strongly to the files it did write: the archives stay where they are, and an
         operator who wants them gone removes them at the target.
 
@@ -2172,8 +2165,8 @@ paths:
       summary: What one restore did, or is about to do
       description: |
         The resource a started restore's `result_url` points at. It carries the report of the dry
-        run - how many objects are new, overwritten, skipped and in conflict - which is what
-        §8.3 asks a caller to read *before* asking for the same restore without `dry_run`. It also
+        run - how many objects are new, overwritten, skipped and in conflict - which is what a
+        caller reads *before* asking for the same restore without `dry_run`. It also
         names the safety copy taken before a destructive mode, so that the way back is a run
         identifier rather than a search at the target.
       parameters:
@@ -2246,7 +2239,7 @@ paths:
       description: |
         Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
         a Microsoft To Do dump - and lands its contents as collections under the named hub. One
-        ingestion path (backup-restore.md §9): the file is converted into the same records a
+        ingestion path: the file is converted into the same records a
         backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
         identities derived from the source's own, so that importing the same file twice creates
         nothing the second time.
@@ -2421,7 +2414,7 @@ paths:
       summary: List the retention rules
       parameters:
         - { name: container_id, in: query, schema: { type: string, format: uuid } }
-        - { name: effective, in: query, schema: { type: boolean, default: false }, description: Only the rules actually in force, including inheritance }
+        - { name: effective, in: query, schema: { type: boolean, default: false }, description: "Only the rules actually in force, including inheritance" }
       responses:
         "200":
           description: The rules
@@ -2464,8 +2457,8 @@ paths:
         Merge-patch: an absent key changes nothing. A rule that deletes data has to be
         correctable, and `mode` is what takes one out of enforcement without losing what it says -
         `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule
-        starts when its first run would affect more than 5% of the holdings (`data-retention.md`
-        §7) and where a rule somebody has doubts about belongs.
+        starts when its first run would affect more than 5% of the holdings, and where a rule
+        somebody has doubts about belongs.
 
         Extending a period beyond the data kind's upper bound needs a `justification`, here as
         much as at creation, and the one stored is replaced rather than kept: the justification
@@ -2559,7 +2552,7 @@ paths:
         installation did not mint is `sync.cursor_invalid`.
 
         The same records the stream carries, in the same order and under the same cursor - the
-        stream is an accelerator over this, not a second source of truth (ADR-0021). Records are
+        stream is an accelerator over this, not a second source of truth. Records are
         filtered by what the caller may read, per record and at the moment of the read; `has_more`
         says the page was full and the client comes straight back. A page may carry fewer records
         than `limit` and still have more: the cursor advances past what the caller may not see.
@@ -2586,7 +2579,7 @@ paths:
       operationId: syncSnapshot
       summary: The initial synchronisation as one stream
       description: |
-        What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+        What `:pull` with no cursor answers in pages, as one response:
         the records of the initial synchronisation in the walk's order, one per line of
         `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
         read so that the first byte arrives before the last row is counted, and the delta cursor
@@ -2671,7 +2664,7 @@ paths:
       description: |
         Ends what the device holds: the session it last synchronised under is revoked, and every
         push or pull from the identifier is refused with `sync.device_revoked` until the client
-        mints a new one (offline-sync.md §6). The row stays, marked `blocked`, until the retention
+        mints a new one. The row stays, marked `blocked`, until the retention
         sweep removes it. Somebody else's device is not found rather than forbidden; forgetting
         twice is not an error.
       responses:
@@ -2687,7 +2680,7 @@ paths:
       summary: Invite a person into this workspace
       description: |
         Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-        it cannot act until the invitation is accepted, which needs the sign-in flow (`0.6.0`).
+        it cannot act until the invitation is accepted.
         The notification is queued as a job — this call does not wait for an email.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -2715,7 +2708,7 @@ paths:
       description: |
         Who am I, and how does this product speak to me. A client needs the answer before it can
         render anything: `locale`, `time_zone` and `week_start` are the second link of the
-        resolution chain request → account → tenant → installation (`i18n-l10n.md` §2), and there
+        resolution chain request → account → tenant → installation, and there
         is no other way to learn them — `/accounts/{accountId}/preferences` writes to an id the
         client never receives.
 
@@ -2752,8 +2745,8 @@ paths:
         **What comes back is deliberately less than `/accounts/me`.** The display name and the kind,
         and not the email, the locale, the time zone or the first day of the week. Those are the
         caller's own business or an administrator's; a name is what a workspace has to show to be
-        readable at all. `data-protection.md` §9 settles the line: the visibility of profile data to
-        other tenant members is *minimal — display name, avatar*, and this is that minimum.
+        readable at all. What the other members of a workspace see of a profile is kept minimal -
+        the display name and the avatar - and this is that minimum.
 
         Any member of the tenant may make it. There is nothing narrower to authorise against: the
         identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -2845,7 +2838,7 @@ paths:
         the next notification of that category `SUPPRESSED`, with the record saying why; the
         invitation is the one category no preference can switch off, and a write against it is
         stored and never consulted. `include_title: false` produces an email that says something
-        concerns you without saying what (`data-protection.md` §9). An unknown category or channel
+        concerns you without saying what. An unknown category or channel
         is refused by name.
       requestBody:
         required: true
@@ -2873,25 +2866,24 @@ paths:
         The password sign-in: an email, a password, and the answer is an access/refresh pair plus
         the session row both hang off. The access token lives fifteen minutes and verifies by its
         signature; the refresh token lives thirty days, rotates on every use, and a rotated-out
-        token replayed later invalidates the whole family, because a replay means two holders
-        (security.md §5, T-01).
+        token replayed later invalidates the whole family, because a replay means two holders.
 
         Where the workspace has switched the password off (`sign_in_policy.methods` without
         `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every
         address alike and before any account is looked up; the stored password is kept, and works
         again when the password is switched back on. The one exception is a workspace left with no
         way in that works - no provider switched on there, whatever the cause - where the password
-        opens as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4), and each
+        opens as the fallback (`password_fallback` on the sign-in rules), and each
         sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
 
         The tenant is resolved before the credential is checked - from the subdomain or the
         `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never
-        from the request body (multi-tenancy.md §3). A contradiction between an authenticated
+        from the request body. A contradiction between an authenticated
         caller and the host stays `403 tenant_mismatch`.
 
         Every failure is one generic refusal, byte for byte the same for a wrong password and an
         address nobody holds: whether an account exists is exactly what a guessing client is
-        trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout,
+        trying to learn. Behind that one answer sit the progressive delay and the lockout,
         per account and per IP, and the auth rate-limit bucket in front of everything.
       requestBody:
         required: true
@@ -2908,7 +2900,7 @@ paths:
                 $ref: "#/components/schemas/SessionTokens"
         "202":
           description: >
-            The password was right and a second step is owed (H-02): a TOTP code where one is
+            The password was right and a second step is owed: a TOTP code where one is
             enrolled, or - under tenant enforcement, for an administrator not yet enrolled - the
             enrolment itself. The pending credential can do nothing but complete this sign-in.
           content:
@@ -2962,8 +2954,7 @@ paths:
       operationId: revokeOtherSessions
       summary: Sign out everywhere else
       description: >
-        Ends every session of the caller's account except the one making this call (UC-ID-06
-        check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every
+        Ends every session of the caller's account except the one making this call: the answer to a lost phone, asked from the laptop that is still in hand. Every
         other refresh family dies, and every other access token still in flight refuses on its next
         request. Called with a personal access token there is no session of the caller's to keep,
         so every session ends. Journalled in the workspace's trail with the number ended.
@@ -2983,7 +2974,7 @@ paths:
         Rotation, not renewal: the presented refresh token is retired in the same moment the new
         pair is minted, and presenting it again afterwards is treated as theft - two holders of
         one token - so the whole family is invalidated, the sign-in that opened it is over
-        everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
+        everywhere, and the reuse raises its own metric reason and an alert.
 
         The route is public the way sign-in is: the refresh token in the body is the whole
         credential, and demanding a bearer header beside it would demand the very thing this call
@@ -3030,16 +3021,16 @@ paths:
       summary: Redeem an invitation and set the first password
       description: >
         The moment an invited account becomes a person: the redemption token from the invitation
-        mail, a password under the policy (twelve characters at least, security.md §5), and the
+        mail, a password under the policy (twelve characters at least), and the
         account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers,
         because making somebody who just proved control of the mailbox type the password again
         teaches nothing.
 
         Where the workspace has switched the password off, no password is set: the redemption is
         refused with `auth.password_not_offered`, and the invited person accepts the invitation by
-        signing in through the workspace's provider, which activates the account (SC-24). Where no
+        signing in through the workspace's provider, which activates the account. Where no
         provider is switched on either, the password is open as the fallback (`password_fallback`
-        on the sign-in rules, ADR-0076 §4): the invitation is accepted with a password, and the
+        on the sign-in rules): the invitation is accepted with a password, and the
         workspace's trail records it as `auth.password_fallback`.
 
         The token was shown once, in the invitation, and is stored only as a hash under its own
@@ -3071,8 +3062,7 @@ paths:
       description: >
         The second step of a two-step sign-in: the pending credential the password answered, plus
         a TOTP code or one recovery code. The pending credential can do nothing but be presented
-        here - it opens no route, reads nothing, and dies on use or after its few minutes
-        (security.md §5).
+        here - it opens no route, reads nothing, and dies on use or after its few minutes.
 
         A code verifies within one step of drift either side and never twice: the same step
         presented again is refused, because a code that worked twice is a code somebody
@@ -3101,7 +3091,7 @@ paths:
       security: []
       summary: Prove the account before a provider is connected to it
       description: >
-        The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account
+        The `LINK` step. A provider vouched for an address whose account
         already holds a password, and it is connected to that account only once the password is
         proven here: the provider's word alone never opens an account that has its own credential.
 
@@ -3110,8 +3100,8 @@ paths:
         connected when `/auth/sessions:verify` completes - never before the account's whole proof.
         A wrong password counts against the account like any other, and is refused as a sign-in is.
 
-        **The password is a proof here even where the workspace switched it off as a way in**
-        (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof
+        **The password is a proof here even where the workspace switched it off as a way in.**
+        Switching it off closes the sign-in by password, not the account's own proof
         that it is the person: a member who still knows the password connects the workspace's
         provider with it, once. Where the password is off, the other proof is the mailbox - the link
         *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at
@@ -3144,7 +3134,7 @@ paths:
       operationId: changePassword
       summary: Change the password of the signed-in account
       description: >
-        The password of the caller's own account, behind a step-up (H-03). The step-up **is** the
+        The password of the caller's own account, behind a step-up. The step-up **is** the
         proof of the old password, which is why there is no current-password field beside it: asking
         for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
 
@@ -3178,7 +3168,7 @@ paths:
       summary: Ask for a password reset link
       description: >
         Answers `202` for an address that holds an account and for one that does not, byte for byte:
-        which addresses have accounts is exactly what a probe is after (T-02). There is no error
+        which addresses have accounts is exactly what a probe is after. There is no error
         state for "no such address", because there is no such answer.
 
         Behind that one answer sits a job on the queue the invitation already uses, so an
@@ -3219,7 +3209,7 @@ paths:
 
         Where the account has a second factor the answer is `202` with the challenge rather than
         `201` with the pair: control of a mailbox is one proof, and it does not replace the one the
-        account already demanded (ADR-0068 §6).
+        account already demanded.
       requestBody:
         required: true
         content:
@@ -3290,7 +3280,7 @@ paths:
       security: []
       summary: Set a new password and finish the sign-in
       description: >
-        The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no
+        The fourth door a password is set through. The password was right and no
         longer meets the rule - too short for a tightened policy, older than the expiry, or older
         than the moment somebody asked everybody for a new one - so the sign-in continues by setting
         a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
@@ -3324,7 +3314,7 @@ paths:
       summary: Raise this session to the control plane for an hour
       description: >
         A registered operator raises **their own session** to `admin:tenants` by passing a fresh
-        step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the
+        step-up. One hour, on that session and no other, gone with it, and both the
         act and the moment it falls back in the installation's journal.
 
         This deliberately weakens the rule that `admin:tenants` is never carried by a session. It
@@ -3358,7 +3348,7 @@ paths:
       security: []
       summary: What a sign-in screen may know before anybody has signed in
       description: >
-        The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this
+        The four things a sign-in card needs and nothing else: which methods this
         workspace signs in with, which providers it offers, what a password has to meet, and the
         links its operator is obliged to show.
 
@@ -3366,10 +3356,9 @@ paths:
         from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there
         is only one. A host no workspace answers at gets the installation's own level, which is byte
         for byte what a workspace that has decided nothing answers: which hosts hold workspaces is
-        exactly what a probe is after (T-02).
+        exactly what a probe is after.
 
-        Why it exists at all, when a public route that only hid a button was refused before: a
-        *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a
+        Why a public route answers this at all: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a
         workspace that demands fifteen is a screen that lies, and the password is refused after it
         was typed. What it deliberately does **not** answer is everything a guesser could use - the
         expiry, the history depth, the session timeouts, and the contents or sources of any list.
@@ -3450,8 +3439,8 @@ paths:
       operationId: stepUp
       summary: Prove yourself again, for the irreversible
       description: >
-        A fresh re-authentication on the current session (security.md §5, H-03), with whatever the
-        account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery
+        A fresh re-authentication on the current session, with whatever the account holds: the
+        password; the TOTP code where a factor is armed; a recovery
         code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is
         connected to. The proof is recorded on the session with its moment and its method, answered
         as a token that is valid for a short window and consumed by the one privileged action that
@@ -3475,7 +3464,7 @@ paths:
         (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves
         nothing fresh).
         This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up`
-        header - or, for the restore, in the request field the contract has carried since 0.4.5.
+        header - or, for the restore, in the request's `step_up_token` field.
       requestBody:
         required: true
         content:
@@ -3498,7 +3487,7 @@ paths:
       operationId: startProviderStepUp
       summary: Begin a step-up at the provider this account is connected to
       description: >
-        The first of `PROVIDER`'s two calls (ADR-0075 §2). An authorization request at the provider
+        The first of `PROVIDER`'s two calls. An authorization request at the provider
         this account is connected to and that is switched on for its workspace - the first in the
         workspace's order where there are several, the one `params.provider` named - with
         `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering
@@ -3525,12 +3514,12 @@ paths:
       operationId: startAuthenticatorReplacement
       summary: Begin replacing the authenticator
       description: >
-        For a new phone, or an authenticator that is gone (SC-17): a new secret, kept beside the
+        For a new phone, or an authenticator that is gone: a new secret, kept beside the
         armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and
         its recovery codes keep working until the new authenticator is confirmed, so there is never
         a moment without a factor, whatever the workspace's rule requires.
 
-        Behind a step-up with whatever the account holds (ADR-0075): replacing the factor is the
+        Behind a step-up with whatever the account holds: replacing the factor is the
         same power as removing it. Offered while a factor is armed, also where the workspace
         requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed
         within its window lapses. Bound to the session that began it: only that session confirms
@@ -3590,10 +3579,9 @@ paths:
         escape hatch.
 
         Shown once, exactly as at enrolment, and stored only as hashes. The codes are the
-        **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of
-        ten used to have no way to get ten back that did not involve taking their working second
-        factor off for a minute, and that is the shape this route replaces. It is also what keeps
-        them right when a passkey is the second factor - nothing about them mentions TOTP.
+        **account's** rather than the factor's: somebody who has burned eight of ten gets ten back
+        without taking their working second factor off for a minute. Nothing about them mentions
+        TOTP, so they stay right whatever the second factor is.
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       responses:
@@ -3613,8 +3601,8 @@ paths:
       summary: Disable the second factor
       description: >
         Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up
-        like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is
-        exactly the attack the factor exists against (security.md §5) - and takes it with whatever
+        like every privileged action - a stolen session removing the second factor is exactly the
+        attack the factor exists against - and takes it with whatever
         the account holds: a code, a recovery code, its provider, or its password. Where the
         workspace's rule requires a factor of this person it cannot be disabled at all; the refusal
         names the rule.
@@ -3692,7 +3680,7 @@ paths:
         token can never do more than its holder may, whatever it asks for: the scope is a second
         bound on top of the role, not a grant.
 
-        Asking for an admin scope is a privileged action (security.md §5): it demands a fresh
+        Asking for an admin scope is a privileged action: it demands a fresh
         step-up, presented in the `X-Hubtask-Step-Up` header.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -3789,7 +3777,7 @@ paths:
       security: []
       summary: Begin a sign-in through the workspace's identity provider
       description: >
-        The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved
+        The first half of authorization code + PKCE. The workspace is resolved
         the way a password sign-in resolves it - the subdomain, or the tenant header - and its
         configured provider answers the URL to send the browser to.
 
@@ -3799,15 +3787,15 @@ paths:
         callback; the code verifier and the nonce stay on the server and are never shown.
 
         Refused with a clear code when the workspace has no provider configured or has switched
-        it off, and when discovery cannot be reached - the degradation
-        `observability-reliability.md` §7 describes: local accounts keep signing in.
+        it off, and when discovery cannot be reached - a degradation in which local accounts keep
+        signing in.
 
         A sign-in begun on the invitation card carries the invitation's token, and the flow
-        remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be
+        remembers the invited account it accepts; an invitation that cannot be
         redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
 
         A sign-in begun from the link a workspace without the password mails to connect its
-        provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the
+        provider carries that link's token (`connect_token`): the flow remembers the
         link and asks the provider for a fresh sign-in; a link that cannot be used is refused here
         with `auth.reset_failed`, before the browser leaves.
       requestBody:
@@ -3837,7 +3825,7 @@ paths:
         with the verifier this installation kept, and the ID token is verified in full - the
         signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted,
         an algorithm allowlist that never contains `none`, and a clock skew of at most sixty
-        seconds (security.md §4, T-13). Any of those failing is one refusal.
+        seconds. Any of those failing is one refusal.
 
         What it answers is the same pair a password sign-in answers, because it is the same
         session: how somebody proved themselves is an attribute of the session, not a class of
@@ -3847,14 +3835,14 @@ paths:
 
         An existing account that already holds a password is **not** linked on the provider's
         word: the answer is `202` with the single method `LINK`, and the account's password is
-        presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but
+        presented at `/auth/sessions:link`. An account with no password but
         another provider that lets it in here cannot give that proof here and is refused with
         `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an
         offer that ended or a provider switched off, or a second factor and nothing else - is
         refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your
         password?*.
 
-        An **invited** account is activated and connected only with a second proof (ADR-0078 §1):
+        An **invited** account is activated and connected only with a second proof:
         the sign-in started from the invitation's own link (`invitation_token` at the start), or
         the provider is authoritative for the address. Through the link the invited address is
         admitted even outside a domains or directories list. The provider's verified address must
@@ -3876,7 +3864,7 @@ paths:
         `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
 
         A sign-in begun from the link a workspace without the password mails (`connect_token` at
-        the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a
+        the start) connects that link's account and no other. The mailbox and a
         **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time`
         older than the step-up's window, one from before the flow left for the provider (beyond a
         minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the
@@ -3922,11 +3910,11 @@ paths:
       operationId: listTenants
       summary: The installation's workspaces
       description: >
-        The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning
+        The one legitimate tenant enumerator: provisioning
         and lifecycle are the control plane's job, and the control plane must see its rows. It
         reads through a deliberate installation-scoped path behind the `admin:tenants` scope -
         which no session carries: the credential is a personal access token minted for exactly
-        this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule
+        this, behind a step-up. "Nothing enumerates tenants" remains the rule
         for jobs; this is not a job.
       responses:
         "200":
@@ -3944,10 +3932,10 @@ paths:
       operationId: provisionTenant
       summary: Provision a workspace
       description: >
-        Creates the tenant with its defaults, exactly the §5 table: a default hub, an example
+        Creates the tenant with its defaults: a default hub, an example
         collection, standard buckets and labels, the locale and time zone, and the owner - an
         invited account whose redemption token is answered once, so the person the workspace is
-        for can set their password and sign in (H-01's loop). Idempotent under
+        for can set their password and sign in. Idempotent under
         `Idempotency-Key`: provisioning twice under one key creates one.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -3977,7 +3965,7 @@ paths:
       description: >
         Flips the middleware: every API call of the tenant's own people answers
         `403 tenant_suspended` on their very next request. The data remains, and the read
-        export still works - the suspended are exactly who needs it (multi-tenancy.md §5).
+        export still works - the suspended are exactly who needs it.
       responses:
         "204":
           description: Suspended
@@ -3991,7 +3979,7 @@ paths:
       tags: [admin]
       operationId: resumeTenant
       summary: Reactivate a workspace
-      description: One write, as §5 promises. The next request of the tenant's people works again.
+      description: One write. The next request of the tenant's people works again.
       responses:
         "204":
           description: Active again
@@ -8334,7 +8322,7 @@ components:
             Narrows the search, in the grammar `POST /items:query` uses: the fields
             `/meta/capabilities` names, the operators each one permits, at most five levels of
             nesting and fifty nodes, and the same cost estimate capped at 50. An unknown field is
-            `422 invalid_query_field`; too expensive a tree is `422 query.filter_too_expensive`,
+            `422 query.field_unknown`; too expensive a tree is `422 query.filter_too_expensive`,
             refused before it runs.
         sort:
           type: array
@@ -10073,7 +10061,7 @@ components:
         [min_length, min_lowercase, min_uppercase, min_digits, min_symbols, min_classes,
          max_repeat, common_passwords, context_words, breach_check, history_count, not_current]
       properties:
-        min_length: { type: integer, description: The fewest characters, counted after NFKC. }
+        min_length: { type: integer, description: "The fewest characters, counted after NFKC." }
         min_lowercase: { type: integer, description: "Unicode category Ll. 0 is off." }
         min_uppercase: { type: integer, description: "Unicode category Lu. 0 is off." }
         min_digits: { type: integer, description: "Unicode category Nd. 0 is off." }
@@ -10105,7 +10093,7 @@ components:
             Whether a password carrying the address, the person's name, the workspace's name or its
             host is refused. Compared after a fold that undoes case and the obvious substitutions,
             because `C0nt0so` is `contoso` to everybody except a naive comparison.
-        breach_check: { type: boolean, description: Whether a breach corpus is consulted, where one is configured. }
+        breach_check: { type: boolean, description: "Whether a breach corpus is consulted, where one is configured." }
         history_count:
           type: integer
           description: >
@@ -13671,7 +13659,7 @@ components:
       description: Read from the manifest at the target, not from the database.
       properties:
         archive_id: { type: string, description: The manifest's own identifier - not what a restore names. }
-        path: { type: string, description: Where the archive lies at the target, and what `RestoreRequest.archive_id` takes. }
+        path: { type: string, description: "Where the archive lies at the target, and what `RestoreRequest.archive_id` takes." }
         created_at: { type: string, format: date-time }
         mode: { type: string, enum: [FULL, INCREMENTAL] }
         parent_archive_id: { type: [string, "null"] }
@@ -14413,7 +14401,12 @@ components:
             against a log. Not the cursor and not usable as one: the sequence orders the walk, and
             a timestamp two transactions can share is not a total order (ADR-0021).
         actor_id: { type: [string, "null"], format: uuid, description: Who made the change; absent for the installation's own. }
-        device_id: { type: [string, "null"], format: uuid, description: The device whose push caused it, so that device can skip its own echo; absent for a change made through the API. }
+        device_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The device whose push caused it, so that device can skip its own echo; absent for a
+            change made through the API.
         payload:
           type: [object, "null"]
           additionalProperties: true
@@ -14441,9 +14434,15 @@ components:
       type: object
       required: [op_id, kind]
       properties:
-        op_id: { type: string, format: uuid, description: The idempotency key, valid for 30 days }
+        op_id:
+          type: string
+          format: uuid
+          description: >
+            The idempotency key. The server keeps it for the maximum offline window - the
+            `tombstone_window_days` a pull answers, 90 days by default - so a mutation pushed again
+            within that window takes effect exactly once.
         kind: { type: string, enum: [ITEM_CREATE, ITEM_PATCH, ITEM_DELETE, SET_ADD, SET_REMOVE, MOVE, COMMENT_ADD] }
-        item_id: { type: string, format: uuid, description: Assigned by the client (UUIDv7), including on CREATE }
+        item_id: { type: string, format: uuid, description: "Assigned by the client (UUIDv7), including on CREATE" }
         base_version: { type: [integer, "null"] }
         fields:
           type: object
@@ -14506,7 +14505,7 @@ components:
         results:
           type: array
           items: { $ref: "#/components/schemas/SyncMutationResult" }
-        cursor: { type: [string, "null"], description: The cursor after application, saving a pull. }
+        cursor: { type: [string, "null"], description: "The cursor after application, saving a pull." }
         server_time: { type: string, format: date-time }
 
     SyncDevice:
@@ -14517,7 +14516,7 @@ components:
         platform: { type: [string, "null"] }
         display_name: { type: [string, "null"] }
         last_seen_at: { type: [string, "null"], format: date-time }
-        last_cursor: { type: [string, "null"], description: Where the device last stood in the log, as an opaque cursor it could resume from. }
+        last_cursor: { type: [string, "null"], description: "Where the device last stood in the log, as an opaque cursor it could resume from." }
         blocked: { type: boolean, description: Forgotten; every contact from the identifier is refused. }
         created_at: { type: string, format: date-time }
 

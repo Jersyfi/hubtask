@@ -4263,7 +4263,7 @@ type BackupArchive struct {
 	Mode            *BackupArchiveMode `json:"mode,omitempty"`
 	ParentArchiveId *string            `json:"parent_archive_id,omitempty"`
 
-	// Path Where the archive lies at the target
+	// Path Where the archive lies at the target, and what `RestoreRequest.archive_id` takes.
 	Path           *string `json:"path,omitempty"`
 	ProductVersion *string `json:"product_version,omitempty"`
 	SchemaVersion  *string `json:"schema_version,omitempty"`
@@ -5668,7 +5668,7 @@ type ItemSearchQuery struct {
 	// ContainerId The hub or collection to search in. Omitted searches everything the caller may see.
 	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
 
-	// Filter Narrows the search, in the grammar `POST /items:query` uses: the fields `/meta/capabilities` names, the operators each one permits, at most five levels of nesting and fifty nodes, and the same cost estimate capped at 50. An unknown field is `422 invalid_query_field`; too expensive a tree is `422 query.filter_too_expensive`, refused before it runs.
+	// Filter Narrows the search, in the grammar `POST /items:query` uses: the fields `/meta/capabilities` names, the operators each one permits, at most five levels of nesting and fifty nodes, and the same cost estimate capped at 50. An unknown field is `422 query.field_unknown`; too expensive a tree is `422 query.filter_too_expensive`, refused before it runs.
 	Filter          *FilterNode `json:"filter,omitempty"`
 	IncludeArchived *bool       `json:"include_archived,omitempty"`
 	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
@@ -6362,7 +6362,7 @@ type PasswordReset struct {
 // PasswordRules What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 // Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
 type PasswordRules struct {
-	// BreachCheck Whether a breach corpus is consulted
+	// BreachCheck Whether a breach corpus is consulted, where one is configured.
 	BreachCheck bool `json:"breach_check"`
 
 	// CommonPasswords Whether an offline list is consulted - the embedded one, the operator's own file, or both. Which of them refused a password is deliberately not said: it would tell a guesser which corpus to avoid.
@@ -6383,7 +6383,7 @@ type PasswordRules struct {
 	// MinDigits Unicode category Nd. 0 is off.
 	MinDigits int `json:"min_digits"`
 
-	// MinLength The fewest characters
+	// MinLength The fewest characters, counted after NFKC.
 	MinLength int `json:"min_length"`
 
 	// MinLowercase Unicode category Ll. 0 is off.
@@ -7592,7 +7592,7 @@ type SyncChange struct {
 	ActorId     *openapi_types.UUID `json:"actor_id,omitempty"`
 	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
 
-	// DeviceId The device whose push caused it
+	// DeviceId The device whose push caused it, so that device can skip its own echo; absent for a change made through the API.
 	DeviceId *openapi_types.UUID `json:"device_id,omitempty"`
 	Entity   string              `json:"entity"`
 	EntityId openapi_types.UUID  `json:"entity_id"`
@@ -7624,7 +7624,7 @@ type SyncDevice struct {
 	DisplayName *string            `json:"display_name,omitempty"`
 	Id          openapi_types.UUID `json:"id"`
 
-	// LastCursor Where the device last stood in the log
+	// LastCursor Where the device last stood in the log, as an opaque cursor it could resume from.
 	LastCursor *string    `json:"last_cursor,omitempty"`
 	LastSeenAt *time.Time `json:"last_seen_at,omitempty"`
 	Platform   *string    `json:"platform,omitempty"`
@@ -7642,11 +7642,11 @@ type SyncMutation struct {
 	} `json:"fields,omitempty"`
 	Hlc *string `json:"hlc,omitempty"`
 
-	// ItemId Assigned by the client (UUIDv7)
+	// ItemId Assigned by the client (UUIDv7), including on CREATE
 	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
 	Kind   SyncMutationKind    `json:"kind"`
 
-	// OpId The idempotency key
+	// OpId The idempotency key. The server keeps it for the maximum offline window - the `tombstone_window_days` a pull answers, 90 days by default - so a mutation pushed again within that window takes effect exactly once.
 	OpId    openapi_types.UUID      `json:"op_id"`
 	Payload *map[string]interface{} `json:"payload,omitempty"`
 
@@ -7751,7 +7751,7 @@ type SyncPushRequest struct {
 
 // SyncPushResponse defines model for SyncPushResponse.
 type SyncPushResponse struct {
-	// Cursor The cursor after application
+	// Cursor The cursor after application, saving a pull.
 	Cursor     *string              `json:"cursor,omitempty"`
 	Results    []SyncMutationResult `json:"results"`
 	ServerTime *time.Time           `json:"server_time,omitempty"`
@@ -8571,7 +8571,7 @@ type ListAuditEntriesParamsOutcome string
 
 // VerifyAuditChainJSONBody defines parameters for VerifyAuditChain.
 type VerifyAuditChainJSONBody struct {
-	// Anchors Also read the last anchor back from the workspace's anchoring target and compare the chain end it holds with the chain at that sequence (A-2, P-13). A read of somebody else's machine, so it is asked for rather than always done; `anchored_until`, `anchor_agrees` and `anchor_error_code` answer it.
+	// Anchors Also read the last anchor back from the workspace's anchoring target and compare the chain end it holds with the chain at that sequence. A read of somebody else's machine, so it is asked for rather than always done; `anchored_until`, `anchor_agrees` and `anchor_error_code` answer it.
 	Anchors *bool     `json:"anchors,omitempty"`
 	From    time.Time `json:"from"`
 	To      time.Time `json:"to"`
@@ -8690,7 +8690,7 @@ type ListRuleRunsParams struct {
 	// Trigger Narrow to one way of starting. "Did the schedule fire last night" and "did anybody press the button" are two questions about the same rule.
 	Trigger *ListRuleRunsParamsTrigger `form:"trigger,omitempty" json:"trigger,omitempty"`
 
-	// From The start of the window, inclusive, on `started_at` (F8-02). Named as the audit trail names its window, so that a client that has learned one has learned both.
+	// From The start of the window, inclusive, on `started_at`. Named as the audit trail names its window, so that a client that has learned one has learned both.
 	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
 
 	// To The end of the window, exclusive, on `started_at`. A window that ends before it starts is refused with the field named rather than answered empty.
@@ -9385,7 +9385,7 @@ type CreateDataSubjectRequestParams struct {
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
 
-	// Effective Only the rules actually in force
+	// Effective Only the rules actually in force, including inheritance
 	Effective *bool `form:"effective,omitempty" json:"effective,omitempty"`
 }
 
@@ -9957,7 +9957,7 @@ type ClientInterface interface {
 	//
 	// Who am I, and how does this product speak to me. A client needs the answer before it can
 	// render anything: `locale`, `time_zone` and `week_start` are the second link of the
-	// resolution chain request → account → tenant → installation (`i18n-l10n.md` §2), and there
+	// resolution chain request → account → tenant → installation, and there
 	// is no other way to learn them — `/accounts/{accountId}/preferences` writes to an id the
 	// client never receives.
 	//
@@ -9982,8 +9982,8 @@ type ClientInterface interface {
 	// **What comes back is deliberately less than `/accounts/me`.** The display name and the kind,
 	// and not the email, the locale, the time zone or the first day of the week. Those are the
 	// caller's own business or an administrator's; a name is what a workspace has to show to be
-	// readable at all. `data-protection.md` §9 settles the line: the visibility of profile data to
-	// other tenant members is *minimal — display name, avatar*, and this is that minimum.
+	// readable at all. What the other members of a workspace see of a profile is kept minimal -
+	// the display name and the avatar - and this is that minimum.
 	//
 	// Any member of the tenant may make it. There is nothing narrower to authorise against: the
 	// identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -10016,7 +10016,7 @@ type ClientInterface interface {
 	// the next notification of that category `SUPPRESSED`, with the record saying why; the
 	// invitation is the one category no preference can switch off, and a write against it is
 	// stored and never consulted. `include_title: false` produces an email that says something
-	// concerns you without saying what (`data-protection.md` §9). An unknown category or channel
+	// concerns you without saying what. An unknown category or channel
 	// is refused by name.
 	//
 	// Takes any type of body and a specified content type.
@@ -10031,7 +10031,7 @@ type ClientInterface interface {
 	// the next notification of that category `SUPPRESSED`, with the record saying why; the
 	// invitation is the one category no preference can switch off, and a write against it is
 	// stored and never consulted. `include_title: false` produces an email that says something
-	// concerns you without saying what (`data-protection.md` §9). An unknown category or channel
+	// concerns you without saying what. An unknown category or channel
 	// is refused by name.
 	//
 	// Takes a body of the `application/json` content type.
@@ -10088,7 +10088,7 @@ type ClientInterface interface {
 	// InviteAccountWithBody Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted, which needs the sign-in flow (`0.6.0`).
+	// it cannot act until the invitation is accepted.
 	// The notification is queued as a job — this call does not wait for an email.
 	//
 	// Takes any type of body and a specified content type.
@@ -10099,7 +10099,7 @@ type ClientInterface interface {
 	// InviteAccount Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted, which needs the sign-in flow (`0.6.0`).
+	// it cannot act until the invitation is accepted.
 	// The notification is queued as a job — this call does not wait for an email.
 	//
 	// Takes a body of the `application/json` content type.
@@ -10287,14 +10287,14 @@ type ClientInterface interface {
 
 	// ListTenants The installation's workspaces
 	//
-	// The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
+	// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
 	//
 	// Corresponds with GET /admin/tenants (the `ListTenants` operationId).
 	ListTenants(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ProvisionTenantWithBody Provision a workspace
 	//
-	// Creates the tenant with its defaults, exactly the §5 table: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in (H-01's loop). Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10303,7 +10303,7 @@ type ClientInterface interface {
 
 	// ProvisionTenant Provision a workspace
 	//
-	// Creates the tenant with its defaults, exactly the §5 table: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in (H-01's loop). Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -10393,14 +10393,14 @@ type ClientInterface interface {
 
 	// ResumeTenant Reactivate a workspace
 	//
-	// One write, as §5 promises. The next request of the tenant's people works again.
+	// One write. The next request of the tenant's people works again.
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:resume (the `ResumeTenant` operationId).
 	ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SuspendTenant Suspend a workspace
 	//
-	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it (multi-tenancy.md §5).
+	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -10444,23 +10444,23 @@ type ClientInterface interface {
 
 	// ListAuditEntries Query audit entries
 	//
-	// Requires the `audit:read` scope. Who sees what is audit.md §5 rather than the ordinary
-	// role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own
+	// Requires the `audit:read` scope. Who sees what follows the audit trail's own rule rather
+	// than the ordinary role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own
 	// tenant, and everybody else reads their own events - transparency towards the employee
 	// rather than a lesser administrator's view. A request that names somebody else's
 	// `actor_id` without the right to the whole trail is refused, and the refusal is itself an
 	// entry. Filtering by period, action, actor, target, and outcome; cursor pagination.
 	//
 	// A read that succeeds is not itself recorded. A trail that grew by being read would bury
-	// what it is for - the second page would contain the reading of the first - and §4 does not
-	// list reading among the mandatory events. What is recorded is the refusal, and the export.
+	// what it is for - the second page would contain the reading of the first - and reading is
+	// not among the events that must be recorded. What is recorded is the refusal, and the export.
 	//
 	// Corresponds with GET /audit (the `ListAuditEntries` operationId).
 	ListAuditEntries(ctx context.Context, params *ListAuditEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConfigureAuditAnchoringWithBody Name where the audit chain's end is anchored, or switch anchoring off
 	//
-	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// External anchoring: once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
 	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
 	//
 	// Takes any type of body and a specified content type.
@@ -10470,7 +10470,7 @@ type ClientInterface interface {
 
 	// ConfigureAuditAnchoring Name where the audit chain's end is anchored, or switch anchoring off
 	//
-	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// External anchoring: once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
 	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
 	//
 	// Takes a body of the `application/json` content type.
@@ -10485,7 +10485,7 @@ type ClientInterface interface {
 	// it covers - because an export over four hundred days is not something a request can
 	// hold; this answers a `JobRef` and the work happens in the background.
 	//
-	// The export produces an audit entry of its own (audit.md §5). A copy of the evidence
+	// The export produces an audit entry of its own. A copy of the evidence
 	// leaving the installation is itself an event an auditor asks about, and it is the first
 	// `audit.*` action the system records about itself.
 	//
@@ -10501,7 +10501,7 @@ type ClientInterface interface {
 	// it covers - because an export over four hundred days is not something a request can
 	// hold; this answers a `JobRef` and the work happens in the background.
 	//
-	// The export produces an audit entry of its own (audit.md §5). A copy of the evidence
+	// The export produces an audit entry of its own. A copy of the evidence
 	// leaving the installation is itself an event an auditor asks about, and it is the first
 	// `audit.*` action the system records about itself.
 	//
@@ -10544,8 +10544,8 @@ type ClientInterface interface {
 
 	// RedeemInvitationWithBody Redeem an invitation and set the first password
 	//
-	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
-	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24). Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
+	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 	//
 	// Takes any type of body and a specified content type.
@@ -10555,8 +10555,8 @@ type ClientInterface interface {
 
 	// RedeemInvitation Redeem an invitation and set the first password
 	//
-	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
-	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24). Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
+	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 	//
 	// Takes a body of the `application/json` content type.
@@ -10567,7 +10567,7 @@ type ClientInterface interface {
 	// RegenerateRecoveryCodes Replace the ten recovery codes
 	//
 	// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
-	// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+	// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's: somebody who has burned eight of ten gets ten back without taking their working second factor off for a minute. Nothing about them mentions TOTP, so they stay right whatever the second factor is.
 	//
 	// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
 	RegenerateRecoveryCodes(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -10632,15 +10632,15 @@ type ClientInterface interface {
 
 	// StartAuthenticatorReplacement Begin replacing the authenticator
 	//
-	// For a new phone, or an authenticator that is gone (SC-17): a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
-	// Behind a step-up with whatever the account holds (ADR-0075): replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
+	// For a new phone, or an authenticator that is gone: a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
+	// Behind a step-up with whatever the account holds: replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
 	//
 	// Corresponds with POST /auth/mfa/totp:replace (the `StartAuthenticatorReplacement` operationId).
 	StartAuthenticatorReplacement(ctx context.Context, params *StartAuthenticatorReplacementParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DisableTotpWithBody Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
 	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes any type of body and a specified content type.
@@ -10650,7 +10650,7 @@ type ClientInterface interface {
 
 	// DisableTotp Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
 	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes a body of the `application/json` content type.
@@ -10660,12 +10660,12 @@ type ClientInterface interface {
 
 	// CompleteOidcSignInWithBody Finish the sign-in with the code the provider issued
 	//
-	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
+	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds. Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
-	// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link`. An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
+	// An **invited** account is activated and connected only with a second proof: the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
 	// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
-	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
+	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes any type of body and a specified content type.
@@ -10675,12 +10675,12 @@ type ClientInterface interface {
 
 	// CompleteOidcSignIn Finish the sign-in with the code the provider issued
 	//
-	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
+	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds. Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
-	// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link`. An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
+	// An **invited** account is activated and connected only with a second proof: the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
 	// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
-	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
+	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes a body of the `application/json` content type.
@@ -10690,11 +10690,11 @@ type ClientInterface interface {
 
 	// StartOidcSignInWithBody Begin a sign-in through the workspace's identity provider
 	//
-	// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
+	// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
-	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
-	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
-	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
+	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10703,11 +10703,11 @@ type ClientInterface interface {
 
 	// StartOidcSignIn Begin a sign-in through the workspace's identity provider
 	//
-	// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
+	// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
-	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
-	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
-	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
+	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -10716,7 +10716,7 @@ type ClientInterface interface {
 
 	// ChangePasswordWithBody Change the password of the signed-in account
 	//
-	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// The password of the caller's own account, behind a step-up. The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
 	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
 	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
 	//
@@ -10727,7 +10727,7 @@ type ClientInterface interface {
 
 	// ChangePassword Change the password of the signed-in account
 	//
-	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// The password of the caller's own account, behind a step-up. The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
 	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
 	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
 	//
@@ -10760,7 +10760,7 @@ type ClientInterface interface {
 
 	// ForgetPasswordWithBody Ask for a password reset link
 	//
-	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after. There is no error state for "no such address", because there is no such answer.
 	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
 	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
 	//
@@ -10771,7 +10771,7 @@ type ClientInterface interface {
 
 	// ForgetPassword Ask for a password reset link
 	//
-	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after. There is no error state for "no such address", because there is no such answer.
 	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
 	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
 	//
@@ -10784,7 +10784,7 @@ type ClientInterface interface {
 	//
 	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
-	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10795,7 +10795,7 @@ type ClientInterface interface {
 	//
 	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
-	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -10843,10 +10843,10 @@ type ClientInterface interface {
 
 	// SignInWithBody Sign in with email and password
 	//
-	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
-	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
-	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
-	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders.
+	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
+	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
+	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10855,10 +10855,10 @@ type ClientInterface interface {
 
 	// SignIn Sign in with email and password
 	//
-	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
-	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
-	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
-	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders.
+	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
+	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
+	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -10874,7 +10874,7 @@ type ClientInterface interface {
 
 	// ElevateSession Raise this session to the control plane for an hour
 	//
-	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
 	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 	// The personal access token stays exactly as it is, for automation.
@@ -10884,9 +10884,9 @@ type ClientInterface interface {
 
 	// CompleteLinkWithBody Prove the account before a provider is connected to it
 	//
-	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+	// The `LINK` step. A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
-	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
+	// **The password is a proof here even where the workspace switched it off as a way in.** Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10895,9 +10895,9 @@ type ClientInterface interface {
 
 	// CompleteLink Prove the account before a provider is connected to it
 	//
-	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+	// The `LINK` step. A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
-	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
+	// **The password is a proof here even where the workspace switched it off as a way in.** Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -10906,7 +10906,7 @@ type ClientInterface interface {
 
 	// RefreshSessionWithBody Exchange a refresh token for the next pair
 	//
-	// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
+	// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and an alert.
 	// The route is public the way sign-in is: the refresh token in the body is the whole credential, and demanding a bearer header beside it would demand the very thing this call exists to replace.
 	//
 	// Takes any type of body and a specified content type.
@@ -10916,7 +10916,7 @@ type ClientInterface interface {
 
 	// RefreshSession Exchange a refresh token for the next pair
 	//
-	// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
+	// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and an alert.
 	// The route is public the way sign-in is: the refresh token in the body is the whole credential, and demanding a bearer header beside it would demand the very thing this call exists to replace.
 	//
 	// Takes a body of the `application/json` content type.
@@ -10926,14 +10926,14 @@ type ClientInterface interface {
 
 	// RevokeOtherSessions Sign out everywhere else
 	//
-	// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+	// Ends every session of the caller's account except the one making this call: the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
 	//
 	// Corresponds with POST /auth/sessions:revoke-others (the `RevokeOtherSessions` operationId).
 	RevokeOtherSessions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetPasswordAndSignInWithBody Set a new password and finish the sign-in
 	//
-	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The fourth door a password is set through. The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
 	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
 	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
 	//
@@ -10944,7 +10944,7 @@ type ClientInterface interface {
 
 	// SetPasswordAndSignIn Set a new password and finish the sign-in
 	//
-	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The fourth door a password is set through. The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
 	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
 	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
 	//
@@ -10955,7 +10955,7 @@ type ClientInterface interface {
 
 	// CompleteSignInWithBody Present the second factor and receive the pair
 	//
-	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
+	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 	// A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
 	//
 	// Takes any type of body and a specified content type.
@@ -10965,7 +10965,7 @@ type ClientInterface interface {
 
 	// CompleteSignIn Present the second factor and receive the pair
 	//
-	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
+	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 	// A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
 	//
 	// Takes a body of the `application/json` content type.
@@ -10975,18 +10975,18 @@ type ClientInterface interface {
 
 	// GetSignInRules What a sign-in screen may know before anybody has signed in
 	//
-	// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
-	// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
-	// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+	// The four things a sign-in card needs and nothing else: which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+	// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after.
+	// Why a public route answers this at all: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
 	//
 	// Corresponds with GET /auth/sign-in-rules (the `GetSignInRules` operationId).
 	GetSignInRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StepUpWithBody Prove yourself again, for the irreversible
 	//
-	// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+	// A fresh re-authentication on the current session, with whatever the account holds: the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
 	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
-	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request's `step_up_token` field.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10995,9 +10995,9 @@ type ClientInterface interface {
 
 	// StepUp Prove yourself again, for the irreversible
 	//
-	// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+	// A fresh re-authentication on the current session, with whatever the account holds: the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
 	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
-	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request's `step_up_token` field.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -11006,7 +11006,7 @@ type ClientInterface interface {
 
 	// StartProviderStepUp Begin a step-up at the provider this account is connected to
 	//
-	// The first of `PROVIDER`'s two calls (ADR-0075 §2). An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
+	// The first of `PROVIDER`'s two calls. An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
 	// The browser comes back to this installation's own callback address, the one every registration already permits. Refused with `auth.step_up_no_provider` for an account with no such provider, and with `auth.step_up_session_required` for a caller without a session.
 	//
 	// Corresponds with POST /auth/step-up:provider (the `StartProviderStepUp` operationId).
@@ -11026,7 +11026,7 @@ type ClientInterface interface {
 	// Answers the credential, in clear, for the only time. What is stored is its hash keyed on the installation secret under its own purpose label, so a hash from here can never be replayed as a signed cursor or a calendar feed token, and nothing can turn the stored value back into the token.
 	// The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 	// The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
-	// Asking for an admin scope is a privileged action (security.md §5): it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+	// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -11038,7 +11038,7 @@ type ClientInterface interface {
 	// Answers the credential, in clear, for the only time. What is stored is its hash keyed on the installation secret under its own purpose label, so a hash from here can never be replayed as a signed cursor or a calendar feed token, and nothing can turn the stored value back into the token.
 	// The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 	// The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
-	// Asking for an admin scope is a privileged action (security.md §5): it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+	// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -11080,7 +11080,7 @@ type ClientInterface interface {
 
 	// ListRules The workspace's automation rules
 	//
-	// Newest first, and only the rules the caller may see: a member manages their own rules, and an administrator the scope's (domain-model.md §3.2). Deleted rules are not among them - the deletion is soft so that the runs a rule produced stay readable, not so that the rule stays listed.
+	// Newest first, and only the rules the caller may see: a member manages their own rules, and an administrator the scope's. Deleted rules are not among them - the deletion is soft so that the runs a rule produced stay readable, not so that the rule stays listed.
 	//
 	// Corresponds with GET /automation/rules (the `ListRules` operationId).
 	ListRules(ctx context.Context, params *ListRulesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11088,8 +11088,8 @@ type ClientInterface interface {
 	// CreateRuleWithBody Write a rule
 	//
 	// A rule is created **switched off**. Enabling it is its own call and its own audit entry: writing what a rule would do and letting it loose on the workspace are two decisions, and a rule that ran the moment it was saved would give nobody the chance to read it back first.
-	// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not (automation.md §2).
-	// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind automation.md §1.3 documents and no release serves yet; a parameter the action's use case does not declare.
+	// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not.
+	// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind this build does not serve; a parameter the action's use case does not declare.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -11099,8 +11099,8 @@ type ClientInterface interface {
 	// CreateRule Write a rule
 	//
 	// A rule is created **switched off**. Enabling it is its own call and its own audit entry: writing what a rule would do and letting it loose on the workspace are two decisions, and a rule that ran the moment it was saved would give nobody the chance to read it back first.
-	// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not (automation.md §2).
-	// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind automation.md §1.3 documents and no release serves yet; a parameter the action's use case does not declare.
+	// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not.
+	// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind this build does not serve; a parameter the action's use case does not declare.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -11156,7 +11156,7 @@ type ClientInterface interface {
 
 	// RotateInboundTrigger Mint the address an inbound-webhook rule answers on
 	//
-	// The `INBOUND_WEBHOOK` trigger's credential (automation.md §1.1): a token-protected URL per rule, minted here and answered **once**. It is stored hashed under its own purpose label, so no later read can produce it.
+	// The `INBOUND_WEBHOOK` trigger's credential: a token-protected URL per rule, minted here and answered **once**. It is stored hashed under its own purpose label, so no later read can produce it.
 	// Rotating is how one is revoked. There is exactly one address per rule and the replacement happens in a single statement, so the old token and the new one never both open the rule - which is what "revocable by rotating" has to mean. Somebody who wants to revoke without a replacement switches the rule off.
 	// Only a rule whose trigger is `INBOUND_WEBHOOK`. An address on any other rule would be a credential that opens nothing, handed out as though it worked.
 	//
@@ -11165,9 +11165,9 @@ type ClientInterface interface {
 
 	// TriggerRuleManually Run a rule now
 	//
-	// The `MANUAL` trigger (automation.md §1.1): the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
+	// The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
 	// The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
-	// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure `automation.md` §2.2 exists to avoid.
+	// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
 	// The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
 	//
 	// Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
@@ -11175,7 +11175,7 @@ type ClientInterface interface {
 
 	// CheckRules Check every rule of the workspace against what exists now
 	//
-	// The check ADR-0060 describes: every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
+	// Every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
 	// The rules screen calls this when it opens, which is what makes "after an update, the rules that need attention are shown" true without anything enumerating tenants. A deletion of something a rule may name runs the same check for the workspace by itself.
 	//
 	// Corresponds with POST /automation/rules:check (the `CheckRules` operationId).
@@ -11183,7 +11183,7 @@ type ClientInterface interface {
 
 	// TestRuleWithBody Dry-run a rule against a sample event
 	//
-	// The dry run automation.md §2 promises: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
+	// A dry run: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
 	// Test either a stored rule by its identifier or a definition you are about to save - the same document `POST /automation/rules` takes, checked by the same validation, so a rule the dry run accepts is a rule the create will accept. Both arms of every branch are reported with whether they would run, which is more than a real run's log shows: the run records the path it took, and the dry run answers the question "and what if it had not".
 	//
 	// Takes any type of body and a specified content type.
@@ -11193,7 +11193,7 @@ type ClientInterface interface {
 
 	// TestRule Dry-run a rule against a sample event
 	//
-	// The dry run automation.md §2 promises: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
+	// A dry run: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
 	// Test either a stored rule by its identifier or a definition you are about to save - the same document `POST /automation/rules` takes, checked by the same validation, so a rule the dry run accepts is a rule the create will accept. Both arms of every branch are reported with whether they would run, which is more than a real run's log shows: the run records the path it took, and the dry run answers the question "and what if it had not".
 	//
 	// Takes a body of the `application/json` content type.
@@ -11203,7 +11203,7 @@ type ClientInterface interface {
 
 	// ListRuleRuns What the rules have done
 	//
-	// Every run, newest first: which rule, which event started it, how its conditions answered, what each action did, and what went wrong if anything did. This is the log `automation.md` §2 promises - retrievable, filterable, and the only place a person can find out why a rule did or did not act.
+	// Every run, newest first: which rule, which event started it, how its conditions answered, what each action did, and what went wrong if anything did. This is the run log - retrievable, filterable, and the only place a person can find out why a rule did or did not act.
 	// A run outlives the rule that produced it. Deleting a rule is soft for exactly this reason: a record of actions nobody can account for would be worse than the rule staying visible.
 	//
 	// Corresponds with GET /automation/runs (the `ListRuleRuns` operationId).
@@ -11217,7 +11217,7 @@ type ClientInterface interface {
 	// ReplayRuleRun Complete a failed run
 	//
 	// Re-executes a failed run's remaining actions under the same idempotency keys - which is what makes this a completion rather than a duplication: an action the original run finished finds its key already claimed and does nothing again, and only what never happened happens now.
-	// Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run resumes by itself, a skipped or throttled one did what its rule says, and a disabled rule must not act. The conditions are evaluated again against the world as it stands - the answer that decides an action is the answer of the day it runs (automation.md §2.1) - and the replay is audited with the replayer, because somebody looked at a failure and decided the world is ready for the rest.
+	// Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run resumes by itself, a skipped or throttled one did what its rule says, and a disabled rule must not act. The conditions are evaluated again against the world as it stands - the answer that decides an action is the answer of the day it runs - and the replay is audited with the replayer, because somebody looked at a failure and decided the world is ready for the rest.
 	// The answer carries the identifier the replay's run will have, exactly as `:trigger` does.
 	//
 	// Corresponds with POST /automation/runs/{runId}:replay (the `ReplayRuleRun` operationId).
@@ -11310,7 +11310,7 @@ type ClientInterface interface {
 
 	// DeleteBackupTarget Remove a backup target from the workspace's configuration
 	//
-	// Removes the target and its sealed credential. **Nothing at the target is touched.** `backup-restore.md`'s rule that Hubtask never deletes a file it did not write applies at least as strongly to the files it did write: the archives stay where they are, and an operator who wants them gone removes them at the target.
+	// Removes the target and its sealed credential. **Nothing at the target is touched.** The rule that Hubtask never deletes a file it did not write applies at least as strongly to the files it did write: the archives stay where they are, and an operator who wants them gone removes them at the target.
 	// A target a schedule still names is refused with `409` and the schedules named in the problem document. Deleting one silently would disarm a backup that runs every night, and the disarming would be discovered by whoever needed the archive.
 	// Deleting one that is not there is not an error. Auditable.
 	//
@@ -11375,7 +11375,7 @@ type ClientInterface interface {
 	// GetCalendarFeedDocument performs a GET /calendar/{token}.ics (the `GetCalendarFeedDocument` operationId) request.
 	//
 	// The calendar, as RFC 5545. Gregorian whatever the subscriber's display calendar, with an all-day due date as a VALUE=DATE entry and a timed one carrying its own zone so that it stays put across a daylight saving transition.
-	// Minimal by default: the title, the dates and a link back, never the notes - the restraint data-protection.md §9 puts on email applies here for the same reason, since a calendar entry is read on devices and screens nobody in this workspace controls.
+	// Minimal by default: the title, the dates and a link back, never the notes - the restraint a notification email keeps applies here for the same reason, since a calendar entry is read on devices and screens nobody in this workspace controls.
 	// An unknown token, a revoked one, a feed whose view has been deleted and a feed whose owner has lost the view all answer the same 404 with the same body. Distinguishing them would answer questions to whoever is trying tokens.
 	GetCalendarFeedDocument(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -11776,7 +11776,7 @@ type ClientInterface interface {
 	//
 	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
 	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
-	// ingestion path (backup-restore.md §9): the file is converted into the same records a
+	// ingestion path: the file is converted into the same records a
 	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 	// identities derived from the source's own, so that importing the same file twice creates
 	// nothing the second time.
@@ -11797,7 +11797,7 @@ type ClientInterface interface {
 	//
 	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
 	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
-	// ingestion path (backup-restore.md §9): the file is converted into the same records a
+	// ingestion path: the file is converted into the same records a
 	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 	// identities derived from the source's own, so that importing the same file twice creates
 	// nothing the second time.
@@ -11844,12 +11844,12 @@ type ClientInterface interface {
 	// RevokeCalendarFeed performs a DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId) request.
 	//
 	// Revokes the feed. The row stays with the moment it was revoked - which is what makes "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a 404 in exactly the words an unknown token produces.
-	// Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is (T-04).
+	// Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.
 	RevokeCalendarFeed(ctx context.Context, feedId FeedId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// HttpRequestWithBody Call an external HTTP address
 	//
-	// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after creation.
+	// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer. The header secret is sealed at rest and masked everywhere after creation.
 	// This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request, and the run supplies the event its body template is rendered from. The call happens on a job with the webhook ladder's retries; the answer is a `JobRef` to poll.
 	//
 	// Takes any type of body and a specified content type.
@@ -11859,7 +11859,7 @@ type ClientInterface interface {
 
 	// HttpRequest Call an external HTTP address
 	//
-	// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after creation.
+	// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer. The header secret is sealed at rest and masked everywhere after creation.
 	// This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request, and the run supplies the event its body template is rendered from. The call happens on a job with the webhook ladder's retries; the answer is a `JobRef` to poll.
 	//
 	// Takes a body of the `application/json` content type.
@@ -11869,7 +11869,7 @@ type ClientInterface interface {
 
 	// PollTriggerEvents The pull half of the event stream
 	//
-	// Events of one type, oldest first, for a platform that has no address a webhook could reach - an n8n instance behind NAT, a Zapier polling trigger (automation.md §3.2). The body of each entry is the same CloudEvent a webhook subscription would have been POSTed: one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a consumer that already deduplicates on it needs to learn nothing new.
+	// Events of one type, oldest first, for a platform that has no address a webhook could reach - an n8n instance behind NAT, a Zapier polling trigger. The body of each entry is the same CloudEvent a webhook subscription would have been POSTed: one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a consumer that already deduplicates on it needs to learn nothing new.
 	// The cursor is opaque, signed and derived from the outbox's own ordering, so it survives a restart and a failover. Two polls with it neither repeat an event nor step over one.
 	// The window is the outbox's retention period, and a cursor older than it is refused with `410 gone` rather than silently answered from the beginning. A poller that missed more than the window has to be told that it missed - one that was quietly restarted would go on reporting a consistency it does not have.
 	// A replayed event - one a restore wrote rather than one somebody did - is not answered here, exactly as it is not delivered to a webhook.
@@ -11888,7 +11888,7 @@ type ClientInterface interface {
 	//
 	// The `subscribe` half of the REST hooks pattern: an integration platform creates its own subscription through this route and deletes it again when the user turns the automation off.
 	// What arrives at the target is the CloudEvent, identical to the one this system uses internally - there is no feature available only internally or only externally - signed with a secret generated here, answered once in this response, and never readable afterwards.
-	// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+	// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -11899,7 +11899,7 @@ type ClientInterface interface {
 	//
 	// The `subscribe` half of the REST hooks pattern: an integration platform creates its own subscription through this route and deletes it again when the user turns the automation off.
 	// What arrives at the target is the CloudEvent, identical to the one this system uses internally - there is no feature available only internally or only externally - signed with a secret generated here, answered once in this response, and never readable afterwards.
-	// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+	// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -11974,7 +11974,7 @@ type ClientInterface interface {
 
 	// SendWebhookWithBody Deliver one event to this subscription
 	//
-	// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered (backup-restore.md §8.4).
+	// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered.
 	// This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the subscription, and the run supplies the event it is about.
 	//
 	// Takes any type of body and a specified content type.
@@ -11984,7 +11984,7 @@ type ClientInterface interface {
 
 	// SendWebhook Deliver one event to this subscription
 	//
-	// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered (backup-restore.md §8.4).
+	// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered.
 	// This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the subscription, and the run supplies the event it is about.
 	//
 	// Takes a body of the `application/json` content type.
@@ -12562,7 +12562,7 @@ type ClientInterface interface {
 
 	// SuggestFromJumbleEntry Ask AI what this entry should become
 	//
-	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry (J-06, `ai-first.md` §2). It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
 	// Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 	// A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 	//
@@ -12571,9 +12571,9 @@ type ClientInterface interface {
 
 	// StartJumbleIntakeWithBody Deliver something into the jumble from outside
 	//
-	// The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
+	// The `WEBHOOK` channel: an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
 	// The token authenticates the tenant, never a person: the entry records no actor, and the body is data end to end - bounded twice (the transfer by the request middleware, the entry by its own field bounds), matched by rules as data, and rendered as instructions to nothing.
-	// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens (T-21).
+	// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -12582,9 +12582,9 @@ type ClientInterface interface {
 
 	// StartJumbleIntake Deliver something into the jumble from outside
 	//
-	// The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
+	// The `WEBHOOK` channel: an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
 	// The token authenticates the tenant, never a person: the entry records no actor, and the body is data end to end - bounded twice (the transfer by the request middleware, the entry by its own field bounds), matched by rules as data, and rendered as instructions to nothing.
-	// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens (T-21).
+	// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -12593,7 +12593,7 @@ type ClientInterface interface {
 
 	// RotateJumbleIntake Mint the address the jumble accepts webhooks on
 	//
-	// The tenant's one intake credential (G-10), the inbound trigger's discipline applied to the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over the whole presented string under the intake's own purpose label, and answered **once** - no later read can produce it.
+	// The tenant's one intake credential, the inbound trigger's discipline applied to the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over the whole presented string under the intake's own purpose label, and answered **once** - no later read can produce it.
 	// Rotating is how one is revoked: there is exactly one address per tenant and the replacement happens in a single statement, so the old token and the new one never both open the intake.
 	//
 	// Corresponds with POST /jumble/intake:rotate-token (the `RotateJumbleIntake` operationId).
@@ -12601,10 +12601,10 @@ type ClientInterface interface {
 
 	// DeliverMailWithBody Deliver a mail into the jumble
 	//
-	// The `EMAIL` channel (G-11). The body is the message as it arrived - RFC 5322 bytes, headers included - and what arrives in 0.5.0 is the **webhook-first** transport: an operator points a mail-to-webhook bridge, their MTA or their provider's push at this address, and the bytes are what any of them can forward without agreeing on a shape.
+	// The `EMAIL` channel. The body is the message as it arrived - RFC 5322 bytes, headers included - and the transport is **webhook-first**: an operator points a mail-to-webhook bridge, their MTA or their provider's push at this address, and the bytes are what any of them can forward without agreeing on a shape.
 	// The parser is transport-independent and defensive. MIME is walked with bounds on parts, depth, attachment count and attachment size, checked before anything is allocated; attachments go through the media pipeline with its size and type discipline, never a second storage path; and the HTML alternative of a message that also had a plain part is kept as text beside it. **No HTML is ever rendered server-side.**
 	// The sender is data, never an identity: a `From` header authenticates nothing, and what authenticates is the token. A message the parser cannot read still lands, as an entry carrying the raw payload - a jumble exists to catch, and "unparseable" is a thing to catch. A message that breaks one of the bounds is refused with the code that says which, because "raise the bound" and "look at the entry" are different answers.
-	// Every reason not to serve answers the same `404`, as the webhook intake's does (T-21).
+	// Every reason not to serve answers the same `404`, as the webhook intake's does.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -13022,8 +13022,8 @@ type ClientInterface interface {
 	// GetRestoreRun What one restore did, or is about to do
 	//
 	// The resource a started restore's `result_url` points at. It carries the report of the dry
-	// run - how many objects are new, overwritten, skipped and in conflict - which is what
-	// §8.3 asks a caller to read *before* asking for the same restore without `dry_run`. It also
+	// run - how many objects are new, overwritten, skipped and in conflict - which is what a
+	// caller reads *before* asking for the same restore without `dry_run`. It also
 	// names the safety copy taken before a destructive mode, so that the way back is a run
 	// identifier rather than a search at the target.
 	//
@@ -13067,7 +13067,7 @@ type ClientInterface interface {
 
 	// UpdateRetentionPolicyWithBody Correct a retention rule, or take it out of enforcement
 	//
-	// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings (`data-retention.md` §7) and where a rule somebody has doubts about belongs.
+	// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings, and where a rule somebody has doubts about belongs.
 	// Extending a period beyond the data kind's upper bound needs a `justification`, here as much as at creation, and the one stored is replaced rather than kept: the justification belongs to the period it justifies.
 	// The kind and the scope do not move. A rule that changed either would be a different rule under an old identifier, and the unique index over the pair is what makes "the rule for this kind at this level" a thing one can name at all. Auditable.
 	//
@@ -13078,7 +13078,7 @@ type ClientInterface interface {
 
 	// UpdateRetentionPolicyWithApplicationMergePatchPlusJSONBody Correct a retention rule, or take it out of enforcement
 	//
-	// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings (`data-retention.md` §7) and where a rule somebody has doubts about belongs.
+	// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings, and where a rule somebody has doubts about belongs.
 	// Extending a period beyond the data kind's upper bound needs a `justification`, here as much as at creation, and the one stored is replaced rather than kept: the justification belongs to the period it justifies.
 	// The kind and the scope do not move. A rule that changed either would be a different rule under an old identifier, and the unique index over the pair is what makes "the rule for this kind at this level" a thing one can name at all. Auditable.
 	//
@@ -13272,7 +13272,7 @@ type ClientInterface interface {
 	//
 	// Ends what the device holds: the session it last synchronised under is revoked, and every
 	// push or pull from the identifier is refused with `sync.device_revoked` until the client
-	// mints a new one (offline-sync.md §6). The row stays, marked `blocked`, until the retention
+	// mints a new one. The row stays, marked `blocked`, until the retention
 	// sweep removes it. Somebody else's device is not found rather than forbidden; forgetting
 	// twice is not an error.
 	//
@@ -13287,7 +13287,7 @@ type ClientInterface interface {
 	// installation did not mint is `sync.cursor_invalid`.
 	//
 	// The same records the stream carries, in the same order and under the same cursor - the
-	// stream is an accelerator over this, not a second source of truth (ADR-0021). Records are
+	// stream is an accelerator over this, not a second source of truth. Records are
 	// filtered by what the caller may read, per record and at the moment of the read; `has_more`
 	// says the page was full and the client comes straight back. A page may carry fewer records
 	// than `limit` and still have more: the cursor advances past what the caller may not see.
@@ -13308,7 +13308,7 @@ type ClientInterface interface {
 	// installation did not mint is `sync.cursor_invalid`.
 	//
 	// The same records the stream carries, in the same order and under the same cursor - the
-	// stream is an accelerator over this, not a second source of truth (ADR-0021). Records are
+	// stream is an accelerator over this, not a second source of truth. Records are
 	// filtered by what the caller may read, per record and at the moment of the read; `has_more`
 	// says the page was full and the client comes straight back. A page may carry fewer records
 	// than `limit` and still have more: the cursor advances past what the caller may not see.
@@ -13345,7 +13345,7 @@ type ClientInterface interface {
 
 	// SyncSnapshotWithBody The initial synchronisation as one stream
 	//
-	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// What `:pull` with no cursor answers in pages, as one response:
 	// the records of the initial synchronisation in the walk's order, one per line of
 	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
 	// read so that the first byte arrives before the last row is counted, and the delta cursor
@@ -13368,7 +13368,7 @@ type ClientInterface interface {
 
 	// SyncSnapshot The initial synchronisation as one stream
 	//
-	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// What `:pull` with no cursor answers in pages, as one response:
 	// the records of the initial synchronisation in the walk's order, one per line of
 	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
 	// read so that the first byte arrives before the last row is counted, and the delta cursor
@@ -13444,7 +13444,7 @@ type ClientInterface interface {
 
 	// AiGenerateTemplateWithBody Ask AI to draft a template from a description
 	//
-	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to. The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
 	// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
 	//
 	// Takes any type of body and a specified content type.
@@ -13454,7 +13454,7 @@ type ClientInterface interface {
 
 	// AiGenerateTemplate Ask AI to draft a template from a description
 	//
-	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to. The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
 	// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
 	//
 	// Takes a body of the `application/json` content type.
@@ -13565,8 +13565,8 @@ type ClientInterface interface {
 	// with any type of body and a specified content type.
 	//
 	// The view's result, rendered whole, in one of three formats. A read with no side effect, and a POST for the reason POST /search is one: what a view selects is the caller's content, and a query string travels through access logs, proxies and browser history.
-	// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides (T-04, T-05).
-	// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. The guidelines' "202 plus /jobs/{id}" is what the cap stands in for while there is no /jobs resource - a truncation a caller is told about is honest, and a silent one is not.
+	// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides.
+	// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. An export stays one synchronous answer rather than a job a caller has to poll, and the cap is what keeps it one - a truncation a caller is told about is honest, and a silent one is not.
 	// ICS renders the same document the calendar feed serves, from the same renderer: an entry with no due date is not a calendar entry and does not appear.
 	ExportViewWithBody(ctx context.Context, viewId ViewId, params *ExportViewParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -13574,8 +13574,8 @@ type ClientInterface interface {
 	// Takes a body of the `application/json` content type.
 	//
 	// The view's result, rendered whole, in one of three formats. A read with no side effect, and a POST for the reason POST /search is one: what a view selects is the caller's content, and a query string travels through access logs, proxies and browser history.
-	// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides (T-04, T-05).
-	// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. The guidelines' "202 plus /jobs/{id}" is what the cap stands in for while there is no /jobs resource - a truncation a caller is told about is honest, and a silent one is not.
+	// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides.
+	// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. An export stays one synchronous answer rather than a job a caller has to poll, and the cap is what keeps it one - a truncation a caller is told about is honest, and a silent one is not.
 	// ICS renders the same document the calendar feed serves, from the same renderer: an entry with no due date is not a calendar entry and does not appear.
 	ExportView(ctx context.Context, viewId ViewId, params *ExportViewParams, body ExportViewJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -13596,7 +13596,7 @@ type ClientInterface interface {
 //
 // Who am I, and how does this product speak to me. A client needs the answer before it can
 // render anything: `locale`, `time_zone` and `week_start` are the second link of the
-// resolution chain request → account → tenant → installation (`i18n-l10n.md` §2), and there
+// resolution chain request → account → tenant → installation, and there
 // is no other way to learn them — `/accounts/{accountId}/preferences` writes to an id the
 // client never receives.
 //
@@ -13631,8 +13631,8 @@ func (c *Client) GetOwnAccount(ctx context.Context, reqEditors ...RequestEditorF
 // **What comes back is deliberately less than `/accounts/me`.** The display name and the kind,
 // and not the email, the locale, the time zone or the first day of the week. Those are the
 // caller's own business or an administrator's; a name is what a workspace has to show to be
-// readable at all. `data-protection.md` §9 settles the line: the visibility of profile data to
-// other tenant members is *minimal — display name, avatar*, and this is that minimum.
+// readable at all. What the other members of a workspace see of a profile is kept minimal -
+// the display name and the avatar - and this is that minimum.
 //
 // Any member of the tenant may make it. There is nothing narrower to authorise against: the
 // identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -13685,7 +13685,7 @@ func (c *Client) ListNotificationPreferences(ctx context.Context, accountId Acco
 // the next notification of that category `SUPPRESSED`, with the record saying why; the
 // invitation is the one category no preference can switch off, and a write against it is
 // stored and never consulted. `include_title: false` produces an email that says something
-// concerns you without saying what (`data-protection.md` §9). An unknown category or channel
+// concerns you without saying what. An unknown category or channel
 // is refused by name.
 //
 // Takes any type of body and a specified content type.
@@ -13710,7 +13710,7 @@ func (c *Client) SetNotificationPreferenceWithBody(ctx context.Context, accountI
 // the next notification of that category `SUPPRESSED`, with the record saying why; the
 // invitation is the one category no preference can switch off, and a write against it is
 // stored and never consulted. `include_title: false` produces an email that says something
-// concerns you without saying what (`data-protection.md` §9). An unknown category or channel
+// concerns you without saying what. An unknown category or channel
 // is refused by name.
 //
 // Takes a body of the `application/json` content type.
@@ -13817,7 +13817,7 @@ func (c *Client) RestrictProcessing(ctx context.Context, accountId AccountId, bo
 // InviteAccountWithBody Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted, which needs the sign-in flow (`0.6.0`).
+// it cannot act until the invitation is accepted.
 // The notification is queued as a job — this call does not wait for an email.
 //
 // Takes any type of body and a specified content type.
@@ -13838,7 +13838,7 @@ func (c *Client) InviteAccountWithBody(ctx context.Context, params *InviteAccoun
 // InviteAccount Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted, which needs the sign-in flow (`0.6.0`).
+// it cannot act until the invitation is accepted.
 // The notification is queued as a job — this call does not wait for an email.
 //
 // Takes a body of the `application/json` content type.
@@ -14236,7 +14236,7 @@ func (c *Client) WriteInstanceSettings(ctx context.Context, body WriteInstanceSe
 
 // ListTenants The installation's workspaces
 //
-// The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
+// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
 //
 // Corresponds with GET /admin/tenants (the `ListTenants` operationId).
 func (c *Client) ListTenants(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -14253,7 +14253,7 @@ func (c *Client) ListTenants(ctx context.Context, reqEditors ...RequestEditorFn)
 
 // ProvisionTenantWithBody Provision a workspace
 //
-// Creates the tenant with its defaults, exactly the §5 table: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in (H-01's loop). Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
 //
 // Takes any type of body and a specified content type.
 //
@@ -14272,7 +14272,7 @@ func (c *Client) ProvisionTenantWithBody(ctx context.Context, params *ProvisionT
 
 // ProvisionTenant Provision a workspace
 //
-// Creates the tenant with its defaults, exactly the §5 table: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in (H-01's loop). Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -14462,7 +14462,7 @@ func (c *Client) OpenTenantPassword(ctx context.Context, tenantId AdminTenantId,
 
 // ResumeTenant Reactivate a workspace
 //
-// One write, as §5 promises. The next request of the tenant's people works again.
+// One write. The next request of the tenant's people works again.
 //
 // Corresponds with POST /admin/tenants/{tenantId}:resume (the `ResumeTenant` operationId).
 func (c *Client) ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -14479,7 +14479,7 @@ func (c *Client) ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEd
 
 // SuspendTenant Suspend a workspace
 //
-// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it (multi-tenancy.md §5).
+// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
 //
 // Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 func (c *Client) SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -14573,16 +14573,16 @@ func (c *Client) ConfigureAiProvider(ctx context.Context, body ConfigureAiProvid
 
 // ListAuditEntries Query audit entries
 //
-// Requires the `audit:read` scope. Who sees what is audit.md §5 rather than the ordinary
-// role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own
+// Requires the `audit:read` scope. Who sees what follows the audit trail's own rule rather
+// than the ordinary role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own
 // tenant, and everybody else reads their own events - transparency towards the employee
 // rather than a lesser administrator's view. A request that names somebody else's
 // `actor_id` without the right to the whole trail is refused, and the refusal is itself an
 // entry. Filtering by period, action, actor, target, and outcome; cursor pagination.
 //
 // A read that succeeds is not itself recorded. A trail that grew by being read would bury
-// what it is for - the second page would contain the reading of the first - and §4 does not
-// list reading among the mandatory events. What is recorded is the refusal, and the export.
+// what it is for - the second page would contain the reading of the first - and reading is
+// not among the events that must be recorded. What is recorded is the refusal, and the export.
 //
 // Corresponds with GET /audit (the `ListAuditEntries` operationId).
 func (c *Client) ListAuditEntries(ctx context.Context, params *ListAuditEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -14599,7 +14599,7 @@ func (c *Client) ListAuditEntries(ctx context.Context, params *ListAuditEntriesP
 
 // ConfigureAuditAnchoringWithBody Name where the audit chain's end is anchored, or switch anchoring off
 //
-// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// External anchoring: once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
 // Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
 //
 // Takes any type of body and a specified content type.
@@ -14619,7 +14619,7 @@ func (c *Client) ConfigureAuditAnchoringWithBody(ctx context.Context, contentTyp
 
 // ConfigureAuditAnchoring Name where the audit chain's end is anchored, or switch anchoring off
 //
-// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// External anchoring: once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
 // Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
 //
 // Takes a body of the `application/json` content type.
@@ -14644,7 +14644,7 @@ func (c *Client) ConfigureAuditAnchoring(ctx context.Context, body ConfigureAudi
 // it covers - because an export over four hundred days is not something a request can
 // hold; this answers a `JobRef` and the work happens in the background.
 //
-// The export produces an audit entry of its own (audit.md §5). A copy of the evidence
+// The export produces an audit entry of its own. A copy of the evidence
 // leaving the installation is itself an event an auditor asks about, and it is the first
 // `audit.*` action the system records about itself.
 //
@@ -14670,7 +14670,7 @@ func (c *Client) ExportAuditTrailWithBody(ctx context.Context, contentType strin
 // it covers - because an export over four hundred days is not something a request can
 // hold; this answers a `JobRef` and the work happens in the background.
 //
-// The export produces an audit entry of its own (audit.md §5). A copy of the evidence
+// The export produces an audit entry of its own. A copy of the evidence
 // leaving the installation is itself an event an auditor asks about, and it is the first
 // `audit.*` action the system records about itself.
 //
@@ -14743,8 +14743,8 @@ func (c *Client) VerifyAuditChain(ctx context.Context, body VerifyAuditChainJSON
 
 // RedeemInvitationWithBody Redeem an invitation and set the first password
 //
-// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
-// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24). Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
+// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 //
 // Takes any type of body and a specified content type.
@@ -14764,8 +14764,8 @@ func (c *Client) RedeemInvitationWithBody(ctx context.Context, contentType strin
 
 // RedeemInvitation Redeem an invitation and set the first password
 //
-// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
-// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24). Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
+// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 //
 // Takes a body of the `application/json` content type.
@@ -14786,7 +14786,7 @@ func (c *Client) RedeemInvitation(ctx context.Context, body RedeemInvitationJSON
 // RegenerateRecoveryCodes Replace the ten recovery codes
 //
 // Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
-// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's: somebody who has burned eight of ten gets ten back without taking their working second factor off for a minute. Nothing about them mentions TOTP, so they stay right whatever the second factor is.
 //
 // Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
 func (c *Client) RegenerateRecoveryCodes(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -14921,8 +14921,8 @@ func (c *Client) EnrollTotp(ctx context.Context, body EnrollTotpJSONRequestBody,
 
 // StartAuthenticatorReplacement Begin replacing the authenticator
 //
-// For a new phone, or an authenticator that is gone (SC-17): a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
-// Behind a step-up with whatever the account holds (ADR-0075): replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
+// For a new phone, or an authenticator that is gone: a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
+// Behind a step-up with whatever the account holds: replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
 //
 // Corresponds with POST /auth/mfa/totp:replace (the `StartAuthenticatorReplacement` operationId).
 func (c *Client) StartAuthenticatorReplacement(ctx context.Context, params *StartAuthenticatorReplacementParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -14939,7 +14939,7 @@ func (c *Client) StartAuthenticatorReplacement(ctx context.Context, params *Star
 
 // DisableTotpWithBody Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
 // The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes any type of body and a specified content type.
@@ -14959,7 +14959,7 @@ func (c *Client) DisableTotpWithBody(ctx context.Context, params *DisableTotpPar
 
 // DisableTotp Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
 // The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes a body of the `application/json` content type.
@@ -14979,12 +14979,12 @@ func (c *Client) DisableTotp(ctx context.Context, params *DisableTotpParams, bod
 
 // CompleteOidcSignInWithBody Finish the sign-in with the code the provider issued
 //
-// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
+// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds. Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
-// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link`. An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
+// An **invited** account is activated and connected only with a second proof: the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
 // Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
-// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
+// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes any type of body and a specified content type.
@@ -15004,12 +15004,12 @@ func (c *Client) CompleteOidcSignInWithBody(ctx context.Context, contentType str
 
 // CompleteOidcSignIn Finish the sign-in with the code the provider issued
 //
-// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
+// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds. Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
-// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link`. An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
+// An **invited** account is activated and connected only with a second proof: the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
 // Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
-// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
+// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes a body of the `application/json` content type.
@@ -15029,11 +15029,11 @@ func (c *Client) CompleteOidcSignIn(ctx context.Context, body CompleteOidcSignIn
 
 // StartOidcSignInWithBody Begin a sign-in through the workspace's identity provider
 //
-// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
+// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
-// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
-// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
-// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
+// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15052,11 +15052,11 @@ func (c *Client) StartOidcSignInWithBody(ctx context.Context, contentType string
 
 // StartOidcSignIn Begin a sign-in through the workspace's identity provider
 //
-// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
+// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
-// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
-// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
-// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
+// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15075,7 +15075,7 @@ func (c *Client) StartOidcSignIn(ctx context.Context, body StartOidcSignInJSONRe
 
 // ChangePasswordWithBody Change the password of the signed-in account
 //
-// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// The password of the caller's own account, behind a step-up. The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
 // Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
 // A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
 //
@@ -15096,7 +15096,7 @@ func (c *Client) ChangePasswordWithBody(ctx context.Context, params *ChangePassw
 
 // ChangePassword Change the password of the signed-in account
 //
-// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// The password of the caller's own account, behind a step-up. The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
 // Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
 // A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
 //
@@ -15159,7 +15159,7 @@ func (c *Client) CheckPassword(ctx context.Context, params *CheckPasswordParams,
 
 // ForgetPasswordWithBody Ask for a password reset link
 //
-// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after. There is no error state for "no such address", because there is no such answer.
 // Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
 // An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
 //
@@ -15180,7 +15180,7 @@ func (c *Client) ForgetPasswordWithBody(ctx context.Context, contentType string,
 
 // ForgetPassword Ask for a password reset link
 //
-// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after. There is no error state for "no such address", because there is no such answer.
 // Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
 // An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
 //
@@ -15203,7 +15203,7 @@ func (c *Client) ForgetPassword(ctx context.Context, body ForgetPasswordJSONRequ
 //
 // The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 // **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
-// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15224,7 +15224,7 @@ func (c *Client) ResetPasswordWithBody(ctx context.Context, contentType string, 
 //
 // The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 // **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
-// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15332,10 +15332,10 @@ func (c *Client) ListSessions(ctx context.Context, reqEditors ...RequestEditorFn
 
 // SignInWithBody Sign in with email and password
 //
-// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
-// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
-// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
-// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders.
+// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
+// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
+// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15354,10 +15354,10 @@ func (c *Client) SignInWithBody(ctx context.Context, contentType string, body io
 
 // SignIn Sign in with email and password
 //
-// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
-// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
-// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
-// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders.
+// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
+// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
+// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15393,7 +15393,7 @@ func (c *Client) RevokeSession(ctx context.Context, sessionId SessionId, reqEdit
 
 // ElevateSession Raise this session to the control plane for an hour
 //
-// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 // This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
 // It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 // The personal access token stays exactly as it is, for automation.
@@ -15413,9 +15413,9 @@ func (c *Client) ElevateSession(ctx context.Context, params *ElevateSessionParam
 
 // CompleteLinkWithBody Prove the account before a provider is connected to it
 //
-// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+// The `LINK` step. A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
-// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
+// **The password is a proof here even where the workspace switched it off as a way in.** Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes any type of body and a specified content type.
 //
@@ -15434,9 +15434,9 @@ func (c *Client) CompleteLinkWithBody(ctx context.Context, contentType string, b
 
 // CompleteLink Prove the account before a provider is connected to it
 //
-// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+// The `LINK` step. A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
-// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
+// **The password is a proof here even where the workspace switched it off as a way in.** Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15455,7 +15455,7 @@ func (c *Client) CompleteLink(ctx context.Context, body CompleteLinkJSONRequestB
 
 // RefreshSessionWithBody Exchange a refresh token for the next pair
 //
-// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
+// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and an alert.
 // The route is public the way sign-in is: the refresh token in the body is the whole credential, and demanding a bearer header beside it would demand the very thing this call exists to replace.
 //
 // Takes any type of body and a specified content type.
@@ -15475,7 +15475,7 @@ func (c *Client) RefreshSessionWithBody(ctx context.Context, contentType string,
 
 // RefreshSession Exchange a refresh token for the next pair
 //
-// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
+// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and an alert.
 // The route is public the way sign-in is: the refresh token in the body is the whole credential, and demanding a bearer header beside it would demand the very thing this call exists to replace.
 //
 // Takes a body of the `application/json` content type.
@@ -15495,7 +15495,7 @@ func (c *Client) RefreshSession(ctx context.Context, body RefreshSessionJSONRequ
 
 // RevokeOtherSessions Sign out everywhere else
 //
-// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+// Ends every session of the caller's account except the one making this call: the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
 //
 // Corresponds with POST /auth/sessions:revoke-others (the `RevokeOtherSessions` operationId).
 func (c *Client) RevokeOtherSessions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -15512,7 +15512,7 @@ func (c *Client) RevokeOtherSessions(ctx context.Context, reqEditors ...RequestE
 
 // SetPasswordAndSignInWithBody Set a new password and finish the sign-in
 //
-// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The fourth door a password is set through. The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
 // The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
 // This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
 //
@@ -15533,7 +15533,7 @@ func (c *Client) SetPasswordAndSignInWithBody(ctx context.Context, contentType s
 
 // SetPasswordAndSignIn Set a new password and finish the sign-in
 //
-// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The fourth door a password is set through. The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
 // The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
 // This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
 //
@@ -15554,7 +15554,7 @@ func (c *Client) SetPasswordAndSignIn(ctx context.Context, body SetPasswordAndSi
 
 // CompleteSignInWithBody Present the second factor and receive the pair
 //
-// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
+// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 // A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
 //
 // Takes any type of body and a specified content type.
@@ -15574,7 +15574,7 @@ func (c *Client) CompleteSignInWithBody(ctx context.Context, contentType string,
 
 // CompleteSignIn Present the second factor and receive the pair
 //
-// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
+// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 // A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
 //
 // Takes a body of the `application/json` content type.
@@ -15594,9 +15594,9 @@ func (c *Client) CompleteSignIn(ctx context.Context, body CompleteSignInJSONRequ
 
 // GetSignInRules What a sign-in screen may know before anybody has signed in
 //
-// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
-// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
-// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+// The four things a sign-in card needs and nothing else: which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after.
+// Why a public route answers this at all: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
 //
 // Corresponds with GET /auth/sign-in-rules (the `GetSignInRules` operationId).
 func (c *Client) GetSignInRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -15613,9 +15613,9 @@ func (c *Client) GetSignInRules(ctx context.Context, reqEditors ...RequestEditor
 
 // StepUpWithBody Prove yourself again, for the irreversible
 //
-// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+// A fresh re-authentication on the current session, with whatever the account holds: the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
 // The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
-// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request's `step_up_token` field.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15634,9 +15634,9 @@ func (c *Client) StepUpWithBody(ctx context.Context, contentType string, body io
 
 // StepUp Prove yourself again, for the irreversible
 //
-// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+// A fresh re-authentication on the current session, with whatever the account holds: the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
 // The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
-// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request's `step_up_token` field.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15655,7 +15655,7 @@ func (c *Client) StepUp(ctx context.Context, body StepUpJSONRequestBody, reqEdit
 
 // StartProviderStepUp Begin a step-up at the provider this account is connected to
 //
-// The first of `PROVIDER`'s two calls (ADR-0075 §2). An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
+// The first of `PROVIDER`'s two calls. An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
 // The browser comes back to this installation's own callback address, the one every registration already permits. Refused with `auth.step_up_no_provider` for an account with no such provider, and with `auth.step_up_session_required` for a caller without a session.
 //
 // Corresponds with POST /auth/step-up:provider (the `StartProviderStepUp` operationId).
@@ -15695,7 +15695,7 @@ func (c *Client) ListAccessTokens(ctx context.Context, params *ListAccessTokensP
 // Answers the credential, in clear, for the only time. What is stored is its hash keyed on the installation secret under its own purpose label, so a hash from here can never be replayed as a signed cursor or a calendar feed token, and nothing can turn the stored value back into the token.
 // The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 // The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
-// Asking for an admin scope is a privileged action (security.md §5): it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15717,7 +15717,7 @@ func (c *Client) CreateAccessTokenWithBody(ctx context.Context, params *CreateAc
 // Answers the credential, in clear, for the only time. What is stored is its hash keyed on the installation secret under its own purpose label, so a hash from here can never be replayed as a signed cursor or a calendar feed token, and nothing can turn the stored value back into the token.
 // The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 // The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
-// Asking for an admin scope is a privileged action (security.md §5): it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15799,7 +15799,7 @@ func (c *Client) StartInboundRun(ctx context.Context, token string, body StartIn
 
 // ListRules The workspace's automation rules
 //
-// Newest first, and only the rules the caller may see: a member manages their own rules, and an administrator the scope's (domain-model.md §3.2). Deleted rules are not among them - the deletion is soft so that the runs a rule produced stay readable, not so that the rule stays listed.
+// Newest first, and only the rules the caller may see: a member manages their own rules, and an administrator the scope's. Deleted rules are not among them - the deletion is soft so that the runs a rule produced stay readable, not so that the rule stays listed.
 //
 // Corresponds with GET /automation/rules (the `ListRules` operationId).
 func (c *Client) ListRules(ctx context.Context, params *ListRulesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -15817,8 +15817,8 @@ func (c *Client) ListRules(ctx context.Context, params *ListRulesParams, reqEdit
 // CreateRuleWithBody Write a rule
 //
 // A rule is created **switched off**. Enabling it is its own call and its own audit entry: writing what a rule would do and letting it loose on the workspace are two decisions, and a rule that ran the moment it was saved would give nobody the chance to read it back first.
-// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not (automation.md §2).
-// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind automation.md §1.3 documents and no release serves yet; a parameter the action's use case does not declare.
+// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not.
+// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind this build does not serve; a parameter the action's use case does not declare.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15838,8 +15838,8 @@ func (c *Client) CreateRuleWithBody(ctx context.Context, params *CreateRuleParam
 // CreateRule Write a rule
 //
 // A rule is created **switched off**. Enabling it is its own call and its own audit entry: writing what a rule would do and letting it loose on the workspace are two decisions, and a rule that ran the moment it was saved would give nobody the chance to read it back first.
-// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not (automation.md §2).
-// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind automation.md §1.3 documents and no release serves yet; a parameter the action's use case does not declare.
+// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not.
+// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind this build does not serve; a parameter the action's use case does not declare.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15965,7 +15965,7 @@ func (c *Client) EnableRule(ctx context.Context, ruleId RuleId, params *EnableRu
 
 // RotateInboundTrigger Mint the address an inbound-webhook rule answers on
 //
-// The `INBOUND_WEBHOOK` trigger's credential (automation.md §1.1): a token-protected URL per rule, minted here and answered **once**. It is stored hashed under its own purpose label, so no later read can produce it.
+// The `INBOUND_WEBHOOK` trigger's credential: a token-protected URL per rule, minted here and answered **once**. It is stored hashed under its own purpose label, so no later read can produce it.
 // Rotating is how one is revoked. There is exactly one address per rule and the replacement happens in a single statement, so the old token and the new one never both open the rule - which is what "revocable by rotating" has to mean. Somebody who wants to revoke without a replacement switches the rule off.
 // Only a rule whose trigger is `INBOUND_WEBHOOK`. An address on any other rule would be a credential that opens nothing, handed out as though it worked.
 //
@@ -15984,9 +15984,9 @@ func (c *Client) RotateInboundTrigger(ctx context.Context, ruleId RuleId, params
 
 // TriggerRuleManually Run a rule now
 //
-// The `MANUAL` trigger (automation.md §1.1): the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
+// The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
 // The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
-// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure `automation.md` §2.2 exists to avoid.
+// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
 // The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
 //
 // Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
@@ -16004,7 +16004,7 @@ func (c *Client) TriggerRuleManually(ctx context.Context, ruleId RuleId, params 
 
 // CheckRules Check every rule of the workspace against what exists now
 //
-// The check ADR-0060 describes: every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
+// Every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
 // The rules screen calls this when it opens, which is what makes "after an update, the rules that need attention are shown" true without anything enumerating tenants. A deletion of something a rule may name runs the same check for the workspace by itself.
 //
 // Corresponds with POST /automation/rules:check (the `CheckRules` operationId).
@@ -16022,7 +16022,7 @@ func (c *Client) CheckRules(ctx context.Context, reqEditors ...RequestEditorFn) 
 
 // TestRuleWithBody Dry-run a rule against a sample event
 //
-// The dry run automation.md §2 promises: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
+// A dry run: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
 // Test either a stored rule by its identifier or a definition you are about to save - the same document `POST /automation/rules` takes, checked by the same validation, so a rule the dry run accepts is a rule the create will accept. Both arms of every branch are reported with whether they would run, which is more than a real run's log shows: the run records the path it took, and the dry run answers the question "and what if it had not".
 //
 // Takes any type of body and a specified content type.
@@ -16042,7 +16042,7 @@ func (c *Client) TestRuleWithBody(ctx context.Context, contentType string, body 
 
 // TestRule Dry-run a rule against a sample event
 //
-// The dry run automation.md §2 promises: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
+// A dry run: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
 // Test either a stored rule by its identifier or a definition you are about to save - the same document `POST /automation/rules` takes, checked by the same validation, so a rule the dry run accepts is a rule the create will accept. Both arms of every branch are reported with whether they would run, which is more than a real run's log shows: the run records the path it took, and the dry run answers the question "and what if it had not".
 //
 // Takes a body of the `application/json` content type.
@@ -16062,7 +16062,7 @@ func (c *Client) TestRule(ctx context.Context, body TestRuleJSONRequestBody, req
 
 // ListRuleRuns What the rules have done
 //
-// Every run, newest first: which rule, which event started it, how its conditions answered, what each action did, and what went wrong if anything did. This is the log `automation.md` §2 promises - retrievable, filterable, and the only place a person can find out why a rule did or did not act.
+// Every run, newest first: which rule, which event started it, how its conditions answered, what each action did, and what went wrong if anything did. This is the run log - retrievable, filterable, and the only place a person can find out why a rule did or did not act.
 // A run outlives the rule that produced it. Deleting a rule is soft for exactly this reason: a record of actions nobody can account for would be worse than the rule staying visible.
 //
 // Corresponds with GET /automation/runs (the `ListRuleRuns` operationId).
@@ -16096,7 +16096,7 @@ func (c *Client) GetRuleRun(ctx context.Context, runId openapi_types.UUID, reqEd
 // ReplayRuleRun Complete a failed run
 //
 // Re-executes a failed run's remaining actions under the same idempotency keys - which is what makes this a completion rather than a duplication: an action the original run finished finds its key already claimed and does nothing again, and only what never happened happens now.
-// Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run resumes by itself, a skipped or throttled one did what its rule says, and a disabled rule must not act. The conditions are evaluated again against the world as it stands - the answer that decides an action is the answer of the day it runs (automation.md §2.1) - and the replay is audited with the replayer, because somebody looked at a failure and decided the world is ready for the rest.
+// Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run resumes by itself, a skipped or throttled one did what its rule says, and a disabled rule must not act. The conditions are evaluated again against the world as it stands - the answer that decides an action is the answer of the day it runs - and the replay is audited with the replayer, because somebody looked at a failure and decided the world is ready for the rest.
 // The answer carries the identifier the replay's run will have, exactly as `:trigger` does.
 //
 // Corresponds with POST /automation/runs/{runId}:replay (the `ReplayRuleRun` operationId).
@@ -16289,7 +16289,7 @@ func (c *Client) CreateBackupTarget(ctx context.Context, body CreateBackupTarget
 
 // DeleteBackupTarget Remove a backup target from the workspace's configuration
 //
-// Removes the target and its sealed credential. **Nothing at the target is touched.** `backup-restore.md`'s rule that Hubtask never deletes a file it did not write applies at least as strongly to the files it did write: the archives stay where they are, and an operator who wants them gone removes them at the target.
+// Removes the target and its sealed credential. **Nothing at the target is touched.** The rule that Hubtask never deletes a file it did not write applies at least as strongly to the files it did write: the archives stay where they are, and an operator who wants them gone removes them at the target.
 // A target a schedule still names is refused with `409` and the schedules named in the problem document. Deleting one silently would disarm a backup that runs every night, and the disarming would be discovered by whoever needed the archive.
 // Deleting one that is not there is not an error. Auditable.
 //
@@ -16424,7 +16424,7 @@ func (c *Client) VerifyBackup(ctx context.Context, backupId openapi_types.UUID, 
 // GetCalendarFeedDocument performs a GET /calendar/{token}.ics (the `GetCalendarFeedDocument` operationId) request.
 //
 // The calendar, as RFC 5545. Gregorian whatever the subscriber's display calendar, with an all-day due date as a VALUE=DATE entry and a timed one carrying its own zone so that it stays put across a daylight saving transition.
-// Minimal by default: the title, the dates and a link back, never the notes - the restraint data-protection.md §9 puts on email applies here for the same reason, since a calendar entry is read on devices and screens nobody in this workspace controls.
+// Minimal by default: the title, the dates and a link back, never the notes - the restraint a notification email keeps applies here for the same reason, since a calendar entry is read on devices and screens nobody in this workspace controls.
 // An unknown token, a revoked one, a feed whose view has been deleted and a feed whose owner has lost the view all answer the same 404 with the same body. Distinguishing them would answer questions to whoever is trying tokens.
 func (c *Client) GetCalendarFeedDocument(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetCalendarFeedDocumentRequest(c.Server, token)
@@ -17405,7 +17405,7 @@ func (c *Client) OfferIdentityProvider(ctx context.Context, providerId ProviderI
 //
 // Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
 // a Microsoft To Do dump - and lands its contents as collections under the named hub. One
-// ingestion path (backup-restore.md §9): the file is converted into the same records a
+// ingestion path: the file is converted into the same records a
 // backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 // identities derived from the source's own, so that importing the same file twice creates
 // nothing the second time.
@@ -17436,7 +17436,7 @@ func (c *Client) ImportEntriesWithBody(ctx context.Context, params *ImportEntrie
 //
 // Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
 // a Microsoft To Do dump - and lands its contents as collections under the named hub. One
-// ingestion path (backup-restore.md §9): the file is converted into the same records a
+// ingestion path: the file is converted into the same records a
 // backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 // identities derived from the source's own, so that importing the same file twice creates
 // nothing the second time.
@@ -17533,7 +17533,7 @@ func (c *Client) CreateCalendarFeed(ctx context.Context, params *CreateCalendarF
 // RevokeCalendarFeed performs a DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId) request.
 //
 // Revokes the feed. The row stays with the moment it was revoked - which is what makes "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a 404 in exactly the words an unknown token produces.
-// Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is (T-04).
+// Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.
 func (c *Client) RevokeCalendarFeed(ctx context.Context, feedId FeedId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeCalendarFeedRequest(c.Server, feedId)
 	if err != nil {
@@ -17548,7 +17548,7 @@ func (c *Client) RevokeCalendarFeed(ctx context.Context, feedId FeedId, reqEdito
 
 // HttpRequestWithBody Call an external HTTP address
 //
-// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after creation.
+// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer. The header secret is sealed at rest and masked everywhere after creation.
 // This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request, and the run supplies the event its body template is rendered from. The call happens on a job with the webhook ladder's retries; the answer is a `JobRef` to poll.
 //
 // Takes any type of body and a specified content type.
@@ -17568,7 +17568,7 @@ func (c *Client) HttpRequestWithBody(ctx context.Context, contentType string, bo
 
 // HttpRequest Call an external HTTP address
 //
-// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after creation.
+// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer. The header secret is sealed at rest and masked everywhere after creation.
 // This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request, and the run supplies the event its body template is rendered from. The call happens on a job with the webhook ladder's retries; the answer is a `JobRef` to poll.
 //
 // Takes a body of the `application/json` content type.
@@ -17588,7 +17588,7 @@ func (c *Client) HttpRequest(ctx context.Context, body HttpRequestJSONRequestBod
 
 // PollTriggerEvents The pull half of the event stream
 //
-// Events of one type, oldest first, for a platform that has no address a webhook could reach - an n8n instance behind NAT, a Zapier polling trigger (automation.md §3.2). The body of each entry is the same CloudEvent a webhook subscription would have been POSTed: one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a consumer that already deduplicates on it needs to learn nothing new.
+// Events of one type, oldest first, for a platform that has no address a webhook could reach - an n8n instance behind NAT, a Zapier polling trigger. The body of each entry is the same CloudEvent a webhook subscription would have been POSTed: one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a consumer that already deduplicates on it needs to learn nothing new.
 // The cursor is opaque, signed and derived from the outbox's own ordering, so it survives a restart and a failover. Two polls with it neither repeat an event nor step over one.
 // The window is the outbox's retention period, and a cursor older than it is refused with `410 gone` rather than silently answered from the beginning. A poller that missed more than the window has to be told that it missed - one that was quietly restarted would go on reporting a consistency it does not have.
 // A replayed event - one a restore wrote rather than one somebody did - is not answered here, exactly as it is not delivered to a webhook.
@@ -17627,7 +17627,7 @@ func (c *Client) ListWebhookSubscriptions(ctx context.Context, reqEditors ...Req
 //
 // The `subscribe` half of the REST hooks pattern: an integration platform creates its own subscription through this route and deletes it again when the user turns the automation off.
 // What arrives at the target is the CloudEvent, identical to the one this system uses internally - there is no feature available only internally or only externally - signed with a secret generated here, answered once in this response, and never readable afterwards.
-// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks.
 //
 // Takes any type of body and a specified content type.
 //
@@ -17648,7 +17648,7 @@ func (c *Client) CreateWebhookSubscriptionWithBody(ctx context.Context, params *
 //
 // The `subscribe` half of the REST hooks pattern: an integration platform creates its own subscription through this route and deletes it again when the user turns the automation off.
 // What arrives at the target is the CloudEvent, identical to the one this system uses internally - there is no feature available only internally or only externally - signed with a secret generated here, answered once in this response, and never readable afterwards.
-// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -17813,7 +17813,7 @@ func (c *Client) RotateWebhookSecret(ctx context.Context, webhookId WebhookId, p
 
 // SendWebhookWithBody Deliver one event to this subscription
 //
-// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered (backup-restore.md §8.4).
+// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered.
 // This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the subscription, and the run supplies the event it is about.
 //
 // Takes any type of body and a specified content type.
@@ -17833,7 +17833,7 @@ func (c *Client) SendWebhookWithBody(ctx context.Context, webhookId WebhookId, c
 
 // SendWebhook Deliver one event to this subscription
 //
-// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered (backup-restore.md §8.4).
+// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered.
 // This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the subscription, and the run supplies the event it is about.
 //
 // Takes a body of the `application/json` content type.
@@ -19241,7 +19241,7 @@ func (c *Client) DismissJumbleEntry(ctx context.Context, entryId openapi_types.U
 
 // SuggestFromJumbleEntry Ask AI what this entry should become
 //
-// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry (J-06, `ai-first.md` §2). It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
 // Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 // A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 //
@@ -19260,9 +19260,9 @@ func (c *Client) SuggestFromJumbleEntry(ctx context.Context, entryId openapi_typ
 
 // StartJumbleIntakeWithBody Deliver something into the jumble from outside
 //
-// The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
+// The `WEBHOOK` channel: an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
 // The token authenticates the tenant, never a person: the entry records no actor, and the body is data end to end - bounded twice (the transfer by the request middleware, the entry by its own field bounds), matched by rules as data, and rendered as instructions to nothing.
-// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens (T-21).
+// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens.
 //
 // Takes any type of body and a specified content type.
 //
@@ -19281,9 +19281,9 @@ func (c *Client) StartJumbleIntakeWithBody(ctx context.Context, token string, co
 
 // StartJumbleIntake Deliver something into the jumble from outside
 //
-// The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
+// The `WEBHOOK` channel: an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
 // The token authenticates the tenant, never a person: the entry records no actor, and the body is data end to end - bounded twice (the transfer by the request middleware, the entry by its own field bounds), matched by rules as data, and rendered as instructions to nothing.
-// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens (T-21).
+// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -19302,7 +19302,7 @@ func (c *Client) StartJumbleIntake(ctx context.Context, token string, body Start
 
 // RotateJumbleIntake Mint the address the jumble accepts webhooks on
 //
-// The tenant's one intake credential (G-10), the inbound trigger's discipline applied to the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over the whole presented string under the intake's own purpose label, and answered **once** - no later read can produce it.
+// The tenant's one intake credential, the inbound trigger's discipline applied to the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over the whole presented string under the intake's own purpose label, and answered **once** - no later read can produce it.
 // Rotating is how one is revoked: there is exactly one address per tenant and the replacement happens in a single statement, so the old token and the new one never both open the intake.
 //
 // Corresponds with POST /jumble/intake:rotate-token (the `RotateJumbleIntake` operationId).
@@ -19320,10 +19320,10 @@ func (c *Client) RotateJumbleIntake(ctx context.Context, params *RotateJumbleInt
 
 // DeliverMailWithBody Deliver a mail into the jumble
 //
-// The `EMAIL` channel (G-11). The body is the message as it arrived - RFC 5322 bytes, headers included - and what arrives in 0.5.0 is the **webhook-first** transport: an operator points a mail-to-webhook bridge, their MTA or their provider's push at this address, and the bytes are what any of them can forward without agreeing on a shape.
+// The `EMAIL` channel. The body is the message as it arrived - RFC 5322 bytes, headers included - and the transport is **webhook-first**: an operator points a mail-to-webhook bridge, their MTA or their provider's push at this address, and the bytes are what any of them can forward without agreeing on a shape.
 // The parser is transport-independent and defensive. MIME is walked with bounds on parts, depth, attachment count and attachment size, checked before anything is allocated; attachments go through the media pipeline with its size and type discipline, never a second storage path; and the HTML alternative of a message that also had a plain part is kept as text beside it. **No HTML is ever rendered server-side.**
 // The sender is data, never an identity: a `From` header authenticates nothing, and what authenticates is the token. A message the parser cannot read still lands, as an entry carrying the raw payload - a jumble exists to catch, and "unparseable" is a thing to catch. A message that breaks one of the bounds is refused with the code that says which, because "raise the bound" and "look at the entry" are different answers.
-// Every reason not to serve answers the same `404`, as the webhook intake's does (T-21).
+// Every reason not to serve answers the same `404`, as the webhook intake's does.
 //
 // Takes any type of body and a specified content type.
 //
@@ -20141,8 +20141,8 @@ func (c *Client) StartRestore(ctx context.Context, body StartRestoreJSONRequestB
 // GetRestoreRun What one restore did, or is about to do
 //
 // The resource a started restore's `result_url` points at. It carries the report of the dry
-// run - how many objects are new, overwritten, skipped and in conflict - which is what
-// §8.3 asks a caller to read *before* asking for the same restore without `dry_run`. It also
+// run - how many objects are new, overwritten, skipped and in conflict - which is what a
+// caller reads *before* asking for the same restore without `dry_run`. It also
 // names the safety copy taken before a destructive mode, so that the way back is a run
 // identifier rather than a search at the target.
 //
@@ -20236,7 +20236,7 @@ func (c *Client) DeleteRetentionPolicy(ctx context.Context, policyId openapi_typ
 
 // UpdateRetentionPolicyWithBody Correct a retention rule, or take it out of enforcement
 //
-// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings (`data-retention.md` §7) and where a rule somebody has doubts about belongs.
+// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings, and where a rule somebody has doubts about belongs.
 // Extending a period beyond the data kind's upper bound needs a `justification`, here as much as at creation, and the one stored is replaced rather than kept: the justification belongs to the period it justifies.
 // The kind and the scope do not move. A rule that changed either would be a different rule under an old identifier, and the unique index over the pair is what makes "the rule for this kind at this level" a thing one can name at all. Auditable.
 //
@@ -20257,7 +20257,7 @@ func (c *Client) UpdateRetentionPolicyWithBody(ctx context.Context, policyId ope
 
 // UpdateRetentionPolicyWithApplicationMergePatchPlusJSONBody Correct a retention rule, or take it out of enforcement
 //
-// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings (`data-retention.md` §7) and where a rule somebody has doubts about belongs.
+// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings, and where a rule somebody has doubts about belongs.
 // Extending a period beyond the data kind's upper bound needs a `justification`, here as much as at creation, and the one stored is replaced rather than kept: the justification belongs to the period it justifies.
 // The kind and the scope do not move. A rule that changed either would be a different rule under an old identifier, and the unique index over the pair is what makes "the rule for this kind at this level" a thing one can name at all. Auditable.
 //
@@ -20561,7 +20561,7 @@ func (c *Client) ListSyncDevices(ctx context.Context, reqEditors ...RequestEdito
 //
 // Ends what the device holds: the session it last synchronised under is revoked, and every
 // push or pull from the identifier is refused with `sync.device_revoked` until the client
-// mints a new one (offline-sync.md §6). The row stays, marked `blocked`, until the retention
+// mints a new one. The row stays, marked `blocked`, until the retention
 // sweep removes it. Somebody else's device is not found rather than forbidden; forgetting
 // twice is not an error.
 //
@@ -20586,7 +20586,7 @@ func (c *Client) ForgetSyncDevice(ctx context.Context, deviceId DeviceId, reqEdi
 // installation did not mint is `sync.cursor_invalid`.
 //
 // The same records the stream carries, in the same order and under the same cursor - the
-// stream is an accelerator over this, not a second source of truth (ADR-0021). Records are
+// stream is an accelerator over this, not a second source of truth. Records are
 // filtered by what the caller may read, per record and at the moment of the read; `has_more`
 // says the page was full and the client comes straight back. A page may carry fewer records
 // than `limit` and still have more: the cursor advances past what the caller may not see.
@@ -20617,7 +20617,7 @@ func (c *Client) SyncPullWithBody(ctx context.Context, contentType string, body 
 // installation did not mint is `sync.cursor_invalid`.
 //
 // The same records the stream carries, in the same order and under the same cursor - the
-// stream is an accelerator over this, not a second source of truth (ADR-0021). Records are
+// stream is an accelerator over this, not a second source of truth. Records are
 // filtered by what the caller may read, per record and at the moment of the read; `has_more`
 // says the page was full and the client comes straight back. A page may carry fewer records
 // than `limit` and still have more: the cursor advances past what the caller may not see.
@@ -20684,7 +20684,7 @@ func (c *Client) SyncPush(ctx context.Context, body SyncPushJSONRequestBody, req
 
 // SyncSnapshotWithBody The initial synchronisation as one stream
 //
-// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// What `:pull` with no cursor answers in pages, as one response:
 // the records of the initial synchronisation in the walk's order, one per line of
 // `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
 // read so that the first byte arrives before the last row is counted, and the delta cursor
@@ -20717,7 +20717,7 @@ func (c *Client) SyncSnapshotWithBody(ctx context.Context, contentType string, b
 
 // SyncSnapshot The initial synchronisation as one stream
 //
-// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// What `:pull` with no cursor answers in pages, as one response:
 // the records of the initial synchronisation in the walk's order, one per line of
 // `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
 // read so that the first byte arrives before the last row is counted, and the delta cursor
@@ -20893,7 +20893,7 @@ func (c *Client) InstantiateTemplate(ctx context.Context, templateId TemplateId,
 
 // AiGenerateTemplateWithBody Ask AI to draft a template from a description
 //
-// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to. The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
 // Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
 //
 // Takes any type of body and a specified content type.
@@ -20913,7 +20913,7 @@ func (c *Client) AiGenerateTemplateWithBody(ctx context.Context, params *AiGener
 
 // AiGenerateTemplate Ask AI to draft a template from a description
 //
-// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to. The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
 // Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
 //
 // Takes a body of the `application/json` content type.
@@ -21164,8 +21164,8 @@ func (c *Client) UpdateSavedViewWithApplicationMergePatchPlusJSONBody(ctx contex
 // with any type of body and a specified content type.
 //
 // The view's result, rendered whole, in one of three formats. A read with no side effect, and a POST for the reason POST /search is one: what a view selects is the caller's content, and a query string travels through access logs, proxies and browser history.
-// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides (T-04, T-05).
-// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. The guidelines' "202 plus /jobs/{id}" is what the cap stands in for while there is no /jobs resource - a truncation a caller is told about is honest, and a silent one is not.
+// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides.
+// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. An export stays one synchronous answer rather than a job a caller has to poll, and the cap is what keeps it one - a truncation a caller is told about is honest, and a silent one is not.
 // ICS renders the same document the calendar feed serves, from the same renderer: an entry with no due date is not a calendar entry and does not appear.
 func (c *Client) ExportViewWithBody(ctx context.Context, viewId ViewId, params *ExportViewParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExportViewRequestWithBody(c.Server, viewId, params, contentType, body)
@@ -21183,8 +21183,8 @@ func (c *Client) ExportViewWithBody(ctx context.Context, viewId ViewId, params *
 // Takes a body of the `application/json` content type.
 //
 // The view's result, rendered whole, in one of three formats. A read with no side effect, and a POST for the reason POST /search is one: what a view selects is the caller's content, and a query string travels through access logs, proxies and browser history.
-// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides (T-04, T-05).
-// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. The guidelines' "202 plus /jobs/{id}" is what the cap stands in for while there is no /jobs resource - a truncation a caller is told about is honest, and a silent one is not.
+// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides.
+// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. An export stays one synchronous answer rather than a job a caller has to poll, and the cap is what keeps it one - a truncation a caller is told about is honest, and a silent one is not.
 // ICS renders the same document the calendar feed serves, from the same renderer: an entry with no due date is not a calendar entry and does not appear.
 func (c *Client) ExportView(ctx context.Context, viewId ViewId, params *ExportViewParams, body ExportViewJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExportViewRequest(c.Server, viewId, params, body)
@@ -34664,7 +34664,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Who am I, and how does this product speak to me. A client needs the answer before it can
 	// render anything: `locale`, `time_zone` and `week_start` are the second link of the
-	// resolution chain request → account → tenant → installation (`i18n-l10n.md` §2), and there
+	// resolution chain request → account → tenant → installation, and there
 	// is no other way to learn them — `/accounts/{accountId}/preferences` writes to an id the
 	// client never receives.
 	//
@@ -34691,8 +34691,8 @@ type ClientWithResponsesInterface interface {
 	// **What comes back is deliberately less than `/accounts/me`.** The display name and the kind,
 	// and not the email, the locale, the time zone or the first day of the week. Those are the
 	// caller's own business or an administrator's; a name is what a workspace has to show to be
-	// readable at all. `data-protection.md` §9 settles the line: the visibility of profile data to
-	// other tenant members is *minimal — display name, avatar*, and this is that minimum.
+	// readable at all. What the other members of a workspace see of a profile is kept minimal -
+	// the display name and the avatar - and this is that minimum.
 	//
 	// Any member of the tenant may make it. There is nothing narrower to authorise against: the
 	// identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -34729,7 +34729,7 @@ type ClientWithResponsesInterface interface {
 	// the next notification of that category `SUPPRESSED`, with the record saying why; the
 	// invitation is the one category no preference can switch off, and a write against it is
 	// stored and never consulted. `include_title: false` produces an email that says something
-	// concerns you without saying what (`data-protection.md` §9). An unknown category or channel
+	// concerns you without saying what. An unknown category or channel
 	// is refused by name.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -34744,7 +34744,7 @@ type ClientWithResponsesInterface interface {
 	// the next notification of that category `SUPPRESSED`, with the record saying why; the
 	// invitation is the one category no preference can switch off, and a write against it is
 	// stored and never consulted. `include_title: false` produces an email that says something
-	// concerns you without saying what (`data-protection.md` §9). An unknown category or channel
+	// concerns you without saying what. An unknown category or channel
 	// is refused by name.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -34801,7 +34801,7 @@ type ClientWithResponsesInterface interface {
 	// InviteAccountWithBodyWithResponse Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted, which needs the sign-in flow (`0.6.0`).
+	// it cannot act until the invitation is accepted.
 	// The notification is queued as a job — this call does not wait for an email.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -34812,7 +34812,7 @@ type ClientWithResponsesInterface interface {
 	// InviteAccountWithResponse Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted, which needs the sign-in flow (`0.6.0`).
+	// it cannot act until the invitation is accepted.
 	// The notification is queued as a job — this call does not wait for an email.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -35020,7 +35020,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListTenantsWithResponse The installation's workspaces
 	//
-	// The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
+	// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -35029,7 +35029,7 @@ type ClientWithResponsesInterface interface {
 
 	// ProvisionTenantWithBodyWithResponse Provision a workspace
 	//
-	// Creates the tenant with its defaults, exactly the §5 table: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in (H-01's loop). Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35038,7 +35038,7 @@ type ClientWithResponsesInterface interface {
 
 	// ProvisionTenantWithResponse Provision a workspace
 	//
-	// Creates the tenant with its defaults, exactly the §5 table: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in (H-01's loop). Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35130,7 +35130,7 @@ type ClientWithResponsesInterface interface {
 
 	// ResumeTenantWithResponse Reactivate a workspace
 	//
-	// One write, as §5 promises. The next request of the tenant's people works again.
+	// One write. The next request of the tenant's people works again.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -35139,7 +35139,7 @@ type ClientWithResponsesInterface interface {
 
 	// SuspendTenantWithResponse Suspend a workspace
 	//
-	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it (multi-tenancy.md §5).
+	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -35189,16 +35189,16 @@ type ClientWithResponsesInterface interface {
 
 	// ListAuditEntriesWithResponse Query audit entries
 	//
-	// Requires the `audit:read` scope. Who sees what is audit.md §5 rather than the ordinary
-	// role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own
+	// Requires the `audit:read` scope. Who sees what follows the audit trail's own rule rather
+	// than the ordinary role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own
 	// tenant, and everybody else reads their own events - transparency towards the employee
 	// rather than a lesser administrator's view. A request that names somebody else's
 	// `actor_id` without the right to the whole trail is refused, and the refusal is itself an
 	// entry. Filtering by period, action, actor, target, and outcome; cursor pagination.
 	//
 	// A read that succeeds is not itself recorded. A trail that grew by being read would bury
-	// what it is for - the second page would contain the reading of the first - and §4 does not
-	// list reading among the mandatory events. What is recorded is the refusal, and the export.
+	// what it is for - the second page would contain the reading of the first - and reading is
+	// not among the events that must be recorded. What is recorded is the refusal, and the export.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -35207,7 +35207,7 @@ type ClientWithResponsesInterface interface {
 
 	// ConfigureAuditAnchoringWithBodyWithResponse Name where the audit chain's end is anchored, or switch anchoring off
 	//
-	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// External anchoring: once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
 	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -35217,7 +35217,7 @@ type ClientWithResponsesInterface interface {
 
 	// ConfigureAuditAnchoringWithResponse Name where the audit chain's end is anchored, or switch anchoring off
 	//
-	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// External anchoring: once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
 	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -35232,7 +35232,7 @@ type ClientWithResponsesInterface interface {
 	// it covers - because an export over four hundred days is not something a request can
 	// hold; this answers a `JobRef` and the work happens in the background.
 	//
-	// The export produces an audit entry of its own (audit.md §5). A copy of the evidence
+	// The export produces an audit entry of its own. A copy of the evidence
 	// leaving the installation is itself an event an auditor asks about, and it is the first
 	// `audit.*` action the system records about itself.
 	//
@@ -35248,7 +35248,7 @@ type ClientWithResponsesInterface interface {
 	// it covers - because an export over four hundred days is not something a request can
 	// hold; this answers a `JobRef` and the work happens in the background.
 	//
-	// The export produces an audit entry of its own (audit.md §5). A copy of the evidence
+	// The export produces an audit entry of its own. A copy of the evidence
 	// leaving the installation is itself an event an auditor asks about, and it is the first
 	// `audit.*` action the system records about itself.
 	//
@@ -35291,8 +35291,8 @@ type ClientWithResponsesInterface interface {
 
 	// RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 	//
-	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
-	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24). Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
+	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -35302,8 +35302,8 @@ type ClientWithResponsesInterface interface {
 
 	// RedeemInvitationWithResponse Redeem an invitation and set the first password
 	//
-	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
-	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24). Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
+	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -35314,7 +35314,7 @@ type ClientWithResponsesInterface interface {
 	// RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
 	//
 	// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
-	// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+	// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's: somebody who has burned eight of ten gets ten back without taking their working second factor off for a minute. Nothing about them mentions TOTP, so they stay right whatever the second factor is.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -35381,8 +35381,8 @@ type ClientWithResponsesInterface interface {
 
 	// StartAuthenticatorReplacementWithResponse Begin replacing the authenticator
 	//
-	// For a new phone, or an authenticator that is gone (SC-17): a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
-	// Behind a step-up with whatever the account holds (ADR-0075): replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
+	// For a new phone, or an authenticator that is gone: a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
+	// Behind a step-up with whatever the account holds: replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -35391,7 +35391,7 @@ type ClientWithResponsesInterface interface {
 
 	// DisableTotpWithBodyWithResponse Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
 	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -35401,7 +35401,7 @@ type ClientWithResponsesInterface interface {
 
 	// DisableTotpWithResponse Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
 	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -35411,12 +35411,12 @@ type ClientWithResponsesInterface interface {
 
 	// CompleteOidcSignInWithBodyWithResponse Finish the sign-in with the code the provider issued
 	//
-	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
+	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds. Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
-	// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link`. An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
+	// An **invited** account is activated and connected only with a second proof: the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
 	// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
-	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
+	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -35426,12 +35426,12 @@ type ClientWithResponsesInterface interface {
 
 	// CompleteOidcSignInWithResponse Finish the sign-in with the code the provider issued
 	//
-	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
+	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds. Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
-	// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link`. An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
+	// An **invited** account is activated and connected only with a second proof: the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
 	// Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
-	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
+	// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -35441,11 +35441,11 @@ type ClientWithResponsesInterface interface {
 
 	// StartOidcSignInWithBodyWithResponse Begin a sign-in through the workspace's identity provider
 	//
-	// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
+	// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
-	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
-	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
-	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
+	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35454,11 +35454,11 @@ type ClientWithResponsesInterface interface {
 
 	// StartOidcSignInWithResponse Begin a sign-in through the workspace's identity provider
 	//
-	// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
+	// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 	// Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
-	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
-	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
-	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
+	// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+	// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+	// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35467,7 +35467,7 @@ type ClientWithResponsesInterface interface {
 
 	// ChangePasswordWithBodyWithResponse Change the password of the signed-in account
 	//
-	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// The password of the caller's own account, behind a step-up. The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
 	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
 	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
 	//
@@ -35478,7 +35478,7 @@ type ClientWithResponsesInterface interface {
 
 	// ChangePasswordWithResponse Change the password of the signed-in account
 	//
-	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// The password of the caller's own account, behind a step-up. The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
 	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
 	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
 	//
@@ -35511,7 +35511,7 @@ type ClientWithResponsesInterface interface {
 
 	// ForgetPasswordWithBodyWithResponse Ask for a password reset link
 	//
-	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after. There is no error state for "no such address", because there is no such answer.
 	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
 	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
 	//
@@ -35522,7 +35522,7 @@ type ClientWithResponsesInterface interface {
 
 	// ForgetPasswordWithResponse Ask for a password reset link
 	//
-	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after. There is no error state for "no such address", because there is no such answer.
 	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
 	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
 	//
@@ -35535,7 +35535,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
-	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35546,7 +35546,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
-	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35600,10 +35600,10 @@ type ClientWithResponsesInterface interface {
 
 	// SignInWithBodyWithResponse Sign in with email and password
 	//
-	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
-	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
-	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
-	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders.
+	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
+	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
+	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35612,10 +35612,10 @@ type ClientWithResponsesInterface interface {
 
 	// SignInWithResponse Sign in with email and password
 	//
-	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
-	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
-	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
-	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+	// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders.
+	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
+	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
+	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35633,7 +35633,7 @@ type ClientWithResponsesInterface interface {
 
 	// ElevateSessionWithResponse Raise this session to the control plane for an hour
 	//
-	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
 	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 	// The personal access token stays exactly as it is, for automation.
@@ -35645,9 +35645,9 @@ type ClientWithResponsesInterface interface {
 
 	// CompleteLinkWithBodyWithResponse Prove the account before a provider is connected to it
 	//
-	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+	// The `LINK` step. A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
-	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
+	// **The password is a proof here even where the workspace switched it off as a way in.** Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35656,9 +35656,9 @@ type ClientWithResponsesInterface interface {
 
 	// CompleteLinkWithResponse Prove the account before a provider is connected to it
 	//
-	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+	// The `LINK` step. A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
-	// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
+	// **The password is a proof here even where the workspace switched it off as a way in.** Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35667,7 +35667,7 @@ type ClientWithResponsesInterface interface {
 
 	// RefreshSessionWithBodyWithResponse Exchange a refresh token for the next pair
 	//
-	// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
+	// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and an alert.
 	// The route is public the way sign-in is: the refresh token in the body is the whole credential, and demanding a bearer header beside it would demand the very thing this call exists to replace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -35677,7 +35677,7 @@ type ClientWithResponsesInterface interface {
 
 	// RefreshSessionWithResponse Exchange a refresh token for the next pair
 	//
-	// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
+	// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and an alert.
 	// The route is public the way sign-in is: the refresh token in the body is the whole credential, and demanding a bearer header beside it would demand the very thing this call exists to replace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -35687,7 +35687,7 @@ type ClientWithResponsesInterface interface {
 
 	// RevokeOtherSessionsWithResponse Sign out everywhere else
 	//
-	// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+	// Ends every session of the caller's account except the one making this call: the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -35696,7 +35696,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetPasswordAndSignInWithBodyWithResponse Set a new password and finish the sign-in
 	//
-	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The fourth door a password is set through. The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
 	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
 	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
 	//
@@ -35707,7 +35707,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetPasswordAndSignInWithResponse Set a new password and finish the sign-in
 	//
-	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The fourth door a password is set through. The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
 	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
 	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
 	//
@@ -35718,7 +35718,7 @@ type ClientWithResponsesInterface interface {
 
 	// CompleteSignInWithBodyWithResponse Present the second factor and receive the pair
 	//
-	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
+	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 	// A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -35728,7 +35728,7 @@ type ClientWithResponsesInterface interface {
 
 	// CompleteSignInWithResponse Present the second factor and receive the pair
 	//
-	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
+	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 	// A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -35738,9 +35738,9 @@ type ClientWithResponsesInterface interface {
 
 	// GetSignInRulesWithResponse What a sign-in screen may know before anybody has signed in
 	//
-	// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
-	// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
-	// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+	// The four things a sign-in card needs and nothing else: which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+	// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after.
+	// Why a public route answers this at all: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -35749,9 +35749,9 @@ type ClientWithResponsesInterface interface {
 
 	// StepUpWithBodyWithResponse Prove yourself again, for the irreversible
 	//
-	// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+	// A fresh re-authentication on the current session, with whatever the account holds: the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
 	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
-	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request's `step_up_token` field.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35760,9 +35760,9 @@ type ClientWithResponsesInterface interface {
 
 	// StepUpWithResponse Prove yourself again, for the irreversible
 	//
-	// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+	// A fresh re-authentication on the current session, with whatever the account holds: the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
 	// The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
-	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+	// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request's `step_up_token` field.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35771,7 +35771,7 @@ type ClientWithResponsesInterface interface {
 
 	// StartProviderStepUpWithResponse Begin a step-up at the provider this account is connected to
 	//
-	// The first of `PROVIDER`'s two calls (ADR-0075 §2). An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
+	// The first of `PROVIDER`'s two calls. An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
 	// The browser comes back to this installation's own callback address, the one every registration already permits. Refused with `auth.step_up_no_provider` for an account with no such provider, and with `auth.step_up_session_required` for a caller without a session.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -35795,7 +35795,7 @@ type ClientWithResponsesInterface interface {
 	// Answers the credential, in clear, for the only time. What is stored is its hash keyed on the installation secret under its own purpose label, so a hash from here can never be replayed as a signed cursor or a calendar feed token, and nothing can turn the stored value back into the token.
 	// The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 	// The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
-	// Asking for an admin scope is a privileged action (security.md §5): it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+	// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35807,7 +35807,7 @@ type ClientWithResponsesInterface interface {
 	// Answers the credential, in clear, for the only time. What is stored is its hash keyed on the installation secret under its own purpose label, so a hash from here can never be replayed as a signed cursor or a calendar feed token, and nothing can turn the stored value back into the token.
 	// The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 	// The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
-	// Asking for an admin scope is a privileged action (security.md §5): it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+	// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35851,7 +35851,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListRulesWithResponse The workspace's automation rules
 	//
-	// Newest first, and only the rules the caller may see: a member manages their own rules, and an administrator the scope's (domain-model.md §3.2). Deleted rules are not among them - the deletion is soft so that the runs a rule produced stay readable, not so that the rule stays listed.
+	// Newest first, and only the rules the caller may see: a member manages their own rules, and an administrator the scope's. Deleted rules are not among them - the deletion is soft so that the runs a rule produced stay readable, not so that the rule stays listed.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -35861,8 +35861,8 @@ type ClientWithResponsesInterface interface {
 	// CreateRuleWithBodyWithResponse Write a rule
 	//
 	// A rule is created **switched off**. Enabling it is its own call and its own audit entry: writing what a rule would do and letting it loose on the workspace are two decisions, and a rule that ran the moment it was saved would give nobody the chance to read it back first.
-	// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not (automation.md §2).
-	// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind automation.md §1.3 documents and no release serves yet; a parameter the action's use case does not declare.
+	// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not.
+	// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind this build does not serve; a parameter the action's use case does not declare.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35872,8 +35872,8 @@ type ClientWithResponsesInterface interface {
 	// CreateRuleWithResponse Write a rule
 	//
 	// A rule is created **switched off**. Enabling it is its own call and its own audit entry: writing what a rule would do and letting it loose on the workspace are two decisions, and a rule that ran the moment it was saved would give nobody the chance to read it back first.
-	// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not (automation.md §2).
-	// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind automation.md §1.3 documents and no release serves yet; a parameter the action's use case does not declare.
+	// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not.
+	// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind this build does not serve; a parameter the action's use case does not declare.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35937,7 +35937,7 @@ type ClientWithResponsesInterface interface {
 
 	// RotateInboundTriggerWithResponse Mint the address an inbound-webhook rule answers on
 	//
-	// The `INBOUND_WEBHOOK` trigger's credential (automation.md §1.1): a token-protected URL per rule, minted here and answered **once**. It is stored hashed under its own purpose label, so no later read can produce it.
+	// The `INBOUND_WEBHOOK` trigger's credential: a token-protected URL per rule, minted here and answered **once**. It is stored hashed under its own purpose label, so no later read can produce it.
 	// Rotating is how one is revoked. There is exactly one address per rule and the replacement happens in a single statement, so the old token and the new one never both open the rule - which is what "revocable by rotating" has to mean. Somebody who wants to revoke without a replacement switches the rule off.
 	// Only a rule whose trigger is `INBOUND_WEBHOOK`. An address on any other rule would be a credential that opens nothing, handed out as though it worked.
 	//
@@ -35948,9 +35948,9 @@ type ClientWithResponsesInterface interface {
 
 	// TriggerRuleManuallyWithResponse Run a rule now
 	//
-	// The `MANUAL` trigger (automation.md §1.1): the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
+	// The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
 	// The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
-	// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure `automation.md` §2.2 exists to avoid.
+	// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
 	// The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -35960,7 +35960,7 @@ type ClientWithResponsesInterface interface {
 
 	// CheckRulesWithResponse Check every rule of the workspace against what exists now
 	//
-	// The check ADR-0060 describes: every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
+	// Every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
 	// The rules screen calls this when it opens, which is what makes "after an update, the rules that need attention are shown" true without anything enumerating tenants. A deletion of something a rule may name runs the same check for the workspace by itself.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -35970,7 +35970,7 @@ type ClientWithResponsesInterface interface {
 
 	// TestRuleWithBodyWithResponse Dry-run a rule against a sample event
 	//
-	// The dry run automation.md §2 promises: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
+	// A dry run: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
 	// Test either a stored rule by its identifier or a definition you are about to save - the same document `POST /automation/rules` takes, checked by the same validation, so a rule the dry run accepts is a rule the create will accept. Both arms of every branch are reported with whether they would run, which is more than a real run's log shows: the run records the path it took, and the dry run answers the question "and what if it had not".
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -35980,7 +35980,7 @@ type ClientWithResponsesInterface interface {
 
 	// TestRuleWithResponse Dry-run a rule against a sample event
 	//
-	// The dry run automation.md §2 promises: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
+	// A dry run: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
 	// Test either a stored rule by its identifier or a definition you are about to save - the same document `POST /automation/rules` takes, checked by the same validation, so a rule the dry run accepts is a rule the create will accept. Both arms of every branch are reported with whether they would run, which is more than a real run's log shows: the run records the path it took, and the dry run answers the question "and what if it had not".
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -35990,7 +35990,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListRuleRunsWithResponse What the rules have done
 	//
-	// Every run, newest first: which rule, which event started it, how its conditions answered, what each action did, and what went wrong if anything did. This is the log `automation.md` §2 promises - retrievable, filterable, and the only place a person can find out why a rule did or did not act.
+	// Every run, newest first: which rule, which event started it, how its conditions answered, what each action did, and what went wrong if anything did. This is the run log - retrievable, filterable, and the only place a person can find out why a rule did or did not act.
 	// A run outlives the rule that produced it. Deleting a rule is soft for exactly this reason: a record of actions nobody can account for would be worse than the rule staying visible.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -36008,7 +36008,7 @@ type ClientWithResponsesInterface interface {
 	// ReplayRuleRunWithResponse Complete a failed run
 	//
 	// Re-executes a failed run's remaining actions under the same idempotency keys - which is what makes this a completion rather than a duplication: an action the original run finished finds its key already claimed and does nothing again, and only what never happened happens now.
-	// Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run resumes by itself, a skipped or throttled one did what its rule says, and a disabled rule must not act. The conditions are evaluated again against the world as it stands - the answer that decides an action is the answer of the day it runs (automation.md §2.1) - and the replay is audited with the replayer, because somebody looked at a failure and decided the world is ready for the rest.
+	// Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run resumes by itself, a skipped or throttled one did what its rule says, and a disabled rule must not act. The conditions are evaluated again against the world as it stands - the answer that decides an action is the answer of the day it runs - and the replay is audited with the replayer, because somebody looked at a failure and decided the world is ready for the rest.
 	// The answer carries the identifier the replay's run will have, exactly as `:trigger` does.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -36109,7 +36109,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteBackupTargetWithResponse Remove a backup target from the workspace's configuration
 	//
-	// Removes the target and its sealed credential. **Nothing at the target is touched.** `backup-restore.md`'s rule that Hubtask never deletes a file it did not write applies at least as strongly to the files it did write: the archives stay where they are, and an operator who wants them gone removes them at the target.
+	// Removes the target and its sealed credential. **Nothing at the target is touched.** The rule that Hubtask never deletes a file it did not write applies at least as strongly to the files it did write: the archives stay where they are, and an operator who wants them gone removes them at the target.
 	// A target a schedule still names is refused with `409` and the schedules named in the problem document. Deleting one silently would disarm a backup that runs every night, and the disarming would be discovered by whoever needed the archive.
 	// Deleting one that is not there is not an error. Auditable.
 	//
@@ -36184,7 +36184,7 @@ type ClientWithResponsesInterface interface {
 	// GetCalendarFeedDocumentWithResponse performs a GET /calendar/{token}.ics (the `GetCalendarFeedDocument` operationId) request.
 	//
 	// The calendar, as RFC 5545. Gregorian whatever the subscriber's display calendar, with an all-day due date as a VALUE=DATE entry and a timed one carrying its own zone so that it stays put across a daylight saving transition.
-	// Minimal by default: the title, the dates and a link back, never the notes - the restraint data-protection.md §9 puts on email applies here for the same reason, since a calendar entry is read on devices and screens nobody in this workspace controls.
+	// Minimal by default: the title, the dates and a link back, never the notes - the restraint a notification email keeps applies here for the same reason, since a calendar entry is read on devices and screens nobody in this workspace controls.
 	// An unknown token, a revoked one, a feed whose view has been deleted and a feed whose owner has lost the view all answer the same 404 with the same body. Distinguishing them would answer questions to whoever is trying tokens.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -36649,7 +36649,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
 	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
-	// ingestion path (backup-restore.md §9): the file is converted into the same records a
+	// ingestion path: the file is converted into the same records a
 	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 	// identities derived from the source's own, so that importing the same file twice creates
 	// nothing the second time.
@@ -36670,7 +36670,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
 	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
-	// ingestion path (backup-restore.md §9): the file is converted into the same records a
+	// ingestion path: the file is converted into the same records a
 	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 	// identities derived from the source's own, so that importing the same file twice creates
 	// nothing the second time.
@@ -36723,14 +36723,14 @@ type ClientWithResponsesInterface interface {
 	// RevokeCalendarFeedWithResponse performs a DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId) request.
 	//
 	// Revokes the feed. The row stays with the moment it was revoked - which is what makes "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a 404 in exactly the words an unknown token produces.
-	// Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is (T-04).
+	// Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	RevokeCalendarFeedWithResponse(ctx context.Context, feedId FeedId, reqEditors ...RequestEditorFn) (*RevokeCalendarFeedResult, error)
 
 	// HttpRequestWithBodyWithResponse Call an external HTTP address
 	//
-	// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after creation.
+	// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer. The header secret is sealed at rest and masked everywhere after creation.
 	// This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request, and the run supplies the event its body template is rendered from. The call happens on a job with the webhook ladder's retries; the answer is a `JobRef` to poll.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -36740,7 +36740,7 @@ type ClientWithResponsesInterface interface {
 
 	// HttpRequestWithResponse Call an external HTTP address
 	//
-	// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after creation.
+	// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer. The header secret is sealed at rest and masked everywhere after creation.
 	// This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request, and the run supplies the event its body template is rendered from. The call happens on a job with the webhook ladder's retries; the answer is a `JobRef` to poll.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -36750,7 +36750,7 @@ type ClientWithResponsesInterface interface {
 
 	// PollTriggerEventsWithResponse The pull half of the event stream
 	//
-	// Events of one type, oldest first, for a platform that has no address a webhook could reach - an n8n instance behind NAT, a Zapier polling trigger (automation.md §3.2). The body of each entry is the same CloudEvent a webhook subscription would have been POSTed: one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a consumer that already deduplicates on it needs to learn nothing new.
+	// Events of one type, oldest first, for a platform that has no address a webhook could reach - an n8n instance behind NAT, a Zapier polling trigger. The body of each entry is the same CloudEvent a webhook subscription would have been POSTed: one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a consumer that already deduplicates on it needs to learn nothing new.
 	// The cursor is opaque, signed and derived from the outbox's own ordering, so it survives a restart and a failover. Two polls with it neither repeat an event nor step over one.
 	// The window is the outbox's retention period, and a cursor older than it is refused with `410 gone` rather than silently answered from the beginning. A poller that missed more than the window has to be told that it missed - one that was quietly restarted would go on reporting a consistency it does not have.
 	// A replayed event - one a restore wrote rather than one somebody did - is not answered here, exactly as it is not delivered to a webhook.
@@ -36773,7 +36773,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The `subscribe` half of the REST hooks pattern: an integration platform creates its own subscription through this route and deletes it again when the user turns the automation off.
 	// What arrives at the target is the CloudEvent, identical to the one this system uses internally - there is no feature available only internally or only externally - signed with a secret generated here, answered once in this response, and never readable afterwards.
-	// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+	// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36784,7 +36784,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The `subscribe` half of the REST hooks pattern: an integration platform creates its own subscription through this route and deletes it again when the user turns the automation off.
 	// What arrives at the target is the CloudEvent, identical to the one this system uses internally - there is no feature available only internally or only externally - signed with a secret generated here, answered once in this response, and never readable afterwards.
-	// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+	// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36867,7 +36867,7 @@ type ClientWithResponsesInterface interface {
 
 	// SendWebhookWithBodyWithResponse Deliver one event to this subscription
 	//
-	// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered (backup-restore.md §8.4).
+	// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered.
 	// This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the subscription, and the run supplies the event it is about.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -36877,7 +36877,7 @@ type ClientWithResponsesInterface interface {
 
 	// SendWebhookWithResponse Deliver one event to this subscription
 	//
-	// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered (backup-restore.md §8.4).
+	// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered.
 	// This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the subscription, and the run supplies the event it is about.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -37555,7 +37555,7 @@ type ClientWithResponsesInterface interface {
 
 	// SuggestFromJumbleEntryWithResponse Ask AI what this entry should become
 	//
-	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry (J-06, `ai-first.md` §2). It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
 	// Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 	// A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 	//
@@ -37566,9 +37566,9 @@ type ClientWithResponsesInterface interface {
 
 	// StartJumbleIntakeWithBodyWithResponse Deliver something into the jumble from outside
 	//
-	// The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
+	// The `WEBHOOK` channel: an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
 	// The token authenticates the tenant, never a person: the entry records no actor, and the body is data end to end - bounded twice (the transfer by the request middleware, the entry by its own field bounds), matched by rules as data, and rendered as instructions to nothing.
-	// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens (T-21).
+	// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -37577,9 +37577,9 @@ type ClientWithResponsesInterface interface {
 
 	// StartJumbleIntakeWithResponse Deliver something into the jumble from outside
 	//
-	// The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
+	// The `WEBHOOK` channel: an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
 	// The token authenticates the tenant, never a person: the entry records no actor, and the body is data end to end - bounded twice (the transfer by the request middleware, the entry by its own field bounds), matched by rules as data, and rendered as instructions to nothing.
-	// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens (T-21).
+	// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -37588,7 +37588,7 @@ type ClientWithResponsesInterface interface {
 
 	// RotateJumbleIntakeWithResponse Mint the address the jumble accepts webhooks on
 	//
-	// The tenant's one intake credential (G-10), the inbound trigger's discipline applied to the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over the whole presented string under the intake's own purpose label, and answered **once** - no later read can produce it.
+	// The tenant's one intake credential, the inbound trigger's discipline applied to the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over the whole presented string under the intake's own purpose label, and answered **once** - no later read can produce it.
 	// Rotating is how one is revoked: there is exactly one address per tenant and the replacement happens in a single statement, so the old token and the new one never both open the intake.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -37598,10 +37598,10 @@ type ClientWithResponsesInterface interface {
 
 	// DeliverMailWithBodyWithResponse Deliver a mail into the jumble
 	//
-	// The `EMAIL` channel (G-11). The body is the message as it arrived - RFC 5322 bytes, headers included - and what arrives in 0.5.0 is the **webhook-first** transport: an operator points a mail-to-webhook bridge, their MTA or their provider's push at this address, and the bytes are what any of them can forward without agreeing on a shape.
+	// The `EMAIL` channel. The body is the message as it arrived - RFC 5322 bytes, headers included - and the transport is **webhook-first**: an operator points a mail-to-webhook bridge, their MTA or their provider's push at this address, and the bytes are what any of them can forward without agreeing on a shape.
 	// The parser is transport-independent and defensive. MIME is walked with bounds on parts, depth, attachment count and attachment size, checked before anything is allocated; attachments go through the media pipeline with its size and type discipline, never a second storage path; and the HTML alternative of a message that also had a plain part is kept as text beside it. **No HTML is ever rendered server-side.**
 	// The sender is data, never an identity: a `From` header authenticates nothing, and what authenticates is the token. A message the parser cannot read still lands, as an entry carrying the raw payload - a jumble exists to catch, and "unparseable" is a thing to catch. A message that breaks one of the bounds is refused with the code that says which, because "raise the bound" and "look at the entry" are different answers.
-	// Every reason not to serve answers the same `404`, as the webhook intake's does (T-21).
+	// Every reason not to serve answers the same `404`, as the webhook intake's does.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -38055,8 +38055,8 @@ type ClientWithResponsesInterface interface {
 	// GetRestoreRunWithResponse What one restore did, or is about to do
 	//
 	// The resource a started restore's `result_url` points at. It carries the report of the dry
-	// run - how many objects are new, overwritten, skipped and in conflict - which is what
-	// §8.3 asks a caller to read *before* asking for the same restore without `dry_run`. It also
+	// run - how many objects are new, overwritten, skipped and in conflict - which is what a
+	// caller reads *before* asking for the same restore without `dry_run`. It also
 	// names the safety copy taken before a destructive mode, so that the way back is a run
 	// identifier rather than a search at the target.
 	//
@@ -38106,7 +38106,7 @@ type ClientWithResponsesInterface interface {
 
 	// UpdateRetentionPolicyWithBodyWithResponse Correct a retention rule, or take it out of enforcement
 	//
-	// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings (`data-retention.md` §7) and where a rule somebody has doubts about belongs.
+	// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings, and where a rule somebody has doubts about belongs.
 	// Extending a period beyond the data kind's upper bound needs a `justification`, here as much as at creation, and the one stored is replaced rather than kept: the justification belongs to the period it justifies.
 	// The kind and the scope do not move. A rule that changed either would be a different rule under an old identifier, and the unique index over the pair is what makes "the rule for this kind at this level" a thing one can name at all. Auditable.
 	//
@@ -38117,7 +38117,7 @@ type ClientWithResponsesInterface interface {
 
 	// UpdateRetentionPolicyWithApplicationMergePatchPlusJSONBodyWithResponse Correct a retention rule, or take it out of enforcement
 	//
-	// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings (`data-retention.md` §7) and where a rule somebody has doubts about belongs.
+	// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings, and where a rule somebody has doubts about belongs.
 	// Extending a period beyond the data kind's upper bound needs a `justification`, here as much as at creation, and the one stored is replaced rather than kept: the justification belongs to the period it justifies.
 	// The kind and the scope do not move. A rule that changed either would be a different rule under an old identifier, and the unique index over the pair is what makes "the rule for this kind at this level" a thing one can name at all. Auditable.
 	//
@@ -38323,7 +38323,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Ends what the device holds: the session it last synchronised under is revoked, and every
 	// push or pull from the identifier is refused with `sync.device_revoked` until the client
-	// mints a new one (offline-sync.md §6). The row stays, marked `blocked`, until the retention
+	// mints a new one. The row stays, marked `blocked`, until the retention
 	// sweep removes it. Somebody else's device is not found rather than forbidden; forgetting
 	// twice is not an error.
 	//
@@ -38340,7 +38340,7 @@ type ClientWithResponsesInterface interface {
 	// installation did not mint is `sync.cursor_invalid`.
 	//
 	// The same records the stream carries, in the same order and under the same cursor - the
-	// stream is an accelerator over this, not a second source of truth (ADR-0021). Records are
+	// stream is an accelerator over this, not a second source of truth. Records are
 	// filtered by what the caller may read, per record and at the moment of the read; `has_more`
 	// says the page was full and the client comes straight back. A page may carry fewer records
 	// than `limit` and still have more: the cursor advances past what the caller may not see.
@@ -38361,7 +38361,7 @@ type ClientWithResponsesInterface interface {
 	// installation did not mint is `sync.cursor_invalid`.
 	//
 	// The same records the stream carries, in the same order and under the same cursor - the
-	// stream is an accelerator over this, not a second source of truth (ADR-0021). Records are
+	// stream is an accelerator over this, not a second source of truth. Records are
 	// filtered by what the caller may read, per record and at the moment of the read; `has_more`
 	// says the page was full and the client comes straight back. A page may carry fewer records
 	// than `limit` and still have more: the cursor advances past what the caller may not see.
@@ -38398,7 +38398,7 @@ type ClientWithResponsesInterface interface {
 
 	// SyncSnapshotWithBodyWithResponse The initial synchronisation as one stream
 	//
-	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// What `:pull` with no cursor answers in pages, as one response:
 	// the records of the initial synchronisation in the walk's order, one per line of
 	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
 	// read so that the first byte arrives before the last row is counted, and the delta cursor
@@ -38421,7 +38421,7 @@ type ClientWithResponsesInterface interface {
 
 	// SyncSnapshotWithResponse The initial synchronisation as one stream
 	//
-	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// What `:pull` with no cursor answers in pages, as one response:
 	// the records of the initial synchronisation in the walk's order, one per line of
 	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
 	// read so that the first byte arrives before the last row is counted, and the delta cursor
@@ -38509,7 +38509,7 @@ type ClientWithResponsesInterface interface {
 
 	// AiGenerateTemplateWithBodyWithResponse Ask AI to draft a template from a description
 	//
-	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to. The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
 	// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -38519,7 +38519,7 @@ type ClientWithResponsesInterface interface {
 
 	// AiGenerateTemplateWithResponse Ask AI to draft a template from a description
 	//
-	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to. The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
 	// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -38648,8 +38648,8 @@ type ClientWithResponsesInterface interface {
 	// with any type of body and a specified content type.
 	//
 	// The view's result, rendered whole, in one of three formats. A read with no side effect, and a POST for the reason POST /search is one: what a view selects is the caller's content, and a query string travels through access logs, proxies and browser history.
-	// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides (T-04, T-05).
-	// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. The guidelines' "202 plus /jobs/{id}" is what the cap stands in for while there is no /jobs resource - a truncation a caller is told about is honest, and a silent one is not.
+	// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides.
+	// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. An export stays one synchronous answer rather than a job a caller has to poll, and the cap is what keeps it one - a truncation a caller is told about is honest, and a silent one is not.
 	// ICS renders the same document the calendar feed serves, from the same renderer: an entry with no due date is not a calendar entry and does not appear.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -38659,8 +38659,8 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// The view's result, rendered whole, in one of three formats. A read with no side effect, and a POST for the reason POST /search is one: what a view selects is the caller's content, and a query string travels through access logs, proxies and browser history.
-	// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides (T-04, T-05).
-	// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. The guidelines' "202 plus /jobs/{id}" is what the cap stands in for while there is no /jobs resource - a truncation a caller is told about is honest, and a silent one is not.
+	// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides.
+	// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. An export stays one synchronous answer rather than a job a caller has to poll, and the cap is what keeps it one - a truncation a caller is told about is honest, and a silent one is not.
 	// ICS renders the same document the calendar feed serves, from the same renderer: an entry with no due date is not a calendar entry and does not appear.
 	ExportViewWithResponse(ctx context.Context, viewId ViewId, params *ExportViewParams, body ExportViewJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportViewResult, error)
 
@@ -40450,7 +40450,7 @@ type VerifyAuditChainResult struct {
 		// AnchoredUntil With `anchors: true`: the moment of the last anchor whose external copy was read back, and null where there is none or it could not be read.
 		AnchoredUntil *time.Time `json:"anchored_until,omitempty"`
 
-		// AnchoringConfigured Whether the workspace names an anchoring target at all (P-13).
+		// AnchoringConfigured Whether the workspace names an anchoring target at all.
 		AnchoringConfigured *bool `json:"anchoring_configured,omitempty"`
 		Checked             *int  `json:"checked,omitempty"`
 
@@ -40463,7 +40463,7 @@ type VerifyAuditChainResult struct {
 		// Gaps The missing sequence numbers, cut at a hundred. A chain with a hole of a million entries would otherwise answer with a million integers.
 		Gaps *[]int `json:"gaps,omitempty"`
 
-		// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
+		// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was. The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
 		SealedUntil *time.Time `json:"sealed_until,omitempty"`
 		Valid       *bool      `json:"valid,omitempty"`
 	}
@@ -40485,7 +40485,7 @@ func (r VerifyAuditChainResult) GetJSON200() *struct {
 	// AnchoredUntil With `anchors: true`: the moment of the last anchor whose external copy was read back, and null where there is none or it could not be read.
 	AnchoredUntil *time.Time `json:"anchored_until,omitempty"`
 
-	// AnchoringConfigured Whether the workspace names an anchoring target at all (P-13).
+	// AnchoringConfigured Whether the workspace names an anchoring target at all.
 	AnchoringConfigured *bool `json:"anchoring_configured,omitempty"`
 	Checked             *int  `json:"checked,omitempty"`
 
@@ -40498,7 +40498,7 @@ func (r VerifyAuditChainResult) GetJSON200() *struct {
 	// Gaps The missing sequence numbers, cut at a hundred. A chain with a hole of a million entries would otherwise answer with a million integers.
 	Gaps *[]int `json:"gaps,omitempty"`
 
-	// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
+	// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was. The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
 	SealedUntil *time.Time `json:"sealed_until,omitempty"`
 	Valid       *bool      `json:"valid,omitempty"`
 } {
@@ -52334,7 +52334,7 @@ func (r ShareSavedViewResult) ContentType() string {
 //
 // Who am I, and how does this product speak to me. A client needs the answer before it can
 // render anything: `locale`, `time_zone` and `week_start` are the second link of the
-// resolution chain request → account → tenant → installation (`i18n-l10n.md` §2), and there
+// resolution chain request → account → tenant → installation, and there
 // is no other way to learn them — `/accounts/{accountId}/preferences` writes to an id the
 // client never receives.
 //
@@ -52367,8 +52367,8 @@ func (c *ClientWithResponses) GetOwnAccountWithResponse(ctx context.Context, req
 // **What comes back is deliberately less than `/accounts/me`.** The display name and the kind,
 // and not the email, the locale, the time zone or the first day of the week. Those are the
 // caller's own business or an administrator's; a name is what a workspace has to show to be
-// readable at all. `data-protection.md` §9 settles the line: the visibility of profile data to
-// other tenant members is *minimal — display name, avatar*, and this is that minimum.
+// readable at all. What the other members of a workspace see of a profile is kept minimal -
+// the display name and the avatar - and this is that minimum.
 //
 // Any member of the tenant may make it. There is nothing narrower to authorise against: the
 // identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -52417,7 +52417,7 @@ func (c *ClientWithResponses) ListNotificationPreferencesWithResponse(ctx contex
 // the next notification of that category `SUPPRESSED`, with the record saying why; the
 // invitation is the one category no preference can switch off, and a write against it is
 // stored and never consulted. `include_title: false` produces an email that says something
-// concerns you without saying what (`data-protection.md` §9). An unknown category or channel
+// concerns you without saying what. An unknown category or channel
 // is refused by name.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -52438,7 +52438,7 @@ func (c *ClientWithResponses) SetNotificationPreferenceWithBodyWithResponse(ctx 
 // the next notification of that category `SUPPRESSED`, with the record saying why; the
 // invitation is the one category no preference can switch off, and a write against it is
 // stored and never consulted. `include_title: false` produces an email that says something
-// concerns you without saying what (`data-protection.md` §9). An unknown category or channel
+// concerns you without saying what. An unknown category or channel
 // is refused by name.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -52525,7 +52525,7 @@ func (c *ClientWithResponses) RestrictProcessingWithResponse(ctx context.Context
 // InviteAccountWithBodyWithResponse Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted, which needs the sign-in flow (`0.6.0`).
+// it cannot act until the invitation is accepted.
 // The notification is queued as a job — this call does not wait for an email.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -52542,7 +52542,7 @@ func (c *ClientWithResponses) InviteAccountWithBodyWithResponse(ctx context.Cont
 // InviteAccountWithResponse Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted, which needs the sign-in flow (`0.6.0`).
+// it cannot act until the invitation is accepted.
 // The notification is queued as a job — this call does not wait for an email.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -52876,7 +52876,7 @@ func (c *ClientWithResponses) WriteInstanceSettingsWithResponse(ctx context.Cont
 
 // ListTenantsWithResponse The installation's workspaces
 //
-// The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
+// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -52891,7 +52891,7 @@ func (c *ClientWithResponses) ListTenantsWithResponse(ctx context.Context, reqEd
 
 // ProvisionTenantWithBodyWithResponse Provision a workspace
 //
-// Creates the tenant with its defaults, exactly the §5 table: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in (H-01's loop). Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -52906,7 +52906,7 @@ func (c *ClientWithResponses) ProvisionTenantWithBodyWithResponse(ctx context.Co
 
 // ProvisionTenantWithResponse Provision a workspace
 //
-// Creates the tenant with its defaults, exactly the §5 table: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in (H-01's loop). Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53058,7 +53058,7 @@ func (c *ClientWithResponses) OpenTenantPasswordWithResponse(ctx context.Context
 
 // ResumeTenantWithResponse Reactivate a workspace
 //
-// One write, as §5 promises. The next request of the tenant's people works again.
+// One write. The next request of the tenant's people works again.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -53073,7 +53073,7 @@ func (c *ClientWithResponses) ResumeTenantWithResponse(ctx context.Context, tena
 
 // SuspendTenantWithResponse Suspend a workspace
 //
-// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it (multi-tenancy.md §5).
+// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -53153,16 +53153,16 @@ func (c *ClientWithResponses) ConfigureAiProviderWithResponse(ctx context.Contex
 
 // ListAuditEntriesWithResponse Query audit entries
 //
-// Requires the `audit:read` scope. Who sees what is audit.md §5 rather than the ordinary
-// role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own
+// Requires the `audit:read` scope. Who sees what follows the audit trail's own rule rather
+// than the ordinary role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own
 // tenant, and everybody else reads their own events - transparency towards the employee
 // rather than a lesser administrator's view. A request that names somebody else's
 // `actor_id` without the right to the whole trail is refused, and the refusal is itself an
 // entry. Filtering by period, action, actor, target, and outcome; cursor pagination.
 //
 // A read that succeeds is not itself recorded. A trail that grew by being read would bury
-// what it is for - the second page would contain the reading of the first - and §4 does not
-// list reading among the mandatory events. What is recorded is the refusal, and the export.
+// what it is for - the second page would contain the reading of the first - and reading is
+// not among the events that must be recorded. What is recorded is the refusal, and the export.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -53177,7 +53177,7 @@ func (c *ClientWithResponses) ListAuditEntriesWithResponse(ctx context.Context, 
 
 // ConfigureAuditAnchoringWithBodyWithResponse Name where the audit chain's end is anchored, or switch anchoring off
 //
-// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// External anchoring: once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
 // Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -53193,7 +53193,7 @@ func (c *ClientWithResponses) ConfigureAuditAnchoringWithBodyWithResponse(ctx co
 
 // ConfigureAuditAnchoringWithResponse Name where the audit chain's end is anchored, or switch anchoring off
 //
-// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// External anchoring: once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
 // Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -53214,7 +53214,7 @@ func (c *ClientWithResponses) ConfigureAuditAnchoringWithResponse(ctx context.Co
 // it covers - because an export over four hundred days is not something a request can
 // hold; this answers a `JobRef` and the work happens in the background.
 //
-// The export produces an audit entry of its own (audit.md §5). A copy of the evidence
+// The export produces an audit entry of its own. A copy of the evidence
 // leaving the installation is itself an event an auditor asks about, and it is the first
 // `audit.*` action the system records about itself.
 //
@@ -53236,7 +53236,7 @@ func (c *ClientWithResponses) ExportAuditTrailWithBodyWithResponse(ctx context.C
 // it covers - because an export over four hundred days is not something a request can
 // hold; this answers a `JobRef` and the work happens in the background.
 //
-// The export produces an audit entry of its own (audit.md §5). A copy of the evidence
+// The export produces an audit entry of its own. A copy of the evidence
 // leaving the installation is itself an event an auditor asks about, and it is the first
 // `audit.*` action the system records about itself.
 //
@@ -53297,8 +53297,8 @@ func (c *ClientWithResponses) VerifyAuditChainWithResponse(ctx context.Context, 
 
 // RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 //
-// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
-// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24). Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
+// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -53314,8 +53314,8 @@ func (c *ClientWithResponses) RedeemInvitationWithBodyWithResponse(ctx context.C
 
 // RedeemInvitationWithResponse Redeem an invitation and set the first password
 //
-// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least, security.md §5), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
-// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account (SC-24). Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
+// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -53332,7 +53332,7 @@ func (c *ClientWithResponses) RedeemInvitationWithResponse(ctx context.Context, 
 // RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
 //
 // Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
-// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's: somebody who has burned eight of ten gets ten back without taking their working second factor off for a minute. Nothing about them mentions TOTP, so they stay right whatever the second factor is.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -53441,8 +53441,8 @@ func (c *ClientWithResponses) EnrollTotpWithResponse(ctx context.Context, body E
 
 // StartAuthenticatorReplacementWithResponse Begin replacing the authenticator
 //
-// For a new phone, or an authenticator that is gone (SC-17): a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
-// Behind a step-up with whatever the account holds (ADR-0075): replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
+// For a new phone, or an authenticator that is gone: a new secret, kept beside the armed one as a second, unconfirmed enrolment. **Nothing changes yet** - the armed factor and its recovery codes keep working until the new authenticator is confirmed, so there is never a moment without a factor, whatever the workspace's rule requires.
+// Behind a step-up with whatever the account holds: replacing the factor is the same power as removing it. Offered while a factor is armed, also where the workspace requires one. Starting again replaces an unconfirmed replacement; one that is not confirmed within its window lapses. Bound to the session that began it: only that session confirms it. Refused with `auth.mfa_not_enrolled` where no factor is armed - there is nothing to replace, and setting one up is enrolment's.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -53457,7 +53457,7 @@ func (c *ClientWithResponses) StartAuthenticatorReplacementWithResponse(ctx cont
 
 // DisableTotpWithBodyWithResponse Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
 // The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -53473,7 +53473,7 @@ func (c *ClientWithResponses) DisableTotpWithBodyWithResponse(ctx context.Contex
 
 // DisableTotpWithResponse Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action (ADR-0075 §3) - a stolen session removing the second factor is exactly the attack the factor exists against (security.md §5) - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
 // The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -53489,12 +53489,12 @@ func (c *ClientWithResponses) DisableTotpWithResponse(ctx context.Context, param
 
 // CompleteOidcSignInWithBodyWithResponse Finish the sign-in with the code the provider issued
 //
-// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
+// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds. Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
-// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link`. An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
+// An **invited** account is activated and connected only with a second proof: the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
 // Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
-// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
+// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -53510,12 +53510,12 @@ func (c *ClientWithResponses) CompleteOidcSignInWithBodyWithResponse(ctx context
 
 // CompleteOidcSignInWithResponse Finish the sign-in with the code the provider issued
 //
-// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
+// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds. Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
-// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
-// An **invited** account is activated and connected only with a second proof (ADR-0078 §1): the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link`. An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.
+// An **invited** account is activated and connected only with a second proof: the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.
 // Authority for the address, and a domains or directories list, decide only who comes in new on the provider's word. Under *Only people invited here* a provider that is not authoritative, and under *Only these domains/directories* an address outside the list, still bring an existing active account to the `LINK` step - connected only with its password and its second factor - or through its connect link; neither ever creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
-// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start, ADR-0078 §1) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
+// A sign-in begun from the link a workspace without the password mails (`connect_token` at the start) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -53531,11 +53531,11 @@ func (c *ClientWithResponses) CompleteOidcSignInWithResponse(ctx context.Context
 
 // StartOidcSignInWithBodyWithResponse Begin a sign-in through the workspace's identity provider
 //
-// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
+// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
-// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
-// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
-// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
+// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53550,11 +53550,11 @@ func (c *ClientWithResponses) StartOidcSignInWithBodyWithResponse(ctx context.Co
 
 // StartOidcSignInWithResponse Begin a sign-in through the workspace's identity provider
 //
-// The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
+// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
 // Nothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.
-// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - the degradation `observability-reliability.md` §7 describes: local accounts keep signing in.
-// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts (ADR-0078 §1); an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
-// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`, ADR-0078 §1): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
+// Refused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.
+// A sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.
+// A sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53569,7 +53569,7 @@ func (c *ClientWithResponses) StartOidcSignInWithResponse(ctx context.Context, b
 
 // ChangePasswordWithBodyWithResponse Change the password of the signed-in account
 //
-// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// The password of the caller's own account, behind a step-up. The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
 // Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
 // A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
 //
@@ -53586,7 +53586,7 @@ func (c *ClientWithResponses) ChangePasswordWithBodyWithResponse(ctx context.Con
 
 // ChangePasswordWithResponse Change the password of the signed-in account
 //
-// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// The password of the caller's own account, behind a step-up. The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
 // Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
 // A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
 //
@@ -53637,7 +53637,7 @@ func (c *ClientWithResponses) CheckPasswordWithResponse(ctx context.Context, par
 
 // ForgetPasswordWithBodyWithResponse Ask for a password reset link
 //
-// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after. There is no error state for "no such address", because there is no such answer.
 // Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
 // An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
 //
@@ -53654,7 +53654,7 @@ func (c *ClientWithResponses) ForgetPasswordWithBodyWithResponse(ctx context.Con
 
 // ForgetPasswordWithResponse Ask for a password reset link
 //
-// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after. There is no error state for "no such address", because there is no such answer.
 // Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
 // An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
 //
@@ -53673,7 +53673,7 @@ func (c *ClientWithResponses) ForgetPasswordWithResponse(ctx context.Context, bo
 //
 // The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 // **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
-// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53690,7 +53690,7 @@ func (c *ClientWithResponses) ResetPasswordWithBodyWithResponse(ctx context.Cont
 //
 // The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn. A link mailed before the workspace switched the password off is refused afterwards with `auth.password_not_offered`, and the mail a request sends there points to the provider.
 // **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
-// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53780,10 +53780,10 @@ func (c *ClientWithResponses) ListSessionsWithResponse(ctx context.Context, reqE
 
 // SignInWithBodyWithResponse Sign in with email and password
 //
-// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
-// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
-// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
-// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders.
+// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
+// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
+// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53798,10 +53798,10 @@ func (c *ClientWithResponses) SignInWithBodyWithResponse(ctx context.Context, co
 
 // SignInWithResponse Sign in with email and password
 //
-// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders (security.md §5, T-01).
-// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules, ADR-0076 §4), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
-// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body (multi-tenancy.md §3). A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
-// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+// The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders.
+// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
+// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
+// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53831,7 +53831,7 @@ func (c *ClientWithResponses) RevokeSessionWithResponse(ctx context.Context, ses
 
 // ElevateSessionWithResponse Raise this session to the control plane for an hour
 //
-// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 // This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
 // It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 // The personal access token stays exactly as it is, for automation.
@@ -53849,9 +53849,9 @@ func (c *ClientWithResponses) ElevateSessionWithResponse(ctx context.Context, pa
 
 // CompleteLinkWithBodyWithResponse Prove the account before a provider is connected to it
 //
-// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+// The `LINK` step. A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
-// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
+// **The password is a proof here even where the workspace switched it off as a way in.** Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53866,9 +53866,9 @@ func (c *ClientWithResponses) CompleteLinkWithBodyWithResponse(ctx context.Conte
 
 // CompleteLinkWithResponse Prove the account before a provider is connected to it
 //
-// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+// The `LINK` step. A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
 // With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
-// **The password is a proof here even where the workspace switched it off as a way in** (ADR-0078 §1). Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
+// **The password is a proof here even where the workspace switched it off as a way in.** Switching it off closes the sign-in by password, not the account's own proof that it is the person: a member who still knows the password connects the workspace's provider with it, once. Where the password is off, the other proof is the mailbox - the link *Forgot your password?* mails - with a fresh sign-in at the provider (`connect_token` at `/auth/oidc:start`).
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -53883,7 +53883,7 @@ func (c *ClientWithResponses) CompleteLinkWithResponse(ctx context.Context, body
 
 // RefreshSessionWithBodyWithResponse Exchange a refresh token for the next pair
 //
-// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
+// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and an alert.
 // The route is public the way sign-in is: the refresh token in the body is the whole credential, and demanding a bearer header beside it would demand the very thing this call exists to replace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -53899,7 +53899,7 @@ func (c *ClientWithResponses) RefreshSessionWithBodyWithResponse(ctx context.Con
 
 // RefreshSessionWithResponse Exchange a refresh token for the next pair
 //
-// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
+// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and an alert.
 // The route is public the way sign-in is: the refresh token in the body is the whole credential, and demanding a bearer header beside it would demand the very thing this call exists to replace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -53915,7 +53915,7 @@ func (c *ClientWithResponses) RefreshSessionWithResponse(ctx context.Context, bo
 
 // RevokeOtherSessionsWithResponse Sign out everywhere else
 //
-// Ends every session of the caller's account except the one making this call (UC-ID-06 check 4): the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
+// Ends every session of the caller's account except the one making this call: the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -53930,7 +53930,7 @@ func (c *ClientWithResponses) RevokeOtherSessionsWithResponse(ctx context.Contex
 
 // SetPasswordAndSignInWithBodyWithResponse Set a new password and finish the sign-in
 //
-// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The fourth door a password is set through. The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
 // The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
 // This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
 //
@@ -53947,7 +53947,7 @@ func (c *ClientWithResponses) SetPasswordAndSignInWithBodyWithResponse(ctx conte
 
 // SetPasswordAndSignInWithResponse Set a new password and finish the sign-in
 //
-// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The fourth door a password is set through. The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
 // The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
 // This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
 //
@@ -53964,7 +53964,7 @@ func (c *ClientWithResponses) SetPasswordAndSignInWithResponse(ctx context.Conte
 
 // CompleteSignInWithBodyWithResponse Present the second factor and receive the pair
 //
-// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
+// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 // A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -53980,7 +53980,7 @@ func (c *ClientWithResponses) CompleteSignInWithBodyWithResponse(ctx context.Con
 
 // CompleteSignInWithResponse Present the second factor and receive the pair
 //
-// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
+// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 // A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -53996,9 +53996,9 @@ func (c *ClientWithResponses) CompleteSignInWithResponse(ctx context.Context, bo
 
 // GetSignInRulesWithResponse What a sign-in screen may know before anybody has signed in
 //
-// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
-// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
-// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+// The four things a sign-in card needs and nothing else: which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after.
+// Why a public route answers this at all: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -54013,9 +54013,9 @@ func (c *ClientWithResponses) GetSignInRulesWithResponse(ctx context.Context, re
 
 // StepUpWithBodyWithResponse Prove yourself again, for the irreversible
 //
-// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+// A fresh re-authentication on the current session, with whatever the account holds: the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
 // The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
-// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request's `step_up_token` field.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54030,9 +54030,9 @@ func (c *ClientWithResponses) StepUpWithBodyWithResponse(ctx context.Context, co
 
 // StepUpWithResponse Prove yourself again, for the irreversible
 //
-// A fresh re-authentication on the current session (security.md §5, H-03), with whatever the account holds (ADR-0075): the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
+// A fresh re-authentication on the current session, with whatever the account holds: the password; the TOTP code where a factor is armed; a recovery code, **consumed** exactly as at sign-in; or a fresh sign-in at the provider the account is connected to. The proof is recorded on the session with its moment and its method, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore, turning the second factor off. A second privileged action needs a second proof.
 // The operation that found the proof missing answered `403` with `auth.step_up_required` and, in `params.methods`, the methods this account can answer with, in this order: a space-separated list drawn from `PASSWORD` (the account holds one), `TOTP` (a factor is armed), `RECOVERY` (a factor is armed and a recovery code is left) and `PROVIDER` (an identity is connected at a provider switched on for this workspace; `params.provider` names it). An empty list is an account with none of them. A client builds its prompt from that list, never from a guess.
-// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the contract has carried since 0.4.5.
+// Exactly one method per request. `PROVIDER` takes two calls: `POST /auth/step-up:provider` answers where to send the browser, and the `state` and `authorization_code` the provider sends it back with are presented here. The proof counts only when the provider's ID token names the identity already connected to this account (`auth.step_up_provider_mismatch` otherwise) and carries an `auth_time` inside the step-up's own window (`auth.step_up_provider_not_fresh` otherwise - a provider that ignores `max_age` proves nothing fresh). This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request's `step_up_token` field.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54047,7 +54047,7 @@ func (c *ClientWithResponses) StepUpWithResponse(ctx context.Context, body StepU
 
 // StartProviderStepUpWithResponse Begin a step-up at the provider this account is connected to
 //
-// The first of `PROVIDER`'s two calls (ADR-0075 §2). An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
+// The first of `PROVIDER`'s two calls. An authorization request at the provider this account is connected to and that is switched on for its workspace - the first in the workspace's order where there are several, the one `params.provider` named - with `prompt=login` and `max_age=0`, so the provider asks the person again rather than answering from its own session. The flow is bound to the session that asked: its `state` finishes a step-up of this session at `POST /auth/step-up` and nothing else, and a sign-in callback refuses it.
 // The browser comes back to this installation's own callback address, the one every registration already permits. Refused with `auth.step_up_no_provider` for an account with no such provider, and with `auth.step_up_session_required` for a caller without a session.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -54083,7 +54083,7 @@ func (c *ClientWithResponses) ListAccessTokensWithResponse(ctx context.Context, 
 // Answers the credential, in clear, for the only time. What is stored is its hash keyed on the installation secret under its own purpose label, so a hash from here can never be replayed as a signed cursor or a calendar feed token, and nothing can turn the stored value back into the token.
 // The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 // The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
-// Asking for an admin scope is a privileged action (security.md §5): it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54101,7 +54101,7 @@ func (c *ClientWithResponses) CreateAccessTokenWithBodyWithResponse(ctx context.
 // Answers the credential, in clear, for the only time. What is stored is its hash keyed on the installation secret under its own purpose label, so a hash from here can never be replayed as a signed cursor or a calendar feed token, and nothing can turn the stored value back into the token.
 // The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 // The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
-// Asking for an admin scope is a privileged action (security.md §5): it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54169,7 +54169,7 @@ func (c *ClientWithResponses) StartInboundRunWithResponse(ctx context.Context, t
 
 // ListRulesWithResponse The workspace's automation rules
 //
-// Newest first, and only the rules the caller may see: a member manages their own rules, and an administrator the scope's (domain-model.md §3.2). Deleted rules are not among them - the deletion is soft so that the runs a rule produced stay readable, not so that the rule stays listed.
+// Newest first, and only the rules the caller may see: a member manages their own rules, and an administrator the scope's. Deleted rules are not among them - the deletion is soft so that the runs a rule produced stay readable, not so that the rule stays listed.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -54185,8 +54185,8 @@ func (c *ClientWithResponses) ListRulesWithResponse(ctx context.Context, params 
 // CreateRuleWithBodyWithResponse Write a rule
 //
 // A rule is created **switched off**. Enabling it is its own call and its own audit entry: writing what a rule would do and letting it loose on the workspace are two decisions, and a rule that ran the moment it was saved would give nobody the chance to read it back first.
-// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not (automation.md §2).
-// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind automation.md §1.3 documents and no release serves yet; a parameter the action's use case does not declare.
+// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not.
+// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind this build does not serve; a parameter the action's use case does not declare.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54202,8 +54202,8 @@ func (c *ClientWithResponses) CreateRuleWithBodyWithResponse(ctx context.Context
 // CreateRuleWithResponse Write a rule
 //
 // A rule is created **switched off**. Enabling it is its own call and its own audit entry: writing what a rule would do and letting it loose on the workspace are two decisions, and a rule that ran the moment it was saved would give nobody the chance to read it back first.
-// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not (automation.md §2).
-// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind automation.md §1.3 documents and no release serves yet; a parameter the action's use case does not declare.
+// Writing a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not.
+// What this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind this build does not serve; a parameter the action's use case does not declare.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54309,7 +54309,7 @@ func (c *ClientWithResponses) EnableRuleWithResponse(ctx context.Context, ruleId
 
 // RotateInboundTriggerWithResponse Mint the address an inbound-webhook rule answers on
 //
-// The `INBOUND_WEBHOOK` trigger's credential (automation.md §1.1): a token-protected URL per rule, minted here and answered **once**. It is stored hashed under its own purpose label, so no later read can produce it.
+// The `INBOUND_WEBHOOK` trigger's credential: a token-protected URL per rule, minted here and answered **once**. It is stored hashed under its own purpose label, so no later read can produce it.
 // Rotating is how one is revoked. There is exactly one address per rule and the replacement happens in a single statement, so the old token and the new one never both open the rule - which is what "revocable by rotating" has to mean. Somebody who wants to revoke without a replacement switches the rule off.
 // Only a rule whose trigger is `INBOUND_WEBHOOK`. An address on any other rule would be a credential that opens nothing, handed out as though it worked.
 //
@@ -54326,9 +54326,9 @@ func (c *ClientWithResponses) RotateInboundTriggerWithResponse(ctx context.Conte
 
 // TriggerRuleManuallyWithResponse Run a rule now
 //
-// The `MANUAL` trigger (automation.md §1.1): the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
+// The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.
 // The run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.
-// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure `automation.md` §2.2 exists to avoid.
+// Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.
 // The answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -54344,7 +54344,7 @@ func (c *ClientWithResponses) TriggerRuleManuallyWithResponse(ctx context.Contex
 
 // CheckRulesWithResponse Check every rule of the workspace against what exists now
 //
-// The check ADR-0060 describes: every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
+// Every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
 // The rules screen calls this when it opens, which is what makes "after an update, the rules that need attention are shown" true without anything enumerating tenants. A deletion of something a rule may name runs the same check for the workspace by itself.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -54360,7 +54360,7 @@ func (c *ClientWithResponses) CheckRulesWithResponse(ctx context.Context, reqEdi
 
 // TestRuleWithBodyWithResponse Dry-run a rule against a sample event
 //
-// The dry run automation.md §2 promises: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
+// A dry run: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
 // Test either a stored rule by its identifier or a definition you are about to save - the same document `POST /automation/rules` takes, checked by the same validation, so a rule the dry run accepts is a rule the create will accept. Both arms of every branch are reported with whether they would run, which is more than a real run's log shows: the run records the path it took, and the dry run answers the question "and what if it had not".
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -54376,7 +54376,7 @@ func (c *ClientWithResponses) TestRuleWithBodyWithResponse(ctx context.Context, 
 
 // TestRuleWithResponse Dry-run a rule against a sample event
 //
-// The dry run automation.md §2 promises: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
+// A dry run: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
 // Test either a stored rule by its identifier or a definition you are about to save - the same document `POST /automation/rules` takes, checked by the same validation, so a rule the dry run accepts is a rule the create will accept. Both arms of every branch are reported with whether they would run, which is more than a real run's log shows: the run records the path it took, and the dry run answers the question "and what if it had not".
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -54392,7 +54392,7 @@ func (c *ClientWithResponses) TestRuleWithResponse(ctx context.Context, body Tes
 
 // ListRuleRunsWithResponse What the rules have done
 //
-// Every run, newest first: which rule, which event started it, how its conditions answered, what each action did, and what went wrong if anything did. This is the log `automation.md` §2 promises - retrievable, filterable, and the only place a person can find out why a rule did or did not act.
+// Every run, newest first: which rule, which event started it, how its conditions answered, what each action did, and what went wrong if anything did. This is the run log - retrievable, filterable, and the only place a person can find out why a rule did or did not act.
 // A run outlives the rule that produced it. Deleting a rule is soft for exactly this reason: a record of actions nobody can account for would be worse than the rule staying visible.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -54422,7 +54422,7 @@ func (c *ClientWithResponses) GetRuleRunWithResponse(ctx context.Context, runId 
 // ReplayRuleRunWithResponse Complete a failed run
 //
 // Re-executes a failed run's remaining actions under the same idempotency keys - which is what makes this a completion rather than a duplication: an action the original run finished finds its key already claimed and does nothing again, and only what never happened happens now.
-// Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run resumes by itself, a skipped or throttled one did what its rule says, and a disabled rule must not act. The conditions are evaluated again against the world as it stands - the answer that decides an action is the answer of the day it runs (automation.md §2.1) - and the replay is audited with the replayer, because somebody looked at a failure and decided the world is ready for the rest.
+// Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run resumes by itself, a skipped or throttled one did what its rule says, and a disabled rule must not act. The conditions are evaluated again against the world as it stands - the answer that decides an action is the answer of the day it runs - and the replay is audited with the replayer, because somebody looked at a failure and decided the world is ready for the rest.
 // The answer carries the identifier the replay's run will have, exactly as `:trigger` does.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -54583,7 +54583,7 @@ func (c *ClientWithResponses) CreateBackupTargetWithResponse(ctx context.Context
 
 // DeleteBackupTargetWithResponse Remove a backup target from the workspace's configuration
 //
-// Removes the target and its sealed credential. **Nothing at the target is touched.** `backup-restore.md`'s rule that Hubtask never deletes a file it did not write applies at least as strongly to the files it did write: the archives stay where they are, and an operator who wants them gone removes them at the target.
+// Removes the target and its sealed credential. **Nothing at the target is touched.** The rule that Hubtask never deletes a file it did not write applies at least as strongly to the files it did write: the archives stay where they are, and an operator who wants them gone removes them at the target.
 // A target a schedule still names is refused with `409` and the schedules named in the problem document. Deleting one silently would disarm a backup that runs every night, and the disarming would be discovered by whoever needed the archive.
 // Deleting one that is not there is not an error. Auditable.
 //
@@ -54700,7 +54700,7 @@ func (c *ClientWithResponses) VerifyBackupWithResponse(ctx context.Context, back
 // GetCalendarFeedDocumentWithResponse performs a GET /calendar/{token}.ics (the `GetCalendarFeedDocument` operationId) request.
 //
 // The calendar, as RFC 5545. Gregorian whatever the subscriber's display calendar, with an all-day due date as a VALUE=DATE entry and a timed one carrying its own zone so that it stays put across a daylight saving transition.
-// Minimal by default: the title, the dates and a link back, never the notes - the restraint data-protection.md §9 puts on email applies here for the same reason, since a calendar entry is read on devices and screens nobody in this workspace controls.
+// Minimal by default: the title, the dates and a link back, never the notes - the restraint a notification email keeps applies here for the same reason, since a calendar entry is read on devices and screens nobody in this workspace controls.
 // An unknown token, a revoked one, a feed whose view has been deleted and a feed whose owner has lost the view all answer the same 404 with the same body. Distinguishing them would answer questions to whoever is trying tokens.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -55513,7 +55513,7 @@ func (c *ClientWithResponses) OfferIdentityProviderWithResponse(ctx context.Cont
 //
 // Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
 // a Microsoft To Do dump - and lands its contents as collections under the named hub. One
-// ingestion path (backup-restore.md §9): the file is converted into the same records a
+// ingestion path: the file is converted into the same records a
 // backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 // identities derived from the source's own, so that importing the same file twice creates
 // nothing the second time.
@@ -55540,7 +55540,7 @@ func (c *ClientWithResponses) ImportEntriesWithBodyWithResponse(ctx context.Cont
 //
 // Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
 // a Microsoft To Do dump - and lands its contents as collections under the named hub. One
-// ingestion path (backup-restore.md §9): the file is converted into the same records a
+// ingestion path: the file is converted into the same records a
 // backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 // identities derived from the source's own, so that importing the same file twice creates
 // nothing the second time.
@@ -55623,7 +55623,7 @@ func (c *ClientWithResponses) CreateCalendarFeedWithResponse(ctx context.Context
 // RevokeCalendarFeedWithResponse performs a DELETE /integrations/calendar-feeds/{feedId} (the `RevokeCalendarFeed` operationId) request.
 //
 // Revokes the feed. The row stays with the moment it was revoked - which is what makes "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a 404 in exactly the words an unknown token produces.
-// Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is (T-04).
+// Somebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) RevokeCalendarFeedWithResponse(ctx context.Context, feedId FeedId, reqEditors ...RequestEditorFn) (*RevokeCalendarFeedResult, error) {
@@ -55636,7 +55636,7 @@ func (c *ClientWithResponses) RevokeCalendarFeedWithResponse(ctx context.Context
 
 // HttpRequestWithBodyWithResponse Call an external HTTP address
 //
-// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after creation.
+// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer. The header secret is sealed at rest and masked everywhere after creation.
 // This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request, and the run supplies the event its body template is rendered from. The call happens on a job with the webhook ladder's retries; the answer is a `JobRef` to poll.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -55652,7 +55652,7 @@ func (c *ClientWithResponses) HttpRequestWithBodyWithResponse(ctx context.Contex
 
 // HttpRequestWithResponse Call an external HTTP address
 //
-// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after creation.
+// One outbound call, through the guarded client: private and link-local ranges are refused unless the installation released them, redirects are limited, the call has a deadline and the response a size cap - and the response is then discarded, because a rule cannot read an answer. The header secret is sealed at rest and masked everywhere after creation.
 // This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request, and the run supplies the event its body template is rendered from. The call happens on a job with the webhook ladder's retries; the answer is a `JobRef` to poll.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -55668,7 +55668,7 @@ func (c *ClientWithResponses) HttpRequestWithResponse(ctx context.Context, body 
 
 // PollTriggerEventsWithResponse The pull half of the event stream
 //
-// Events of one type, oldest first, for a platform that has no address a webhook could reach - an n8n instance behind NAT, a Zapier polling trigger (automation.md §3.2). The body of each entry is the same CloudEvent a webhook subscription would have been POSTed: one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a consumer that already deduplicates on it needs to learn nothing new.
+// Events of one type, oldest first, for a platform that has no address a webhook could reach - an n8n instance behind NAT, a Zapier polling trigger. The body of each entry is the same CloudEvent a webhook subscription would have been POSTed: one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a consumer that already deduplicates on it needs to learn nothing new.
 // The cursor is opaque, signed and derived from the outbox's own ordering, so it survives a restart and a failover. Two polls with it neither repeat an event nor step over one.
 // The window is the outbox's retention period, and a cursor older than it is refused with `410 gone` rather than silently answered from the beginning. A poller that missed more than the window has to be told that it missed - one that was quietly restarted would go on reporting a consistency it does not have.
 // A replayed event - one a restore wrote rather than one somebody did - is not answered here, exactly as it is not delivered to a webhook.
@@ -55703,7 +55703,7 @@ func (c *ClientWithResponses) ListWebhookSubscriptionsWithResponse(ctx context.C
 //
 // The `subscribe` half of the REST hooks pattern: an integration platform creates its own subscription through this route and deletes it again when the user turns the automation off.
 // What arrives at the target is the CloudEvent, identical to the one this system uses internally - there is no feature available only internally or only externally - signed with a secret generated here, answered once in this response, and never readable afterwards.
-// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -55720,7 +55720,7 @@ func (c *ClientWithResponses) CreateWebhookSubscriptionWithBodyWithResponse(ctx 
 //
 // The `subscribe` half of the REST hooks pattern: an integration platform creates its own subscription through this route and deletes it again when the user turns the automation off.
 // What arrives at the target is the CloudEvent, identical to the one this system uses internally - there is no feature available only internally or only externally - signed with a secret generated here, answered once in this response, and never readable afterwards.
-// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+// The target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -55857,7 +55857,7 @@ func (c *ClientWithResponses) RotateWebhookSecretWithResponse(ctx context.Contex
 
 // SendWebhookWithBodyWithResponse Deliver one event to this subscription
 //
-// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered (backup-restore.md §8.4).
+// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered.
 // This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the subscription, and the run supplies the event it is about.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -55873,7 +55873,7 @@ func (c *ClientWithResponses) SendWebhookWithBodyWithResponse(ctx context.Contex
 
 // SendWebhookWithResponse Deliver one event to this subscription
 //
-// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered (backup-restore.md §8.4).
+// One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered.
 // This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the subscription, and the run supplies the event it is about.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -57049,7 +57049,7 @@ func (c *ClientWithResponses) DismissJumbleEntryWithResponse(ctx context.Context
 
 // SuggestFromJumbleEntryWithResponse Ask AI what this entry should become
 //
-// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry (J-06, `ai-first.md` §2). It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
 // Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 // A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 //
@@ -57066,9 +57066,9 @@ func (c *ClientWithResponses) SuggestFromJumbleEntryWithResponse(ctx context.Con
 
 // StartJumbleIntakeWithBodyWithResponse Deliver something into the jumble from outside
 //
-// The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
+// The `WEBHOOK` channel: an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
 // The token authenticates the tenant, never a person: the entry records no actor, and the body is data end to end - bounded twice (the transfer by the request middleware, the entry by its own field bounds), matched by rules as data, and rendered as instructions to nothing.
-// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens (T-21).
+// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -57083,9 +57083,9 @@ func (c *ClientWithResponses) StartJumbleIntakeWithBodyWithResponse(ctx context.
 
 // StartJumbleIntakeWithResponse Deliver something into the jumble from outside
 //
-// The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
+// The `WEBHOOK` channel: an external system posts a small JSON shape - `sender`, `subject`, `body`, all optional but not all empty - and it lands as an entry, fires `jumble.entry_received`, and waits for a person or a rule to decide about it.
 // The token authenticates the tenant, never a person: the entry records no actor, and the body is data end to end - bounded twice (the transfer by the request middleware, the entry by its own field bounds), matched by rules as data, and rendered as instructions to nothing.
-// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens (T-21).
+// Every reason not to serve answers the same `404` with the same body - an unknown token, a rotated one, a tenant that never minted one. Distinguishing them would answer questions for whoever is trying tokens.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -57100,7 +57100,7 @@ func (c *ClientWithResponses) StartJumbleIntakeWithResponse(ctx context.Context,
 
 // RotateJumbleIntakeWithResponse Mint the address the jumble accepts webhooks on
 //
-// The tenant's one intake credential (G-10), the inbound trigger's discipline applied to the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over the whole presented string under the intake's own purpose label, and answered **once** - no later read can produce it.
+// The tenant's one intake credential, the inbound trigger's discipline applied to the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over the whole presented string under the intake's own purpose label, and answered **once** - no later read can produce it.
 // Rotating is how one is revoked: there is exactly one address per tenant and the replacement happens in a single statement, so the old token and the new one never both open the intake.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -57116,10 +57116,10 @@ func (c *ClientWithResponses) RotateJumbleIntakeWithResponse(ctx context.Context
 
 // DeliverMailWithBodyWithResponse Deliver a mail into the jumble
 //
-// The `EMAIL` channel (G-11). The body is the message as it arrived - RFC 5322 bytes, headers included - and what arrives in 0.5.0 is the **webhook-first** transport: an operator points a mail-to-webhook bridge, their MTA or their provider's push at this address, and the bytes are what any of them can forward without agreeing on a shape.
+// The `EMAIL` channel. The body is the message as it arrived - RFC 5322 bytes, headers included - and the transport is **webhook-first**: an operator points a mail-to-webhook bridge, their MTA or their provider's push at this address, and the bytes are what any of them can forward without agreeing on a shape.
 // The parser is transport-independent and defensive. MIME is walked with bounds on parts, depth, attachment count and attachment size, checked before anything is allocated; attachments go through the media pipeline with its size and type discipline, never a second storage path; and the HTML alternative of a message that also had a plain part is kept as text beside it. **No HTML is ever rendered server-side.**
 // The sender is data, never an identity: a `From` header authenticates nothing, and what authenticates is the token. A message the parser cannot read still lands, as an entry carrying the raw payload - a jumble exists to catch, and "unparseable" is a thing to catch. A message that breaks one of the bounds is refused with the code that says which, because "raise the bound" and "look at the entry" are different answers.
-// Every reason not to serve answers the same `404`, as the webhook intake's does (T-21).
+// Every reason not to serve answers the same `404`, as the webhook intake's does.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -57813,8 +57813,8 @@ func (c *ClientWithResponses) StartRestoreWithResponse(ctx context.Context, body
 // GetRestoreRunWithResponse What one restore did, or is about to do
 //
 // The resource a started restore's `result_url` points at. It carries the report of the dry
-// run - how many objects are new, overwritten, skipped and in conflict - which is what
-// §8.3 asks a caller to read *before* asking for the same restore without `dry_run`. It also
+// run - how many objects are new, overwritten, skipped and in conflict - which is what a
+// caller reads *before* asking for the same restore without `dry_run`. It also
 // names the safety copy taken before a destructive mode, so that the way back is a run
 // identifier rather than a search at the target.
 //
@@ -57894,7 +57894,7 @@ func (c *ClientWithResponses) DeleteRetentionPolicyWithResponse(ctx context.Cont
 
 // UpdateRetentionPolicyWithBodyWithResponse Correct a retention rule, or take it out of enforcement
 //
-// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings (`data-retention.md` §7) and where a rule somebody has doubts about belongs.
+// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings, and where a rule somebody has doubts about belongs.
 // Extending a period beyond the data kind's upper bound needs a `justification`, here as much as at creation, and the one stored is replaced rather than kept: the justification belongs to the period it justifies.
 // The kind and the scope do not move. A rule that changed either would be a different rule under an old identifier, and the unique index over the pair is what makes "the rule for this kind at this level" a thing one can name at all. Auditable.
 //
@@ -57911,7 +57911,7 @@ func (c *ClientWithResponses) UpdateRetentionPolicyWithBodyWithResponse(ctx cont
 
 // UpdateRetentionPolicyWithApplicationMergePatchPlusJSONBodyWithResponse Correct a retention rule, or take it out of enforcement
 //
-// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings (`data-retention.md` §7) and where a rule somebody has doubts about belongs.
+// Merge-patch: an absent key changes nothing. A rule that deletes data has to be correctable, and `mode` is what takes one out of enforcement without losing what it says - `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule starts when its first run would affect more than 5% of the holdings, and where a rule somebody has doubts about belongs.
 // Extending a period beyond the data kind's upper bound needs a `justification`, here as much as at creation, and the one stored is replaced rather than kept: the justification belongs to the period it justifies.
 // The kind and the scope do not move. A rule that changed either would be a different rule under an old identifier, and the unique index over the pair is what makes "the rule for this kind at this level" a thing one can name at all. Auditable.
 //
@@ -58183,7 +58183,7 @@ func (c *ClientWithResponses) ListSyncDevicesWithResponse(ctx context.Context, r
 //
 // Ends what the device holds: the session it last synchronised under is revoked, and every
 // push or pull from the identifier is refused with `sync.device_revoked` until the client
-// mints a new one (offline-sync.md §6). The row stays, marked `blocked`, until the retention
+// mints a new one. The row stays, marked `blocked`, until the retention
 // sweep removes it. Somebody else's device is not found rather than forbidden; forgetting
 // twice is not an error.
 //
@@ -58206,7 +58206,7 @@ func (c *ClientWithResponses) ForgetSyncDeviceWithResponse(ctx context.Context, 
 // installation did not mint is `sync.cursor_invalid`.
 //
 // The same records the stream carries, in the same order and under the same cursor - the
-// stream is an accelerator over this, not a second source of truth (ADR-0021). Records are
+// stream is an accelerator over this, not a second source of truth. Records are
 // filtered by what the caller may read, per record and at the moment of the read; `has_more`
 // says the page was full and the client comes straight back. A page may carry fewer records
 // than `limit` and still have more: the cursor advances past what the caller may not see.
@@ -58233,7 +58233,7 @@ func (c *ClientWithResponses) SyncPullWithBodyWithResponse(ctx context.Context, 
 // installation did not mint is `sync.cursor_invalid`.
 //
 // The same records the stream carries, in the same order and under the same cursor - the
-// stream is an accelerator over this, not a second source of truth (ADR-0021). Records are
+// stream is an accelerator over this, not a second source of truth. Records are
 // filtered by what the caller may read, per record and at the moment of the read; `has_more`
 // says the page was full and the client comes straight back. A page may carry fewer records
 // than `limit` and still have more: the cursor advances past what the caller may not see.
@@ -58288,7 +58288,7 @@ func (c *ClientWithResponses) SyncPushWithResponse(ctx context.Context, body Syn
 
 // SyncSnapshotWithBodyWithResponse The initial synchronisation as one stream
 //
-// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// What `:pull` with no cursor answers in pages, as one response:
 // the records of the initial synchronisation in the walk's order, one per line of
 // `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
 // read so that the first byte arrives before the last row is counted, and the delta cursor
@@ -58317,7 +58317,7 @@ func (c *ClientWithResponses) SyncSnapshotWithBodyWithResponse(ctx context.Conte
 
 // SyncSnapshotWithResponse The initial synchronisation as one stream
 //
-// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// What `:pull` with no cursor answers in pages, as one response:
 // the records of the initial synchronisation in the walk's order, one per line of
 // `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
 // read so that the first byte arrives before the last row is counted, and the delta cursor
@@ -58465,7 +58465,7 @@ func (c *ClientWithResponses) InstantiateTemplateWithResponse(ctx context.Contex
 
 // AiGenerateTemplateWithBodyWithResponse Ask AI to draft a template from a description
 //
-// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to. The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
 // Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -58481,7 +58481,7 @@ func (c *ClientWithResponses) AiGenerateTemplateWithBodyWithResponse(ctx context
 
 // AiGenerateTemplateWithResponse Ask AI to draft a template from a description
 //
-// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to. The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
 // Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -58694,8 +58694,8 @@ func (c *ClientWithResponses) UpdateSavedViewWithApplicationMergePatchPlusJSONBo
 // with any type of body and a specified content type.
 //
 // The view's result, rendered whole, in one of three formats. A read with no side effect, and a POST for the reason POST /search is one: what a view selects is the caller's content, and a query string travels through access logs, proxies and browser history.
-// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides (T-04, T-05).
-// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. The guidelines' "202 plus /jobs/{id}" is what the cap stands in for while there is no /jobs resource - a truncation a caller is told about is honest, and a silent one is not.
+// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides.
+// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. An export stays one synchronous answer rather than a job a caller has to poll, and the cap is what keeps it one - a truncation a caller is told about is honest, and a silent one is not.
 // ICS renders the same document the calendar feed serves, from the same renderer: an entry with no due date is not a calendar entry and does not appear.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -58711,8 +58711,8 @@ func (c *ClientWithResponses) ExportViewWithBodyWithResponse(ctx context.Context
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // The view's result, rendered whole, in one of three formats. A read with no side effect, and a POST for the reason POST /search is one: what a view selects is the caller's content, and a query string travels through access logs, proxies and browser history.
-// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides (T-04, T-05).
-// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. The guidelines' "202 plus /jobs/{id}" is what the cap stands in for while there is no /jobs resource - a truncation a caller is told about is honest, and a silent one is not.
+// The view executes under the **caller's** authorisation, exactly as reading it does - two people exporting one shared view export two different files, and neither gets a row their role hides.
+// Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as max_export_rows, and a result that reached it is answered whole up to the cap with the Export-Truncated header set. An export stays one synchronous answer rather than a job a caller has to poll, and the cap is what keeps it one - a truncation a caller is told about is honest, and a silent one is not.
 // ICS renders the same document the calendar feed serves, from the same renderer: an entry with no due date is not a calendar entry and does not appear.
 func (c *ClientWithResponses) ExportViewWithResponse(ctx context.Context, viewId ViewId, params *ExportViewParams, body ExportViewJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportViewResult, error) {
 	rsp, err := c.ExportView(ctx, viewId, params, body, reqEditors...)
@@ -59990,7 +59990,7 @@ func ParseVerifyAuditChainResult(rsp *http.Response) (*VerifyAuditChainResult, e
 			// AnchoredUntil With `anchors: true`: the moment of the last anchor whose external copy was read back, and null where there is none or it could not be read.
 			AnchoredUntil *time.Time `json:"anchored_until,omitempty"`
 
-			// AnchoringConfigured Whether the workspace names an anchoring target at all (P-13).
+			// AnchoringConfigured Whether the workspace names an anchoring target at all.
 			AnchoringConfigured *bool `json:"anchoring_configured,omitempty"`
 			Checked             *int  `json:"checked,omitempty"`
 
@@ -60003,7 +60003,7 @@ func ParseVerifyAuditChainResult(rsp *http.Response) (*VerifyAuditChainResult, e
 			// Gaps The missing sequence numbers, cut at a hundred. A chain with a hole of a million entries would otherwise answer with a million integers.
 			Gaps *[]int `json:"gaps,omitempty"`
 
-			// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
+			// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was. The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
 			SealedUntil *time.Time `json:"sealed_until,omitempty"`
 			Valid       *bool      `json:"valid,omitempty"`
 		}
