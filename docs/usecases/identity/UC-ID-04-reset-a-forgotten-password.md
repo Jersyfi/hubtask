@@ -44,7 +44,7 @@ person falls back to recovery codes or a local recovery (see *Where it ends*).
    same card — identity line, remaining time, code field — and is signed in only with a valid code
    or recovery code.
 6. Every other session of the account has ended; personal access tokens have not.
-7. The trail holds `account.password_reset_requested` and `account.password_reset`, with no
+7. The trail holds `auth.password_reset_requested` and `account.password_changed`, with no
    password and no address in either.
 8. Where the workspace has switched the password off, the mail carries a link that connects the
    workspace's provider instead of one that sets a password; an account connected to a provider that
