@@ -40,7 +40,7 @@ export interface MessagesOptions {
 
 /**
  * A code nobody has a sentence for, made readable: `items.due_date_in_past` becomes "Due date in
- * past". Not a translation and not pretending to be one — it is the answer to F1-07's requirement
+ * past". Not a translation and not pretending to be one — it is the answer to the requirement
  * that an unknown code render "something a person can read rather than a blank or a key".
  *
  * The alternative, printing the code, is what the Go renderer does, and the two are right in

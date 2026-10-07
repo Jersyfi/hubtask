@@ -2,10 +2,10 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * Which day a week starts on (i18n-l10n.md §6 line 5, F5-09).
+ * Which day a week starts on (i18n-l10n.md §6 line 5).
  *
- * Three answers, in order: the account's own `week_start`, which the person chose (M-06); the
- * installation's word for the locale, `supported_locales[].week_start` (M-05); and the locale's
+ * Three answers, in order: the account's own `week_start`, which the person chose; the
+ * installation's word for the locale, `supported_locales[].week_start`; and the locale's
  * own week information from `Intl.Locale`, which is what a browser knows about `en-US` starting
  * on Sunday without anybody saying so. Monday only when none of the three answers - which is a
  * fallback, not a decision the client made for the reader.

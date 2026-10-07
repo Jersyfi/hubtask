@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * Cutting and counting text the way a reader sees it (i18n-l10n.md §6 line 8, §5; F5-09).
+ * Cutting and counting text the way a reader sees it (i18n-l10n.md §6 line 8, §5).
  *
  * A JavaScript string is UTF-16 units, the server counts code points, and a reader sees
  * graphemes: a flag is two code points and four units, a family emoji is seven code points, and

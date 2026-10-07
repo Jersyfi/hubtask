@@ -7,8 +7,7 @@
  * `i18n-l10n.md` §2 gives the order — request, account, tenant, installation — with one
  * parenthesis that inverts the top of it: `Accept-Language` counts "only for anonymous/client
  * responses". So for somebody signed in, the account preference wins over the browser's own
- * setting, and the browser is what answers before there is an account to ask (F1-08 makes that
- * readable, F1-10 reads it).
+ * setting, and the browser is what answers before there is an account to ask.
  *
  * Both functions here are pure. The document is touched in one place, `applyDocumentLocale`, the
  * way `theme.ts` touches it in one place — for the same reason: an attribute set from two modules
@@ -122,7 +121,7 @@ export function applyDocumentLocale(root: LocaleTarget, locale: string, directio
  * for somebody reading in English, "Deutsch" alone for somebody reading in German. The tag is
  * what the platform's `Intl.DisplayNames` is given, and stays the value the control carries; a
  * platform that cannot name the tag answers the tag, which is the honest fallback and what the
- * select showed before (issue 715).
+ * select showed before.
  */
 export function languageName(tag: string, reader: string): string {
   const own = displayName(tag, tag);

@@ -61,8 +61,8 @@ test('a missing translation falls back to the source language, never to a key', 
   assert.equal(SOURCE_LOCALE, 'en');
 });
 
-// Every catalogue, not only the source (F5-07). A translator's ICU error fails the build here the
-// way M-02's gate fails it on the server; and the `_comment` prefix is skipped in every file, the
+// Every catalogue, not only the source. A translator's ICU error fails the build here the
+// way the translation gate fails it on the server; and the `_comment` prefix is skipped in every file, the
 // way the loader skips it, so a note to the translators is never a message anywhere.
 const LOCALES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', 'locales');
 

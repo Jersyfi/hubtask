@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The four concerns F5-09 moved out of components and under `Intl`: the reader's order, the
+// The four concerns that live under `Intl` rather than in components: the reader's order, the
 // reader's characters, the reader's decimal mark, the reader's week. Each is a question with an
 // answer a test can assert without a browser.
 

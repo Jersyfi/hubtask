@@ -10,8 +10,8 @@
  * never sets it.
  *
  * It starts in the source language with what the browser asks for, because at boot that is
- * genuinely all the client knows. The account preference (F1-08) and the installation's supported
- * locales (`/meta/capabilities`, F1-10) arrive later and are handed to `adopt`.
+ * genuinely all the client knows. The account preference and the installation's supported
+ * locales (`/meta/capabilities`) arrive later and are handed to `adopt`.
  */
 
 import { SOURCE, SOURCE_LOCALE, hasCatalogue, loadCatalogue, type Catalogue } from './catalogue.ts';
@@ -63,7 +63,7 @@ class ActiveMessages {
   /**
    * Take the locale the preferences and the manifest resolve to, and say so on the document.
    *
-   * The catalogue follows (F5-07): the resolved locale's chunk is loaded when it is not the
+   * The catalogue follows: the resolved locale's chunk is loaded when it is not the
    * source and laid over the source in §3's chain when it arrives, the source rendering meanwhile
    * rather than nothing. A load that lands after the locale moved on is dropped - the reader
    * changed their mind faster than the network, and the later choice wins.

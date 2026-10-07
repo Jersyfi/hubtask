@@ -92,7 +92,7 @@ test('apostrophes follow ICU, which is the rule English trips over', () => {
 });
 
 test('syntax this renderer does not implement is refused, by name', () => {
-  // F1-07's condition for writing this rather than installing it. The message names the
+  // The condition for writing this rather than installing it. The message names the
   // construct, because "unsupported syntax" sends a reader looking and "{n, number}" sends them
   // to the one line to change.
   assert.throws(() => parse('{n, number}'), MessageSyntaxError);
