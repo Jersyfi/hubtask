@@ -420,7 +420,7 @@ jobs:
               if (!issue || issue.state === 'closed') {
                 continue;
               }
-              if (!issue.labels.some((label) => ['finding', 'claude:task'].includes(label.name ?? label))) {
+              if (!issue.labels.some((label) => (label.name ?? label) === 'finding')) {
                 continue;
               }
 
