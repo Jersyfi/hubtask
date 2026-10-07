@@ -149,7 +149,7 @@ func (h SubmitJumbleEntry) Execute(
 //
 // The same judgement an item attachment makes (media.Object.Attachable): a PENDING staging and a
 // marked object are refused, so nothing can reference what the reconciliation is about to
-// reclaim - the failure #231 recorded.
+// reclaim.
 func (w Writer) attach(ctx context.Context, attachments []shared.ID) error {
 	for _, id := range attachments {
 		object, err := w.Media.Find(ctx, id)

@@ -234,7 +234,7 @@ func TestTheFarChannelsCannotBeClaimed(t *testing.T) {
 	}
 }
 
-// An attachment has to exist and be sealed - the failure #231 recorded, refused at the door.
+// An attachment has to exist and be sealed, and one that is not is refused at the door.
 func TestAnUnsealedAttachmentIsRefused(t *testing.T) {
 	h := newHarness()
 	h.media.rows[mediaID] = media.Object{ID: mediaID, TenantID: tenant, Status: media.StatusPending, Usage: media.UsageAttachment}
