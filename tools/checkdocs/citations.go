@@ -33,10 +33,13 @@ var (
 	publicReference = regexp.MustCompile(`ADR-\d{4}|\b[a-z0-9-]+\.md\b|§`)
 )
 
-// codeExtensions are the files whose comments and strings this reads.
+// codeExtensions are the files whose comments and strings this reads. A `.json` file is code or
+// data the code reads (schemas, dashboards, manifests), and a `.md` file outside docs/ documents
+// the code beside it (a package's README, a runbook, a prompt): both are read as code is.
 var codeExtensions = map[string]bool{
 	".go": true, ".ts": true, ".svelte": true, ".js": true, ".mjs": true, ".sql": true,
-	".yaml": true, ".yml": true, ".sh": true, ".tpl": true,
+	".yaml": true, ".yml": true, ".sh": true, ".tpl": true, ".json": true, ".md": true,
+	".py": true, ".html": true, ".css": true,
 }
 
 // citationExempt are files that name these things as data, not as citations: the gates that check
@@ -64,8 +67,18 @@ func citationScope(file string) bool {
 		strings.HasSuffix(file, ".gen.go"), strings.HasSuffix(file, ".gen.ts"),
 		file == "api/openapi.json", file == "pnpm-lock.yaml", citationExempt[file]:
 		return false
+	case path.Ext(file) == ".md" && !codeDocument(file):
+		return false
 	}
 	return codeExtensions[path.Ext(file)] || path.Base(file) == "Makefile" || path.Base(file) == "Dockerfile"
+}
+
+// codeDocument is a Markdown file that documents code: one inside a code directory. The documents
+// at the root (README, CONTRIBUTING, SECURITY, …) and under docs/ are the project's documents, which
+// cite tasks and issues as their history; .github/ holds the process's own forms; an AGENTS.md is
+// an instruction file and names the others by design.
+func codeDocument(file string) bool {
+	return strings.Contains(file, "/") && !strings.HasPrefix(file, ".github/") && path.Base(file) != "AGENTS.md"
 }
 
 // isTestData is a file whose literals may carry a task or issue number as data (a fixture, a test
@@ -123,7 +136,9 @@ func citationProblems(file, text string, sections map[string]*docSections) []str
 		if m := milestoneFile.FindString(line); m != "" {
 			problems = append(problems, fmt.Sprintf("%s: cites %s - a milestone's decisions live in the subject documents now", where, m))
 		}
-		if m := instructionFile.FindString(line); m != "" {
+		// A package's README sends a reader to the AGENTS.md beside it, which is a map rather than a
+		// citation; a comment in code cites the rule itself.
+		if m := instructionFile.FindString(line); m != "" && path.Ext(file) != ".md" {
 			problems = append(problems, fmt.Sprintf("%s: cites %s - cite the rule (\"rule N\") or the subject document", where, m))
 		}
 	}

@@ -41,6 +41,35 @@ func TestCitations(t *testing.T) {
 	}
 }
 
+func TestCitationScope(t *testing.T) {
+	for file, want := range map[string]bool{
+		"core/x.go":                      true,
+		"api/events/item.created.json":   true,
+		"packages/sync-engine/README.md": true,
+		"deploy/observability/runbooks/RB-A14-misconfiguration.md": true,
+		"scripts/verify-tenant-export.py":                          true,
+		"presentation/webui/dist/index.html":                       true,
+		"apps/website/src/site.css":                                true,
+		"README.md":                                                false,
+		"CONTRIBUTING.md":                                          false,
+		"docs/architecture/security.md":                            false,
+		".github/PULL_REQUEST_TEMPLATE.md":                         false,
+		"core/AGENTS.md":                                           false,
+		"locales/en.json":                                          false,
+		"api/openapi.json":                                         false,
+	} {
+		if got := citationScope(file); got != want {
+			t.Errorf("%s: in scope %v, want %v", file, got, want)
+		}
+	}
+	if p := citationProblems("packages/x/README.md", "The rules are in [AGENTS.md](./AGENTS.md).", nil); len(p) != 0 {
+		t.Errorf("a README pointing to its AGENTS.md was refused: %v", p)
+	}
+	if p := citationProblems("deploy/x/README.md", "Found in issue #310.", nil); len(p) == 0 {
+		t.Error("an issue number in a code document passed")
+	}
+}
+
 func TestPublicText(t *testing.T) {
 	if p := publicTextProblems("info:\n  # ADR-0080 is cited in a comment\n  description: A task."); len(p) != 0 {
 		t.Fatalf("a comment line was read as public text: %v", p)
