@@ -221,7 +221,7 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 	return a.apply(ctx, plan)
 }
 
-// IngestInput is what an importer hands the applier (P-08, backup-restore.md §9).
+// IngestInput is what an importer hands the applier (backup-restore.md §9).
 type IngestInput struct {
 	// TenantID is the workspace the records land in - the importer's own, always.
 	TenantID shared.ID
@@ -237,7 +237,7 @@ type IngestInput struct {
 }
 
 // Ingest applies an archive somebody built rather than backed up: the importer's records, in
-// MERGE mode with skip, into the tenant that asked (P-08).
+// MERGE mode with skip, into the tenant that asked.
 //
 // The same apply as a restore's - the same decisions per record, the same batches, the same
 // journal check - with the procedure around it absent, because nothing is being brought back:
@@ -288,13 +288,13 @@ func (a Applier) precheck(
 	}
 	newest := chain[0]
 
-	// INSTANCE stays refused, and since H-10 the refusal says what to do instead. No writer here
+	// INSTANCE stays refused, and the refusal says what to do instead. No writer here
 	// produces an instance-scoped archive, and a tenant archive under the INSTANCE mode would be
 	// an approximation §8's table does not allow - but the reason it will not simply arrive one
 	// day is B-2's answer: a system restore is the operator's, from the database's own continuous
 	// archive, with a person in front of it (backup-restore.md §8.5, ADR-0046). Answering
-	// "that archive belongs to another workspace" said the wrong thing about an archive that
-	// belongs to nobody, and sent the reader looking for a permission problem.
+	// "that archive belongs to another workspace" would say the wrong thing about an archive that
+	// belongs to nobody, and send the reader looking for a permission problem.
 	if restore.Mode == domain.RestoreInstance {
 		return nil, secret.Bytes{}, shared.ErrValidation.
 			WithDetail(domain.CodeRestoreInstanceIsTheOperators).
@@ -310,8 +310,7 @@ func (a Applier) precheck(
 	// mode. Where the rows land is a separate question: for every mode but NEW_TENANT it is the
 	// asker itself (StartRestore refuses any other), and for NEW_TENANT it is an identifier the
 	// use case minted a moment ago, guarded by assertFresh below. Comparing against the
-	// destination instead is the defect #206 records: a NEW_TENANT restore could never match its
-	// own archive.
+	// destination instead would mean a NEW_TENANT restore could never match its own archive.
 	if newest.Manifest.Scope.Kind != archive.ScopeTenant || newest.Manifest.Scope.ID != asking.String() {
 		return nil, secret.Bytes{}, shared.ErrValidation.
 			WithDetail(domain.CodeRestoreArchiveScopeMismatch).
@@ -502,7 +501,7 @@ type plan struct {
 	dry      bool
 	report   func(float64)
 	// progress records how far a batch got and the report so far, in the batch's transaction:
-	// the restore run's row for a restore, the import run's for an import (P-08). Nil for a
+	// the restore run's row for a restore, the import run's for an import. Nil for a
 	// caller that keeps no row.
 	progress func(ctx context.Context, report domain.Report, decided map[string]int) error
 }
@@ -1223,9 +1222,8 @@ func (s *state) mint(entity archive.Entity, data map[string]any, originalID stri
 
 // settleUniques changes the columns a copy may not carry unchanged.
 //
-// mint gives the copy an identity, and for four milestones that was all it gave it - so a
-// duplicated collection arrived under the living one's name, met `container_name_uq` and landed
-// nothing. The identity is not the only uniqueness in the schema, and the entity declares
+// mint gives the copy an identity, and that alone is not enough: a duplicated collection would
+// arrive under the living one's name, meet `container_name_uq` and land nothing. The identity is not the only uniqueness in the schema, and the entity declares
 // the rest (archive.Entity.Unique) rather than the applier knowing three tables by name.
 //
 // Here rather than in mint, because mint is also NEW_TENANT's: every one of these indexes is per

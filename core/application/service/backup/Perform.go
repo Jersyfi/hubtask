@@ -72,7 +72,7 @@ type PerformInput struct {
 	IncludeMedia bool
 	IncludeAudit bool
 	// TrialRestore follows the archive with an INSPECT restore of it, in this same job, and fails
-	// the run where it cannot be read back (B-4, P-14). Only meaningful for a FULL run.
+	// the run where it cannot be read back (B-4). Only meaningful for a FULL run.
 	TrialRestore bool
 	// Report is how far along the run is, between 0 and 1. It may be nil, and losing a progress
 	// reading is never a reason to fail a backup.

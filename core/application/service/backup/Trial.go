@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// The trial restore (B-4, P-14, backup-restore.md §5): the run that wrote a FULL archive reads it
+// The trial restore (B-4, backup-restore.md §5): the run that wrote a FULL archive reads it
 // back, in the same job, as an INSPECT restore - every member read, every checksum verified,
 // every encrypted member decrypted with the key the schedule names, and the difference report
 // against the workspace produced and kept on the run. An archive the product cannot read back is

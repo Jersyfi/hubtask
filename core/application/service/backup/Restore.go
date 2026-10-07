@@ -34,8 +34,8 @@ const (
 
 	restoreType = "restore_run"
 
-	// StartedRestoreAction is a restore somebody asked for. A warning: it is the one path in this
-	// milestone that changes a tenant's data from outside the tenant's own use cases, and "who
+	// StartedRestoreAction is a restore somebody asked for. A warning: it is a path that
+	// changes a tenant's data from outside the tenant's own use cases, and "who
 	// restored what on Tuesday" is a question with an answer.
 	StartedRestoreAction audit.Action = "backup.restore_started"
 	// FinishedRestoreAction is what the restore did, written when it is over. §8.3 step 6 asks for
@@ -438,10 +438,7 @@ func (h StartRestore) authorise(
 
 // confirm is §8.3 step 3: the tenant's name typed, and a step-up on top of it.
 //
-// Both are asked only of the destructive modes, and both are refusals rather than warnings. The
-// step-up is the one this installation cannot yet satisfy, and it says so in its own code: "you did
-// not prove it" and "nothing here can prove it" are different problems, and an operator who reads
-// the second knows to import the archive as a new tenant instead.
+// Both are asked only of the destructive modes, and both are refusals rather than warnings.
 func (h StartRestore) confirm(
 	ctx context.Context, actor appshared.ActorContext, request domain.RestoreRequest,
 ) error {
@@ -461,8 +458,7 @@ func (h StartRestore) confirm(
 			})
 	}
 
-	// The demand H-03 finally made satisfiable: a fresh proof, consumed by this one restore.
-	// E-06's "nothing here can prove it" refusal died with the verifier that proves it.
+	// A fresh proof (identity.md §16), consumed by this one restore.
 	return stepup.Demand(ctx, h.Restorer.StepUp, actor.TenantID, actor.AccountID, request.StepUpToken)
 }
 
@@ -584,7 +580,7 @@ func (h StartRestore) Descriptor() usecase.Descriptor {
 				Name: "step_up_token", Kind: usecase.KindString,
 				Description: "For a destructive mode, the proof of a fresh, stronger " +
 					"authentication: the token POST /auth/step-up answered, consumed by this " +
-					"one restore (H-03).",
+					"one restore.",
 			},
 		},
 		StepUp: "the destructive modes (REPLACE_TENANT, INSTANCE)",

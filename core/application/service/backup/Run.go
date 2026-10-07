@@ -39,9 +39,8 @@ const (
 	// leaves, and it is recorded because the answer is evidence.
 	VerifiedAction audit.Action = "backup.verified"
 	// DownloadedAction is fetching an archive, which backup-restore.md §7 calls an auditable data
-	// access in its own right. Nothing emits it yet - there is no route that hands an archive to
-	// a caller until the restore side of the milestone builds one - and the name is fixed here so
-	// that the two halves cannot end up spelling it differently.
+	// access in its own right. Nothing emits it: no route hands an archive to a caller. The name
+	// is fixed here so that the route that does cannot spell it differently.
 	DownloadedAction audit.Action = "backup.downloaded"
 )
 

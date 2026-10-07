@@ -18,8 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// The lifecycle a schedule had no operations for until F4-02: it could be created, and then only
-// read by the poller that ran it.
+// The lifecycle of a schedule after it was created: listed, changed and deleted.
 const (
 	ListBackupSchedulesName  = "ListBackupSchedules"
 	UpdateBackupScheduleName = "UpdateBackupSchedule"
@@ -44,7 +43,7 @@ func (h ListBackupSchedules) Execute(
 	s := h.Scheduling
 	if err := s.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionStructure,
-		// A-4, G-12: a schedule is what a workspace has decided will leave it every night, which
+		// A-4: a schedule is what a workspace has decided will leave it every night, which
 		// is exactly the configuration an auditor reads without being able to change it.
 		Alternative: service.PermissionReadConfiguration,
 		Path:        []identity.Scope{identity.TenantScope()},

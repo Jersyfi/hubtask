@@ -20,7 +20,7 @@ import (
 
 // The restore itself (backup-restore.md §8.3): what it writes, what it deliberately does not
 // write, and what a dry run costs. Every case here is a round trip - the archive is written by the
-// performer of E-05 and read back by the applier - because an archive nobody wrote is an archive
+// performer and read back by the applier - because an archive nobody wrote is an archive
 // whose format the test agrees with rather than the writer.
 
 const restoreID = shared.ID("0192f000-0000-7000-8000-0000000000d1")
@@ -65,8 +65,8 @@ func (r *restoreStore) Claim(_ context.Context, id shared.ID, at time.Time) (boo
 	restore := r.stored[id]
 	restore.Status = domain.RestoreRunning
 	// Kept rather than moved, which is what ClaimRestoreRun's COALESCE does: a resumed attempt
-	// continues its own run, and everything derived from it - the identity of a duplicate, and
-	// since #790 its name - has to come out the same on the second attempt as on the first.
+	// continues its own run, and everything derived from it - the identity of a duplicate and
+	// its name - has to come out the same on the second attempt as on the first.
 	if restore.StartedAt.IsZero() {
 		restore.StartedAt = at
 	}
@@ -879,9 +879,9 @@ func TestAnAbandonedRestoreIsClosedUnderItsOwnCode(t *testing.T) {
 }
 
 // INSTANCE stays refused, and the refusal is explicit rather than an accident of the scope
-// comparison: even the asker's own tenant archive is refused under it. Since H-10 it carries its
-// own code, because "that archive belongs to another workspace" was the wrong sentence about an
-// archive that belongs to nobody - the message now names the operator procedure (§8.5).
+// comparison: even the asker's own tenant archive is refused under it. It carries its own code,
+// because "that archive belongs to another workspace" is the wrong sentence about an archive that
+// belongs to nobody - the message names the operator procedure (backup-restore.md §8.5).
 func TestAnInstanceRestoreIsRefused(t *testing.T) {
 	h := newApplyHarness(t, containerRows)
 	in := h.accept(t, func(r *domain.Restore) {
@@ -1204,7 +1204,7 @@ func keysOfTables(rows map[string]map[string]any) []string {
 	return out
 }
 
-// The trial's reader (B-4, P-14): an archive just written is read back whole and compared with
+// The trial's reader (B-4, backup-restore.md §5): an archive just written is read back whole and compared with
 // the workspace, nothing is written, and a member damaged at the target is refused by name.
 func TestTheTrialInspectsAnArchiveAndRefusesADamagedOne(t *testing.T) {
 	h := newApplyHarness(t, containerRows)

@@ -763,7 +763,7 @@ func scalarText(value any) (string, bool) {
 }
 
 // StoreOpener opens a configured target for somebody who needs to write to one and has no business
-// with its credentials (E-09: the audit export writes its archive to a backup target).
+// with its credentials (the audit export writes its archive to a backup target).
 //
 // The seam is here rather than in the caller because everything it does is this package's: reading
 // the target, unsealing the credential under the purpose it was sealed with, and choosing the
