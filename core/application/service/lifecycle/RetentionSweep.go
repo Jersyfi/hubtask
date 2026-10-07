@@ -37,7 +37,7 @@ type ExportBeforeDelete interface {
 	Export(ctx context.Context, targetID shared.ID) (shared.ID, error)
 }
 
-// RetentionWarner is the slice of the notification context the sweep needs (R-1, G-12): tell the
+// RetentionWarner is the slice of the notification context the sweep needs (R-1): tell the
 // people a rule's audience names that this entry is about to be acted on.
 //
 // Declared here rather than imported, so that what the retention engine can do to somebody's inbox
@@ -61,13 +61,13 @@ type Sweeper struct {
 	// Purger is the one engine behind every removal, which is what keeps a retention hard delete
 	// owing exactly what a person's purge owes: a journal entry, a tombstone, and an event per row.
 	Purger Purger
-	// Warnings sends the advance warning of data-retention.md §6 (R-1, G-12). Optional: a build
+	// Warnings sends the advance warning of data-retention.md §6 (R-1). Optional: a build
 	// without it marks and acts exactly as before, which is what an installation that has switched
 	// its notifications off already looks like - and the marking is the visibility §6 asks for
 	// first, so silence here loses the message rather than the warning.
 	Warnings RetentionWarner
 	// Conditions compiles a rule's expression, and it is the same port and the same language the
-	// automation rules use (G-06, ADR-0009). Optional: a build with none refuses to act on a
+	// automation rules use (ADR-0009). Optional: a build with none refuses to act on a
 	// conditioned rule rather than acting on all of it, which is the safe direction for a pass
 	// whose job is deleting.
 	Conditions expression.Compiler
@@ -395,7 +395,7 @@ func (s Sweeper) perform(
 			return 0, err
 		}
 	case domain.ActionTrash:
-		// One batch identifier for the act, which is what makes one act one restore (F-09).
+		// One batch identifier for the act, which is what makes one act one restore.
 		if _, err := s.Marking.Trash(ctx, ids, s.IDs.NewID(), now); err != nil {
 			return 0, err
 		}

@@ -310,7 +310,7 @@ func (s *sessionStore) DeleteExpired(_ context.Context, cutoff time.Time, batch 
 	return len(removed), nil
 }
 
-// The SESSION kind (H-01): expired sessions age out through the engine under the new data kind,
+// The SESSION kind: expired sessions age out through the engine under the new data kind,
 // thirty days from the last use - and only the ones that are already over, because ending
 // sign-ins is revocation's job and the engine's job is forgetting.
 func TestAPassSweepsExpiredSessionsAtTheirOwnPeriod(t *testing.T) {
@@ -520,7 +520,7 @@ func (missingPolicies) Find(context.Context, domain.DataKind) (domain.Policy, er
 }
 
 // The NOTIFICATION class data-retention.md §3 has been promising: ninety days, from the moment the
-// record was written, swept by the same job that empties the trash (C-09).
+// record was written, swept by the same job that empties the trash.
 func TestAPassSweepsTheNotificationHistoryAtNinetyDays(t *testing.T) {
 	h := newRunHarness()
 	h.history.written = []time.Time{
@@ -630,7 +630,7 @@ func TestTheHistorySweepPublishesNoBlockReasons(t *testing.T) {
 	}
 }
 
-// The outbox's own rows (G-02). ADR-0007's second countermeasure: the one table in this schema
+// The outbox's own rows. ADR-0007's second countermeasure: the one table in this schema
 // that only ever grew.
 func TestAPassSweepsDispatchedEventsAtTheirOwnPeriod(t *testing.T) {
 	h := newRunHarness()
@@ -715,7 +715,7 @@ func TestTheConsumptionRecordsAreSweptWithTheirEvents(t *testing.T) {
 }
 
 // The JUMBLE_ENTRY class data-retention.md §3 has been promising since phase 0, arriving with the
-// inbox it is about (G-10, the closed-set change D-06 predicted): ninety days from the arrival,
+// inbox it is about (the closed-set change D-06 predicted): ninety days from the arrival,
 // swept by the same job that empties the trash.
 func TestAPassSweepsTheJumbleAtNinetyDays(t *testing.T) {
 	h := newRunHarness()
@@ -744,7 +744,7 @@ func TestAPassSweepsTheJumbleAtNinetyDays(t *testing.T) {
 	}
 }
 
-// The AI_SUGGESTION class (J-05): thirty days from when the proposal was recorded, swept by the
+// The AI_SUGGESTION class: thirty days from when the proposal was recorded, swept by the
 // same job that empties the trash, and both decided states go with the proposals - an accepted
 // suggestion has already become the entry's own history.
 func TestAPassSweepsSuggestionsAtThirtyDays(t *testing.T) {
@@ -919,7 +919,7 @@ func TestAHeldInboxDoesNotBringTheJobStraightBack(t *testing.T) {
 	}
 }
 
-// The DEVICE kind (N-03): devices silent past their period age out through the engine under
+// The DEVICE kind: devices silent past their period age out through the engine under
 // their own data kind, thirty days from the last contact - the adapter revokes the session each
 // held on the way, which the store stands in for here.
 func TestAPassSweepsStaleDevicesAtTheirOwnPeriod(t *testing.T) {
@@ -949,7 +949,7 @@ func TestAPassSweepsStaleDevicesAtTheirOwnPeriod(t *testing.T) {
 	}
 }
 
-// The SYNC_LOG kind (N-09): the operation log and the tombstones age out through the engine
+// The SYNC_LOG kind: the operation log and the tombstones age out through the engine
 // under their own data kind, at the offline window - and the window is one value: a policy for
 // the kind can only lengthen it, and a window longer than the policy's period is what decides.
 func TestAPassSweepsTheSyncLogAtTheOfflineWindow(t *testing.T) {

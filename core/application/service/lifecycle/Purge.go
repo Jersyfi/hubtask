@@ -38,7 +38,7 @@ const (
 
 // The reasons a removal can be refused, kept here as the names this package has always used and
 // defined where the precedence of data-retention.md §4 is - in the domain, because "which reason
-// wins" is a rule about the data rather than a detail of the engine (E-07).
+// wins" is a rule about the data rather than a detail of the engine.
 const (
 	BlockedByLegalHold       = domain.BlockedByLegalHold
 	BlockedByTombstoneWindow = domain.BlockedByTombstoneWindow

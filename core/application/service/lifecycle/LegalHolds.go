@@ -45,7 +45,7 @@ type Holds struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Text brings a reason to normal form C on the way in (i18n-l10n.md §5, M-07).
+	// Text brings a reason to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
 
@@ -180,7 +180,7 @@ func (h ListLegalHolds) Execute(
 	if err := h.Holds.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionStructure,
 		// What is frozen and why is configuration, and reading it is an auditor's question -
-		// placing and lifting stay behind STRUCTURE alone (A-4, G-12).
+		// placing and lifting stay behind STRUCTURE alone (A-4).
 		Alternative: service.PermissionReadConfiguration,
 		Path:        []identity.Scope{identity.TenantScope()},
 		Action:      HoldPlacedAction,
