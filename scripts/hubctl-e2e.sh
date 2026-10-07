@@ -658,7 +658,7 @@ case "$IMPORTED_JSON" in
 	*'"new": 0'*) ;;
 	*) echo "FAILED: the same file a third time created something: $IMPORTED_JSON"; exit 1 ;;
 esac
-# The collection is named after the file (issue 766), and a *different* file under the same name
+# The collection is named after the file, and a *different* file under the same name
 # is a refusal in the import's own words rather than a retried database error: the run fails with
 # its code, and the job that carried it is over.
 expect_contains "import csv names the collection after the file" "$(hubctl container ls --parent "$HUB_ID")" "tasks"
@@ -1673,7 +1673,7 @@ ACME_ARCHIVE="$(printf '%s\n' "$archives" | awk 'NR==2 {print $1}')"
 [ -n "$ACME_ARCHIVE" ] || { echo "FAILED: nothing is lying at the workspace's target: $archives"; exit 1; }
 
 echo "--- the destructive restore, through a real step-up ---"
-# The round trip that has been refused since 0.4.5, and the last thing the owner's session can do -
+# The round trip through a real step-up, and the last thing the owner's session can do -
 # because the mode does not leave the credential that started it alive. REPLACE_TENANT empties the
 # workspace's tables before it writes the archive's rows back, the accounts go with them, and the
 # sessions and tokens cascade off the accounts; the archive carries no credentials to put back,
