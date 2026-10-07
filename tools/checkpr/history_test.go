@@ -32,7 +32,7 @@ func (r *scratchRepo) run(args ...string) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = r.dir
-	cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+	cmd.Env = scratchGitEnv()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		r.t.Fatalf("git %v: %v\n%s", args, err, out)
 	}

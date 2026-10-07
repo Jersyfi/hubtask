@@ -65,6 +65,8 @@ that fixes its first instance.
 
 | Trap | How to avoid it | Why no gate |
 |---|---|---|
+| **A test's scratch repository inherits `GIT_DIR`.** Under a git hook or `git rebase --exec`, git exports `GIT_DIR` for the real repository; a scratch `git init` then re-initialises it, and `core.bare = true` stops the checkout and every worktree. | run git in a scratch repository with every `GIT_*` variable dropped (`scratchGitEnv` in tools/checkpr, `withoutGitVariables` in test/architecture); if it happened, `git config core.bare false` in the main checkout | a new helper can call git anywhere; the existing ones are held by a test that sets `GIT_DIR` |
+| **The pull request hook reads a quoted `gh pr create` as a command**: a description written through a heredoc that quotes the template's comment is refused as a non-draft create. | write the description with a file tool, then pass `--body-file` | the hook cannot parse shell quoting; refusing too much is its safe side |
 | **`make gate-x \| tail && git commit` commits on red**, and `git push \| tail` hides a rejected push. | test the command's own exit status | it is the shell's behaviour in the worker's own command |
 | **`git add -A` while a gate regenerates files** stages deletions (the licence gate rewrites `third-party/licenses/`). | never stage while a gate runs; check `git show --stat` | a race between two of the worker's own commands |
 | **`make gate-selftest` edits the working tree.** Overlapping runs, or a gate beside it, report each other's probes as regressions. | run it alone | it has to edit the tree to prove the gates go red |
