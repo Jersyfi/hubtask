@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package webhook sends one event to one subscriber (G-03, automation.md §3.1).
+// Package webhook sends one event to one subscriber (automation.md §3.1).
 //
 // It is an outbound adapter and nothing else: what to send and to whom was decided by the fan-out,
 // and what a failure means is decided by the aggregate. What lives here is the part that needs the
