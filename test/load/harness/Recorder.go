@@ -193,7 +193,7 @@ func (r *Recorder) Window(class Class, from, to time.Duration) Latency {
 //
 // It is the capacity figure and it only means something once the offered rate is past what the
 // process can serve: below saturation this returns the offered rate, because that is what was
-// asked of it. Which is why the figure H-11 records comes from an overload stage and not from a
+// asked of it. Which is why the capacity figure comes from an overload stage and not from a
 // steady one - a run that kept up measured the client.
 func (r *Recorder) Throughput(from, to time.Duration) float64 {
 	r.mu.Lock()

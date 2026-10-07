@@ -11,8 +11,7 @@ import (
 	"sort"
 )
 
-// The two tiers of decision 7 (docs/archive/backlog/milestone-0.6.0.md), and this file is the
-// cheap one.
+// The two tiers of observability-reliability.md §13.2, and this file is the cheap one.
 //
 // A shared runner varies by 10-30 % between runs, so a percent-level regression is invisible there
 // and an absolute target is a coin toss. What a shared runner *can* answer is a narrower question:
@@ -57,7 +56,7 @@ type Baseline struct {
 	RecordedAt string `json:"recorded_at"`
 	// Hardware is the machine the figures were measured on, and it is load-bearing: comparing a
 	// run against figures from different iron measures the iron. A run on hardware this does not
-	// name records its measurement and compares nothing (decision 7, point 3).
+	// name records its measurement and compares nothing (observability-reliability.md §13.2).
 	Hardware string `json:"hardware"`
 	Dataset  struct {
 		Tenants int `json:"tenants"`

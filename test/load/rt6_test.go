@@ -39,11 +39,11 @@ var rt6Stages = []struct {
 // open than the pool has connections, and every one of them waits for one. What shedding buys is
 // that the wait stays a wait instead of becoming a collapse.
 //
-// An absolute figure here and not a factor against the baseline stage, which was the first shape
-// this test had and was the wrong one: the baseline is a nearly idle process, so *any* real
-// overload is an order of magnitude worse than it and the comparison would only ever say that the
-// overload arrived. The relative discipline decision 7 asks for is between runs, and that is the
-// regression guard's job; within one run the honest claim is a target.
+// An absolute figure here and not a factor against the baseline stage: the baseline is a nearly
+// idle process, so *any* real overload is an order of magnitude worse than it and the comparison
+// would only ever say that the overload arrived. The relative discipline of
+// observability-reliability.md §13.2 is between runs, and that is the regression guard's job;
+// within one run the honest claim is a target.
 const interactiveCeilingMillis = 1000
 
 // recoveryFactor is how much worse than the baseline the interactive P95 may still be once the
@@ -59,7 +59,7 @@ type RT6Finding struct {
 		Items   int `json:"items"`
 	} `json:"dataset"`
 	ShedThreshold int `json:"shed_threshold_inflight"`
-	// VCPUs and the throughput below it are the pair H-11 records: requests per second per vCPU,
+	// VCPUs and the throughput below it are the capacity figure: requests per second per vCPU,
 	// at a held P95, measured where the offered rate is past what the process can serve. Below
 	// saturation a throughput figure is the offered rate wearing a capacity figure's name.
 	VCPUs                 int                        `json:"vcpus"`

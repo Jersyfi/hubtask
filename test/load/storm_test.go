@@ -33,7 +33,7 @@ const (
 
 // bulkSize is how many operations one storm request carries. Two hundred rather than the
 // contract's five hundred, so that a refusal is a refusal about capacity rather than about the
-// bound (C-11).
+// bound.
 const bulkSize = 200
 
 // fairnessFactor is how much worse the quiet tenant's interactive P95 may get while its neighbour
@@ -42,7 +42,7 @@ const bulkSize = 200
 //
 // Tighter than RT-6's, deliberately. RT-6 is about one tenant overloading the process it is on,
 // where the interactive path is expected to get slower; this is about a tenant that is doing
-// nothing unusual and must barely notice (H-08, multi-tenancy.md §4).
+// nothing unusual and must barely notice (multi-tenancy.md §4).
 const fairnessFactor = 2
 
 // StormFinding is what the run leaves behind.
@@ -57,8 +57,8 @@ type StormFinding struct {
 	QuietRun        harness.Summary            `json:"quiet_tenant_run"`
 }
 
-// The automation storm of H-11, and the fairness of H-08 asserted rather than eyeballed: one
-// tenant writes in bulk, its writes fan into a rule, a webhook subscription and the outbox at
+// The automation storm, and the fairness of multi-tenancy.md §4 asserted rather than eyeballed:
+// one tenant writes in bulk, its writes fan into a rule, a webhook subscription and the outbox at
 // once, and the tenant next door goes on working.
 //
 // The claim is about the neighbour, not about the storm. A storm that is refused, throttled or
@@ -95,7 +95,7 @@ func TestTheAutomationStormDoesNotStarveTheTenantNextDoor(t *testing.T) {
 	ended := time.Now()
 
 	finding := StormFinding{
-		Test: "H-11 automation storm", RanAt: started.UTC(),
+		Test: "automation storm", RanAt: started.UTC(),
 		QuietLatency: map[string]harness.Latency{
 			"before": recorder.Window(harness.ClassInteractive, 0, stormBaseline),
 			"storm":  recorder.Window(harness.ClassInteractive, stormBaseline, stormBaseline+stormWindow),
@@ -105,14 +105,14 @@ func TestTheAutomationStormDoesNotStarveTheTenantNextDoor(t *testing.T) {
 		RuleRuns: ruleRuns(t, stack, storming), WebhookAttempts: delivered.Load(),
 		QuietRun: recorder.Summarise(ended),
 	}
-	writeEvidence(t, "H-11-storm-latest.json", finding)
+	writeEvidence(t, "storm-latest.json", finding)
 
 	// 1. There was a storm. A run in which the bulk was refused before it did anything would
 	//    prove the shedder and nothing about fairness.
 	if finding.BulkAccepted == 0 {
 		t.Fatalf("no bulk write was accepted, so nothing stormed (%d were shed)", finding.BulkShed)
 	}
-	// 2. And it fanned out. The three destinations H-11 names are the rule, the subscription and
+	// 2. And it fanned out. The three destinations are the rule, the subscription and
 	//    the outbox behind both; a run where nothing was dispatched is a run against an idle
 	//    process wearing a storm's name.
 	if finding.RuleRuns == 0 {

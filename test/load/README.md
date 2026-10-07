@@ -1,8 +1,8 @@
 # The load suite
 
 Two tiers, because they answer different questions and only one of them can be answered on a
-shared runner. The split is the owner's decision of 2026-08-21, recorded as decision 7 in
-[`milestone-0.6.0.md`](../../docs/archive/backlog/milestone-0.6.0.md).
+shared runner. The rule is
+[`observability-reliability.md` §13.2](../../docs/architecture/observability-reliability.md).
 
 | | The nightly tier | The release tier |
 |---|---|---|
@@ -59,7 +59,7 @@ user count appears anywhere, the model appears beside it.
 | `baselines/` | The stored figures, each with the band and the floor that say what "significantly worse" means |
 | `stack_test.go` | The installation: a container, the migrations, the dataset, the real binary |
 | `rt6_test.go` | RT-6 — overload, shedding, the interactive target, memory |
-| `storm_test.go` | The automation storm, and H-08's fairness asserted rather than eyeballed |
+| `storm_test.go` | The automation storm, and the fairness of multi-tenancy §4 asserted rather than eyeballed |
 | `guard_test.go` | The relative regression guard |
 
 ## Refreshing a baseline
@@ -73,5 +73,5 @@ tail of a few hundred requests, and one garbage collection during the run moves 
 magnitude. A figure that reports the machine is a figure somebody turns off.
 
 A baseline is refreshed when the change that moved it is understood — never to make a red build
-green. Take the figures from `H-11-guard-latest.json` of a run on the machine the baseline names,
+green. Take the figures from `guard-latest.json` of a run on the machine the baseline names,
 write them into `baselines/steady-state.json` with the date, and say in the pull request what moved and why.

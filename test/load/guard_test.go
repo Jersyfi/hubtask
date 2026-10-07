@@ -32,7 +32,7 @@ const (
 
 // envHardware names the machine, and the guard compares only against a baseline recorded on the
 // same one. Comparing a run against figures from different iron measures the iron - which is the
-// whole reason decision 7 has two tiers rather than one.
+// whole reason the load suite has two tiers rather than one (observability-reliability.md §13.2).
 const envHardware = "HUBTASK_LOAD_HARDWARE"
 
 // GuardFinding is the measurement, whether or not there was anything to compare it against.
@@ -51,8 +51,8 @@ type GuardFinding struct {
 	Run         harness.Summary      `json:"run"`
 }
 
-// The cheap tier of decision 7: against a figure recorded on the same kind of machine, did this
-// get significantly worse?
+// The cheap tier (observability-reliability.md §13.2): against a figure recorded on the same kind
+// of machine, did this get significantly worse?
 //
 // It answers nothing else. It produces no absolute capacity number, it publishes nothing, and on
 // hardware it has no baseline for it records its measurement and says so rather than comparing
@@ -83,7 +83,7 @@ func TestTheRegressionGuardComparesThisRunAgainstTheStoredBaseline(t *testing.T)
 	achieved := float64(held.Count) / guardHold.Seconds()
 
 	finding := GuardFinding{
-		Test: "H-11 regression guard", RanAt: started.UTC(),
+		Test: "load regression guard", RanAt: started.UTC(),
 		Hardware: hardware(), VCPUs: runtime.NumCPU(),
 		Measured: map[string]float64{
 			"interactive_p50_ms":  float64(held.P50),
@@ -111,7 +111,7 @@ func TestTheRegressionGuardComparesThisRunAgainstTheStoredBaseline(t *testing.T)
 	// Recorded before anything is compared, and written again at the end with the verdict in it.
 	// A run whose comparison could not happen at all is still a measurement, and losing it because
 	// the baseline was unreadable would be losing the more useful half.
-	writeEvidence(t, "H-11-guard-latest.json", finding)
+	writeEvidence(t, "guard-latest.json", finding)
 	t.Logf("guard: %.0f req/s over %d vCPU (%.1f per vCPU), interactive P50/P95/P99 %d/%d/%d ms",
 		achieved, runtime.NumCPU(), finding.Measured["requests_per_second_per_vcpu"],
 		held.P50, held.P95, held.P99)
@@ -145,7 +145,7 @@ func TestTheRegressionGuardComparesThisRunAgainstTheStoredBaseline(t *testing.T)
 		}
 	}
 
-	writeEvidence(t, "H-11-guard-latest.json", finding)
+	writeEvidence(t, "guard-latest.json", finding)
 }
 
 func hardware() string {

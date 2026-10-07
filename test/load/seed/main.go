@@ -14,7 +14,7 @@
 // transaction wrapper - a statement about code that talks to a database, rather than one with an
 // exception in it.
 //
-// The distribution is a long tail rather than an even split, because the figure H-11 records is
+// The distribution is a long tail rather than an even split, because the capacity figure is
 // throughput per vCPU *and its decay with items per tenant*: an even split would have no decay to
 // measure. Rank r of n tenants gets a share proportional to 1/(r+1) - Zipf, the shape a real
 // installation has, where a handful of workspaces hold most of the work and the rest hold a few
