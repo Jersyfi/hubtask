@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# The Go SDK, generated from api/openapi.yaml (P-02, ADR-0057).
+# The Go SDK, generated from api/openapi.yaml (ADR-0057).
 #
 # Client mode of the same tool that generates the server's types: the specification is the
 # source, this file says what is made of it, and `make generate` runs it beside the server's
