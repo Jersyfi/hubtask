@@ -61,7 +61,7 @@ func TestAMessageOutsideTheSubsetRefusesTheCatalogue(t *testing.T) {
 // The subset has no plural, and the catalogue must not fake one either. "schedule(s)" is a
 // plural written by hand, read as a hedge by a person and as nothing by a translator; the shape the
 // file uses instead puts the number last, after a colon ("Days left: {days}."), where it is right
-// for one and for many. Found on the runs screen (issue 547) and once more beside it.
+// for one and for many.
 func TestTheSourceCatalogueDoesNotHedgePlurals(t *testing.T) {
 	catalogue, err := LoadEnglish()
 	if err != nil {
