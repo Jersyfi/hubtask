@@ -205,10 +205,13 @@ asking for another tenant's archives outright is refused, not answered with an e
 | `INSTANCE` | Import a system backup | Total loss — refused, see below |
 
 **Who may use which mode.** `NEW_TENANT` creates a workspace and `INSTANCE` crosses all of them, so
-both are the installation operator's and a workspace's screens offer neither; the API still accepts
-`NEW_TENANT` from a member holding `STRUCTURE` (B-6). `INSPECT`, `SELECTIVE` and `MERGE` need
-`STRUCTURE`; the destructive modes `DELETE_CONTAINER`. A mode that writes into a living tenant
-writes only into the caller's own (BK-10).
+both are the installation operator's and a workspace's screens offer neither: the API asks for the
+`admin:tenants` scope on top of the role below (`access.insufficient_scope` without it), and the
+authentication withholds that scope from anybody the operator register does not name. The role is
+still asked because the archive is read through the caller's own workspace's target. `INSPECT`,
+`SELECTIVE` and `MERGE` need `STRUCTURE`, as does `NEW_TENANT`; the destructive modes
+`DELETE_CONTAINER`. A mode that writes into a living tenant writes only into the caller's own
+(BK-10).
 
 **Mode rules:**
 
@@ -413,8 +416,11 @@ hubctl restore inspect --target "$TARGET" --archive "$ARCHIVE"
 hubctl restore run --target "$TARGET" --archive "$ARCHIVE" --mode NEW_TENANT --apply
 ```
 
-`scripts/hubctl-e2e.sh` runs exactly that against the reference Compose stack on every pull request
-and compares the restored and the source workspace's entry counts.
+The last line is the operator's (§8.2): it runs on a credential that carries `admin:tenants`,
+minted by somebody the operator register names — in a private installation with an empty register,
+the workspace's owner. `scripts/hubctl-e2e.sh` runs exactly that against the reference Compose stack
+on every pull request, checks that the workspace administrator's own credential is refused for the
+last line, and compares the restored and the source workspace's entry counts.
 
 ---
 
@@ -441,7 +447,6 @@ and compares the restored and the source workspace's entry counts.
 | # | Point | Needed by |
 |---|---|---|
 | B-1 | Whether `rclone` goes into the image (size, and its GPL-3.0 licence alongside Apache-2.0) | Before an `rclone` adapter |
-| B-6 | `NEW_TENANT` is the operator's, but `StartRestore` accepts it from any member holding `STRUCTURE`. Either the API moves it behind `admin:tenants` (and §10's drill with it) or the rule changes | Before `1.0.0` |
 
 **Object lock (B-3).** Required for the system backup target, recommended for a tenant's own. The
 credential that writes backups must not be able to delete them or shorten their retention. For the
