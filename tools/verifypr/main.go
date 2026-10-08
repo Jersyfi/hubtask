@@ -292,6 +292,8 @@ func dockerAnswers(ctx context.Context) bool {
 // acquireLock takes the machine-wide container lock: a directory, because creating one is atomic.
 // A lock whose owner process is gone is taken over; one whose owner is alive is waited for.
 func acquireLock(ctx context.Context, dir, root string) (func(), error) {
+	// Every error comes with a release that does nothing: the caller defers it either way.
+	noRelease := func() {}
 	deadline := time.Now().Add(lockWait)
 	announced := false
 	for {
@@ -300,12 +302,12 @@ func acquireLock(ctx context.Context, dir, root string) (func(), error) {
 			owner := fmt.Sprintf("%d\n%s\n%s\n", os.Getpid(), root, time.Now().UTC().Format(time.RFC3339))
 			if err := os.WriteFile(filepath.Join(dir, "owner"), []byte(owner), 0o600); err != nil {
 				_ = os.RemoveAll(dir)
-				return nil, err
+				return noRelease, err
 			}
 			return func() { _ = os.RemoveAll(dir) }, nil
 		}
 		if !errors.Is(err, os.ErrExist) {
-			return nil, err
+			return noRelease, err
 		}
 
 		pid, holder := lockOwner(dir)
@@ -315,7 +317,7 @@ func acquireLock(ctx context.Context, dir, root string) (func(), error) {
 			continue
 		}
 		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("the container gates are still held by %s after %s - try again later", holder, lockWait)
+			return noRelease, fmt.Errorf("the container gates are still held by %s after %s - try again later", holder, lockWait)
 		}
 		if !announced {
 			fmt.Printf("  waiting for the container gates: %s holds them\n", holder)
@@ -323,7 +325,7 @@ func acquireLock(ctx context.Context, dir, root string) (func(), error) {
 		}
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return noRelease, ctx.Err()
 		case <-time.After(lockPoll):
 		}
 	}
