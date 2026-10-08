@@ -54,6 +54,28 @@ func (r LegalHoldRepository) Place(ctx context.Context, hold domain.LegalHold) e
 	return nil
 }
 
+// TargetExists answers whether what a hold names is in this workspace.
+func (r LegalHoldRepository) TargetExists(
+	ctx context.Context, scope domain.HoldScope, id shared.ID,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+	present, err := queries.LegalHoldTargetExists(ctx, sqlc.LegalHoldTargetExistsParams{
+		ScopeKind: string(scope), ScopeID: key,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading what a legal hold names: %w", err))
+	}
+	return present, nil
+}
+
 // Find answers one hold, released or not.
 func (r LegalHoldRepository) Find(ctx context.Context, id shared.ID) (domain.LegalHold, error) {
 	queries, err := queriesFrom(ctx)

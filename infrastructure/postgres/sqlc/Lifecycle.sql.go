@@ -344,6 +344,34 @@ func (q *Queries) InsertLegalHold(ctx context.Context, arg InsertLegalHoldParams
 	return err
 }
 
+const legalHoldTargetExists = `-- name: LegalHoldTargetExists :one
+SELECT CASE $1::text
+  WHEN 'CONTAINER' THEN EXISTS (
+    SELECT 1 FROM container c WHERE c.tenant_id = current_tenant_id() AND c.id = $2::uuid)
+  WHEN 'ITEM' THEN EXISTS (
+    SELECT 1 FROM work_item w WHERE w.tenant_id = current_tenant_id() AND w.id = $2::uuid)
+  WHEN 'ACCOUNT' THEN EXISTS (
+    SELECT 1 FROM account a WHERE a.tenant_id = current_tenant_id() AND a.id = $2::uuid)
+  ELSE false
+END::boolean AS present
+`
+
+type LegalHoldTargetExistsParams struct {
+	ScopeKind string
+	ScopeID   pgtype.UUID
+}
+
+// Whether what a hold names is in this workspace: a hub or collection, an entry, an account. In the
+// trash or not - a hold on something already trashed is exactly the hold that stops its purge. The
+// tenant comes from the transaction, so another workspace's identifier answers false like one that
+// names nothing (SG-3).
+func (q *Queries) LegalHoldTargetExists(ctx context.Context, arg LegalHoldTargetExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, legalHoldTargetExists, arg.ScopeKind, arg.ScopeID)
+	var present bool
+	err := row.Scan(&present)
+	return present, err
+}
+
 const listLegalHolds = `-- name: ListLegalHolds :many
 SELECT id, scope_kind, scope_id, reason, placed_by, placed_at,
        released_by, released_at, released_reason

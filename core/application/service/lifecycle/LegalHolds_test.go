@@ -25,11 +25,19 @@ type holdWriter struct {
 	stored []domain.LegalHold
 	lifted int
 	refuse bool
+	// missing are the identifiers this workspace does not have.
+	missing map[shared.ID]bool
+	asked   []shared.ID
 }
 
 func (w *holdWriter) Place(_ context.Context, hold domain.LegalHold) error {
 	w.stored = append(w.stored, hold)
 	return nil
+}
+
+func (w *holdWriter) TargetExists(_ context.Context, _ domain.HoldScope, id shared.ID) (bool, error) {
+	w.asked = append(w.asked, id)
+	return !w.missing[id], nil
 }
 
 func (w *holdWriter) Find(_ context.Context, id shared.ID) (domain.LegalHold, error) {
@@ -157,6 +165,42 @@ func TestAnAccountHoldIsRefusedAndWritesNothing(t *testing.T) {
 	}
 	if len(h.holds.stored) != 0 || len(h.audit.entries) != 0 {
 		t.Error("a refused hold left something behind")
+	}
+}
+
+// A hold on a hub, a collection or an entry this workspace does not have would be believed and
+// protect nothing: refused at /scope_id, nothing stored. A hold on the workspace names nothing to
+// look up.
+func TestAHoldOnSomethingNotHereIsRefused(t *testing.T) {
+	missing := shared.MustParseID("0192f000-0000-7000-8000-0000000000e1")
+	for _, scope := range []domain.HoldScope{domain.HoldContainer, domain.HoldItem} {
+		t.Run(string(scope), func(t *testing.T) {
+			h := newHoldsHarness()
+			h.holds.missing = map[shared.ID]bool{missing: true}
+
+			_, err := (PlaceLegalHold{Holds: h.service()}).Execute(context.Background(), actor(),
+				placeCommand(func(cmd *PlaceLegalHoldCommand) { cmd.Scope, cmd.ScopeID = scope, missing }))
+
+			if !errors.Is(err, shared.ErrValidation) ||
+				shared.AsError(err).DetailCode != domain.CodeHoldTargetNotFound {
+				t.Fatalf("refused with %v, want %s", err, domain.CodeHoldTargetNotFound)
+			}
+			if fields := shared.AsError(err).Fields; len(fields) != 1 || fields[0].Path != "/scope_id" {
+				t.Errorf("the refusal names %+v, want /scope_id", fields)
+			}
+			if len(h.holds.stored) != 0 || len(h.audit.entries) != 0 {
+				t.Error("a refused hold left something behind")
+			}
+		})
+	}
+
+	h := newHoldsHarness()
+	if _, err := (PlaceLegalHold{Holds: h.service()}).Execute(context.Background(), actor(),
+		placeCommand(func(cmd *PlaceLegalHoldCommand) { cmd.Scope, cmd.ScopeID = domain.HoldTenant, "" })); err != nil {
+		t.Fatalf("a hold on the workspace: %v", err)
+	}
+	if len(h.holds.asked) != 0 {
+		t.Errorf("a hold on the workspace looked up %v", h.holds.asked)
 	}
 }
 

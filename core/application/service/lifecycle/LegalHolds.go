@@ -94,6 +94,16 @@ func (h PlaceLegalHold) Execute(
 	}
 
 	err = h.Holds.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if hold.Scope != domain.HoldTenant {
+			present, err := h.Holds.Holds.TargetExists(ctx, hold.Scope, hold.ScopeID)
+			if err != nil {
+				return err
+			}
+			if !present {
+				return shared.ErrValidation.WithDetail(domain.CodeHoldTargetNotFound).
+					WithFields(shared.FieldError{Path: "/scope_id", Code: domain.CodeHoldTargetNotFound})
+			}
+		}
 		if err := h.Holds.Holds.Place(ctx, hold); err != nil {
 			return err
 		}

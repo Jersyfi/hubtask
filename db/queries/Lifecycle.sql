@@ -26,6 +26,21 @@ VALUES (
   sqlc.arg('reason'), sqlc.arg('placed_by'), sqlc.arg('placed_at')
 );
 
+-- name: LegalHoldTargetExists :one
+-- Whether what a hold names is in this workspace: a hub or collection, an entry, an account. In the
+-- trash or not - a hold on something already trashed is exactly the hold that stops its purge. The
+-- tenant comes from the transaction, so another workspace's identifier answers false like one that
+-- names nothing (SG-3).
+SELECT CASE sqlc.arg('scope_kind')::text
+  WHEN 'CONTAINER' THEN EXISTS (
+    SELECT 1 FROM container c WHERE c.tenant_id = current_tenant_id() AND c.id = sqlc.arg('scope_id')::uuid)
+  WHEN 'ITEM' THEN EXISTS (
+    SELECT 1 FROM work_item w WHERE w.tenant_id = current_tenant_id() AND w.id = sqlc.arg('scope_id')::uuid)
+  WHEN 'ACCOUNT' THEN EXISTS (
+    SELECT 1 FROM account a WHERE a.tenant_id = current_tenant_id() AND a.id = sqlc.arg('scope_id')::uuid)
+  ELSE false
+END::boolean AS present;
+
 -- name: FindLegalHold :one
 SELECT id, scope_kind, scope_id, reason, placed_by, placed_at,
        released_by, released_at, released_reason

@@ -192,6 +192,48 @@ func TestTheListingShowsLiftedHoldsOnlyWhenAskedFor(t *testing.T) {
 // Gate SG-3, and the sharpest case for it: a hold read across the boundary would not be a wrong
 // answer but somebody else's obligation ignored, and one *lifted* across it would be somebody
 // else's obligation removed.
+// What a hold names is looked up in the workspace placing it: a hub, collection, entry or account
+// here is found; one that does not exist, and one of another workspace, are not (SG-3).
+func TestAHoldsTargetIsLookedUpInItsOwnWorkspace(t *testing.T) {
+	ctx := context.Background()
+	hubID, collectionID := hubWithCollection(ctx, t, tenantA, authorA)
+	task, _, _ := trashableSubtree(ctx, t, tenantA, authorA, collectionID)
+	theirs := collectionFor(ctx, t, tenantB, authorB)
+
+	exists := func(tenant shared.ID, scope domain.HoldScope, id shared.ID) bool {
+		t.Helper()
+		var present bool
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			present, err = holdRepo().TargetExists(ctx, scope, id)
+			return err
+		}); err != nil {
+			t.Fatalf("looking up %s %s: %v", scope, id, err)
+		}
+		return present
+	}
+
+	for _, c := range []struct {
+		name  string
+		scope domain.HoldScope
+		id    shared.ID
+		want  bool
+	}{
+		{"a hub here", domain.HoldContainer, hubID, true},
+		{"a collection here", domain.HoldContainer, collectionID, true},
+		{"an entry here", domain.HoldItem, task.ID, true},
+		{"an account here", domain.HoldAccount, authorA, true},
+		{"an entry named as a container", domain.HoldContainer, task.ID, false},
+		{"nothing", domain.HoldItem, freshID(t), false},
+		{"another workspace's collection", domain.HoldContainer, theirs, false},
+		{"another workspace's account", domain.HoldAccount, authorB, false},
+	} {
+		if got := exists(tenantA, c.scope, c.id); got != c.want {
+			t.Errorf("%s: found %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
 func TestAHoldIsInvisibleAndInertFromAnotherTenant(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantB, authorB)

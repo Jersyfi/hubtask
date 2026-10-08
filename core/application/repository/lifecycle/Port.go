@@ -34,6 +34,11 @@ type HoldWriter interface {
 	// Place writes a hold.
 	Place(ctx context.Context, hold domain.LegalHold) error
 
+	// TargetExists answers whether what a hold names - a hub or collection, an entry, an account -
+	// is in this workspace, in the trash or not. A hold on something that is not here would be
+	// believed and protect nothing.
+	TargetExists(ctx context.Context, scope domain.HoldScope, id shared.ID) (bool, error)
+
 	// Find answers one hold, released or not, or ErrNotFound.
 	Find(ctx context.Context, id shared.ID) (domain.LegalHold, error)
 

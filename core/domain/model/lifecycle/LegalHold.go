@@ -175,6 +175,9 @@ const (
 	CodeHoldReasonRequired  = "lifecycle.hold_reason_required"
 	CodeHoldReasonTooLong   = "lifecycle.hold_reason_too_long"
 	CodeHoldNotFound        = "lifecycle.hold_not_found"
+	// CodeHoldTargetNotFound is a hold naming a hub, collection, entry or account this workspace
+	// does not have.
+	CodeHoldTargetNotFound  = "lifecycle.hold_target_not_found"
 	CodeHoldAlreadyReleased = "lifecycle.hold_already_released"
 	// CodeHoldAccountScopeUnavailable is the ACCOUNT scope, refused (data-retention.md §4.1).
 	CodeHoldAccountScopeUnavailable = "lifecycle.hold_account_scope_unavailable"
