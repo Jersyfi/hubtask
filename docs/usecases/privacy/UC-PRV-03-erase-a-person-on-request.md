@@ -6,7 +6,7 @@ actors: [PE-owner, PE-admin, PE-scripter]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-08, P-11]
 state: partial
-tasks: [E-10, E-11, H-13, F4-20, PH-01]
+tasks: [E-10, E-11, H-13, F4-20, PH-01, PH-09]
 checked_by: [core/application/service/privacy/Erasure_test.go, core/application/service/privacy/Perform_test.go, test/integration/privacy_test.go, test/privacy/PG2_deletion_test.go, core/domain/model/privacy/Request_test.go]
 ---
 

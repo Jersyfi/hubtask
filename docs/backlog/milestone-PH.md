@@ -39,11 +39,13 @@ Each measured against the deployments `D1`–`D7`:
 **Use cases:** UC-PRV-03 (9, 10, 11, 12, 13), UC-LIF-06
 
 The erasure asks the holds before it removes anything: whatever a hold on the workspace, a hub, a
-collection, an entry or the person's account covers is restricted rather than erased; the rest is
-erased. The case closes as partly completed with the count, the hold and the legal basis, and records
-the remainder; releasing the hold is the write that seeds the remainder's erasure. `ACCOUNT` holds are
-accepted and cover the person's contributions and the account. The confirmation before starting says
-what a hold will keep.
+collection, an entry or the person's account covers is kept, and the account restricted, rather than
+erased; the rest is erased. The case closes as partly completed with the count, the hold and the legal
+basis, and records the remainder; releasing the hold is the write that seeds the remainder's erasure.
+`ACCOUNT` holds are accepted and cover the account and the entries, comments and attachments the
+person contributed — for the erasure and for every other deletion path. Starting an erasure gets the
+confirmation it lacks (UC-PRV-03 check 8), and the confirmation says what a hold will keep. What the
+restriction keeps the data out of is PH-09.
 
 **Acceptance:** a test per hold scope proving what is kept and what goes; a test that the release
 completes the rest; the integration suite green.
@@ -164,3 +166,23 @@ request and AI made part of the work; `D5` a consumer alone in a workspace, wher
 The evidence under `docs/evidence/`; the use cases move to `built` or `verified`.
 
 **Acceptance:** the milestone's use cases have no *Today* entry that names a PH task.
+
+---
+
+## PH-09 — What a hold keeps stays out of automation, AI and exports
+
+*Depends on: PH-01 (the restriction an erasure leaves); PH-03 (the prompt builder's exclusion);
+the owner's answer on what "every export but the hold's own" means.*
+
+**Use cases:** UC-PRV-03 (10)
+
+What a hold keeps from an erasure is restricted: the account carries `RESTRICTED`, the one state of
+Art. 18. Today only automatic assignment reads it. The automation engine stops acting as or
+assigning to a restricted person, and the suggestion service stops asking about their entries
+(UC-PRV-04 checks 4 and 5, findings that block UC-PRV-03 check 10); the prompt builder treats a
+restricted person's content as it treats an objecting person's (PH-03); the exports leave the kept
+data out as the owner decides.
+
+**Acceptance:** a test that a rule neither acts as nor assigns to a restricted person; a test that a
+restricted person's comment never reaches a prompt the adapter receives; a test per export the
+owner's answer names.
