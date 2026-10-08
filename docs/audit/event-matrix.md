@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**264 use cases, 226 distinct action codes, 189 of them recorded on every call.** A use case that
+**265 use cases, 227 distinct action codes, 190 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -226,6 +226,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `dsr.consent_withdrawn` | WithdrawConsent | `consent_record` | NOTICE | Every time |
+| `dsr.extended` | ExtendDataSubjectRequest | `data_subject_request` | NOTICE | Every time |
 | `dsr.processing_restricted` | RestrictProcessing | `account` | WARNING | Every time |
 | `dsr.recorded` | CreateDataSubjectRequest | `data_subject_request` | NOTICE | Every time |
 | `dsr.recorded` | ListDataSubjectRequests | `data_subject_request` | INFO | When refused |

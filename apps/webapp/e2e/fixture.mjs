@@ -75,6 +75,16 @@ export const MANIFEST = {
 };
 export const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
 
+/**
+ * People's requests: one that can still be extended (the server answers its bound), one extended
+ * once, and one installation-wide - the operator's, which the screen offers nothing on.
+ */
+export const PRIVACY_REQUESTS = [
+  { id: '01a0e2e0-0000-7000-8000-0000000000a1', kind: 'ACCESS', status: 'RECEIVED', scope: 'TENANT', subject_email: 'open@example.invalid', received_at: '2026-09-11T08:00:00Z', due_at: '2026-10-11T08:00:00Z', extendable_until: '2026-12-11' },
+  { id: '01a0e2e0-0000-7000-8000-0000000000a2', kind: 'PORTABILITY', status: 'IN_PROGRESS', scope: 'TENANT', subject_email: 'extended@example.invalid', received_at: '2026-09-01T08:00:00Z', due_at: '2026-11-20T22:59:59Z', original_due_at: '2026-10-01T08:00:00Z', extension_reason: 'NUMBER_OF_REQUESTS', informed_on: '2026-09-15' },
+  { id: '01a0e2e0-0000-7000-8000-0000000000a3', kind: 'ACCESS', status: 'RECEIVED', scope: 'INSTALLATION', subject_email: 'everywhere@example.invalid', received_at: '2026-09-11T08:00:00Z', due_at: '2026-10-12T08:00:00Z', extendable_until: '2026-12-11' },
+];
+
 export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
@@ -140,6 +150,16 @@ export function stub(route) {
   if (path.match(/\/api\/v1\/items\/[^/]+\/(reminders|attachments|comments|activity)$/)) return route.fulfill({ json: { ...PAGE, data: [] } });
   if (path.match(/\/api\/v1\/items\/[^/]+\/recurrence$/)) return route.fulfill({ status: 404, json: { code: 'recurrence.not_found' } });
   if (/\/(views|templates|custom-fields|policies|feeds)$/.test(path)) return route.fulfill({ json: [] });
+  if (path.endsWith('/api/v1/privacy/requests') && request.method() === 'GET') {
+    return route.fulfill({ json: { data: PRIVACY_REQUESTS, page: { next_cursor: null, has_more: false } } });
+  }
+  // An extension answers the case it makes: extended once, the bound gone, both dates kept.
+  const extended = PRIVACY_REQUESTS.find((each) => path.endsWith(`/api/v1/privacy/requests/${each.id}:extend`));
+  if (extended && request.method() === 'POST') {
+    const body = request.postDataJSON();
+    const { extendable_until: _gone, ...rest } = extended;
+    return route.fulfill({ json: { ...rest, due_at: `${body.due_on}T22:59:59Z`, original_due_at: extended.due_at, extension_reason: body.reason, informed_on: body.informed_on } });
+  }
   return fallback(route, request, path);
 }
 

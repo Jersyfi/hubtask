@@ -1155,6 +1155,24 @@ func (e CustomFieldKind) Valid() bool {
 	}
 }
 
+// Defines values for DataSubjectRequestExtensionReason.
+const (
+	COMPLEXITY       DataSubjectRequestExtensionReason = "COMPLEXITY"
+	NUMBEROFREQUESTS DataSubjectRequestExtensionReason = "NUMBER_OF_REQUESTS"
+)
+
+// Valid indicates whether the value is a known member of the DataSubjectRequestExtensionReason enum.
+func (e DataSubjectRequestExtensionReason) Valid() bool {
+	switch e {
+	case COMPLEXITY:
+		return true
+	case NUMBEROFREQUESTS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DataSubjectRequestKind.
 const (
 	ACCESS        DataSubjectRequestKind = "ACCESS"
@@ -4931,7 +4949,7 @@ type CustomFieldValue struct {
 type DataSubjectRequest struct {
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 
-	// DueAt The statutory deadline. Thirty days from receipt unless the caller named another.
+	// DueAt The deadline in force. Thirty days from receipt unless the caller named another, and the extended deadline once the case was extended.
 	DueAt time.Time `json:"due_at"`
 
 	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
@@ -4943,17 +4961,29 @@ type DataSubjectRequest struct {
 	// the people who are not asking: a task somebody else depends on, a comment in a thread that
 	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
 	// on the case, and does so knowingly.
-	ErasureMode *ErasureMode        `json:"erasure_mode,omitempty"`
-	HandledBy   *openapi_types.UUID `json:"handled_by,omitempty"`
-	Id          openapi_types.UUID  `json:"id"`
+	ErasureMode *ErasureMode `json:"erasure_mode,omitempty"`
+
+	// ExtendableUntil The latest day the deadline can be extended to, in the workspace's time zone. Present only while an extension can succeed: the case is open, not yet extended, and before its deadline.
+	ExtendableUntil *openapi_types.Date `json:"extendable_until,omitempty"`
+
+	// ExtensionReason Why the deadline is extended: the request's complexity, or the number of requests the controller is handling.
+	ExtensionReason *DataSubjectRequestExtensionReason `json:"extension_reason,omitempty"`
+	HandledBy       *openapi_types.UUID                `json:"handled_by,omitempty"`
+	Id              openapi_types.UUID                 `json:"id"`
+
+	// InformedOn The day the controller informed the person of the extension.
+	InformedOn *openapi_types.Date `json:"informed_on,omitempty"`
 
 	// Kind The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
 	// ordinary write - and is a tracked case all the same, because the deadline is somebody's
 	// responsibility either way.
-	Kind            DataSubjectRequestKind `json:"kind"`
-	Notes           *string                `json:"notes,omitempty"`
-	ReceivedAt      time.Time              `json:"received_at"`
-	RejectionReason *string                `json:"rejection_reason,omitempty"`
+	Kind  DataSubjectRequestKind `json:"kind"`
+	Notes *string                `json:"notes,omitempty"`
+
+	// OriginalDueAt The deadline before the extension, present once the case was extended.
+	OriginalDueAt   *time.Time `json:"original_due_at,omitempty"`
+	ReceivedAt      time.Time  `json:"received_at"`
+	RejectionReason *string    `json:"rejection_reason,omitempty"`
 
 	// ResultArchive Where the export was written at the backup target, once an access or portability case has produced one.
 	ResultArchive  *string             `json:"result_archive,omitempty"`
@@ -4997,6 +5027,21 @@ type DataSubjectRequestCreate struct {
 	// TargetId The backup target an access or portability export is written to. Required before such a case can start; a copy of somebody's data has to be put somewhere, and this system writes archives to configured targets rather than to a directory it chose itself.
 	TargetId *openapi_types.UUID `json:"target_id,omitempty"`
 }
+
+// DataSubjectRequestExtension defines model for DataSubjectRequestExtension.
+type DataSubjectRequestExtension struct {
+	// DueOn The new deadline as a day; the case is due by the end of it in the workspace's time zone. Later than the current deadline, and at most three months after the day the request was received.
+	DueOn openapi_types.Date `json:"due_on"`
+
+	// InformedOn The day the controller informed the person of the extension and its reason: not before the day the request was received, not after today.
+	InformedOn openapi_types.Date `json:"informed_on"`
+
+	// Reason Why the deadline is extended: the request's complexity, or the number of requests the controller is handling.
+	Reason DataSubjectRequestExtensionReason `json:"reason"`
+}
+
+// DataSubjectRequestExtensionReason Why the deadline is extended: the request's complexity, or the number of requests the controller is handling.
+type DataSubjectRequestExtensionReason string
 
 // DataSubjectRequestKind The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
 // ordinary write - and is a tracked case all the same, because the deadline is somebody's
@@ -9381,6 +9426,12 @@ type CreateDataSubjectRequestParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ExtendDataSubjectRequestParams defines parameters for ExtendDataSubjectRequest.
+type ExtendDataSubjectRequestParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
@@ -9827,6 +9878,9 @@ type CreateDataSubjectRequestJSONRequestBody = DataSubjectRequestCreate
 
 // UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody defines body for UpdateDataSubjectRequest for application/merge-patch+json ContentType.
 type UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody = DataSubjectRequestUpdate
+
+// ExtendDataSubjectRequestJSONRequestBody defines body for ExtendDataSubjectRequest for application/json ContentType.
+type ExtendDataSubjectRequestJSONRequestBody = DataSubjectRequestExtension
 
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
@@ -12913,9 +12967,9 @@ type ClientInterface interface {
 
 	// ListDataSubjectRequests The data subject requests this workspace is handling
 	//
-	// Newest first, the open ones by default. A right somebody exercised is a case with a
-	// statutory deadline, and this is the list whoever answers for it reads - which is why the
-	// overdue ones can be asked for on their own.
+	// Soonest deadline first, the open ones by default. A right somebody exercised is a case
+	// with a statutory deadline, and this is the list whoever answers for it reads - which is why
+	// the overdue ones can be asked for on their own.
 	//
 	// Corresponds with GET /privacy/requests (the `ListDataSubjectRequests` operationId).
 	ListDataSubjectRequests(ctx context.Context, params *ListDataSubjectRequestsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -12983,6 +13037,52 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /privacy/requests/{requestId} (the `UpdateDataSubjectRequest` operationId).
 	UpdateDataSubjectRequestWithApplicationMergePatchPlusJSONBody(ctx context.Context, requestId openapi_types.UUID, body UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExtendDataSubjectRequestWithBody Extend a case's deadline once
+	//
+	// Art. 12(3) GDPR allows the period to be extended once, by at most two further months,
+	// where the request is complex or the requests are many. An open case before its original
+	// deadline can be extended once, to a day at most three months after the day it was
+	// received, naming the reason and the day the person was informed. Hubtask records that the
+	// controller told the person; it does not write to them.
+	//
+	// Both days are calendar days in the workspace's time zone: the new deadline is the end of
+	// `due_on` there, and `informed_on` lies between the day of receipt and today. A case
+	// answers `extendable_until`, the latest day it can be extended to, exactly while an
+	// extension can succeed - sending that day back as `due_on` is accepted.
+	//
+	// A second extension, one at or after the original deadline, or one of a closed case is
+	// refused by name. A case of `INSTALLATION` scope needs the `admin:tenants` scope, and every
+	// workspace the person is a member of records the extension in its own audit trail.
+	// Idempotent under its Idempotency-Key.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /privacy/requests/{requestId}:extend (the `ExtendDataSubjectRequest` operationId).
+	ExtendDataSubjectRequestWithBody(ctx context.Context, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExtendDataSubjectRequest Extend a case's deadline once
+	//
+	// Art. 12(3) GDPR allows the period to be extended once, by at most two further months,
+	// where the request is complex or the requests are many. An open case before its original
+	// deadline can be extended once, to a day at most three months after the day it was
+	// received, naming the reason and the day the person was informed. Hubtask records that the
+	// controller told the person; it does not write to them.
+	//
+	// Both days are calendar days in the workspace's time zone: the new deadline is the end of
+	// `due_on` there, and `informed_on` lies between the day of receipt and today. A case
+	// answers `extendable_until`, the latest day it can be extended to, exactly while an
+	// extension can succeed - sending that day back as `due_on` is accepted.
+	//
+	// A second extension, one at or after the original deadline, or one of a closed case is
+	// refused by name. A case of `INSTALLATION` scope needs the `admin:tenants` scope, and every
+	// workspace the person is a member of records the extension in its own audit trail.
+	// Idempotent under its Idempotency-Key.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /privacy/requests/{requestId}:extend (the `ExtendDataSubjectRequest` operationId).
+	ExtendDataSubjectRequest(ctx context.Context, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, body ExtendDataSubjectRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadQuotas The workspace's quota standing
 	//
@@ -19946,9 +20046,9 @@ func (c *Client) WithdrawConsent(ctx context.Context, body WithdrawConsentJSONRe
 
 // ListDataSubjectRequests The data subject requests this workspace is handling
 //
-// Newest first, the open ones by default. A right somebody exercised is a case with a
-// statutory deadline, and this is the list whoever answers for it reads - which is why the
-// overdue ones can be asked for on their own.
+// Soonest deadline first, the open ones by default. A right somebody exercised is a case
+// with a statutory deadline, and this is the list whoever answers for it reads - which is why
+// the overdue ones can be asked for on their own.
 //
 // Corresponds with GET /privacy/requests (the `ListDataSubjectRequests` operationId).
 func (c *Client) ListDataSubjectRequests(ctx context.Context, params *ListDataSubjectRequestsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -20057,6 +20157,72 @@ func (c *Client) UpdateDataSubjectRequestWithBody(ctx context.Context, requestId
 // Corresponds with PATCH /privacy/requests/{requestId} (the `UpdateDataSubjectRequest` operationId).
 func (c *Client) UpdateDataSubjectRequestWithApplicationMergePatchPlusJSONBody(ctx context.Context, requestId openapi_types.UUID, body UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateDataSubjectRequestRequestWithApplicationMergePatchPlusJSONBody(c.Server, requestId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExtendDataSubjectRequestWithBody Extend a case's deadline once
+//
+// Art. 12(3) GDPR allows the period to be extended once, by at most two further months,
+// where the request is complex or the requests are many. An open case before its original
+// deadline can be extended once, to a day at most three months after the day it was
+// received, naming the reason and the day the person was informed. Hubtask records that the
+// controller told the person; it does not write to them.
+//
+// Both days are calendar days in the workspace's time zone: the new deadline is the end of
+// `due_on` there, and `informed_on` lies between the day of receipt and today. A case
+// answers `extendable_until`, the latest day it can be extended to, exactly while an
+// extension can succeed - sending that day back as `due_on` is accepted.
+//
+// A second extension, one at or after the original deadline, or one of a closed case is
+// refused by name. A case of `INSTALLATION` scope needs the `admin:tenants` scope, and every
+// workspace the person is a member of records the extension in its own audit trail.
+// Idempotent under its Idempotency-Key.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /privacy/requests/{requestId}:extend (the `ExtendDataSubjectRequest` operationId).
+func (c *Client) ExtendDataSubjectRequestWithBody(ctx context.Context, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExtendDataSubjectRequestRequestWithBody(c.Server, requestId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExtendDataSubjectRequest Extend a case's deadline once
+//
+// Art. 12(3) GDPR allows the period to be extended once, by at most two further months,
+// where the request is complex or the requests are many. An open case before its original
+// deadline can be extended once, to a day at most three months after the day it was
+// received, naming the reason and the day the person was informed. Hubtask records that the
+// controller told the person; it does not write to them.
+//
+// Both days are calendar days in the workspace's time zone: the new deadline is the end of
+// `due_on` there, and `informed_on` lies between the day of receipt and today. A case
+// answers `extendable_until`, the latest day it can be extended to, exactly while an
+// extension can succeed - sending that day back as `due_on` is accepted.
+//
+// A second extension, one at or after the original deadline, or one of a closed case is
+// refused by name. A case of `INSTALLATION` scope needs the `admin:tenants` scope, and every
+// workspace the person is a member of records the extension in its own audit trail.
+// Idempotent under its Idempotency-Key.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /privacy/requests/{requestId}:extend (the `ExtendDataSubjectRequest` operationId).
+func (c *Client) ExtendDataSubjectRequest(ctx context.Context, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, body ExtendDataSubjectRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExtendDataSubjectRequestRequest(c.Server, requestId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -32790,6 +32956,68 @@ func NewUpdateDataSubjectRequestRequestWithBody(server string, requestId openapi
 	return req, nil
 }
 
+// NewExtendDataSubjectRequestRequest calls the generic ExtendDataSubjectRequest builder with application/json body
+func NewExtendDataSubjectRequestRequest(server string, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, body ExtendDataSubjectRequestJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewExtendDataSubjectRequestRequestWithBody(server, requestId, params, "application/json", bodyReader)
+}
+
+// NewExtendDataSubjectRequestRequestWithBody constructs an http.Request for the ExtendDataSubjectRequest method, with any body, and a specified content type
+func NewExtendDataSubjectRequestRequestWithBody(server string, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "requestId", requestId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/privacy/requests/%s:extend", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewReadQuotasRequest constructs an http.Request for the ReadQuotas method
 func NewReadQuotasRequest(server string) (*http.Request, error) {
 	var err error
@@ -37930,9 +38158,9 @@ type ClientWithResponsesInterface interface {
 
 	// ListDataSubjectRequestsWithResponse The data subject requests this workspace is handling
 	//
-	// Newest first, the open ones by default. A right somebody exercised is a case with a
-	// statutory deadline, and this is the list whoever answers for it reads - which is why the
-	// overdue ones can be asked for on their own.
+	// Soonest deadline first, the open ones by default. A right somebody exercised is a case
+	// with a statutory deadline, and this is the list whoever answers for it reads - which is why
+	// the overdue ones can be asked for on their own.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -38002,6 +38230,52 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /privacy/requests/{requestId} (the `UpdateDataSubjectRequest` operationId).
 	UpdateDataSubjectRequestWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, requestId openapi_types.UUID, body UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDataSubjectRequestResult, error)
+
+	// ExtendDataSubjectRequestWithBodyWithResponse Extend a case's deadline once
+	//
+	// Art. 12(3) GDPR allows the period to be extended once, by at most two further months,
+	// where the request is complex or the requests are many. An open case before its original
+	// deadline can be extended once, to a day at most three months after the day it was
+	// received, naming the reason and the day the person was informed. Hubtask records that the
+	// controller told the person; it does not write to them.
+	//
+	// Both days are calendar days in the workspace's time zone: the new deadline is the end of
+	// `due_on` there, and `informed_on` lies between the day of receipt and today. A case
+	// answers `extendable_until`, the latest day it can be extended to, exactly while an
+	// extension can succeed - sending that day back as `due_on` is accepted.
+	//
+	// A second extension, one at or after the original deadline, or one of a closed case is
+	// refused by name. A case of `INSTALLATION` scope needs the `admin:tenants` scope, and every
+	// workspace the person is a member of records the extension in its own audit trail.
+	// Idempotent under its Idempotency-Key.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /privacy/requests/{requestId}:extend (the `ExtendDataSubjectRequest` operationId).
+	ExtendDataSubjectRequestWithBodyWithResponse(ctx context.Context, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExtendDataSubjectRequestResult, error)
+
+	// ExtendDataSubjectRequestWithResponse Extend a case's deadline once
+	//
+	// Art. 12(3) GDPR allows the period to be extended once, by at most two further months,
+	// where the request is complex or the requests are many. An open case before its original
+	// deadline can be extended once, to a day at most three months after the day it was
+	// received, naming the reason and the day the person was informed. Hubtask records that the
+	// controller told the person; it does not write to them.
+	//
+	// Both days are calendar days in the workspace's time zone: the new deadline is the end of
+	// `due_on` there, and `informed_on` lies between the day of receipt and today. A case
+	// answers `extendable_until`, the latest day it can be extended to, exactly while an
+	// extension can succeed - sending that day back as `due_on` is accepted.
+	//
+	// A second extension, one at or after the original deadline, or one of a closed case is
+	// refused by name. A case of `INSTALLATION` scope needs the `admin:tenants` scope, and every
+	// workspace the person is a member of records the extension in its own audit trail.
+	// Idempotent under its Idempotency-Key.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /privacy/requests/{requestId}:extend (the `ExtendDataSubjectRequest` operationId).
+	ExtendDataSubjectRequestWithResponse(ctx context.Context, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, body ExtendDataSubjectRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*ExtendDataSubjectRequestResult, error)
 
 	// ReadQuotasWithResponse The workspace's quota standing
 	//
@@ -50422,6 +50696,54 @@ func (r UpdateDataSubjectRequestResult) ContentType() string {
 	return ""
 }
 
+type ExtendDataSubjectRequestResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DataSubjectRequest
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ExtendDataSubjectRequestResult) GetJSON200() *DataSubjectRequest {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ExtendDataSubjectRequestResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ExtendDataSubjectRequestResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ExtendDataSubjectRequestResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExtendDataSubjectRequestResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ExtendDataSubjectRequestResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadQuotasResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -57634,9 +57956,9 @@ func (c *ClientWithResponses) WithdrawConsentWithResponse(ctx context.Context, b
 
 // ListDataSubjectRequestsWithResponse The data subject requests this workspace is handling
 //
-// Newest first, the open ones by default. A right somebody exercised is a case with a
-// statutory deadline, and this is the list whoever answers for it reads - which is why the
-// overdue ones can be asked for on their own.
+// Soonest deadline first, the open ones by default. A right somebody exercised is a case
+// with a statutory deadline, and this is the list whoever answers for it reads - which is why
+// the overdue ones can be asked for on their own.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -57735,6 +58057,64 @@ func (c *ClientWithResponses) UpdateDataSubjectRequestWithApplicationMergePatchP
 		return nil, err
 	}
 	return ParseUpdateDataSubjectRequestResult(rsp)
+}
+
+// ExtendDataSubjectRequestWithBodyWithResponse Extend a case's deadline once
+//
+// Art. 12(3) GDPR allows the period to be extended once, by at most two further months,
+// where the request is complex or the requests are many. An open case before its original
+// deadline can be extended once, to a day at most three months after the day it was
+// received, naming the reason and the day the person was informed. Hubtask records that the
+// controller told the person; it does not write to them.
+//
+// Both days are calendar days in the workspace's time zone: the new deadline is the end of
+// `due_on` there, and `informed_on` lies between the day of receipt and today. A case
+// answers `extendable_until`, the latest day it can be extended to, exactly while an
+// extension can succeed - sending that day back as `due_on` is accepted.
+//
+// A second extension, one at or after the original deadline, or one of a closed case is
+// refused by name. A case of `INSTALLATION` scope needs the `admin:tenants` scope, and every
+// workspace the person is a member of records the extension in its own audit trail.
+// Idempotent under its Idempotency-Key.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /privacy/requests/{requestId}:extend (the `ExtendDataSubjectRequest` operationId).
+func (c *ClientWithResponses) ExtendDataSubjectRequestWithBodyWithResponse(ctx context.Context, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExtendDataSubjectRequestResult, error) {
+	rsp, err := c.ExtendDataSubjectRequestWithBody(ctx, requestId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExtendDataSubjectRequestResult(rsp)
+}
+
+// ExtendDataSubjectRequestWithResponse Extend a case's deadline once
+//
+// Art. 12(3) GDPR allows the period to be extended once, by at most two further months,
+// where the request is complex or the requests are many. An open case before its original
+// deadline can be extended once, to a day at most three months after the day it was
+// received, naming the reason and the day the person was informed. Hubtask records that the
+// controller told the person; it does not write to them.
+//
+// Both days are calendar days in the workspace's time zone: the new deadline is the end of
+// `due_on` there, and `informed_on` lies between the day of receipt and today. A case
+// answers `extendable_until`, the latest day it can be extended to, exactly while an
+// extension can succeed - sending that day back as `due_on` is accepted.
+//
+// A second extension, one at or after the original deadline, or one of a closed case is
+// refused by name. A case of `INSTALLATION` scope needs the `admin:tenants` scope, and every
+// workspace the person is a member of records the extension in its own audit trail.
+// Idempotent under its Idempotency-Key.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /privacy/requests/{requestId}:extend (the `ExtendDataSubjectRequest` operationId).
+func (c *ClientWithResponses) ExtendDataSubjectRequestWithResponse(ctx context.Context, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, body ExtendDataSubjectRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*ExtendDataSubjectRequestResult, error) {
+	rsp, err := c.ExtendDataSubjectRequest(ctx, requestId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExtendDataSubjectRequestResult(rsp)
 }
 
 // ReadQuotasWithResponse The workspace's quota standing
@@ -67218,6 +67598,39 @@ func ParseUpdateDataSubjectRequestResult(rsp *http.Response) (*UpdateDataSubject
 	}
 
 	response := &UpdateDataSubjectRequestResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DataSubjectRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExtendDataSubjectRequestResult parses an HTTP response from a ExtendDataSubjectRequestWithResponse call
+func ParseExtendDataSubjectRequestResult(rsp *http.Response) (*ExtendDataSubjectRequestResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExtendDataSubjectRequestResult{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

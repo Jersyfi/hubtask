@@ -1707,6 +1707,10 @@ class DataSubjectRequest(TypedDict, total=False):
     erasure_mode: "ErasureMode"
     received_at: Required[str]
     due_at: Required[str]
+    original_due_at: str | None
+    extension_reason: "DataSubjectRequestExtensionReason"
+    informed_on: str | None
+    extendable_until: str
     completed_at: str | None
     handled_by: str | None
     rejection_reason: str | None
@@ -1730,6 +1734,13 @@ class DataSubjectRequestUpdate(TypedDict, total=False):
     rejection_reason: str
     notes: str
     target_id: str
+
+DataSubjectRequestExtensionReason = Literal["COMPLEXITY", "NUMBER_OF_REQUESTS"]
+
+class DataSubjectRequestExtension(TypedDict, total=False):
+    due_on: Required[str]
+    reason: Required["DataSubjectRequestExtensionReason"]
+    informed_on: Required[str]
 
 class ProcessingState(TypedDict, total=False):
     """What the call set, rather than the person it was set on. A restriction touches nothing else"""

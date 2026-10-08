@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-08, P-11, P-12]
 state: partial
 tasks: [E-10, E-12, H-13, F4-20, PH-02]
-checked_by: [core/application/service/privacy/Requests_test.go, core/application/service/privacy/Deadlines_test.go, core/domain/model/privacy/Request_test.go, cmd/hubctl/Privacy_test.go, deploy/observability/alerts/tests/selfhosting.test.yaml]
+checked_by: [core/application/service/privacy/Requests_test.go, core/application/service/privacy/Deadlines_test.go, core/domain/model/privacy/Request_test.go, cmd/hubctl/Privacy_test.go, deploy/observability/alerts/tests/selfhosting.test.yaml, core/domain/model/privacy/Extension_test.go, core/application/service/privacy/Extension_test.go, core/application/service/privacy/ExtensionEntry_test.go, test/contract/privacy_extension_test.go, test/integration/privacy_extension_test.go, test/integration/privacy_extension_case_test.go, test/integration/privacy_extension_fanout_test.go, apps/webapp/src/lib/data/privacy.test.ts, apps/webapp/e2e/privacy.test.mjs]
 ---
 
 # Record a data subject request and answer it in time
@@ -73,7 +73,3 @@ See [data-protection.md](../../architecture/data-protection.md) §4.
 ## Today
 
 * Check 2: not met — a case gets thirty days from when it is recorded, and a passed deadline is refused, tracked in #1196.
-* Check 5: not met in the web app — the register marks a case *owed soon* from two days before its deadline, the deadline watch from seven.
-* Check 6: not met in the web app — the record form has no deadline field.
-* Check 9: not met — a case cannot be extended, tracked in #1087.
-* Check 10: not met — there is no extension to show, read or record, tracked in #1087.

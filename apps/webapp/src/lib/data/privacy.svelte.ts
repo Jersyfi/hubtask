@@ -9,9 +9,9 @@
  * starts the job. So this module has a create and a patch, and the patch is where the consequence
  * lives — which is why the screen asks before it.
  *
- * **The scope is always this workspace.** `INSTALLATION` crosses the tenant boundary, needs the
- * `admin:tenants` scope and is the provider's path; it is absent from `privacy.ts`'s types rather
- * than filtered here, so nothing in this client can compose one.
+ * **What this client records is always this workspace's.** A case is recorded with `TENANT` scope,
+ * so nothing here composes an `INSTALLATION` one. The listing answers every case, an operator's
+ * installation-wide ones included; the screen shows them and offers nothing on them (`canAct`).
  *
  * **Restriction and consent withdrawal are the two Articles with their own routes**, and neither
  * is a case: `:restrict` sets a technical state on an account, and a withdrawal is recorded rather
@@ -22,10 +22,32 @@
 import type { ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import type { ErasureMode, Kind, Request, Status } from './privacy.ts';
+import type { ErasureMode, Extension, Kind, Request, Status } from './privacy.ts';
 
-export { byDeadline, KINDS, producesArchive, standingOf, SOON_MS } from './privacy.ts';
-export type { ErasureMode, Kind, Request, Standing, Status } from './privacy.ts';
+export {
+  byDeadline,
+  canAct,
+  canExtend,
+  deadlineOfDay,
+  deadlinePhrase,
+  EXTENSION_REASONS,
+  extensionPayload,
+  extensionPhrase,
+  KINDS,
+  producesArchive,
+  standingOf,
+  SOON_MS,
+} from './privacy.ts';
+export type {
+  ErasureMode,
+  Extension,
+  ExtensionReason,
+  Kind,
+  Phrase,
+  Request,
+  Standing,
+  Status,
+} from './privacy.ts';
 
 const REQUESTS = '/privacy/requests';
 const WITHDRAW = '/privacy/consents:withdraw';
@@ -121,6 +143,17 @@ class Privacy {
     },
   ): Promise<Request> {
     return engine.mutate<Request>('PATCH', `${REQUESTS}/${requestId}`, patch, {
+      invalidates: [REQUESTS],
+    });
+  }
+
+  /**
+   * Extends a case's deadline once. Online only, as every write of this module is: a case is the
+   * server's, and an extension queued offline could be refused by a day that has passed meanwhile.
+   */
+  async extend(requestId: string, extension: Extension): Promise<Request> {
+    return engine.mutate<Request>('POST', `${REQUESTS}/${requestId}:extend`, extension, {
+      idempotencyKey: crypto.randomUUID(),
       invalidates: [REQUESTS],
     });
   }

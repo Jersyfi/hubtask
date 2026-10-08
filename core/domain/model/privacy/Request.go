@@ -174,9 +174,16 @@ type Request struct {
 	// DueAt is the statutory deadline. It is stored rather than computed, because the period is a
 	// legal matter: an installation may have to answer sooner, and a case that recomputed its own
 	// deadline would quietly move it.
-	DueAt       time.Time
-	CompletedAt time.Time
-	HandledBy   shared.ID
+	DueAt time.Time
+	// OriginalDueAt is the deadline before an extension, and the zero time while there was none.
+	// DueAt then holds the extended one, which every reader of the deadline follows unchanged.
+	OriginalDueAt time.Time
+	// ExtensionReason and InformedOn are set together with OriginalDueAt (data-protection.md
+	// §4.1): why the period was extended, and the day the controller told the person.
+	ExtensionReason ExtensionReason
+	InformedOn      Day
+	CompletedAt     time.Time
+	HandledBy       shared.ID
 	// RejectionReason is why the request was refused. A refusal without a reason is not an answer.
 	RejectionReason string
 	// TargetID is where an export is written, and ResultArchive is where it landed. The archive is

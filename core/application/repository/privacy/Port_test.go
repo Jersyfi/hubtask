@@ -51,6 +51,16 @@ func (d *double) Save(_ context.Context, request domain.Request) (bool, error) {
 	return true, nil
 }
 
+func (d *double) Extend(_ context.Context, request domain.Request, now time.Time) (bool, error) {
+	stored, found := d.stored[request.ID]
+	if !found || stored.Extended() || stored.Status.Closed() || !stored.DueAt.After(now) {
+		return false, nil
+	}
+	request.OriginalDueAt = stored.DueAt
+	d.stored[request.ID] = request
+	return true, nil
+}
+
 func (d *double) List(_ context.Context, filter Filter) (Page, error) {
 	var out []domain.Request
 	for _, request := range d.stored {

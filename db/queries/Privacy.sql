@@ -20,7 +20,7 @@ INSERT INTO data_subject_request (
 -- name: FindDataSubjectRequest :one
 SELECT id, subject_account_id, subject_email, kind, status, scope, erasure_mode,
        received_at, due_at, completed_at, handled_by, rejection_reason,
-       target_id, result_archive, notes
+       target_id, result_archive, notes, original_due_at, extension_reason, informed_on
 FROM data_subject_request
 WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id();
 
@@ -42,6 +42,25 @@ UPDATE data_subject_request SET
   notes            = sqlc.narg('notes')
 WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id();
 
+-- name: ExtendDataSubjectRequest :execrows
+-- Extends the deadline once (Art. 12(3), data-protection.md §4.1).
+--
+-- Its own statement rather than a field of UpdateDataSubjectRequest, so that no write but this one
+-- can move a deadline. The conditions are the domain's, checked again where the write happens: two
+-- extensions of one case, or an extension racing a completion, leave exactly one winner, and the
+-- loser's zero rows are read back to say which condition failed. `now` is the caller's clock rather
+-- than the database's (rule 4). The original deadline is the stored one, taken in the same
+-- statement.
+UPDATE data_subject_request SET
+  original_due_at  = due_at,
+  due_at           = sqlc.arg('due_at'),
+  extension_reason = sqlc.arg('extension_reason'),
+  informed_on      = sqlc.arg('informed_on')
+WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id()
+  AND original_due_at IS NULL
+  AND status IN ('RECEIVED','IN_PROGRESS')
+  AND due_at > sqlc.arg('now')::timestamptz;
+
 -- name: ListDataSubjectRequests :many
 -- One page of the cases, the soonest deadline first.
 --
@@ -54,7 +73,7 @@ WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id();
 -- read.
 SELECT id, subject_account_id, subject_email, kind, status, scope, erasure_mode,
        received_at, due_at, completed_at, handled_by, rejection_reason,
-       target_id, result_archive, notes
+       target_id, result_archive, notes, original_due_at, extension_reason, informed_on
 FROM data_subject_request
 WHERE tenant_id = current_tenant_id()
   AND (sqlc.arg('include_closed')::boolean OR status IN ('RECEIVED','IN_PROGRESS'))

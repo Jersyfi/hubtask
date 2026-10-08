@@ -863,6 +863,10 @@ class Client:
         """Move a case along"""
         return self._call("PATCH", "/privacy/requests/{requestId}", {"requestId": request_id}, None, {}, body, "json", "application/merge-patch+json", "json")
 
+    def extend_data_subject_request(self, request_id: str, body: "DataSubjectRequestExtension", *, idempotency_key: str | None = None) -> "DataSubjectRequest":
+        """Extend a case's deadline once"""
+        return self._call("POST", "/privacy/requests/{requestId}:extend", {"requestId": request_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def restrict_processing(self, account_id: str, body: "ProcessingRestriction") -> "ProcessingState":
         """Restrict the processing of an account's data (Art. 18)"""
         return self._call("POST", "/accounts/{accountId}:restrict", {"accountId": account_id}, None, {}, body, "json", "application/json", "json")

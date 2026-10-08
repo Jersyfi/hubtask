@@ -10,6 +10,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -83,6 +84,21 @@ func (s *requestStore) Save(_ context.Context, request domain.Request) (bool, er
 	return true, nil
 }
 
+// Extend holds the statement's guard, so a service test meets the same zero rows the database
+// answers to a case that moved under it.
+func (s *requestStore) Extend(_ context.Context, request domain.Request, at time.Time) (bool, error) {
+	stored, found := s.stored[request.ID]
+	if s.missing || !found || stored.Extended() || stored.Status.Closed() || !stored.DueAt.After(at) {
+		return false, nil
+	}
+	stored.OriginalDueAt = stored.DueAt
+	stored.DueAt = request.DueAt
+	stored.ExtensionReason = request.ExtensionReason
+	stored.InformedOn = request.InformedOn
+	s.stored[request.ID] = stored
+	return true, nil
+}
+
 func (s *requestStore) List(_ context.Context, filter repository.Filter) (repository.Page, error) {
 	s.asked = append(s.asked, filter)
 
@@ -102,6 +118,21 @@ func (s *requestStore) List(_ context.Context, filter repository.Filter) (reposi
 
 func (s *requestStore) Deadlines(context.Context, time.Time) (repository.Deadlines, error) {
 	return s.deadlines, nil
+}
+
+// workspaceDouble is the workspace a case belongs to; its zone is what the extension counts days in.
+type workspaceDouble struct {
+	zone  string
+	gone  bool
+	reads int
+}
+
+func (w *workspaceDouble) Find(context.Context) (identity.Workspace, error) {
+	w.reads++
+	if w.gone {
+		return identity.Workspace{}, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
+	}
+	return identity.Workspace{Tenant: identity.Tenant{ID: tenantID, DefaultTimeZone: w.zone}}, nil
 }
 
 // authorizerDouble records what it was asked and answers what the test told it to.

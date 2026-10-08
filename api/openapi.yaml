@@ -5508,9 +5508,9 @@ paths:
       operationId: listDataSubjectRequests
       summary: The data subject requests this workspace is handling
       description: |
-        Newest first, the open ones by default. A right somebody exercised is a case with a
-        statutory deadline, and this is the list whoever answers for it reads - which is why the
-        overdue ones can be asked for on their own.
+        Soonest deadline first, the open ones by default. A right somebody exercised is a case
+        with a statutory deadline, and this is the list whoever answers for it reads - which is why
+        the overdue ones can be asked for on their own.
       parameters:
         - { name: status, in: query, schema: { $ref: "#/components/schemas/DataSubjectRequestStatus" } }
         - { name: kind, in: query, schema: { $ref: "#/components/schemas/DataSubjectRequestKind" } }
@@ -5591,6 +5591,48 @@ paths:
       responses:
         "200":
           description: The case
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DataSubjectRequest" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /privacy/requests/{requestId}:extend:
+    parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [privacy]
+      operationId: extendDataSubjectRequest
+      summary: Extend a case's deadline once
+      description: |
+        Art. 12(3) GDPR allows the period to be extended once, by at most two further months,
+        where the request is complex or the requests are many. An open case before its original
+        deadline can be extended once, to a day at most three months after the day it was
+        received, naming the reason and the day the person was informed. Hubtask records that the
+        controller told the person; it does not write to them.
+
+        Both days are calendar days in the workspace's time zone: the new deadline is the end of
+        `due_on` there, and `informed_on` lies between the day of receipt and today. A case
+        answers `extendable_until`, the latest day it can be extended to, exactly while an
+        extension can succeed - sending that day back as `due_on` is accepted.
+
+        A second extension, one at or after the original deadline, or one of a closed case is
+        refused by name. A case of `INSTALLATION` scope needs the `admin:tenants` scope, and every
+        workspace the person is a member of records the extension in its own audit trail.
+        Idempotent under its Idempotency-Key.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DataSubjectRequestExtension" }
+      responses:
+        "200":
+          description: The case, with the extended deadline and the original beside it
           content:
             application/json:
               schema: { $ref: "#/components/schemas/DataSubjectRequest" }
@@ -13350,7 +13392,25 @@ components:
         due_at:
           type: string
           format: date-time
-          description: The statutory deadline. Thirty days from receipt unless the caller named another.
+          description: >
+            The deadline in force. Thirty days from receipt unless the caller named another, and
+            the extended deadline once the case was extended.
+        original_due_at:
+          type: [string, "null"]
+          format: date-time
+          description: The deadline before the extension, present once the case was extended.
+        extension_reason: { $ref: "#/components/schemas/DataSubjectRequestExtensionReason" }
+        informed_on:
+          type: [string, "null"]
+          format: date
+          description: The day the controller informed the person of the extension.
+        extendable_until:
+          type: string
+          format: date
+          description: >
+            The latest day the deadline can be extended to, in the workspace's time zone. Present
+            only while an extension can succeed: the case is open, not yet extended, and before its
+            deadline.
         completed_at: { type: [string, "null"], format: date-time }
         handled_by: { type: [string, "null"], format: uuid }
         rejection_reason: { type: [string, "null"] }
@@ -13394,6 +13454,32 @@ components:
           description: Required when the case is rejected. A refusal without a reason is not an answer.
         notes: { type: string }
         target_id: { type: string, format: uuid }
+
+    DataSubjectRequestExtensionReason:
+      type: string
+      description: >
+        Why the deadline is extended: the request's complexity, or the number of requests the
+        controller is handling.
+      enum: [COMPLEXITY, NUMBER_OF_REQUESTS]
+
+    DataSubjectRequestExtension:
+      type: object
+      required: [due_on, reason, informed_on]
+      properties:
+        due_on:
+          type: string
+          format: date
+          description: >
+            The new deadline as a day; the case is due by the end of it in the workspace's time
+            zone. Later than the current deadline, and at most three months after the day the
+            request was received.
+        reason: { $ref: "#/components/schemas/DataSubjectRequestExtensionReason" }
+        informed_on:
+          type: string
+          format: date
+          description: >
+            The day the controller informed the person of the extension and its reason: not
+            before the day the request was received, not after today.
 
     ProcessingState:
       type: object

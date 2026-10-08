@@ -6,7 +6,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { byDeadline, producesArchive, standingOf, KINDS, SOON_MS, type Request } from './privacy.ts';
+import {
+  byDeadline,
+  canAct,
+  canExtend,
+  deadlineOfDay,
+  deadlinePhrase,
+  extensionPayload,
+  extensionPhrase,
+  producesArchive,
+  standingOf,
+  KINDS,
+  SOON_MS,
+  type Request,
+} from './privacy.ts';
 
 const NOW = Date.UTC(2026, 8, 11, 12, 0, 0);
 
@@ -83,4 +96,98 @@ test('the two kinds that produce an archive are the two that need a target', () 
 test('every kind the contract names is offered, and erasure is last', () => {
   assert.equal(KINDS.length, 6);
   assert.equal(KINDS.at(-1), 'ERASURE', 'the one that removes things is not the first choice');
+});
+
+// The extension (UC-PRV-01 checks 9 and 10): offered where the server says it can succeed, both
+// dates on the row, the reason as a sentence, and three facts in the payload.
+
+const DAY_MS = 24 * 3600 * 1000;
+
+test('the extension is offered exactly while the case answers a bound', () => {
+  assert.equal(canExtend(aCase({ extendable_until: '2026-12-11' })), true);
+  // Extended, closed, overdue: the server answers no bound, and the screen offers nothing.
+  assert.equal(canExtend(aCase()), false);
+  assert.equal(canExtend(aCase({ extendable_until: '' })), false);
+});
+
+test('an installation-wide case is never extended from this screen', () => {
+  // The operator's, through the API or hubctl (UC-PRV-06), even where the server answers a bound.
+  assert.equal(canExtend(aCase({ scope: 'INSTALLATION', extendable_until: '2026-12-11' })), false);
+});
+
+test('an extended case names both dates, the one in force first', () => {
+  const extended = aCase({
+    due_at: '2026-12-11T22:59:59Z',
+    original_due_at: '2026-10-11T12:00:00Z',
+  });
+  assert.deepEqual(deadlinePhrase(extended, (iso) => `<${iso}>`), {
+    code: 'app.privacy.due_extended',
+    params: { at: '<2026-12-11T22:59:59Z>', original: '<2026-10-11T12:00:00Z>' },
+  });
+  assert.deepEqual(deadlinePhrase(aCase(), (iso) => iso), {
+    code: 'app.privacy.due',
+    params: { at: aCase().due_at },
+  });
+});
+
+test('the reason reads as a sentence with the day the person was told', () => {
+  for (const reason of ['COMPLEXITY', 'NUMBER_OF_REQUESTS'] as const) {
+    const extended = aCase({ extension_reason: reason, informed_on: '2026-09-12' });
+    assert.deepEqual(extensionPhrase(extended, (day) => `[${day}]`), {
+      code: `app.privacy.extended_${reason.toLowerCase()}`,
+      params: { informed: '[2026-09-12]' },
+    });
+  }
+  assert.equal(extensionPhrase(aCase(), (day) => day), undefined);
+});
+
+test('owed soon reads the extended deadline, not the original', () => {
+  // Past the original deadline and well before the extended one: neither overdue nor soon.
+  const extended = aCase({
+    original_due_at: new Date(NOW - DAY_MS).toISOString(),
+    due_at: new Date(NOW + 30 * DAY_MS).toISOString(),
+  });
+  assert.equal(standingOf(extended, NOW), 'ahead');
+});
+
+test('the payload carries three facts, each required, both days as days', () => {
+  assert.deepEqual(
+    extensionPayload({ dueOn: '2026-12-11', reason: 'NUMBER_OF_REQUESTS', informedOn: '2026-09-11' }),
+    { due_on: '2026-12-11', reason: 'NUMBER_OF_REQUESTS', informed_on: '2026-09-11' },
+  );
+  for (const draft of [
+    { dueOn: '', reason: 'COMPLEXITY', informedOn: '2026-09-11' },
+    { dueOn: '2026-12-11', reason: '', informedOn: '2026-09-11' },
+    { dueOn: '2026-12-11', reason: 'HOLIDAYS', informedOn: '2026-09-11' },
+    { dueOn: '2026-12-11', reason: 'COMPLEXITY', informedOn: '' },
+    { dueOn: '11.12.2026', reason: 'COMPLEXITY', informedOn: '2026-09-11' },
+  ]) {
+    assert.equal(extensionPayload(draft), undefined, JSON.stringify(draft));
+  }
+});
+
+test('a row acts on this workspace\'s cases and on no installation-wide one', () => {
+  // The operator's (UC-PRV-06/6): start, refuse, the mode and the extension all stay off the row.
+  assert.equal(canAct(aCase()), true);
+  assert.equal(canAct(aCase({ scope: 'TENANT' })), true);
+  assert.equal(canAct(aCase({ scope: 'INSTALLATION' })), false);
+});
+
+test('owed soon starts seven days before the deadline, when the watch starts warning', () => {
+  // UC-PRV-01 check 5: the same moment as the server's WarningWindow, written out by hand here
+  // rather than read from SOON_MS, so that the constant cannot agree with itself.
+  const day = 24 * 3600 * 1000;
+  assert.equal(standingOf(aCase({ due_at: new Date(NOW + 7 * day).toISOString() }), NOW), 'soon');
+  assert.equal(standingOf(aCase({ due_at: new Date(NOW + 6 * day).toISOString() }), NOW), 'soon');
+  assert.equal(standingOf(aCase({ due_at: new Date(NOW + 7 * day + 1000).toISOString() }), NOW), 'ahead');
+});
+
+test('a deadline named as a day ends at the last second of that day in the workspace', () => {
+  // UC-PRV-01 check 6, written out by hand: Berlin on both sides of the change to summer time,
+  // and a workspace that counts in UTC.
+  assert.equal(deadlineOfDay('2027-03-27', 'Europe/Berlin'), '2027-03-27T22:59:59.000Z');
+  assert.equal(deadlineOfDay('2027-03-28', 'Europe/Berlin'), '2027-03-28T21:59:59.000Z');
+  assert.equal(deadlineOfDay('2026-12-01', 'UTC'), '2026-12-01T23:59:59.000Z');
+  assert.equal(deadlineOfDay('', 'UTC'), undefined);
+  assert.equal(deadlineOfDay('1.12.2026', 'UTC'), undefined);
 });
