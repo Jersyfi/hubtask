@@ -24,10 +24,13 @@
      (b) Only if the task touches access, a lifecycle or a state: the rows that matter of
          door (web app, REST, MCP, hubctl, automation, worker/job, installation level) ×
          state × actor kind × deployment D1–D7. Name the dimensions you collapsed and why, in one
-         line. Each row: what happens · how it is proven.
+         line. Each row: what happens · how it is proven. A refusal names its code AND the status
+         its door answers (`presentation/rest/Problem.go`). Every control on the screens touched
+         that writes what the server refuses for a row is in the matrix, not only the new one.
      (c) engineering-guidelines.md § 2 (the Definition of Ready), each item in one word or line.
      (d) Standing rules: rules 1–15 and the principles' "Broken when" that this change could
-         break; every entry of docs/architecture/known-traps.md that applies; two writers at once
+         break - P-05 for every value that tells a client "this can be done now": its full
+         condition, absent whenever the action would be refused; every entry of docs/architecture/known-traps.md that applies; two writers at once
          (which statement guards it, what the loser sees). -->
 
 ## 3. Decisions
@@ -47,12 +50,16 @@
 <!-- For each use case check this task carries: the test or walk that proves it, and why it CAN:
      through the registry, not Handler.Invoke; a real transaction, not the fake unit of work; not as
      a superuser where RLS matters; the stored shape, not the value written; a mechanism that exists
-     (does the package have the kind of test you name?). Edge rows (month ends, zones, empty lists).
+     (does the package have the kind of test you name?). Edge rows (month ends, zones, empty lists);
+     for every day a person types, the zone it ends in. Data a walk or an engine test needs goes
+     into the shared fixture (`apps/webapp/e2e/fixture.mjs`). New message codes: `en` always, other
+     locales where the family is already translated - say which.
      Then the steps, inside out, one commit each, each one building, as a numbered list (1. 2. 3.)
      without checkboxes: whoever resumes the task compares it with `git log --oneline main..HEAD`.
      A step that adds a use case lands it end to end - domain, use case, descriptor, registration,
      catalogue, REST handler and their tests in one commit - because the parity test fails a
-     descriptor missing from any of them. -->
+     descriptor missing from any of them; the same step adds its row to the newest coverage report
+     under docs/evidence/, which gate-docs holds to the catalogue. -->
 
 ## 5. Review
 
