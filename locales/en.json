@@ -3760,6 +3760,8 @@
   "app.privacy.target": "Write the copy to",
   "app.privacy.target_hint": "A copy of somebody's data has to be put somewhere, and this installation writes archives to configured targets.",
   "app.privacy.choose_target": "Choose a target",
+  "app.privacy.deadline": "Deadline",
+  "app.privacy.deadline_hint": "Optional. Without one the case is owed one month from today. With one, it is owed until the end of that day.",
   "app.privacy.notes": "Notes",
   "app.privacy.articles_title": "The two with their own path",
   "app.privacy.articles_note": "Restricting processing and withdrawing a consent are not cases: they are states you set, and each is recorded.",

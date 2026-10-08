@@ -34,6 +34,7 @@
     byDeadline,
     canAct,
     canExtend,
+    deadlineOfDay,
     deadlinePhrase,
     EXTENSION_REASONS,
     extensionPayload,
@@ -50,6 +51,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { workspace } from '../lib/data/workspace.svelte.ts';
+  import { deviceZone, todayIn } from '../lib/i18n/zone.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -64,6 +67,7 @@
   let draftAccount = $state('');
   let draftTarget = $state('');
   let draftNotes = $state('');
+  let draftDueOn = $state('');
 
   let rejecting = $state('');
   let rejectReason = $state('');
@@ -83,6 +87,9 @@
     return untrack(() => privacy.open(closed));
   });
   $effect(() => untrack(() => backup.open()));
+  // The workspace's zone: a deadline named as a day ends at the end of that day there.
+  $effect(() => untrack(() => workspace.open()));
+  const zone = $derived(workspace.workspace?.default_time_zone ?? deviceZone());
 
   const reading = $derived(privacy.stateOf(includeClosed));
   const listed = $derived(byDeadline(privacy.of(includeClosed)));
@@ -179,10 +186,12 @@
         ...(draftEmail.trim() ? { subject_email: draftEmail.trim() } : {}),
         ...(draftTarget ? { target_id: draftTarget } : {}),
         ...(draftNotes.trim() ? { notes: draftNotes.trim() } : {}),
+        ...(deadlineOfDay(draftDueOn, zone) ? { due_at: deadlineOfDay(draftDueOn, zone) } : {}),
       });
       draftEmail = '';
       draftAccount = '';
       draftNotes = '';
+      draftDueOn = '';
     }, t('app.privacy.recorded_announced'));
   }
 
@@ -515,6 +524,14 @@
             options={backup.all.map((target) => ({ value: target.id, label: target.name }))}
           />
         {/if}
+        <!-- Its own deadline, where the controller owes a sooner answer than the month. -->
+        <Input
+          label={t('app.privacy.deadline')}
+          hint={t('app.privacy.deadline_hint')}
+          type="date"
+          min={todayIn(zone)}
+          bind:value={draftDueOn}
+        />
         <Textarea label={t('app.privacy.notes')} bind:value={draftNotes} rows={2} />
         <div>
           <Button

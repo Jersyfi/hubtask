@@ -18,6 +18,9 @@
  * control that moves it off the row. The operator moves it through the API or `hubctl`.
  */
 
+import { nextDay } from './due.ts';
+import { instantOf } from '../i18n/zone.ts';
+
 /** The six rights the contract names. */
 export type Kind = 'ACCESS' | 'ERASURE' | 'PORTABILITY' | 'RESTRICTION' | 'OBJECTION' | 'RECTIFICATION';
 
@@ -199,4 +202,17 @@ export function extensionPayload(draft: {
   if (!DAY.test(dueOn) || !DAY.test(informedOn)) return undefined;
   if (!EXTENSION_REASONS.includes(draft.reason as ExtensionReason)) return undefined;
   return { due_on: dueOn, reason: draft.reason as ExtensionReason, informed_on: informedOn };
+}
+
+/**
+ * A deadline named as a day, as the instant the contract takes: the last second of that day in the
+ * workspace's zone (UC-PRV-01 checks 2 and 6). The workspace's, not the reader's: a case is owed
+ * by the workspace, and an administrator travelling does not move it. Undefined for a day that is
+ * not one.
+ */
+export function deadlineOfDay(day: string, zone: string): string | undefined {
+  if (!DAY.test(day.trim())) return undefined;
+  const midnight = instantOf(nextDay(day.trim()), '00:00', zone);
+  if (midnight === undefined) return undefined;
+  return new Date(Date.parse(midnight) - 1000).toISOString();
 }

@@ -10,6 +10,7 @@ import {
   byDeadline,
   canAct,
   canExtend,
+  deadlineOfDay,
   deadlinePhrase,
   extensionPayload,
   extensionPhrase,
@@ -179,4 +180,14 @@ test('owed soon starts seven days before the deadline, when the watch starts war
   assert.equal(standingOf(aCase({ due_at: new Date(NOW + 7 * day).toISOString() }), NOW), 'soon');
   assert.equal(standingOf(aCase({ due_at: new Date(NOW + 6 * day).toISOString() }), NOW), 'soon');
   assert.equal(standingOf(aCase({ due_at: new Date(NOW + 7 * day + 1000).toISOString() }), NOW), 'ahead');
+});
+
+test('a deadline named as a day ends at the last second of that day in the workspace', () => {
+  // UC-PRV-01 check 6, written out by hand: Berlin on both sides of the change to summer time,
+  // and a workspace that counts in UTC.
+  assert.equal(deadlineOfDay('2027-03-27', 'Europe/Berlin'), '2027-03-27T22:59:59.000Z');
+  assert.equal(deadlineOfDay('2027-03-28', 'Europe/Berlin'), '2027-03-28T21:59:59.000Z');
+  assert.equal(deadlineOfDay('2026-12-01', 'UTC'), '2026-12-01T23:59:59.000Z');
+  assert.equal(deadlineOfDay('', 'UTC'), undefined);
+  assert.equal(deadlineOfDay('1.12.2026', 'UTC'), undefined);
 });

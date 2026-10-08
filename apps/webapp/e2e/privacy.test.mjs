@@ -22,6 +22,11 @@ import { serve } from './serve.mjs';
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
 const [OPEN, EXTENDED, INSTALLATION] = PRIVACY_REQUESTS;
+const WORKSPACE = {
+  id: '01a0e2e0-0000-7000-8000-0000000000b0', slug: 'house', display_name: 'House', status: 'ACTIVE',
+  default_locale: 'en', default_time_zone: 'Europe/Berlin', require_admin_totp: false,
+  created_at: '2026-09-01T00:00:00Z', version: 1,
+};
 
 const served = await serve(DIST);
 test.after(() => served.close());
@@ -32,9 +37,15 @@ async function open(browser) {
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
-    // The write is kept for the assertions and answered by the fixture, as every walk's is.
+    // The workspace counts in Berlin, which is where a deadline named as a day ends.
+    if (path === '/tenant' && request.method() === 'GET') return route.fulfill({ json: WORKSPACE });
+    // The writes are kept for the assertions and answered by the fixture, as every walk's is.
     if (path.endsWith(':extend') && request.method() === 'POST') {
       written.push({ path, body: request.postDataJSON(), idempotencyKey: request.headers()['idempotency-key'] });
+    }
+    if (path === '/privacy/requests' && request.method() === 'POST') {
+      written.push({ path, body: request.postDataJSON() });
+      return route.fulfill({ status: 201, json: { ...OPEN, ...request.postDataJSON() } });
     }
     return stub(route);
   });
@@ -110,6 +121,28 @@ test('chromium: an installation-wide case is listed and offers nothing here', as
     for (const name of ['Start answering it', 'Refuse it', 'Extend the deadline']) {
       assert.equal(await row(page, OPEN).getByRole('button', { name }).count(), 1, name);
     }
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('chromium: a case is recorded with its own deadline, owed to the end of that day', async () => {
+  // UC-PRV-01 check 6: the record form names a day, and the case is owed until its last second in
+  // the workspace's zone.
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, written, close } = await open(browser);
+    const form = page.locator('form', { hasText: 'Record a request' });
+    await form.getByLabel('Their address').fill('new@example.invalid');
+    await form.getByLabel('Deadline').fill('2027-03-28');
+    await form.getByRole('button', { name: 'Record it' }).click();
+    for (let waited = 0; written.length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
+
+    assert.equal(written.length, 1);
+    assert.equal(written[0].body.subject_email, 'new@example.invalid');
+    assert.equal(written[0].body.due_at, '2027-03-28T21:59:59.000Z');
     assert.deepEqual(failures, []);
     await close();
   } finally {
