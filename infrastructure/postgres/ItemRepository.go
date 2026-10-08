@@ -317,7 +317,7 @@ func (r ItemRepository) Neighbours(
 	return row.PreviousKey, row.NextKey, nil
 }
 
-// SetOrderKey writes a new rank for one item.
+// SetOrderKey writes a new rank and the column for one item.
 func (r ItemRepository) SetOrderKey(ctx context.Context, item work.WorkItem, expectedVersion int) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -327,9 +327,14 @@ func (r ItemRepository) SetOrderKey(ctx context.Context, item work.WorkItem, exp
 	if err != nil {
 		return err
 	}
+	bucket, err := optionalUUID(item.BucketID)
+	if err != nil {
+		return err
+	}
 
 	affected, err := queries.SetWorkItemOrderKey(ctx, sqlc.SetWorkItemOrderKeyParams{
 		OrderKey:  item.OrderKey,
+		BucketID:  bucket,
 		UpdatedAt: timestampOf(item.UpdatedAt),
 		ID:        id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
