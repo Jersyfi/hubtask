@@ -19,6 +19,10 @@
   //
   // **An archive goes to a backup target like every other export**, so a finished access case
   // reports where it was written rather than offering a download (ADR-0047).
+  //
+  // **A deadline is extended once, and only where the server says it can be** (P-05): the row
+  // offers *Extend the deadline* while the case answers `extendable_until`, and the form starts on
+  // that day. An extended case shows both dates and the reason as a sentence (P-11, P-12).
 
   import { untrack } from 'svelte';
 
@@ -28,6 +32,11 @@
   import { backup } from '../lib/data/backup.svelte.ts';
   import {
     byDeadline,
+    canExtend,
+    deadlinePhrase,
+    EXTENSION_REASONS,
+    extensionPayload,
+    extensionPhrase,
     KINDS,
     privacy,
     producesArchive,
@@ -36,7 +45,7 @@
     type Kind,
     type Request,
   } from '../lib/data/privacy.svelte.ts';
-  import { formatDateTime, formatRelative } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatDue, formatRelative } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -57,6 +66,11 @@
 
   let rejecting = $state('');
   let rejectReason = $state('');
+
+  let extending = $state('');
+  let extendDueOn = $state('');
+  let extendReason = $state<string>('COMPLEXITY');
+  let extendInformedOn = $state('');
 
   let restrictAccount = $state('');
   let restrictReason = $state('');
@@ -93,6 +107,42 @@
 
   const when = (at: string | null | undefined) =>
     at ? formatDateTime(at, messages.locale) : undefined;
+
+  /** A calendar day as the reader's locale writes one, never shifted by a zone: it has none. */
+  const day = (value: string) => formatDue(`${value}T12:00:00Z`, messages.locale, 'UTC', { allDay: true });
+
+  /** Today on the reader's own calendar, as YYYY-MM-DD: the latest day somebody can have been told. */
+  const today = () => {
+    const at = new Date();
+    const two = (n: number) => String(n).padStart(2, '0');
+    return `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())}`;
+  };
+
+  /** Opens the extension form on the latest day the server allows. */
+  function beginExtending(request: Request): void {
+    rejecting = '';
+    if (extending === request.id) {
+      extending = '';
+      return;
+    }
+    extending = request.id;
+    extendDueOn = request.extendable_until ?? '';
+    extendReason = 'COMPLEXITY';
+    extendInformedOn = today();
+  }
+
+  async function extend(request: Request): Promise<void> {
+    const payload = extensionPayload({
+      dueOn: extendDueOn,
+      reason: extendReason,
+      informedOn: extendInformedOn,
+    });
+    if (!payload) return;
+    await attempt(async () => {
+      await privacy.extend(request.id, payload);
+      extending = '';
+    }, t('app.privacy.extended_announced'));
+  }
 
   const kindWord = (kind: string) => t(`app.privacy.kind_${kind.toLowerCase()}`);
   const statusWord = (status: string) => t(`app.privacy.status_${status.toLowerCase()}`);
@@ -196,6 +246,8 @@
       {:else}
         {#each listed as request (request.id)}
           {@const standing = standingOf(request, now)}
+          {@const deadline = deadlinePhrase(request, (at) => when(at) ?? '')}
+          {@const extension = extensionPhrase(request, day)}
           <section class="panel">
             <Stack gap="100">
               <div class="row">
@@ -221,12 +273,16 @@
                   <Badge tone="warning" icon="clock">{t('app.privacy.due_soon')}</Badge>
                 {/if}
                 <span class="quiet small">
-                  {t('app.privacy.due', { at: when(request.due_at) ?? '' })}
+                  {t(deadline.code, deadline.params)}
                   {#if standing}
                     · {formatRelative(request.due_at, messages.locale, now)}
                   {/if}
                 </span>
               </p>
+
+              {#if extension}
+                <p class="quiet small">{t(extension.code, extension.params)}</p>
+              {/if}
 
               <p class="quiet small">
                 {t('app.privacy.received', { at: when(request.received_at) ?? '' })}
@@ -309,10 +365,18 @@
                       {t('app.privacy.complete')}
                     </Button>
                   {/if}
+                  {#if canExtend(request)}
+                    <Button size="sm" tone="secondary" onclick={() => beginExtending(request)}>
+                      {t('app.privacy.extend')}
+                    </Button>
+                  {/if}
                   <Button
                     size="sm"
                     tone="danger"
-                    onclick={() => (rejecting = rejecting === request.id ? '' : request.id)}
+                    onclick={() => {
+                      extending = '';
+                      rejecting = rejecting === request.id ? '' : request.id;
+                    }}
                   >
                     {t('app.privacy.reject')}
                   </Button>
@@ -322,6 +386,52 @@
                   <!-- Starting is what runs the work, and the work writes an archive somewhere. -->
                   <p class="quiet small">{t('app.privacy.start_makes_archive')}</p>
                 {/if}
+              {/if}
+
+              {#if extending === request.id && canExtend(request)}
+                <!-- Once, by law, and recorded rather than sent: the controller tells the person,
+                     and the case keeps the reason and the day they were told. -->
+                <Stack gap="100">
+                  <p class="quiet small">{t('app.privacy.extend_note')}</p>
+                  <Input
+                    label={t('app.privacy.extend_until')}
+                    hint={t('app.privacy.extend_until_hint', { latest: day(request.extendable_until ?? '') })}
+                    type="date"
+                    max={request.extendable_until}
+                    bind:value={extendDueOn}
+                    isRequired
+                  />
+                  <Select
+                    label={t('app.privacy.extend_reason')}
+                    bind:value={extendReason}
+                    options={EXTENSION_REASONS.map((reason) => ({
+                      value: reason,
+                      label: t(`app.privacy.extend_reason_${reason.toLowerCase()}`),
+                    }))}
+                  />
+                  <Input
+                    label={t('app.privacy.extend_informed')}
+                    hint={t('app.privacy.extend_informed_hint')}
+                    type="date"
+                    max={today()}
+                    bind:value={extendInformedOn}
+                    isRequired
+                  />
+                  <div class="row">
+                    <Button
+                      size="sm"
+                      tone="primary"
+                      isBusy={isWorking}
+                      busyLabel={t('app.privacy.extending')}
+                      onclick={() => void extend(request)}
+                    >
+                      {t('app.privacy.extend_confirm')}
+                    </Button>
+                    <Button size="sm" tone="subtle" onclick={() => (extending = '')}>
+                      {t('app.workspace.cancel')}
+                    </Button>
+                  </div>
+                </Stack>
               {/if}
 
               {#if rejecting === request.id}

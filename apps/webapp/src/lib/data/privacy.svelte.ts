@@ -22,10 +22,30 @@
 import type { ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import type { ErasureMode, Kind, Request, Status } from './privacy.ts';
+import type { ErasureMode, Extension, Kind, Request, Status } from './privacy.ts';
 
-export { byDeadline, KINDS, producesArchive, standingOf, SOON_MS } from './privacy.ts';
-export type { ErasureMode, Kind, Request, Standing, Status } from './privacy.ts';
+export {
+  byDeadline,
+  canExtend,
+  deadlinePhrase,
+  EXTENSION_REASONS,
+  extensionPayload,
+  extensionPhrase,
+  KINDS,
+  producesArchive,
+  standingOf,
+  SOON_MS,
+} from './privacy.ts';
+export type {
+  ErasureMode,
+  Extension,
+  ExtensionReason,
+  Kind,
+  Phrase,
+  Request,
+  Standing,
+  Status,
+} from './privacy.ts';
 
 const REQUESTS = '/privacy/requests';
 const WITHDRAW = '/privacy/consents:withdraw';
@@ -121,6 +141,17 @@ class Privacy {
     },
   ): Promise<Request> {
     return engine.mutate<Request>('PATCH', `${REQUESTS}/${requestId}`, patch, {
+      invalidates: [REQUESTS],
+    });
+  }
+
+  /**
+   * Extends a case's deadline once. Online only, as every write of this module is: a case is the
+   * server's, and an extension queued offline could be refused by a day that has passed meanwhile.
+   */
+  async extend(requestId: string, extension: Extension): Promise<Request> {
+    return engine.mutate<Request>('POST', `${REQUESTS}/${requestId}:extend`, extension, {
+      idempotencyKey: crypto.randomUUID(),
       invalidates: [REQUESTS],
     });
   }

@@ -36,6 +36,12 @@ export type Status = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 /** What an erasure does to other people's content. The default is the one that preserves it. */
 export type ErasureMode = 'ANONYMIZE' | 'FULL_DELETE';
 
+/** Why a deadline was extended: the two reasons Art. 12(3) names. */
+export type ExtensionReason = 'COMPLEXITY' | 'NUMBER_OF_REQUESTS';
+
+/** Both reasons, in the order the form offers them. */
+export const EXTENSION_REASONS: readonly ExtensionReason[] = ['COMPLEXITY', 'NUMBER_OF_REQUESTS'];
+
 /** The kinds whose work produces an archive, and which therefore need a target before they start. */
 export function producesArchive(kind: Kind): boolean {
   return kind === 'ACCESS' || kind === 'PORTABILITY';
@@ -52,8 +58,18 @@ export interface Request {
   readonly subject_email?: string | null;
   readonly erasure_mode?: ErasureMode;
   readonly received_at: string;
-  /** The statutory deadline. Thirty days from receipt unless the caller named another. */
+  /** The deadline in force: thirty days from receipt unless named, and the extended one once extended. */
   readonly due_at: string;
+  /** The deadline before the one extension, present once there was one. */
+  readonly original_due_at?: string | null;
+  readonly extension_reason?: ExtensionReason | null;
+  /** The day the person was told of the extension, as YYYY-MM-DD. */
+  readonly informed_on?: string | null;
+  /**
+   * The latest day the deadline can be extended to, as YYYY-MM-DD in the workspace's zone. The
+   * server answers it exactly while an extension can succeed, and nothing here recomputes it.
+   */
+  readonly extendable_until?: string;
   readonly completed_at?: string | null;
   readonly handled_by?: string | null;
   readonly rejection_reason?: string | null;
@@ -97,4 +113,76 @@ export function byDeadline(requests: readonly Request[]): readonly Request[] {
     if (closed(left) !== closed(right)) return closed(left) ? 1 : -1;
     return new Date(left.due_at).getTime() - new Date(right.due_at).getTime();
   });
+}
+
+/** A message code and its parameters: a sentence the view renders without composing it. */
+export interface Phrase {
+  readonly code: string;
+  readonly params: Readonly<Record<string, string>>;
+}
+
+/**
+ * Whether the row offers *Extend the deadline* (P-05: only where it can succeed).
+ *
+ * The server says when: `extendable_until` is answered while the case is open, not yet extended
+ * and before its deadline. An installation-wide case is the operator's to extend, through the API
+ * or `hubctl`, never this screen's (UC-PRV-06).
+ */
+export function canExtend(request: Request): boolean {
+  return request.scope !== 'INSTALLATION' && typeof request.extendable_until === 'string' &&
+    request.extendable_until !== '';
+}
+
+/**
+ * The row's deadline line. An extended case names both dates, the one in force and the one it
+ * replaced, so nobody reads the extension as the deadline the case always had (P-11).
+ */
+export function deadlinePhrase(request: Request, format: (iso: string) => string): Phrase {
+  if (request.original_due_at) {
+    return {
+      code: 'app.privacy.due_extended',
+      params: { at: format(request.due_at), original: format(request.original_due_at) },
+    };
+  }
+  return { code: 'app.privacy.due', params: { at: format(request.due_at) } };
+}
+
+/** Why the deadline was extended, as a sentence, with the day the person was told (P-12). */
+export function extensionPhrase(
+  request: Request,
+  formatDay: (day: string) => string,
+): Phrase | undefined {
+  if (!request.extension_reason || !request.informed_on) return undefined;
+  return {
+    code: `app.privacy.extended_${request.extension_reason.toLowerCase()}`,
+    params: { informed: formatDay(request.informed_on) },
+  };
+}
+
+/** What the form sends: three facts, each required, both days as YYYY-MM-DD. */
+export interface Extension {
+  readonly due_on: string;
+  readonly reason: ExtensionReason;
+  readonly informed_on: string;
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * The form's payload, or nothing while one of the three facts is missing.
+ *
+ * Only the shape is checked here. Whether the day lies inside the bound, or the informed day
+ * between receipt and today, is the server's to say in the workspace's own zone, and the screen
+ * renders its refusal rather than guessing at it.
+ */
+export function extensionPayload(draft: {
+  dueOn: string;
+  reason: string;
+  informedOn: string;
+}): Extension | undefined {
+  const dueOn = draft.dueOn.trim();
+  const informedOn = draft.informedOn.trim();
+  if (!DAY.test(dueOn) || !DAY.test(informedOn)) return undefined;
+  if (!EXTENSION_REASONS.includes(draft.reason as ExtensionReason)) return undefined;
+  return { due_on: dueOn, reason: draft.reason as ExtensionReason, informed_on: informedOn };
 }
