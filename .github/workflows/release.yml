@@ -11,6 +11,7 @@ jobs:
   release:
     name: Build, sign, publish
     runs-on: ubuntu-latest
+    timeout-minutes: 50
     environment: production          # a protection rule with manual approval (ADR-0022)
     permissions:
       contents: write                # create the GitHub release

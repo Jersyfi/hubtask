@@ -32,6 +32,9 @@ jobs:
   deploy:
     name: Deploy to integration
     runs-on: ubuntu-latest
+    # Above the build, helm's own `--timeout 10m` and the public path's fifteen minutes together,
+    # so the job's limit never interrupts `helm upgrade` halfway (see the concurrency note above).
+    timeout-minutes: 40
     environment:
       name: integration
       url: https://api.integration.hubtask.eu
