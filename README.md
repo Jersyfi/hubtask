@@ -1,19 +1,30 @@
 # Hubtask
 
-Task management with five levels — **Hub → Collection → Task → Work Package → Activity** —
-for private individuals and for service providers. Backend first, API first, AI first.
-Go, PostgreSQL, hexagonal architecture.
+**A task manager that is genuinely yours** — for one person, a household, a team, and a provider
+who runs it for thousands of others — built with the seriousness of infrastructure: nothing is lost,
+nothing leaks between workspaces, every guarantee can be checked.
 
-* **Self-hosting** with Docker/Podman: two containers, the full feature set, no limitations.
-* **Platform operation** with Kubernetes: the same image, multi-tenant, horizontally scalable.
-* **Automatable** through a REST API, webhooks, n8n/Zapier, and an internal rule engine.
-* **Multilingual** without backend changes; any language, time zone, and text direction.
-* **Agent-ready** through an MCP server; AI features are optional and can be switched off.
-* **Secure by default** — the tenant boundary is enforced in the database, twelve security gates run in the pipeline.
-* **Self-diagnosing** — degrades in a controlled way instead of crashing, and reports what it is missing through `/meta/health`.
-* **Auditable and GDPR-ready** — a chained, content-free audit log; data subject rights as use cases with deadline tracking.
-* **Freely backed up** — choose the schedule and the target yourself (S3, SFTP, FTP, WebDAV, cloud, local), encrypted, with retention and restore down to item level.
-* **Usable offline** — clients keep working without a network; concurrent changes by others are not lost when merging.
+* **One model for a life and a client roster.** "Buy milk" and a release plan live in the same five
+  levels — **Hub → Collection → Task → Work Package → Activity** — without becoming two products.
+* **Yours to run.** One image and PostgreSQL, `docker compose up`, the full feature set, no licence
+  key that switches anything off, nothing that phones home. The same image runs a multi-tenant
+  platform on Kubernetes.
+* **Everything you can click, a script and an agent can do too** — through a REST API, an MCP
+  server, webhooks, n8n and Zapier, and a rule engine, under the same permissions, recorded in the
+  same trail. AI is optional and can be switched off.
+* **It keeps your work safe and says so.** Backups to a target you choose, encrypted and restored in
+  a drill; a chained audit trail that verifies; deletion that announces itself and can be stopped;
+  a health report that names what is missing instead of failing silently.
+* **Private by design.** The boundary between workspaces is held by the database; a person's rights
+  over their data are answered in the product, on time; everything can be exported, always.
+* **Offline, and nothing lost.** Clients keep working without a network, and concurrent changes are
+  merged without losing anyone's work.
+* **Every person sees what is theirs to use** — a control that may not be used is not shown — in any
+  language, time zone and text direction.
+* **Open source** under Apache-2.0.
+
+The vision behind this, the people it is for and the settings it must work in are in
+[`docs/vision/`](./docs/vision/README.md).
 
 ---
 
