@@ -6,7 +6,7 @@ actors: [PE-owner, PE-auditor, PE-scripter]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-07, P-08, P-11]
 state: partial
-tasks: [PH-01, E-08, F4-18]
+tasks: [PH-01, PH-10, E-08, F4-18]
 checked_by: [core/application/service/lifecycle/LegalHolds_test.go, core/domain/model/lifecycle/LegalHold_test.go, test/integration/legal_hold_test.go, test/retention/retention_test.go, cmd/hubctl/Hold_test.go]
 ---
 
