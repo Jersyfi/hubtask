@@ -167,6 +167,7 @@ func Descriptors() []usecase.Descriptor {
 		privacyservice.ListDataSubjectRequests{}.Descriptor(),
 		privacyservice.UpdateDataSubjectRequest{}.Descriptor(),
 		privacyservice.ExtendDataSubjectRequest{}.Descriptor(),
+		privacyservice.PreviewErasure{}.Descriptor(),
 		privacyservice.RestrictProcessing{}.Descriptor(),
 		privacyservice.WithdrawConsent{}.Descriptor(),
 		backupservice.CreateBackupSchedule{}.Descriptor(),

@@ -266,7 +266,7 @@ func (p Purger) Sweep(
 		removableContainers = append(removableContainers, expired.ID)
 	}
 
-	// Data-retention.md §4 item 6, for the trash: a parent or a container goes only with
+	// The trash under data-retention.md §4 item 6: a parent or a container goes only with
 	// everything below it. The schema's cascades would otherwise take a held child with it -
 	// unjudged, unrecorded - so what stays below keeps it back for a later pass. Entries first,
 	// because a container counts the entries that stay; one question each, because the count runs

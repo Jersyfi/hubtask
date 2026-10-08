@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
@@ -46,6 +48,62 @@ func performerFor(t *testing.T) privacyservice.Performer {
 		Requests: privacyRepo(), Eraser: eraserFor(t),
 		UnitOfWork: postgres.NewUnitOfWork(appPool(context.Background(), t)),
 		Clock:      portclock.Fixed(created),
+	}
+}
+
+// A partly completed case says so in the list, and the preview said it beforehand - read from the
+// stored rows, through the registry (UC-PRV-03 check 11).
+func TestTheCaseAndThePreviewSayWhatTheHoldKeeps(t *testing.T) {
+	ctx := context.Background()
+	subject := seedSubject(ctx, t, "said-"+freshID(t).String()+"@example.test")
+	hold := holdOn(ctx, t, subject.tenant, "CONTAINER", subject.hub)
+	request := erasureRequest(ctx, t, subject, domain.ModeFullDelete)
+
+	pool := appPool(ctx, t)
+	cases := privacyservice.Cases{
+		Requests: privacyRepo(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Kept: privacyRepo(), Authorizer: permissive{}, Audit: postgres.NewAuditSink(generator{t}),
+		UnitOfWork: postgres.NewUnitOfWork(pool), Clock: portclock.Fixed(created), IDs: generator{t},
+	}
+	registry, err := usecase.NewRegistry(nil,
+		privacyservice.ListDataSubjectRequests{Cases: cases}.Descriptor(),
+		privacyservice.PreviewErasure{Cases: cases, Eraser: eraserFor(t)}.Descriptor())
+	if err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	reader := appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: subject.tenant, AccountID: freshID(t), AccountName: "Olga",
+	}
+
+	preview, err := registry.Invoke(ctx, privacyservice.PreviewErasureName, reader, usecase.Input{
+		"request_id": request.ID.String(),
+	})
+	if err != nil {
+		t.Fatalf("previewing: %v", err)
+	}
+	parts, _ := preview["kept"].([]map[string]any)
+	if len(parts) != 1 || parts[0]["hold_id"] != hold.String() || parts[0]["comments"] != 1 {
+		t.Errorf("the preview answered %v", preview)
+	}
+
+	if _, err := performerFor(t).Perform(ctx, privacyservice.PerformInput{
+		RequestID: request.ID, TenantID: subject.tenant,
+	}); err != nil {
+		t.Fatalf("carrying out the case: %v", err)
+	}
+	listed, err := registry.Invoke(ctx, privacyservice.ListDataSubjectRequestsName, reader, usecase.Input{
+		"include_closed": true,
+	})
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	rows, _ := listed["data"].([]usecase.Output)
+	if len(rows) != 1 || rows[0]["kept_legal_basis"] != domain.KeptLegalBasis {
+		t.Fatalf("the list answered %v", listed)
+	}
+	kept, _ := rows[0]["kept"].([]map[string]any)
+	if len(kept) != 1 || kept[0]["comments"] != 1 || kept[0]["assignments"] != 1 {
+		t.Errorf("the case says it kept %v, the preview said %v", kept, parts)
 	}
 }
 

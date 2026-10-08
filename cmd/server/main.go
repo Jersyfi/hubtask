@@ -955,7 +955,7 @@ func run() error {
 	// The cases the privacy use cases share.
 	privacyCases := privacyservice.Cases{
 		Requests: privacyStore, Workspaces: postgres.NewWorkspaceSettingsRepository(),
-		Subjects: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
+		Subjects: privacyStore, Kept: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
@@ -1718,6 +1718,10 @@ func run() error {
 		privacyservice.ListDataSubjectRequests{Cases: privacyCases}.Descriptor(),
 		privacyservice.UpdateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
 		privacyservice.ExtendDataSubjectRequest{Cases: privacyCases}.Descriptor(),
+		privacyservice.PreviewErasure{
+			Cases:  privacyCases,
+			Eraser: privacyservice.Eraser{Erasure: privacyStore, Holds: postgres.NewLifecycleRepository()},
+		}.Descriptor(),
 		privacyservice.RestrictProcessing{
 			Subjects: privacyStore, Kept: privacyStore, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
