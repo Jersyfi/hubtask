@@ -1149,6 +1149,24 @@ func (e CustomFieldKind) Valid() bool {
 	}
 }
 
+// Defines values for DataSubjectRequestExtensionReason.
+const (
+	COMPLEXITY       DataSubjectRequestExtensionReason = "COMPLEXITY"
+	NUMBEROFREQUESTS DataSubjectRequestExtensionReason = "NUMBER_OF_REQUESTS"
+)
+
+// Valid indicates whether the value is a known member of the DataSubjectRequestExtensionReason enum.
+func (e DataSubjectRequestExtensionReason) Valid() bool {
+	switch e {
+	case COMPLEXITY:
+		return true
+	case NUMBEROFREQUESTS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DataSubjectRequestKind.
 const (
 	ACCESS        DataSubjectRequestKind = "ACCESS"
@@ -4925,7 +4943,7 @@ type CustomFieldValue struct {
 type DataSubjectRequest struct {
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 
-	// DueAt The statutory deadline. Thirty days from receipt unless the caller named another.
+	// DueAt The deadline in force. Thirty days from receipt unless the caller named another, and the extended deadline once the case was extended.
 	DueAt time.Time `json:"due_at"`
 
 	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
@@ -4937,17 +4955,29 @@ type DataSubjectRequest struct {
 	// the people who are not asking: a task somebody else depends on, a comment in a thread that
 	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
 	// on the case, and does so knowingly.
-	ErasureMode *ErasureMode        `json:"erasure_mode,omitempty"`
-	HandledBy   *openapi_types.UUID `json:"handled_by,omitempty"`
-	Id          openapi_types.UUID  `json:"id"`
+	ErasureMode *ErasureMode `json:"erasure_mode,omitempty"`
+
+	// ExtendableUntil The latest day the deadline can be extended to, in the workspace's time zone. Present only while an extension can succeed: the case is open, not yet extended, and before its deadline.
+	ExtendableUntil *openapi_types.Date `json:"extendable_until,omitempty"`
+
+	// ExtensionReason Why the deadline is extended: the request's complexity, or the number of requests the controller is handling.
+	ExtensionReason *DataSubjectRequestExtensionReason `json:"extension_reason,omitempty"`
+	HandledBy       *openapi_types.UUID                `json:"handled_by,omitempty"`
+	Id              openapi_types.UUID                 `json:"id"`
+
+	// InformedOn The day the controller informed the person of the extension.
+	InformedOn *openapi_types.Date `json:"informed_on,omitempty"`
 
 	// Kind The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
 	// ordinary write - and is a tracked case all the same, because the deadline is somebody's
 	// responsibility either way.
-	Kind            DataSubjectRequestKind `json:"kind"`
-	Notes           *string                `json:"notes,omitempty"`
-	ReceivedAt      time.Time              `json:"received_at"`
-	RejectionReason *string                `json:"rejection_reason,omitempty"`
+	Kind  DataSubjectRequestKind `json:"kind"`
+	Notes *string                `json:"notes,omitempty"`
+
+	// OriginalDueAt The deadline before the extension, present once the case was extended.
+	OriginalDueAt   *time.Time `json:"original_due_at,omitempty"`
+	ReceivedAt      time.Time  `json:"received_at"`
+	RejectionReason *string    `json:"rejection_reason,omitempty"`
 
 	// ResultArchive Where the export was written at the backup target, once an access or portability case has produced one.
 	ResultArchive  *string             `json:"result_archive,omitempty"`
@@ -4991,6 +5021,21 @@ type DataSubjectRequestCreate struct {
 	// TargetId The backup target an access or portability export is written to. Required before such a case can start; a copy of somebody's data has to be put somewhere, and this system writes archives to configured targets rather than to a directory it chose itself.
 	TargetId *openapi_types.UUID `json:"target_id,omitempty"`
 }
+
+// DataSubjectRequestExtension defines model for DataSubjectRequestExtension.
+type DataSubjectRequestExtension struct {
+	// DueOn The new deadline as a day; the case is due by the end of it in the workspace's time zone. Later than the current deadline, and at most three months after the day the request was received.
+	DueOn openapi_types.Date `json:"due_on"`
+
+	// InformedOn The day the controller informed the person of the extension and its reason: not before the day the request was received, not after today.
+	InformedOn openapi_types.Date `json:"informed_on"`
+
+	// Reason Why the deadline is extended: the request's complexity, or the number of requests the controller is handling.
+	Reason DataSubjectRequestExtensionReason `json:"reason"`
+}
+
+// DataSubjectRequestExtensionReason Why the deadline is extended: the request's complexity, or the number of requests the controller is handling.
+type DataSubjectRequestExtensionReason string
 
 // DataSubjectRequestKind The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
 // ordinary write - and is a tracked case all the same, because the deadline is somebody's
@@ -9375,6 +9420,12 @@ type CreateDataSubjectRequestParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ExtendDataSubjectRequestParams defines parameters for ExtendDataSubjectRequest.
+type ExtendDataSubjectRequestParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
@@ -9821,6 +9872,9 @@ type CreateDataSubjectRequestJSONRequestBody = DataSubjectRequestCreate
 
 // UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody defines body for UpdateDataSubjectRequest for application/merge-patch+json ContentType.
 type UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody = DataSubjectRequestUpdate
+
+// ExtendDataSubjectRequestJSONRequestBody defines body for ExtendDataSubjectRequest for application/json ContentType.
+type ExtendDataSubjectRequestJSONRequestBody = DataSubjectRequestExtension
 
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
@@ -10592,6 +10646,9 @@ type ServerInterface interface {
 	// UpdateDataSubjectRequest Move a case along
 	// (PATCH /privacy/requests/{requestId})
 	UpdateDataSubjectRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID)
+	// ExtendDataSubjectRequest Extend a case's deadline once
+	// (POST /privacy/requests/{requestId}:extend)
+	ExtendDataSubjectRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID, params ExtendDataSubjectRequestParams)
 	// ReadQuotas The workspace's quota standing
 	// (GET /quotas)
 	ReadQuotas(w http.ResponseWriter, r *http.Request)
@@ -19392,6 +19449,56 @@ func (siw *ServerInterfaceWrapper) UpdateDataSubjectRequest(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
+// ExtendDataSubjectRequest operation middleware
+func (siw *ServerInterfaceWrapper) ExtendDataSubjectRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", r.PathValue("requestId"), &requestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "requestId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExtendDataSubjectRequestParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExtendDataSubjectRequest(w, r, requestId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadQuotas operation middleware
 func (siw *ServerInterfaceWrapper) ReadQuotas(w http.ResponseWriter, r *http.Request) {
 
@@ -21017,6 +21124,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/requests", wrapper.ListDataSubjectRequests)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/requests", wrapper.CreateDataSubjectRequest)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/privacy/requests/{requestId}", wrapper.UpdateDataSubjectRequest)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/requests/{requestId}:extend", wrapper.ExtendDataSubjectRequest)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:restrict", wrapper.RestrictProcessing)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:withdraw", wrapper.WithdrawConsent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/memberships", wrapper.ListMemberships)

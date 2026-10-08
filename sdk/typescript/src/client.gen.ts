@@ -1081,6 +1081,11 @@ export class HubtaskClient {
     return this.call("PATCH", "/privacy/requests/{requestId}", { "requestId": requestId }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
+  /** Extend a case's deadline once */
+  extendDataSubjectRequest(requestId: string, body: NonNullable<operations["extendDataSubjectRequest"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["extendDataSubjectRequest"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/privacy/requests/{requestId}:extend", { "requestId": requestId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Restrict the processing of an account's data (Art. 18) */
   restrictProcessing(accountId: string, body: NonNullable<operations["restrictProcessing"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["restrictProcessing"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/accounts/{accountId}:restrict", { "accountId": accountId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
