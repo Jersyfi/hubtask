@@ -2673,7 +2673,7 @@
   "app.privacy.target_hint": "Eine Kopie von jemandes Daten muss irgendwohin, und diese Installation schreibt Archive an eingerichtete Ziele.",
   "app.privacy.choose_target": "Ziel wählen",
   "app.privacy.deadline": "Frist",
-  "app.privacy.deadline_hint": "Optional. Ohne Angabe ist der Fall einen Monat ab heute fällig. Mit Angabe bis zum Ende dieses Tages.",
+  "app.privacy.deadline_hint": "Optional. Ohne Angabe ist der Fall in dreißig Tagen fällig. Mit Angabe bis zum Ende dieses Tages.",
   "app.privacy.notes": "Notizen",
   "app.privacy.articles_title": "Die beiden mit eigenem Weg",
   "app.privacy.articles_note": "Die Verarbeitung einzuschränken und eine Einwilligung zu widerrufen sind keine Fälle: Es sind Zustände, die du setzt, und jeder wird festgehalten.",
