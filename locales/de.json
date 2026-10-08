@@ -404,6 +404,7 @@
   "app.entries.add_child": "Etwas in {title} anlegen",
   "app.entries.add_typed": "{type} hinzufügen",
   "app.entries.add_typed_inside": "{type} in {title} hinzufügen",
+  "app.entries.no_root_type": "Dieser Arbeitsbereich bietet keine Art von Eintrag an, die direkt in einer Sammlung angelegt werden kann.",
   "app.entries.progress": "{done} von {total} erledigt",
   "app.entries.new_title": "Titel",
   "app.entries.notes": "Notizen",
