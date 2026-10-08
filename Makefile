@@ -755,6 +755,19 @@ gate-chart:
 			exit 1; \
 		fi; \
 		echo "chart: a numeric image tag still renders a valid reference"
+	@# GOMEMLIMIT follows each role's memory limit at 90 %: the default 1Gi, a decimal quantity,
+	@# and a limit the chart cannot read, which it must refuse rather than render without one.
+	@limits="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set roles.worker.resources.limits.memory=1.5Gi \
+		--show-only templates/deployment.yaml | grep -A1 'name: GOMEMLIMIT')"; \
+		grep -q 'value: "966367641"' <<< "$$limits" || \
+			{ echo "chart: GOMEMLIMIT is not 90 % of the api's 1Gi limit"; exit 1; }; \
+		grep -q 'value: "1449551462"' <<< "$$limits" || \
+			{ echo "chart: GOMEMLIMIT is not 90 % of the worker's 1.5Gi limit"; exit 1; }
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set roles.api.resources.limits.memory=1Gb > /dev/null 2>&1; then \
+		echo "chart: a memory limit the chart cannot read rendered - it must refuse"; exit 1; fi
+	@echo "chart: GOMEMLIMIT follows every role's memory limit"
 	@echo "chart: lint and template green"
 
 ## gate-compose: Start the self-hosting reference stack from a real image and wait for /readyz

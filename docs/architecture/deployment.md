@@ -54,6 +54,12 @@ The application connects as `hubtask_app` — created by the migration without `
 self-hosting too. The migrator grants that role its login from `HUBTASK_DB_APP_PASSWORD`; the
 migration itself never carries a credential (§6.2).
 
+**Memory.** `compose.yaml` sets no memory limit. Whoever sets one on the `app` service sets
+`GOMEMLIMIT` beside it, at about 90 % of the limit (`mem_limit: 1g`, `GOMEMLIMIT: 921MiB`): the Go
+runtime does not see the container's limit, and without a target of its own it lets the heap grow
+until the kernel kills the process rather than collecting harder as it nears the limit
+([observability-reliability.md](./observability-reliability.md) §6).
+
 The operations port is published on loopback only (`127.0.0.1:9090`): metrics and the health report
 — `curl localhost:9090/readyz` after an update, a Prometheus on the same host — do not belong on the
 network ([observability-reliability.md](./observability-reliability.md) §3.2).
@@ -78,6 +84,10 @@ Four deployments from **one** image, distinguished by `HUBTASK_ROLES`:
 | `worker` | `worker` | Jobs, outbox delivery, backup runs |
 | `scheduler` | `scheduler` | Two replicas, one active (advisory lock leader, [observability-reliability.md](./observability-reliability.md) §15) |
 | `automation` | `automation` | Its own pool — a rule storm must not starve the interactive path |
+
+**Each role's memory limit sets its `GOMEMLIMIT`** to 90 % of it, in bytes
+(`roles.<role>.resources.limits.memory`), so the runtime collects harder before the kernel kills the
+pod; a role without a limit gets none, and a limit the chart cannot read refuses to render.
 
 **The migration** runs as a Job before the rollout: a Helm hook (`pre-install,pre-upgrade`) and,
 under Argo CD, a `Sync`-phase hook in a sync wave after the database, so that a chart which also
