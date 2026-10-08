@@ -22,11 +22,11 @@ import (
 
 // HoldScope says what a legal hold covers.
 //
-// The four the schema allows. Three of them bear on a deletion of work: the tenant covers
-// everything, a container covers its subtree, an item covers itself and what hangs off it. An
-// account hold is about one person's own data - their profile, their trail - and is answered where
-// that data is erased rather than here (data-protection.md §6); it does not preserve every entry
-// they ever touched, or a single hold would freeze a whole workspace.
+// The four the schema allows: the tenant covers everything, a container covers its subtree, an item
+// covers itself and what hangs off it, and an account covers that person's account and what they
+// contributed - the entries they created, their comments, the files they attached
+// (data-protection.md §4.1). A removal takes comments and attachments with their entry, so it is
+// judged against the contributors of everything it takes (Target.Contributors).
 type HoldScope string
 
 const (
@@ -195,8 +195,13 @@ type Target struct {
 	ContainerIDs []shared.ID
 	// AncestorItemIDs are the entries above the target, the target itself included. A hold on a task
 	// covers the activities under it, and a purge walks the subtree from the bottom up
-	// (data-retention.md §4.6).
+	// (data-retention.md §4 item 6).
 	AncestorItemIDs []shared.ID
+	// Contributors are the accounts whose own data goes with the target: who created an entry,
+	// wrote a comment on it, or uploaded a file attached to it, across everything the removal takes.
+	// An account hold covers that data (data-protection.md §4.1), and a comment falls with its entry.
+	// Empty where no account hold is in force - the caller does not have to read them then.
+	Contributors []shared.ID
 }
 
 // Holds is the set of holds in force for one tenant.
@@ -231,7 +236,40 @@ func (h Holds) Blocking(target Target) (LegalHold, bool) {
 				return hold, true
 			}
 		case HoldAccount:
-			// Not a question about this entry. See HoldScope.
+			if contains(target.Contributors, hold.ScopeID) {
+				return hold, true
+			}
+		}
+	}
+	return LegalHold{}, false
+}
+
+// AnyOnAccounts reports whether an account hold is in force, which is when a removal has to read
+// the contributors of what it removes at all.
+func (h Holds) AnyOnAccounts() bool {
+	for _, hold := range h {
+		if hold.Scope == HoldAccount && !hold.ScopeID.IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
+// OnAccount returns the hold in force on one account, and whether there is one.
+func (h Holds) OnAccount(accountID shared.ID) (LegalHold, bool) {
+	for _, hold := range h {
+		if hold.Scope == HoldAccount && !accountID.IsZero() && hold.ScopeID == accountID {
+			return hold, true
+		}
+	}
+	return LegalHold{}, false
+}
+
+// OnTenant returns the hold in force on the whole workspace, and whether there is one.
+func (h Holds) OnTenant() (LegalHold, bool) {
+	for _, hold := range h {
+		if hold.Scope == HoldTenant {
+			return hold, true
 		}
 	}
 	return LegalHold{}, false

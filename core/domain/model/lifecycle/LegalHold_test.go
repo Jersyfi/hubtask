@@ -34,6 +34,37 @@ func target() lifecycle.Target {
 		ItemID:          packageID,
 		ContainerIDs:    []shared.ID{hubID, collectionID},
 		AncestorItemIDs: []shared.ID{taskID, packageID},
+		Contributors:    []shared.ID{accountID},
+	}
+}
+
+// Which holds are in force on what: the account and the workspace are the two scopes that reach a
+// person's own record, and a removal reads contributors only while an account hold stands.
+func TestTheHoldsOnAnAccountAndOnTheWorkspaceAreFound(t *testing.T) {
+	onAccount := hold(lifecycle.HoldAccount, accountID)
+	onTenant := hold(lifecycle.HoldTenant, "")
+	holds := lifecycle.Holds{hold(lifecycle.HoldContainer, hubID), onAccount}
+
+	if !holds.AnyOnAccounts() {
+		t.Error("an account hold in force was not noticed")
+	}
+	if (lifecycle.Holds{hold(lifecycle.HoldContainer, hubID), hold(lifecycle.HoldAccount, "")}).AnyOnAccounts() {
+		t.Error("an account hold naming nobody counted")
+	}
+	if found, ok := holds.OnAccount(accountID); !ok || found.ScopeID != accountID {
+		t.Errorf("the hold on the account came back as %+v, %v", found, ok)
+	}
+	if _, ok := holds.OnAccount(otherAccountID); ok {
+		t.Error("another account was found held")
+	}
+	if _, ok := holds.OnAccount(""); ok {
+		t.Error("nobody was found held")
+	}
+	if _, ok := holds.OnTenant(); ok {
+		t.Error("a workspace hold was found where there is none")
+	}
+	if _, ok := append(holds, onTenant).OnTenant(); !ok {
+		t.Error("the workspace hold was not found")
 	}
 }
 
@@ -58,9 +89,11 @@ func TestAHoldReachesEverythingBelowWhatItNames(t *testing.T) {
 		{"the entry above it", lifecycle.Holds{hold(lifecycle.HoldItem, taskID)}, true},
 		{"the entry itself", lifecycle.Holds{hold(lifecycle.HoldItem, packageID)}, true},
 		{"a sibling entry", lifecycle.Holds{hold(lifecycle.HoldItem, shared.MustParseID("0192f000-0000-7000-8000-000000000003"))}, false},
-		// A hold on a person is about their own data - their profile, their trail - and is answered
-		// where that is erased. It does not freeze every entry they ever touched.
-		{"an account", lifecycle.Holds{hold(lifecycle.HoldAccount, accountID)}, false},
+		// A hold on a person covers what they contributed: an entry they created, commented on or
+		// attached a file to goes only with their data, so it is held (data-protection.md §4.1).
+		{"an account that contributed", lifecycle.Holds{hold(lifecycle.HoldAccount, accountID)}, true},
+		{"an account that did not", lifecycle.Holds{hold(lifecycle.HoldAccount, otherAccountID)}, false},
+		{"an account hold naming nobody", lifecycle.Holds{hold(lifecycle.HoldAccount, "")}, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			blocking, blocked := c.holds.Blocking(target())
