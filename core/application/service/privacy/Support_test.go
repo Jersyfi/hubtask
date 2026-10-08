@@ -83,6 +83,21 @@ func (s *requestStore) Save(_ context.Context, request domain.Request) (bool, er
 	return true, nil
 }
 
+// Extend holds the statement's guard, so a service test meets the same zero rows the database
+// answers to a case that moved under it.
+func (s *requestStore) Extend(_ context.Context, request domain.Request, at time.Time) (bool, error) {
+	stored, found := s.stored[request.ID]
+	if s.missing || !found || stored.Extended() || stored.Status.Closed() || !stored.DueAt.After(at) {
+		return false, nil
+	}
+	stored.OriginalDueAt = stored.DueAt
+	stored.DueAt = request.DueAt
+	stored.ExtensionReason = request.ExtensionReason
+	stored.InformedOn = request.InformedOn
+	s.stored[request.ID] = stored
+	return true, nil
+}
+
 func (s *requestStore) List(_ context.Context, filter repository.Filter) (repository.Page, error) {
 	s.asked = append(s.asked, filter)
 

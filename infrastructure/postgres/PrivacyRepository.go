@@ -145,6 +145,32 @@ func (r PrivacyRepository) Save(ctx context.Context, request domain.Request) (bo
 	return rows > 0, nil
 }
 
+// Extend writes an extension, guarded on the conditions the domain checked.
+func (r PrivacyRepository) Extend(
+	ctx context.Context, request domain.Request, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(request.ID)
+	if err != nil {
+		return false, err
+	}
+
+	reason := string(request.ExtensionReason)
+	rows, err := queries.ExtendDataSubjectRequest(ctx, sqlc.ExtendDataSubjectRequestParams{
+		ID: id, DueAt: timestampOf(request.DueAt), ExtensionReason: &reason,
+		InformedOn: dateOf(request.InformedOn), Now: timestampOf(now),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("extending a data subject request: %w", err))
+	}
+	return rows > 0, nil
+}
+
 // List answers one page of the cases, soonest deadline first.
 func (r PrivacyRepository) List(
 	ctx context.Context, filter repository.Filter,
@@ -476,8 +502,27 @@ func requestFrom(row sqlc.ListDataSubjectRequestsRow) (domain.Request, error) {
 		CompletedAt: timeFrom(row.CompletedAt), HandledBy: handler,
 		RejectionReason: stringFrom(row.RejectionReason),
 		TargetID:        target, ResultArchive: stringFrom(row.ResultArchive),
-		Notes: stringFrom(row.Notes),
+		Notes:           stringFrom(row.Notes),
+		OriginalDueAt:   timeFrom(row.OriginalDueAt),
+		ExtensionReason: domain.ExtensionReason(stringFrom(row.ExtensionReason)),
+		InformedOn:      dayFrom(row.InformedOn),
 	}, nil
+}
+
+// dateOf and dayFrom carry a calendar day through a `date` column, which pgx reads and writes as
+// midnight UTC: the day's own fields, never an instant converted through a zone.
+func dateOf(day domain.Day) pgtype.Date {
+	if day.IsZero() {
+		return pgtype.Date{}
+	}
+	return pgtype.Date{Time: day.Midnight(), Valid: true}
+}
+
+func dayFrom(value pgtype.Date) domain.Day {
+	if !value.Valid {
+		return domain.Day{}
+	}
+	return domain.DayOf(value.Time, time.UTC)
 }
 
 // optionalInstant is timestampOf for a moment that may be absent: the zero time reaches the column

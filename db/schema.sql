@@ -1710,7 +1710,14 @@ CREATE TABLE data_subject_request (
                    CHECK (scope IN ('TENANT','INSTALLATION')),
   target_id      uuid,                              -- the backup target an export is written to
   result_archive text,                              -- where the archive landed there
-  notes          text
+  notes          text,
+  -- An extension (Art. 12(3), migration 0119): due_at takes the extended deadline, these keep the
+  -- original, the reason and the day the person was informed - all three or none.
+  original_due_at  timestamptz,
+  extension_reason text CHECK (extension_reason IN ('COMPLEXITY','NUMBER_OF_REQUESTS')),
+  informed_on      date,
+  CONSTRAINT dsr_extension_whole_check
+    CHECK (num_nulls(original_due_at, extension_reason, informed_on) IN (0, 3))
 );
 CREATE INDEX dsr_open_idx ON data_subject_request (tenant_id, status, due_at)
   WHERE status IN ('RECEIVED','IN_PROGRESS');
