@@ -294,6 +294,8 @@
   "automation.finding.runner_without_role": "Das Konto, als das die Regel läuft, hat keine Rolle im Geltungsbereich der Regel; jeder Schritt an einem Eintrag fände nichts.",
   "automation.run_window_malformed": "{field} ist kein Zeitpunkt nach RFC 3339.",
   "automation.run_window_reversed": "Das Fenster endet, bevor es beginnt.",
+  "privacy.restriction_kept_by_erasure": "Eine Sperre bewahrt dieses Konto vor einer Löschung. Die Einschränkung bleibt, bis die Sperre aufgehoben ist und der Rest der Löschung gelaufen ist.",
+  "privacy.not_an_erasure": "Diese Anfrage ist keine Löschung – eine Sperre kann also nichts davon bewahren.",
   "privacy.already_extended": "Die Frist dieser Anfrage wurde schon verlängert. Sie lässt sich nur einmal verlängern.",
   "privacy.extension_after_deadline": "Die Frist dieser Anfrage ist abgelaufen. Verlängern lässt sie sich nur, bevor sie endet.",
   "privacy.extension_too_long": "Das ist mehr als drei Monate nach Eingang der Anfrage. Der späteste Tag ist der {latest}.",

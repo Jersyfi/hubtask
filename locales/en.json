@@ -805,6 +805,8 @@
   "privacy.reason_too_long": "That reason is longer than this installation stores.",
   "privacy.rejection_reason_required": "Say why the request is being refused. A refusal without a reason is not an answer.",
   "privacy.erasure_blocked_by_rule": "This person still runs automation rules. Point them at another account or remove them, then carry the erasure out. Rules affected: {rules}.",
+  "privacy.restriction_kept_by_erasure": "A legal hold keeps this account from an erasure, so its restriction stands until the hold is lifted and the rest of the erasure has run.",
+  "privacy.not_an_erasure": "That request is not an erasure, so there is nothing a hold could keep from it.",
   "privacy.erasure_mode_required": "Choose how the erasure is to be carried out before starting it: anonymise, or delete in full.",
   "privacy.export_target_required": "An export needs a backup target to write the archive to.",
   "privacy.transition_refused": "A request cannot go from {from} to {to}.",

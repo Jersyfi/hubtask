@@ -91,6 +91,32 @@ func (r PrivacyRepository) Contributions(
 	return contributions, nil
 }
 
+// CountIntake answers how much of the intake carries the person's address.
+func (r PrivacyRepository) CountIntake(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.CountIntakeOf(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("counting the intake of an account", err)
+	}
+	return int(count), nil
+}
+
+// KeepsAccount reports whether a case still keeps this account because of a hold.
+func (r PrivacyRepository) KeepsAccount(ctx context.Context, accountID shared.ID) (bool, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return false, err
+	}
+	kept, err := queries.ErasureKeepsAccount(ctx, id)
+	if err != nil {
+		return false, erasureFailed("reading whether an erasure keeps an account", err)
+	}
+	return kept, nil
+}
+
 // DeleteComments removes the person's comments named.
 func (r PrivacyRepository) DeleteComments(
 	ctx context.Context, accountID shared.ID, ids []shared.ID,

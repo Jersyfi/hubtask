@@ -1717,7 +1717,7 @@ func run() error {
 		privacyservice.UpdateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
 		privacyservice.ExtendDataSubjectRequest{Cases: privacyCases}.Descriptor(),
 		privacyservice.RestrictProcessing{
-			Subjects: privacyStore, Authorizer: authorizer, Audit: auditSink,
+			Subjects: privacyStore, Kept: privacyStore, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		privacyservice.WithdrawConsent{
@@ -2608,6 +2608,7 @@ func run() error {
 	// that is a Hubtask archive rather than a second format.
 	privacyEraser := privacyservice.Eraser{
 		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
+		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
 		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		TombstoneWindow: cfg.Retention.TombstoneWindow,

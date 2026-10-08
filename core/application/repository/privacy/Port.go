@@ -58,6 +58,9 @@ type Kept interface {
 
 	// BlockKept records why the rest of a case could not be erased, on every part still pending.
 	BlockKept(ctx context.Context, requestID shared.ID, code string, params map[string]string) error
+
+	// KeepsAccount reports whether a case still keeps this account because of a hold.
+	KeepsAccount(ctx context.Context, accountID shared.ID) (bool, error)
 }
 
 // PendingKept is one case and one hold that still keeps something of it.
@@ -169,9 +172,8 @@ type Erasure interface {
 	// DiscardNotifications removes what was sent to them and what was about to be.
 	DiscardNotifications(ctx context.Context, accountID shared.ID) (int, error)
 
-	// ReleaseAssignments hands the work they were assigned back to nobody. The entries belong to
-	// the workspace and stay.
-	ReleaseAssignments(ctx context.Context, accountID shared.ID, at time.Time) (int, error)
+	// CountIntake answers how much of the intake carries the person's address.
+	CountIntake(ctx context.Context, accountID shared.ID) (int, error)
 
 	// DiscardIntake removes what the person sent in by mail, matched by their address, which is
 	// all an inbound message carries. Only `FULL_DELETE` calls it.
@@ -180,13 +182,6 @@ type Erasure interface {
 	// ReleaseIntake is the same in the mode that keeps the workspace's content: the text stays and
 	// stops being anybody's.
 	ReleaseIntake(ctx context.Context, accountID shared.ID) (int, error)
-
-	// AuthoredComments answers the person's own contributions, with the entry each belongs to, so
-	// that a removal can write the journal entry and the tombstone each of them owes.
-	AuthoredComments(ctx context.Context, accountID shared.ID) ([]Authored, error)
-
-	// DeleteAuthoredComments removes them. Only `FULL_DELETE` calls it.
-	DeleteAuthoredComments(ctx context.Context, accountID shared.ID) (int, error)
 
 	// OrphanedMedia answers the media the person uploaded that nothing points at any more, with
 	// the key their bytes live under. A file attached to an entry is the workspace's content and
@@ -230,12 +225,6 @@ type Contribution struct {
 	HubID        shared.ID
 	// ItemCreatedBy is who created the entry, which a hold on another person is judged against.
 	ItemCreatedBy shared.ID
-}
-
-// Authored is one contribution of the person's, and the entry it belongs to.
-type Authored struct {
-	ID     shared.ID
-	ItemID shared.ID
 }
 
 // Medium is one uploaded file: the row and the key its bytes live under.

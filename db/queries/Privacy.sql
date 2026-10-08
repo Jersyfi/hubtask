@@ -239,25 +239,6 @@ DELETE FROM sync_device WHERE account_id = sqlc.arg('account_id');
 -- rendering rather than in the row, but the row says who was told what and when.
 DELETE FROM notification WHERE tenant_id = current_tenant_id() AND recipient_id = sqlc.arg('account_id');
 
--- name: ClearAssignmentsOfAccount :execrows
--- Work assigned to the person goes back to nobody. The entry belongs to the workspace and stays;
--- the assignment is a fact about a person and does not.
-UPDATE work_item SET assignee_id = NULL, updated_at = sqlc.arg('updated_at'), version = version + 1
-WHERE tenant_id = current_tenant_id() AND assignee_id = sqlc.arg('account_id') AND deleted_at IS NULL;
-
--- name: CommentsAuthoredBy :many
--- The person's own contributions, which `FULL_DELETE` takes and `ANONYMIZE` keeps.
---
--- Read before they are removed, because each one owes a journal entry and a tombstone: a comment
--- that vanished without either would come back from a restore, or be recreated by a device that
--- was offline (ADR-0020 §6).
-SELECT id, item_id
-FROM comment
-WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id');
-
--- name: DeleteCommentsAuthoredBy :execrows
-DELETE FROM comment WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id');
-
 -- name: MediaUploadedBy :many
 -- The media the person uploaded that nothing points at any more.
 --
@@ -366,3 +347,19 @@ FROM erasure_kept
 WHERE tenant_id = current_tenant_id() AND erased_at IS NULL
   AND (sqlc.narg('hold_id')::uuid IS NULL OR hold_id = sqlc.narg('hold_id')::uuid)
 ORDER BY request_id, hold_id;
+
+-- name: CountIntakeOf :one
+-- How much of the intake carries the person's address: what a hold on the workspace keeps of it.
+SELECT count(*) FROM jumble_entry
+WHERE tenant_id = current_tenant_id()
+  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'));
+
+-- name: ErasureKeepsAccount :one
+-- Whether a case still keeps this account because of a hold. Its restriction stands until the rest
+-- of the erasure has run.
+SELECT EXISTS (
+  SELECT 1 FROM erasure_kept k
+  JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+  WHERE k.tenant_id = current_tenant_id() AND k.account AND k.erased_at IS NULL
+    AND r.subject_account_id = sqlc.arg('account_id')
+) AS kept;

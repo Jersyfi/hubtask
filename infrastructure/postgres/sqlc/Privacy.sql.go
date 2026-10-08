@@ -125,26 +125,6 @@ func (q *Queries) BlockErasureKept(ctx context.Context, arg BlockErasureKeptPara
 	return result.RowsAffected(), nil
 }
 
-const clearAssignmentsOfAccount = `-- name: ClearAssignmentsOfAccount :execrows
-UPDATE work_item SET assignee_id = NULL, updated_at = $1, version = version + 1
-WHERE tenant_id = current_tenant_id() AND assignee_id = $2 AND deleted_at IS NULL
-`
-
-type ClearAssignmentsOfAccountParams struct {
-	UpdatedAt pgtype.Timestamptz
-	AccountID pgtype.UUID
-}
-
-// Work assigned to the person goes back to nobody. The entry belongs to the workspace and stays;
-// the assignment is a fact about a person and does not.
-func (q *Queries) ClearAssignmentsOfAccount(ctx context.Context, arg ClearAssignmentsOfAccountParams) (int64, error) {
-	result, err := q.db.Exec(ctx, clearAssignmentsOfAccount, arg.UpdatedAt, arg.AccountID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const clearAssignmentsOn = `-- name: ClearAssignmentsOn :execrows
 UPDATE work_item SET assignee_id = NULL, updated_at = $1, version = version + 1
 WHERE tenant_id = current_tenant_id() AND assignee_id = $2 AND deleted_at IS NULL
@@ -166,40 +146,18 @@ func (q *Queries) ClearAssignmentsOn(ctx context.Context, arg ClearAssignmentsOn
 	return result.RowsAffected(), nil
 }
 
-const commentsAuthoredBy = `-- name: CommentsAuthoredBy :many
-SELECT id, item_id
-FROM comment
-WHERE tenant_id = current_tenant_id() AND author_id = $1
+const countIntakeOf = `-- name: CountIntakeOf :one
+SELECT count(*) FROM jumble_entry
+WHERE tenant_id = current_tenant_id()
+  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1)
 `
 
-type CommentsAuthoredByRow struct {
-	ID     pgtype.UUID
-	ItemID pgtype.UUID
-}
-
-// The person's own contributions, which `FULL_DELETE` takes and `ANONYMIZE` keeps.
-//
-// Read before they are removed, because each one owes a journal entry and a tombstone: a comment
-// that vanished without either would come back from a restore, or be recreated by a device that
-// was offline (ADR-0020 §6).
-func (q *Queries) CommentsAuthoredBy(ctx context.Context, authorID pgtype.UUID) ([]CommentsAuthoredByRow, error) {
-	rows, err := q.db.Query(ctx, commentsAuthoredBy, authorID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []CommentsAuthoredByRow{}
-	for rows.Next() {
-		var i CommentsAuthoredByRow
-		if err := rows.Scan(&i.ID, &i.ItemID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+// How much of the intake carries the person's address: what a hold on the workspace keeps of it.
+func (q *Queries) CountIntakeOf(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countIntakeOf, accountID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const deleteAccount = `-- name: DeleteAccount :execrows
@@ -211,18 +169,6 @@ DELETE FROM account WHERE id = $1 AND tenant_id = current_tenant_id()
 // notifications all name the account with ON DELETE CASCADE, and assignments are set to NULL.
 func (q *Queries) DeleteAccount(ctx context.Context, id pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteAccount, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
-const deleteCommentsAuthoredBy = `-- name: DeleteCommentsAuthoredBy :execrows
-DELETE FROM comment WHERE tenant_id = current_tenant_id() AND author_id = $1
-`
-
-func (q *Queries) DeleteCommentsAuthoredBy(ctx context.Context, authorID pgtype.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteCommentsAuthoredBy, authorID)
 	if err != nil {
 		return 0, err
 	}
@@ -414,6 +360,24 @@ func (q *Queries) ErasureContributions(ctx context.Context, accountID pgtype.UUI
 		return nil, err
 	}
 	return items, nil
+}
+
+const erasureKeepsAccount = `-- name: ErasureKeepsAccount :one
+SELECT EXISTS (
+  SELECT 1 FROM erasure_kept k
+  JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+  WHERE k.tenant_id = current_tenant_id() AND k.account AND k.erased_at IS NULL
+    AND r.subject_account_id = $1
+) AS kept
+`
+
+// Whether a case still keeps this account because of a hold. Its restriction stands until the rest
+// of the erasure has run.
+func (q *Queries) ErasureKeepsAccount(ctx context.Context, accountID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, erasureKeepsAccount, accountID)
+	var kept bool
+	err := row.Scan(&kept)
+	return kept, err
 }
 
 const erasureKeptOf = `-- name: ErasureKeptOf :many

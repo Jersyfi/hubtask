@@ -6,6 +6,8 @@ package privacy
 import (
 	"context"
 	"errors"
+	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -28,8 +30,6 @@ type erasureStore struct {
 	deleted      bool
 	credentials  int
 	notified     int
-	assignments  int
-	comments     []repository.Authored
 	commentsGone int
 	media        []repository.Medium
 	discarded    []shared.ID
@@ -106,28 +106,87 @@ func (e *erasureStore) DiscardNotifications(context.Context, shared.ID) (int, er
 	return e.notified, nil
 }
 
-func (e *erasureStore) ReleaseAssignments(context.Context, shared.ID, time.Time) (int, error) {
-	if err := e.step("assignments"); err != nil {
+func (e *erasureStore) CountIntake(context.Context, shared.ID) (int, error) {
+	if err := e.step("count intake"); err != nil {
 		return 0, err
 	}
-	return e.assignments, nil
+	return 2, nil
 }
 
-func (e *erasureStore) AuthoredComments(context.Context, shared.ID) ([]repository.Authored, error) {
-	if err := e.step("read comments"); err != nil {
-		return nil, err
+// holdSource is the holds in force, in placement order, as the lifecycle repository answers them.
+type holdSource struct{ holds lifecycle.Holds }
+
+func (h *holdSource) Active(context.Context) (lifecycle.Holds, error) { return h.holds, nil }
+
+func (h *holdSource) Contributors(context.Context, []shared.ID) (map[shared.ID][]shared.ID, error) {
+	return nil, nil
+}
+
+// keptStore is what each hold kept, as the last record left it.
+type keptStore struct {
+	recorded [][]domain.Kept
+	parts    map[shared.ID][]domain.Kept
+	blocked  map[shared.ID]string
+	keeps    bool
+}
+
+func (k *keptStore) RecordKept(_ context.Context, requestID shared.ID, kept []domain.Kept, at time.Time) error {
+	k.recorded = append(k.recorded, kept)
+	if k.parts == nil {
+		k.parts = map[shared.ID][]domain.Kept{}
 	}
-	return e.comments, nil
-}
-
-func (e *erasureStore) DeleteAuthoredComments(context.Context, shared.ID) (int, error) {
-	if err := e.step("delete comments"); err != nil {
-		return 0, err
+	still := map[shared.ID]bool{}
+	for _, part := range kept {
+		still[part.HoldID] = true
 	}
-	e.commentsGone = len(e.comments)
-	return len(e.comments), nil
+	next := make([]domain.Kept, 0, len(k.parts[requestID])+len(kept))
+	for _, part := range k.parts[requestID] {
+		if !still[part.HoldID] && part.Pending() {
+			part.ErasedAt = at
+		}
+		if !still[part.HoldID] {
+			next = append(next, part)
+		}
+	}
+	for _, part := range kept {
+		part.RecordedAt = at
+		next = append(next, part)
+	}
+	k.parts[requestID] = next
+	return nil
 }
 
+func (k *keptStore) KeptOf(_ context.Context, ids []shared.ID) (map[shared.ID][]domain.Kept, error) {
+	out := map[shared.ID][]domain.Kept{}
+	for _, id := range ids {
+		if parts, ok := k.parts[id]; ok {
+			out[id] = parts
+		}
+	}
+	return out, nil
+}
+
+func (k *keptStore) PendingKept(_ context.Context, hold shared.ID) ([]repository.PendingKept, error) {
+	var out []repository.PendingKept
+	for request, parts := range k.parts {
+		for _, part := range parts {
+			if part.Pending() && (hold.IsZero() || part.HoldID == hold) {
+				out = append(out, repository.PendingKept{RequestID: request, HoldID: part.HoldID})
+			}
+		}
+	}
+	return out, nil
+}
+
+func (k *keptStore) BlockKept(_ context.Context, requestID shared.ID, code string, _ map[string]string) error {
+	if k.blocked == nil {
+		k.blocked = map[shared.ID]string{}
+	}
+	k.blocked[requestID] = code
+	return nil
+}
+
+func (k *keptStore) KeepsAccount(context.Context, shared.ID) (bool, error) { return k.keeps, nil }
 func (e *erasureStore) Contributions(context.Context, shared.ID) ([]repository.Contribution, error) {
 	if err := e.step("contributions"); err != nil {
 		return nil, err
@@ -235,28 +294,64 @@ type erasureHarness struct {
 	objects    *objectStore
 	pseudonyms *pseudonymStore
 	audit      *auditSink
+	holds      *holdSource
+	kept       *keptStore
+	subjects   *subjectStore
+}
+
+// Where the person's rows are: two comments on one task, and three tasks assigned to them, all in
+// one hub's collection.
+var (
+	erasureHub        = shared.MustParseID("0192f000-0000-7000-8000-0000000000c7")
+	erasureCollection = shared.MustParseID("0192f000-0000-7000-8000-0000000000c8")
+	erasureTasks      = []shared.ID{
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000f7"),
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000f8"),
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000f9"),
+	}
+	erasureComments = []shared.ID{
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e1"),
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e2"),
+	}
+)
+
+func erasureRows() []repository.Contribution {
+	at := func(kind repository.ContributionKind, id, item shared.ID) repository.Contribution {
+		return repository.Contribution{
+			Kind: kind, ID: id, ItemID: item, Path: "/" + item.String() + "/",
+			CollectionID: erasureCollection, HubID: erasureHub, ItemCreatedBy: accountID,
+		}
+	}
+	rows := []repository.Contribution{
+		at(repository.ContributedComment, erasureComments[0], erasureTasks[0]),
+		at(repository.ContributedComment, erasureComments[1], erasureTasks[0]),
+	}
+	for _, task := range erasureTasks {
+		rows = append(rows, at(repository.ContributedAssignment, task, task))
+	}
+	return rows
 }
 
 func newErasureHarness() *erasureHarness {
 	return &erasureHarness{
 		storage: &erasureStore{
-			credentials: 2, notified: 5, assignments: 3,
-			comments: []repository.Authored{
-				{ID: shared.MustParseID("0192f000-0000-7000-8000-0000000000e1"), ItemID: subjectID},
-				{ID: shared.MustParseID("0192f000-0000-7000-8000-0000000000e2"), ItemID: subjectID},
-			},
+			credentials: 2, notified: 5, contributions: erasureRows(),
 			media: []repository.Medium{
 				{ID: shared.MustParseID("0192f000-0000-7000-8000-0000000000e3"), StorageKey: "media/ab/cd"},
 			},
 		},
 		removals: &removalStore{}, objects: &objectStore{},
 		pseudonyms: &pseudonymStore{}, audit: &auditSink{},
+		holds: &holdSource{}, kept: &keptStore{}, subjects: newSubjectStore(),
 	}
 }
 
-func (h *erasureHarness) eraser() Eraser {
+func (h *erasureHarness) eraser() Eraser { return h.eraserFor(newRequestStore()) }
+
+func (h *erasureHarness) eraserFor(requests *requestStore) Eraser {
 	return Eraser{
-		Requests: newRequestStore(), Erasure: h.storage, Pseudonyms: h.pseudonyms,
+		Requests: requests, Erasure: h.storage, Pseudonyms: h.pseudonyms,
+		Holds: h.holds, Kept: h.kept, Subjects: h.subjects,
 		Removals: h.removals, Objects: h.objects, Audit: h.audit,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 		TombstoneWindow: 90 * 24 * time.Hour,
@@ -290,9 +385,13 @@ func TestAFullDeletionServesEveryStorageLocation(t *testing.T) {
 		t.Error("a full deletion anonymised the account instead of removing it")
 	}
 
-	// The credentials go first: nothing may act as the person half way through an erasure.
-	if h.storage.order[0] != "credentials" {
-		t.Errorf("the erasure began with %q", h.storage.order[0])
+	// The credentials are the first thing that goes - after the reading that decides what is kept -
+	// so nothing may act as the person half way through an erasure.
+	writes := slices.DeleteFunc(slices.Clone(h.storage.order), func(step string) bool {
+		return step == "contributions" || step == "automations" || step == "count intake"
+	})
+	if writes[0] != "credentials" {
+		t.Errorf("the erasure began removing with %q", writes[0])
 	}
 
 	// Every removal leaves the two records that stop it coming back (ADR-0020 §6).
@@ -452,7 +551,9 @@ func TestAnErasureWithoutAModeIsRefused(t *testing.T) {
 // A storage location that refuses fails the erasure rather than leaving it half done and silent -
 // which is the failure risk R-09 is about.
 func TestAStorageLocationThatRefusesFailsTheErasure(t *testing.T) {
-	for _, step := range []string{"credentials", "notifications", "assignments", "read comments", "media"} {
+	for _, step := range []string{
+		"contributions", "credentials", "notifications", "assignments", "delete comments", "media",
+	} {
 		h := newErasureHarness()
 		h.storage.failOn = step
 
@@ -525,5 +626,107 @@ func TestTheIntakeIsServedInBothModes(t *testing.T) {
 	}
 	if kept.storage.intakeGone != 0 || kept.storage.intakeFreed != 2 {
 		t.Error("an anonymisation deleted the intake instead of taking the address off it")
+	}
+}
+
+var erasureHoldID = shared.MustParseID("0192f000-0000-7000-8000-0000000003a1")
+
+// A hold on the hub keeps the person's comments and assignments there; the account is anonymised
+// as always, but not deleted, because the kept comments still name it (UC-PRV-03 checks 3, 6, 10;
+// data-protection.md §4.1). The case is locked first, and what was kept is recorded and audited.
+func TestAHoldOnAHubKeepsWhatIsInItAndTheAccountIsAnonymised(t *testing.T) {
+	h := newErasureHarness()
+	h.holds.holds = lifecycle.Holds{{ID: erasureHoldID, Scope: lifecycle.HoldContainer, ScopeID: erasureHub}}
+	requests := newRequestStore()
+
+	erased, err := h.eraserFor(requests).Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete))
+	if err != nil {
+		t.Fatalf("erasing: %v", err)
+	}
+
+	if requests.locked != 1 {
+		t.Errorf("the case was locked %d times, want once", requests.locked)
+	}
+	if erased.Comments != 0 || h.storage.commentsGone != 0 || erased.Assignments != 0 {
+		t.Errorf("the erasure removed what the hold keeps: %+v", erased)
+	}
+	if !erased.AccountAnonymised || erased.AccountRemoved || h.storage.deleted {
+		t.Errorf("the account was not anonymised in place: %+v", erased)
+	}
+	if h.pseudonyms.assigned[subjectID] == "" {
+		t.Error("the anonymised account left no pseudonym")
+	}
+	if erased.Credentials != 2 || erased.Notifications != 5 {
+		t.Errorf("credentials and notifications are no evidence and go: %+v", erased)
+	}
+	want := []domain.Kept{{HoldID: erasureHoldID, HoldScope: lifecycle.HoldContainer, HoldScopeID: erasureHub,
+		Comments: 2, Assignments: 3}}
+	if len(h.kept.recorded) != 1 || !reflect.DeepEqual(h.kept.recorded[0], want) {
+		t.Errorf("recorded %+v, want %+v", h.kept.recorded, want)
+	}
+
+	entry := h.audit.entries[0]
+	for field, value := range map[string]any{
+		"kept_holds": erasureHoldID.String(), "kept_comments": 2, "kept_assignments": 3,
+		"kept_legal_basis": domain.KeptLegalBasis, "account": "anonymised",
+	} {
+		if got := entry.Changes[field].(map[string]any)["to"]; got != value {
+			t.Errorf("the entry records %s = %v, want %v", field, got, value)
+		}
+	}
+}
+
+// A hold on the person keeps the account itself: not anonymised, not deleted, no pseudonym, and
+// restricted (UC-PRV-03 check 13) - its credentials still go, its sign-in stays.
+func TestAHoldOnThePersonKeepsTheAccountAndRestrictsIt(t *testing.T) {
+	h := newErasureHarness()
+	h.holds.holds = lifecycle.Holds{{ID: erasureHoldID, Scope: lifecycle.HoldAccount, ScopeID: subjectID}}
+
+	erased, err := h.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete))
+	if err != nil {
+		t.Fatalf("erasing: %v", err)
+	}
+	if !erased.AccountKept || erased.AccountAnonymised || erased.AccountRemoved {
+		t.Errorf("the account's end is %+v, want kept", erased)
+	}
+	if h.storage.anonymised || h.storage.deleted {
+		t.Error("the held account was anonymised or deleted")
+	}
+	if h.subjects.statuses[subjectID] != "RESTRICTED" {
+		t.Errorf("the held account is %q, want RESTRICTED", h.subjects.statuses[subjectID])
+	}
+	if _, assigned := h.pseudonyms.assigned[subjectID]; assigned {
+		t.Error("a pseudonym replaced the name of an account a hold keeps")
+	}
+	if erased.Credentials != 2 {
+		t.Errorf("%d credentials were revoked, want every one", erased.Credentials)
+	}
+	if !h.kept.recorded[0][0].Account {
+		t.Error("the record does not say the account was kept")
+	}
+}
+
+// A case of an account a hold keeps cannot be lifted out of its restriction: the held data would
+// become processable again.
+func TestTheRestrictionOfAnAccountAHoldKeepsCannotBeLifted(t *testing.T) {
+	subjects := newSubjectStore()
+	restriction := newRestriction(subjects, &authorizerDouble{}, &auditSink{})
+	restriction.Kept = &keptStore{keeps: true}
+
+	err := restriction.Execute(context.Background(), actor(), RestrictCommand{
+		AccountID: subjectID, Restricted: false, Reason: "Settled",
+	})
+	if shared.AsError(err).DetailCode != domain.CodeRestrictionKeptByErasure {
+		t.Fatalf("lifting reported %v, want %s", err, domain.CodeRestrictionKeptByErasure)
+	}
+	if _, written := subjects.statuses[subjectID]; written {
+		t.Error("the restriction was lifted anyway")
+	}
+
+	// Placing one is never refused for it.
+	if err := restriction.Execute(context.Background(), actor(), RestrictCommand{
+		AccountID: subjectID, Restricted: true, Reason: "Art. 18",
+	}); err != nil {
+		t.Fatalf("restricting: %v", err)
 	}
 }
