@@ -120,11 +120,14 @@ in order, filled or marked n/a; `Closes #n` at the start of a line or `No issue:
 that exist; one ADR answer ticked and named; the template's Definition of Done items, none deleted
 or reworded, each ticked or n/a; no placeholder left in Impact; and the title a Conventional
 Commit. With the branch's history it also holds: a readiness record ready before the first commit
-outside `docs/` and at the head, for a branch that carries a task, names a use case or changes the
+outside `docs/` and at the head, with something under each of its five sections, for a branch that carries a task, names a use case or changes the
 contract, a migration, a query, a dependency, an ADR or what a use case promises (otherwise
 `Readiness: n/a — <why>`); no merged migration changed; no use case deleted and no ID reused; a
 change to a use case's Goal, How to check or Where it ends named `correction` or `decision #<n>`;
-and no settled ADR changed beyond its status line, its `Rule lives in` line and link targets. The
+no settled ADR changed beyond its status line, its `Rule lives in` line and link targets; and
+no numbered section of a subject document (`docs/architecture/`, `docs/design/`) dropped or
+renumbered, nor left as a bare heading where it had text — a retired section keeps its heading
+with one sentence saying where its content went. The
 rules added after the readiness rule hold pull requests opened from 2026-10-08 on, as it does. It
 reads the description and the title from the API, so a re-run judges them as they stand.
 `make gate-pr BODY=<file> TITLE="<title>"` runs it locally, `BASE=origin/main` with the history. `gh pr create --body` never shows the template;

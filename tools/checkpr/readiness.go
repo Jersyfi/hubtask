@@ -16,7 +16,8 @@ import (
 //     use case, or changes the contract, a migration, the queries, a dependency, an ADR or what a
 //     use case promises has a readiness record, docs/backlog/ready/<TASK>.md. It said `ready` or
 //     `waiting on the owner` before the first commit outside docs/, and it says `ready`, with no
-//     open decision box, when the pull request leaves draft. A change without a task says
+//     open decision box and something under each of its five sections - the review last - when
+//     the pull request leaves draft. A change without a task says
 //     `Readiness: n/a — <why>` instead.
 //   - A merged migration never changes (rule 12) unless the description names the ADR that
 //     allows it: `Changes a merged migration: ADR-nnnn`.
@@ -26,6 +27,8 @@ import (
 //     a correction or as the owner's decision (usecasetext.go).
 //   - A settled ADR keeps its text; only its status line, its Rule lives in line and link targets
 //     move (adr.go).
+//   - A numbered section of a subject document keeps its number; a section whose content moved
+//     keeps its heading with one sentence (sections.go).
 //
 // What it cannot see: whether the record is good and whether the review was independent, and
 // whether the owner did decide what a description says was decided. Those stay with the people
@@ -40,15 +43,17 @@ type change struct{ status, path string }
 // branchFacts is what the history says. known is false when no history was read (no -base): the
 // description alone is then all there is to check.
 type branchFacts struct {
-	known      bool
-	opened     time.Time
-	tasks      []string
-	changed    []string
-	altered    []change
-	ucText     []ucTextChange
-	reused     []reusedID
-	adrEdited  []string
-	beforeCode func(path string) ([]byte, error)
+	known     bool
+	opened    time.Time
+	tasks     []string
+	changed   []string
+	altered   []change
+	ucText    []ucTextChange
+	reused    []reusedID
+	adrEdited []string
+	// sectionsLost are the numbered sections of subject documents the head drops (sections.go).
+	sectionsLost []lostSection
+	beforeCode   func(path string) ([]byte, error)
 }
 
 // reusedID is a use case the branch adds under an ID an earlier file carried.
@@ -112,6 +117,9 @@ func historyProblems(body string, facts branchFacts, read func(string) ([]byte, 
 	if heldTo(facts.opened, adrSince) {
 		problems = append(problems, adrProblems(facts.adrEdited)...)
 	}
+	if heldTo(facts.opened, sectionsSince) {
+		problems = append(problems, sectionProblems(facts.sectionsLost)...)
+	}
 	if !heldTo(facts.opened, readinessSince) {
 		return problems
 	}
@@ -163,6 +171,16 @@ func readinessProblems(body string, facts branchFacts, read func(string) ([]byte
 		if strings.Contains(sectionText(record, "3. Decisions"), "- [ ]") {
 			problems = append(problems, fmt.Sprintf("%s still has an open decision in section 3", path))
 		}
+		for n := 1; n <= recordSections; n++ {
+			if strings.TrimSpace(numberedSection(record, n)) != "" {
+				continue
+			}
+			if n == recordSections {
+				problems = append(problems, fmt.Sprintf("%s has nothing under ## 5. Review - a record without a review is not settled; the reviewer who did not write it names every finding, or what was checked", path))
+				continue
+			}
+			problems = append(problems, fmt.Sprintf("%s has nothing under section %d - \"none — <why>\" is an answer, an empty section is not", path, n))
+		}
 		if facts.beforeCode != nil {
 			before, err := facts.beforeCode(path)
 			v := verdict(htmlComment.ReplaceAllString(string(before), ""))
@@ -180,6 +198,24 @@ func verdict(record string) string {
 		return "no verdict"
 	}
 	return strings.TrimSpace(m[1])
+}
+
+// recordSections is how many numbered sections a readiness record has (docs/backlog/ready/TEMPLATE.md);
+// the last is the review.
+const recordSections = 5
+
+// numberedSection returns what stands under the heading "## <n>. …", without the heading line, up
+// to the next "## " - or "" when the record has no such heading.
+func numberedSection(doc string, n int) string {
+	prefix := fmt.Sprintf("## %d.", n)
+	for _, part := range strings.Split("\n"+doc, "\n## ") {
+		if !strings.HasPrefix("## "+part, prefix) {
+			continue
+		}
+		_, body, _ := strings.Cut(part, "\n")
+		return body
+	}
+	return ""
 }
 
 // sectionText returns what stands under "## <title>" up to the next "## ".

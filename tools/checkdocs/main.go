@@ -36,6 +36,9 @@
 //     anywhere exists (see usecases.go).
 //   - Every task of a milestone carries checks its `Delivers` line names, and a closed milestone
 //     has no Delivers check a use case still lists as unmet (see milestones.go).
+//
+// A readiness record is a snapshot of its task's start, so the link and reference checks pass it
+// by (snapshot); its template is read like any other document.
 package main
 
 import (
@@ -105,6 +108,9 @@ func checkLinks(root string, docs []string) []string {
 
 	var problems []string
 	for _, doc := range docs {
+		if snapshot(doc) {
+			continue
+		}
 		dir := filepath.Dir(doc)
 		for _, match := range link.FindAllStringSubmatch(read(root, doc), -1) {
 			target := match[1]
@@ -247,14 +253,14 @@ func checkADRReferences(root string) []string {
 			}
 			return nil
 		}
-		if !citesADRs(entry.Name()) {
+		relative, _ := filepath.Rel(root, path)
+		if !citesADRs(entry.Name()) || snapshot(relative) {
 			return nil
 		}
 		content, readErr := os.ReadFile(path) //nolint:gosec // G304: walking this repository is the job
 		if readErr != nil {
 			return readErr
 		}
-		relative, _ := filepath.Rel(root, path)
 		for _, match := range adrReference.FindAllStringSubmatch(string(content), -1) {
 			cited[match[1]] = append(cited[match[1]], relative)
 		}
@@ -280,6 +286,15 @@ func checkADRReferences(root string) []string {
 func citesADRs(name string) bool {
 	ext := filepath.Ext(name)
 	return codeExtensions[ext] || ext == ".tpl" || filepath.Base(name) == "Makefile" || filepath.Base(name) == "Dockerfile"
+}
+
+// snapshot is a readiness record. It states what was true when its task began, so a link, an ADR
+// or a use case check it names may later be renamed, superseded or renumbered without the record
+// becoming wrong - and a gate that read it as current text would turn old records red. The
+// template is not a snapshot: every new record starts as a copy of it.
+func snapshot(relative string) bool {
+	relative = filepath.ToSlash(relative)
+	return strings.HasPrefix(relative, "docs/backlog/ready/") && relative != "docs/backlog/ready/TEMPLATE.md"
 }
 
 // markdownFiles collects every document, repository-relative.
