@@ -14354,6 +14354,13 @@ components:
         scope:
           type: object
           required: [kind]
+          description: >
+            What the hold covers. `TENANT` is the whole workspace and names nothing; `CONTAINER` a
+            hub or collection and everything in it; `ITEM` an entry and what hangs off it;
+            `ACCOUNT` a person - their account and the entries, comments and files they
+            contributed, which an erasure of that person keeps and no deletion removes. Every
+            other scope names something this workspace has, or the hold is refused with
+            `lifecycle.hold_target_not_found`.
           properties:
             kind: { type: string, enum: [TENANT, CONTAINER, ITEM, ACCOUNT] }
             id: { type: [string, "null"], format: uuid }

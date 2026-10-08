@@ -262,9 +262,11 @@ func (h PlaceLegalHold) Descriptor() usecase.Descriptor {
 		Name: PlaceLegalHoldName,
 		Summary: "Freezes something against every kind of deletion: a retention rule, a person " +
 			"emptying their own trash, a hard delete somebody asked for. A hold on the workspace " +
-			"covers everything, one on a hub or a collection covers what is below it, and one on " +
-			"an entry covers that entry and what hangs off it. Placing one is not an ordinary " +
-			"member's power, because it overrides the workspace's own decisions about its data.",
+			"covers everything, one on a hub or a collection covers what is below it, one on " +
+			"an entry covers that entry and what hangs off it, and one on a person covers their " +
+			"account and what they contributed - which an erasure of them then keeps. Placing one " +
+			"is not an ordinary member's power, because it overrides the workspace's own " +
+			"decisions about its data.",
 		SideEffects: "Writes the hold and an audit entry carrying the reason. Nothing is deleted " +
 			"or changed; things simply stop being deletable.",
 		TokenScope: retentionManage,
@@ -276,8 +278,8 @@ func (h PlaceLegalHold) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "scope_id", Kind: usecase.KindID,
-				Description: "Which hub, collection or entry. Left out for a hold on the whole " +
-					"workspace, which names nothing because it covers everything.",
+				Description: "Which hub, collection, entry or person. Left out for a hold on the " +
+					"whole workspace, which names nothing because it covers everything.",
 			},
 			{
 				Name: "reason", Kind: usecase.KindString, Required: true,

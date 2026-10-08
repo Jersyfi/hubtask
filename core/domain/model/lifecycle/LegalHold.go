@@ -87,9 +87,10 @@ type NewHoldInput struct {
 
 // NewLegalHold builds a hold and refuses what cannot be honoured.
 //
-// The last of those is the point of the function. A hold that is stored and not honoured is worse
-// than a hold that was refused, because somebody believes it is in force - so a scope this build
-// does not act on is a refusal here rather than a row nothing reads.
+// A hold that is stored and not honoured is worse than a hold that was refused, because somebody
+// believes it is in force. Every scope here is honoured: by every deletion path through
+// Holds.Blocking, and by an erasure (data-protection.md §4.1). Whether what it names exists in the
+// workspace is the application's question, which reads the workspace.
 func NewLegalHold(in NewHoldInput) (LegalHold, error) {
 	reason, err := shared.NFC(strings.TrimSpace(in.Reason), in.Text)
 	if err != nil {
@@ -108,14 +109,6 @@ func NewLegalHold(in NewHoldInput) (LegalHold, error) {
 	// it covers, and one that did not would be a hold nothing could be judged against.
 	case (in.Scope == HoldTenant) != in.ScopeID.IsZero():
 		return LegalHold{}, invalidHold(CodeHoldScopeIDMismatch, "/scope")
-	// The scope the check constraint accepts and this build does not act on. `Holds.Blocking`
-	// ignores it deliberately - an account hold is about one person's own data, which is erased
-	// where a data subject request is answered rather than kept where a workspace's entries are -
-	// so it is refused (data-retention.md §4.1): a hold nothing honours is the one outcome that is
-	// worse than no hold at all, because it is believed.
-	case in.Scope == HoldAccount:
-		return LegalHold{}, shared.ErrConflict.WithDetail(CodeHoldAccountScopeUnavailable).
-			WithFields(shared.FieldError{Path: "/scope", Code: CodeHoldAccountScopeUnavailable})
 	}
 
 	return LegalHold{
@@ -179,8 +172,6 @@ const (
 	// does not have.
 	CodeHoldTargetNotFound  = "lifecycle.hold_target_not_found"
 	CodeHoldAlreadyReleased = "lifecycle.hold_already_released"
-	// CodeHoldAccountScopeUnavailable is the ACCOUNT scope, refused (data-retention.md §4.1).
-	CodeHoldAccountScopeUnavailable = "lifecycle.hold_account_scope_unavailable"
 )
 
 // Target is what a hard delete is about to remove, expressed as the levels a hold could name.

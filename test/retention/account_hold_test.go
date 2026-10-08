@@ -19,8 +19,7 @@ import (
 
 // UC-LIF-06 checks 3, 4 and 5 for a hold on a person (data-protection.md §4.1): what they created,
 // commented on or attached a file to is kept by the retention pass, by emptying the trash and by a
-// named purge - and what nobody held goes as usual. The hold is written directly, as an operator's
-// hold is stored, so these paths are proven before the scope can be placed through the API.
+// named purge - and what nobody held goes as usual. The hold is placed through the use case.
 func TestAnAccountHoldKeepsWhatThePersonContributed(t *testing.T) {
 	s := newSuite(t, 24*time.Hour)
 	collectionID := s.collection(t)
@@ -141,13 +140,14 @@ func (s *suite) attachment(t *testing.T, itemID, uploader shared.ID) {
 	}
 }
 
-// holdAccount writes a hold on one person.
+// holdAccount places a hold on one person, the way a person places one.
 func (s *suite) holdAccount(t *testing.T, account shared.ID) {
 	t.Helper()
-	if _, err := s.admin.Exec(s.ctx, `
-		INSERT INTO legal_hold (id, tenant_id, scope_kind, scope_id, reason, placed_by)
-		VALUES ($1, $2, 'ACCOUNT', $3, 'Pending litigation, ref. 4 O 128/26', $3)`,
-		freshID(t).String(), s.tenant.String(), account.String()); err != nil {
-		t.Fatalf("seeding the hold: %v", err)
+	if _, err := (lifecycle.PlaceLegalHold{Holds: s.holds()}).Execute(s.ctx, s.actorWithAccount(),
+		lifecycle.PlaceLegalHoldCommand{
+			Scope: lifecycleDomain.HoldAccount, ScopeID: account,
+			Reason: "Pending litigation, ref. 4 O 128/26",
+		}); err != nil {
+		t.Fatalf("placing the hold: %v", err)
 	}
 }

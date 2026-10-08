@@ -154,23 +154,31 @@ func carries(entry audit.Entry, field, value string) bool {
 	return change["to"] == value || change["from"] == value
 }
 
-// The scope the schema accepts and the engine ignores. Refused, so that nobody believes a hold is
-// in force that nothing honours.
-func TestAnAccountHoldIsRefusedAndWritesNothing(t *testing.T) {
+// A hold on a person is placed like any other - the owner's right, a reason, an entry - and only
+// on a person this workspace has.
+func TestAnAccountHoldIsPlacedOnAPersonHere(t *testing.T) {
 	h := newHoldsHarness()
-
-	_, err := (PlaceLegalHold{Holds: h.service()}).Execute(context.Background(), actor(),
+	hold, err := (PlaceLegalHold{Holds: h.service()}).Execute(context.Background(), actor(),
 		placeCommand(func(cmd *PlaceLegalHoldCommand) {
 			cmd.Scope, cmd.ScopeID = domain.HoldAccount, accountID
 		}))
-
-	var domainErr *shared.Error
-	if !errors.As(err, &domainErr) ||
-		domainErr.DetailCode != domain.CodeHoldAccountScopeUnavailable {
-		t.Fatalf("refused with %v", err)
+	if err != nil {
+		t.Fatalf("placing a hold on a person: %v", err)
 	}
-	if len(h.holds.stored) != 0 || len(h.audit.entries) != 0 {
-		t.Error("a refused hold left something behind")
+	if len(h.holds.stored) != 1 || hold.Scope != domain.HoldAccount {
+		t.Errorf("stored %+v", h.holds.stored)
+	}
+	if len(h.holds.asked) != 1 || h.holds.asked[0] != accountID {
+		t.Errorf("the person was looked up as %v", h.holds.asked)
+	}
+
+	gone := shared.MustParseID("0192f000-0000-7000-8000-0000000000e9")
+	h = newHoldsHarness()
+	h.holds.missing = map[shared.ID]bool{gone: true}
+	_, err = (PlaceLegalHold{Holds: h.service()}).Execute(context.Background(), actor(),
+		placeCommand(func(cmd *PlaceLegalHoldCommand) { cmd.Scope, cmd.ScopeID = domain.HoldAccount, gone }))
+	if shared.AsError(err).DetailCode != domain.CodeHoldTargetNotFound || len(h.holds.stored) != 0 {
+		t.Errorf("a hold on nobody here: %v, stored %d", err, len(h.holds.stored))
 	}
 }
 

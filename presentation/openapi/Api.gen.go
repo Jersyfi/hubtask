@@ -5916,7 +5916,9 @@ type LegalHoldScopeKind string
 // LegalHoldCreate defines model for LegalHoldCreate.
 type LegalHoldCreate struct {
 	Reason string `json:"reason"`
-	Scope  struct {
+
+	// Scope What the hold covers. `TENANT` is the whole workspace and names nothing; `CONTAINER` a hub or collection and everything in it; `ITEM` an entry and what hangs off it; `ACCOUNT` a person - their account and the entries, comments and files they contributed, which an erasure of that person keeps and no deletion removes. Every other scope names something this workspace has, or the hold is refused with `lifecycle.hold_target_not_found`.
+	Scope struct {
 		Id   *openapi_types.UUID      `json:"id,omitempty"`
 		Kind LegalHoldCreateScopeKind `json:"kind"`
 	} `json:"scope"`

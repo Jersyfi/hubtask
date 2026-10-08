@@ -523,7 +523,6 @@
   "lifecycle.hold_not_found": "There is no such legal hold.",
   "lifecycle.hold_target_not_found": "This workspace has nothing by that identifier to hold.",
   "lifecycle.hold_already_released": "That legal hold has already been lifted.",
-  "lifecycle.hold_account_scope_unavailable": "Hubtask cannot yet hold a person’s own data - that arrives with the data subject requests, and a hold nothing acts on would be worse than none. Hold the workspace, the collection or the entry instead.",
   "lifecycle.hold_placed": "A legal hold was placed.",
   "lifecycle.hold_released": "A legal hold was lifted.",
   "lifecycle.removal_incomplete": "This installation is misconfigured and could not record that deletion.",

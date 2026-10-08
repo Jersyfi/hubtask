@@ -221,26 +221,27 @@ func TestWhatAHoldCannotMean(t *testing.T) {
 	}
 }
 
-// The check constraint accepts ACCOUNT and `Blocking` deliberately ignores it, so storing one would
-// store a hold nobody honours - which is worse than none, because somebody believes it is in force.
-func TestAnAccountHoldIsRefusedRatherThanIgnored(t *testing.T) {
-	_, err := lifecycle.NewLegalHold(holdInput(func(in *lifecycle.NewHoldInput) {
+// A hold on a person is accepted: every deletion path and the erasure honour it
+// (data-protection.md §4.1), so it is no longer a hold nobody acts on.
+func TestAnAccountHoldIsAccepted(t *testing.T) {
+	hold, err := lifecycle.NewLegalHold(holdInput(func(in *lifecycle.NewHoldInput) {
 		in.Scope, in.ScopeID = lifecycle.HoldAccount, accountID
 	}))
+	if err != nil {
+		t.Fatalf("a hold on a person was refused: %v", err)
+	}
+	if hold.Scope != lifecycle.HoldAccount || hold.ScopeID != accountID {
+		t.Errorf("the hold covers %s %s", hold.Scope, hold.ScopeID)
+	}
 
-	if code := holdCode(t, err); code != lifecycle.CodeHoldAccountScopeUnavailable {
-		t.Fatalf("refused with %s, want %s", code, lifecycle.CodeHoldAccountScopeUnavailable)
-	}
-	if !errors.Is(err, shared.ErrConflict) {
-		t.Errorf("refused with %v, want a conflict - the request is well formed and unanswerable", err)
-	}
-	// And the scope stays a value the model knows, so that honouring it needs no migration
-	// (data-retention.md §4.1).
-	if !lifecycle.HoldAccount.Valid() {
-		t.Error("the ACCOUNT scope was removed rather than refused")
+	// It names somebody, like every scope but the workspace.
+	_, err = lifecycle.NewLegalHold(holdInput(func(in *lifecycle.NewHoldInput) {
+		in.Scope, in.ScopeID = lifecycle.HoldAccount, ""
+	}))
+	if code := holdCode(t, err); code != lifecycle.CodeHoldScopeIDMismatch {
+		t.Errorf("a hold on nobody was refused with %s", code)
 	}
 }
-
 func TestLiftingRecordsWhoAndWhyAndHappensOnce(t *testing.T) {
 	hold, err := lifecycle.NewLegalHold(holdInput(func(*lifecycle.NewHoldInput) {}))
 	if err != nil {
