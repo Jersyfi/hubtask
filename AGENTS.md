@@ -18,7 +18,7 @@ presentation/    inbound adapters: rest, mcp, stream, calendar, intake, worker, 
 infrastructure/  outbound adapters: postgres, storage, mail, httpclient, …
 cmd/             the binaries; cmd/server/main.go is the composition root
 api/  db/        openapi.yaml, the contract's source; migrations (forward only), sqlc queries
-apps/            webapp (the product), website (hubtask.eu, information only) — never "apps/web"
+apps/            webapp (the product), website (hubtask.eu, information only)
 packages/  sdk/  design-system, api-client, sync-engine, connectors; generated clients
 ```
 
@@ -111,6 +111,8 @@ The other sections explain.
   `[unchecked: no tool judges it]`
 - Rework on a ready pull request returns it to draft first (`gh pr ready --undo`); updating it from
   `main` does not. `[unchecked: the hook holds only creating and readying]`
+- "apps/web" is not a name in this project: there are two clients, and it says neither.
+  `[unchecked: no tool reads a name's intent]`
 - What another worker needs goes into the repository, never only into a tool's private notes; any
   machine and any tool can do the work. `[unchecked: private notes are outside the repository]`
 
