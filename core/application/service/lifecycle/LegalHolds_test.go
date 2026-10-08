@@ -233,6 +233,42 @@ func TestLiftingRecordsBothReasonsAndHappensOnce(t *testing.T) {
 	if h.holds.locked != 2 {
 		t.Errorf("the hold lock was taken %d times, want once by each", h.holds.locked)
 	}
+	// Without the erasure's side wired, lifting works as before; with it, see below.
+}
+
+// remainders records what lifting a hold seeds.
+type remainders struct{ seeded []shared.ID }
+
+func (r *remainders) Seed(_ context.Context, _, holdID shared.ID) error {
+	r.seeded = append(r.seeded, holdID)
+	return nil
+}
+
+func (r *remainders) Reconcile(context.Context, shared.ID, domain.Holds) error { return nil }
+
+// Lifting a hold is the write that seeds the rest of every erasure it kept part of
+// (data-protection.md §4.1), in its own transaction.
+func TestLiftingAHoldSeedsTheRestOfTheErasuresItKeptPartOf(t *testing.T) {
+	h := newHoldsHarness()
+	seeded := &remainders{}
+	service := h.service()
+	service.Remainders = seeded
+
+	hold, err := (PlaceLegalHold{Holds: service}).
+		Execute(context.Background(), actor(), placeCommand(func(*PlaceLegalHoldCommand) {}))
+	if err != nil {
+		t.Fatalf("placing: %v", err)
+	}
+	if len(seeded.seeded) != 0 {
+		t.Fatal("placing a hold seeded a remainder")
+	}
+	if _, err := (ReleaseLegalHold{Holds: service}).
+		Execute(context.Background(), actor(), hold.ID, "The proceedings ended"); err != nil {
+		t.Fatalf("lifting: %v", err)
+	}
+	if len(seeded.seeded) != 1 || seeded.seeded[0] != hold.ID {
+		t.Errorf("lifting seeded %v, want the lifted hold", seeded.seeded)
+	}
 	// Both reasons in one entry, so that comparing why it went on with why it came off needs no
 	// second lookup.
 	entry := h.audit.entries[1]

@@ -37,9 +37,22 @@ const (
 	HoldReleasedAction audit.Action = "lifecycle.hold_released"
 )
 
+// ErasureRemainders is the erasure's side of a hold being lifted (data-protection.md §4.1): an
+// erasure a hold kept part of continues once the hold no longer keeps it. Declared here so this
+// package knows that much and no more; the privacy context implements it.
+type ErasureRemainders interface {
+	// Seed queues the rest of every erasure the hold kept part of, in the caller's transaction.
+	Seed(ctx context.Context, tenantID, holdID shared.ID) error
+	// Reconcile queues the rest of every erasure kept under a hold no longer in force.
+	Reconcile(ctx context.Context, tenantID shared.ID, active domain.Holds) error
+}
+
 // Holds is what the three legal hold use cases share.
 type Holds struct {
-	Holds      repository.HoldWriter
+	Holds repository.HoldWriter
+	// Remainders is what lifting a hold seeds. Optional: an installation wired without it lifts
+	// holds as before, and the retention pass seeds what it would have.
+	Remainders ErasureRemainders
 	Authorizer Authorizer
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -170,6 +183,14 @@ func (h ReleaseLegalHold) Execute(
 			// quiet success, because the caller's reading of who lifted it is now wrong.
 			return shared.ErrConflict.WithDetail(domain.CodeHoldAlreadyReleased).
 				WithParams(map[string]string{"hold_id": id.String()})
+		}
+
+		// The write that seeds the rest of every erasure this hold kept part of, in this
+		// transaction: a committed release always has its jobs (data-protection.md §4.1).
+		if h.Holds.Remainders != nil {
+			if err := h.Holds.Remainders.Seed(ctx, actor.TenantID, id); err != nil {
+				return err
+			}
 		}
 
 		return h.Holds.record(ctx, actor, HoldReleasedAction, released, now, []audit.Change{

@@ -707,7 +707,9 @@ func run() error {
 	// The safeguard that outranks every rule above. One set for the three use cases, so
 	// that placing a hold and lifting one cannot disagree about which clock recorded them.
 	legalHolds := lifecycle.Holds{
-		Holds:      postgres.NewLegalHoldRepository(),
+		Holds: postgres.NewLegalHoldRepository(),
+		// Lifting a hold seeds the rest of every erasure it kept part of (data-protection.md §4.1).
+		Remainders: privacyservice.ErasureRemainders{Kept: privacyStore, Jobs: jobs},
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
@@ -2665,7 +2667,8 @@ func run() error {
 	retention := worker.RetentionSweep{
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
-			History: notifications,
+			Remainders: privacyservice.ErasureRemainders{Kept: privacyStore, Jobs: jobs},
+			History:    notifications,
 			// The outbox's own rows: ADR-0007's second countermeasure, for a table that would
 			// otherwise only ever grow.
 			Events: postgres.NewDispatchedEvents(),
@@ -2923,6 +2926,12 @@ func run() error {
 			Encryptor: encryptor, Audit: auditSink, Clock: clockadapter.System{}, Signals: metrics,
 		}},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
+		queueport.KindPrivacyErasureRemainder: worker.PrivacyErasureRemainder{
+			Resume: privacyservice.ResumeErasure{
+				Requests: privacyStore, Kept: privacyStore, Eraser: privacyEraser,
+				UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+		},
 		queueport.KindPrivacyExtensionEntry: worker.PrivacyExtensionEntry{
 			Record: privacyservice.RecordExtensionEntry{
 				Workspaces: postgres.NewWorkspaceSettingsRepository(), Audit: auditSink,
