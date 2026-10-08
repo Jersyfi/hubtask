@@ -829,6 +829,9 @@ type DataSubjectRequest struct {
 	Scope            string
 	TargetID         pgtype.UUID
 	ResultArchive    *string
+	OriginalDueAt    pgtype.Timestamptz
+	ExtensionReason  *string
+	InformedOn       pgtype.Date
 }
 
 type DeletionJournal struct {

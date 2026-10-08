@@ -51,6 +51,12 @@ func dsrGroup() group {
 				summary: "refuse a case, with the reason - a refusal in time is an answer",
 				run:     dsrReject,
 			},
+			{
+				name:    "extend",
+				usage:   "<id> --until YYYY-MM-DD --reason COMPLEXITY|NUMBER_OF_REQUESTS --informed YYYY-MM-DD",
+				summary: "extend the deadline once, as Art. 12(3) allows, with the reason the person was told",
+				run:     dsrExtend,
+			},
 		},
 	}
 }
@@ -252,6 +258,59 @@ func dsrReject(ctx context.Context, cli *CLI, args []string) error {
 	return cli.patchCase(ctx, requestID.String(), update)
 }
 
+// dsrExtend extends a case's deadline once. Both days are calendar days in the workspace's own
+// time zone; the server makes the deadline the end of the day named, so nothing here converts.
+func dsrExtend(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "dsr extend <id> --until YYYY-MM-DD --reason COMPLEXITY|NUMBER_OF_REQUESTS --informed YYYY-MM-DD"
+	requestID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "dsr", "extend",
+		"<id> --until YYYY-MM-DD --reason COMPLEXITY|NUMBER_OF_REQUESTS --informed YYYY-MM-DD")
+	until := flags.String("until", "", "the new deadline, a day at most three months after receipt")
+	reason := flags.String("reason", "", "COMPLEXITY, or NUMBER_OF_REQUESTS")
+	informed := flags.String("informed", "", "the day the person was told of the extension and why")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+	if *until == "" || *reason == "" || *informed == "" {
+		return usagef("dsr extend needs --until, --reason and --informed: an extension names its " +
+			"new deadline, why, and when the person was told")
+	}
+	dueOn, err := parseDay("--until", *until)
+	if err != nil {
+		return err
+	}
+	informedOn, err := parseDay("--informed", *informed)
+	if err != nil {
+		return err
+	}
+
+	extension := openapi.DataSubjectRequestExtension{
+		DueOn: dueOn, InformedOn: informedOn,
+		Reason: openapi.DataSubjectRequestExtensionReason(*reason),
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var extended openapi.DataSubjectRequest
+	if err := client.Post(ctx, privacyRequestsPath+"/"+requestID.String()+":extend", extension, &extended); err != nil {
+		return err
+	}
+	return cli.Emit(extended, caseTable([]openapi.DataSubjectRequest{extended}))
+}
+
+// parseDay reads a calendar day, the only form the extension takes.
+func parseDay(what, raw string) (openapitypes.Date, error) {
+	day, err := time.Parse(openapitypes.DateFormat, raw)
+	if err != nil {
+		return openapitypes.Date{}, usagef("%s is a day: 2026-11-26, not %q", what, raw)
+	}
+	return openapitypes.Date{Time: day}, nil
+}
+
 func (cli *CLI) patchCase(
 	ctx context.Context, requestID string, update openapi.DataSubjectRequestUpdate,
 ) error {
@@ -275,11 +334,14 @@ func caseTable(cases []openapi.DataSubjectRequest) Table {
 			string(one.Status),
 			subjectOf(one),
 			shortTime(&one.DueAt),
+			shortTime(one.OriginalDueAt),
 			text(one.ResultArchive),
 		})
 	}
+	// Both deadlines: an extended case shows the one in force and the one it replaced, so that
+	// nobody reads the extension as the deadline the case always had.
 	return Table{
-		Columns: []string{"id", "kind", "status", "subject", "due", "archive"},
+		Columns: []string{"id", "kind", "status", "subject", "due", "original due", "archive"},
 		Rows:    rows,
 	}
 }

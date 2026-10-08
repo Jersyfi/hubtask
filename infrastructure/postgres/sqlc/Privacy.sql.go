@@ -272,10 +272,52 @@ func (q *Queries) DiscardIntakeOf(ctx context.Context, accountID pgtype.UUID) (i
 	return result.RowsAffected(), nil
 }
 
+const extendDataSubjectRequest = `-- name: ExtendDataSubjectRequest :execrows
+UPDATE data_subject_request SET
+  original_due_at  = due_at,
+  due_at           = $1,
+  extension_reason = $2,
+  informed_on      = $3
+WHERE id = $4 AND tenant_id = current_tenant_id()
+  AND original_due_at IS NULL
+  AND status IN ('RECEIVED','IN_PROGRESS')
+  AND due_at > $5::timestamptz
+`
+
+type ExtendDataSubjectRequestParams struct {
+	DueAt           pgtype.Timestamptz
+	ExtensionReason *string
+	InformedOn      pgtype.Date
+	ID              pgtype.UUID
+	Now             pgtype.Timestamptz
+}
+
+// Extends the deadline once (Art. 12(3), data-protection.md §4.1).
+//
+// Its own statement rather than a field of UpdateDataSubjectRequest, so that no write but this one
+// can move a deadline. The conditions are the domain's, checked again where the write happens: two
+// extensions of one case, or an extension racing a completion, leave exactly one winner, and the
+// loser's zero rows are read back to say which condition failed. `now` is the caller's clock rather
+// than the database's (rule 4). The original deadline is the stored one, taken in the same
+// statement.
+func (q *Queries) ExtendDataSubjectRequest(ctx context.Context, arg ExtendDataSubjectRequestParams) (int64, error) {
+	result, err := q.db.Exec(ctx, extendDataSubjectRequest,
+		arg.DueAt,
+		arg.ExtensionReason,
+		arg.InformedOn,
+		arg.ID,
+		arg.Now,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const findDataSubjectRequest = `-- name: FindDataSubjectRequest :one
 SELECT id, subject_account_id, subject_email, kind, status, scope, erasure_mode,
        received_at, due_at, completed_at, handled_by, rejection_reason,
-       target_id, result_archive, notes
+       target_id, result_archive, notes, original_due_at, extension_reason, informed_on
 FROM data_subject_request
 WHERE id = $1 AND tenant_id = current_tenant_id()
 `
@@ -296,6 +338,9 @@ type FindDataSubjectRequestRow struct {
 	TargetID         pgtype.UUID
 	ResultArchive    *string
 	Notes            *string
+	OriginalDueAt    pgtype.Timestamptz
+	ExtensionReason  *string
+	InformedOn       pgtype.Date
 }
 
 func (q *Queries) FindDataSubjectRequest(ctx context.Context, id pgtype.UUID) (FindDataSubjectRequestRow, error) {
@@ -317,6 +362,9 @@ func (q *Queries) FindDataSubjectRequest(ctx context.Context, id pgtype.UUID) (F
 		&i.TargetID,
 		&i.ResultArchive,
 		&i.Notes,
+		&i.OriginalDueAt,
+		&i.ExtensionReason,
+		&i.InformedOn,
 	)
 	return i, err
 }
@@ -476,7 +524,7 @@ func (q *Queries) LatestConsent(ctx context.Context, arg LatestConsentParams) (L
 const listDataSubjectRequests = `-- name: ListDataSubjectRequests :many
 SELECT id, subject_account_id, subject_email, kind, status, scope, erasure_mode,
        received_at, due_at, completed_at, handled_by, rejection_reason,
-       target_id, result_archive, notes
+       target_id, result_archive, notes, original_due_at, extension_reason, informed_on
 FROM data_subject_request
 WHERE tenant_id = current_tenant_id()
   AND ($1::boolean OR status IN ('RECEIVED','IN_PROGRESS'))
@@ -517,6 +565,9 @@ type ListDataSubjectRequestsRow struct {
 	TargetID         pgtype.UUID
 	ResultArchive    *string
 	Notes            *string
+	OriginalDueAt    pgtype.Timestamptz
+	ExtensionReason  *string
+	InformedOn       pgtype.Date
 }
 
 // One page of the cases, the soonest deadline first.
@@ -561,6 +612,9 @@ func (q *Queries) ListDataSubjectRequests(ctx context.Context, arg ListDataSubje
 			&i.TargetID,
 			&i.ResultArchive,
 			&i.Notes,
+			&i.OriginalDueAt,
+			&i.ExtensionReason,
+			&i.InformedOn,
 		); err != nil {
 			return nil, err
 		}

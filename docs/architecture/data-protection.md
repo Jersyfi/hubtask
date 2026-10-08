@@ -96,20 +96,33 @@ practice. Rules:
 
 ### 4.1 Three decisions of 2026-09-30
 
-**Decided, not yet built** (milestone PH;
+**Decided** (milestone PH;
 [`UC-PRV-01`](../usecases/privacy/UC-PRV-01-answer-a-data-subject-request-in-time.md),
 [`UC-PRV-03`](../usecases/privacy/UC-PRV-03-erase-a-person-on-request.md),
-[`UC-PRV-05`](../usecases/privacy/UC-PRV-05-withdraw-consent-to-optional-processing.md)). Until then
-a legal hold on an `ACCOUNT` is refused ([data-retention.md](./data-retention.md) §4) and no
-deadline can be extended.
+[`UC-PRV-05`](../usecases/privacy/UC-PRV-05-withdraw-consent-to-optional-processing.md)); the
+extension is built, the legal hold and the AI position not yet. Until they are, a legal hold on an
+`ACCOUNT` is refused ([data-retention.md](./data-retention.md) §4).
 
 * **A deadline is extended once (Art. 12(3)).** An open case before its original deadline may be
   extended once, to at most three months after receipt, naming the reason (`COMPLEXITY` or
   `NUMBER_OF_REQUESTS`) and the date the person was informed, without which it is refused. Hubtask
   records that the controller told the person; it does not write to them. The watch and the register
   read the extended date, both dates stay visible, and the extension is audited
-  (`dsr.extended`); an installation-wide case is extended by the operator and recorded in
-  every workspace it touches.
+  (`dsr.extended`, with the reason and both dates, never the notes); an installation-wide case is
+  extended by the operator and recorded in every workspace it touches.
+  * **The bound is a calendar period in the workspace's own zone** (Reg. 1182/71 Art. 3(2)(c)):
+    the day of receipt plus three months, or that month's last day where it has no such day —
+    received 30 November, the last day is 28 February (29 in a leap year), never 2 March. The new
+    deadline is later than the current one. Both inputs are days: the new deadline is the last
+    second of the named day in the workspace's zone, and the informed day lies between the day of
+    receipt and today there. A zone this installation cannot load counts as UTC; a zone changed
+    since receipt counts as it is today. Receipt is `received_at` as recorded.
+  * **Every workspace records it in its own trail.** In the extension's own transaction, one job
+    per workspace the person's address is a member of (the case's own excepted) is queued; each
+    writes `dsr.extended` there, naming the operator, in the same transaction that completes the
+    job — so a retried run stores one entry. Active, suspended and pending-deletion workspaces all
+    get theirs, a deleted one none; a case without an address names nobody elsewhere and queues
+    nothing.
 * **A legal hold wins over an erasure, exactly as far as it reaches (Art. 17(3)(e), Art. 18).** The
   erasure runs for everything no hold covers; what a hold covers is kept and *restricted* (out of
   automation, AI and every export but the hold's own), and the case closes as partly completed,

@@ -25,6 +25,12 @@ type Requests interface {
 	// there, which is a case somebody deleted under the caller rather than a failure to write.
 	Save(ctx context.Context, request domain.Request) (bool, error)
 
+	// Extend writes the extension the domain decided onto the case - the new deadline, the reason
+	// and the informed day; the stored deadline becomes the original - but only while the case is
+	// still open, unextended and before its deadline at now. False means one of those no longer
+	// held, or the case is not there: the caller reads it again to say which.
+	Extend(ctx context.Context, request domain.Request, now time.Time) (bool, error)
+
 	// List answers one page, soonest deadline first.
 	List(ctx context.Context, filter Filter) (Page, error)
 

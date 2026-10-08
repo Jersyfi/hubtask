@@ -23,6 +23,8 @@ import (
 
 type harness struct {
 	requests   *requestStore
+	workspace  *workspaceDouble
+	subjects   *tenantsOf
 	jobs       *queueDouble
 	authorizer *authorizerDouble
 	audit      *auditSink
@@ -31,14 +33,18 @@ type harness struct {
 
 func newHarness() *harness {
 	return &harness{
-		requests: newRequestStore(), jobs: &queueDouble{},
+		requests: newRequestStore(), workspace: &workspaceDouble{zone: "Europe/Berlin"},
+		subjects:   &tenantsOf{},
+		jobs:       &queueDouble{},
 		authorizer: &authorizerDouble{}, audit: &auditSink{}, uow: &unitOfWork{},
 	}
 }
 
 func (h *harness) cases() Cases {
 	return Cases{
-		Requests: h.requests, Jobs: h.jobs, Authorizer: h.authorizer, Audit: h.audit,
+		Requests: h.requests, Workspaces: h.workspace, Subjects: h.subjects, Jobs: h.jobs,
+		Authorizer: h.authorizer,
+		Audit:      h.audit,
 		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &idSource{},
 	}
 }
@@ -370,6 +376,10 @@ func TestTheDescriptorsTakeWhatTheControllerSends(t *testing.T) {
 			"erasure_mode": string(domain.ModeFullDelete), "handled_by": accountID.String(),
 			"rejection_reason": "", "target_id": targetID.String(), "notes": "Started",
 		},
+		ExtendDataSubjectRequestName: {
+			"request_id": subjectID.String(), "due_on": "2026-11-26",
+			"reason": string(domain.ReasonNumberOfRequests), "informed_on": "2026-08-26",
+		},
 	} {
 		descriptor := descriptorNamed(t, name)
 		if err := descriptor.ValidateInput(in); err != nil {
@@ -385,6 +395,8 @@ func descriptorNamed(t *testing.T, name string) usecase.Descriptor {
 		return CreateDataSubjectRequest{}.Descriptor()
 	case ListDataSubjectRequestsName:
 		return ListDataSubjectRequests{}.Descriptor()
+	case ExtendDataSubjectRequestName:
+		return ExtendDataSubjectRequest{}.Descriptor()
 	default:
 		return UpdateDataSubjectRequest{}.Descriptor()
 	}

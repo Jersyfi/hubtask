@@ -283,13 +283,19 @@ func (s *snapshotter) WithinSnapshot(
 }
 
 // tenantsOf answers which workspaces an address is a member of.
-type tenantsOf struct{ tenants []shared.ID }
+type tenantsOf struct {
+	tenants []shared.ID
+	asked   int
+}
 
 func (t *tenantsOf) SetStatus(context.Context, shared.ID, string, time.Time) (bool, error) {
 	return true, nil
 }
 
-func (t *tenantsOf) Tenants(context.Context, string) ([]shared.ID, error) { return t.tenants, nil }
+func (t *tenantsOf) Tenants(context.Context, string) ([]shared.ID, error) {
+	t.asked++
+	return t.tenants, nil
+}
 
 func newExporter(target *memoryTarget, subjects *tenantsOf, sink *auditSink, snapshot *snapshotter) Exporter {
 	return Exporter{

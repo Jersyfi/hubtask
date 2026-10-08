@@ -45,7 +45,7 @@ body:
     id: read
     attributes:
       label: What to read
-      description: Beyond the use cases above — the subject-document sections, ADRs and known traps a worker reads before the readiness record (AGENTS.md, "Reading").
+      description: Beyond the use cases above — the subject-document sections, ADRs and known traps a worker reads before the readiness record (AGENTS.md, "The loop for every task", step 1).
       placeholder: "data-protection.md §4.1; known-traps.md, Transactions and wiring"
 
   - type: checkboxes

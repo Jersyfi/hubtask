@@ -15,13 +15,14 @@ import (
 // The projection every channel answers with. In the application layer rather than in the REST
 // adapter, because MCP and an automation rule read the same case (arc42 §4).
 
-// RequestOutput is one case as it leaves the boundary.
+// RequestOutput is one case as it leaves the boundary, with the last day it can be extended to -
+// the zero day where no extension could succeed now, which leaves the field out.
 //
 // The subject travels as an identifier and an address, both of which are personal data and both of
 // which the caller supplied - a case about somebody that could not say who would be a case nobody
 // could act on. What is *not* here is anything of the person's beyond that: a case is a record of
 // an obligation rather than a copy of what is held about them.
-func RequestOutput(request domain.Request) usecase.Output {
+func RequestOutput(request domain.Request, extendableUntil domain.Day) usecase.Output {
 	out := usecase.Output{
 		"id":          request.ID.String(),
 		"kind":        string(request.Kind),
@@ -53,6 +54,14 @@ func RequestOutput(request domain.Request) usecase.Output {
 	if !request.CompletedAt.IsZero() {
 		out["completed_at"] = request.CompletedAt.UTC()
 	}
+	if request.Extended() {
+		out["original_due_at"] = request.OriginalDueAt.UTC()
+		out["extension_reason"] = string(request.ExtensionReason)
+		out["informed_on"] = request.InformedOn.String()
+	}
+	if !extendableUntil.IsZero() {
+		out["extendable_until"] = extendableUntil.String()
+	}
 	return out
 }
 
@@ -64,6 +73,20 @@ func pageOutput(data []usecase.Output, info repository.PageInfo) usecase.Output 
 		page["next_cursor"] = info.NextCursor
 	}
 	return usecase.Output{"data": data, "page": page}
+}
+
+// parseDay reads a calendar day, YYYY-MM-DD, and refuses anything else with the field's own code,
+// as parseInstant does.
+func parseDay(raw, field string) (domain.Day, error) {
+	day, err := domain.ParseDay(raw)
+	if err != nil {
+		code := "privacy." + field + "_malformed"
+		return domain.Day{}, shared.ErrValidation.
+			WithDetail(code).
+			WithParams(map[string]string{"value": raw}).
+			WithFields(shared.FieldError{Path: "/" + field, Code: code})
+	}
+	return day, nil
 }
 
 // parseInstant reads the one spelling the contract declares, RFC 3339.

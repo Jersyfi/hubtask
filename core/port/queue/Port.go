@@ -221,6 +221,13 @@ const (
 	// a tenant that owes nothing costs a row that is not there.
 	KindPrivacyDeadlines Kind = "privacy.deadlines"
 
+	// KindPrivacyExtensionEntry records an installation-wide case's extension in one workspace the
+	// person is a member of (data-protection.md §4.1). One job per workspace, enqueued with the
+	// extension, so that a failure in one workspace is retried there rather than lost; not
+	// detached, so the entry and the job's completion are one transaction in that workspace.
+	// Deduplicated on the case and the workspace.
+	KindPrivacyExtensionEntry Kind = "privacy.extension_entry"
+
 	// KindWebhookDeliver sends one event to one subscription (automation.md §3.1).
 	//
 	// One job per delivery rather than one per event, and that is the whole retry discipline: a

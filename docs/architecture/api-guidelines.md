@@ -38,6 +38,10 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
   same writer. A reminder or recurrence a client can set it can also read back.
 * `/items/{id}/activity` is the only reader of an entry's history.
 * Deleting a backup target a schedule still names is a `409`; nothing at the target is ever touched.
+* A data subject request's deadline moves only through `POST /privacy/requests/{id}:extend`, once;
+  `PATCH /privacy/requests/{id}` writes no date. Its two days are calendar days (`format: date`) in
+  the workspace's time zone, and a case answers `extendable_until` exactly while an extension can
+  succeed ([data-protection.md](./data-protection.md) §4.1).
 * The intake doors (`/jumble/inbound/{token}`, `/jumble/mail/{token}`, `/automation/inbound/{token}`)
   authenticate a tenant or a rule, never a person, are capped, and answer every reason not to serve
   with the same `404`.
