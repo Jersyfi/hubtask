@@ -81,7 +81,7 @@ func frozenProblems(agents string) []string {
 		}
 	}
 	if loop, ok := sectionBody(agents, "The loop for every task"); ok {
-		// The steps are the list before the first subsection; "Reading" numbers its own.
+		// The steps are the list before the first subsection, which may number its own.
 		loop, _, _ = strings.Cut(loop, "\n### ")
 		var steps []string
 		for _, m := range loopStep.FindAllStringSubmatch(loop, -1) {
