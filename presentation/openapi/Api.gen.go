@@ -1149,6 +1149,21 @@ func (e CustomFieldKind) Valid() bool {
 	}
 }
 
+// Defines values for DataSubjectRequestKeptLegalBasis.
+const (
+	ART173E DataSubjectRequestKeptLegalBasis = "ART_17_3_E"
+)
+
+// Valid indicates whether the value is a known member of the DataSubjectRequestKeptLegalBasis enum.
+func (e DataSubjectRequestKeptLegalBasis) Valid() bool {
+	switch e {
+	case ART173E:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DataSubjectRequestExtensionReason.
 const (
 	COMPLEXITY       DataSubjectRequestExtensionReason = "COMPLEXITY"
@@ -1287,6 +1302,30 @@ func (e DroppedReferenceKind) Valid() bool {
 	case DroppedReferenceKindLABEL:
 		return true
 	case DroppedReferenceKindMEMBER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ErasureKeptHoldScopeKind.
+const (
+	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
+	ErasureKeptHoldScopeKindCONTAINER ErasureKeptHoldScopeKind = "CONTAINER"
+	ErasureKeptHoldScopeKindITEM      ErasureKeptHoldScopeKind = "ITEM"
+	ErasureKeptHoldScopeKindTENANT    ErasureKeptHoldScopeKind = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the ErasureKeptHoldScopeKind enum.
+func (e ErasureKeptHoldScopeKind) Valid() bool {
+	switch e {
+	case ErasureKeptHoldScopeKindACCOUNT:
+		return true
+	case ErasureKeptHoldScopeKindCONTAINER:
+		return true
+	case ErasureKeptHoldScopeKindITEM:
+		return true
+	case ErasureKeptHoldScopeKindTENANT:
 		return true
 	default:
 		return false
@@ -4968,6 +5007,12 @@ type DataSubjectRequest struct {
 	// InformedOn The day the controller informed the person of the extension.
 	InformedOn *openapi_types.Date `json:"informed_on,omitempty"`
 
+	// Kept What legal holds kept from this erasure, one entry per hold. Present only on an erasure a hold kept part of: such a case is `COMPLETED` and partly completed - the rest was erased - until each part's `erased_at` says the rest went after its hold was lifted.
+	Kept *[]ErasureKept `json:"kept,omitempty"`
+
+	// KeptLegalBasis Why what a hold keeps is not erased: the establishment, exercise or defence of legal claims (Art. 17(3)(e) GDPR). Present exactly when `kept` is.
+	KeptLegalBasis *DataSubjectRequestKeptLegalBasis `json:"kept_legal_basis,omitempty"`
+
 	// Kind The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
 	// ordinary write - and is a tracked case all the same, because the deadline is somebody's
 	// responsibility either way.
@@ -4997,6 +5042,9 @@ type DataSubjectRequest struct {
 	// SubjectEmail Who asked, for a request that has no account behind it.
 	SubjectEmail *string `json:"subject_email,omitempty"`
 }
+
+// DataSubjectRequestKeptLegalBasis Why what a hold keeps is not erased: the establishment, exercise or defence of legal claims (Art. 17(3)(e) GDPR). Present exactly when `kept` is.
+type DataSubjectRequestKeptLegalBasis string
 
 // DataSubjectRequestCreate defines model for DataSubjectRequestCreate.
 type DataSubjectRequestCreate struct {
@@ -5183,6 +5231,41 @@ type EncryptionStatus struct {
 	Keys []EncryptionKeyUsage `json:"keys"`
 }
 
+// ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
+type ErasureKept struct {
+	// Account The person's account itself is kept, restricted rather than erased.
+	Account bool `json:"account"`
+
+	// Assignments Entries that stay assigned to the person.
+	Assignments int `json:"assignments"`
+
+	// Blocked Why the rest could not be erased after the hold was lifted. Absent unless something stands in the way; the next pass tries again.
+	Blocked *struct {
+		Code   string             `json:"code"`
+		Params *map[string]string `json:"params,omitempty"`
+	} `json:"blocked,omitempty"`
+
+	// Comments The person's comments kept - ones a full deletion would remove, or that stay attributed to them by name.
+	Comments int `json:"comments"`
+
+	// Entries Entries the person created that stay attributed to them by name.
+	Entries int `json:"entries"`
+
+	// ErasedAt When the rest went, once this hold no longer kept it. Absent while it does.
+	ErasedAt  *time.Time         `json:"erased_at,omitempty"`
+	HoldId    openapi_types.UUID `json:"hold_id"`
+	HoldScope struct {
+		Id   *openapi_types.UUID      `json:"id,omitempty"`
+		Kind ErasureKeptHoldScopeKind `json:"kind"`
+	} `json:"hold_scope"`
+
+	// Intake Messages the person sent in by mail, kept with their address.
+	Intake int `json:"intake"`
+}
+
+// ErasureKeptHoldScopeKind defines model for ErasureKept.HoldScope.Kind.
+type ErasureKeptHoldScopeKind string
+
 // ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
 // `FULL_DELETE` takes the person's own contributions too. The choice rests with the
 // controller, because tenant data touches third parties' rights.
@@ -5193,6 +5276,23 @@ type EncryptionStatus struct {
 // stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
 // on the case, and does so knowingly.
 type ErasureMode string
+
+// ErasurePreview defines model for ErasurePreview.
+type ErasurePreview struct {
+	// Kept What each hold in force would keep; empty when no hold reaches this person.
+	Kept []ErasureKept `json:"kept"`
+
+	// Mode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
+	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
+	// controller, because tenant data touches third parties' rights.
+	//
+	// A case that names neither is started as `ANONYMIZE` — the workspace default. It is the
+	// answer that preserves the rights of
+	// the people who are not asking: a task somebody else depends on, a comment in a thread that
+	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
+	// on the case, and does so knowingly.
+	Mode ErasureMode `json:"mode"`
+}
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
@@ -9422,6 +9522,11 @@ type CreateDataSubjectRequestParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// PreviewErasureParams defines parameters for PreviewErasure.
+type PreviewErasureParams struct {
+	Mode *ErasureMode `form:"mode,omitempty" json:"mode,omitempty"`
+}
+
 // ExtendDataSubjectRequestParams defines parameters for ExtendDataSubjectRequest.
 type ExtendDataSubjectRequestParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -10648,6 +10753,9 @@ type ServerInterface interface {
 	// UpdateDataSubjectRequest Move a case along
 	// (PATCH /privacy/requests/{requestId})
 	UpdateDataSubjectRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID)
+	// PreviewErasure What legal holds would keep from an erasure
+	// (GET /privacy/requests/{requestId}/erasure-preview)
+	PreviewErasure(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID, params PreviewErasureParams)
 	// ExtendDataSubjectRequest Extend a case's deadline once
 	// (POST /privacy/requests/{requestId}:extend)
 	ExtendDataSubjectRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID, params ExtendDataSubjectRequestParams)
@@ -19451,6 +19559,48 @@ func (siw *ServerInterfaceWrapper) UpdateDataSubjectRequest(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
+// PreviewErasure operation middleware
+func (siw *ServerInterfaceWrapper) PreviewErasure(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", r.PathValue("requestId"), &requestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "requestId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PreviewErasureParams
+
+	// ------------- Optional query parameter "mode" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "mode", r.URL.Query(), &params.Mode, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "mode"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mode", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewErasure(w, r, requestId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ExtendDataSubjectRequest operation middleware
 func (siw *ServerInterfaceWrapper) ExtendDataSubjectRequest(w http.ResponseWriter, r *http.Request) {
 
@@ -21127,6 +21277,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/requests", wrapper.CreateDataSubjectRequest)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/privacy/requests/{requestId}", wrapper.UpdateDataSubjectRequest)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/requests/{requestId}:extend", wrapper.ExtendDataSubjectRequest)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/requests/{requestId}/erasure-preview", wrapper.PreviewErasure)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:restrict", wrapper.RestrictProcessing)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:withdraw", wrapper.WithdrawConsent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/memberships", wrapper.ListMemberships)

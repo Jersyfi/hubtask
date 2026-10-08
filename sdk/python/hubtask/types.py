@@ -1717,6 +1717,24 @@ class DataSubjectRequest(TypedDict, total=False):
     result_archive: str | None
     result_target_id: str | None
     notes: str | None
+    kept: list["ErasureKept"]
+    kept_legal_basis: Literal["ART_17_3_E"]
+
+class ErasureKept(TypedDict, total=False):
+    """What one legal hold keeps, or kept, of one erasure. Counts, never content."""
+    hold_id: Required[str]
+    hold_scope: Required[dict[str, Any]]
+    account: Required[bool]
+    entries: Required[int]
+    comments: Required[int]
+    assignments: Required[int]
+    intake: Required[int]
+    erased_at: str
+    blocked: dict[str, Any]
+
+class ErasurePreview(TypedDict, total=False):
+    mode: Required["ErasureMode"]
+    kept: Required[list["ErasureKept"]]
 
 class DataSubjectRequestCreate(TypedDict, total=False):
     kind: Required["DataSubjectRequestKind"]

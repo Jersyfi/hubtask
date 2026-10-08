@@ -5639,6 +5639,41 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /privacy/requests/{requestId}/erasure-preview:
+    parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [privacy]
+      operationId: previewErasure
+      summary: What legal holds would keep from an erasure
+      description: |
+        A legal hold wins over an erasure as far as it reaches: what a hold covers is kept, the
+        rest is erased, and the case closes as partly completed. This answers, before the erasure
+        is started, what each hold in force would keep of this case's person - so the confirmation
+        can say so. A hold on the person or on the whole workspace keeps the account itself; under
+        any other hold it is anonymised as usual.
+
+        `mode` is the mode the preview is for, the case's own when left out, and `ANONYMIZE` when
+        the case names none. Refused for a case that is not an erasure and for a closed one. A case
+        of `INSTALLATION` scope needs the `admin:tenants` scope. The hold's reason is not part of
+        the answer; the holds list carries it for those who may read it.
+      parameters:
+        - name: mode
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/ErasureMode" }
+      responses:
+        "200":
+          description: What each hold would keep
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErasurePreview" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/{accountId}:restrict:
     parameters:
       - $ref: "#/components/parameters/AccountId"
@@ -5650,7 +5685,8 @@ paths:
         A technical state rather than a lock: the account stays readable and its content stays
         where it is, and what stops is *processing* - automation rules and AI leave the record
         alone. Lifting it is the same call with
-        `restricted: false`.
+        `restricted: false` - refused while a legal hold keeps the account from an erasure, until
+        the hold is lifted and the rest of the erasure has run.
       requestBody:
         required: true
         content:
@@ -13421,6 +13457,78 @@ components:
             has produced one.
         result_target_id: { type: [string, "null"], format: uuid }
         notes: { type: [string, "null"] }
+        kept:
+          type: array
+          description: >
+            What legal holds kept from this erasure, one entry per hold. Present only on an erasure
+            a hold kept part of: such a case is `COMPLETED` and partly completed - the rest was
+            erased - until each part's `erased_at` says the rest went after its hold was lifted.
+          items: { $ref: "#/components/schemas/ErasureKept" }
+        kept_legal_basis:
+          type: string
+          enum: [ART_17_3_E]
+          description: >
+            Why what a hold keeps is not erased: the establishment, exercise or defence of legal
+            claims (Art. 17(3)(e) GDPR). Present exactly when `kept` is.
+
+    ErasureKept:
+      type: object
+      description: What one legal hold keeps, or kept, of one erasure. Counts, never content.
+      required: [hold_id, hold_scope, account, entries, comments, assignments, intake]
+      properties:
+        hold_id: { type: string, format: uuid }
+        hold_scope:
+          type: object
+          required: [kind]
+          properties:
+            kind: { type: string, enum: [TENANT, CONTAINER, ITEM, ACCOUNT] }
+            id: { type: [string, "null"], format: uuid }
+        account:
+          type: boolean
+          description: The person's account itself is kept, restricted rather than erased.
+        entries:
+          type: integer
+          minimum: 0
+          description: Entries the person created that stay attributed to them by name.
+        comments:
+          type: integer
+          minimum: 0
+          description: >
+            The person's comments kept - ones a full deletion would remove, or that stay
+            attributed to them by name.
+        assignments:
+          type: integer
+          minimum: 0
+          description: Entries that stay assigned to the person.
+        intake:
+          type: integer
+          minimum: 0
+          description: Messages the person sent in by mail, kept with their address.
+        erased_at:
+          type: string
+          format: date-time
+          description: When the rest went, once this hold no longer kept it. Absent while it does.
+        blocked:
+          type: object
+          description: >
+            Why the rest could not be erased after the hold was lifted. Absent unless something
+            stands in the way; the next pass tries again.
+          required: [code]
+          properties:
+            code: { type: string }
+            params:
+              type: object
+              additionalProperties: { type: string }
+
+    ErasurePreview:
+      type: object
+      required: [mode, kept]
+      properties:
+        mode: { $ref: "#/components/schemas/ErasureMode" }
+        kept:
+          type: array
+          description: What each hold in force would keep; empty when no hold reaches this person.
+          items: { $ref: "#/components/schemas/ErasureKept" }
 
     DataSubjectRequestCreate:
       type: object
