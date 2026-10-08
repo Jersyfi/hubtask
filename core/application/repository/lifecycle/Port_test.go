@@ -26,6 +26,10 @@ type double struct {
 
 func (d *double) Active(context.Context) (domain.Holds, error) { return d.holds, nil }
 
+func (d *double) Contributors(context.Context, []shared.ID) (map[shared.ID][]shared.ID, error) {
+	return nil, nil
+}
+
 func (d *double) Record(
 	_ context.Context, removals []domain.Removal, deletedAt, purgeAfter time.Time,
 ) error {

@@ -16,7 +16,7 @@ const activeLegalHolds = `-- name: ActiveLegalHolds :many
 SELECT id, scope_kind, scope_id, reason, placed_at
 FROM legal_hold
 WHERE released_at IS NULL
-ORDER BY placed_at
+ORDER BY placed_at, id
 `
 
 type ActiveLegalHoldsRow struct {
@@ -89,6 +89,16 @@ type EnsureRetentionPolicyParams struct {
 // tenant it is running for.
 func (q *Queries) EnsureRetentionPolicy(ctx context.Context, arg EnsureRetentionPolicyParams) error {
 	_, err := q.db.Exec(ctx, ensureRetentionPolicy, arg.DataKind, arg.RetainDays, arg.MinDays)
+	return err
+}
+
+const exclusiveLegalHolds = `-- name: ExclusiveLegalHolds :exec
+SELECT pg_advisory_xact_lock(hashtext('legal_hold:' || current_tenant_id()::text))
+`
+
+// Taken first by placing and lifting a hold, for the rest of the transaction. See ShareLegalHolds.
+func (q *Queries) ExclusiveLegalHolds(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, exclusiveLegalHolds)
 	return err
 }
 
@@ -344,6 +354,50 @@ func (q *Queries) InsertLegalHold(ctx context.Context, arg InsertLegalHoldParams
 	return err
 }
 
+const itemContributors = `-- name: ItemContributors :many
+SELECT w.id AS item_id, w.created_by AS account_id
+FROM work_item w
+WHERE w.tenant_id = current_tenant_id() AND w.id = ANY($1::uuid[])
+UNION
+SELECT c.item_id, c.author_id
+FROM comment c
+WHERE c.tenant_id = current_tenant_id() AND c.item_id = ANY($1::uuid[])
+UNION
+SELECT a.item_id, m.created_by
+FROM item_attachment a
+JOIN media_object m ON m.tenant_id = a.tenant_id AND m.id = a.media_id
+WHERE a.tenant_id = current_tenant_id() AND a.item_id = ANY($1::uuid[])
+  AND m.created_by IS NOT NULL
+`
+
+type ItemContributorsRow struct {
+	ItemID    pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+// Whose own data goes with each of these entries: who created it, who commented on it, who uploaded
+// a file attached to it. A hold on one of those accounts covers the entry, because the comments and
+// the attachments fall with it (data-protection.md §4.1). Asked only while such a hold is in force.
+func (q *Queries) ItemContributors(ctx context.Context, ids []pgtype.UUID) ([]ItemContributorsRow, error) {
+	rows, err := q.db.Query(ctx, itemContributors, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ItemContributorsRow{}
+	for rows.Next() {
+		var i ItemContributorsRow
+		if err := rows.Scan(&i.ItemID, &i.AccountID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const legalHoldTargetExists = `-- name: LegalHoldTargetExists :one
 SELECT CASE $1::text
   WHEN 'CONTAINER' THEN EXISTS (
@@ -530,6 +584,21 @@ func (q *Queries) ReleaseLegalHold(ctx context.Context, arg ReleaseLegalHoldPara
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const shareLegalHolds = `-- name: ShareLegalHolds :exec
+SELECT pg_advisory_xact_lock_shared(hashtext('legal_hold:' || current_tenant_id()::text))
+`
+
+// Taken before the holds are read by anything that deletes, for the rest of its transaction.
+//
+// A hold placed or lifted while a deletion runs would otherwise pass it: the deletion read the
+// holds a moment before, and removes what the new hold names. Shared, so deletions never wait for
+// each other; placing and lifting take the exclusive lock below and wait for them, or are waited
+// for. Transaction-scoped, per tenant, like the audit chain's (Audit.sql).
+func (q *Queries) ShareLegalHolds(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, shareLegalHolds)
+	return err
 }
 
 const startRetentionRun = `-- name: StartRetentionRun :exec

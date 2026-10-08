@@ -120,12 +120,17 @@ func (p Purger) Subtree(
 	}
 	// Every entry that goes, not the root alone: a hold on an activity three levels down names
 	// that activity, and the root's own path says nothing about it. Each one shares the root's
-	// containers and ancestors, so its own identifier is the only thing left to judge.
+	// containers and ancestors, so its own identifier and its contributors are what is left to judge.
+	contributors, err := contributorsOf(ctx, p.Holds, holds, ids)
+	if err != nil {
+		return 0, err
+	}
 	for _, id := range ids {
 		if hold, blocked := holds.Blocking(domain.Target{
 			ItemID:          id,
 			ContainerIDs:    nonZero(hub, item.CollectionID),
 			AncestorItemIDs: work.PathIDs(item.Path),
+			Contributors:    contributors[id],
 		}); blocked {
 			return 0, legalHoldRefusal(hold)
 		}
@@ -214,6 +219,14 @@ func (p Purger) Sweep(
 	if err != nil {
 		return outcome, err
 	}
+	itemIDs := make([]shared.ID, 0, len(items))
+	for _, expired := range items {
+		itemIDs = append(itemIDs, expired.ID)
+	}
+	contributors, err := contributorsOf(ctx, p.Holds, holds, itemIDs)
+	if err != nil {
+		return outcome, err
+	}
 	removableItems := make([]shared.ID, 0, len(items))
 	for _, expired := range items {
 		outcome.Matched++
@@ -221,6 +234,7 @@ func (p Purger) Sweep(
 			ItemID:          expired.ID,
 			ContainerIDs:    nonZero(expired.HubID, expired.CollectionID),
 			AncestorItemIDs: work.PathIDs(expired.Path),
+			Contributors:    contributors[expired.ID],
 		}); held {
 			outcome.blocked(BlockedByLegalHold)
 			continue
@@ -304,6 +318,27 @@ func (p Purger) Sweep(
 		}
 	}
 	return outcome, nil
+}
+
+// contributorsOf reads whose own data goes with each of these entries - only while an account hold
+// is in force, because nothing else asks, and a removal over a workspace with no such hold should
+// cost no extra statement.
+func contributorsOf(
+	ctx context.Context, port repository.LegalHolds, holds domain.Holds, ids []shared.ID,
+) (map[shared.ID][]shared.ID, error) {
+	if !holds.AnyOnAccounts() || len(ids) == 0 {
+		return nil, nil
+	}
+	return port.Contributors(ctx, ids)
+}
+
+// candidateIDs are the identifiers of a batch.
+func candidateIDs(candidates []repository.Candidate) []shared.ID {
+	ids := make([]shared.ID, 0, len(candidates))
+	for _, candidate := range candidates {
+		ids = append(ids, candidate.ID)
+	}
+	return ids
 }
 
 // keepBack takes out of candidates every row with something below it that is not in going.

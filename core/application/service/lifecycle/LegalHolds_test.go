@@ -28,6 +28,12 @@ type holdWriter struct {
 	// missing are the identifiers this workspace does not have.
 	missing map[shared.ID]bool
 	asked   []shared.ID
+	locked  int
+}
+
+func (w *holdWriter) Lock(context.Context) error {
+	w.locked++
+	return nil
 }
 
 func (w *holdWriter) Place(_ context.Context, hold domain.LegalHold) error {
@@ -222,6 +228,10 @@ func TestLiftingRecordsBothReasonsAndHappensOnce(t *testing.T) {
 
 	if !released.Released() || released.ReleasedReason != "The proceedings ended" {
 		t.Fatalf("the hold came back as %+v", released)
+	}
+	// Placing and lifting each take the exclusive hold lock, so no deletion passes them.
+	if h.holds.locked != 2 {
+		t.Errorf("the hold lock was taken %d times, want once by each", h.holds.locked)
 	}
 	// Both reasons in one entry, so that comparing why it went on with why it came off needs no
 	// second lookup.

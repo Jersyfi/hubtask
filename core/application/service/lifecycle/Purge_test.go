@@ -102,9 +102,28 @@ func (s *expiredStore) Containers(
 	return s.containers, nil
 }
 
-type holdStore struct{ holds domain.Holds }
+type holdStore struct {
+	holds             domain.Holds
+	contributors      map[shared.ID][]shared.ID
+	askedContributors int
+}
 
 func (s *holdStore) Active(context.Context) (domain.Holds, error) { return s.holds, nil }
+
+// Contributors answers from contributors, and counts the asking: a removal over a workspace with
+// no account hold must not ask at all.
+func (s *holdStore) Contributors(
+	_ context.Context, ids []shared.ID,
+) (map[shared.ID][]shared.ID, error) {
+	s.askedContributors++
+	answer := map[shared.ID][]shared.ID{}
+	for _, id := range ids {
+		if accounts, ok := s.contributors[id]; ok {
+			answer[id] = accounts
+		}
+	}
+	return answer, nil
+}
 
 type removalStore struct {
 	recorded   []domain.Removal
@@ -474,6 +493,59 @@ func TestAnExplicitSweepDoesNotWaitOutTheOfflineWindow(t *testing.T) {
 		t.Errorf("the tombstone window is %v, want %v",
 			h.removals.purgeAfter.Sub(h.removals.deletedAt), window)
 	}
+}
+
+// A hold on a person covers what they contributed. A purge or a sweep reads who contributed to what
+// it removes - and only while such a hold stands, so a workspace without one pays nothing for it.
+func TestAnAccountHoldKeepsWhatThePersonContributed(t *testing.T) {
+	onAccount := domain.Holds{{ID: holdID, Scope: domain.HoldAccount, ScopeID: accountID, Reason: "Litigation"}}
+	longAgo := now.Add(-120 * 24 * time.Hour)
+
+	t.Run("a named purge over an entry they commented on", func(t *testing.T) {
+		h := newHarness()
+		h.trash.subtree = []shared.ID{taskID, packageID}
+		h.holds.holds = onAccount
+		h.holds.contributors = map[shared.ID][]shared.ID{packageID: {accountID}}
+
+		_, err := h.purger.Subtree(t.Context(), actor(), trashedTask(), hubID, domain.DeletedByUser, now)
+		if shared.AsError(err).DetailCode != "lifecycle.legal_hold" {
+			t.Fatalf("the purge reported %v, want lifecycle.legal_hold", err)
+		}
+		if params := shared.AsError(err).Params; params["scope"] != string(domain.HoldAccount) {
+			t.Errorf("the refusal names the scope %q", params["scope"])
+		}
+	})
+
+	t.Run("a sweep keeps their entry and takes the rest", func(t *testing.T) {
+		h := newHarness()
+		h.expired.items = []repository.ExpiredItem{expiredItem(taskID, longAgo), expiredItem(otherTaskID, longAgo)}
+		h.holds.holds = onAccount
+		h.holds.contributors = map[shared.ID][]shared.ID{taskID: {accountID}}
+
+		outcome, err := h.purger.Sweep(t.Context(), actor(), Selection{Cutoff: now, Reason: domain.DeletedByUser}, now)
+		if err != nil {
+			t.Fatalf("the sweep failed: %v", err)
+		}
+		if len(h.trash.purgedItem) != 1 || h.trash.purgedItem[0] != otherTaskID {
+			t.Errorf("the sweep removed %v, want only the entry nobody held", h.trash.purgedItem)
+		}
+		if outcome.Blocked[BlockedByLegalHold] != 1 {
+			t.Errorf("blocked %v, want one by the hold", outcome.Blocked)
+		}
+	})
+
+	t.Run("no account hold, no question", func(t *testing.T) {
+		h := newHarness()
+		h.expired.items = []repository.ExpiredItem{expiredItem(taskID, longAgo)}
+		h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldContainer, ScopeID: otherTaskID, Reason: "Litigation"}}
+
+		if _, err := h.purger.Sweep(t.Context(), actor(), Selection{Cutoff: now, Reason: domain.DeletedByUser}, now); err != nil {
+			t.Fatalf("the sweep failed: %v", err)
+		}
+		if h.holds.askedContributors != 0 {
+			t.Errorf("the sweep asked for contributors %d times without an account hold", h.holds.askedContributors)
+		}
+	})
 }
 
 // A hold on an activity names the activity, and purging the task above it would take the activity

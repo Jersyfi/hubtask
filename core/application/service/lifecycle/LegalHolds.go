@@ -94,6 +94,10 @@ func (h PlaceLegalHold) Execute(
 	}
 
 	err = h.Holds.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// First, so that no deletion is between reading the holds and removing what this one names.
+		if err := h.Holds.Holds.Lock(ctx); err != nil {
+			return err
+		}
 		if hold.Scope != domain.HoldTenant {
 			present, err := h.Holds.Holds.TargetExists(ctx, hold.Scope, hold.ScopeID)
 			if err != nil {
@@ -145,6 +149,9 @@ func (h ReleaseLegalHold) Execute(
 	var released domain.LegalHold
 
 	err := h.Holds.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := h.Holds.Holds.Lock(ctx); err != nil {
+			return err
+		}
 		hold, err := h.Holds.Holds.Find(ctx, id)
 		if err != nil {
 			return err

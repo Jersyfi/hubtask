@@ -58,6 +58,9 @@ func (e expiredRows) Containers(
 type noHolds struct{}
 
 func (noHolds) Active(context.Context) (domain.Holds, error) { return nil, nil }
+func (noHolds) Contributors(context.Context, []shared.ID) (map[shared.ID][]shared.ID, error) {
+	return nil, nil
+}
 
 type noRemovals struct{}
 

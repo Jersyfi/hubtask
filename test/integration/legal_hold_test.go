@@ -234,6 +234,104 @@ func TestAHoldsTargetIsLookedUpInItsOwnWorkspace(t *testing.T) {
 	}
 }
 
+// Who contributed to an entry: who created it, commented on it, uploaded a file attached to it -
+// each once, and nothing to another workspace (SG-3).
+func TestTheContributorsOfAnEntryAreReadInItsOwnWorkspace(t *testing.T) {
+	ctx := context.Background()
+	subject := seedSubject(ctx, t, "contributor@example.test")
+	commenter, uploader := freshID(t), freshID(t)
+	admin := adminPool(ctx, t)
+	for _, statement := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO comment (id, tenant_id, item_id, author_id, body) VALUES ($1, $2, $3, $4, 'too')`,
+			[]any{freshID(t).String(), subject.tenant.String(), subject.item.String(), commenter.String()}},
+		{`INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, created_by)
+		  VALUES ($1, $2, $3, 'text/plain', 1, 'ATTACHMENT', $4)`,
+			[]any{commenter.String(), subject.tenant.String(), "media/c-" + commenter.String(), uploader.String()}},
+		{`INSERT INTO item_attachment (tenant_id, item_id, media_id) VALUES ($1, $2, $3)`,
+			[]any{subject.tenant.String(), subject.item.String(), commenter.String()}},
+	} {
+		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+
+	read := func(tenant shared.ID) map[shared.ID][]shared.ID {
+		t.Helper()
+		var contributors map[shared.ID][]shared.ID
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			contributors, err = lifecycleRepo().Contributors(ctx, []shared.ID{subject.item})
+			return err
+		}); err != nil {
+			t.Fatalf("reading the contributors: %v", err)
+		}
+		return contributors
+	}
+
+	got := read(subject.tenant)[subject.item]
+	want := map[shared.ID]bool{subject.account: true, commenter: true, uploader: true}
+	if len(got) != len(want) {
+		t.Errorf("the contributors are %v, want the creator, the commenter and the uploader once each", got)
+	}
+	for _, account := range got {
+		if !want[account] {
+			t.Errorf("%v is named a contributor", account)
+		}
+	}
+	seedContainerTenants(ctx, t)
+	if other := read(tenantB); len(other) != 0 {
+		t.Errorf("another workspace was told %v", other)
+	}
+}
+
+// Placing a hold waits for a deletion that has read the holds and not yet committed, so it can never
+// slip between the reading and the removing (record D7).
+func TestPlacingAHoldWaitsForADeletionThatReadTheHolds(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	hold := holdIn(t, tenantA, domain.HoldContainer, collection)
+
+	placed := make(chan error, 1)
+	var waited bool
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := lifecycleRepo().Active(ctx); err != nil {
+			return err
+		}
+		//nolint:contextcheck // a second transaction: the context handed in carries this one
+		go func() {
+			placed <- write(context.Background(), t, tenantA, func(ctx context.Context) error {
+				if err := holdRepo().Lock(ctx); err != nil {
+					return err
+				}
+				return holdRepo().Place(ctx, hold)
+			})
+		}()
+		select {
+		case err := <-placed:
+			t.Errorf("the hold was placed while a deletion held the shared lock: %v", err)
+		case <-time.After(500 * time.Millisecond):
+			waited = true
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("the deletion's transaction: %v", err)
+	}
+	if !waited {
+		return
+	}
+	select {
+	case err := <-placed:
+		if err != nil {
+			t.Fatalf("placing after the deletion committed: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the hold was never placed after the deletion committed")
+	}
+}
+
 func TestAHoldIsInvisibleAndInertFromAnotherTenant(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantB, authorB)

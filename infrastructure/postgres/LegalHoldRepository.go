@@ -24,6 +24,19 @@ func NewLegalHoldRepository() LegalHoldRepository { return LegalHoldRepository{}
 
 var _ repository.HoldWriter = LegalHoldRepository{}
 
+// Lock takes the exclusive hold lock for the rest of the transaction.
+func (r LegalHoldRepository) Lock(ctx context.Context) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if err := queries.ExclusiveLegalHolds(ctx); err != nil {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("taking the exclusive hold lock: %w", err))
+	}
+	return nil
+}
+
 // Place writes a legal hold.
 func (r LegalHoldRepository) Place(ctx context.Context, hold domain.LegalHold) error {
 	queries, err := queriesFrom(ctx)
