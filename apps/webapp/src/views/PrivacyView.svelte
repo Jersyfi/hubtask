@@ -14,8 +14,8 @@
   // here ever defaults a case to `FULL_DELETE`.
   //
   // **`INSTALLATION` scope is not offered** and the alternative is named: it crosses the tenant
-  // boundary and is the provider's path. It is absent from the types, so nothing here can compose
-  // one.
+  // boundary and is the operator's path. Such a case recorded by the operator is listed, with its
+  // deadline, and carries no control that moves it (`canAct`, UC-PRV-06).
   //
   // **An archive goes to a backup target like every other export**, so a finished access case
   // reports where it was written rather than offering a download (ADR-0047).
@@ -32,6 +32,7 @@
   import { backup } from '../lib/data/backup.svelte.ts';
   import {
     byDeadline,
+    canAct,
     canExtend,
     deadlinePhrase,
     EXTENSION_REASONS,
@@ -316,7 +317,7 @@
                 </p>
               {/if}
 
-              {#if request.kind === 'ERASURE' && request.status !== 'COMPLETED'}
+              {#if canAct(request) && request.kind === 'ERASURE' && request.status !== 'COMPLETED'}
                 <!-- What each mode does to other people's content, before the choice is made. -->
                 <Stack gap="050">
                   <Select
@@ -340,7 +341,7 @@
                 </Stack>
               {/if}
 
-              {#if request.status === 'RECEIVED' || request.status === 'IN_PROGRESS'}
+              {#if canAct(request) && (request.status === 'RECEIVED' || request.status === 'IN_PROGRESS')}
                 <div class="row">
                   {#if request.status === 'RECEIVED'}
                     <Button
@@ -434,7 +435,7 @@
                 </Stack>
               {/if}
 
-              {#if rejecting === request.id}
+              {#if rejecting === request.id && canAct(request)}
                 <Stack gap="100">
                   <Input
                     label={t('app.privacy.reject_reason')}

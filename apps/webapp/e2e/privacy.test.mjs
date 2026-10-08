@@ -97,11 +97,19 @@ test('chromium: the extension starts on the bound the case answers and sends thr
   }
 });
 
-test('chromium: an installation-wide case offers no extension here', async () => {
+test('chromium: an installation-wide case is listed and offers nothing here', async () => {
   const browser = await chromium.launch();
   try {
     const { page, failures, close } = await open(browser);
-    assert.equal(await row(page, INSTALLATION).getByRole('button', { name: 'Extend the deadline' }).count(), 0);
+    const installation = row(page, INSTALLATION);
+    // Listed, with its deadline: it is this workspace's to see.
+    assert.match(await installation.innerText(), /Owed /);
+    // And no control that moves it - the operator's, through the API or hubctl (UC-PRV-06/6).
+    assert.equal(await installation.getByRole('button').count(), 0);
+    // The same controls stand on this workspace's own case, so the absence is the scope's.
+    for (const name of ['Start answering it', 'Refuse it', 'Extend the deadline']) {
+      assert.equal(await row(page, OPEN).getByRole('button', { name }).count(), 1, name);
+    }
     assert.deepEqual(failures, []);
     await close();
   } finally {

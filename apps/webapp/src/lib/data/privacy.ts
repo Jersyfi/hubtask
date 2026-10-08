@@ -12,9 +12,10 @@
  * entry's: by comparing instants. Inventing a second reading for it would be inventing a second
  * visual language, which is a design decision nobody took.
  *
- * **`INSTALLATION` is not among the scopes here.** It crosses the tenant boundary, needs the
- * `admin:tenants` scope and is the provider's path rather than a tenant's (data-protection.md §4.1). It is
- * absent from the type rather than filtered at the end.
+ * **An `INSTALLATION` case is listed and never acted on here.** It crosses the tenant boundary,
+ * needs the `admin:tenants` scope and is the operator's path (data-protection.md §4, UC-PRV-06):
+ * the register shows it, because its deadline is this workspace's to see, and `canAct` keeps every
+ * control that moves it off the row. The operator moves it through the API or `hubctl`.
  */
 
 /** The six rights the contract names. */
@@ -122,14 +123,22 @@ export interface Phrase {
 }
 
 /**
+ * Whether the row offers any control that moves the case: start, complete, refuse, the erasure
+ * mode, the extension. Not on an installation-wide case, which is the operator's (UC-PRV-06/6):
+ * a control the server refuses without `admin:tenants` is a control that cannot succeed (P-05).
+ */
+export function canAct(request: Request): boolean {
+  return request.scope !== 'INSTALLATION';
+}
+
+/**
  * Whether the row offers *Extend the deadline* (P-05: only where it can succeed).
  *
  * The server says when: `extendable_until` is answered while the case is open, not yet extended
- * and before its deadline. An installation-wide case is the operator's to extend, through the API
- * or `hubctl`, never this screen's (UC-PRV-06).
+ * and before its deadline. And only where the row may act at all.
  */
 export function canExtend(request: Request): boolean {
-  return request.scope !== 'INSTALLATION' && typeof request.extendable_until === 'string' &&
+  return canAct(request) && typeof request.extendable_until === 'string' &&
     request.extendable_until !== '';
 }
 

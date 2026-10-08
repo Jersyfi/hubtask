@@ -9,9 +9,9 @@
  * starts the job. So this module has a create and a patch, and the patch is where the consequence
  * lives — which is why the screen asks before it.
  *
- * **The scope is always this workspace.** `INSTALLATION` crosses the tenant boundary, needs the
- * `admin:tenants` scope and is the provider's path; it is absent from `privacy.ts`'s types rather
- * than filtered here, so nothing in this client can compose one.
+ * **What this client records is always this workspace's.** A case is recorded with `TENANT` scope,
+ * so nothing here composes an `INSTALLATION` one. The listing answers every case, an operator's
+ * installation-wide ones included; the screen shows them and offers nothing on them (`canAct`).
  *
  * **Restriction and consent withdrawal are the two Articles with their own routes**, and neither
  * is a case: `:restrict` sets a technical state on an account, and a withdrawal is recorded rather
@@ -26,6 +26,7 @@ import type { ErasureMode, Extension, Kind, Request, Status } from './privacy.ts
 
 export {
   byDeadline,
+  canAct,
   canExtend,
   deadlinePhrase,
   EXTENSION_REASONS,

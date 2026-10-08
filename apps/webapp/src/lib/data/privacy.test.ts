@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 
 import {
   byDeadline,
+  canAct,
   canExtend,
   deadlinePhrase,
   extensionPayload,
@@ -162,4 +163,11 @@ test('the payload carries three facts, each required, both days as days', () => 
   ]) {
     assert.equal(extensionPayload(draft), undefined, JSON.stringify(draft));
   }
+});
+
+test('a row acts on this workspace\'s cases and on no installation-wide one', () => {
+  // The operator's (UC-PRV-06/6): start, refuse, the mode and the extension all stay off the row.
+  assert.equal(canAct(aCase()), true);
+  assert.equal(canAct(aCase({ scope: 'TENANT' })), true);
+  assert.equal(canAct(aCase({ scope: 'INSTALLATION' })), false);
 });
