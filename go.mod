@@ -21,7 +21,7 @@ go 1.27.0
 // The toolchain is pinned to a patched release: gate-security runs govulncheck, and an unpatched
 // standard library is a finding there. Whoever builds with an older Go gets this one fetched
 // automatically - which is the guarantee the `go` directive above must not try to make.
-toolchain go1.27.1
+toolchain go1.27.2
 
 // Dependencies are added step by step from milestone 0.1.0 onwards.
 // The core (core/domain, core/port, core/shared) stays permanently free of
