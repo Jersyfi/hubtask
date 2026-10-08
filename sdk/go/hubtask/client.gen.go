@@ -12913,9 +12913,9 @@ type ClientInterface interface {
 
 	// ListDataSubjectRequests The data subject requests this workspace is handling
 	//
-	// Newest first, the open ones by default. A right somebody exercised is a case with a
-	// statutory deadline, and this is the list whoever answers for it reads - which is why the
-	// overdue ones can be asked for on their own.
+	// Soonest deadline first, the open ones by default. A right somebody exercised is a case
+	// with a statutory deadline, and this is the list whoever answers for it reads - which is why
+	// the overdue ones can be asked for on their own.
 	//
 	// Corresponds with GET /privacy/requests (the `ListDataSubjectRequests` operationId).
 	ListDataSubjectRequests(ctx context.Context, params *ListDataSubjectRequestsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -19946,9 +19946,9 @@ func (c *Client) WithdrawConsent(ctx context.Context, body WithdrawConsentJSONRe
 
 // ListDataSubjectRequests The data subject requests this workspace is handling
 //
-// Newest first, the open ones by default. A right somebody exercised is a case with a
-// statutory deadline, and this is the list whoever answers for it reads - which is why the
-// overdue ones can be asked for on their own.
+// Soonest deadline first, the open ones by default. A right somebody exercised is a case
+// with a statutory deadline, and this is the list whoever answers for it reads - which is why
+// the overdue ones can be asked for on their own.
 //
 // Corresponds with GET /privacy/requests (the `ListDataSubjectRequests` operationId).
 func (c *Client) ListDataSubjectRequests(ctx context.Context, params *ListDataSubjectRequestsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -37930,9 +37930,9 @@ type ClientWithResponsesInterface interface {
 
 	// ListDataSubjectRequestsWithResponse The data subject requests this workspace is handling
 	//
-	// Newest first, the open ones by default. A right somebody exercised is a case with a
-	// statutory deadline, and this is the list whoever answers for it reads - which is why the
-	// overdue ones can be asked for on their own.
+	// Soonest deadline first, the open ones by default. A right somebody exercised is a case
+	// with a statutory deadline, and this is the list whoever answers for it reads - which is why
+	// the overdue ones can be asked for on their own.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -57634,9 +57634,9 @@ func (c *ClientWithResponses) WithdrawConsentWithResponse(ctx context.Context, b
 
 // ListDataSubjectRequestsWithResponse The data subject requests this workspace is handling
 //
-// Newest first, the open ones by default. A right somebody exercised is a case with a
-// statutory deadline, and this is the list whoever answers for it reads - which is why the
-// overdue ones can be asked for on their own.
+// Soonest deadline first, the open ones by default. A right somebody exercised is a case
+// with a statutory deadline, and this is the list whoever answers for it reads - which is why
+// the overdue ones can be asked for on their own.
 //
 // Returns a wrapper object for the known response body format(s).
 //

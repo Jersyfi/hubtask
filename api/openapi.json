@@ -6908,7 +6908,7 @@
         ],
         "operationId": "listDataSubjectRequests",
         "summary": "The data subject requests this workspace is handling",
-        "description": "Newest first, the open ones by default. A right somebody exercised is a case with a\nstatutory deadline, and this is the list whoever answers for it reads - which is why the\noverdue ones can be asked for on their own.\n",
+        "description": "Soonest deadline first, the open ones by default. A right somebody exercised is a case\nwith a statutory deadline, and this is the list whoever answers for it reads - which is why\nthe overdue ones can be asked for on their own.\n",
         "parameters": [
           {
             "name": "status",

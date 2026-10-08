@@ -5508,9 +5508,9 @@ paths:
       operationId: listDataSubjectRequests
       summary: The data subject requests this workspace is handling
       description: |
-        Newest first, the open ones by default. A right somebody exercised is a case with a
-        statutory deadline, and this is the list whoever answers for it reads - which is why the
-        overdue ones can be asked for on their own.
+        Soonest deadline first, the open ones by default. A right somebody exercised is a case
+        with a statutory deadline, and this is the list whoever answers for it reads - which is why
+        the overdue ones can be asked for on their own.
       parameters:
         - { name: status, in: query, schema: { $ref: "#/components/schemas/DataSubjectRequestStatus" } }
         - { name: kind, in: query, schema: { $ref: "#/components/schemas/DataSubjectRequestKind" } }
