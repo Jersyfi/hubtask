@@ -813,6 +813,8 @@
   "privacy.consent_not_found": "There is no consent recorded for that purpose.",
   "privacy.subject_not_found": "There is no account here for the person that request is about.",
   "privacy.due_at_malformed": "That deadline is not a date and time this installation understands.",
+  "privacy.due_on_malformed": "That new deadline is not a day written as YYYY-MM-DD.",
+  "privacy.informed_on_malformed": "The day the person was informed is not a day written as YYYY-MM-DD.",
   "privacy.installation_scope_denied": "Reaching across every workspace of this installation needs the admin:tenants scope.",
   "privacy.already_extended": "This request's deadline has already been extended. It can be extended only once.",
   "privacy.extension_after_deadline": "This request's deadline has passed. A deadline can be extended only before it ends.",

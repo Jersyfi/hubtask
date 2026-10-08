@@ -22,6 +22,7 @@ const (
 	createDataSubjectRequestUseCase = "CreateDataSubjectRequest"
 	listDataSubjectRequestsUseCase  = "ListDataSubjectRequests"
 	updateDataSubjectRequestUseCase = "UpdateDataSubjectRequest"
+	extendDataSubjectRequestUseCase = "ExtendDataSubjectRequest"
 	restrictProcessingUseCase       = "RestrictProcessing"
 	withdrawConsentUseCase          = "WithdrawConsent"
 )
@@ -136,6 +137,40 @@ func (c *RestController) UpdateDataSubjectRequest(
 	writeJSON(w, r, http.StatusOK, dataSubjectRequestResponse(out))
 }
 
+// ExtendDataSubjectRequest answers POST /privacy/requests/{requestId}:extend.
+//
+// The body's three fields are required, and the generated type carries a missing one as its zero
+// value. A field is passed on only when it is not that zero value, so a missing one reaches the
+// registry as absent and is refused there with the code every other channel answers. A malformed
+// day never gets this far: the decoder refuses it as a malformed body.
+func (c *RestController) ExtendDataSubjectRequest(
+	w http.ResponseWriter, r *http.Request, requestID openapi_types.UUID,
+	_ openapi.ExtendDataSubjectRequestParams,
+) {
+	var body openapi.DataSubjectRequestExtension
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+
+	in := usecase.Input{"request_id": requestID.String()}
+	if !body.DueOn.IsZero() {
+		in["due_on"] = body.DueOn.Format(openapi_types.DateFormat)
+	}
+	if body.Reason != "" {
+		in["reason"] = string(body.Reason)
+	}
+	if !body.InformedOn.IsZero() {
+		in["informed_on"] = body.InformedOn.Format(openapi_types.DateFormat)
+	}
+
+	out, ok := c.read(w, r, extendDataSubjectRequestUseCase, in)
+	if !ok {
+		return
+	}
+	writeJSON(w, r, http.StatusOK, dataSubjectRequestResponse(out))
+}
+
 // dataSubjectRequestResponse maps one case onto the contract's schema.
 func dataSubjectRequestResponse(row usecase.Output) openapi.DataSubjectRequest {
 	request := openapi.DataSubjectRequest{
@@ -163,7 +198,25 @@ func dataSubjectRequestResponse(row usecase.Output) openapi.DataSubjectRequest {
 	if completed, ok := row["completed_at"].(time.Time); ok {
 		request.CompletedAt = &completed
 	}
+	if original, ok := row["original_due_at"].(time.Time); ok {
+		request.OriginalDueAt = &original
+	}
+	if reason := row.String("extension_reason"); reason != "" {
+		value := openapi.DataSubjectRequestExtensionReason(reason)
+		request.ExtensionReason = &value
+	}
+	request.InformedOn = dateOrNil(row.String("informed_on"))
+	request.ExtendableUntil = dateOrNil(row.String("extendable_until"))
 	return request
+}
+
+// dateOrNil is a calendar day the use case answered as YYYY-MM-DD, or nil where it answered none.
+func dateOrNil(value string) *openapi_types.Date {
+	day, err := time.Parse(openapi_types.DateFormat, value)
+	if err != nil {
+		return nil
+	}
+	return &openapi_types.Date{Time: day}
 }
 
 // RestrictProcessing answers POST /accounts/{accountId}:restrict.

@@ -10,6 +10,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -117,6 +118,17 @@ func (s *requestStore) List(_ context.Context, filter repository.Filter) (reposi
 
 func (s *requestStore) Deadlines(context.Context, time.Time) (repository.Deadlines, error) {
 	return s.deadlines, nil
+}
+
+// workspaceDouble is the workspace a case belongs to; its zone is what the extension counts days in.
+type workspaceDouble struct {
+	zone  string
+	reads int
+}
+
+func (w *workspaceDouble) Find(context.Context) (identity.Workspace, error) {
+	w.reads++
+	return identity.Workspace{Tenant: identity.Tenant{ID: tenantID, DefaultTimeZone: w.zone}}, nil
 }
 
 // authorizerDouble records what it was asked and answers what the test told it to.

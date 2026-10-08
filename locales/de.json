@@ -300,6 +300,8 @@
   "privacy.extension_not_later": "Die neue Frist muss später liegen als die bisherige.",
   "privacy.informed_on_out_of_range": "Der Tag, an dem die Person informiert wurde, muss zwischen {from} und {to} liegen.",
   "privacy.extension_reason_invalid": "Nenne den Grund der Verlängerung: die Komplexität der Anfrage oder die Zahl der Anfragen.",
+  "privacy.due_on_malformed": "Die neue Frist ist kein Tag in der Form JJJJ-MM-TT.",
+  "privacy.informed_on_malformed": "Der Tag, an dem die Person informiert wurde, ist kein Tag in der Form JJJJ-MM-TT.",
   "app.back_to_start": "Zurück zum Anfang",
   "app.dismiss": "Schließen",
   "app.retry": "Noch einmal versuchen",
