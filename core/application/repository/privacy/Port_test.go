@@ -89,6 +89,11 @@ func (d *double) Deadlines(_ context.Context, now time.Time) (Deadlines, error) 
 	return deadlines, nil
 }
 
+func (d *double) Lock(_ context.Context, id shared.ID) (bool, error) {
+	_, found := d.stored[id]
+	return found, nil
+}
+
 func (d *double) Withdraw(_ context.Context, _ shared.ID, purpose string, at time.Time) (int, error) {
 	ended := 0
 	for i, consent := range d.consents {

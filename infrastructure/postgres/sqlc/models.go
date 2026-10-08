@@ -842,6 +842,23 @@ type DeletionJournal struct {
 	Reason    string
 }
 
+type ErasureKept struct {
+	TenantID      pgtype.UUID
+	RequestID     pgtype.UUID
+	HoldID        pgtype.UUID
+	HoldScope     string
+	HoldScopeID   pgtype.UUID
+	Account       bool
+	Entries       int32
+	Comments      int32
+	Assignments   int32
+	Intake        int32
+	RecordedAt    pgtype.Timestamptz
+	ErasedAt      pgtype.Timestamptz
+	BlockedCode   *string
+	BlockedParams []byte
+}
+
 type EventConsumption struct {
 	TenantID   pgtype.UUID
 	Consumer   string

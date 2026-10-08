@@ -105,6 +105,26 @@ func (q *Queries) AutomationsRunningAs(ctx context.Context, accountID pgtype.UUI
 	return count, err
 }
 
+const blockErasureKept = `-- name: BlockErasureKept :execrows
+UPDATE erasure_kept SET blocked_code = $1, blocked_params = $2
+WHERE tenant_id = current_tenant_id() AND request_id = $3 AND erased_at IS NULL
+`
+
+type BlockErasureKeptParams struct {
+	BlockedCode   *string
+	BlockedParams []byte
+	RequestID     pgtype.UUID
+}
+
+// The remainder could not be carried out: every pending row of the case says why until it is.
+func (q *Queries) BlockErasureKept(ctx context.Context, arg BlockErasureKeptParams) (int64, error) {
+	result, err := q.db.Exec(ctx, blockErasureKept, arg.BlockedCode, arg.BlockedParams, arg.RequestID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearAssignmentsOfAccount = `-- name: ClearAssignmentsOfAccount :execrows
 UPDATE work_item SET assignee_id = NULL, updated_at = $1, version = version + 1
 WHERE tenant_id = current_tenant_id() AND assignee_id = $2 AND deleted_at IS NULL
@@ -119,6 +139,27 @@ type ClearAssignmentsOfAccountParams struct {
 // the assignment is a fact about a person and does not.
 func (q *Queries) ClearAssignmentsOfAccount(ctx context.Context, arg ClearAssignmentsOfAccountParams) (int64, error) {
 	result, err := q.db.Exec(ctx, clearAssignmentsOfAccount, arg.UpdatedAt, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearAssignmentsOn = `-- name: ClearAssignmentsOn :execrows
+UPDATE work_item SET assignee_id = NULL, updated_at = $1, version = version + 1
+WHERE tenant_id = current_tenant_id() AND assignee_id = $2 AND deleted_at IS NULL
+  AND id = ANY($3::uuid[])
+`
+
+type ClearAssignmentsOnParams struct {
+	UpdatedAt pgtype.Timestamptz
+	AccountID pgtype.UUID
+	Ids       []pgtype.UUID
+}
+
+// The person's assignments a hold does not keep: the entry goes back to nobody.
+func (q *Queries) ClearAssignmentsOn(ctx context.Context, arg ClearAssignmentsOnParams) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAssignmentsOn, arg.UpdatedAt, arg.AccountID, arg.Ids)
 	if err != nil {
 		return 0, err
 	}
@@ -182,6 +223,27 @@ DELETE FROM comment WHERE tenant_id = current_tenant_id() AND author_id = $1
 
 func (q *Queries) DeleteCommentsAuthoredBy(ctx context.Context, authorID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteCommentsAuthoredBy, authorID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteCommentsOf = `-- name: DeleteCommentsOf :execrows
+DELETE FROM comment
+WHERE tenant_id = current_tenant_id() AND author_id = $1
+  AND id = ANY($2::uuid[])
+`
+
+type DeleteCommentsOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// The person's comments a hold does not keep, by identifier: the ones that were read, judged and
+// given their journal entries - no others.
+func (q *Queries) DeleteCommentsOf(ctx context.Context, arg DeleteCommentsOfParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteCommentsOf, arg.AuthorID, arg.Ids)
 	if err != nil {
 		return 0, err
 	}
@@ -270,6 +332,146 @@ func (q *Queries) DiscardIntakeOf(ctx context.Context, accountID pgtype.UUID) (i
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const eraseErasureKept = `-- name: EraseErasureKept :execrows
+UPDATE erasure_kept SET erased_at = $1, blocked_code = NULL, blocked_params = NULL
+WHERE tenant_id = current_tenant_id() AND request_id = $2 AND erased_at IS NULL
+  AND NOT (hold_id = ANY($3::uuid[]))
+`
+
+type EraseErasureKeptParams struct {
+	ErasedAt     pgtype.Timestamptz
+	RequestID    pgtype.UUID
+	StillKeeping []pgtype.UUID
+}
+
+// Every pending row of the case whose hold keeps nothing any more: its part has been erased.
+func (q *Queries) EraseErasureKept(ctx context.Context, arg EraseErasureKeptParams) (int64, error) {
+	result, err := q.db.Exec(ctx, eraseErasureKept, arg.ErasedAt, arg.RequestID, arg.StillKeeping)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const erasureContributions = `-- name: ErasureContributions :many
+SELECT 'COMMENT'::text AS kind, c.id, w.id AS item_id, w.path, w.collection_id,
+       col.parent_id AS hub_id, w.created_by AS item_created_by
+FROM comment c
+JOIN work_item w ON w.tenant_id = c.tenant_id AND w.id = c.item_id
+JOIN container col ON col.tenant_id = w.tenant_id AND col.id = w.collection_id
+WHERE c.tenant_id = current_tenant_id() AND c.author_id = $1
+UNION ALL
+SELECT 'ASSIGNMENT'::text, w.id, w.id, w.path, w.collection_id, col.parent_id, w.created_by
+FROM work_item w
+JOIN container col ON col.tenant_id = w.tenant_id AND col.id = w.collection_id
+WHERE w.tenant_id = current_tenant_id() AND w.assignee_id = $1
+  AND w.deleted_at IS NULL
+UNION ALL
+SELECT 'ENTRY'::text, w.id, w.id, w.path, w.collection_id, col.parent_id, w.created_by
+FROM work_item w
+JOIN container col ON col.tenant_id = w.tenant_id AND col.id = w.collection_id
+WHERE w.tenant_id = current_tenant_id() AND w.created_by = $1
+`
+
+type ErasureContributionsRow struct {
+	Kind          string
+	ID            pgtype.UUID
+	ItemID        pgtype.UUID
+	Path          string
+	CollectionID  pgtype.UUID
+	HubID         pgtype.UUID
+	ItemCreatedBy pgtype.UUID
+}
+
+// The person's rows that sit on an entry, with where the entry is: what a hold on the workspace, a
+// hub, a collection, an entry or another person is judged against. Their comments, the entries
+// assigned to them, the entries they created.
+func (q *Queries) ErasureContributions(ctx context.Context, accountID pgtype.UUID) ([]ErasureContributionsRow, error) {
+	rows, err := q.db.Query(ctx, erasureContributions, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ErasureContributionsRow{}
+	for rows.Next() {
+		var i ErasureContributionsRow
+		if err := rows.Scan(
+			&i.Kind,
+			&i.ID,
+			&i.ItemID,
+			&i.Path,
+			&i.CollectionID,
+			&i.HubID,
+			&i.ItemCreatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const erasureKeptOf = `-- name: ErasureKeptOf :many
+SELECT request_id, hold_id, hold_scope, hold_scope_id, account, entries, comments, assignments,
+       intake, recorded_at, erased_at, blocked_code, blocked_params
+FROM erasure_kept
+WHERE tenant_id = current_tenant_id() AND request_id = ANY($1::uuid[])
+ORDER BY recorded_at, hold_id
+`
+
+type ErasureKeptOfRow struct {
+	RequestID     pgtype.UUID
+	HoldID        pgtype.UUID
+	HoldScope     string
+	HoldScopeID   pgtype.UUID
+	Account       bool
+	Entries       int32
+	Comments      int32
+	Assignments   int32
+	Intake        int32
+	RecordedAt    pgtype.Timestamptz
+	ErasedAt      pgtype.Timestamptz
+	BlockedCode   *string
+	BlockedParams []byte
+}
+
+func (q *Queries) ErasureKeptOf(ctx context.Context, requestIds []pgtype.UUID) ([]ErasureKeptOfRow, error) {
+	rows, err := q.db.Query(ctx, erasureKeptOf, requestIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ErasureKeptOfRow{}
+	for rows.Next() {
+		var i ErasureKeptOfRow
+		if err := rows.Scan(
+			&i.RequestID,
+			&i.HoldID,
+			&i.HoldScope,
+			&i.HoldScopeID,
+			&i.Account,
+			&i.Entries,
+			&i.Comments,
+			&i.Assignments,
+			&i.Intake,
+			&i.RecordedAt,
+			&i.ErasedAt,
+			&i.BlockedCode,
+			&i.BlockedParams,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const extendDataSubjectRequest = `-- name: ExtendDataSubjectRequest :execrows
@@ -626,6 +828,28 @@ func (q *Queries) ListDataSubjectRequests(ctx context.Context, arg ListDataSubje
 	return items, nil
 }
 
+const lockDataSubjectRequest = `-- name: LockDataSubjectRequest :one
+
+
+SELECT id FROM data_subject_request
+WHERE id = $1 AND tenant_id = current_tenant_id()
+FOR UPDATE
+`
+
+// What an attached medium keeps is the file and the identifier of whoever uploaded it. After a
+// full deletion that identifier points at nobody, which is the position `audit_log.actor_id` is in
+// as well - and `audit_pseudonym` is what answers "who was this" for both. Rewriting the column
+// would be a second mechanism for one question.
+// ===================== What a legal hold keeps (data-protection.md §4.1) =====
+// Taken first by the erasure and by the remainder, so one case has one writer at a time: a retried
+// erasure and a remainder seeded by a release in between would otherwise both decide what is kept.
+func (q *Queries) LockDataSubjectRequest(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockDataSubjectRequest, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const mediaUploadedBy = `-- name: MediaUploadedBy :many
 SELECT m.id, m.storage_key
 FROM media_object m
@@ -692,6 +916,40 @@ func (q *Queries) OverdueRequestCount(ctx context.Context, now pgtype.Timestampt
 	var i OverdueRequestCountRow
 	err := row.Scan(&i.Overdue, &i.OpenCases, &i.NextDueAt)
 	return i, err
+}
+
+const pendingErasureKept = `-- name: PendingErasureKept :many
+SELECT request_id, hold_id
+FROM erasure_kept
+WHERE tenant_id = current_tenant_id() AND erased_at IS NULL
+  AND ($1::uuid IS NULL OR hold_id = $1::uuid)
+ORDER BY request_id, hold_id
+`
+
+type PendingErasureKeptRow struct {
+	RequestID pgtype.UUID
+	HoldID    pgtype.UUID
+}
+
+// The cases something is still kept for, and under which hold - all of them, or one hold's.
+func (q *Queries) PendingErasureKept(ctx context.Context, holdID pgtype.UUID) ([]PendingErasureKeptRow, error) {
+	rows, err := q.db.Query(ctx, pendingErasureKept, holdID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PendingErasureKeptRow{}
+	for rows.Next() {
+		var i PendingErasureKeptRow
+		if err := rows.Scan(&i.RequestID, &i.HoldID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const releaseIntakeOf = `-- name: ReleaseIntakeOf :execrows
@@ -837,4 +1095,51 @@ func (q *Queries) UpdateDataSubjectRequest(ctx context.Context, arg UpdateDataSu
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const upsertErasureKept = `-- name: UpsertErasureKept :exec
+INSERT INTO erasure_kept (
+  tenant_id, request_id, hold_id, hold_scope, hold_scope_id,
+  account, entries, comments, assignments, intake, recorded_at
+) VALUES (
+  current_tenant_id(), $1, $2, $3,
+  $4, $5, $6, $7,
+  $8, $9, $10
+)
+ON CONFLICT (tenant_id, request_id, hold_id) DO UPDATE SET
+  hold_scope = EXCLUDED.hold_scope, hold_scope_id = EXCLUDED.hold_scope_id,
+  account = EXCLUDED.account, entries = EXCLUDED.entries, comments = EXCLUDED.comments,
+  assignments = EXCLUDED.assignments, intake = EXCLUDED.intake,
+  erased_at = NULL, blocked_code = NULL, blocked_params = NULL
+`
+
+type UpsertErasureKeptParams struct {
+	RequestID   pgtype.UUID
+	HoldID      pgtype.UUID
+	HoldScope   string
+	HoldScopeID pgtype.UUID
+	Account     bool
+	Entries     int32
+	Comments    int32
+	Assignments int32
+	Intake      int32
+	RecordedAt  pgtype.Timestamptz
+}
+
+// What one hold keeps for one case, now. A row that was erased or blocked and keeps something again
+// is pending again; when it was first recorded stays.
+func (q *Queries) UpsertErasureKept(ctx context.Context, arg UpsertErasureKeptParams) error {
+	_, err := q.db.Exec(ctx, upsertErasureKept,
+		arg.RequestID,
+		arg.HoldID,
+		arg.HoldScope,
+		arg.HoldScopeID,
+		arg.Account,
+		arg.Entries,
+		arg.Comments,
+		arg.Assignments,
+		arg.Intake,
+		arg.RecordedAt,
+	)
+	return err
 }

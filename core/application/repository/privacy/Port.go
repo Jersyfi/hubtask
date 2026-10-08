@@ -37,6 +37,33 @@ type Requests interface {
 	// Deadlines is the reading behind alert A-19: how many open cases are past their deadline, how
 	// many are open at all, and when the next one falls due.
 	Deadlines(ctx context.Context, now time.Time) (Deadlines, error)
+
+	// Lock takes the case's row for the rest of the transaction, and answers false when there is
+	// none. The erasure and its remainder take it first, so one case has one writer at a time.
+	Lock(ctx context.Context, id shared.ID) (bool, error)
+}
+
+// Kept stores what legal holds kept from each erasure (data-protection.md §4.1).
+type Kept interface {
+	// RecordKept makes the case's pending parts exactly these: each is written, pending again if it had
+	// been erased, and every other pending part is marked erased at the given moment.
+	RecordKept(ctx context.Context, requestID shared.ID, kept []domain.Kept, at time.Time) error
+
+	// KeptOf answers the parts of each case named, pending or erased, oldest first.
+	KeptOf(ctx context.Context, requestIDs []shared.ID) (map[shared.ID][]domain.Kept, error)
+
+	// PendingKept answers the cases something is still kept for, under one hold or, with the zero
+	// identifier, under any.
+	PendingKept(ctx context.Context, holdID shared.ID) ([]PendingKept, error)
+
+	// BlockKept records why the rest of a case could not be erased, on every part still pending.
+	BlockKept(ctx context.Context, requestID shared.ID, code string, params map[string]string) error
+}
+
+// PendingKept is one case and one hold that still keeps something of it.
+type PendingKept struct {
+	RequestID shared.ID
+	HoldID    shared.ID
 }
 
 // Filter narrows a listing. Every field is optional; the zero filter is "what do we still owe",
@@ -169,6 +196,40 @@ type Erasure interface {
 	// DiscardMedium removes one medium's row. The bytes are removed by the caller, outside the
 	// transaction, because a bucket is an external dependency (observability-reliability.md §8).
 	DiscardMedium(ctx context.Context, mediaID shared.ID) error
+
+	// Contributions answers the person's rows that sit on an entry - their comments, the entries
+	// assigned to them, the entries they created - each with where its entry is, which is what a
+	// legal hold is judged against.
+	Contributions(ctx context.Context, accountID shared.ID) ([]Contribution, error)
+
+	// DeleteComments removes the person's comments named, and no others.
+	DeleteComments(ctx context.Context, accountID shared.ID, ids []shared.ID) (int, error)
+
+	// ReleaseAssignmentsOn hands the entries named back to nobody, where they are assigned to the
+	// person.
+	ReleaseAssignmentsOn(ctx context.Context, accountID shared.ID, itemIDs []shared.ID, at time.Time) (int, error)
+}
+
+// ContributionKind is what a contribution row is.
+type ContributionKind string
+
+const (
+	ContributedComment    ContributionKind = "COMMENT"
+	ContributedAssignment ContributionKind = "ASSIGNMENT"
+	ContributedEntry      ContributionKind = "ENTRY"
+)
+
+// Contribution is one row of the person's on an entry, and where that entry is.
+type Contribution struct {
+	Kind ContributionKind
+	// ID is the comment's identifier, or the entry's for an assignment and an entry.
+	ID           shared.ID
+	ItemID       shared.ID
+	Path         string
+	CollectionID shared.ID
+	HubID        shared.ID
+	// ItemCreatedBy is who created the entry, which a hold on another person is judged against.
+	ItemCreatedBy shared.ID
 }
 
 // Authored is one contribution of the person's, and the entry it belongs to.

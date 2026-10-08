@@ -649,6 +649,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"audit_anchor":         "it attests to the chain in the live audit log, not to a copy of one",
 	"audit_pseudonym":      "the result of an erasure over a trail that is never written back; carrying it would let a restore reinstate a name, or remove one it did not",
 	"data_subject_request": "a case with a legal deadline; a restored one revives a deadline that has passed",
+	"erasure_kept":         "part of the case it belongs to, which an archive leaves out",
 	"privacy_incident":     "the same reasoning: an incident is handled once",
 	// The backup system's own bookkeeping. An archive describing the runs that produced it would
 	// be a mirror facing a mirror.

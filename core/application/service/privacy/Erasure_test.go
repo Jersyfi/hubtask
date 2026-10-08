@@ -39,6 +39,10 @@ type erasureStore struct {
 	runningRules int
 	intakeGone   int
 	intakeFreed  int
+	// contributions are the person's rows on entries, and where each entry is.
+	contributions  []repository.Contribution
+	commentIDsGone []shared.ID
+	releasedOn     []shared.ID
 }
 
 func (e *erasureStore) DiscardIntake(context.Context, shared.ID) (int, error) {
@@ -122,6 +126,32 @@ func (e *erasureStore) DeleteAuthoredComments(context.Context, shared.ID) (int, 
 	}
 	e.commentsGone = len(e.comments)
 	return len(e.comments), nil
+}
+
+func (e *erasureStore) Contributions(context.Context, shared.ID) ([]repository.Contribution, error) {
+	if err := e.step("contributions"); err != nil {
+		return nil, err
+	}
+	return e.contributions, nil
+}
+
+func (e *erasureStore) DeleteComments(_ context.Context, _ shared.ID, ids []shared.ID) (int, error) {
+	if err := e.step("delete comments"); err != nil {
+		return 0, err
+	}
+	e.commentsGone = len(ids)
+	e.commentIDsGone = append(e.commentIDsGone, ids...)
+	return len(ids), nil
+}
+
+func (e *erasureStore) ReleaseAssignmentsOn(
+	_ context.Context, _ shared.ID, ids []shared.ID, _ time.Time,
+) (int, error) {
+	if err := e.step("assignments"); err != nil {
+		return 0, err
+	}
+	e.releasedOn = append(e.releasedOn, ids...)
+	return len(ids), nil
 }
 
 func (e *erasureStore) OrphanedMedia(context.Context, shared.ID) ([]repository.Medium, error) {
