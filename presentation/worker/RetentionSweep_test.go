@@ -77,6 +77,9 @@ func (noTrash) PurgeItems(_ context.Context, ids []shared.ID) (int, error) {
 func (noTrash) PurgeContainers(_ context.Context, ids []shared.ID) (int, error) {
 	return len(ids), nil
 }
+func (noTrash) KeptBelow(context.Context, []shared.ID, []shared.ID) (map[shared.ID]int, error) {
+	return map[shared.ID]int{}, nil
+}
 
 type noEvents struct{}
 

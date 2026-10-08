@@ -1008,6 +1008,15 @@ type Trash interface {
 	// hub whose collections are still there refuses to go. That is the database insisting on the
 	// order rather than a rule a caller could forget - but the caller still has to call it twice.
 	PurgeContainers(ctx context.Context, ids []shared.ID) (int, error)
+
+	// KeptBelow answers, for each entry or container named, how many rows below it are not in
+	// going: an entry's descendants, a collection's entries, a hub's collections and their entries.
+	// Only the ones with something below them are in the answer.
+	//
+	// Asked before a sweep removes what it was handed, because the schema's cascades would take a
+	// held child with its parent or its collection, uncounted and unrecorded (data-retention.md §4
+	// item 6).
+	KeptBelow(ctx context.Context, ids, going []shared.ID) (map[shared.ID]int, error)
 }
 
 // CustomFields stores the definitions a workspace or a collection adds to its entries.
