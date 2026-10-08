@@ -88,8 +88,13 @@ export interface Request {
  */
 export type Standing = 'overdue' | 'soon' | 'ahead';
 
-/** How near counts as near. Two days, because a statutory answer is not a same-day task. */
-export const SOON_MS = 2 * 24 * 60 * 60 * 1000;
+/**
+ * How near counts as near: seven days, the moment the installation's deadline watch starts warning
+ * (alert A-19, `WarningWindow` in the server's privacy service). The register and the alert say
+ * *owed soon* at the same moment (UC-PRV-01 check 5); two windows would be two answers to one
+ * question.
+ */
+export const SOON_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Where a case's deadline stands at a given moment. A closed case has no standing to report. */
 export function standingOf(request: Request, now: number): Standing | undefined {

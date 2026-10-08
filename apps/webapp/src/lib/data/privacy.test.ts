@@ -171,3 +171,12 @@ test('a row acts on this workspace\'s cases and on no installation-wide one', ()
   assert.equal(canAct(aCase({ scope: 'TENANT' })), true);
   assert.equal(canAct(aCase({ scope: 'INSTALLATION' })), false);
 });
+
+test('owed soon starts seven days before the deadline, when the watch starts warning', () => {
+  // UC-PRV-01 check 5: the same moment as the server's WarningWindow, written out by hand here
+  // rather than read from SOON_MS, so that the constant cannot agree with itself.
+  const day = 24 * 3600 * 1000;
+  assert.equal(standingOf(aCase({ due_at: new Date(NOW + 7 * day).toISOString() }), NOW), 'soon');
+  assert.equal(standingOf(aCase({ due_at: new Date(NOW + 6 * day).toISOString() }), NOW), 'soon');
+  assert.equal(standingOf(aCase({ due_at: new Date(NOW + 7 * day + 1000).toISOString() }), NOW), 'ahead');
+});
