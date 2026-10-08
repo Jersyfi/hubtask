@@ -24,6 +24,7 @@ import (
 type harness struct {
 	requests   *requestStore
 	workspace  *workspaceDouble
+	subjects   *tenantsOf
 	jobs       *queueDouble
 	authorizer *authorizerDouble
 	audit      *auditSink
@@ -33,6 +34,7 @@ type harness struct {
 func newHarness() *harness {
 	return &harness{
 		requests: newRequestStore(), workspace: &workspaceDouble{zone: "Europe/Berlin"},
+		subjects:   &tenantsOf{},
 		jobs:       &queueDouble{},
 		authorizer: &authorizerDouble{}, audit: &auditSink{}, uow: &unitOfWork{},
 	}
@@ -40,7 +42,8 @@ func newHarness() *harness {
 
 func (h *harness) cases() Cases {
 	return Cases{
-		Requests: h.requests, Workspaces: h.workspace, Jobs: h.jobs, Authorizer: h.authorizer,
+		Requests: h.requests, Workspaces: h.workspace, Subjects: h.subjects, Jobs: h.jobs,
+		Authorizer: h.authorizer,
 		Audit:      h.audit,
 		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &idSource{},
 	}

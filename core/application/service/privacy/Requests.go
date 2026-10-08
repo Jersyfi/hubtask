@@ -78,6 +78,8 @@ type Workspaces interface {
 type Cases struct {
 	Requests   repository.Requests
 	Workspaces Workspaces
+	// Subjects answers the workspaces an installation-wide case's person is a member of.
+	Subjects   repository.Subjects
 	Jobs       Enqueuer
 	Authorizer Authorizer
 	Audit      audit.Sink

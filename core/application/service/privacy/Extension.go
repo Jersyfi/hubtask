@@ -94,6 +94,9 @@ func (h ExtendDataSubjectRequest) Execute(
 			return h.lost(ctx, cmd.RequestID, in)
 		}
 
+		if err := h.fanOut(ctx, actor, extended); err != nil {
+			return err
+		}
 		return h.Cases.record(ctx, actor, RequestExtendedAction, extended, audit.SeverityNotice,
 			extensionChanges(extended))
 	})

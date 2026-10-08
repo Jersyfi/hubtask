@@ -123,11 +123,15 @@ func (s *requestStore) Deadlines(context.Context, time.Time) (repository.Deadlin
 // workspaceDouble is the workspace a case belongs to; its zone is what the extension counts days in.
 type workspaceDouble struct {
 	zone  string
+	gone  bool
 	reads int
 }
 
 func (w *workspaceDouble) Find(context.Context) (identity.Workspace, error) {
 	w.reads++
+	if w.gone {
+		return identity.Workspace{}, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
+	}
 	return identity.Workspace{Tenant: identity.Tenant{ID: tenantID, DefaultTimeZone: w.zone}}, nil
 }
 

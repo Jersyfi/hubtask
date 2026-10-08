@@ -953,7 +953,7 @@ func run() error {
 	// The cases the privacy use cases share.
 	privacyCases := privacyservice.Cases{
 		Requests: privacyStore, Workspaces: postgres.NewWorkspaceSettingsRepository(),
-		Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
+		Subjects: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
@@ -2922,6 +2922,12 @@ func run() error {
 			Encryptor: encryptor, Audit: auditSink, Clock: clockadapter.System{}, Signals: metrics,
 		}},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
+		queueport.KindPrivacyExtensionEntry: worker.PrivacyExtensionEntry{
+			Record: privacyservice.RecordExtensionEntry{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Audit: auditSink,
+				Clock: clockadapter.System{},
+			},
+		},
 		queueport.KindPrivacyDeadlines: worker.PrivacyDeadlines{
 			Watch: privacyservice.WatchDeadlines{
 				Requests: privacyStore, Signals: metrics, UnitOfWork: unitOfWork,
