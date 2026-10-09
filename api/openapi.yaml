@@ -1963,6 +1963,11 @@ paths:
       description: |
         Reads the manifests **at the target**, not from the database. That means the listing
         works even after a total loss, as long as the target credentials are known.
+
+        It answers the workspace's own archives. A credential carrying `admin:tenants` - the
+        installation operator's - also sees archives of workspaces this installation does not
+        hold, such as an export written by another installation, which a `NEW_TENANT` restore
+        takes; never an archive of another workspace that exists here.
       parameters:
         - { name: targetId, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: tenant_id, in: query, schema: { type: string, format: uuid } }

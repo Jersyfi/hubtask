@@ -34,6 +34,10 @@ const (
 
 	restoreType = "restore_run"
 
+	// operatorScope is the control plane's credential bound, asked of the modes §8.2 gives to the
+	// installation operator.
+	operatorScope = "admin:tenants"
+
 	// StartedRestoreAction is a restore somebody asked for. A warning: it is a path that
 	// changes a tenant's data from outside the tenant's own use cases, and "who
 	// restored what on Tuesday" is a question with an answer.
@@ -49,9 +53,12 @@ const (
 // disagreed about which cipher or which clock to use would be three chances for an archive to be
 // listed under one set of assumptions and restored under another.
 type Restorer struct {
-	Targets    repository.Targets
-	Restores   repository.Restores
-	Workspace  repository.Workspace
+	Targets   repository.Targets
+	Restores  repository.Restores
+	Workspace repository.Workspace
+	// Workspaces answers whether a workspace exists on this installation, for the operator's
+	// listing of archives a NEW_TENANT restore may take (§8.1).
+	Workspaces repository.Holder
 	Jobs       queue.Queue
 	StepUp     stepup.Verifier
 	Encryptor  crypto.Encryptor
@@ -152,13 +159,34 @@ func (h ListBackupsAtTarget) Execute(
 	// The tenant's own archives and nobody else's. The name is the filter, because a target can be
 	// shared and the storage port's prefix is a place rather than a string: an archive's name is a
 	// directory under the target's root. BK-10's listing half.
+	//
+	// The operator's listing adds what a NEW_TENANT restore may take besides (§8.1): archives of a
+	// workspace this installation does not hold, such as another installation's export - never one
+	// of a workspace held here. One read per workspace named, in that workspace's own scope.
 	mine := archive.Prefix(actor.TenantID)
+	operator := actor.HasScope(operatorScope)
+	origins := map[string]domain.ArchiveOrigin{}
 	archives := make([]Archive, 0, len(described))
 	for _, description := range described {
-		if !strings.HasPrefix(description.Prefix, mine) {
+		if strings.HasPrefix(description.Prefix, mine) {
+			archives = append(archives, archiveOf(description))
 			continue
 		}
-		archives = append(archives, archiveOf(description))
+		if !operator {
+			continue
+		}
+		scope := description.Manifest.Scope
+		origin, asked := origins[scope.ID]
+		if !asked {
+			origin, err = originOf(ctx, h.Restorer.UnitOfWork, h.Restorer.Workspaces, scope, actor.TenantID)
+			if err != nil {
+				return nil, err
+			}
+			origins[scope.ID] = origin
+		}
+		if origin == domain.ArchiveOfUnknownWorkspace {
+			archives = append(archives, archiveOf(description))
+		}
 	}
 	return archives, nil
 }
@@ -233,7 +261,9 @@ func (h ListBackupsAtTarget) Descriptor() usecase.Descriptor {
 			"reading that survives a total loss: with the target's credentials and nothing else, " +
 			"this still answers. Each entry says when it was taken, what it covers, how large it " +
 			"is, whether it is full or incremental, which archive it continues, which key it is " +
-			"encrypted under, and whether the run that wrote it finished.",
+			"encrypted under, and whether the run that wrote it finished. A credential carrying " +
+			"admin:tenants also sees archives of workspaces this installation does not hold, such " +
+			"as another installation's export, which a NEW_TENANT restore takes.",
 		SideEffects: "None. Reads at the target and writes nothing anywhere.",
 		TokenScope:  backupRead,
 		ReadOnly:    true,
