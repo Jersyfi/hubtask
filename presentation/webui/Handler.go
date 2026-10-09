@@ -202,5 +202,5 @@ func (h Handler) serve(w http.ResponseWriter, r *http.Request, name string) {
 	if etag, known := h.etags[name]; known {
 		w.Header().Set("Etag", etag)
 	}
-	http.ServeFileFS(w, r, h.Files, name)
+	http.ServeFileFS(w, r, h.Files, name) //nolint:gosec // G703: an fs.FS cannot be escaped
 }
