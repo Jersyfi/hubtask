@@ -45,10 +45,13 @@ WHERE c.id = $1;
 -- is unknown, and the hubs would come back as no rows at all.
 --
 -- Trashed containers count. Their rank is still occupied - a restore has to land where it was.
+--
+-- COLLATE "C" for the reason migration 0007 gives: a rank key is a fractional index that rests on
+-- byte order, and under a linguistic collation "Zz" would sort above "a0".
 SELECT order_key
 FROM container
 WHERE parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
-ORDER BY order_key DESC
+ORDER BY order_key COLLATE "C" DESC
 LIMIT 1;
 
 -- name: InsertContainer :exec
@@ -281,11 +284,14 @@ WHERE wi.id = $1;
 -- rather than `=` - `NULL = NULL` is unknown, and the tasks would come back as no rows at all.
 --
 -- Trashed items count. Their rank is still occupied; a restore has to land where it was.
+--
+-- COLLATE "C" for the reason migration 0007 gives: a rank key is a fractional index that rests on
+-- byte order, and under a linguistic collation "Zz" would sort above "a0".
 SELECT order_key
 FROM work_item
 WHERE collection_id = sqlc.arg('collection_id')::uuid
   AND parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
-ORDER BY order_key DESC
+ORDER BY order_key COLLATE "C" DESC
 LIMIT 1;
 
 -- name: InsertWorkItem :exec
