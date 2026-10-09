@@ -230,8 +230,9 @@ expected to keep sign-ins working. The export is handed outwards.
 
 * **Into a Hubtask installation**: a restore naming the archive's path as `source_archive` with mode
   `NEW_TENANT` (backup-restore.md §8) — the provider-migration path. The new installation's
-  operator runs it, and it is accepted because no workspace there bears the manifest's identifier.
-  Decided, not built: the restore refuses an archive of another workspace today (#1074).
+  operator runs it, and it is accepted because no workspace there bears the manifest's identifier;
+  the operator's listing at the target shows the export (backup-restore.md §8.1). The people sign in
+  again and make new tokens: an export carries no credential (§9).
 * **Into anything else**: apply the data files in §6's order; treat `id` as the row identity and
   the references as foreign keys; fetch media by digest. An importer that only wants the content
   can stop after `work_items`, `comments` and `media/`.

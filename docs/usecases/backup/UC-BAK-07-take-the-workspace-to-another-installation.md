@@ -5,9 +5,9 @@ context: backup
 actors: [PE-owner, PE-operator, PE-platform, PE-selfhoster, PE-integrator]
 deployments: [D1, D4, D5, D6, D7]
 serves: [P-01, P-08, P-09, P-15]
-state: partial
+state: built
 tasks: [H-07, F4-02]
-checked_by: [test/integration/tenant_export_test.go, core/application/service/admin/Export_test.go]
+checked_by: [test/integration/tenant_export_test.go, core/application/service/admin/Export_test.go, test/integration/restore_foreign_test.go]
 ---
 
 # Take the whole workspace to another installation
@@ -50,7 +50,3 @@ self-hoster (`D1`) does the same as the operator of their own installation.
 * Importing from other tools (CSV, Trello, Google Tasks, Microsoft To Do) belongs to the importer
   context.
 * No billing or contract steps around a move ([NG-billing](../../vision/non-goals.md)).
-
-## Today
-
-* Check 5: not met — a restore compares the archive's workspace identifier with the asking workspace in every mode, *new workspace* included, so an archive from another installation is refused with `backup.restore_archive_scope_mismatch`; the web app also hides the *new workspace* mode, tracked in #1074. Decided, not built: the operator's *new workspace* restore accepts and lists an archive of a workspace the installation does not hold ([backup-restore.md](../../architecture/backup-restore.md) §8.2).

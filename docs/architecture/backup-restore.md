@@ -192,8 +192,10 @@ state in the database, so a restore works with only the target credentials; it a
 archive from one still being written. The only database access is the target's own row and sealed
 credential. At a shared target the archive's name is the filter, so no tenant learns of another's;
 asking for another tenant's archives outright is refused, not answered with an empty list. The
-operator's listing for a `NEW_TENANT` restore also shows archives of workspaces this installation
-does not hold (§8.2); never one of a workspace it does. Decided, not built (#1074).
+operator's listing — a credential carrying `admin:tenants` — also shows, for a `NEW_TENANT`
+restore, archives whose manifest names a workspace this installation does not hold (§8.2); never one
+of a workspace it does. Whether a workspace exists is read in that workspace's own scope, one read
+per workspace named.
 
 ### 8.2 Modes
 
@@ -231,9 +233,10 @@ writes only into the caller's own (BK-10).
   operator's `NEW_TENANT` accepts an archive whose manifest names a workspace that does not exist on
   this installation — another installation's export, the provider-migration path
   ([tenant-export.md](./tenant-export.md) §10). An archive of another workspace that does exist here
-  stays refused, so BK-10 holds unchanged between this installation's workspaces. An encrypted
-  archive from another installation stays out of reach (§4, #1075). Decided, not built: every mode
-  refuses an archive of another workspace today (#1074).
+  stays refused, so BK-10 holds unchanged between this installation's workspaces; both refusals
+  answer `backup.restore_archive_scope_mismatch`. An encrypted archive from another installation
+  stays out of reach (§4, #1075): it is refused before anything is read, with
+  `backup.restore_foreign_archive_encrypted`, not left to fail as a decryption error.
 * **`duplicate` applies to content, not to context.** Accounts, media and webhook subscriptions fall
   back to `skip`, and the report says so. A copy gets a **derived** identity, so a resumed restore
   produces the same identifiers and the copies point at each other.
