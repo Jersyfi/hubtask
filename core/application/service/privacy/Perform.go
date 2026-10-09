@@ -64,11 +64,17 @@ func (p Performer) Perform(ctx context.Context, in PerformInput) (domain.Request
 	}
 
 	archive := ""
+	accountGone := false
 	switch {
 	case request.Kind == domain.KindErasure:
-		if _, err := p.Eraser.Erase(ctx, actor, request); err != nil {
+		erased, err := p.Eraser.Erase(ctx, actor, request)
+		if err != nil {
 			return domain.Request{}, err
 		}
+		// Gone when a full deletion neither kept nor anonymised it - removed now, or by an earlier
+		// run of this job that died before completing the case.
+		accountGone = request.ErasureMode == domain.ModeFullDelete &&
+			!erased.AccountKept && !erased.AccountAnonymised
 	case request.Kind.ProducesArchive():
 		written, err := p.Exporter.Export(ctx, actor, request)
 		if err != nil {
@@ -85,10 +91,10 @@ func (p Performer) Perform(ctx context.Context, in PerformInput) (domain.Request
 	if err != nil {
 		return domain.Request{}, err
 	}
-	if request.Kind == domain.KindErasure && request.ErasureMode == domain.ModeFullDelete {
+	if accountGone {
 		// The subject is gone, and the case may not keep pointing at a row that no longer exists.
 		// The column has been nullable since `0001_init` for exactly this: "may be NULL once
-		// fulfilled".
+		// fulfilled". A full deletion a hold held back keeps its subject: the remainder needs it.
 		done.SubjectAccountID = ""
 	}
 

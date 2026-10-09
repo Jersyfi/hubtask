@@ -6,8 +6,8 @@ actors: [PE-owner, PE-auditor, PE-scripter]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-07, P-08, P-11]
 state: partial
-tasks: [PH-01, E-08, F4-18]
-checked_by: [core/application/service/lifecycle/LegalHolds_test.go, core/domain/model/lifecycle/LegalHold_test.go, test/integration/legal_hold_test.go, test/retention/retention_test.go, cmd/hubctl/Hold_test.go]
+tasks: [PH-01, PH-10, E-08, F4-18]
+checked_by: [core/application/service/lifecycle/LegalHolds_test.go, core/domain/model/lifecycle/LegalHold_test.go, test/integration/legal_hold_test.go, test/retention/retention_test.go, cmd/hubctl/Hold_test.go, core/application/service/lifecycle/Purge_test.go, test/retention/account_hold_test.go, test/integration/privacy_hold_test.go, apps/webapp/e2e/retention.test.mjs]
 ---
 
 # Place a legal hold so that nothing is destroyed
@@ -31,8 +31,8 @@ stays on record, released, for whoever audits it later.
 
 1. Only the owner can place or release a hold; an administrator or an auditor sees the list of
    holds, placed and released.
-2. A hold names its scope (the workspace, a hub or collection, or one task) and a reason; without a
-   reason it is refused with `lifecycle.hold_reason_required`, and releasing needs a reason too.
+2. A hold names its scope (the workspace, a hub or collection, one task, or a person) and a reason;
+   without a reason it is refused with `lifecycle.hold_reason_required`, and releasing needs a reason too.
 3. Deleting for good anything under a hold is refused with `lifecycle.legal_hold` — the workspace
    itself included, and resetting the workspace to a backup while a hold is in force; a reset
    that runs keeps the workspace's holds as they are, never the backup's.
@@ -46,10 +46,9 @@ stays on record, released, for whoever audits it later.
 
 ## Where it ends
 
-* A hold on one person's data (an account) is decided (R-3, 2026-09-30,
-  [data-protection.md](../../architecture/data-protection.md) §4.1) and not built yet: it covers
-  that person's contributions and the account, and stops their erasure, not their sign-in. Until
-  PH-01 it is refused with `lifecycle.hold_account_scope_unavailable`.
+* A hold on one person's data (an account) covers that person's contributions and the account,
+  and stops their erasure, not their sign-in (R-3, 2026-09-30,
+  [data-protection.md](../../architecture/data-protection.md) §4.1).
 * A hold does not freeze editing; preserving the state at one moment is a backup's job.
 * A hold does not stop backups from expiring at their target.
 * A workspace already pending deletion while a hold is in force stays pending until the last hold
@@ -66,5 +65,4 @@ See [data-retention.md](../../architecture/data-retention.md) §4 and
 
 ## Today
 
-* Check 3: not met — erasing a person removes data under a hold, tracked in #1086; deleting the workspace and resetting it to a backup read no hold, and the reset replaces the holds with the backup's, tracked in #1228.
-* Check 8: not met — the web app's scope picker offers *account*, which the server refuses, tracked in #1086.
+* Check 3: not met — deleting the workspace and resetting it to a backup read no hold, and the reset replaces the holds with the backup's, tracked in #1228.

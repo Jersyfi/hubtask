@@ -53,6 +53,7 @@ type requestStore struct {
 	deadlines repository.Deadlines
 	missing   bool
 	err       error
+	locked    int
 }
 
 func newRequestStore() *requestStore {
@@ -118,6 +119,11 @@ func (s *requestStore) List(_ context.Context, filter repository.Filter) (reposi
 
 func (s *requestStore) Deadlines(context.Context, time.Time) (repository.Deadlines, error) {
 	return s.deadlines, nil
+}
+
+func (s *requestStore) Lock(context.Context, shared.ID) (bool, error) {
+	s.locked++
+	return true, nil
 }
 
 // workspaceDouble is the workspace a case belongs to; its zone is what the extension counts days in.

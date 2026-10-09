@@ -37,9 +37,22 @@ const (
 	HoldReleasedAction audit.Action = "lifecycle.hold_released"
 )
 
+// ErasureRemainders is the erasure's side of a hold being lifted (data-protection.md §4.1): an
+// erasure a hold kept part of continues once the hold no longer keeps it. Declared here so this
+// package knows that much and no more; the privacy context implements it.
+type ErasureRemainders interface {
+	// Seed queues the rest of every erasure the hold kept part of, in the caller's transaction.
+	Seed(ctx context.Context, tenantID, holdID shared.ID) error
+	// Reconcile queues the rest of every erasure kept under a hold no longer in force.
+	Reconcile(ctx context.Context, tenantID shared.ID, active domain.Holds) error
+}
+
 // Holds is what the three legal hold use cases share.
 type Holds struct {
-	Holds      repository.HoldWriter
+	Holds repository.HoldWriter
+	// Remainders is what lifting a hold seeds. Optional: an installation wired without it lifts
+	// holds as before, and the retention pass seeds what it would have.
+	Remainders ErasureRemainders
 	Authorizer Authorizer
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -94,6 +107,20 @@ func (h PlaceLegalHold) Execute(
 	}
 
 	err = h.Holds.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// First, so that no deletion is between reading the holds and removing what this one names.
+		if err := h.Holds.Holds.Lock(ctx); err != nil {
+			return err
+		}
+		if hold.Scope != domain.HoldTenant {
+			present, err := h.Holds.Holds.TargetExists(ctx, hold.Scope, hold.ScopeID)
+			if err != nil {
+				return err
+			}
+			if !present {
+				return shared.ErrValidation.WithDetail(domain.CodeHoldTargetNotFound).
+					WithFields(shared.FieldError{Path: "/scope_id", Code: domain.CodeHoldTargetNotFound})
+			}
+		}
 		if err := h.Holds.Holds.Place(ctx, hold); err != nil {
 			return err
 		}
@@ -135,6 +162,9 @@ func (h ReleaseLegalHold) Execute(
 	var released domain.LegalHold
 
 	err := h.Holds.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := h.Holds.Holds.Lock(ctx); err != nil {
+			return err
+		}
 		hold, err := h.Holds.Holds.Find(ctx, id)
 		if err != nil {
 			return err
@@ -153,6 +183,14 @@ func (h ReleaseLegalHold) Execute(
 			// quiet success, because the caller's reading of who lifted it is now wrong.
 			return shared.ErrConflict.WithDetail(domain.CodeHoldAlreadyReleased).
 				WithParams(map[string]string{"hold_id": id.String()})
+		}
+
+		// The write that seeds the rest of every erasure this hold kept part of, in this
+		// transaction: a committed release always has its jobs (data-protection.md §4.1).
+		if h.Holds.Remainders != nil {
+			if err := h.Holds.Remainders.Seed(ctx, actor.TenantID, id); err != nil {
+				return err
+			}
 		}
 
 		return h.Holds.record(ctx, actor, HoldReleasedAction, released, now, []audit.Change{
@@ -224,9 +262,11 @@ func (h PlaceLegalHold) Descriptor() usecase.Descriptor {
 		Name: PlaceLegalHoldName,
 		Summary: "Freezes something against every kind of deletion: a retention rule, a person " +
 			"emptying their own trash, a hard delete somebody asked for. A hold on the workspace " +
-			"covers everything, one on a hub or a collection covers what is below it, and one on " +
-			"an entry covers that entry and what hangs off it. Placing one is not an ordinary " +
-			"member's power, because it overrides the workspace's own decisions about its data.",
+			"covers everything, one on a hub or a collection covers what is below it, one on " +
+			"an entry covers that entry and what hangs off it, and one on a person covers their " +
+			"account and what they contributed - which an erasure of them then keeps. Placing one " +
+			"is not an ordinary member's power, because it overrides the workspace's own " +
+			"decisions about its data.",
 		SideEffects: "Writes the hold and an audit entry carrying the reason. Nothing is deleted " +
 			"or changed; things simply stop being deletable.",
 		TokenScope: retentionManage,
@@ -238,8 +278,8 @@ func (h PlaceLegalHold) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "scope_id", Kind: usecase.KindID,
-				Description: "Which hub, collection or entry. Left out for a hold on the whole " +
-					"workspace, which names nothing because it covers everything.",
+				Description: "Which hub, collection, entry or person. Left out for a hold on the " +
+					"whole workspace, which names nothing because it covers everything.",
 			},
 			{
 				Name: "reason", Kind: usecase.KindString, Required: true,

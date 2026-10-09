@@ -79,7 +79,9 @@ type Cases struct {
 	Requests   repository.Requests
 	Workspaces Workspaces
 	// Subjects answers the workspaces an installation-wide case's person is a member of.
-	Subjects   repository.Subjects
+	Subjects repository.Subjects
+	// Kept is what legal holds kept of each erasure, which a case answers (data-protection.md §4.1).
+	Kept       repository.Kept
 	Jobs       Enqueuer
 	Authorizer Authorizer
 	Audit      audit.Sink
@@ -104,6 +106,15 @@ func (c Cases) zone(ctx context.Context) (*time.Location, error) {
 		}
 	}
 	return time.UTC, nil
+}
+
+// keptOf reads what legal holds kept of the erasures named, in the caller's transaction. Nothing
+// when the store is not wired.
+func (c Cases) keptOf(ctx context.Context, erasures []shared.ID) (map[shared.ID][]domain.Kept, error) {
+	if c.Kept == nil || len(erasures) == 0 {
+		return nil, nil
+	}
+	return c.Kept.KeptOf(ctx, erasures)
 }
 
 // extendableUntil is the day a case answers as extendable_until, and the zero day where no
@@ -237,15 +248,15 @@ type ListQuery struct {
 func (h ListDataSubjectRequests) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListQuery,
 ) (repository.Page, error) {
-	page, _, err := h.execute(ctx, actor, query)
+	page, _, _, err := h.execute(ctx, actor, query)
 	return page, err
 }
 
-// execute is Execute, and beside each case the day it can be extended to, read in the same
-// transaction.
+// execute is Execute, and beside each case the day it can be extended to and what legal holds
+// kept of it, read in the same transaction.
 func (h ListDataSubjectRequests) execute(
 	ctx context.Context, actor appshared.ActorContext, query ListQuery,
-) (repository.Page, []domain.Day, error) {
+) (repository.Page, []domain.Day, map[shared.ID][]domain.Kept, error) {
 	if err := h.Cases.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionManageMembers,
 		Path:       []identity.Scope{identity.TenantScope()},
@@ -254,15 +265,15 @@ func (h ListDataSubjectRequests) execute(
 		TargetType: requestTarget,
 		TargetID:   actor.TenantID,
 	}); err != nil {
-		return repository.Page{}, nil, err
+		return repository.Page{}, nil, nil, err
 	}
 	if query.Status != "" && !statusKnown(query.Status) {
-		return repository.Page{}, nil, shared.ErrValidation.
+		return repository.Page{}, nil, nil, shared.ErrValidation.
 			WithDetail(domain.CodeTransitionRefused).
 			WithFields(shared.FieldError{Path: "/status", Code: domain.CodeTransitionRefused})
 	}
 	if query.Kind != "" && !query.Kind.Valid() {
-		return repository.Page{}, nil, shared.ErrValidation.
+		return repository.Page{}, nil, nil, shared.ErrValidation.
 			WithDetail(domain.CodeKindInvalid).
 			WithFields(shared.FieldError{Path: "/kind", Code: domain.CodeKindInvalid})
 	}
@@ -281,6 +292,7 @@ func (h ListDataSubjectRequests) execute(
 	var (
 		page       repository.Page
 		extendable []domain.Day
+		kept       map[shared.ID][]domain.Kept
 	)
 	err := h.Cases.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
@@ -292,15 +304,20 @@ func (h ListDataSubjectRequests) execute(
 			return err
 		}
 		extendable = make([]domain.Day, len(page.Requests))
+		erasures := make([]shared.ID, 0, len(page.Requests))
 		for i, request := range page.Requests {
 			extendable[i] = extendableUntil(request, now, zone)
+			if request.Kind == domain.KindErasure {
+				erasures = append(erasures, request.ID)
+			}
 		}
-		return nil
+		kept, err = h.Cases.keptOf(ctx, erasures)
+		return err
 	})
 	if err != nil {
-		return repository.Page{}, nil, err
+		return repository.Page{}, nil, nil, err
 	}
-	return page, extendable, nil
+	return page, extendable, kept, nil
 }
 
 // UpdateCommand is the input, typed. Every field is optional; what is absent is left alone.
@@ -669,7 +686,7 @@ func (h CreateDataSubjectRequest) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return RequestOutput(request, extendable), nil
+	return RequestOutput(request, extendable, nil), nil
 }
 
 // Descriptor registers the listing.
@@ -723,7 +740,7 @@ func (h ListDataSubjectRequests) Descriptor() usecase.Descriptor {
 func (h ListDataSubjectRequests) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	page, extendable, err := h.execute(ctx, actor, ListQuery{
+	page, extendable, kept, err := h.execute(ctx, actor, ListQuery{
 		Status:        domain.Status(in.String("status")),
 		Kind:          domain.Kind(in.String("kind")),
 		DueWithinDays: in.Int("due_within_days"),
@@ -737,7 +754,7 @@ func (h ListDataSubjectRequests) invoke(
 
 	rows := make([]usecase.Output, 0, len(page.Requests))
 	for i, request := range page.Requests {
-		rows = append(rows, RequestOutput(request, extendable[i]))
+		rows = append(rows, RequestOutput(request, extendable[i], kept[request.ID]))
 	}
 	return pageOutput(rows, page.Info), nil
 }
@@ -816,5 +833,5 @@ func (h UpdateDataSubjectRequest) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return RequestOutput(request, extendable), nil
+	return RequestOutput(request, extendable, nil), nil
 }

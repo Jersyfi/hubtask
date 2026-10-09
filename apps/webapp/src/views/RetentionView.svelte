@@ -31,7 +31,11 @@
 
   import type { RetentionDataKind as DataKind } from '@hubtask/sync-engine';
 
+  import { actor } from '../lib/data/account.svelte.ts';
+  import { accounts } from '../lib/data/accounts.svelte.ts';
+  import { holds as roleHolds } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { people } from '../lib/data/people.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { policies, type Policy, type RetentionAction } from '../lib/data/policies.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -73,6 +77,53 @@
     return untrack(() => policies.openHolds(released));
   });
   $effect(() => untrack(() => containers.start()));
+
+  // Placing and lifting a hold are the owner's (DELETE_CONTAINER, UC-LIF-06 check 1); everybody
+  // who reaches this screen reads the list. A prediction; the server decides (P-05).
+  $effect(() => untrack(() => people.open({})));
+  const workspaceRole = $derived(
+    people.along({}).find((membership) => membership.account_id === actor.account?.id)?.role as
+      | string
+      | undefined,
+  );
+  const mayHold = $derived(roleHolds(workspaceRole, 'DELETE_CONTAINER').status === 'permitted');
+
+  // What a hold can name, picked rather than typed (P-12): the people of the workspace, and its hubs
+  // with their collections. An entry is still named by its identifier.
+  const holdPeople = $derived(people.candidates({}));
+  $effect(() => {
+    const hubs = containers.hubs;
+    untrack(() => hubs.forEach((hub) => containers.openLevel(hub.id)));
+  });
+  const holdContainers = $derived(
+    containers.hubs.flatMap((hub) => [
+      { value: hub.id, label: hub.name },
+      ...containers.collectionsOf(hub.id).map((collection) => ({
+        value: collection.id,
+        label: `${hub.name} / ${collection.name}`,
+      })),
+    ]),
+  );
+  $effect(() => {
+    // Guarded: an answer that is not a list (an older server, a stub) names nobody.
+    const placed = Array.isArray(policies.placed) ? policies.placed : [];
+    const named = placed.filter((hold) => hold.scope.kind === 'ACCOUNT').map((hold) => hold.scope.id);
+    untrack(() => accounts.resolve(named));
+  });
+
+  /** What a hold covers, in words: the workspace, a person's name, a hub's or an identifier. */
+  const holdCovers = (scope: { kind: string; id?: string | null }) => {
+    switch (scope.kind) {
+      case 'TENANT':
+        return t('app.retention.scope_workspace');
+      case 'ACCOUNT':
+        return t('app.retention.hold_covers_person', { name: accounts.nameOf(scope.id) ?? scope.id ?? '' });
+      case 'CONTAINER':
+        return holdContainers.find((option) => option.value === scope.id)?.label ?? scope.id ?? '';
+      default:
+        return t('app.retention.hold_covers_entry', { id: scope.id ?? '' });
+    }
+  };
   $effect(() => {
     const where = effectiveIn;
     if (!where) return;
@@ -419,11 +470,7 @@
               <Badge tone={hold.released_at ? 'neutral' : 'danger'}>
                 {hold.released_at ? t('app.retention.hold_released') : t('app.retention.hold_in_force')}
               </Badge>
-              <span class="name">
-                {hold.scope.kind === 'TENANT'
-                  ? t('app.retention.scope_workspace')
-                  : `${hold.scope.kind} ${hold.scope.id ?? ''}`}
-              </span>
+              <span class="name">{holdCovers(hold.scope)}</span>
             </div>
             <p class="quiet small">{t('app.retention.hold_reason', { reason: hold.reason })}</p>
             <p class="quiet small">{t('app.retention.hold_placed', { at: when(hold.placed_at) ?? '' })}</p>
@@ -455,7 +502,7 @@
                   {t('app.workspace.cancel')}
                 </Button>
               </div>
-            {:else}
+            {:else if mayHold}
               <div>
                 <Button size="sm" tone="secondary" onclick={() => (releasing = hold.id)}>
                   {t('app.retention.release')}
@@ -474,6 +521,7 @@
         </Button>
       </div>
 
+      {#if mayHold}
       <form
         class="panel"
         onsubmit={(event) => {
@@ -494,12 +542,28 @@
           <Select
             label={t('app.retention.hold_scope')}
             bind:value={holdScope}
+            onchange={() => (holdTarget = '')}
             options={HOLD_SCOPES.map((kind) => ({
               value: kind,
               label: t(`app.retention.hold_scope_${kind.toLowerCase()}`),
             }))}
           />
-          {#if holdScope !== 'TENANT'}
+          {#if holdScope === 'ACCOUNT'}
+            <Select
+              label={t('app.retention.hold_person')}
+              bind:value={holdTarget}
+              placeholder={t('app.retention.choose_person')}
+              options={holdPeople.map((id) => ({ value: id, label: accounts.nameOf(id) ?? id }))}
+            />
+            <p class="quiet small">{t('app.retention.hold_person_note')}</p>
+          {:else if holdScope === 'CONTAINER'}
+            <Select
+              label={t('app.retention.hold_container')}
+              bind:value={holdTarget}
+              placeholder={t('app.retention.choose_container')}
+              options={holdContainers}
+            />
+          {:else if holdScope !== 'TENANT'}
             <Input
               label={t('app.retention.hold_target')}
               hint={t('app.retention.hold_target_hint')}
@@ -526,6 +590,7 @@
           </div>
         </Stack>
       </form>
+      {/if}
     </Stack>
     </Stack>
 </Stack>

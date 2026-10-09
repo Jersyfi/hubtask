@@ -34,6 +34,11 @@ const (
 	// and a rule that acts as somebody must not start acting as nobody. The operator re-points or
 	// removes the rules, and the case is carried out afterwards.
 	CodeErasureBlockedByRule = "privacy.erasure_blocked_by_rule"
+	// CodeRestrictionKeptByErasure is lifting the restriction of an account a legal hold keeps
+	// from an erasure: the restriction stands until the rest of the erasure has run.
+	CodeRestrictionKeptByErasure = "privacy.restriction_kept_by_erasure"
+	// CodeNotAnErasure is asking what an erasure would keep of a case that is not one.
+	CodeNotAnErasure = "privacy.not_an_erasure"
 
 	// The extension's refusals (data-protection.md §4.1). CodeExtensionReasonInvalid guards a
 	// caller below the registry, which refuses an unknown reason by its enum first.

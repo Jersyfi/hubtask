@@ -22,7 +22,15 @@ type LegalHolds interface {
 	// rows, and a query per row would be a thousand round trips for an answer that is the same
 	// every time - the holds of a tenant are few and change rarely, and deciding against them in
 	// the domain is what keeps the rule readable (lifecycle.Holds.Blocking).
+	//
+	// It takes the shared hold lock for the rest of the caller's transaction first, so a hold placed
+	// or lifted concurrently either waits for the deletion that read the holds or is read by it.
 	Active(ctx context.Context) (domain.Holds, error)
+
+	// Contributors answers, per entry, the accounts whose own data goes with it: who created it,
+	// commented on it, or uploaded a file attached to it. Entries nobody contributed to are absent.
+	// Asked only while an account hold is in force (domain.Holds.AnyOnAccounts).
+	Contributors(ctx context.Context, itemIDs []shared.ID) (map[shared.ID][]shared.ID, error)
 }
 
 // HoldWriter places and lifts them.
@@ -31,8 +39,17 @@ type LegalHolds interface {
 // deletion are kept apart: the deletion paths take the reading half, and a port that carried both
 // would let a purge reach a statement that lifts the hold stopping it.
 type HoldWriter interface {
+	// Lock takes the exclusive hold lock for the rest of the caller's transaction. Placing and
+	// lifting call it first, before they read or write a hold (LegalHolds.Active).
+	Lock(ctx context.Context) error
+
 	// Place writes a hold.
 	Place(ctx context.Context, hold domain.LegalHold) error
+
+	// TargetExists answers whether what a hold names - a hub or collection, an entry, an account -
+	// is in this workspace, in the trash or not. A hold on something that is not here would be
+	// believed and protect nothing.
+	TargetExists(ctx context.Context, scope domain.HoldScope, id shared.ID) (bool, error)
 
 	// Find answers one hold, released or not, or ErrNotFound.
 	Find(ctx context.Context, id shared.ID) (domain.LegalHold, error)

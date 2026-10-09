@@ -228,6 +228,12 @@ const (
 	// Deduplicated on the case and the workspace.
 	KindPrivacyExtensionEntry Kind = "privacy.extension_entry"
 
+	// KindPrivacyErasureRemainder carries out the rest of an erasure a legal hold kept part of,
+	// once that hold is lifted (data-protection.md §4.1). Seeded in the transaction that lifts the
+	// hold, one per case, and by the retention pass for a remainder nothing seeded. Detached, like
+	// the erasure it continues. Deduplicated on the case and the hold.
+	KindPrivacyErasureRemainder Kind = "privacy.erasure_remainder"
+
 	// KindWebhookDeliver sends one event to one subscription (automation.md §3.1).
 	//
 	// One job per delivery rather than one per event, and that is the whole retry discipline: a

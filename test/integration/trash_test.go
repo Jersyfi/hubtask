@@ -451,6 +451,60 @@ func TestPurgingRemovesTheSubtreeAndTakesTheContainersInOrder(t *testing.T) {
 	}
 }
 
+// What stays below a row a sweep wants to remove: the cascades on `work_item.parent_id` and
+// `work_item.collection_id` would take it along, so the purge keeps the parent back
+// (data-retention.md §4 item 6). Every depth counts, and so does a collection under a hub.
+func TestWhatStaysBelowATrashedRowIsCounted(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hubID, collectionID := hubWithCollection(ctx, t, tenantA, authorA)
+	task, pkg, activity := trashableSubtree(ctx, t, tenantA, authorA, collectionID)
+
+	keptBelow := func(tenant shared.ID, ids, going []shared.ID) map[shared.ID]int {
+		t.Helper()
+		var kept map[shared.ID]int
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			kept, err = trashRepo().KeptBelow(ctx, ids, going)
+			return err
+		}); err != nil {
+			t.Fatalf("counting what stays below: %v", err)
+		}
+		return kept
+	}
+	all := []shared.ID{task.ID, pkg.ID, activity.ID, collectionID, hubID}
+
+	// The package stays: the task above it keeps something, the activity below it nothing.
+	kept := keptBelow(tenantA, all, []shared.ID{task.ID, activity.ID, collectionID, hubID})
+	for id, want := range map[shared.ID]int{
+		task.ID: 1, pkg.ID: 0, activity.ID: 0, collectionID: 1, hubID: 1,
+	} {
+		if kept[id] != want {
+			t.Errorf("%v keeps %d below it, want %d", id, kept[id], want)
+		}
+	}
+
+	// Nothing is going: every row below counts, the collection under the hub included.
+	kept = keptBelow(tenantA, all, nil)
+	for id, want := range map[shared.ID]int{
+		task.ID: 2, pkg.ID: 1, activity.ID: 0, collectionID: 3, hubID: 4,
+	} {
+		if kept[id] != want {
+			t.Errorf("with nothing going, %v keeps %d below it, want %d", id, kept[id], want)
+		}
+	}
+
+	// Everything goes: nothing stays.
+	if kept = keptBelow(tenantA, all, all); len(kept) != 0 {
+		t.Errorf("with everything going, the answer is %v, want nothing", kept)
+	}
+
+	// The other workspace learns nothing about these rows (SG-3).
+	if kept = keptBelow(tenantB, all, nil); len(kept) != 0 {
+		t.Errorf("another workspace was told %v", kept)
+	}
+}
+
 // An empty list is not a statement. The commonest retention run is the one with nothing to do, and
 // it should cost no round trip at all.
 func TestPurgingNothingIsNotAStatement(t *testing.T) {

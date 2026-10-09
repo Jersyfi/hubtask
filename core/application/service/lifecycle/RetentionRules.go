@@ -394,6 +394,10 @@ func (r Rules) assess(ctx context.Context, rule domain.Rule, now time.Time) (Pre
 	if err != nil {
 		return Preview{}, err
 	}
+	contributors, err := contributorsOf(ctx, r.Holds, holds, candidateIDs(candidates))
+	if err != nil {
+		return Preview{}, err
+	}
 
 	for _, candidate := range candidates {
 		if !rule.Applies(candidate.HubID, candidate.CollectionID) {
@@ -403,6 +407,7 @@ func (r Rules) assess(ctx context.Context, rule domain.Rule, now time.Time) (Pre
 			ItemID:          candidate.ID,
 			ContainerIDs:    nonZero(candidate.HubID, candidate.CollectionID),
 			AncestorItemIDs: work.PathIDs(candidate.Path),
+			Contributors:    contributors[candidate.ID],
 		}); held {
 			preview.Blocked[domain.BlockedByLegalHold]++
 			continue

@@ -24,6 +24,19 @@ func NewLegalHoldRepository() LegalHoldRepository { return LegalHoldRepository{}
 
 var _ repository.HoldWriter = LegalHoldRepository{}
 
+// Lock takes the exclusive hold lock for the rest of the transaction.
+func (r LegalHoldRepository) Lock(ctx context.Context) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if err := queries.ExclusiveLegalHolds(ctx); err != nil {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("taking the exclusive hold lock: %w", err))
+	}
+	return nil
+}
+
 // Place writes a legal hold.
 func (r LegalHoldRepository) Place(ctx context.Context, hold domain.LegalHold) error {
 	queries, err := queriesFrom(ctx)
@@ -52,6 +65,28 @@ func (r LegalHoldRepository) Place(ctx context.Context, hold domain.LegalHold) e
 			WithCause(fmt.Errorf("placing the legal hold: %w", err))
 	}
 	return nil
+}
+
+// TargetExists answers whether what a hold names is in this workspace.
+func (r LegalHoldRepository) TargetExists(
+	ctx context.Context, scope domain.HoldScope, id shared.ID,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+	present, err := queries.LegalHoldTargetExists(ctx, sqlc.LegalHoldTargetExistsParams{
+		ScopeKind: string(scope), ScopeID: key,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading what a legal hold names: %w", err))
+	}
+	return present, nil
 }
 
 // Find answers one hold, released or not.

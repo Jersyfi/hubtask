@@ -38,6 +38,9 @@ type person struct {
 	token   shared.ID
 	feed    shared.ID
 	media   shared.ID
+	// hub and collection are where the item is.
+	hub        shared.ID
+	collection shared.ID
 }
 
 func seedSubject(ctx context.Context, t *testing.T, email string) person {
@@ -49,6 +52,7 @@ func seedSubject(ctx context.Context, t *testing.T, email string) person {
 		token: freshID(t), feed: freshID(t), media: freshID(t),
 	}
 	collection, hub := freshID(t), freshID(t)
+	subject.hub, subject.collection = hub, collection
 
 	statements := []struct {
 		sql  string
@@ -113,6 +117,7 @@ func eraserFor(t *testing.T) privacyservice.Eraser {
 
 	return privacyservice.Eraser{
 		Requests: privacyRepo(), Erasure: privacyRepo(), Pseudonyms: privacyRepo(),
+		Holds: postgres.NewLifecycleRepository(), Kept: privacyRepo(), Subjects: privacyRepo(),
 		Removals: postgres.NewLifecycleRepository(), Objects: nil,
 		Audit:      postgres.NewAuditSink(generator{t}),
 		UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
@@ -126,11 +131,23 @@ func subjectActor(subject person) appshared.ActorContext {
 	}
 }
 
-func erasureRequest(subject person, mode domain.ErasureMode) domain.Request {
-	return domain.Request{
+// erasureRequest records the case and answers it started: the erasure locks its case first, so the
+// case has to exist, as it always does when the job runs.
+func erasureRequest(
+	ctx context.Context, t *testing.T, subject person, mode domain.ErasureMode,
+) domain.Request {
+	t.Helper()
+	request := domain.Request{
 		ID: freshIDOf(subject), Kind: domain.KindErasure, Status: domain.StatusInProgress,
-		SubjectAccountID: subject.account, ErasureMode: mode,
+		Scope: domain.ScopeTenant, SubjectAccountID: subject.account, ErasureMode: mode,
+		ReceivedAt: created, DueAt: created.Add(30 * 24 * time.Hour),
 	}
+	if err := write(ctx, t, subject.tenant, func(ctx context.Context) error {
+		return privacyRepo().Insert(ctx, request)
+	}); err != nil {
+		t.Fatalf("recording the case: %v", err)
+	}
+	return request
 }
 
 // freshIDOf keeps the case's identifier stable per subject, so that a failing assertion names the
@@ -143,7 +160,7 @@ func TestAFullErasureServesEveryStorageLocation(t *testing.T) {
 	subject := seedSubject(ctx, t, "anna-"+freshID(t).String()+"@example.org")
 
 	erased, err := eraserFor(t).Erase(ctx, subjectActor(subject),
-		erasureRequest(subject, domain.ModeFullDelete))
+		erasureRequest(ctx, t, subject, domain.ModeFullDelete))
 	if err != nil {
 		t.Fatalf("erasing: %v", err)
 	}
@@ -211,7 +228,7 @@ func TestAnAnonymisationKeepsTheWorkspacesContent(t *testing.T) {
 	subject := seedSubject(ctx, t, "bea-"+freshID(t).String()+"@example.org")
 
 	if _, err := eraserFor(t).Erase(ctx, subjectActor(subject),
-		erasureRequest(subject, domain.ModeAnonymize)); err != nil {
+		erasureRequest(ctx, t, subject, domain.ModeAnonymize)); err != nil {
 		t.Fatalf("erasing: %v", err)
 	}
 
@@ -288,7 +305,7 @@ func TestAnErasureDoesNotReachAnotherWorkspace(t *testing.T) {
 	elsewhere := seedSubject(ctx, t, email)
 
 	if _, err := eraserFor(t).Erase(ctx, subjectActor(here),
-		erasureRequest(here, domain.ModeFullDelete)); err != nil {
+		erasureRequest(ctx, t, here, domain.ModeFullDelete)); err != nil {
 		t.Fatalf("erasing: %v", err)
 	}
 

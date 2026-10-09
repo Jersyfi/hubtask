@@ -489,6 +489,74 @@ func (q *Queries) TrashItemsOfCollections(ctx context.Context, arg TrashItemsOfC
 	return result.RowsAffected(), nil
 }
 
+const trashKeptBelow = `-- name: TrashKeptBelow :many
+SELECT parent.id, count(child.id)::bigint AS kept
+FROM work_item parent
+JOIN work_item child
+  ON child.tenant_id = parent.tenant_id
+ AND child.path LIKE parent.path || '%'
+ AND child.id <> parent.id
+ AND NOT (child.id = ANY($1::uuid[]))
+WHERE parent.tenant_id = current_tenant_id() AND parent.id = ANY($2::uuid[])
+GROUP BY parent.id
+UNION ALL
+SELECT c.id, count(w.id)::bigint
+FROM container c
+JOIN container holder
+  ON holder.tenant_id = c.tenant_id AND (holder.id = c.id OR holder.parent_id = c.id)
+JOIN work_item w
+  ON w.tenant_id = holder.tenant_id AND w.collection_id = holder.id
+ AND NOT (w.id = ANY($1::uuid[]))
+WHERE c.tenant_id = current_tenant_id() AND c.id = ANY($2::uuid[])
+GROUP BY c.id
+UNION ALL
+SELECT c.id, count(k.id)::bigint
+FROM container c
+JOIN container k
+  ON k.tenant_id = c.tenant_id AND k.parent_id = c.id
+ AND NOT (k.id = ANY($1::uuid[]))
+WHERE c.tenant_id = current_tenant_id() AND c.id = ANY($2::uuid[])
+GROUP BY c.id
+`
+
+type TrashKeptBelowParams struct {
+	Going []pgtype.UUID
+	Ids   []pgtype.UUID
+}
+
+type TrashKeptBelowRow struct {
+	ID   pgtype.UUID
+	Kept int64
+}
+
+// What stays below each of these when a purge removes only the rows it was handed
+// (data-retention.md §4 item 6): an entry's descendants, a collection's entries, a hub's
+// collections and their entries - each one that is not in `going`.
+//
+// Asked before the rows go, because both cascades would otherwise take what stays:
+// `work_item.parent_id` and `work_item.collection_id` are ON DELETE CASCADE, so a parent or a
+// collection removed while a held child is still there takes the child with it, uncounted and
+// unrecorded. One row per kind of thing below; the caller adds them up.
+func (q *Queries) TrashKeptBelow(ctx context.Context, arg TrashKeptBelowParams) ([]TrashKeptBelowRow, error) {
+	rows, err := q.db.Query(ctx, trashKeptBelow, arg.Going, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TrashKeptBelowRow{}
+	for rows.Next() {
+		var i TrashKeptBelowRow
+		if err := rows.Scan(&i.ID, &i.Kept); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const trashWorkItemDescendants = `-- name: TrashWorkItemDescendants :execrows
 UPDATE work_item SET
   deleted_at      = $1,

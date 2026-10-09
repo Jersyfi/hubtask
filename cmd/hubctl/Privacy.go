@@ -52,6 +52,12 @@ func dsrGroup() group {
 				run:     dsrReject,
 			},
 			{
+				name:    "preview",
+				usage:   "<id> [--mode ANONYMIZE|FULL_DELETE]",
+				summary: "what the legal holds in force would keep of an erasure, before it is started",
+				run:     dsrPreview,
+			},
+			{
 				name:    "extend",
 				usage:   "<id> --until YYYY-MM-DD --reason COMPLEXITY|NUMBER_OF_REQUESTS --informed YYYY-MM-DD",
 				summary: "extend the deadline once, as Art. 12(3) allows, with the reason the person was told",
@@ -302,6 +308,65 @@ func dsrExtend(ctx context.Context, cli *CLI, args []string) error {
 	return cli.Emit(extended, caseTable([]openapi.DataSubjectRequest{extended}))
 }
 
+// dsrPreview answers what each legal hold would keep of an erasure, so that whoever starts one
+// from here knows it beforehand, as the web app's confirmation says it.
+func dsrPreview(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "dsr preview <id> [--mode ANONYMIZE|FULL_DELETE]"
+	requestID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "dsr", "preview", "<id> [--mode ANONYMIZE|FULL_DELETE]")
+	mode := flags.String("mode", "", "the mode to work it out for; the case's own when left out")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+
+	query := url.Values{}
+	if *mode != "" {
+		query.Set("mode", *mode)
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var preview openapi.ErasurePreview
+	if err := client.Get(ctx, privacyRequestsPath+"/"+requestID.String()+"/erasure-preview", query, &preview); err != nil {
+		return err
+	}
+	return cli.Emit(preview, keptTable(preview.Kept))
+}
+
+// keptTable is what each hold keeps, or kept, one row per hold.
+func keptTable(kept []openapi.ErasureKept) Table {
+	rows := make([][]string, 0, len(kept))
+	for _, part := range kept {
+		scope := string(part.HoldScope.Kind)
+		if part.HoldScope.Id != nil {
+			scope += " " + part.HoldScope.Id.String()
+		}
+		account := "erased"
+		if part.Account {
+			account = "kept, restricted"
+		}
+		state := "kept"
+		switch {
+		case part.ErasedAt != nil:
+			state = "rest erased " + shortTime(part.ErasedAt)
+		case part.Blocked != nil:
+			state = "waits: " + part.Blocked.Code
+		}
+		rows = append(rows, []string{
+			part.HoldId.String(), scope, account, strconv.Itoa(part.Entries),
+			strconv.Itoa(part.Comments), strconv.Itoa(part.Assignments), strconv.Itoa(part.Intake), state,
+		})
+	}
+	return Table{
+		Columns: []string{"hold", "covers", "account", "entries", "comments", "assignments", "intake", "state"},
+		Rows:    rows,
+	}
+}
+
 // parseDay reads a calendar day, the only form the extension takes.
 func parseDay(what, raw string) (openapitypes.Date, error) {
 	day, err := time.Parse(openapitypes.DateFormat, raw)
@@ -336,14 +401,37 @@ func caseTable(cases []openapi.DataSubjectRequest) Table {
 			shortTime(&one.DueAt),
 			shortTime(one.OriginalDueAt),
 			text(one.ResultArchive),
+			keptOf(one),
 		})
 	}
 	// Both deadlines: an extended case shows the one in force and the one it replaced, so that
 	// nobody reads the extension as the deadline the case always had.
 	return Table{
-		Columns: []string{"id", "kind", "status", "subject", "due", "original due", "archive"},
+		Columns: []string{"id", "kind", "status", "subject", "due", "original due", "archive", "kept"},
 		Rows:    rows,
 	}
+}
+
+// keptOf is what a legal hold kept of an erasure, in one cell: how many holds still keep part of it,
+// with the legal basis, or that the rest went - and a dash where no hold kept anything.
+func keptOf(one openapi.DataSubjectRequest) string {
+	if one.Kept == nil || len(*one.Kept) == 0 {
+		return "-"
+	}
+	pending := 0
+	for _, part := range *one.Kept {
+		if part.ErasedAt == nil {
+			pending++
+		}
+	}
+	if pending == 0 {
+		return "rest erased"
+	}
+	basis := ""
+	if one.KeptLegalBasis != nil {
+		basis = ", " + string(*one.KeptLegalBasis)
+	}
+	return "partly completed: " + strconv.Itoa(pending) + " hold(s)" + basis
 }
 
 // subjectOf is who the case is about. The account identifier once there is one, and the address

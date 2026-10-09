@@ -44,6 +44,11 @@ func (r LifecycleRepository) Active(ctx context.Context) (domain.Holds, error) {
 		return nil, err
 	}
 
+	if err := queries.ShareLegalHolds(ctx); err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("taking the shared hold lock: %w", err))
+	}
 	rows, err := queries.ActiveLegalHolds(ctx)
 	if err != nil {
 		return nil, shared.ErrUnavailable.
@@ -68,6 +73,42 @@ func (r LifecycleRepository) Active(ctx context.Context) (domain.Holds, error) {
 		})
 	}
 	return holds, nil
+}
+
+// Contributors answers, per entry, whose own data goes with it.
+func (r LifecycleRepository) Contributors(
+	ctx context.Context, itemIDs []shared.ID,
+) (map[shared.ID][]shared.ID, error) {
+	contributors := map[shared.ID][]shared.ID{}
+	if len(itemIDs) == 0 {
+		return contributors, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := idsOf(itemIDs)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ItemContributors(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading who contributed to %d entries: %w", len(itemIDs), err))
+	}
+	for _, row := range rows {
+		item, err := idFrom(row.ItemID)
+		if err != nil {
+			return nil, err
+		}
+		account, err := idFrom(row.AccountID)
+		if err != nil {
+			return nil, err
+		}
+		contributors[item] = append(contributors[item], account)
+	}
+	return contributors, nil
 }
 
 // Record writes a journal entry and a tombstone for each removal.

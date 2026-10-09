@@ -1155,6 +1155,21 @@ func (e CustomFieldKind) Valid() bool {
 	}
 }
 
+// Defines values for DataSubjectRequestKeptLegalBasis.
+const (
+	ART173E DataSubjectRequestKeptLegalBasis = "ART_17_3_E"
+)
+
+// Valid indicates whether the value is a known member of the DataSubjectRequestKeptLegalBasis enum.
+func (e DataSubjectRequestKeptLegalBasis) Valid() bool {
+	switch e {
+	case ART173E:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DataSubjectRequestExtensionReason.
 const (
 	COMPLEXITY       DataSubjectRequestExtensionReason = "COMPLEXITY"
@@ -1293,6 +1308,30 @@ func (e DroppedReferenceKind) Valid() bool {
 	case DroppedReferenceKindLABEL:
 		return true
 	case DroppedReferenceKindMEMBER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ErasureKeptHoldScopeKind.
+const (
+	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
+	ErasureKeptHoldScopeKindCONTAINER ErasureKeptHoldScopeKind = "CONTAINER"
+	ErasureKeptHoldScopeKindITEM      ErasureKeptHoldScopeKind = "ITEM"
+	ErasureKeptHoldScopeKindTENANT    ErasureKeptHoldScopeKind = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the ErasureKeptHoldScopeKind enum.
+func (e ErasureKeptHoldScopeKind) Valid() bool {
+	switch e {
+	case ErasureKeptHoldScopeKindACCOUNT:
+		return true
+	case ErasureKeptHoldScopeKindCONTAINER:
+		return true
+	case ErasureKeptHoldScopeKindITEM:
+		return true
+	case ErasureKeptHoldScopeKindTENANT:
 		return true
 	default:
 		return false
@@ -4974,6 +5013,12 @@ type DataSubjectRequest struct {
 	// InformedOn The day the controller informed the person of the extension.
 	InformedOn *openapi_types.Date `json:"informed_on,omitempty"`
 
+	// Kept What legal holds kept from this erasure, one entry per hold. Present only on an erasure a hold kept part of: such a case is `COMPLETED` and partly completed - the rest was erased - until each part's `erased_at` says the rest went after its hold was lifted.
+	Kept *[]ErasureKept `json:"kept,omitempty"`
+
+	// KeptLegalBasis Why what a hold keeps is not erased: the establishment, exercise or defence of legal claims (Art. 17(3)(e) GDPR). Present exactly when `kept` is.
+	KeptLegalBasis *DataSubjectRequestKeptLegalBasis `json:"kept_legal_basis,omitempty"`
+
 	// Kind The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
 	// ordinary write - and is a tracked case all the same, because the deadline is somebody's
 	// responsibility either way.
@@ -5003,6 +5048,9 @@ type DataSubjectRequest struct {
 	// SubjectEmail Who asked, for a request that has no account behind it.
 	SubjectEmail *string `json:"subject_email,omitempty"`
 }
+
+// DataSubjectRequestKeptLegalBasis Why what a hold keeps is not erased: the establishment, exercise or defence of legal claims (Art. 17(3)(e) GDPR). Present exactly when `kept` is.
+type DataSubjectRequestKeptLegalBasis string
 
 // DataSubjectRequestCreate defines model for DataSubjectRequestCreate.
 type DataSubjectRequestCreate struct {
@@ -5189,6 +5237,41 @@ type EncryptionStatus struct {
 	Keys []EncryptionKeyUsage `json:"keys"`
 }
 
+// ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
+type ErasureKept struct {
+	// Account The person's account itself is kept, restricted rather than erased.
+	Account bool `json:"account"`
+
+	// Assignments Entries that stay assigned to the person.
+	Assignments int `json:"assignments"`
+
+	// Blocked Why the rest could not be erased after the hold was lifted. Absent unless something stands in the way; the next pass tries again.
+	Blocked *struct {
+		Code   string             `json:"code"`
+		Params *map[string]string `json:"params,omitempty"`
+	} `json:"blocked,omitempty"`
+
+	// Comments The person's comments kept - ones a full deletion would remove, or that stay attributed to them by name.
+	Comments int `json:"comments"`
+
+	// Entries Entries the person created that stay attributed to them by name.
+	Entries int `json:"entries"`
+
+	// ErasedAt When the rest went, once this hold no longer kept it. Absent while it does.
+	ErasedAt  *time.Time         `json:"erased_at,omitempty"`
+	HoldId    openapi_types.UUID `json:"hold_id"`
+	HoldScope struct {
+		Id   *openapi_types.UUID      `json:"id,omitempty"`
+		Kind ErasureKeptHoldScopeKind `json:"kind"`
+	} `json:"hold_scope"`
+
+	// Intake Messages the person sent in by mail, kept with their address.
+	Intake int `json:"intake"`
+}
+
+// ErasureKeptHoldScopeKind defines model for ErasureKept.HoldScope.Kind.
+type ErasureKeptHoldScopeKind string
+
 // ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
 // `FULL_DELETE` takes the person's own contributions too. The choice rests with the
 // controller, because tenant data touches third parties' rights.
@@ -5199,6 +5282,23 @@ type EncryptionStatus struct {
 // stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
 // on the case, and does so knowingly.
 type ErasureMode string
+
+// ErasurePreview defines model for ErasurePreview.
+type ErasurePreview struct {
+	// Kept What each hold in force would keep; empty when no hold reaches this person.
+	Kept []ErasureKept `json:"kept"`
+
+	// Mode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
+	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
+	// controller, because tenant data touches third parties' rights.
+	//
+	// A case that names neither is started as `ANONYMIZE` — the workspace default. It is the
+	// answer that preserves the rights of
+	// the people who are not asking: a task somebody else depends on, a comment in a thread that
+	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
+	// on the case, and does so knowingly.
+	Mode ErasureMode `json:"mode"`
+}
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
@@ -5922,7 +6022,9 @@ type LegalHoldScopeKind string
 // LegalHoldCreate defines model for LegalHoldCreate.
 type LegalHoldCreate struct {
 	Reason string `json:"reason"`
-	Scope  struct {
+
+	// Scope What the hold covers. `TENANT` is the whole workspace and names nothing; `CONTAINER` a hub or collection and everything in it; `ITEM` an entry and what hangs off it; `ACCOUNT` a person - their account and the entries, comments and files they contributed, which an erasure of that person keeps and no deletion removes. Every other scope names something this workspace has, or the hold is refused with `lifecycle.hold_target_not_found`.
+	Scope struct {
 		Id   *openapi_types.UUID      `json:"id,omitempty"`
 		Kind LegalHoldCreateScopeKind `json:"kind"`
 	} `json:"scope"`
@@ -9426,6 +9528,11 @@ type CreateDataSubjectRequestParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// PreviewErasureParams defines parameters for PreviewErasure.
+type PreviewErasureParams struct {
+	Mode *ErasureMode `form:"mode,omitempty" json:"mode,omitempty"`
+}
+
 // ExtendDataSubjectRequestParams defines parameters for ExtendDataSubjectRequest.
 type ExtendDataSubjectRequestParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -10120,7 +10227,8 @@ type ClientInterface interface {
 	// A technical state rather than a lock: the account stays readable and its content stays
 	// where it is, and what stops is *processing* - automation rules and AI leave the record
 	// alone. Lifting it is the same call with
-	// `restricted: false`.
+	// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
+	// the hold is lifted and the rest of the erasure has run.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10132,7 +10240,8 @@ type ClientInterface interface {
 	// A technical state rather than a lock: the account stays readable and its content stays
 	// where it is, and what stops is *processing* - automation rules and AI leave the record
 	// alone. Lifting it is the same call with
-	// `restricted: false`.
+	// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
+	// the hold is lifted and the rest of the erasure has run.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -13043,6 +13152,22 @@ type ClientInterface interface {
 	// Corresponds with PATCH /privacy/requests/{requestId} (the `UpdateDataSubjectRequest` operationId).
 	UpdateDataSubjectRequestWithApplicationMergePatchPlusJSONBody(ctx context.Context, requestId openapi_types.UUID, body UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PreviewErasure What legal holds would keep from an erasure
+	//
+	// A legal hold wins over an erasure as far as it reaches: what a hold covers is kept, the
+	// rest is erased, and the case closes as partly completed. This answers, before the erasure
+	// is started, what each hold in force would keep of this case's person - so the confirmation
+	// can say so. A hold on the person or on the whole workspace keeps the account itself; under
+	// any other hold it is anonymised as usual.
+	//
+	// `mode` is the mode the preview is for, the case's own when left out, and `ANONYMIZE` when
+	// the case names none. Refused for a case that is not an erasure and for a closed one. A case
+	// of `INSTALLATION` scope needs the `admin:tenants` scope. The hold's reason is not part of
+	// the answer; the holds list carries it for those who may read it.
+	//
+	// Corresponds with GET /privacy/requests/{requestId}/erasure-preview (the `PreviewErasure` operationId).
+	PreviewErasure(ctx context.Context, requestId openapi_types.UUID, params *PreviewErasureParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ExtendDataSubjectRequestWithBody Extend a case's deadline once
 	//
 	// Art. 12(3) GDPR allows the period to be extended once, by at most two further months,
@@ -13878,7 +14003,8 @@ func (c *Client) UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(c
 // A technical state rather than a lock: the account stays readable and its content stays
 // where it is, and what stops is *processing* - automation rules and AI leave the record
 // alone. Lifting it is the same call with
-// `restricted: false`.
+// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
+// the hold is lifted and the rest of the erasure has run.
 //
 // Takes any type of body and a specified content type.
 //
@@ -13900,7 +14026,8 @@ func (c *Client) RestrictProcessingWithBody(ctx context.Context, accountId Accou
 // A technical state rather than a lock: the account stays readable and its content stays
 // where it is, and what stops is *processing* - automation rules and AI leave the record
 // alone. Lifting it is the same call with
-// `restricted: false`.
+// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
+// the hold is lifted and the rest of the erasure has run.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -20171,6 +20298,32 @@ func (c *Client) UpdateDataSubjectRequestWithBody(ctx context.Context, requestId
 // Corresponds with PATCH /privacy/requests/{requestId} (the `UpdateDataSubjectRequest` operationId).
 func (c *Client) UpdateDataSubjectRequestWithApplicationMergePatchPlusJSONBody(ctx context.Context, requestId openapi_types.UUID, body UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateDataSubjectRequestRequestWithApplicationMergePatchPlusJSONBody(c.Server, requestId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewErasure What legal holds would keep from an erasure
+//
+// A legal hold wins over an erasure as far as it reaches: what a hold covers is kept, the
+// rest is erased, and the case closes as partly completed. This answers, before the erasure
+// is started, what each hold in force would keep of this case's person - so the confirmation
+// can say so. A hold on the person or on the whole workspace keeps the account itself; under
+// any other hold it is anonymised as usual.
+//
+// `mode` is the mode the preview is for, the case's own when left out, and `ANONYMIZE` when
+// the case names none. Refused for a case that is not an erasure and for a closed one. A case
+// of `INSTALLATION` scope needs the `admin:tenants` scope. The hold's reason is not part of
+// the answer; the holds list carries it for those who may read it.
+//
+// Corresponds with GET /privacy/requests/{requestId}/erasure-preview (the `PreviewErasure` operationId).
+func (c *Client) PreviewErasure(ctx context.Context, requestId openapi_types.UUID, params *PreviewErasureParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewErasureRequest(c.Server, requestId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -32974,6 +33127,67 @@ func NewUpdateDataSubjectRequestRequestWithBody(server string, requestId openapi
 	return req, nil
 }
 
+// NewPreviewErasureRequest constructs an http.Request for the PreviewErasure method
+func NewPreviewErasureRequest(server string, requestId openapi_types.UUID, params *PreviewErasureParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "requestId", requestId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/privacy/requests/%s/erasure-preview", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Mode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "mode", *params.Mode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewExtendDataSubjectRequestRequest calls the generic ExtendDataSubjectRequest builder with application/json body
 func NewExtendDataSubjectRequestRequest(server string, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, body ExtendDataSubjectRequestJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -35013,7 +35227,8 @@ type ClientWithResponsesInterface interface {
 	// A technical state rather than a lock: the account stays readable and its content stays
 	// where it is, and what stops is *processing* - automation rules and AI leave the record
 	// alone. Lifting it is the same call with
-	// `restricted: false`.
+	// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
+	// the hold is lifted and the rest of the erasure has run.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -35025,7 +35240,8 @@ type ClientWithResponsesInterface interface {
 	// A technical state rather than a lock: the account stays readable and its content stays
 	// where it is, and what stops is *processing* - automation rules and AI leave the record
 	// alone. Lifting it is the same call with
-	// `restricted: false`.
+	// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
+	// the hold is lifted and the rest of the erasure has run.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -38253,6 +38469,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /privacy/requests/{requestId} (the `UpdateDataSubjectRequest` operationId).
 	UpdateDataSubjectRequestWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, requestId openapi_types.UUID, body UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDataSubjectRequestResult, error)
+
+	// PreviewErasureWithResponse What legal holds would keep from an erasure
+	//
+	// A legal hold wins over an erasure as far as it reaches: what a hold covers is kept, the
+	// rest is erased, and the case closes as partly completed. This answers, before the erasure
+	// is started, what each hold in force would keep of this case's person - so the confirmation
+	// can say so. A hold on the person or on the whole workspace keeps the account itself; under
+	// any other hold it is anonymised as usual.
+	//
+	// `mode` is the mode the preview is for, the case's own when left out, and `ANONYMIZE` when
+	// the case names none. Refused for a case that is not an erasure and for a closed one. A case
+	// of `INSTALLATION` scope needs the `admin:tenants` scope. The hold's reason is not part of
+	// the answer; the holds list carries it for those who may read it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /privacy/requests/{requestId}/erasure-preview (the `PreviewErasure` operationId).
+	PreviewErasureWithResponse(ctx context.Context, requestId openapi_types.UUID, params *PreviewErasureParams, reqEditors ...RequestEditorFn) (*PreviewErasureResult, error)
 
 	// ExtendDataSubjectRequestWithBodyWithResponse Extend a case's deadline once
 	//
@@ -50723,6 +50957,54 @@ func (r UpdateDataSubjectRequestResult) ContentType() string {
 	return ""
 }
 
+type PreviewErasureResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ErasurePreview
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PreviewErasureResult) GetJSON200() *ErasurePreview {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PreviewErasureResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PreviewErasureResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PreviewErasureResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PreviewErasureResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PreviewErasureResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ExtendDataSubjectRequestResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -52822,7 +53104,8 @@ func (c *ClientWithResponses) UpdateAccountPreferencesWithApplicationMergePatchP
 // A technical state rather than a lock: the account stays readable and its content stays
 // where it is, and what stops is *processing* - automation rules and AI leave the record
 // alone. Lifting it is the same call with
-// `restricted: false`.
+// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
+// the hold is lifted and the rest of the erasure has run.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -52840,7 +53123,8 @@ func (c *ClientWithResponses) RestrictProcessingWithBodyWithResponse(ctx context
 // A technical state rather than a lock: the account stays readable and its content stays
 // where it is, and what stops is *processing* - automation rules and AI leave the record
 // alone. Lifting it is the same call with
-// `restricted: false`.
+// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
+// the hold is lifted and the rest of the erasure has run.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -58089,6 +58373,30 @@ func (c *ClientWithResponses) UpdateDataSubjectRequestWithApplicationMergePatchP
 		return nil, err
 	}
 	return ParseUpdateDataSubjectRequestResult(rsp)
+}
+
+// PreviewErasureWithResponse What legal holds would keep from an erasure
+//
+// A legal hold wins over an erasure as far as it reaches: what a hold covers is kept, the
+// rest is erased, and the case closes as partly completed. This answers, before the erasure
+// is started, what each hold in force would keep of this case's person - so the confirmation
+// can say so. A hold on the person or on the whole workspace keeps the account itself; under
+// any other hold it is anonymised as usual.
+//
+// `mode` is the mode the preview is for, the case's own when left out, and `ANONYMIZE` when
+// the case names none. Refused for a case that is not an erasure and for a closed one. A case
+// of `INSTALLATION` scope needs the `admin:tenants` scope. The hold's reason is not part of
+// the answer; the holds list carries it for those who may read it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /privacy/requests/{requestId}/erasure-preview (the `PreviewErasure` operationId).
+func (c *ClientWithResponses) PreviewErasureWithResponse(ctx context.Context, requestId openapi_types.UUID, params *PreviewErasureParams, reqEditors ...RequestEditorFn) (*PreviewErasureResult, error) {
+	rsp, err := c.PreviewErasure(ctx, requestId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewErasureResult(rsp)
 }
 
 // ExtendDataSubjectRequestWithBodyWithResponse Extend a case's deadline once
@@ -67641,6 +67949,39 @@ func ParseUpdateDataSubjectRequestResult(rsp *http.Response) (*UpdateDataSubject
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest DataSubjectRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePreviewErasureResult parses an HTTP response from a PreviewErasureWithResponse call
+func ParsePreviewErasureResult(rsp *http.Response) (*PreviewErasureResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PreviewErasureResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ErasurePreview
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

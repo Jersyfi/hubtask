@@ -22,7 +22,7 @@ import (
 // which the caller supplied - a case about somebody that could not say who would be a case nobody
 // could act on. What is *not* here is anything of the person's beyond that: a case is a record of
 // an obligation rather than a copy of what is held about them.
-func RequestOutput(request domain.Request, extendableUntil domain.Day) usecase.Output {
+func RequestOutput(request domain.Request, extendableUntil domain.Day, kept []domain.Kept) usecase.Output {
 	out := usecase.Output{
 		"id":          request.ID.String(),
 		"kind":        string(request.Kind),
@@ -62,7 +62,41 @@ func RequestOutput(request domain.Request, extendableUntil domain.Day) usecase.O
 	if !extendableUntil.IsZero() {
 		out["extendable_until"] = extendableUntil.String()
 	}
+	// What legal holds kept of an erasure, and only where they kept something: a case that kept
+	// nothing answers no empty list that a client could read as "partly completed".
+	if len(kept) > 0 {
+		out["kept"] = keptOutput(kept)
+		out["kept_legal_basis"] = domain.KeptLegalBasis
+	}
 	return out
+}
+
+// keptOutput is what each hold kept, as the case and the preview answer it.
+func keptOutput(kept []domain.Kept) []map[string]any {
+	parts := make([]map[string]any, 0, len(kept))
+	for _, part := range kept {
+		scope := map[string]any{"kind": string(part.HoldScope)}
+		if !part.HoldScopeID.IsZero() {
+			scope["id"] = part.HoldScopeID.String()
+		}
+		out := map[string]any{
+			"hold_id": part.HoldID.String(), "hold_scope": scope, "account": part.Account,
+			"entries": part.Entries, "comments": part.Comments,
+			"assignments": part.Assignments, "intake": part.Intake,
+		}
+		if !part.ErasedAt.IsZero() {
+			out["erased_at"] = part.ErasedAt.UTC()
+		}
+		if part.BlockedCode != "" {
+			blocked := map[string]any{"code": part.BlockedCode}
+			if len(part.BlockedParams) > 0 {
+				blocked["params"] = part.BlockedParams
+			}
+			out["blocked"] = blocked
+		}
+		parts = append(parts, out)
+	}
+	return parts
 }
 
 // pageOutput is the shape of a paged answer: `{ "data": [...], "page": {...} }`

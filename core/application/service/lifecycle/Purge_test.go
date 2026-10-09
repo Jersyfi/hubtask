@@ -43,6 +43,7 @@ type trashStore struct {
 	purgedItem []shared.ID
 	purgedCont []shared.ID
 	purgeErr   error
+	below      map[shared.ID][]shared.ID
 }
 
 func (s *trashStore) List(context.Context, workrepo.Page) (workrepo.TrashPage, error) {
@@ -66,6 +67,22 @@ func (s *trashStore) PurgeContainers(_ context.Context, ids []shared.ID) (int, e
 	return len(ids), nil
 }
 
+// KeptBelow answers from below, which says what sits under each row - every depth, the way the
+// statement's path prefix and collection join do.
+func (s *trashStore) KeptBelow(
+	_ context.Context, ids, going []shared.ID,
+) (map[shared.ID]int, error) {
+	kept := map[shared.ID]int{}
+	for _, id := range ids {
+		for _, child := range s.below[id] {
+			if !contains(going, child) {
+				kept[id]++
+			}
+		}
+	}
+	return kept, nil
+}
+
 type expiredStore struct {
 	items      []repository.ExpiredItem
 	containers []repository.ExpiredContainer
@@ -85,9 +102,28 @@ func (s *expiredStore) Containers(
 	return s.containers, nil
 }
 
-type holdStore struct{ holds domain.Holds }
+type holdStore struct {
+	holds             domain.Holds
+	contributors      map[shared.ID][]shared.ID
+	askedContributors int
+}
 
 func (s *holdStore) Active(context.Context) (domain.Holds, error) { return s.holds, nil }
+
+// Contributors answers from contributors, and counts the asking: a removal over a workspace with
+// no account hold must not ask at all.
+func (s *holdStore) Contributors(
+	_ context.Context, ids []shared.ID,
+) (map[shared.ID][]shared.ID, error) {
+	s.askedContributors++
+	answer := map[shared.ID][]shared.ID{}
+	for _, id := range ids {
+		if accounts, ok := s.contributors[id]; ok {
+			answer[id] = accounts
+		}
+	}
+	return answer, nil
+}
 
 type removalStore struct {
 	recorded   []domain.Removal
@@ -457,4 +493,139 @@ func TestAnExplicitSweepDoesNotWaitOutTheOfflineWindow(t *testing.T) {
 		t.Errorf("the tombstone window is %v, want %v",
 			h.removals.purgeAfter.Sub(h.removals.deletedAt), window)
 	}
+}
+
+// A hold on a person covers what they contributed. A purge or a sweep reads who contributed to what
+// it removes - and only while such a hold stands, so a workspace without one pays nothing for it.
+func TestAnAccountHoldKeepsWhatThePersonContributed(t *testing.T) {
+	onAccount := domain.Holds{{ID: holdID, Scope: domain.HoldAccount, ScopeID: accountID, Reason: "Litigation"}}
+	longAgo := now.Add(-120 * 24 * time.Hour)
+
+	t.Run("a named purge over an entry they commented on", func(t *testing.T) {
+		h := newHarness()
+		h.trash.subtree = []shared.ID{taskID, packageID}
+		h.holds.holds = onAccount
+		h.holds.contributors = map[shared.ID][]shared.ID{packageID: {accountID}}
+
+		_, err := h.purger.Subtree(t.Context(), actor(), trashedTask(), hubID, domain.DeletedByUser, now)
+		if shared.AsError(err).DetailCode != "lifecycle.legal_hold" {
+			t.Fatalf("the purge reported %v, want lifecycle.legal_hold", err)
+		}
+		if params := shared.AsError(err).Params; params["scope"] != string(domain.HoldAccount) {
+			t.Errorf("the refusal names the scope %q", params["scope"])
+		}
+	})
+
+	t.Run("a sweep keeps their entry and takes the rest", func(t *testing.T) {
+		h := newHarness()
+		h.expired.items = []repository.ExpiredItem{expiredItem(taskID, longAgo), expiredItem(otherTaskID, longAgo)}
+		h.holds.holds = onAccount
+		h.holds.contributors = map[shared.ID][]shared.ID{taskID: {accountID}}
+
+		outcome, err := h.purger.Sweep(t.Context(), actor(), Selection{Cutoff: now, Reason: domain.DeletedByUser}, now)
+		if err != nil {
+			t.Fatalf("the sweep failed: %v", err)
+		}
+		if len(h.trash.purgedItem) != 1 || h.trash.purgedItem[0] != otherTaskID {
+			t.Errorf("the sweep removed %v, want only the entry nobody held", h.trash.purgedItem)
+		}
+		if outcome.Blocked[BlockedByLegalHold] != 1 {
+			t.Errorf("blocked %v, want one by the hold", outcome.Blocked)
+		}
+	})
+
+	t.Run("no account hold, no question", func(t *testing.T) {
+		h := newHarness()
+		h.expired.items = []repository.ExpiredItem{expiredItem(taskID, longAgo)}
+		h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldContainer, ScopeID: otherTaskID, Reason: "Litigation"}}
+
+		if _, err := h.purger.Sweep(t.Context(), actor(), Selection{Cutoff: now, Reason: domain.DeletedByUser}, now); err != nil {
+			t.Fatalf("the sweep failed: %v", err)
+		}
+		if h.holds.askedContributors != 0 {
+			t.Errorf("the sweep asked for contributors %d times without an account hold", h.holds.askedContributors)
+		}
+	})
+}
+
+// A hold on an activity names the activity, and purging the task above it would take the activity
+// with it. Every entry of the subtree is judged, not the root alone (UC-LIF-06 check 3).
+func TestAHoldOnADescendantRefusesTheNamedPurge(t *testing.T) {
+	h := newHarness()
+	h.trash.subtree = []shared.ID{taskID, packageID}
+	h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldItem, ScopeID: packageID, Reason: "Litigation"}}
+
+	_, err := h.purger.Subtree(t.Context(), actor(), trashedTask(), hubID, domain.DeletedByUser, now)
+	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "lifecycle.legal_hold" {
+		t.Fatalf("purging above a held entry reported %v, want lifecycle.legal_hold", err)
+	}
+	if len(h.trash.purgedItem) != 0 || len(h.removals.recorded) != 0 {
+		t.Error("a purge above a held entry removed or recorded something")
+	}
+}
+
+// Emptying the trash and the trash pass judge each expired row on its own, and the schema's cascades
+// would take a held child with a removable parent. The parent is kept back until its children go
+// (data-retention.md §4 item 6), and so is the collection that holds them.
+func TestASweepKeepsBackWhatHasSomethingHeldBelowIt(t *testing.T) {
+	longAgo := now.Add(-120 * 24 * time.Hour)
+	held := domain.Holds{{ID: holdID, Scope: domain.HoldItem, ScopeID: packageID, Reason: "Litigation"}}
+
+	t.Run("a task whose work package is held", func(t *testing.T) {
+		h := newHarness()
+		pkg := expiredItem(packageID, longAgo)
+		pkg.Path = work.RootPath(taskID) + packageID.String() + "/"
+		h.expired.items = []repository.ExpiredItem{pkg, expiredItem(taskID, longAgo)}
+		h.trash.below = map[shared.ID][]shared.ID{taskID: {packageID}}
+		h.holds.holds = held
+
+		outcome, err := h.purger.Sweep(t.Context(), actor(), Selection{
+			Cutoff: now, Reason: domain.DeletedByUser,
+		}, now)
+		if err != nil {
+			t.Fatalf("the sweep failed: %v", err)
+		}
+		if len(h.trash.purgedItem) != 0 {
+			t.Errorf("the sweep removed %v, want nothing - the task holds the held package", h.trash.purgedItem)
+		}
+		if outcome.Blocked[BlockedByLegalHold] != 1 || outcome.Blocked[domain.BlockedByDescendant] != 1 {
+			t.Errorf("blocked %v, want one by the hold and one by its descendant", outcome.Blocked)
+		}
+	})
+
+	t.Run("a collection whose entry is held", func(t *testing.T) {
+		h := newHarness()
+		h.expired.items = []repository.ExpiredItem{expiredItem(packageID, longAgo), expiredItem(taskID, longAgo)}
+		h.expired.containers = []repository.ExpiredContainer{
+			{ID: collectionID, Type: work.ContainerCollection, ParentID: hubID, DeletedAt: longAgo},
+			{ID: hubID, Type: work.ContainerHub, DeletedAt: longAgo},
+		}
+		h.trash.below = map[shared.ID][]shared.ID{
+			collectionID: {packageID, taskID},
+			hubID:        {collectionID, packageID, taskID},
+		}
+		h.holds.holds = held
+
+		outcome, err := h.purger.Sweep(t.Context(), actor(), Selection{
+			Cutoff: now, Reason: domain.DeletedByUser,
+		}, now)
+		if err != nil {
+			t.Fatalf("the sweep failed: %v", err)
+		}
+		if len(h.trash.purgedItem) != 1 || h.trash.purgedItem[0] != taskID {
+			t.Errorf("the sweep removed the entries %v, want only the task that is not held", h.trash.purgedItem)
+		}
+		if len(h.trash.purgedCont) != 0 {
+			t.Errorf("the sweep removed the containers %v, want none - one holds a held entry", h.trash.purgedCont)
+		}
+		if outcome.Blocked[domain.BlockedByDescendant] != 2 {
+			t.Errorf("blocked by a descendant %d, want the collection and the hub",
+				outcome.Blocked[domain.BlockedByDescendant])
+		}
+		for _, removal := range h.removals.recorded {
+			if removal.EntityID != taskID {
+				t.Errorf("a removal was recorded for %v, which stays", removal.EntityID)
+			}
+		}
+	})
 }

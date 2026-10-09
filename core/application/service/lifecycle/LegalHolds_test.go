@@ -25,11 +25,25 @@ type holdWriter struct {
 	stored []domain.LegalHold
 	lifted int
 	refuse bool
+	// missing are the identifiers this workspace does not have.
+	missing map[shared.ID]bool
+	asked   []shared.ID
+	locked  int
+}
+
+func (w *holdWriter) Lock(context.Context) error {
+	w.locked++
+	return nil
 }
 
 func (w *holdWriter) Place(_ context.Context, hold domain.LegalHold) error {
 	w.stored = append(w.stored, hold)
 	return nil
+}
+
+func (w *holdWriter) TargetExists(_ context.Context, _ domain.HoldScope, id shared.ID) (bool, error) {
+	w.asked = append(w.asked, id)
+	return !w.missing[id], nil
 }
 
 func (w *holdWriter) Find(_ context.Context, id shared.ID) (domain.LegalHold, error) {
@@ -140,23 +154,67 @@ func carries(entry audit.Entry, field, value string) bool {
 	return change["to"] == value || change["from"] == value
 }
 
-// The scope the schema accepts and the engine ignores. Refused, so that nobody believes a hold is
-// in force that nothing honours.
-func TestAnAccountHoldIsRefusedAndWritesNothing(t *testing.T) {
+// A hold on a person is placed like any other - the owner's right, a reason, an entry - and only
+// on a person this workspace has.
+func TestAnAccountHoldIsPlacedOnAPersonHere(t *testing.T) {
 	h := newHoldsHarness()
-
-	_, err := (PlaceLegalHold{Holds: h.service()}).Execute(context.Background(), actor(),
+	hold, err := (PlaceLegalHold{Holds: h.service()}).Execute(context.Background(), actor(),
 		placeCommand(func(cmd *PlaceLegalHoldCommand) {
 			cmd.Scope, cmd.ScopeID = domain.HoldAccount, accountID
 		}))
-
-	var domainErr *shared.Error
-	if !errors.As(err, &domainErr) ||
-		domainErr.DetailCode != domain.CodeHoldAccountScopeUnavailable {
-		t.Fatalf("refused with %v", err)
+	if err != nil {
+		t.Fatalf("placing a hold on a person: %v", err)
 	}
-	if len(h.holds.stored) != 0 || len(h.audit.entries) != 0 {
-		t.Error("a refused hold left something behind")
+	if len(h.holds.stored) != 1 || hold.Scope != domain.HoldAccount {
+		t.Errorf("stored %+v", h.holds.stored)
+	}
+	if len(h.holds.asked) != 1 || h.holds.asked[0] != accountID {
+		t.Errorf("the person was looked up as %v", h.holds.asked)
+	}
+
+	gone := shared.MustParseID("0192f000-0000-7000-8000-0000000000e9")
+	h = newHoldsHarness()
+	h.holds.missing = map[shared.ID]bool{gone: true}
+	_, err = (PlaceLegalHold{Holds: h.service()}).Execute(context.Background(), actor(),
+		placeCommand(func(cmd *PlaceLegalHoldCommand) { cmd.Scope, cmd.ScopeID = domain.HoldAccount, gone }))
+	if shared.AsError(err).DetailCode != domain.CodeHoldTargetNotFound || len(h.holds.stored) != 0 {
+		t.Errorf("a hold on nobody here: %v, stored %d", err, len(h.holds.stored))
+	}
+}
+
+// A hold on a hub, a collection or an entry this workspace does not have would be believed and
+// protect nothing: refused at /scope_id, nothing stored. A hold on the workspace names nothing to
+// look up.
+func TestAHoldOnSomethingNotHereIsRefused(t *testing.T) {
+	missing := shared.MustParseID("0192f000-0000-7000-8000-0000000000e1")
+	for _, scope := range []domain.HoldScope{domain.HoldContainer, domain.HoldItem} {
+		t.Run(string(scope), func(t *testing.T) {
+			h := newHoldsHarness()
+			h.holds.missing = map[shared.ID]bool{missing: true}
+
+			_, err := (PlaceLegalHold{Holds: h.service()}).Execute(context.Background(), actor(),
+				placeCommand(func(cmd *PlaceLegalHoldCommand) { cmd.Scope, cmd.ScopeID = scope, missing }))
+
+			if !errors.Is(err, shared.ErrValidation) ||
+				shared.AsError(err).DetailCode != domain.CodeHoldTargetNotFound {
+				t.Fatalf("refused with %v, want %s", err, domain.CodeHoldTargetNotFound)
+			}
+			if fields := shared.AsError(err).Fields; len(fields) != 1 || fields[0].Path != "/scope_id" {
+				t.Errorf("the refusal names %+v, want /scope_id", fields)
+			}
+			if len(h.holds.stored) != 0 || len(h.audit.entries) != 0 {
+				t.Error("a refused hold left something behind")
+			}
+		})
+	}
+
+	h := newHoldsHarness()
+	if _, err := (PlaceLegalHold{Holds: h.service()}).Execute(context.Background(), actor(),
+		placeCommand(func(cmd *PlaceLegalHoldCommand) { cmd.Scope, cmd.ScopeID = domain.HoldTenant, "" })); err != nil {
+		t.Fatalf("a hold on the workspace: %v", err)
+	}
+	if len(h.holds.asked) != 0 {
+		t.Errorf("a hold on the workspace looked up %v", h.holds.asked)
 	}
 }
 
@@ -178,6 +236,46 @@ func TestLiftingRecordsBothReasonsAndHappensOnce(t *testing.T) {
 
 	if !released.Released() || released.ReleasedReason != "The proceedings ended" {
 		t.Fatalf("the hold came back as %+v", released)
+	}
+	// Placing and lifting each take the exclusive hold lock, so no deletion passes them.
+	if h.holds.locked != 2 {
+		t.Errorf("the hold lock was taken %d times, want once by each", h.holds.locked)
+	}
+	// Without the erasure's side wired, lifting works as before; with it, see below.
+}
+
+// remainders records what lifting a hold seeds.
+type remainders struct{ seeded []shared.ID }
+
+func (r *remainders) Seed(_ context.Context, _, holdID shared.ID) error {
+	r.seeded = append(r.seeded, holdID)
+	return nil
+}
+
+func (r *remainders) Reconcile(context.Context, shared.ID, domain.Holds) error { return nil }
+
+// Lifting a hold is the write that seeds the rest of every erasure it kept part of
+// (data-protection.md §4.1), in its own transaction.
+func TestLiftingAHoldSeedsTheRestOfTheErasuresItKeptPartOf(t *testing.T) {
+	h := newHoldsHarness()
+	seeded := &remainders{}
+	service := h.service()
+	service.Remainders = seeded
+
+	hold, err := (PlaceLegalHold{Holds: service}).
+		Execute(context.Background(), actor(), placeCommand(func(*PlaceLegalHoldCommand) {}))
+	if err != nil {
+		t.Fatalf("placing: %v", err)
+	}
+	if len(seeded.seeded) != 0 {
+		t.Fatal("placing a hold seeded a remainder")
+	}
+	if _, err := (ReleaseLegalHold{Holds: service}).
+		Execute(context.Background(), actor(), hold.ID, "The proceedings ended"); err != nil {
+		t.Fatalf("lifting: %v", err)
+	}
+	if len(seeded.seeded) != 1 || seeded.seeded[0] != hold.ID {
+		t.Errorf("lifting seeded %v, want the lifted hold", seeded.seeded)
 	}
 	// Both reasons in one entry, so that comparing why it went on with why it came off needs no
 	// second lookup.

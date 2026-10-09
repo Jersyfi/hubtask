@@ -1722,6 +1722,32 @@ CREATE TABLE data_subject_request (
 CREATE INDEX dsr_open_idx ON data_subject_request (tenant_id, status, due_at)
   WHERE status IN ('RECEIVED','IN_PROGRESS');
 
+-- What an erasure kept, per legal hold (migration 0120, data-protection.md §4.1): counts, never a
+-- name or content. `hold_id` references no row, so a restore that rewrites `legal_hold` leaves the
+-- record of what a case kept in place.
+CREATE UNIQUE INDEX dsr_tenant_id_uq ON data_subject_request (tenant_id, id);
+CREATE TABLE erasure_kept (
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  request_id     uuid NOT NULL,
+  hold_id        uuid NOT NULL,
+  hold_scope     text NOT NULL CHECK (hold_scope IN ('TENANT','CONTAINER','ITEM','ACCOUNT')),
+  hold_scope_id  uuid,
+  account        boolean NOT NULL DEFAULT false,
+  entries        integer NOT NULL DEFAULT 0 CHECK (entries >= 0),
+  comments       integer NOT NULL DEFAULT 0 CHECK (comments >= 0),
+  assignments    integer NOT NULL DEFAULT 0 CHECK (assignments >= 0),
+  intake         integer NOT NULL DEFAULT 0 CHECK (intake >= 0),
+  recorded_at    timestamptz NOT NULL,
+  erased_at      timestamptz,
+  blocked_code   text,
+  blocked_params jsonb,
+  PRIMARY KEY (tenant_id, request_id, hold_id),
+  CONSTRAINT erasure_kept_request_id_fkey FOREIGN KEY (tenant_id, request_id)
+    REFERENCES data_subject_request (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX erasure_kept_pending_idx ON erasure_kept (tenant_id, hold_id)
+  WHERE erased_at IS NULL;
+
 -- The pseudonyms an erasure leaves behind for the audit trail. The trail cannot be edited in place
 -- - the grants, the trigger and the hash chain all refuse it - so the substitution happens at the
 -- boundary and this is what the boundary reads (audit.md §6).
@@ -2260,6 +2286,7 @@ BEGIN
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
+    'erasure_kept',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',

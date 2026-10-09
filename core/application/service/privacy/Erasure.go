@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	lifecycle "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -54,6 +56,14 @@ type Eraser struct {
 	Requests   repository.Requests
 	Erasure    repository.Erasure
 	Pseudonyms repository.Pseudonyms
+	// Holds are the legal holds in force; one wins over the erasure as far as it reaches
+	// (data-protection.md §4.1). Read in the erasure's own transaction, under the shared hold lock,
+	// so a hold placed meanwhile either waits for the erasure or is read by it.
+	Holds lifecyclerepo.LegalHolds
+	// Kept records what each hold kept, in the same transaction.
+	Kept repository.Kept
+	// Subjects restricts an account a hold keeps (Art. 18).
+	Subjects repository.Subjects
 	// Removals writes the journal entry and the tombstone every removal owes, through the one
 	// engine every removal in this system goes through (ADR-0020 §6). A comment removed without
 	// them would come back from a restore, or be recreated by a device that was offline.
@@ -80,20 +90,32 @@ type Erased struct {
 	// address in the mode that keeps the workspace's content.
 	Intake int
 	Media  int
-	// AccountRemoved and AccountAnonymised are the two ends, and exactly one of them is true.
+	// AccountRemoved, AccountAnonymised and AccountKept are the three ends, and at most one of them
+	// is true - none for a case about an address nobody here holds.
 	AccountRemoved    bool
 	AccountAnonymised bool
+	AccountKept       bool
+	// Kept is what each legal hold kept, empty when none kept anything.
+	Kept []domain.Kept
 }
 
-// Erase carries out the case's erasure.
+// Erase carries out the case's erasure, as far as no legal hold keeps it.
 //
-// The order is the one the data catalogue's deletion paths imply, and it is deliberate: the
-// credentials go first, so that nothing can act as the person half way through; the derived
-// records next; the person's own content after that, with its journal entries and tombstones; the
-// bytes outside the transaction, because a bucket is an external dependency
-// (observability-reliability.md §8); and the account row last, because everything above names it.
+// The order is the one the data catalogue's deletion paths imply, and it is deliberate: the case is
+// locked and the holds are read first, so that what is kept is decided once and under the lock a
+// hold placed meanwhile waits for; the credentials go next, so that nothing can act as the person
+// half way through; the derived records next; the person's own content after that, with its journal
+// entries and tombstones; the bytes outside the transaction, because a bucket is an external
+// dependency (observability-reliability.md §8); and the account row last, because everything above
+// names it. What each hold kept is recorded in the same transaction that decided it.
 func (e Eraser) Erase(
 	ctx context.Context, actor appshared.ActorContext, request domain.Request,
+) (Erased, error) {
+	return e.erase(ctx, actor, request, ErasedAction)
+}
+
+func (e Eraser) erase(
+	ctx context.Context, actor appshared.ActorContext, request domain.Request, action audit.Action,
 ) (Erased, error) {
 	if request.SubjectAccountID.IsZero() {
 		// A case about an address nobody here holds. There is nothing in this workspace to erase,
@@ -111,6 +133,37 @@ func (e Eraser) Erase(
 	var orphaned []repository.Medium
 
 	err := e.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		plan, err := e.plan(ctx, request)
+		if err != nil {
+			return err
+		}
+		erased.Kept = plan.Kept
+
+		if request.ErasureMode == domain.ModeFullDelete {
+			// What the workspace would be left with. `automation_rule.run_as` is `ON DELETE
+			// RESTRICT`, so without this the deletion reaches the database and comes back as a
+			// foreign key violation - a dependency error, in a case with a statutory deadline,
+			// saying nothing about what to do (PG-2 found exactly that). Refusing with the count is
+			// the answer somebody can act on: the rules are re-pointed at another account or
+			// removed, and the case is carried out afterwards. Asked of every full deletion, held or
+			// not (check 5): a kept account is deleted by the remainder later.
+			//
+			// Deleting the rules here instead would be this system destroying the workspace's
+			// automation because one person left, which is not a decision an erasure takes alone.
+			running, err := e.Erasure.AutomationsRunningAs(ctx, subject)
+			if err != nil {
+				return err
+			}
+			if running > 0 {
+				return shared.ErrConflict.
+					WithDetail(domain.CodeErasureBlockedByRule).
+					WithParams(map[string]string{"rules": strconv.Itoa(running)})
+			}
+		}
+
+		// Credentials and notifications go whatever is kept: they are no evidence, and no hold in
+		// this system reaches them (data-protection.md §4.1). A kept account keeps its password,
+		// so the person still signs in.
 		credentials, err := e.Erasure.RevokeCredentials(ctx, subject)
 		if err != nil {
 			return err
@@ -123,42 +176,35 @@ func (e Eraser) Erase(
 		}
 		erased.Notifications = notifications
 
-		assignments, err := e.Erasure.ReleaseAssignments(ctx, subject, now)
+		assignments, err := e.Erasure.ReleaseAssignmentsOn(ctx, subject, plan.ReleaseOn, now)
 		if err != nil {
 			return err
 		}
 		erased.Assignments = assignments
 
-		intake, err := e.intake(ctx, subject, request.ErasureMode)
-		if err != nil {
-			return err
-		}
-		erased.Intake = intake
-
-		if request.ErasureMode == domain.ModeFullDelete {
-			removed, err := e.removeContributions(ctx, subject, now)
+		if !plan.KeepIntake {
+			intake, err := e.intake(ctx, subject, request.ErasureMode)
 			if err != nil {
 				return err
 			}
-			erased.Comments = removed
+			erased.Intake = intake
 		}
+
+		removed, err := e.removeComments(ctx, subject, plan.DeleteComments, now)
+		if err != nil {
+			return err
+		}
+		erased.Comments = removed
 
 		orphaned, err = e.Erasure.OrphanedMedia(ctx, subject)
 		if err != nil {
 			return err
 		}
 
-		// The trail is exempt from erasure and cannot be edited in place, so what happens to it is
-		// a substitution at the boundary (audit.md §6). The mapping is written here, in the same
-		// transaction as the erasure, because a mapping written afterwards is a window in which
-		// the trail still answers a name.
-		if err := e.Pseudonyms.Assign(
-			ctx, subject, pseudonymFor(subject), string(lifecycle.DeletedByErasure), now,
-		); err != nil {
+		if err := e.finishAccount(ctx, subject, plan.Account, now, &erased); err != nil {
 			return err
 		}
-
-		return e.finishAccount(ctx, subject, request.ErasureMode, now, &erased)
+		return e.Kept.RecordKept(ctx, request.ID, plan.Kept, now)
 	})
 	if err != nil {
 		return Erased{}, err
@@ -169,10 +215,53 @@ func (e Eraser) Erase(
 	// nothing, which the reconciliation would then hunt for ever.
 	erased.Media = e.discardBytes(ctx, actor, orphaned, now)
 
-	if err := e.record(ctx, actor, request, erased, now); err != nil {
+	if err := e.record(ctx, actor, request, erased, action, now); err != nil {
 		return Erased{}, err
 	}
 	return erased, nil
+}
+
+// plan locks the case, reads the holds and the person's rows on entries, and decides what goes.
+func (e Eraser) plan(ctx context.Context, request domain.Request) (domain.Plan, error) {
+	found, err := e.Requests.Lock(ctx, request.ID)
+	if err != nil {
+		return domain.Plan{}, err
+	}
+	if !found {
+		return domain.Plan{}, shared.ErrNotFound.WithDetail(domain.CodeRequestNotFound)
+	}
+	return e.decide(ctx, request.SubjectAccountID, request.ErasureMode)
+}
+
+// decide is the reading half of the plan, which the preview shares.
+func (e Eraser) decide(
+	ctx context.Context, subject shared.ID, mode domain.ErasureMode,
+) (domain.Plan, error) {
+	holds, err := e.Holds.Active(ctx)
+	if err != nil {
+		return domain.Plan{}, err
+	}
+	contributions, err := e.Erasure.Contributions(ctx, subject)
+	if err != nil {
+		return domain.Plan{}, err
+	}
+	rows := make([]domain.Row, 0, len(contributions))
+	for _, contribution := range contributions {
+		rows = append(rows, domain.Row{
+			Kind: domain.RowKind(contribution.Kind), ID: contribution.ID, ItemID: contribution.ItemID,
+			Path: contribution.Path, CollectionID: contribution.CollectionID,
+			HubID: contribution.HubID, ItemCreatedBy: contribution.ItemCreatedBy,
+		})
+	}
+	intake := 0
+	if _, held := holds.OnTenant(); held {
+		if intake, err = e.Erasure.CountIntake(ctx, subject); err != nil {
+			return domain.Plan{}, err
+		}
+	}
+	return domain.PlanErasure(domain.PlanInput{
+		Subject: subject, Mode: mode, Holds: holds, Rows: rows, Intake: intake,
+	}), nil
 }
 
 // intake serves the one location that knows the person by address rather than by account.
@@ -189,65 +278,60 @@ func (e Eraser) intake(
 	return e.Erasure.ReleaseIntake(ctx, subject)
 }
 
-// removeContributions takes the person's own comments, each with the journal entry and the
-// tombstone it owes.
-func (e Eraser) removeContributions(
-	ctx context.Context, subject shared.ID, now time.Time,
+// removeComments takes the comments the plan names, each with the journal entry and the tombstone
+// it owes.
+func (e Eraser) removeComments(
+	ctx context.Context, subject shared.ID, ids []shared.ID, now time.Time,
 ) (int, error) {
-	authored, err := e.Erasure.AuthoredComments(ctx, subject)
-	if err != nil {
-		return 0, err
-	}
-	if len(authored) == 0 {
+	if len(ids) == 0 {
 		return 0, nil
 	}
 
-	removals := make([]lifecycle.Removal, 0, len(authored))
-	for _, comment := range authored {
+	removals := make([]lifecycle.Removal, 0, len(ids))
+	for _, id := range ids {
 		removals = append(removals, lifecycle.Removal{
-			Entity: "comment", EntityID: comment.ID, Reason: lifecycle.DeletedByErasure,
+			Entity: "comment", EntityID: id, Reason: lifecycle.DeletedByErasure,
 		})
 	}
 	if err := e.Removals.Record(ctx, removals, now, now.Add(e.TombstoneWindow)); err != nil {
 		return 0, err
 	}
-
-	removed, err := e.Erasure.DeleteAuthoredComments(ctx, subject)
-	if err != nil {
-		return 0, err
-	}
-	return removed, nil
+	return e.Erasure.DeleteComments(ctx, subject, ids)
 }
 
-// finishAccount is the last step: the row goes, or it stays and loses everything of the person's.
+// finishAccount is the last step: the row goes, stays and loses everything of the person's, or -
+// under a hold on the person or the workspace - stays as it is and is restricted.
 func (e Eraser) finishAccount(
-	ctx context.Context, subject shared.ID, mode domain.ErasureMode, now time.Time, erased *Erased,
+	ctx context.Context, subject shared.ID, fate domain.AccountFate, now time.Time, erased *Erased,
 ) error {
-	if mode == domain.ModeAnonymize {
+	if fate == domain.AccountKept {
+		// Restricted rather than erased (Art. 18): stored, out of automatic processing, still
+		// signing in. No pseudonym yet - the trail names the person while the account does.
+		restricted, err := e.Subjects.SetStatus(ctx, subject, string(identity.AccountRestricted), now)
+		if err != nil {
+			return err
+		}
+		erased.AccountKept = restricted
+		return nil
+	}
+
+	// The trail is exempt from erasure and cannot be edited in place, so what happens to it is a
+	// substitution at the boundary (audit.md §6). The mapping is written here, in the same
+	// transaction as the erasure, because a mapping written afterwards is a window in which the
+	// trail still answers a name.
+	if err := e.Pseudonyms.Assign(
+		ctx, subject, pseudonymFor(subject), string(lifecycle.DeletedByErasure), now,
+	); err != nil {
+		return err
+	}
+
+	if fate == domain.AccountAnonymised {
 		anonymised, err := e.Erasure.Anonymise(ctx, subject, FormerUser, now)
 		if err != nil {
 			return err
 		}
 		erased.AccountAnonymised = anonymised
 		return nil
-	}
-
-	// What the workspace would be left with. `automation_rule.run_as` is `ON DELETE RESTRICT`, so
-	// without this the deletion reaches the database and comes back as a foreign key violation -
-	// a dependency error, in a case with a statutory deadline, saying nothing about what to do
-	// (PG-2 found exactly that). Refusing with the count is the answer somebody can act on: the
-	// rules are re-pointed at another account or removed, and the case is carried out afterwards.
-	//
-	// Deleting them here instead would be this system destroying the workspace's automation
-	// because one person left, which is not a decision an erasure gets to take on its own.
-	running, err := e.Erasure.AutomationsRunningAs(ctx, subject)
-	if err != nil {
-		return err
-	}
-	if running > 0 {
-		return shared.ErrConflict.
-			WithDetail(domain.CodeErasureBlockedByRule).
-			WithParams(map[string]string{"rules": strconv.Itoa(running)})
 	}
 
 	// A full deletion owes the same two records every removal owes: without them a restore brings
@@ -308,34 +392,65 @@ func (e Eraser) discardBytes(
 // record writes the entry the erasure owes, into the trail the erasure does not touch.
 func (e Eraser) record(
 	ctx context.Context, actor appshared.ActorContext, request domain.Request,
-	erased Erased, now time.Time,
+	erased Erased, action audit.Action, now time.Time,
 ) error {
+	changes := []audit.Change{
+		{Field: "mode", Classification: audit.Open, To: string(erased.Mode)},
+		{Field: "credentials", Classification: audit.Open, To: erased.Credentials},
+		{Field: "notifications", Classification: audit.Open, To: erased.Notifications},
+		{Field: "assignments", Classification: audit.Open, To: erased.Assignments},
+		{Field: "comments", Classification: audit.Open, To: erased.Comments},
+		{Field: "intake", Classification: audit.Open, To: erased.Intake},
+		{Field: "media", Classification: audit.Open, To: erased.Media},
+		{Field: "account", Classification: audit.Open, To: accountOutcome(erased)},
+	}
+	if pending := pendingParts(erased.Kept); len(pending) > 0 {
+		// What the holds kept, by hold, and why it may be kept: the hold's identifier says where to
+		// look; its reason stays on the hold, written for the hold's own readers.
+		holds := make([]string, 0, len(pending))
+		var kept domain.Kept
+		for _, part := range pending {
+			holds = append(holds, part.HoldID.String())
+			kept.Entries += part.Entries
+			kept.Comments += part.Comments
+			kept.Assignments += part.Assignments
+			kept.Intake += part.Intake
+		}
+		changes = append(changes,
+			audit.Change{Field: "kept_holds", Classification: audit.Open, To: strings.Join(holds, ",")},
+			audit.Change{Field: "kept_entries", Classification: audit.Open, To: kept.Entries},
+			audit.Change{Field: "kept_comments", Classification: audit.Open, To: kept.Comments},
+			audit.Change{Field: "kept_assignments", Classification: audit.Open, To: kept.Assignments},
+			audit.Change{Field: "kept_intake", Classification: audit.Open, To: kept.Intake},
+			audit.Change{Field: "kept_legal_basis", Classification: audit.Open, To: domain.KeptLegalBasis},
+		)
+	}
+
 	return e.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		return e.Audit.Append(ctx, audit.Entry{
 			TenantID: actor.TenantID, OccurredAt: now,
-			Action: ErasedAction, Outcome: audit.OutcomeSuccess, Severity: audit.SeverityCritical,
+			Action: action, Outcome: audit.OutcomeSuccess, Severity: audit.SeverityCritical,
 			ActorKind: actor.Kind, ActorID: actor.AccountID, ActorLabel: actor.AccountName,
 			TargetType: requestTarget, TargetID: request.ID,
 			Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 			// Counts rather than identifiers, and no name anywhere: what an auditor needs is that
 			// every location was served and how much went from each, which is checkable - "the
 			// person is gone" is not.
-			Changes: audit.Changes(
-				audit.Change{Field: "mode", Classification: audit.Open, To: string(erased.Mode)},
-				audit.Change{Field: "credentials", Classification: audit.Open, To: erased.Credentials},
-				audit.Change{Field: "notifications", Classification: audit.Open, To: erased.Notifications},
-				audit.Change{Field: "assignments", Classification: audit.Open, To: erased.Assignments},
-				audit.Change{Field: "comments", Classification: audit.Open, To: erased.Comments},
-				audit.Change{Field: "intake", Classification: audit.Open, To: erased.Intake},
-				audit.Change{Field: "media", Classification: audit.Open, To: erased.Media},
-				audit.Change{
-					Field: "account", Classification: audit.Open,
-					To: accountOutcome(erased),
-				},
-			),
+			Changes:    audit.Changes(changes...),
 			LegalBasis: LegalBasisOf(domain.KindErasure),
 		})
 	})
+}
+
+// pendingParts are the parts a hold still keeps.
+func pendingParts(kept []domain.Kept) []domain.Kept {
+	pending := make([]domain.Kept, 0, len(kept))
+	for _, part := range kept {
+		if part.Pending() {
+			pending = append(pending, part)
+		}
+	}
+	return pending
 }
 
 func accountOutcome(erased Erased) string {
@@ -344,6 +459,8 @@ func accountOutcome(erased Erased) string {
 		return "deleted"
 	case erased.AccountAnonymised:
 		return "anonymised"
+	case erased.AccountKept:
+		return "kept_restricted"
 	default:
 		return "absent"
 	}

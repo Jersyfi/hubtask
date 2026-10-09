@@ -220,3 +220,44 @@ func TestAnExtensionWithoutItsThreeFactsIsRefusedHere(t *testing.T) {
 		t.Error("an incomplete extension was sent anyway")
 	}
 }
+
+const keptCase = `{"id":"01936f2a-7c1e-7000-8000-0000000000f2","kind":"ERASURE","status":"COMPLETED",
+  "scope":"TENANT","received_at":"2026-08-27T09:00:00Z","due_at":"2026-09-26T09:00:00Z",
+  "kept":[{"hold_id":"01936f2a-7c1e-7000-8000-0000000003a1","hold_scope":{"kind":"CONTAINER"},
+    "account":false,"entries":0,"comments":2,"assignments":1,"intake":0}],
+  "kept_legal_basis":"ART_17_3_E"}`
+
+// A case a hold kept part of says so in the list, with the legal basis.
+func TestTheListSaysWhatAHoldKept(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK,
+		`{"data":[`+keptCase+`,`+oneCase+`],"page":{"has_more":false,"next_cursor":null}}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "dsr", "ls", "--include-closed")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) != 3 || !strings.Contains(lines[1], "partly completed: 1 hold(s), ART_17_3_E") {
+		t.Errorf("the table is %q", out)
+	}
+}
+
+// The preview asks the case's own route, with the mode when one is named, and shows each hold.
+func TestThePreviewShowsWhatEachHoldWouldKeep(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"mode":"FULL_DELETE","kept":[
+	  {"hold_id":"01936f2a-7c1e-7000-8000-0000000003a1","hold_scope":{"kind":"ACCOUNT","id":"`+itemID+`"},
+	   "account":true,"entries":4,"comments":2,"assignments":1,"intake":0}]}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"dsr", "preview", caseID, "--mode", "FULL_DELETE")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.URL.Path != APIPath+privacyRequestsPath+"/"+caseID+"/erasure-preview" ||
+		stub.request.URL.Query().Get("mode") != "FULL_DELETE" {
+		t.Errorf("asked %s", stub.request.URL)
+	}
+	if !strings.Contains(out, "kept, restricted") || !strings.Contains(out, "ACCOUNT "+itemID) {
+		t.Errorf("the preview is %q", out)
+	}
+}

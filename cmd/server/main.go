@@ -708,7 +708,9 @@ func run() error {
 	// The safeguard that outranks every rule above. One set for the three use cases, so
 	// that placing a hold and lifting one cannot disagree about which clock recorded them.
 	legalHolds := lifecycle.Holds{
-		Holds:      postgres.NewLegalHoldRepository(),
+		Holds: postgres.NewLegalHoldRepository(),
+		// Lifting a hold seeds the rest of every erasure it kept part of (data-protection.md §4.1).
+		Remainders: privacyservice.ErasureRemainders{Kept: privacyStore, Jobs: jobs},
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
@@ -954,7 +956,7 @@ func run() error {
 	// The cases the privacy use cases share.
 	privacyCases := privacyservice.Cases{
 		Requests: privacyStore, Workspaces: postgres.NewWorkspaceSettingsRepository(),
-		Subjects: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
+		Subjects: privacyStore, Kept: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
@@ -1717,8 +1719,12 @@ func run() error {
 		privacyservice.ListDataSubjectRequests{Cases: privacyCases}.Descriptor(),
 		privacyservice.UpdateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
 		privacyservice.ExtendDataSubjectRequest{Cases: privacyCases}.Descriptor(),
+		privacyservice.PreviewErasure{
+			Cases:  privacyCases,
+			Eraser: privacyservice.Eraser{Erasure: privacyStore, Holds: postgres.NewLifecycleRepository()},
+		}.Descriptor(),
 		privacyservice.RestrictProcessing{
-			Subjects: privacyStore, Authorizer: authorizer, Audit: auditSink,
+			Subjects: privacyStore, Kept: privacyStore, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		privacyservice.WithdrawConsent{
@@ -2609,6 +2615,7 @@ func run() error {
 	// that is a Hubtask archive rather than a second format.
 	privacyEraser := privacyservice.Eraser{
 		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
+		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
 		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		TombstoneWindow: cfg.Retention.TombstoneWindow,
@@ -2665,7 +2672,8 @@ func run() error {
 	retention := worker.RetentionSweep{
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
-			History: notifications,
+			Remainders: privacyservice.ErasureRemainders{Kept: privacyStore, Jobs: jobs},
+			History:    notifications,
 			// The outbox's own rows: ADR-0007's second countermeasure, for a table that would
 			// otherwise only ever grow.
 			Events: postgres.NewDispatchedEvents(),
@@ -2923,6 +2931,12 @@ func run() error {
 			Encryptor: encryptor, Audit: auditSink, Clock: clockadapter.System{}, Signals: metrics,
 		}},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
+		queueport.KindPrivacyErasureRemainder: worker.PrivacyErasureRemainder{
+			Resume: privacyservice.ResumeErasure{
+				Requests: privacyStore, Kept: privacyStore, Eraser: privacyEraser,
+				UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+		},
 		queueport.KindPrivacyExtensionEntry: worker.PrivacyExtensionEntry{
 			Record: privacyservice.RecordExtensionEntry{
 				Workspaces: postgres.NewWorkspaceSettingsRepository(), Audit: auditSink,

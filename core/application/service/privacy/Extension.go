@@ -196,5 +196,5 @@ func (h ExtendDataSubjectRequest) invoke(
 		return nil, err
 	}
 	// An extended case cannot be extended again, so it answers no extendable_until.
-	return RequestOutput(request, domain.Day{}), nil
+	return RequestOutput(request, domain.Day{}, nil), nil
 }

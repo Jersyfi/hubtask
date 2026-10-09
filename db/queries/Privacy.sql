@@ -239,25 +239,6 @@ DELETE FROM sync_device WHERE account_id = sqlc.arg('account_id');
 -- rendering rather than in the row, but the row says who was told what and when.
 DELETE FROM notification WHERE tenant_id = current_tenant_id() AND recipient_id = sqlc.arg('account_id');
 
--- name: ClearAssignmentsOfAccount :execrows
--- Work assigned to the person goes back to nobody. The entry belongs to the workspace and stays;
--- the assignment is a fact about a person and does not.
-UPDATE work_item SET assignee_id = NULL, updated_at = sqlc.arg('updated_at'), version = version + 1
-WHERE tenant_id = current_tenant_id() AND assignee_id = sqlc.arg('account_id') AND deleted_at IS NULL;
-
--- name: CommentsAuthoredBy :many
--- The person's own contributions, which `FULL_DELETE` takes and `ANONYMIZE` keeps.
---
--- Read before they are removed, because each one owes a journal entry and a tombstone: a comment
--- that vanished without either would come back from a restore, or be recreated by a device that
--- was offline (ADR-0020 §6).
-SELECT id, item_id
-FROM comment
-WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id');
-
--- name: DeleteCommentsAuthoredBy :execrows
-DELETE FROM comment WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id');
-
 -- name: MediaUploadedBy :many
 -- The media the person uploaded that nothing points at any more.
 --
@@ -279,3 +260,106 @@ DELETE FROM media_object WHERE tenant_id = current_tenant_id() AND id = sqlc.arg
 -- full deletion that identifier points at nobody, which is the position `audit_log.actor_id` is in
 -- as well - and `audit_pseudonym` is what answers "who was this" for both. Rewriting the column
 -- would be a second mechanism for one question.
+
+-- ===================== What a legal hold keeps (data-protection.md §4.1) =====
+
+-- name: LockDataSubjectRequest :one
+-- Taken first by the erasure and by the remainder, so one case has one writer at a time: a retried
+-- erasure and a remainder seeded by a release in between would otherwise both decide what is kept.
+SELECT id FROM data_subject_request
+WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id()
+FOR UPDATE;
+
+-- name: ErasureContributions :many
+-- The person's rows that sit on an entry, with where the entry is: what a hold on the workspace, a
+-- hub, a collection, an entry or another person is judged against. Their comments, the entries
+-- assigned to them, the entries they created.
+SELECT 'COMMENT'::text AS kind, c.id, w.id AS item_id, w.path, w.collection_id,
+       col.parent_id AS hub_id, w.created_by AS item_created_by
+FROM comment c
+JOIN work_item w ON w.tenant_id = c.tenant_id AND w.id = c.item_id
+JOIN container col ON col.tenant_id = w.tenant_id AND col.id = w.collection_id
+WHERE c.tenant_id = current_tenant_id() AND c.author_id = sqlc.arg('account_id')
+UNION ALL
+SELECT 'ASSIGNMENT'::text, w.id, w.id, w.path, w.collection_id, col.parent_id, w.created_by
+FROM work_item w
+JOIN container col ON col.tenant_id = w.tenant_id AND col.id = w.collection_id
+WHERE w.tenant_id = current_tenant_id() AND w.assignee_id = sqlc.arg('account_id')
+  AND w.deleted_at IS NULL
+UNION ALL
+SELECT 'ENTRY'::text, w.id, w.id, w.path, w.collection_id, col.parent_id, w.created_by
+FROM work_item w
+JOIN container col ON col.tenant_id = w.tenant_id AND col.id = w.collection_id
+WHERE w.tenant_id = current_tenant_id() AND w.created_by = sqlc.arg('account_id');
+
+-- name: DeleteCommentsOf :execrows
+-- The person's comments a hold does not keep, by identifier: the ones that were read, judged and
+-- given their journal entries - no others.
+DELETE FROM comment
+WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
+  AND id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: ClearAssignmentsOn :execrows
+-- The person's assignments a hold does not keep: the entry goes back to nobody.
+UPDATE work_item SET assignee_id = NULL, updated_at = sqlc.arg('updated_at'), version = version + 1
+WHERE tenant_id = current_tenant_id() AND assignee_id = sqlc.arg('account_id') AND deleted_at IS NULL
+  AND id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: UpsertErasureKept :exec
+-- What one hold keeps for one case, now. A row that was erased or blocked and keeps something again
+-- is pending again; when it was first recorded stays.
+INSERT INTO erasure_kept (
+  tenant_id, request_id, hold_id, hold_scope, hold_scope_id,
+  account, entries, comments, assignments, intake, recorded_at
+) VALUES (
+  current_tenant_id(), sqlc.arg('request_id'), sqlc.arg('hold_id'), sqlc.arg('hold_scope'),
+  sqlc.narg('hold_scope_id'), sqlc.arg('account'), sqlc.arg('entries'), sqlc.arg('comments'),
+  sqlc.arg('assignments'), sqlc.arg('intake'), sqlc.arg('recorded_at')
+)
+ON CONFLICT (tenant_id, request_id, hold_id) DO UPDATE SET
+  hold_scope = EXCLUDED.hold_scope, hold_scope_id = EXCLUDED.hold_scope_id,
+  account = EXCLUDED.account, entries = EXCLUDED.entries, comments = EXCLUDED.comments,
+  assignments = EXCLUDED.assignments, intake = EXCLUDED.intake,
+  erased_at = NULL, blocked_code = NULL, blocked_params = NULL;
+
+-- name: EraseErasureKept :execrows
+-- Every pending row of the case whose hold keeps nothing any more: its part has been erased.
+UPDATE erasure_kept SET erased_at = sqlc.arg('erased_at'), blocked_code = NULL, blocked_params = NULL
+WHERE tenant_id = current_tenant_id() AND request_id = sqlc.arg('request_id') AND erased_at IS NULL
+  AND NOT (hold_id = ANY(sqlc.arg('still_keeping')::uuid[]));
+
+-- name: BlockErasureKept :execrows
+-- The remainder could not be carried out: every pending row of the case says why until it is.
+UPDATE erasure_kept SET blocked_code = sqlc.arg('blocked_code'), blocked_params = sqlc.arg('blocked_params')
+WHERE tenant_id = current_tenant_id() AND request_id = sqlc.arg('request_id') AND erased_at IS NULL;
+
+-- name: ErasureKeptOf :many
+SELECT request_id, hold_id, hold_scope, hold_scope_id, account, entries, comments, assignments,
+       intake, recorded_at, erased_at, blocked_code, blocked_params
+FROM erasure_kept
+WHERE tenant_id = current_tenant_id() AND request_id = ANY(sqlc.arg('request_ids')::uuid[])
+ORDER BY recorded_at, hold_id;
+
+-- name: PendingErasureKept :many
+-- The cases something is still kept for, and under which hold - all of them, or one hold's.
+SELECT request_id, hold_id
+FROM erasure_kept
+WHERE tenant_id = current_tenant_id() AND erased_at IS NULL
+  AND (sqlc.narg('hold_id')::uuid IS NULL OR hold_id = sqlc.narg('hold_id')::uuid)
+ORDER BY request_id, hold_id;
+
+-- name: CountIntakeOf :one
+-- How much of the intake carries the person's address: what a hold on the workspace keeps of it.
+SELECT count(*) FROM jumble_entry
+WHERE tenant_id = current_tenant_id()
+  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'));
+
+-- name: ErasureKeepsAccount :one
+-- Whether a case still keeps this account because of a hold. Its restriction stands until the rest
+-- of the erasure has run.
+SELECT EXISTS (
+  SELECT 1 FROM erasure_kept k
+  JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+  WHERE k.tenant_id = current_tenant_id() AND k.account AND k.erased_at IS NULL
+    AND r.subject_account_id = sqlc.arg('account_id')
+) AS kept;

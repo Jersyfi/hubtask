@@ -10,10 +10,14 @@ import {
   byDeadline,
   canAct,
   canExtend,
+  canStart,
+  confirmsStart,
   deadlineOfDay,
   deadlinePhrase,
   extensionPayload,
   extensionPhrase,
+  keptPartPhrase,
+  keptPhrase,
   producesArchive,
   standingOf,
   KINDS,
@@ -171,6 +175,39 @@ test('a row acts on this workspace\'s cases and on no installation-wide one', ()
   assert.equal(canAct(aCase()), true);
   assert.equal(canAct(aCase({ scope: 'TENANT' })), true);
   assert.equal(canAct(aCase({ scope: 'INSTALLATION' })), false);
+});
+
+test('an erasure is started only by whom the server lets start it, and only after a confirmation', () => {
+  // UC-PRV-03 checks 1 and 8, P-05: the owner's DELETE_CONTAINER, asked of an erasure alone.
+  const erasure = aCase({ kind: 'ERASURE' });
+  assert.equal(canStart(erasure, true), true);
+  assert.equal(canStart(erasure, false), false);
+  assert.equal(canStart(aCase(), false), true);
+  assert.equal(canStart(aCase({ status: 'IN_PROGRESS' }), true), false);
+  assert.equal(canStart(aCase({ kind: 'ERASURE', scope: 'INSTALLATION' }), true), false);
+  assert.equal(confirmsStart(erasure), true);
+  assert.equal(confirmsStart(aCase()), false);
+});
+
+test('a case a hold kept part of says so, and says when the rest went', () => {
+  // UC-PRV-03 checks 11 and 12: partly completed while a hold keeps a part, the rest's day after.
+  const part = {
+    hold_id: 'h1', hold_scope: { kind: 'CONTAINER' as const }, account: false,
+    entries: 1, comments: 2, assignments: 3, intake: 0,
+  };
+  assert.equal(keptPhrase(aCase()), undefined);
+  assert.deepEqual(keptPhrase(aCase({ kept: [part] })), { code: 'app.privacy.kept_partly', params: { holds: 1 } });
+  assert.deepEqual(
+    keptPhrase(aCase({ kept: [{ ...part, blocked: { code: 'privacy.erasure_blocked_by_rule', params: { rules: '1' } } }] })),
+    { code: 'app.privacy.kept_waits', params: { holds: 1, rules: '1' } },
+  );
+  assert.deepEqual(
+    keptPhrase(aCase({ kept: [{ ...part, erased_at: '2026-09-02T10:00:00Z' }, { ...part, hold_id: 'h2', erased_at: '2026-09-03T10:00:00Z' }] })),
+    { code: 'app.privacy.kept_rest_erased', params: { at: '2026-09-03T10:00:00Z' } },
+  );
+  assert.equal(keptPartPhrase(part, 'a hub').code, 'app.privacy.kept_part');
+  assert.equal(keptPartPhrase({ ...part, account: true }, 'this person').code, 'app.privacy.kept_part_account');
+  assert.deepEqual(keptPartPhrase(part, 'a hub').params, { scope: 'a hub', comments: 2, assignments: 3, entries: 1, intake: 0 });
 });
 
 test('owed soon starts seven days before the deadline, when the watch starts warning', () => {

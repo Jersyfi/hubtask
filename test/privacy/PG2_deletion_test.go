@@ -18,6 +18,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -68,6 +69,9 @@ var permittedAfterErasure = map[string]string{
 	"webhook_subscription.created_by": "who connected an integration the workspace still uses: the same",
 	// The item's own history, which the catalogue takes with the item rather than with the person.
 	"activity_entry.actor_id": "the item's history: `CASCADE` with the item (data-catalog.md), and it renders as a former user once the account is gone",
+	// The case the erasure answers, which the job's completion clears once the account is gone
+	// (Perform); this sweep runs between the erasure and the completion.
+	"data_subject_request.subject_account_id": "the case itself, cleared by the completion that follows the erasure",
 	// A dispatch record with a life of days, and a reference rather than content.
 	"outbox_event.actor_id": "a dispatch record pruned 7 days after delivery (data-catalog.md): a reference, and nothing of the person's in it",
 }
@@ -81,10 +85,7 @@ func TestPG2AnErasureLeavesNothingBehind(t *testing.T) {
 
 	if _, err := eraser.Erase(ctx, appshared.ActorContext{
 		Kind: appshared.ActorSystem, TenantID: tenant, AccountName: "the installation",
-	}, domain.Request{
-		ID: freshID(), Kind: domain.KindErasure, Status: domain.StatusInProgress,
-		SubjectAccountID: subject, ErasureMode: domain.ModeFullDelete,
-	}); err != nil {
+	}, startedErasure(ctx, t, tenant, subject, domain.ModeFullDelete)); err != nil {
 		t.Fatalf("erasing: %v", err)
 	}
 
@@ -116,6 +117,9 @@ func eraserFor(ctx context.Context, t *testing.T, objects *bucket) privacyservic
 		Requests:   postgres.NewPrivacyRepository(cursors()),
 		Erasure:    postgres.NewPrivacyRepository(cursors()),
 		Pseudonyms: postgres.NewPrivacyRepository(cursors()),
+		Holds:      postgres.NewLifecycleRepository(),
+		Kept:       postgres.NewPrivacyRepository(cursors()),
+		Subjects:   postgres.NewPrivacyRepository(cursors()),
 		Removals:   postgres.NewLifecycleRepository(),
 		Objects:    objects,
 		Audit:      postgres.NewAuditSink(identifiers{}),
@@ -340,6 +344,25 @@ func (identifiers) NewID() shared.ID { return freshID() }
 // here can never collide with one another suite wrote.
 var sequence int64
 
+// startedErasure records the erasure case the job carries out: the erasure locks its case first.
+func startedErasure(
+	ctx context.Context, t *testing.T, tenant, subject shared.ID, mode domain.ErasureMode,
+) domain.Request {
+	t.Helper()
+	request := domain.Request{
+		ID: freshID(), Kind: domain.KindErasure, Status: domain.StatusInProgress,
+		Scope: domain.ScopeTenant, SubjectAccountID: subject, ErasureMode: mode,
+		ReceivedAt: time.Now().UTC(), DueAt: time.Now().UTC().Add(30 * 24 * time.Hour),
+	}
+	if err := postgres.NewUnitOfWork(dbtest.AppPool(ctx, t)).Within(ctx, persistence.Scope{TenantID: tenant},
+		func(ctx context.Context) error {
+			return postgres.NewPrivacyRepository(cursors()).Insert(ctx, request)
+		}); err != nil {
+		t.Fatalf("recording the case: %v", err)
+	}
+	return request
+}
+
 func freshID() shared.ID {
 	sequence++
 	return shared.MustParseID(fmt.Sprintf("01936f2a-7c1e-7000-8e00-%012x", sequence))
@@ -362,10 +385,7 @@ func TestPG2AnErasureIsRefusedWhileARuleActsAsThePerson(t *testing.T) {
 
 	_, err := eraserFor(ctx, t, newBucket()).Erase(ctx, appshared.ActorContext{
 		Kind: appshared.ActorSystem, TenantID: tenant, AccountName: "the installation",
-	}, domain.Request{
-		ID: freshID(), Kind: domain.KindErasure, Status: domain.StatusInProgress,
-		SubjectAccountID: subject, ErasureMode: domain.ModeFullDelete,
-	})
+	}, startedErasure(ctx, t, tenant, subject, domain.ModeFullDelete))
 
 	problem := shared.AsError(err)
 	if problem == nil || problem.DetailCode != domain.CodeErasureBlockedByRule {

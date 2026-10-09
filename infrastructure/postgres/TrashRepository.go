@@ -387,6 +387,47 @@ func (r TrashRepository) PurgeContainers(ctx context.Context, ids []shared.ID) (
 	})
 }
 
+// KeptBelow answers how many rows below each of these are not going in this pass.
+func (r TrashRepository) KeptBelow(
+	ctx context.Context, ids, going []shared.ID,
+) (map[shared.ID]int, error) {
+	kept := map[shared.ID]int{}
+	if len(ids) == 0 {
+		return kept, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := uuidsOf(ids)
+	if err != nil {
+		return nil, err
+	}
+	leaving, err := uuidsOf(going)
+	if err != nil {
+		return nil, err
+	}
+	if leaving == nil {
+		// Nothing is going, so everything below stays. A null array would make every comparison
+		// in the statement null and count nothing - the opposite answer.
+		leaving = []pgtype.UUID{}
+	}
+
+	rows, err := queries.TrashKeptBelow(ctx, sqlc.TrashKeptBelowParams{Ids: keys, Going: leaving})
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting what stays below %d trashed rows: %w", len(ids), err))
+	}
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		kept[id] += int(row.Kept)
+	}
+	return kept, nil
+}
+
 // purge is the shape both hard deletes share: nothing to do for an empty list, and a count back.
 //
 // The empty case is checked rather than sent, because `= ANY('{}')` is a statement that matches
