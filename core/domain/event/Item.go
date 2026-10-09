@@ -123,6 +123,10 @@ type Movement struct {
 	// FromCollectionID is set when the move crossed collections, which is what decides whether a device
 	// subscribed to one hub still sees the item at all (offline-sync.md §3.1).
 	FromCollectionID shared.ID
+	// FromBucketID is the column of the board the item was in, and empty for none. Unlike the
+	// collection it is reported even when unchanged: a kanban rule reacts to the pair, and a field
+	// that went null on a move within one column would read as "taken off the board".
+	FromBucketID shared.ID
 }
 
 // NewItemMoved announces that an item sits somewhere else.
@@ -132,7 +136,8 @@ type Movement struct {
 // the same gesture to a person and the same event to a rule; a consumer that cares only about reparenting
 // compares the two parent identifiers.
 //
-// `from_bucket_id` and `to_bucket_id` are in the documented payload and are always null here.
+// `from_bucket_id` and `to_bucket_id` are the columns either side, null for none; the snapshot does not
+// carry the column, so the "to" half is named here rather than repeated.
 func NewItemMoved(id shared.ID, item work.WorkItem, from Movement, actor Actor,
 	occurredAt time.Time, cause Cause,
 ) (Envelope, error) {
@@ -152,6 +157,12 @@ func NewItemMoved(id shared.ID, item work.WorkItem, from Movement, actor Actor,
 	}
 	if !from.FromCollectionID.IsZero() && from.FromCollectionID != item.CollectionID {
 		payload["from_collection_id"] = from.FromCollectionID.String()
+	}
+	if !from.FromBucketID.IsZero() {
+		payload["from_bucket_id"] = from.FromBucketID.String()
+	}
+	if !item.BucketID.IsZero() {
+		payload["to_bucket_id"] = item.BucketID.String()
 	}
 
 	return NewEnvelope(id, ItemMoved, item.TenantID,

@@ -111,6 +111,23 @@ services:
       # unset here, means the series stays absent, which is the honest state for an installation
       # whose backups nobody has restored (backup-restore.md §8.6).
       HUBTASK_RESTORE_DRILL_RECORD_FILE: ${HUBTASK_RESTORE_DRILL_RECORD_FILE:-}
+      # Mail, object storage and the installation's AI switches, passed through for the reason the
+      # keyring is: Compose hands a container only what this file names, so a line `.env.example`
+      # offers and this file does not pass is a setting the operator makes and the process never
+      # sees. Empty is the same as unset to the configuration, so each keeps its own default.
+      HUBTASK_SMTP_HOST: ${HUBTASK_SMTP_HOST:-}
+      HUBTASK_SMTP_PORT: ${HUBTASK_SMTP_PORT:-}
+      HUBTASK_SMTP_USER: ${HUBTASK_SMTP_USER:-}
+      HUBTASK_SMTP_PASSWORD: ${HUBTASK_SMTP_PASSWORD:-}
+      HUBTASK_SMTP_FROM: ${HUBTASK_SMTP_FROM:-}
+      HUBTASK_SMTP_SECURITY: ${HUBTASK_SMTP_SECURITY:-}
+      HUBTASK_STORAGE_KIND: ${HUBTASK_STORAGE_KIND:-}
+      HUBTASK_S3_ENDPOINT: ${HUBTASK_S3_ENDPOINT:-}
+      HUBTASK_S3_BUCKET: ${HUBTASK_S3_BUCKET:-}
+      HUBTASK_S3_ACCESS_KEY: ${HUBTASK_S3_ACCESS_KEY:-}
+      HUBTASK_S3_SECRET_KEY: ${HUBTASK_S3_SECRET_KEY:-}
+      HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER: ${HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER:-}
+      HUBTASK_AI_DUPLICATE_THRESHOLD: ${HUBTASK_AI_DUPLICATE_THRESHOLD:-}
     volumes:
       - media:/var/lib/hubtask/media
       - backups:/var/lib/hubtask/backups

@@ -82,6 +82,7 @@ itself a fork of Feather (MIT), and its LICENSE carries both notices.
 | [go.opentelemetry.io/otel/exporters/otlp/otlptrace](https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp/otlptrace?tab=licenses) | Apache-2.0 |
 | [go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp](https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp?tab=licenses) | Apache-2.0 |
 | [go.opentelemetry.io/otel/exporters/prometheus](https://pkg.go.dev/go.opentelemetry.io/otel/exporters/prometheus?tab=licenses) | Apache-2.0 |
+| [go.opentelemetry.io/otel/log](https://pkg.go.dev/go.opentelemetry.io/otel/log?tab=licenses) | Apache-2.0 |
 | [go.opentelemetry.io/otel/metric](https://pkg.go.dev/go.opentelemetry.io/otel/metric?tab=licenses) | Apache-2.0 |
 | [go.opentelemetry.io/otel/sdk](https://pkg.go.dev/go.opentelemetry.io/otel/sdk?tab=licenses) | Apache-2.0 |
 | [go.opentelemetry.io/otel/sdk/metric](https://pkg.go.dev/go.opentelemetry.io/otel/sdk/metric?tab=licenses) | Apache-2.0 |
