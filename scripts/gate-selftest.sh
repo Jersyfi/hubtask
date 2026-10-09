@@ -1077,10 +1077,10 @@ else
 	# PG-2: an erasure that stops serving one storage location. The repository method keeps its
 	# signature and does nothing, which is exactly the shape of the mistake - a step that reports
 	# success and leaves the rows where they were.
-	ERASER="infrastructure/postgres/PrivacyRepository.go"
+	ERASER="infrastructure/postgres/ErasureKeptRepository.go"
 	cp "$ERASER" "$ERASER.selftest-backup"
 	awk '
-		/func \(r PrivacyRepository\) DeleteAuthoredComments\(/ { found = 1 }
+		/func \(r PrivacyRepository\) DeleteComments\(/ { found = 1 }
 		{ print }
 		found && /^\) \(int, error\) \{$/ { print "\treturn 0, nil // gate-selftest probe"; found = 0 }
 	' "$ERASER.selftest-backup" > "$ERASER"
