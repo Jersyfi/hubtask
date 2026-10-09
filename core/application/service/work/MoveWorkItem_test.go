@@ -391,6 +391,31 @@ func TestTheMoveAnnouncesWhereItCameFrom(t *testing.T) {
 	}
 }
 
+// The column the item was in travels with the move, read off the item before it moved: the item
+// afterwards is the new state and cannot say it.
+func TestTheMoveAnnouncesTheColumnItLeft(t *testing.T) {
+	h := newPlacementHarness()
+	h.items.previousKey = "a0"
+	column := shared.MustParseID("0192f000-0000-7000-8000-0000000006b1")
+	onBoard := h.items.stored[targetTaskID]
+	onBoard.BucketID = column
+	h.items.stored[targetTaskID] = onBoard
+
+	if _, err := (ReorderWorkItem{Placement: h.writer}).
+		Execute(t.Context(), placementActor(), ReorderWorkItemCommand{ItemID: targetTaskID}); err != nil {
+		t.Fatalf("reordering: %v", err)
+	}
+
+	if len(h.events.appended) != 1 {
+		t.Fatalf("%d events, want 1", len(h.events.appended))
+	}
+	payload := h.events.appended[0].Payload
+	if payload["from_bucket_id"] != column.String() || payload["to_bucket_id"] != column.String() {
+		t.Errorf("the columns are %v -> %v, want %s on both sides",
+			payload["from_bucket_id"], payload["to_bucket_id"], column)
+	}
+}
+
 // A trashed or archived item is not editable except through Restore or Unarchive (I-W4).
 func TestMovingATrashedOrArchivedItemIsRefused(t *testing.T) {
 	for name, mutate := range map[string]func(*domain.WorkItem){

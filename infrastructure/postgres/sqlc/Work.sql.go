@@ -1803,22 +1803,28 @@ func (q *Queries) SetWorkItemDueDate(ctx context.Context, arg SetWorkItemDueDate
 const setWorkItemOrderKey = `-- name: SetWorkItemOrderKey :execrows
 UPDATE work_item SET
   order_key  = $1,
-  updated_at = $2,
+  bucket_id  = $2::uuid,
+  updated_at = $3,
   version    = version + 1
-WHERE id = $3::uuid AND version = $4
+WHERE id = $4::uuid AND version = $5
 `
 
 type SetWorkItemOrderKeyParams struct {
 	OrderKey        string
+	BucketID        pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
 }
 
-// A reorder within one level: the rank alone, which is the whole of what drag and drop changes.
+// A reorder within one level: the rank and the column, which is the whole of what drag and drop
+// changes. The column is written although a plain reorder keeps it: a card dragged to another column
+// of the same board stays on its level, and a statement that left the column out would drop that half
+// of the move.
 func (q *Queries) SetWorkItemOrderKey(ctx context.Context, arg SetWorkItemOrderKeyParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setWorkItemOrderKey,
 		arg.OrderKey,
+		arg.BucketID,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,

@@ -105,13 +105,14 @@
     },
     "data": {
       "type": "object",
-      "description": "The item as it now stands, in the field names of the API (schema WorkItem), plus where it came from. The \"from\" half cannot be read off the snapshot, which is the new state; the \"to\" half is the snapshot, so it is not repeated except as to_parent_id.",
+      "description": "The item as it now stands, in the field names of the API (schema WorkItem), plus where it came from. The \"from\" half cannot be read off the snapshot, which is the new state; the \"to\" half is the snapshot, so it is not repeated except as to_parent_id - and as to_bucket_id, because the snapshot does not carry the column.",
       "required": [
         "collection_id",
         "completion",
         "created_at",
         "created_by",
         "depth",
+        "from_bucket_id",
         "from_parent_id",
         "from_path",
         "id",
@@ -119,6 +120,7 @@
         "parent_id",
         "path",
         "title",
+        "to_bucket_id",
         "to_parent_id",
         "type",
         "updated_at",
@@ -248,7 +250,7 @@
             "null"
           ],
           "format": "uuid",
-          "description": "Reserved, always null on this version. In the documented payload, so a kanban consumer can be written against the final shape."
+          "description": "The column of the board it sat in before, null if it was on none. Sent even when the move kept the column, so a rule compares it with to_bucket_id rather than asking whether it is there."
         },
         "to_bucket_id": {
           "type": [
@@ -256,7 +258,7 @@
             "null"
           ],
           "format": "uuid",
-          "description": "Reserved, always null on this version. See from_bucket_id."
+          "description": "The column it sits in now, null for none. A move to another collection takes the item off its old board unless a column of the new one was named."
         }
       }
     }

@@ -697,6 +697,63 @@ func TestAReorderIsAMoveWithTheSameParent(t *testing.T) {
 	}
 }
 
+// A card carried to another column of its board: the schema accepts both columns as identifiers, and
+// they say where it was and where it is - what a kanban rule reacts to.
+func TestAMoveBetweenColumnsNamesBothColumns(t *testing.T) {
+	spec := loadEventSchema(t, event.ItemMoved)
+
+	id := shared.MustParseID("0192f000-0000-7000-8000-000000000018")
+	todo := shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	doing := shared.MustParseID("0192f000-0000-7000-8000-0000000000b2")
+	at := time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC)
+
+	item := work.WorkItem{
+		ID:           id,
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemTask,
+		Path:         work.RootPath(id),
+		Depth:        1,
+		Title:        "Call the plumber",
+		BucketID:     doing,
+		OrderKey:     "a0",
+		CreatedBy:    shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt:    at,
+		UpdatedAt:    at.Add(time.Hour),
+		Version:      2,
+	}
+
+	envelope, err := event.NewItemMoved(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000ea"), item,
+		event.Movement{FromPath: item.Path, FromCollectionID: item.CollectionID, FromBucketID: todo},
+		event.Actor{Kind: shared.ActorUser, ID: item.CreatedBy}, item.UpdatedAt, event.Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+	if err != nil {
+		t.Fatalf("rendering: %v", err)
+	}
+	problems, err := spec.validateAgainst("root", body)
+	if err != nil {
+		t.Fatalf("validating: %v", err)
+	}
+	for _, problem := range problems {
+		t.Error(problem)
+	}
+
+	var rendered map[string]any
+	if err := json.Unmarshal(body, &rendered); err != nil {
+		t.Fatalf("re-reading: %v", err)
+	}
+	data, _ := rendered["data"].(map[string]any)
+	if data["from_bucket_id"] != todo.String() || data["to_bucket_id"] != doing.String() {
+		t.Errorf("the columns are %v -> %v, want %s -> %s",
+			data["from_bucket_id"], data["to_bucket_id"], todo, doing)
+	}
+}
+
 // A move to the top level of a collection carries a null parent, and the schema has to accept it - a consumer
 // placing items in a tree reads the field rather than inferring it from the type.
 func TestAMoveToTheTopLevelCarriesANullParent(t *testing.T) {
