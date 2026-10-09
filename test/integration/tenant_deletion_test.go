@@ -78,6 +78,7 @@ func TestAnOperatorRequestsTheDeletionOfAnotherWorkspace(t *testing.T) {
 	deletion := adminservice.RequestTenantDeletion{
 		Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(pageCursors()),
 		Automations: postgres.NewAutomationSwitch(), Jobs: postgres.NewQueue(writer.IDs, clockadapter.System{}),
+		Holds:  postgres.NewLifecycleRepository(),
 		StepUp: identityservice.StepUpVerifier{Writer: writer},
 		Audit:  postgres.NewAuditSink(generator{t}), UnitOfWork: uow,
 		Clock: clockadapter.System{}, IDs: writer.IDs,

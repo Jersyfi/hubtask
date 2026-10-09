@@ -9,6 +9,7 @@ import (
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -22,12 +23,23 @@ const journalHardDeleted = "tenant.hard_deleted"
 // statement holds a lock worth talking about; the loops around it do the volume.
 const purgeBatch = 500
 
+// HeldPurgeRetry is how often the grace job of a workspace under a legal hold looks again. Nobody
+// can lift a hold in a workspace whose people are shut out, so the release seeds nothing; the job
+// that waits is what makes the deletion follow within a day of the last release, whatever lifted it.
+const HeldPurgeRetry = 24 * time.Hour
+
 // HardDeleteOutcome is what one pass reports: counts, for the job's own log line and nothing
 // else - the durable record is the evidence entry.
 type HardDeleteOutcome struct {
 	// Deleted is false when the guard held the act back: the deadline moved, the status is not
 	// PENDING_DELETION any more, or the tenant is already gone. Nothing was changed then.
-	Deleted      bool
+	Deleted bool
+	// Held is a workspace a legal hold keeps: it stays pending until the last hold is lifted
+	// (data-protection.md §5), and nothing of it was touched.
+	Held bool
+	// RunAgainIn is when the job is to come back: a day while a hold stands, the time left while
+	// the deadline still runs. Zero ends the job.
+	RunAgainIn   time.Duration
 	Footprint    adminrepo.Footprint
 	BytesObjects int
 	TrailEntries int64
@@ -45,7 +57,9 @@ type HardDeleteOutcome struct {
 // It is safe to run twice: the byte deletion tolerates absent objects, and the final guard
 // re-reads the two facts the grace could have changed before anything falls.
 type HardDeleteTenant struct {
-	Tenants    adminrepo.Tenants
+	Tenants adminrepo.Tenants
+	// Holds are the workspace's legal holds in force; while any stands nothing falls.
+	Holds      lifecyclerepo.LegalHolds
 	Purge      adminrepo.Purge
 	Journal    adminrepo.Journal
 	Store      storage.ObjectStore
@@ -72,6 +86,11 @@ func (h HardDeleteTenant) Execute(
 			return err
 		}
 		record = found
+		held, err := underHold(ctx, h.Holds)
+		if err != nil {
+			return err
+		}
+		outcome.Held = held
 		footprint, err := h.Purge.Footprint(ctx)
 		outcome.Footprint = footprint
 		return err
@@ -85,9 +104,16 @@ func (h HardDeleteTenant) Execute(
 		return outcome, err
 	}
 	now := h.Clock.Now()
-	if record.Status != domain.TenantPendingDeletion ||
-		record.PurgeAfter.IsZero() || record.PurgeAfter.After(now) {
-		return outcome, nil
+	if record.Status != domain.TenantPendingDeletion || record.PurgeAfter.IsZero() {
+		return HardDeleteOutcome{}, nil
+	}
+	if record.PurgeAfter.After(now) {
+		// Early: a second request folded into this job's row kept the earlier moment. Ending the
+		// job here would end the only one the deletion has.
+		return HardDeleteOutcome{RunAgainIn: record.PurgeAfter.Sub(now)}, nil
+	}
+	if outcome.Held {
+		return HardDeleteOutcome{Held: true, RunAgainIn: HeldPurgeRetry}, nil
 	}
 
 	// The bytes, store-first and outside any transaction (observability-reliability.md §8
@@ -101,6 +127,12 @@ func (h HardDeleteTenant) Execute(
 
 	// The fall, in one transaction: evidence and act commit together.
 	err = h.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		// No hold can arrive after the guard - placing one in a pending workspace is refused - so
+		// this read defends a case that cannot happen; if it ever does, the fall rolls back as a
+		// moved state does, with the bytes already gone.
+		if err := refuseUnderHold(ctx, h.Holds); err != nil {
+			return err
+		}
 		if _, err := h.Purge.DropStructure(ctx); err != nil {
 			return err
 		}

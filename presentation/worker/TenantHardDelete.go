@@ -55,6 +55,12 @@ func (h TenantHardDelete) Run(ctx context.Context, job queue.Job) (queue.Result,
 		slog.Int("byte_objects_removed", outcome.BytesObjects),
 		slog.Int64("trail_entries", outcome.TrailEntries),
 		slog.Int("jobs_removed", outcome.JobsRemoved),
+		slog.Bool("held", outcome.Held),
 	)
+	if outcome.RunAgainIn > 0 {
+		// Held by a legal hold, or run before its deadline: the same row comes back, so the
+		// workspace's one deletion job is never lost (data-protection.md §5).
+		return queue.Result{Repeat: true, RepeatAfter: outcome.RunAgainIn}, nil
+	}
 	return queue.Result{}, nil
 }

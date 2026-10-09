@@ -122,7 +122,7 @@ func newHardDeleteFixture(status domain.TenantStatus, purgeAfter time.Time) *har
 		journal: &journalStore{}, store: &storeFake{}, work: &unitOfWork{},
 	}
 	f.handler = HardDeleteTenant{
-		Tenants: f.tenants, Purge: f.purge, Journal: f.journal, Store: f.store,
+		Tenants: f.tenants, Purge: f.purge, Journal: f.journal, Store: f.store, Holds: &holdsDouble{},
 		UnitOfWork: f.work, Clock: clock.Fixed(now), IDs: &sequentialIDs{},
 	}
 	return f

@@ -1914,6 +1914,7 @@ func run() error {
 		adminservice.RequestTenantDeletion{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Automations: postgres.NewAutomationSwitch(), Jobs: jobs,
+			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
@@ -2910,6 +2911,7 @@ func run() error {
 			Deletion: adminservice.HardDeleteTenant{
 				Tenants: postgres.NewAdminTenantRepository(), Purge: postgres.NewTenantPurge(),
 				Journal: postgres.NewInstanceJournal(cursors), Store: mediaStore,
+				Holds:      postgres.NewLifecycleRepository(),
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			},
 		},

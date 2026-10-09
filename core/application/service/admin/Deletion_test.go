@@ -81,7 +81,7 @@ func newDeletionFixture(status domain.TenantStatus) *deletionFixture {
 	f.tenants.deleteOK = true
 	f.handler = RequestTenantDeletion{
 		Tenants: f.tenants, Journal: f.journal, Automations: f.automations,
-		Jobs: f.jobs, StepUp: f.stepUp, Audit: f.audit,
+		Jobs: f.jobs, StepUp: f.stepUp, Audit: f.audit, Holds: &holdsDouble{},
 		UnitOfWork: f.work, Clock: clock.Fixed(now), IDs: &sequentialIDs{},
 	}
 	return f

@@ -9,9 +9,11 @@ import (
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -67,12 +69,15 @@ type RequestTenantDeletion struct {
 	Tenants     adminrepo.Tenants
 	Journal     adminrepo.Journal
 	Automations adminrepo.Automations
-	Jobs        JobQueue
-	StepUp      stepup.Verifier
-	Audit       audit.Sink
-	UnitOfWork  persistence.UnitOfWork
-	Clock       clock.Clock
-	IDs         clock.IDGenerator
+	// Holds are the workspace's legal holds in force: the request is refused while any stands
+	// (data-protection.md §5).
+	Holds      lifecyclerepo.LegalHolds
+	Jobs       JobQueue
+	StepUp     stepup.Verifier
+	Audit      audit.Sink
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
+	IDs        clock.IDGenerator
 }
 
 // Execute schedules the deletion.
@@ -92,6 +97,10 @@ func (h RequestTenantDeletion) Execute(
 	err := h.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
 		record, err := h.findStaying(ctx)
 		if err != nil {
+			return err
+		}
+		// A hold before the typed name and the proof, so that the refusal burns neither.
+		if err := refuseUnderHold(ctx, h.Holds); err != nil {
 			return err
 		}
 		if cmd.Confirmation != record.DisplayName {
@@ -116,6 +125,11 @@ func (h RequestTenantDeletion) Execute(
 	err = h.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		record, err := h.findStaying(ctx)
 		if err != nil {
+			return err
+		}
+		// Again in the write, under the shared hold lock: a hold placed since the check above
+		// waits for this transaction or is read by it.
+		if err := refuseUnderHold(ctx, h.Holds); err != nil {
 			return err
 		}
 
@@ -186,6 +200,32 @@ func (h RequestTenantDeletion) Execute(
 		return DeletionScheduled{}, err
 	}
 	return scheduled, nil
+}
+
+// refuseUnderHold refuses while any legal hold of the transaction's workspace is in force. Active
+// takes the shared hold lock for the rest of the transaction. Unwired is refused rather than waved
+// through: a deletion that cannot ask might destroy what a hold keeps.
+func refuseUnderHold(ctx context.Context, holds lifecyclerepo.LegalHolds) error {
+	held, err := underHold(ctx, holds)
+	if err != nil {
+		return err
+	}
+	if held {
+		return lifecycle.WorkspaceUnderHold()
+	}
+	return nil
+}
+
+// underHold answers whether any legal hold of the transaction's workspace is in force.
+func underHold(ctx context.Context, holds lifecyclerepo.LegalHolds) (bool, error) {
+	if holds == nil {
+		return false, shared.ErrInternal.WithDetail("admin.holds_not_wired")
+	}
+	inForce, err := holds.Active(ctx)
+	if err != nil {
+		return false, err
+	}
+	return len(inForce) > 0, nil
 }
 
 // findStaying reads the transaction's workspace, refusing one that is already leaving.
