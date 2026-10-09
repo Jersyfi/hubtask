@@ -34,6 +34,10 @@ Each measured against the deployments `D1`–`D7`:
    stays pending until the last hold is lifted, and `REPLACE_TENANT` is refused under a hold and
    keeps the workspace's holds when it runs — data-protection.md §5, UC-LIF-06 check 3. Built by
    PH-10 (#1228).
+7. **What a hold keeps stays in backups and the workspace export** (the owner, 2026-10-09, #1234):
+   it is kept out of automation and AI only, and stays in backups, the workspace export and the
+   person's own Art. 15 copy — data-protection.md §4.1, UC-PRV-03 check 10. PH-09 (#1227) filters
+   no export.
 
 ---
 

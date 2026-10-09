@@ -124,11 +124,13 @@ extension is built, the legal hold and the AI position not yet. Until they are, 
     get theirs, a deleted one none; a case without an address names nobody elsewhere and queues
     nothing.
 * **A legal hold wins over an erasure, exactly as far as it reaches (Art. 17(3)(e), Art. 18).** The
-  erasure runs for everything no hold covers; what a hold covers is kept and *restricted* (out of
-  automation, AI and every export but the hold's own), and the case closes as partly completed,
-  naming what was kept, under which hold and why (Art. 12(4)). Releasing the hold seeds the recorded
-  remainder's erasure. An `ACCOUNT` hold covers the account and everything the person contributed
-  to the workspace; it stops their erasure and deletion, not their sign-in.
+  erasure runs for everything no hold covers; what a hold covers is kept and *restricted* — out of
+  automation and AI, but still in backups, the workspace export and the person's own Art. 15 copy,
+  since restriction allows storage (Art. 18(2)) and a move must not lose what the hold keeps — and
+  the case closes as partly completed, naming what was kept, under which hold and why (Art. 12(4)).
+  Releasing the hold seeds the recorded remainder's erasure. An `ACCOUNT` hold covers the account
+  and everything the person contributed to the workspace; it stops their erasure and deletion, not
+  their sign-in.
 * **AI: the workspace decides whether a person may keep their own content out.** Consent to AI
   processing stays the workspace's ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md));
   beside it the workspace takes one of two positions:
