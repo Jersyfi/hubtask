@@ -464,8 +464,8 @@ type Items interface {
 	// the rank the item is leaving.
 	Neighbours(ctx context.Context, level Level, beforeID, movingID shared.ID) (previous, next string, err error)
 
-	// SetOrderKey writes a new rank for one item, or reports a version conflict. The whole of what a
-	// reorder changes.
+	// SetOrderKey writes a new rank and the column for one item, or reports a version conflict. The
+	// whole of what a reorder changes: a card dragged to another column of its board keeps its level.
 	SetOrderKey(ctx context.Context, item work.WorkItem, expectedVersion int) error
 
 	// SetAssignee writes the one person an entry is on, set or cleared, or reports a version

@@ -657,9 +657,13 @@ UPDATE work_item SET
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
 -- name: SetWorkItemOrderKey :execrows
--- A reorder within one level: the rank alone, which is the whole of what drag and drop changes.
+-- A reorder within one level: the rank and the column, which is the whole of what drag and drop
+-- changes. The column is written although a plain reorder keeps it: a card dragged to another column
+-- of the same board stays on its level, and a statement that left the column out would drop that half
+-- of the move.
 UPDATE work_item SET
   order_key  = sqlc.arg('order_key'),
+  bucket_id  = sqlc.narg('bucket_id')::uuid,
   updated_at = sqlc.arg('updated_at'),
   version    = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
