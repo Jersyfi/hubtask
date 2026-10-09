@@ -155,8 +155,7 @@ extension and the legal hold's reach are built; what a restriction keeps the kep
     retention pass seeds every remainder nothing seeded - a release by an older binary, a restore
     that changed the holds. A kept entry moved out of its hold's reach goes with the next run of the
     rest, not at the move.
-  * **Not yet built:** keeping what a hold keeps out of automation and AI (#1227), and a hold
-    stopping a workspace's deletion and a destructive restore (#1228).
+  * **Not yet built:** keeping what a hold keeps out of automation and AI (#1227).
 * **AI: the workspace decides whether a person may keep their own content out.** Consent to AI
   processing stays the workspace's ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md));
   beside it the workspace takes one of two positions:
@@ -218,7 +217,10 @@ hold stands:
   that runs keeps the workspace's own hold records rather than the archive's, so no hold is dropped
   or revived ([backup-restore.md](./backup-restore.md) §8.2).
 
-Decided, not built: the hard delete and a destructive restore read no hold today (#1228).
+Both refusals name the workspace as a whole, never which hold stands (P-01). A workspace pending
+deletion takes no new hold, since its people are shut out and none could lift it; one that has a
+hold anyway - from before this rule, or an older binary during an update - stays pending, its grace
+job coming back daily, and leaves that state through the operator's *Cancel deletion*.
 
 **Media reconciliation** runs per tenant, seeded by an upload's staging and rescheduling itself
 ([multi-tenancy.md](./multi-tenancy.md) §2.1). One pass:

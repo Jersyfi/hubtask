@@ -200,14 +200,18 @@ restricted person's comment never reaches a prompt the adapter receives.
 
 ## PH-10 — A hold stops a workspace's deletion and a destructive restore
 
-*Depends on: PH-01; the owner's answer on how a hold meets the 65 days of data-protection.md §5.*
+*Depends on: PH-01; the owner's answer on how a hold meets the 65 days of data-protection.md §5
+(decision 6, #1233).*
 
 **Use cases:** UC-LIF-06 (3)
 
 Two deletion paths read no legal hold: the workspace's hard deletion after its grace, not even under
 a `TENANT` hold, and a destructive restore, which clears `legal_hold` and imports the archive's —
 dropping a hold placed after the archive, reviving a released one, replacing held rows and resetting
-a kept account's status. Both honour the holds in force as the owner decides.
+a kept account's status. Both honour the holds in force as the owner decided (decision 6): the
+deletion request is refused under a hold, a pending workspace stays pending until the last hold is
+lifted, and a replace is refused under a hold and keeps the workspace's holds when it runs.
 
-**Acceptance:** a test that a workspace under a hold is not hard-deleted, or is as the owner's answer
-says; a test that a destructive restore keeps the holds in force and what they cover.
+**Acceptance:** a test that a workspace under a hold is not hard-deleted and goes after the last
+release; a test that a destructive restore is refused under a hold and keeps the workspace's holds
+and a restricted account when it runs.

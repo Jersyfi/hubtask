@@ -5,9 +5,9 @@ context: backup
 actors: [PE-owner, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-03, P-04, P-08, P-11]
-state: partial
-tasks: [E-06, H-03, F4-17]
-checked_by: [core/application/service/backup/Apply_test.go, core/application/service/backup/Restore_test.go, test/backup/Restore_test.go, test/integration/restore_run_test.go]
+state: built
+tasks: [E-06, H-03, F4-17, PH-10]
+checked_by: [core/application/service/backup/Apply_test.go, core/application/service/backup/Restore_test.go, test/backup/Restore_test.go, test/integration/restore_run_test.go, test/integration/restore_hold_test.go, test/integration/backup_import_test.go]
 ---
 
 # Reset the whole workspace to an earlier backup
@@ -61,7 +61,3 @@ removed.
   `backup.restore_instance_is_the_operators`, which points at the operator's procedure.
 
 See [backup-restore.md](../../architecture/backup-restore.md) §8.
-
-## Today
-
-* Check 5: not met — a replace clears the workspace's legal holds and writes the archive's, tracked in #1228, and writes the archive's account status over a live restriction, tracked in #1240.

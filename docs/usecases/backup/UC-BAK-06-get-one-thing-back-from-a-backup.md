@@ -6,7 +6,7 @@ actors: [PE-owner, PE-admin, PE-person, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11]
 state: partial
-tasks: [E-06, F4-17]
+tasks: [E-06, F4-17, PH-10]
 checked_by: [core/application/service/backup/Apply_test.go, core/application/service/backup/Restore_test.go, test/integration/backup_import_test.go]
 ---
 
@@ -60,5 +60,4 @@ See [backup-restore.md](../../architecture/backup-restore.md) §8.2.
 
 * Check 2: not met in the web app — the selection offers only hubs that exist in the workspace today; a collection, a task or a hub that is gone cannot be chosen.
 * Check 3: not proven — the server computes the closure of a selection, but nothing restores a selection and inspects what landed.
-* Check 4: not met — *overwrite* replaces the workspace's legal holds with the archive's, tracked in #1228, and a live restriction with the archive's account status, tracked in #1240.
 * Check 8: not met for `hubctl` — `hubctl restore run` has no selection flags.

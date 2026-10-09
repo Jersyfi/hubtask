@@ -241,7 +241,7 @@ stateDiagram-v2
 | Provisioning | Tenant, default hub, example collection, owner membership, locale/time zone, standard buckets/labels; idempotent under `Idempotency-Key` |
 | Active | Normal operation; metering only if enabled |
 | Suspended | The API answers `403 access.tenant_suspended`; data remains; the export still works |
-| PendingDeletion | Access blocked (`403 access.tenant_pending_deletion`), automations disabled, the export still works. A deletion request is refused while a legal hold in the workspace is in force, and a workspace already here stays here until the last hold is lifted ([data-protection.md](./data-protection.md) §5; decided, not built: #1228) |
+| PendingDeletion | Access blocked (`403 access.tenant_pending_deletion`), automations disabled, the export still works. A deletion request is refused while a legal hold in the workspace is in force, and a workspace already here stays here until the last hold is lifted ([data-protection.md](./data-protection.md) §5); its grace job comes back daily and removes nothing while one stands, and no hold can be placed here |
 | Hard delete | A job seeded by the deletion request's own write runs after the grace period. It cascades across every storage location — database rows, media objects, search entries, outbox, queue — and purges the tenant's audit trail; the evidence goes to `instance_event` in the same transaction ([audit.md](./audit.md) §6) |
 
 Deleting a tenant demands a step-up and the typed tenant name. The hard delete removes the workspace

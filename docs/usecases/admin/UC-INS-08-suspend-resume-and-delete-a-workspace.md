@@ -6,7 +6,7 @@ actors: [PE-operator, PE-platform]
 deployments: [D5, D6, D7]
 serves: [P-03, P-04, P-15]
 state: partial
-tasks: [H-06, SI-17]
+tasks: [H-06, SI-17, PH-10]
 checked_by: [core/application/service/admin/Lifecycle_test.go, core/application/service/admin/Deletion_test.go, test/integration/tenant_deletion_test.go]
 ---
 
