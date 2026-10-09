@@ -10,9 +10,11 @@ import (
 )
 
 const clearAccount = `-- name: ClearAccount :execrows
-DELETE FROM account
+DELETE FROM account WHERE status <> 'RESTRICTED'
 `
 
+// A replace keeps a restricted account, for ImportAccount's reason: the archive's row then meets it
+// and leaves it as it is.
 func (q *Queries) ClearAccount(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearAccount)
 	if err != nil {
@@ -743,7 +745,7 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = EXCLUDED.updated_at,
   deleted_at = EXCLUDED.deleted_at,
   version = EXCLUDED.version
-WHERE $2::boolean
+WHERE $2::boolean AND account.status <> 'RESTRICTED'
 `
 
 type ImportAccountParams struct {
@@ -751,6 +753,9 @@ type ImportAccountParams struct {
 	Overwrite bool
 }
 
+// A restricted account is neither deleted nor changed (data-retention.md §4 item 2): the archive's
+// version of it would lift a restriction of processing - one a legal hold may be keeping - by going
+// back in time, which only a deliberate act may do (Art. 18).
 func (q *Queries) ImportAccount(ctx context.Context, arg ImportAccountParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importAccount, arg.Payload, arg.Overwrite)
 	if err != nil {

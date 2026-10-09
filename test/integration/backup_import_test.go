@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	backupdomain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -839,5 +841,89 @@ func TestARestoredHoldKeepsItsReleaseReason(t *testing.T) {
 	}
 	if releasedReason != "Settled out of court" {
 		t.Errorf("the release's reason came back as %q, want the archive's", releasedReason)
+	}
+}
+
+// restrictedTenant is a workspace of its own with one restricted and one active account, so that a
+// test that empties its accounts cannot reach anybody else's.
+func restrictedTenant(ctx context.Context, t *testing.T) (tenant, restricted, active shared.ID) {
+	t.Helper()
+	tenant, restricted, active = freshID(t), freshID(t), freshID(t)
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx, `INSERT INTO tenant (id, slug, display_name) VALUES ($1, $2, 'Restricted')`,
+		tenant.String(), "restricted-"+tenant.String()[24:]); err != nil {
+		t.Fatalf("seeding the tenant: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO account (id, tenant_id, display_name, status)
+		VALUES ($1, $3, 'Kept', 'RESTRICTED'), ($2, $3, 'Other', 'ACTIVE')`,
+		restricted.String(), active.String(), tenant.String()); err != nil {
+		t.Fatalf("seeding the accounts: %v", err)
+	}
+	t.Cleanup(func() {
+		done := context.WithoutCancel(ctx)
+		if _, err := adminPool(done, t).Exec(done, `DELETE FROM tenant WHERE id = $1`, tenant.String()); err != nil {
+			t.Errorf("clearing up the workspace this test made: %v", err)
+		}
+	})
+	return tenant, restricted, active
+}
+
+func accountState(ctx context.Context, t *testing.T, tenant, id shared.ID) (status, name string, found bool) {
+	t.Helper()
+	err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT status::text, display_name FROM account WHERE tenant_id = $1 AND id = $2`,
+		tenant.String(), id.String()).Scan(&status, &name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", false
+	}
+	if err != nil {
+		t.Fatalf("reading the account: %v", err)
+	}
+	return status, name, true
+}
+
+// A restriction of processing ends only by a deliberate act (Art. 18, data-retention.md §4 item 2):
+// a restore that overwrites accounts leaves a restricted one exactly as it is, and the emptying of
+// a replace keeps it, so the archive's version of it cannot lift the restriction.
+func TestARestoreLeavesARestrictedAccountAsItIs(t *testing.T) {
+	ctx := context.Background()
+	tenant, restricted, active := restrictedTenant(ctx, t)
+	archived := func(id shared.ID) map[string]any {
+		return map[string]any{
+			"id": id.String(), "kind": "USER", "display_name": "From the archive", "status": "ACTIVE", "ai_consent": false,
+			"created_at": created.Format(time.RFC3339Nano), "updated_at": created.Format(time.RFC3339Nano),
+			"version": 1,
+		}
+	}
+
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		for _, id := range []shared.ID{restricted, active} {
+			if _, err := importRepo().Write(ctx, "account", archived(id), true); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("overwriting: %v", err)
+	}
+	if status, name, _ := accountState(ctx, t, tenant, restricted); status != "RESTRICTED" || name != "Kept" {
+		t.Errorf("an overwrite turned the restricted account into %s %q", status, name)
+	}
+	if status, name, _ := accountState(ctx, t, tenant, active); status != "ACTIVE" || name != "From the archive" {
+		t.Errorf("an overwrite left the active account as %s %q, want the archive's", status, name)
+	}
+
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		_, err := importRepo().Clear(ctx, "account")
+		return err
+	}); err != nil {
+		t.Fatalf("emptying: %v", err)
+	}
+	if status, _, found := accountState(ctx, t, tenant, restricted); !found || status != "RESTRICTED" {
+		t.Errorf("the emptying took the restricted account (found %v, %s)", found, status)
+	}
+	if _, _, found := accountState(ctx, t, tenant, active); found {
+		t.Error("the emptying kept an account that is not restricted")
 	}
 }
