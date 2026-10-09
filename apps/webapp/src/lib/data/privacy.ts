@@ -18,6 +18,8 @@
  * control that moves it off the row. The operator moves it through the API or `hubctl`.
  */
 
+import type { ErasureKept } from '@hubtask/sync-engine';
+
 import { nextDay } from './due.ts';
 import { instantOf } from '../i18n/zone.ts';
 
@@ -81,6 +83,53 @@ export interface Request {
   readonly result_archive?: string | null;
   readonly result_target_id?: string | null;
   readonly notes?: string | null;
+  /** What legal holds kept of an erasure, one part per hold; present only where one kept something. */
+  readonly kept?: readonly ErasureKept[];
+  /** Why what a hold keeps is not erased, present exactly with `kept`. */
+  readonly kept_legal_basis?: string;
+}
+
+/** A message code and its parameters, which a component renders through `t`. */
+export interface KeptPhrase {
+  readonly code: string;
+  readonly params: Readonly<Record<string, string | number>>;
+}
+
+/**
+ * What one hold keeps, as a sentence's code and counts (UC-PRV-03 check 11): the confirmation says
+ * it before the start, the row after. The scope's word is the caller's, because only it knows the
+ * names of hubs and people.
+ */
+export function keptPartPhrase(part: ErasureKept, scope: string): KeptPhrase {
+  return {
+    code: part.account ? 'app.privacy.kept_part_account' : 'app.privacy.kept_part',
+    params: {
+      scope,
+      comments: part.comments,
+      assignments: part.assignments,
+      entries: part.entries,
+      intake: part.intake,
+    },
+  };
+}
+
+/**
+ * The row's line for a case a hold kept part of: partly completed with how many holds and the legal
+ * basis, waiting with why, or the rest erased - and nothing where no hold kept anything (P-11).
+ */
+export function keptPhrase(request: Request): KeptPhrase | undefined {
+  const parts = request.kept ?? [];
+  if (parts.length === 0) return undefined;
+  const pending = parts.filter((part) => !part.erased_at);
+  if (pending.length === 0) {
+    const last = parts.map((part) => part.erased_at ?? '').sort().at(-1) ?? '';
+    return { code: 'app.privacy.kept_rest_erased', params: { at: last } };
+  }
+  const blocked = pending.find((part) => part.blocked);
+  if (blocked?.blocked) {
+    return { code: 'app.privacy.kept_waits', params: { holds: pending.length, rules: blocked.blocked.params?.rules ?? '' } };
+  }
+  return { code: 'app.privacy.kept_partly', params: { holds: pending.length } };
 }
 
 /**

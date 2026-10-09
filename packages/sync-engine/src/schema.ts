@@ -257,6 +257,9 @@ export type TrashEntry = components['schemas']['TrashEntry'];
 export type PurgeSummary = components['schemas']['PurgeSummary'];
 export type RetentionDataKind = components['schemas']['RetentionDataKind'];
 export type RetentionPolicy = components['schemas']['RetentionPolicy'];
+/** What one legal hold keeps, or kept, of an erasure, and what all of them would keep of one. */
+export type ErasureKept = components['schemas']['ErasureKept'];
+export type ErasurePreview = components['schemas']['ErasurePreview'];
 
 /**
  * How a workspace signs its people in through its own provider, and how that is set.

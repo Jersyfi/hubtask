@@ -77,14 +77,15 @@ export const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: 
 
 /**
  * People's requests: one that can still be extended (the server answers its bound), one extended
- * once, one installation-wide - the operator's, which the screen offers nothing on - and an erasure
- * waiting to be started, in full.
+ * once, one installation-wide - the operator's, which the screen offers nothing on - an erasure
+ * waiting to be started, in full, and one a legal hold kept part of.
  */
 export const PRIVACY_REQUESTS = [
   { id: '01a0e2e0-0000-7000-8000-0000000000a1', kind: 'ACCESS', status: 'RECEIVED', scope: 'TENANT', subject_email: 'open@example.invalid', received_at: '2026-09-11T08:00:00Z', due_at: '2026-10-11T08:00:00Z', extendable_until: '2026-12-11' },
   { id: '01a0e2e0-0000-7000-8000-0000000000a2', kind: 'PORTABILITY', status: 'IN_PROGRESS', scope: 'TENANT', subject_email: 'extended@example.invalid', received_at: '2026-09-01T08:00:00Z', due_at: '2026-11-20T22:59:59Z', original_due_at: '2026-10-01T08:00:00Z', extension_reason: 'NUMBER_OF_REQUESTS', informed_on: '2026-09-15' },
   { id: '01a0e2e0-0000-7000-8000-0000000000a3', kind: 'ACCESS', status: 'RECEIVED', scope: 'INSTALLATION', subject_email: 'everywhere@example.invalid', received_at: '2026-09-11T08:00:00Z', due_at: '2026-10-12T08:00:00Z', extendable_until: '2026-12-11' },
   { id: '01a0e2e0-0000-7000-8000-0000000000a4', kind: 'ERASURE', status: 'RECEIVED', scope: 'TENANT', subject_email: 'erase@example.invalid', erasure_mode: 'FULL_DELETE', received_at: '2026-09-11T08:00:00Z', due_at: '2026-10-13T08:00:00Z' },
+  { id: '01a0e2e0-0000-7000-8000-0000000000a5', kind: 'ERASURE', status: 'COMPLETED', scope: 'TENANT', subject_email: 'kept@example.invalid', erasure_mode: 'FULL_DELETE', received_at: '2026-09-01T08:00:00Z', due_at: '2026-10-01T08:00:00Z', completed_at: '2026-09-05T08:00:00Z', kept: [{ hold_id: '01a0e2e0-0000-7000-8000-0000000003a1', hold_scope: { kind: 'CONTAINER', id: '01a0e2e0-0000-7000-8000-0000000000b1' }, account: false, entries: 0, comments: 2, assignments: 1, intake: 0 }], kept_legal_basis: 'ART_17_3_E' },
 ];
 
 export function stub(route) {

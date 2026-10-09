@@ -175,6 +175,8 @@ export type {
   ReminderInput,
   ReminderState,
   ReminderUpdate,
+  ErasureKept,
+  ErasurePreview,
   RetentionDataKind,
   RetentionPolicy,
   SavedView,

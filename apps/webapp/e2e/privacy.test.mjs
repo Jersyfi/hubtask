@@ -21,7 +21,7 @@ import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
-const [OPEN, EXTENDED, INSTALLATION, ERASURE] = PRIVACY_REQUESTS;
+const [OPEN, EXTENDED, INSTALLATION, ERASURE, KEPT] = PRIVACY_REQUESTS;
 const WORKSPACE = {
   id: '01a0e2e0-0000-7000-8000-0000000000b0', slug: 'house', display_name: 'House', status: 'ACTIVE',
   default_locale: 'en', default_time_zone: 'Europe/Berlin', require_admin_totp: false,
@@ -51,6 +51,10 @@ async function open(browser, role = 'OWNER') {
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, roles: ROLES } });
     if (path === '/memberships' && new URL(request.url()).searchParams.get('scope_type') === 'TENANT') {
       return route.fulfill({ json: { data: [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role }], page: { next_cursor: null, has_more: false } } });
+    }
+    if (path.endsWith('/erasure-preview') && request.method() === 'GET') {
+      written.push({ path: `${path}?${new URL(request.url()).searchParams}`, preview: true });
+      return route.fulfill({ json: { mode: 'FULL_DELETE', kept: KEPT.kept } });
     }
     if (/^\/privacy\/requests\/[^/:]+$/.test(path) && request.method() === 'PATCH') {
       written.push({ path, body: request.postDataJSON() });
@@ -179,17 +183,22 @@ test('chromium: starting an erasure asks first, naming the person and what the m
     await dialog.waitFor();
     assert.match(await dialog.innerText(), new RegExp(`Erase ${ERASURE.subject_email}\\?`));
     assert.match(await dialog.innerText(), /account goes, and every comment they wrote goes with it/);
-    assert.equal(written.length, 0, 'the erasure started before it was confirmed');
+    // What the hold keeps, said before the start (UC-PRV-03 check 11), for the case's own mode.
+    await dialog.getByText('A hold on a hub or collection keeps 2 comments, 1 assignment').waitFor();
+    assert.match(await dialog.innerText(), /Art\. 17\(3\)\(e\)/);
+    assert.ok(written[0].preview && written[0].path.endsWith('mode=FULL_DELETE'), JSON.stringify(written));
+    written.length = 0;
 
     await dialog.locator('footer').getByRole('button', { name: 'Keep the case open' }).click();
-    assert.equal(written.length, 0);
+    assert.equal(written.filter((each) => !each.preview).length, 0);
 
     await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).click();
     await page.getByRole('dialog').locator('footer').getByRole('button', { name: 'Erase' }).click();
-    for (let waited = 0; written.length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
-    assert.equal(written.length, 1);
-    assert.ok(written[0].path.endsWith(ERASURE.id));
-    assert.deepEqual(written[0].body, { status: 'IN_PROGRESS' });
+    const writes = () => written.filter((each) => !each.preview);
+    for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
+    assert.equal(writes().length, 1);
+    assert.ok(writes()[0].path.endsWith(ERASURE.id));
+    assert.deepEqual(writes()[0].body, { status: 'IN_PROGRESS' });
     assert.deepEqual(failures, []);
     await close();
   } finally {
@@ -206,6 +215,20 @@ test('chromium: an administrator is not offered the start of an erasure', async 
     await page.waitForTimeout(200);
     assert.equal(await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).count(), 0);
     assert.equal(await row(page, OPEN).getByRole('button', { name: 'Start answering it' }).count(), 1);
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('chromium: a case a hold kept part of says so, with the legal basis', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await open(browser);
+    const text = await row(page, KEPT).innerText();
+    assert.match(text, /Partly completed: a legal hold keeps part of it, for legal claims \(Art\. 17\(3\)\(e\) GDPR\)/);
+    assert.match(text, /A hold on a hub or collection keeps 2 comments, 1 assignment and their name on 0 entries\./);
     assert.deepEqual(failures, []);
     await close();
   } finally {

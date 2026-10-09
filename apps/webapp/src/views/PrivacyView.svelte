@@ -32,6 +32,7 @@
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holds } from '../lib/data/capability.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import type { ErasureKept } from '@hubtask/sync-engine';
   import { backup } from '../lib/data/backup.svelte.ts';
   import {
     byDeadline,
@@ -39,6 +40,8 @@
     canExtend,
     canStart,
     confirmsStart,
+    keptPartPhrase,
+    keptPhrase,
     deadlineOfDay,
     deadlinePhrase,
     EXTENSION_REASONS,
@@ -84,6 +87,18 @@
 
   /** The erasure whose start is being confirmed (UC-PRV-03 check 8). */
   let confirming = $state<Request | undefined>(undefined);
+  /** What the holds in force would keep of it: read when the confirmation opens (check 11). */
+  let previewed = $state<'checking' | 'unknown' | readonly ErasureKept[]>('checking');
+
+  function beginConfirming(request: Request): void {
+    confirming = request;
+    previewed = 'checking';
+    void privacy.preview(request.id, request.erasure_mode ?? 'ANONYMIZE').then((answer) => {
+      if (confirming?.id === request.id) previewed = answer ? answer.kept : 'unknown';
+    });
+  }
+
+  const scopeWord = (part: ErasureKept) => t(`app.privacy.hold_scope_${part.hold_scope.kind.toLowerCase()}`);
 
   let restrictAccount = $state('');
   let restrictReason = $state('');
@@ -338,6 +353,18 @@
                 </p>
               {/if}
 
+              {#if keptPhrase(request)}
+                {@const kept = keptPhrase(request)}
+                <!-- Partly completed: what a hold kept, and why it may (UC-PRV-03 check 11). -->
+                <p class="quiet small">
+                  {kept ? t(kept.code, { ...kept.params, at: kept.params.at ? (when(String(kept.params.at)) ?? '') : '' }) : ''}
+                </p>
+                {#each (request.kept ?? []).filter((part) => !part.erased_at) as part (part.hold_id)}
+                  {@const line = keptPartPhrase(part, scopeWord(part))}
+                  <p class="quiet small">{t(line.code, line.params)}</p>
+                {/each}
+              {/if}
+
               {#if request.rejection_reason}
                 <p class="quiet small">
                   {t('app.privacy.rejected_because', { reason: request.rejection_reason })}
@@ -379,7 +406,7 @@
                         busyLabel={t('app.privacy.starting')}
                         onclick={() =>
                           confirmsStart(request)
-                            ? (confirming = request)
+                            ? beginConfirming(request)
                             : void attempt(() => privacy.change(request.id, { status: 'IN_PROGRESS' }), t('app.privacy.started_announced'))}
                       >
                         {t('app.privacy.start')}
@@ -677,6 +704,20 @@
         name: confirming ? subjectOf(confirming) : '',
       })}
     </p>
+    <!-- What a legal hold will keep, said before the start (UC-PRV-03 check 11). -->
+    {#if previewed === 'checking'}
+      <p class="quiet small">{t('app.privacy.preview_checking')}</p>
+    {:else if previewed === 'unknown'}
+      <p class="quiet small">{t('app.privacy.preview_unknown')}</p>
+    {:else if previewed.length === 0}
+      <p class="quiet small">{t('app.privacy.preview_none')}</p>
+    {:else}
+      <p>{t('app.privacy.preview_intro')}</p>
+      {#each previewed as part (part.hold_id)}
+        {@const line = keptPartPhrase(part, scopeWord(part))}
+        <p class="small">{t(line.code, line.params)}</p>
+      {/each}
+    {/if}
   </Stack>
 </Dialog>
 
