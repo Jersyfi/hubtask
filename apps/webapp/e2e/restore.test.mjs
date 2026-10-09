@@ -27,7 +27,12 @@ const ROLES = [
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser, role) {
+const HOLD = {
+  id: '01a0e2e0-0000-7000-8000-0000000003a1', reason: 'Pending litigation',
+  placed_by: ACCOUNT.id, placed_at: '2026-09-20T08:00:00Z', scope: { kind: 'TENANT' },
+};
+
+async function open(browser, role, holds = []) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
@@ -40,7 +45,7 @@ async function open(browser, role) {
       ], page: { next_cursor: null, has_more: false } } });
     }
     if (path === '/backup-targets') return route.fulfill({ json: [] });
-    if (path === '/legal-holds') return route.fulfill({ json: [] });
+    if (path === '/legal-holds') return route.fulfill({ json: holds });
     return stub(route);
   });
   await context.addInitScript(() => {
@@ -81,6 +86,24 @@ test('chromium: an administrator is not offered replacing the workspace', async 
     const modes = await offeredModes(page);
     assert.equal(modes.length, 3, modes.join(', '));
     assert.ok(!modes.includes('Replace this workspace'));
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+// Under a legal hold the owner may still choose and rehearse a replace, and the screen says before
+// the rehearsal that it will not run while a hold stands (backup-restore.md §8.2).
+test('chromium: under a legal hold the screen says a replace will not run', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await open(browser, 'OWNER', [HOLD]);
+    assert.ok((await offeredModes(page)).includes('Replace this workspace'));
+    assert.equal(await page.getByText('A legal hold is in force', { exact: true }).count(), 0);
+    await page.getByLabel('How').selectOption('REPLACE_TENANT');
+    await page.getByText('A legal hold is in force', { exact: true }).waitFor();
+    assert.match(await page.locator('main').textContent() ?? '', /cannot be reset to a backup/);
     assert.deepEqual(failures, []);
     await close();
   } finally {

@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isDestructive, MODES, offeredModes, type Mode } from './restore.ts';
+import { isDestructive, mayRunForReal, MODES, offeredModes, type Mode } from './restore.ts';
 
 test('replacing the workspace is the destructive mode, and the other three are not', () => {
   assert.ok(isDestructive('REPLACE_TENANT'));
@@ -25,6 +25,16 @@ test('replacing the workspace is offered only to a role that may destroy what is
   // to an administrator would be a button that leads to a refusal the screen knew in advance (P-05).
   assert.deepEqual([...offeredModes(true)], ['INSPECT', 'SELECTIVE', 'MERGE', 'REPLACE_TENANT']);
   assert.deepEqual([...offeredModes(false)], ['INSPECT', 'SELECTIVE', 'MERGE']);
+});
+
+test('under a legal hold a replace may be rehearsed and not run, and the other modes run', () => {
+  // The server refuses the real replace while any hold is in force (backup-restore.md §8.2); the
+  // rehearsal writes nothing and stays possible.
+  assert.ok(!mayRunForReal('REPLACE_TENANT', true));
+  assert.ok(mayRunForReal('REPLACE_TENANT', false));
+  for (const mode of ['INSPECT', 'SELECTIVE', 'MERGE'] as Mode[]) {
+    assert.ok(mayRunForReal(mode, true), mode);
+  }
 });
 
 test('the two modes that cross or create a tenant are not among the ones offered', () => {

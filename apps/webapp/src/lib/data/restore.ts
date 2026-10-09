@@ -29,6 +29,15 @@ export function offeredModes(mayReplace: boolean): readonly Mode[] {
 }
 
 /**
+ * Whether a rehearsed mode may be run for real. A replace is refused while a legal hold is in force
+ * in the workspace (backup-restore.md §8.2); its rehearsal writes nothing and stays possible. A
+ * prediction from the holds list - the server decides (P-05).
+ */
+export function mayRunForReal(mode: Mode, holdInForce: boolean): boolean {
+  return !(isDestructive(mode) && holdInForce);
+}
+
+/**
  * The modes that replace what is here, and therefore need all three doors.
  *
  * A function rather than a comparison at each call site: "which of these is the dangerous one" is

@@ -250,6 +250,16 @@
                       {t('app.instance.purge_after', { at: formatDateTime(workspace.purge_after, messages.locale) })}
                     </span>
                   {/if}
+                  {#if workspace.legal_hold}
+                    <!-- That a legal hold stands, and what it means here - never which hold: that
+                         stays the workspace's (P-01). It is why Delete is not offered (P-05). -->
+                    <Badge tone="warning">{t('app.instance.legal_hold')}</Badge>
+                    <span class="slug">
+                      {workspace.status === 'PENDING_DELETION'
+                        ? t('app.instance.legal_hold_waits')
+                        : t('app.instance.legal_hold_note')}
+                    </span>
+                  {/if}
                 </td>
                 <td class="slug">{formatDateTime(workspace.created_at, messages.locale)}</td>
                 <td>
@@ -295,7 +305,7 @@
                         {t('app.instance.password_open_action')}
                       </Button>
                     {/if}
-                    {#if workspace.status !== 'PENDING_DELETION'}
+                    {#if workspace.status !== 'PENDING_DELETION' && !workspace.legal_hold}
                       <Button tone="subtle" onclick={() => open('delete', workspace)}>
                         {t('app.instance.delete')}
                       </Button>
