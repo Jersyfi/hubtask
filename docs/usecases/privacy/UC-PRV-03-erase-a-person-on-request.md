@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-08, P-11]
 state: partial
 tasks: [E-10, E-11, H-13, F4-20, PH-01, PH-09]
-checked_by: [core/application/service/privacy/Erasure_test.go, core/application/service/privacy/Perform_test.go, test/integration/privacy_test.go, test/privacy/PG2_deletion_test.go, core/domain/model/privacy/Request_test.go]
+checked_by: [core/application/service/privacy/Erasure_test.go, core/application/service/privacy/Perform_test.go, test/integration/privacy_test.go, test/privacy/PG2_deletion_test.go, core/domain/model/privacy/Request_test.go, core/domain/model/privacy/Plan_test.go, core/application/service/privacy/Preview_test.go, core/application/service/privacy/Remainder_test.go, test/integration/privacy_hold_test.go, test/integration/privacy_remainder_test.go, test/retention/account_hold_test.go, test/contract/privacy_kept_test.go, apps/webapp/e2e/privacy.test.mjs]
 ---
 
 # Erase a person on request
@@ -75,9 +75,4 @@ See [data-protection.md](../../architecture/data-protection.md) §4–5.
 
 ## Today
 
-* Check 8: not met — *Start answering it* on an erasure case starts the job at once, without a confirmation naming the person or what the mode removes, tracked in #1077.
-* Check 9: not met — the erasure reads no legal hold, so it does not keep what a hold covers, tracked in #1086.
-* Check 10: not met — the erasure reads no legal hold, not even one on the whole workspace, and a hold on an account is refused, tracked in #1086.
-* Check 11: not met — a case never closes as partly completed, and the confirmation says nothing about holds, tracked in #1086.
-* Check 12: not met — releasing a hold carries out nothing, tracked in #1086.
-* Check 13: not met — a hold on an account is refused, tracked in #1086.
+* Check 10: not met — what a hold keeps is restricted but not yet kept out of automation, AI and every export but the hold's own, tracked in PH-09.
