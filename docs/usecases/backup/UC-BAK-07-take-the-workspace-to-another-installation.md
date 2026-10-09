@@ -22,8 +22,8 @@ Hubtask installation can take in as a workspace of its own, and that any other t
 A customer of a provider (`D6`) moves to their own server. The provider's operator exports the
 workspace — whether it is active, suspended or about to be deleted — to a target; the archive is
 the documented format (a manifest, JSON Lines per kind of record, the media), always complete and
-never encrypted, with every credential column left out. The customer's administrator puts it on a
-target of their new installation and restores it there as a *new workspace*. The people sign in
+never encrypted, with every credential column left out. The customer, as the operator of their new
+installation, puts it on a target there and restores it as a *new workspace*. The people sign in
 again and make new tokens; the tasks, comments, labels, files and the trail are all there. A private
 self-hoster (`D1`) does the same as the operator of their own installation.
 
@@ -53,4 +53,4 @@ self-hoster (`D1`) does the same as the operator of their own installation.
 
 ## Today
 
-* Check 5: not met — a restore compares the archive's workspace identifier with the asking workspace in every mode, *new workspace* included, so an archive from another installation is refused with `backup.restore_archive_scope_mismatch`; the web app also hides the *new workspace* mode, tracked in #1074.
+* Check 5: not met — a restore compares the archive's workspace identifier with the asking workspace in every mode, *new workspace* included, so an archive from another installation is refused with `backup.restore_archive_scope_mismatch`; the web app also hides the *new workspace* mode, tracked in #1074. Decided, not built: the operator's *new workspace* restore accepts and lists an archive of a workspace the installation does not hold ([backup-restore.md](../../architecture/backup-restore.md) §8.2).

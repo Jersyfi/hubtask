@@ -824,7 +824,7 @@ const lastContainerOrderKey = `-- name: LastContainerOrderKey :one
 SELECT order_key
 FROM container
 WHERE parent_id IS NOT DISTINCT FROM $1::uuid
-ORDER BY order_key DESC
+ORDER BY order_key COLLATE "C" DESC
 LIMIT 1
 `
 
@@ -833,6 +833,9 @@ LIMIT 1
 // is unknown, and the hubs would come back as no rows at all.
 //
 // Trashed containers count. Their rank is still occupied - a restore has to land where it was.
+//
+// COLLATE "C" for the reason migration 0007 gives: a rank key is a fractional index that rests on
+// byte order, and under a linguistic collation "Zz" would sort above "a0".
 func (q *Queries) LastContainerOrderKey(ctx context.Context, parentID pgtype.UUID) (string, error) {
 	row := q.db.QueryRow(ctx, lastContainerOrderKey, parentID)
 	var order_key string
@@ -845,7 +848,7 @@ SELECT order_key
 FROM work_item
 WHERE collection_id = $1::uuid
   AND parent_id IS NOT DISTINCT FROM $2::uuid
-ORDER BY order_key DESC
+ORDER BY order_key COLLATE "C" DESC
 LIMIT 1
 `
 
@@ -859,6 +862,9 @@ type LastWorkItemOrderKeyParams struct {
 // rather than `=` - `NULL = NULL` is unknown, and the tasks would come back as no rows at all.
 //
 // Trashed items count. Their rank is still occupied; a restore has to land where it was.
+//
+// COLLATE "C" for the reason migration 0007 gives: a rank key is a fractional index that rests on
+// byte order, and under a linguistic collation "Zz" would sort above "a0".
 func (q *Queries) LastWorkItemOrderKey(ctx context.Context, arg LastWorkItemOrderKeyParams) (string, error) {
 	row := q.db.QueryRow(ctx, lastWorkItemOrderKey, arg.CollectionID, arg.ParentID)
 	var order_key string
@@ -1797,22 +1803,28 @@ func (q *Queries) SetWorkItemDueDate(ctx context.Context, arg SetWorkItemDueDate
 const setWorkItemOrderKey = `-- name: SetWorkItemOrderKey :execrows
 UPDATE work_item SET
   order_key  = $1,
-  updated_at = $2,
+  bucket_id  = $2::uuid,
+  updated_at = $3,
   version    = version + 1
-WHERE id = $3::uuid AND version = $4
+WHERE id = $4::uuid AND version = $5
 `
 
 type SetWorkItemOrderKeyParams struct {
 	OrderKey        string
+	BucketID        pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
 }
 
-// A reorder within one level: the rank alone, which is the whole of what drag and drop changes.
+// A reorder within one level: the rank and the column, which is the whole of what drag and drop
+// changes. The column is written although a plain reorder keeps it: a card dragged to another column
+// of the same board stays on its level, and a statement that left the column out would drop that half
+// of the move.
 func (q *Queries) SetWorkItemOrderKey(ctx context.Context, arg SetWorkItemOrderKeyParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setWorkItemOrderKey,
 		arg.OrderKey,
+		arg.BucketID,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,

@@ -201,8 +201,9 @@ trail entries removed; for an opening of the password: its end, and that a reque
 were given — never their texts, which stay in the workspace's own trail). Never content.
 
 * **It belongs to no tenant** — no row policy ([multi-tenancy.md](./multi-tenancy.md) §2.1). Written
-  only by the tenant lifecycle and instance use cases, append-only for the application role, served
-  by no API — the operator reads it at the database.
+  only by the tenant lifecycle and instance use cases, append-only for the application role. The
+  operator reads it through `GET /admin/journal`, newest first, behind `admin:tenants` and the
+  operator register.
 * **It commits with the act.** The hard delete writes the evidence, purges the trail through
   `purge_tenant_trail`, and lets the cascade take the rest, in one transaction.
 * **It is not chained.** Here a chain would attest the operator to the operator; its integrity rests
@@ -240,9 +241,6 @@ exists. The journal is the floor under the trail, not a copy of it.
 | AT-5 | The audit entry and the business change are atomic (a rollback leaves no entry) |
 | AT-6 | The automation and MCP paths produce the same audit entries as the REST path (channel parity) |
 | AT-7 | Deleting an account leaves its audit entries readable (the denormalised `actor_label`) |
-
-An older prefix, `AU-n`, still appears in places: AU-1 is SG-13, AU-2 is AT-1, AU-4 is AT-4, and the
-set AU-1…AU-7 is AT-1…AT-7.
 
 ---
 

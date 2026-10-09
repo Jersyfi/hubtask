@@ -50,8 +50,9 @@ trail the person's old entries stay, and every read of them now shows a pseudony
    still holds the person's personal data, apart from the trail's metadata **and what a legal hold
    keeps** (check 10).
 10. Data a legal hold covers — a hold on the workspace, a hub, a collection, an entry, or on the
-    person's account — is not erased or anonymised but restricted: out of automation, AI and every
-    export except the hold's own. Everything no hold covers is erased as usual.
+    person's account — is not erased or anonymised but restricted: out of automation and AI; it
+    stays in backups, the workspace export and the person's own copy of their data (Art. 15).
+    Everything no hold covers is erased as usual.
 11. A case that kept something closes as partly completed and names how much was kept, under which
     hold, and the legal basis (Art. 17(3)(e)); the confirmation before starting says in advance
     what a hold will keep.
@@ -77,7 +78,7 @@ See [data-protection.md](../../architecture/data-protection.md) §4–5.
 
 * Check 8: not met — *Start answering it* on an erasure case starts the job at once, without a confirmation naming the person or what the mode removes, tracked in #1077.
 * Check 9: not met — the erasure reads no legal hold, so it does not keep what a hold covers, tracked in #1086.
-* Check 10: not met — the erasure reads no legal hold, not even one on the whole workspace, and a hold on an account is refused, tracked in #1086.
+* Check 10: not met — the erasure reads no legal hold, not even one on the whole workspace, and a hold on an account is refused, tracked in #1086; automation and AI read a restricted person's data, tracked in #1227.
 * Check 11: not met — a case never closes as partly completed, and the confirmation says nothing about holds, tracked in #1086.
 * Check 12: not met — releasing a hold carries out nothing, tracked in #1086.
 * Check 13: not met — a hold on an account is refused, tracked in #1086.

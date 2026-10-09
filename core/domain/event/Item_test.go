@@ -232,11 +232,53 @@ func TestTheMoveEventCarriesBothEndsOfTheMove(t *testing.T) {
 	if envelope.Payload["from_collection_id"] != nil {
 		t.Errorf("from_collection_id is %v on a move within one collection", envelope.Payload["from_collection_id"])
 	}
-	// Reserved and null until buckets exist, and present so a kanban consumer can be written now.
-	for _, field := range []string{"from_bucket_id", "to_bucket_id"} {
-		if value, present := envelope.Payload[field]; !present || value != nil {
-			t.Errorf("%s is %v (present=%v), want a null that is there", field, value, present)
-		}
+}
+
+// The columns either side of a move, which is what a kanban rule reacts to. Both are always there, a
+// null meaning "on no column", so a rule compares the two without first asking whether they exist.
+func TestTheMoveEventCarriesTheColumnsEitherSide(t *testing.T) {
+	todo := shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	doing := shared.MustParseID("0192f000-0000-7000-8000-0000000000b2")
+	id := shared.MustParseID("0192f000-0000-7000-8000-000000000017")
+	at := time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		name     string
+		from, to shared.ID
+		wantFrom any
+		wantTo   any
+	}{
+		{name: "into another column", from: todo, to: doing, wantFrom: todo.String(), wantTo: doing.String()},
+		{name: "within its column", from: todo, to: todo, wantFrom: todo.String(), wantTo: todo.String()},
+		{name: "onto the board", from: "", to: doing, wantFrom: nil, wantTo: doing.String()},
+		{name: "off the board", from: todo, to: "", wantFrom: todo.String(), wantTo: nil},
+		{name: "never on the board", from: "", to: "", wantFrom: nil, wantTo: nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			item := work.WorkItem{
+				ID: id, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+				CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+				Type:         work.ItemTask, Path: work.RootPath(id), Depth: 1,
+				Title: "Weekly shop", OrderKey: "a1", BucketID: tc.to,
+				CreatedBy: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+				CreatedAt: at, UpdatedAt: at, Version: 2,
+			}
+
+			envelope, err := NewItemMoved(
+				shared.MustParseID("0192f000-0000-7000-8000-0000000000f3"), item,
+				Movement{FromPath: item.Path, FromCollectionID: item.CollectionID, FromBucketID: tc.from},
+				Actor{Kind: shared.ActorUser, ID: item.CreatedBy}, at, Cause{})
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			for field, want := range map[string]any{"from_bucket_id": tc.wantFrom, "to_bucket_id": tc.wantTo} {
+				if value, present := envelope.Payload[field]; !present || value != want {
+					t.Errorf("%s is %v (present=%v), want %v", field, value, present, want)
+				}
+			}
+		})
 	}
 }
 

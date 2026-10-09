@@ -41,6 +41,7 @@ TENANT_ID="01936f2a-7c1e-7000-8000-00000000e2e0"
 ACCOUNT_ID="01936f2a-7c1e-7000-8000-00000000e2e1"
 MEMBERSHIP_ID="01936f2a-7c1e-7000-8000-00000000e2e2"
 TOKEN_ROW_ID="01936f2a-7c1e-7000-8000-00000000e2e3"
+OPERATOR_DRILL_TOKEN_ROW="01936f2a-7c1e-7000-8000-00000000e2e4"
 
 # The closing act runs against a second stack, because the tenancy mode is read once at start-up
 # and the hour above is spent in single mode (compose-smoke.sh does the same for its control plane).
@@ -802,8 +803,34 @@ fi
 # its own. The minted workspace's identifier comes back on the run, and the comparison is
 # the drill's whole point - the new workspace holds exactly as many entries as the source did,
 # counted in the database on both sides rather than looked at.
-new_tenant="$(hubctl --json restore run --target "$TARGET_ID" --archive "$ARCHIVE" \
-	--mode NEW_TENANT --apply --wait 5m)"
+#
+# A new workspace is the installation operator's (§8.2), so the session's own credential - a
+# workspace administrator's - is refused, and the drill runs on one that carries `admin:tenants`
+# as well. That one is seeded the way the bootstrap is, because minting it through the API asks
+# for a step-up this hour has no second factor for; the register is empty, so the workspace's
+# owner is the operator.
+set +e
+refused="$(hubctl --json restore run --target "$TARGET_ID" --archive "$ARCHIVE" \
+	--mode NEW_TENANT --apply 2>&1)"
+refused_status=$?
+set -e
+if [ "$refused_status" -eq 0 ]; then
+	fail "a workspace administrator's credential started a NEW_TENANT restore: $refused"
+fi
+expect_contains "restore run --mode NEW_TENANT without admin:tenants" "$refused" "admin:tenants"
+
+read -r OPERATOR_DRILL_TOKEN OPERATOR_DRILL_HASH < <(HUBTASK_SECRET_KEY="$INSTALLATION_SECRET" go run ./test/e2e/mint --tenant "$TENANT_ID")
+compose_in_place exec -T db psql -U hubtask -d hubtask -v ON_ERROR_STOP=1 -q <<SQL
+INSERT INTO access_token
+    (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
+  VALUES ('$OPERATOR_DRILL_TOKEN_ROW', '$TENANT_ID', '$ACCOUNT_ID', 'the restore drill',
+          decode('$OPERATOR_DRILL_HASH', 'hex'), 'hbt_pat_',
+          ARRAY['backup:manage','backup:read','jobs:read','admin:tenants'],
+          now() + interval '10 minutes');
+SQL
+new_tenant="$(HUBTASK_TOKEN="$OPERATOR_DRILL_TOKEN" hubctl --json restore run --target "$TARGET_ID" \
+	--archive "$ARCHIVE" --mode NEW_TENANT --apply --wait 5m)"
+hubctl token revoke "$OPERATOR_DRILL_TOKEN_ROW" >/dev/null
 expect_contains "restore run --mode NEW_TENANT" "$new_tenant" '"status": "SUCCEEDED"'
 NEW_TENANT_ID="$(printf '%s\n' "$new_tenant" | grep -o '"tenant_id": "[0-9a-f-]*"' | head -1 | cut -d'"' -f4)"
 [ -n "$NEW_TENANT_ID" ] || { echo "FAILED: the NEW_TENANT restore named no workspace: $new_tenant"; exit 1; }
