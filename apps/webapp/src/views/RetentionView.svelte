@@ -105,7 +105,9 @@
     ]),
   );
   $effect(() => {
-    const named = policies.placed.filter((hold) => hold.scope.kind === 'ACCOUNT').map((hold) => hold.scope.id);
+    // Guarded: an answer that is not a list (an older server, a stub) names nobody.
+    const placed = Array.isArray(policies.placed) ? policies.placed : [];
+    const named = placed.filter((hold) => hold.scope.kind === 'ACCOUNT').map((hold) => hold.scope.id);
     untrack(() => accounts.resolve(named));
   });
 
