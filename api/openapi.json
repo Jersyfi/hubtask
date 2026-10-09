@@ -2646,7 +2646,7 @@
         ],
         "operationId": "listBackupsAtTarget",
         "summary": "List the backups present at the target",
-        "description": "Reads the manifests **at the target**, not from the database. That means the listing\nworks even after a total loss, as long as the target credentials are known.\n",
+        "description": "Reads the manifests **at the target**, not from the database. That means the listing\nworks even after a total loss, as long as the target credentials are known.\n\nIt answers the workspace's own archives. A credential carrying `admin:tenants` - the\ninstallation operator's - also sees archives of workspaces this installation does not\nhold, such as an export written by another installation, which a `NEW_TENANT` restore\ntakes; never an archive of another workspace that exists here.\n",
         "parameters": [
           {
             "name": "targetId",

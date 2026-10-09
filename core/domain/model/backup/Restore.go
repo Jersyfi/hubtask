@@ -472,6 +472,10 @@ const (
 	// which is BK-10's refusal. It is the one every mode is checked for, at the listing, at the
 	// dry run and at the execution.
 	CodeRestoreArchiveScopeMismatch = "backup.restore_archive_scope_mismatch"
+	// CodeRestoreForeignArchiveEncrypted is an encrypted archive of a workspace this installation
+	// does not hold. Its key comes from another installation's master key, so the refusal says
+	// that rather than arriving later as a decryption error (backup-restore.md §4).
+	CodeRestoreForeignArchiveEncrypted = "backup.restore_foreign_archive_encrypted"
 	// CodeRestoreTenantNotNew is a NEW_TENANT restore whose destination already exists. The mode's
 	// safety argument is that the identifier was minted by the use case a moment ago, so nothing
 	// of anybody else's can be under it - and a run row that names a living tenant, however it
