@@ -5,7 +5,7 @@ context: backup
 actors: [PE-owner, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-03, P-04, P-08, P-11]
-state: built
+state: partial
 tasks: [E-06, H-03, F4-17]
 checked_by: [core/application/service/backup/Apply_test.go, core/application/service/backup/Restore_test.go, test/backup/Restore_test.go, test/integration/restore_run_test.go]
 ---
@@ -41,8 +41,9 @@ removed.
    `backup.restore_safety_copy_unavailable`; the safety copy's name is recorded on the run before
    the replace begins.
 4. The dialog states, before the owner confirms, that sessions end and tokens must be made again.
-5. After a replace, the workspace holds exactly what the archive held; nothing removed for good or
-   erased since the archive comes back.
+5. After a replace, the workspace holds exactly what the archive held, apart from its legal holds,
+   which stay the workspace's, and an account's restriction of processing, which stays in force;
+   nothing removed for good or erased since the archive comes back.
 6. No automation rule fires and no webhook is sent for the restored changes; reminders whose time
    has passed are *lapsed*, not sent.
 7. A second restore while one is running is refused with `backup.restore_in_progress`; an archive
@@ -60,3 +61,7 @@ removed.
   `backup.restore_instance_is_the_operators`, which points at the operator's procedure.
 
 See [backup-restore.md](../../architecture/backup-restore.md) §8.
+
+## Today
+
+* Check 5: not met — a replace clears the workspace's legal holds and writes the archive's, tracked in #1228, and writes the archive's account status over a live restriction, tracked in #1240.

@@ -39,6 +39,9 @@ that period *Cancel deletion* brings it back.
 
 * No partial deletion (one hub of a customer) from the installation level.
 * Why a workspace is suspended is not recorded in Hubtask ([P-15](../../vision/principles.md)).
+* A workspace under a legal hold is not deleted: the request is refused, and one already pending
+  deletion stays pending until the last hold is released
+  ([UC-LIF-06](../lifecycle/UC-LIF-06-place-a-legal-hold.md)).
 
 ## Today
 
