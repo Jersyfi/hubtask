@@ -265,7 +265,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-BAK-04](./backup/UC-BAK-04-keep-backups-readable-only-by-us.md) | Keep backups unreadable to the target, and readable to us after a loss | backup | partial |
 | [UC-BAK-05](./backup/UC-BAK-05-reset-the-workspace-to-a-backup.md) | Reset the whole workspace to an earlier backup | backup | partial |
 | [UC-BAK-06](./backup/UC-BAK-06-get-one-thing-back-from-a-backup.md) | Get one lost collection or task back from a backup | backup | partial |
-| [UC-BAK-07](./backup/UC-BAK-07-take-the-workspace-to-another-installation.md) | Take the whole workspace to another installation | backup | partial |
+| [UC-BAK-07](./backup/UC-BAK-07-take-the-workspace-to-another-installation.md) | Take the whole workspace to another installation | backup | built |
 | [UC-BAK-08](./backup/UC-BAK-08-recover-the-whole-installation.md) | Recover the whole installation after losing the server | backup | partial |
 | [UC-PRV-01](./privacy/UC-PRV-01-answer-a-data-subject-request-in-time.md) | Record a data subject request and answer it in time | privacy | partial |
 | [UC-PRV-02](./privacy/UC-PRV-02-give-a-person-a-copy-of-their-data.md) | Give a person a copy of their data | privacy | built |

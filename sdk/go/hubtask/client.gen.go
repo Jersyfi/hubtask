@@ -11376,6 +11376,11 @@ type ClientInterface interface {
 	// Reads the manifests **at the target**, not from the database. That means the listing
 	// works even after a total loss, as long as the target credentials are known.
 	//
+	// It answers the workspace's own archives. A credential carrying `admin:tenants` - the
+	// installation operator's - also sees archives of workspaces this installation does not
+	// hold, such as an export written by another installation, which a `NEW_TENANT` restore
+	// takes; never an archive of another workspace that exists here.
+	//
 	// Corresponds with GET /backup-targets/{targetId}/backups (the `ListBackupsAtTarget` operationId).
 	ListBackupsAtTarget(ctx context.Context, targetId openapi_types.UUID, params *ListBackupsAtTargetParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -16408,6 +16413,11 @@ func (c *Client) DeleteBackupTarget(ctx context.Context, targetId openapi_types.
 //
 // Reads the manifests **at the target**, not from the database. That means the listing
 // works even after a total loss, as long as the target credentials are known.
+//
+// It answers the workspace's own archives. A credential carrying `admin:tenants` - the
+// installation operator's - also sees archives of workspaces this installation does not
+// hold, such as an export written by another installation, which a `NEW_TENANT` restore
+// takes; never an archive of another workspace that exists here.
 //
 // Corresponds with GET /backup-targets/{targetId}/backups (the `ListBackupsAtTarget` operationId).
 func (c *Client) ListBackupsAtTarget(ctx context.Context, targetId openapi_types.UUID, params *ListBackupsAtTargetParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -36347,6 +36357,11 @@ type ClientWithResponsesInterface interface {
 	// Reads the manifests **at the target**, not from the database. That means the listing
 	// works even after a total loss, as long as the target credentials are known.
 	//
+	// It answers the workspace's own archives. A credential carrying `admin:tenants` - the
+	// installation operator's - also sees archives of workspaces this installation does not
+	// hold, such as an export written by another installation, which a `NEW_TENANT` restore
+	// takes; never an archive of another workspace that exists here.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /backup-targets/{targetId}/backups (the `ListBackupsAtTarget` operationId).
@@ -54918,6 +54933,11 @@ func (c *ClientWithResponses) DeleteBackupTargetWithResponse(ctx context.Context
 //
 // Reads the manifests **at the target**, not from the database. That means the listing
 // works even after a total loss, as long as the target credentials are known.
+//
+// It answers the workspace's own archives. A credential carrying `admin:tenants` - the
+// installation operator's - also sees archives of workspaces this installation does not
+// hold, such as an export written by another installation, which a `NEW_TENANT` restore
+// takes; never an archive of another workspace that exists here.
 //
 // Returns a wrapper object for the known response body format(s).
 //

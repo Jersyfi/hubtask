@@ -234,7 +234,19 @@ func (e *epochDouble) Advance(context.Context) (int64, error) {
 // back in.
 func newApplyHarness(t *testing.T, seed func(*rows)) *applyHarness {
 	t.Helper()
+	return newApplyHarnessAt(t, "", seed)
+}
+
+// newApplyHarnessAt is newApplyHarness at a target encrypting as asked; empty keeps the harness's
+// own target. EncryptionNone is the shape of an export (tenant-export.md §4).
+func newApplyHarnessAt(t *testing.T, encryption domain.EncryptionMode, seed func(*rows)) *applyHarness {
+	t.Helper()
 	performing := newPerformHarness(t)
+	if encryption != "" {
+		target := performing.targets.stored[0]
+		target.EncryptionMode = encryption
+		performing.targets.stored[0] = target
+	}
 	seed(performing.export)
 
 	run, err := performing.performer().Perform(context.Background(), performInput())
@@ -829,32 +841,104 @@ func TestADestructiveModeWithNoSafetyCopyIsRefused(t *testing.T) {
 	}
 }
 
-// BK-10 at the dry run and at the execution, not only at the listing. The manifest is compared
-// against the tenant that asked - the archive's owner - so a run row in tenant B pointing at A's
-// archive path on a shared target is refused whatever mode it names, NEW_TENANT included.
-func TestAnArchiveOfAnotherTenantIsRefusedAtTheRestore(t *testing.T) {
+// BK-10 at the dry run and at the execution, not only at the listing (backup-restore.md §8.2). The
+// manifest is compared against the tenant that asked: its own archive every mode takes; an archive
+// of another workspace this installation holds no mode takes, NEW_TENANT included; an archive of a
+// workspace this installation does not hold only NEW_TENANT takes - another installation's export.
+func TestWhoseArchiveARestoreTakes(t *testing.T) {
 	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000ff")
-	for name, change := range map[string]func(*domain.Restore){
-		"MERGE":      func(r *domain.Restore) { r.TenantID = other },
-		"NEW_TENANT": func(r *domain.Restore) { r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant },
-	} {
-		t.Run(name, func(t *testing.T) {
-			h := newApplyHarness(t, containerRows)
-			in := h.accept(t, change)
-			// The asker is the tenant the run row lives in, and here it is not the tenant the
-			// archive's manifest names.
-			in.TenantID = other
+	origins := []struct {
+		name   string
+		origin domain.ArchiveOrigin
+		asker  shared.ID
+		// held says whether this installation holds the workspace the archive's manifest names.
+		held bool
+	}{
+		{"own workspace", domain.ArchiveOfOwnWorkspace, tenantID, true},
+		{"other local workspace", domain.ArchiveOfLocalWorkspace, other, true},
+		{"unknown workspace", domain.ArchiveOfUnknownWorkspace, other, false},
+	}
+	modes := []domain.RestoreMode{
+		domain.RestoreInspect, domain.RestoreSelective, domain.RestoreMerge,
+		domain.RestoreReplaceTenant, domain.RestoreNewTenant,
+	}
+	for _, origin := range origins {
+		for _, mode := range modes {
+			for _, dry := range []bool{true, false} {
+				name := origin.name + "/" + string(mode) + map[bool]string{true: "/dry", false: "/real"}[dry]
+				t.Run(name, func(t *testing.T) {
+					h := newApplyHarnessAt(t, domain.EncryptionNone, containerRows)
+					if origin.held {
+						h.imports.tables["tenant"] = map[string]map[string]any{
+							tenantID.String(): {"id": tenantID.String()},
+						}
+					}
+					in := h.accept(t, func(r *domain.Restore) {
+						r.Mode, r.TenantID, r.DryRun = mode, origin.asker, dry
+						r.Selection = domain.Selection{ContainerIDs: []shared.ID{"c1"}}
+						if mode == domain.RestoreNewTenant {
+							r.TenantID = mintedTenant
+						}
+					})
+					in.TenantID = origin.asker
 
-			_, err := h.applier().Apply(context.Background(), in)
+					_, err := h.applier().Apply(context.Background(), in)
 
-			var domainErr *shared.Error
-			if !errors.As(err, &domainErr) || domainErr.DetailCode != domain.CodeRestoreArchiveScopeMismatch {
-				t.Fatalf("refused with %v", err)
+					var domainErr *shared.Error
+					refused := errors.As(err, &domainErr) &&
+						domainErr.DetailCode == domain.CodeRestoreArchiveScopeMismatch
+					if want := mode.Accepts(origin.origin); refused == want {
+						t.Fatalf("accepted is %v, want %v (err %v)", !refused, want, err)
+					}
+					if refused && h.imports.writes != 0 {
+						t.Error("the restore wrote something before the scope was checked")
+					}
+				})
 			}
-			if h.imports.writes != 0 {
-				t.Error("the restore wrote something before the scope was checked")
-			}
-		})
+		}
+	}
+}
+
+// The provider-migration path end to end in the applier: an operator's NEW_TENANT of an export
+// whose workspace this installation does not hold lands its rows in the minted workspace.
+func TestANewTenantRestoreTakesAnArchiveFromAnotherInstallation(t *testing.T) {
+	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000fe")
+	h := newApplyHarnessAt(t, domain.EncryptionNone, containerRows)
+	in := h.accept(t, func(r *domain.Restore) {
+		r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant
+	})
+	in.TenantID = elsewhere
+
+	report, err := h.applier().Apply(context.Background(), in)
+	if err != nil {
+		t.Fatalf("restoring another installation's archive as a new workspace: %v", err)
+	}
+	if report.New != 3 || len(h.imports.tables["work_item"]) != 2 {
+		t.Errorf("%d records restored and %d items landed, want the container and the two items",
+			report.New, len(h.imports.tables["work_item"]))
+	}
+}
+
+// An encrypted archive from another installation is out of reach: its key is derived from a master
+// key this installation does not hold. Refused by its own code before anything is read, rather
+// than as a decryption error half way through.
+func TestAnEncryptedArchiveFromAnotherInstallationIsRefusedByName(t *testing.T) {
+	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000fe")
+	h := newApplyHarness(t, containerRows)
+	in := h.accept(t, func(r *domain.Restore) {
+		r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant
+	})
+	in.TenantID = elsewhere
+
+	_, err := h.applier().Apply(context.Background(), in)
+
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != domain.CodeRestoreForeignArchiveEncrypted {
+		t.Fatalf("refused with %v", err)
+	}
+	if h.imports.writes != 0 || len(h.keys.purposes) != 1 {
+		t.Errorf("the refused restore wrote %d rows and derived %d keys (the run's one only)",
+			h.imports.writes, len(h.keys.purposes))
 	}
 }
 
