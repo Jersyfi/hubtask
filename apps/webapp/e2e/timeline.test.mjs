@@ -41,9 +41,13 @@ const dayIn = (iso, zone) => new Intl.DateTimeFormat('en-CA', { timeZone: zone, 
  * first read answers, so a collection whose work is a season away has to be a different answer
  * rather than a different assertion.
  */
-async function timeline(browser, { width = 1280, rows } = {}) {
+async function timeline(browser, { width = 1280, rows, zone = 'UTC', now } = {}) {
   const written = [];
-  const { page, failures, context, unstubbed } = await signedIn(browser, width, 900);
+  // The zone is the walk's, never the machine's: a timeline is drawn in days, and a day computed
+  // here in one zone and drawn there in another is a day apart for some hours of every night.
+  const { page, failures, context, unstubbed } = await signedIn(browser, width, 900, { timezoneId: zone });
+  // A fixed clock where a walk names one; the timers keep running.
+  if (now !== undefined) await context.clock.setFixedTime(now);
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -203,10 +207,10 @@ test('chromium: 1280 px — a bar end is a target, and a one-day bar has no ends
   const browser = await chromium.launch();
   t.after(() => browser.close());
 
-  const today = new Date().toISOString().slice(0, 10);
   /** The handles a row of these dates draws, at each scale, as `width x height`. */
-  const handlesOf = async (start, due) => {
+  const handlesOf = async (clock, start, due) => {
     const { page, close } = await timeline(browser, {
+      ...clock,
       rows: [{ ...ITEMS[0], start_at: `${start}T09:00:00Z`, due_at: `${due}T09:00:00Z` }],
     });
     t.after(close);
@@ -224,19 +228,31 @@ test('chromium: 1280 px — a bar end is a target, and a one-day bar has no ends
     return measured;
   };
 
-  // The target is the cell, not the mark drawn in it. At the day scale that is 24 x 24, which is
-  // where design-system.md §6 rule 1 puts the floor (SC 2.5.8). Narrower columns cannot reach it
-  // and rest on 2.5.8's Equivalent clause, which §11 names - but the block axis holds at every
-  // scale, and the row does not get taller for it.
-  const span = await handlesOf(addDays(today, 1), addDays(today, 4));
-  assert.deepEqual(span.day, ['24x24', '24x24'], 'a bar end is under the target floor at the day scale');
-  assert.deepEqual(span.week, ['8x24', '8x24']);
-  assert.deepEqual(span.month, ['4x24', '4x24']);
+  // Two clocks: noon in UTC, and half past midnight in Berlin, when Berlin's day is already one
+  // ahead of UTC's. In both the bar starts on the reader's today - the column that carries the
+  // today mark, and the one a bar starts on more often than any other.
+  const utcDay = new Date().toISOString().slice(0, 10);
+  for (const clock of [
+    { zone: 'UTC', now: `${utcDay}T12:00:00Z` },
+    { zone: 'Europe/Berlin', now: `${utcDay}T22:30:00Z` },
+  ]) {
+    const today = dayIn(clock.now, clock.zone);
+    const where = `${clock.zone} at ${clock.now}`;
 
-  // One column wide, a bar has no two ends: the same cell would be both, so it is dragged as a bar
-  // - which is the only reading a one-day span has.
-  const oneDay = await handlesOf(addDays(today, 2), addDays(today, 2));
-  assert.deepEqual([oneDay.day, oneDay.week, oneDay.month], [[], [], []]);
+    // The target is the cell, not the mark drawn in it. At the day scale that is 24 x 24, which is
+    // where design-system.md §6 rule 1 puts the floor (SC 2.5.8). Narrower columns cannot reach it
+    // and rest on 2.5.8's Equivalent clause, which §11 names - but the block axis holds at every
+    // scale, and the row does not get taller for it.
+    const span = await handlesOf(clock, today, addDays(today, 3));
+    assert.deepEqual(span.day, ['24x24', '24x24'], `a bar end is under the target floor at the day scale (${where})`);
+    assert.deepEqual(span.week, ['8x24', '8x24'], where);
+    assert.deepEqual(span.month, ['4x24', '4x24'], where);
+
+    // One column wide, a bar has no two ends: the same cell would be both, so it is dragged as a
+    // bar - which is the only reading a one-day span has.
+    const oneDay = await handlesOf(clock, addDays(today, 2), addDays(today, 2));
+    assert.deepEqual([oneDay.day, oneDay.week, oneDay.month], [[], [], []], where);
+  }
 });
 
 test('chromium: 1280 px — a tray entry carried across the axis is given its first dates', async (t) => {
