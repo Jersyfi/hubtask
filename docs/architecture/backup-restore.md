@@ -191,7 +191,9 @@ data:
 state in the database, so a restore works with only the target credentials; it also tells a damaged
 archive from one still being written. The only database access is the target's own row and sealed
 credential. At a shared target the archive's name is the filter, so no tenant learns of another's;
-asking for another tenant's archives outright is refused, not answered with an empty list.
+asking for another tenant's archives outright is refused, not answered with an empty list. The
+operator's listing for a `NEW_TENANT` restore also shows archives of workspaces this installation
+does not hold (§8.2); never one of a workspace it does. Decided, not built (#1074).
 
 ### 8.2 Modes
 
@@ -215,9 +217,23 @@ writes only into the caller's own (BK-10).
 * **Destructive is `REPLACE_TENANT` and `INSTANCE`** — not `MERGE` with `overwrite`, which replaces
   only the objects the archive names; a replace also removes what it does *not* name. Only the
   destructive modes ask for the typed workspace name and a step-up (§8.3).
+* **A legal hold stops a destructive mode.** `REPLACE_TENANT` is refused while any hold in the
+  workspace is in force; one that runs keeps the workspace's own hold records and never takes the
+  archive's, so a hold is neither dropped nor revived
+  ([data-protection.md](./data-protection.md) §5). `MERGE` and `SELECTIVE` leave the hold records
+  alone under every conflict rule; only `NEW_TENANT` writes the archive's, so a new workspace keeps
+  the obligations it arrives with. Decided, not built: every mode writes the archive's holds today,
+  and the replace clears them first (#1228).
 * **`NEW_TENANT`** imports beside the living data — the cheap look before a destructive mode. The use
   case mints the tenant identifier; the caller never names it. The copy keeps names and calendar
   UIDs: every unique index is per tenant.
+* **An archive is restored only from its own workspace**, in every mode, with one exception: the
+  operator's `NEW_TENANT` accepts an archive whose manifest names a workspace that does not exist on
+  this installation — another installation's export, the provider-migration path
+  ([tenant-export.md](./tenant-export.md) §10). An archive of another workspace that does exist here
+  stays refused, so BK-10 holds unchanged between this installation's workspaces. An encrypted
+  archive from another installation stays out of reach (§4, #1075). Decided, not built: every mode
+  refuses an archive of another workspace today (#1074).
 * **`duplicate` applies to content, not to context.** Accounts, media and webhook subscriptions fall
   back to `skip`, and the report says so. A copy gets a **derived** identity, so a resumed restore
   produces the same identifiers and the copies point at each other.
@@ -431,7 +447,7 @@ and compares the restored and the source workspace's entry counts.
 | BK-7 | Process death during a backup and during a restore: resumption without duplicates |
 | BK-8 | Retention deletes according to the generation plan, `min_keep` is never undercut, and other files at the target stay untouched |
 | BK-9 | A target configuration pointing at an internal address is blocked by `GuardedClient` unless explicitly released |
-| BK-10 | Cross-tenant: tenant A cannot list, verify, or restore an archive belonging to B |
+| BK-10 | Cross-tenant: tenant A cannot list, verify, or restore an archive belonging to B, a workspace of this installation; only the operator's `NEW_TENANT` lists and restores an archive of a workspace this installation does not hold (§8.2) |
 | BK-11 | A `FULL` run with `trial_restore` reads its archive back and carries the report; one damaged before the trial fails with `backup.trial_restore_failed`; an older schedule keeps it off |
 
 ---

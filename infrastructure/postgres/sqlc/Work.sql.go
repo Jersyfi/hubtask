@@ -824,7 +824,7 @@ const lastContainerOrderKey = `-- name: LastContainerOrderKey :one
 SELECT order_key
 FROM container
 WHERE parent_id IS NOT DISTINCT FROM $1::uuid
-ORDER BY order_key DESC
+ORDER BY order_key COLLATE "C" DESC
 LIMIT 1
 `
 
@@ -833,6 +833,9 @@ LIMIT 1
 // is unknown, and the hubs would come back as no rows at all.
 //
 // Trashed containers count. Their rank is still occupied - a restore has to land where it was.
+//
+// COLLATE "C" for the reason migration 0007 gives: a rank key is a fractional index that rests on
+// byte order, and under a linguistic collation "Zz" would sort above "a0".
 func (q *Queries) LastContainerOrderKey(ctx context.Context, parentID pgtype.UUID) (string, error) {
 	row := q.db.QueryRow(ctx, lastContainerOrderKey, parentID)
 	var order_key string
@@ -845,7 +848,7 @@ SELECT order_key
 FROM work_item
 WHERE collection_id = $1::uuid
   AND parent_id IS NOT DISTINCT FROM $2::uuid
-ORDER BY order_key DESC
+ORDER BY order_key COLLATE "C" DESC
 LIMIT 1
 `
 
@@ -859,6 +862,9 @@ type LastWorkItemOrderKeyParams struct {
 // rather than `=` - `NULL = NULL` is unknown, and the tasks would come back as no rows at all.
 //
 // Trashed items count. Their rank is still occupied; a restore has to land where it was.
+//
+// COLLATE "C" for the reason migration 0007 gives: a rank key is a fractional index that rests on
+// byte order, and under a linguistic collation "Zz" would sort above "a0".
 func (q *Queries) LastWorkItemOrderKey(ctx context.Context, arg LastWorkItemOrderKeyParams) (string, error) {
 	row := q.db.QueryRow(ctx, lastWorkItemOrderKey, arg.CollectionID, arg.ParentID)
 	var order_key string
