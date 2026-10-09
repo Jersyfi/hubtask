@@ -105,5 +105,6 @@ each one stays listed until its test is made deterministic.
 | `TestTheSessionSweepStaysInsideTheTenantAndTakesOnlyTheOver` | wall-clock sensitive in the shared integration database |
 | hubctl e2e, AI-stub section | "no suggestion arrived within 90s" while the stub image is still being pulled |
 | engines, Firefox | `cursor` `undefined` on the first assertion; green on re-run |
+| engines, `playwright install-deps` | the step is cancelled at its own limit while apt's mirror crawls; green on re-run |
 | RT-1's container test | a Docker Hub token error pulling `nginx:alpine`; green on re-run |
 | a Testcontainers gate run locally | `address already in use` on a random high port: another worktree's container on the shared Docker daemon took it — re-run the gate alone. A fixed port (18081, 19091) is a real collision |
