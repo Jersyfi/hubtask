@@ -201,8 +201,9 @@ trail entries removed; for an opening of the password: its end, and that a reque
 were given — never their texts, which stay in the workspace's own trail). Never content.
 
 * **It belongs to no tenant** — no row policy ([multi-tenancy.md](./multi-tenancy.md) §2.1). Written
-  only by the tenant lifecycle and instance use cases, append-only for the application role, served
-  by no API — the operator reads it at the database.
+  only by the tenant lifecycle and instance use cases, append-only for the application role. The
+  operator reads it through `GET /admin/journal`, newest first, behind `admin:tenants` and the
+  operator register.
 * **It commits with the act.** The hard delete writes the evidence, purges the trail through
   `purge_tenant_trail`, and lets the cascade take the rest, in one transaction.
 * **It is not chained.** Here a chain would attest the operator to the operator; its integrity rests
