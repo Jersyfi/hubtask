@@ -150,6 +150,42 @@ func TestEveryRunbookBelongsToAnAlert(t *testing.T) {
 	}
 }
 
+// The paged operator searches the runbook for the name on the page. A runbook naming an alert the
+// rules do not define - renamed, or never written - sends them looking for something that does not
+// exist, and the two tests above cannot see it: they compare file names, not the text.
+func TestEveryAlertARunbookNamesExists(t *testing.T) {
+	defined := map[string]bool{}
+	for _, alert := range alerts(t) {
+		defined[alert.Alert] = true
+	}
+
+	// Alert names are the only CamelCase identifiers with this prefix; metrics are snake_case.
+	alertName := regexp.MustCompile(`\bHubtask[A-Z][A-Za-z0-9]*\b`)
+	entries, err := os.ReadDir(runbookDir)
+	if err != nil {
+		t.Fatalf("the runbook directory is not readable: %v", err)
+	}
+	var mentioned int
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(runbookDir, entry.Name()))
+		if err != nil {
+			t.Fatalf("%s is not readable: %v", entry.Name(), err)
+		}
+		for _, name := range alertName.FindAllString(string(raw), -1) {
+			mentioned++
+			if !defined[name] {
+				t.Errorf("%s names the alert %s, which no rules file defines", entry.Name(), name)
+			}
+		}
+	}
+	if mentioned == 0 {
+		t.Fatal("no runbook names any alert - the name pattern has stopped matching")
+	}
+}
+
 // An alert needs enough on it to be acted on without opening the rule file: which catalogue entry
 // it is, how loudly it should be treated, and what it means in one line.
 func TestEveryAlertCarriesWhatAnOperatorNeeds(t *testing.T) {
