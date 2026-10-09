@@ -243,7 +243,8 @@ whoever runs CloudNativePG the pitr file.
 **`make gate-observability` enforces the catalogue:**
 
 * **Any alert without a runbook does not ship**, checked both ways (an alert without its runbook, a
-  runbook no alert points at); `make gate-selftest` proves the check.
+  runbook no alert points at); `make gate-selftest` proves the check. Every alert name a runbook
+  mentions has to be one the rule files define, so the name on the page is the name in the text.
 * `promtool check rules` checks every expression; `promtool test rules` drives every alert's
   condition from crafted series and matches its labels and annotations in full, one test file per
   rule file. The burn pair proves the negative too: an ended outage fires neither A-01 nor A-02. An
