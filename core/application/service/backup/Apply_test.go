@@ -1084,6 +1084,52 @@ func TestARestoreResumesWhereTheWorkerDied(t *testing.T) {
 	}
 }
 
+// BK-7 for REPLACE_TENANT: a resumed replace continues rather than starting again, so it must not
+// empty the workspace a second time - what the first attempt wrote is skipped by the resume and
+// would be gone for good. The workspace afterwards is the archive: everything it holds, and
+// nothing the replace removed.
+func TestAResumedReplaceKeepsWhatTheFirstAttemptWrote(t *testing.T) {
+	h := newApplyHarness(t, containerRows)
+	h.imports.tables["work_item"] = map[string]map[string]any{
+		"gone": {"id": "gone", "state": "LIVE"},
+	}
+	in := h.accept(t, func(r *domain.Restore) { r.Mode = domain.RestoreReplaceTenant })
+
+	// The first attempt empties the workspace, gets the container in and dies on the work
+	// items' batch.
+	h.imports.failAfter = 1
+	if _, err := h.applier().Apply(context.Background(), in); err == nil {
+		t.Fatal("the first attempt did not fail")
+	}
+	if len(h.imports.tables["container"]) != 1 {
+		t.Fatalf("the first attempt left %d containers, want the 1 it wrote before dying",
+			len(h.imports.tables["container"]))
+	}
+
+	restore := h.restores.stored[restoreID]
+	restore.Status = domain.RestoreRunning
+	h.restores.stored[restoreID] = restore
+	if len(restore.Progress) == 0 {
+		t.Fatal("the first attempt recorded no progress, so a resume cannot skip anything")
+	}
+
+	h.imports.failAfter = 0
+	if _, err := h.applier().Apply(context.Background(), in); err != nil {
+		t.Fatalf("the second attempt failed: %v", err)
+	}
+
+	if _, held := h.imports.tables["container"]["c1"]; !held {
+		t.Error("the container the first attempt restored is gone after the resume")
+	}
+	items := h.imports.tables["work_item"]
+	if len(items) != 2 || items["w1"] == nil || items["w2"] == nil {
+		t.Errorf("%d work items after a resumed replace, want the archive's w1 and w2", len(items))
+	}
+	if _, survived := items["gone"]; survived {
+		t.Error("an object the archive does not name survived a resumed REPLACE_TENANT")
+	}
+}
+
 // §8.4's second prohibition: a reminder whose moment passed while the data was in an archive is
 // marked lapsed rather than left pending, so the scheduler's next pass does not send every one of
 // them at once. A reminder for next week still fires.
