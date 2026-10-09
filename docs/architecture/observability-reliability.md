@@ -155,7 +155,7 @@ installation is missing, each a code with a severity, never free text (`Warnings
 | **Poison pill protection** | After *n* failed attempts → dead letter with full context, a metric and admin visibility |
 | **Optimistic locking** | A `version` per aggregate; a `409` with a machine-readable conflict instead of last-write-wins |
 | **Panic recovery** | Middleware per request, a wrapper per job, and concurrency only through `SafeGo` (rule 5) with recover plus a metric |
-| **Memory and resource protection** | `GOMEMLIMIT` below the container's memory limit (not yet set, O-5); streaming instead of full buffering for uploads and exports; capped result sets. An OOM kill is an architecture defect |
+| **Memory and resource protection** | `GOMEMLIMIT` at 90 % of the container's memory limit — the chart derives it from each role's limit, Compose documents it ([deployment.md](./deployment.md) §2.1); streaming instead of full buffering for uploads and exports; capped result sets. An OOM kill is an architecture defect |
 | **Clock robustness** | The scheduler catches up boundedly after an outage and tolerates time jumps |
 
 ---
@@ -347,7 +347,6 @@ once per release on the integration server, written up under `docs/evidence/` wi
 | # | Point | Needed by |
 |---|---|---|
 | O-3 | Derive a public status page from `/meta/health` | After `1.0.0` |
-| O-5 | Set `GOMEMLIMIT` below the container's memory limit in the chart (derived from the role's limit) and document it for Compose (§6) | Before `1.0.0` |
 
 ---
 

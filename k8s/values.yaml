@@ -5,7 +5,9 @@ image:
   pullPolicy: IfNotPresent
 
 # Each role as its own deployment: an automation storm must not starve the
-# interactive path (bulkhead, ADR-0016).
+# interactive path (bulkhead, ADR-0016). A role's memory limit also sets its GOMEMLIMIT,
+# to 90 % of the limit (observability-reliability.md §6): change the limit and the
+# runtime's target follows. A role without a memory limit gets none.
 roles:
   api:
     enabled: true
