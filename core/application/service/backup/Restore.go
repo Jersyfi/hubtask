@@ -449,6 +449,11 @@ func (h StartRestore) Execute(
 // workspace is running the workspace - the administrator's line. Replacing a tenant with an archive
 // is the one thing an administrator cannot do (domain-model.md §3.2): it destroys what is there,
 // and the matrix's line for destroying is the owner's.
+//
+// A mode that creates a workspace or crosses all of them is the installation operator's on top
+// (§8.2): the role still decides whether the caller may read this workspace's target, and the
+// credential has to carry `admin:tenants`, which the authentication already withholds from anybody
+// the operator register does not name (ADR-0070 §1).
 func (h StartRestore) authorise(
 	ctx context.Context, actor appshared.ActorContext, request domain.RestoreRequest,
 ) error {
@@ -456,7 +461,7 @@ func (h StartRestore) authorise(
 	if request.Mode.Destructive() {
 		permission = service.PermissionDeleteContainer
 	}
-	return h.Restorer.Authorizer.Authorize(ctx, actor, access.Request{
+	err := h.Restorer.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: permission,
 		Path:       []identity.Scope{identity.TenantScope()},
 		Action:     StartedRestoreAction,
@@ -464,6 +469,10 @@ func (h StartRestore) authorise(
 		TargetType: restoreType,
 		TargetID:   request.TargetID,
 	})
+	if err != nil || !request.Mode.Operators() {
+		return err
+	}
+	return actor.RequireScope(operatorScope)
 }
 
 // confirm is §8.3 step 3: the tenant's name typed, and a step-up on top of it.
@@ -545,8 +554,10 @@ func (h StartRestore) Descriptor() usecase.Descriptor {
 			"Six modes: INSPECT looks, SELECTIVE pulls named collections or items back, MERGE " +
 			"imports and settles each collision by rule, REPLACE_TENANT resets the workspace to " +
 			"the archive, NEW_TENANT imports it alongside as a workspace of its own, and " +
-			"INSTANCE restores a system backup. NEW_TENANT is the way to check before a " +
-			"destructive mode: import beside, look, then decide. No automation fires, no webhook " +
+			"INSTANCE restores a system backup. NEW_TENANT and INSTANCE are the installation " +
+			"operator's: the credential needs the admin:tenants scope as well. NEW_TENANT is the " +
+			"way to check before a destructive mode: import beside, look, then decide. No " +
+			"automation fires, no webhook " +
 			"is sent, no reminder is caught up, and no token or session is restored - people sign " +
 			"in again and personal access tokens are recreated.",
 		SideEffects: "Enqueues a restore job and writes an audit entry. The rows themselves are " +

@@ -473,7 +473,7 @@ func TestARestoreIntoAnotherTenantIsRefused(t *testing.T) {
 func TestANewTenantRestoreMintsTheTenantItself(t *testing.T) {
 	h := newStartHarness(t)
 
-	if _, err := (StartRestore{Restorer: h.restorer()}).Execute(context.Background(), caller(),
+	if _, err := (StartRestore{Restorer: h.restorer()}).Execute(context.Background(), operator(),
 		restoreRequest(func(r *domain.RestoreRequest) {
 			r.Mode, r.TenantID = domain.RestoreNewTenant, shared.ID("")
 		})); err != nil {
@@ -486,6 +486,42 @@ func TestANewTenantRestoreMintsTheTenantItself(t *testing.T) {
 	}
 	if stored.TenantID == tenantID {
 		t.Fatal("a NEW_TENANT restore was pointed at the living tenant")
+	}
+}
+
+// operator is a member whose credential carries the control plane's scope as well.
+func operator() appshared.ActorContext {
+	actor := caller()
+	actor.Scopes = []string{"backup:manage", "admin:tenants"}
+	return actor
+}
+
+// §8.2: NEW_TENANT creates a workspace and INSTANCE crosses all of them, so a member's right in
+// this workspace is not enough - the credential has to carry `admin:tenants`. Refused before
+// anything is written, naming the scope the client is missing.
+func TestAWorkspaceMemberCannotRestoreIntoANewOrEveryWorkspace(t *testing.T) {
+	for _, mode := range []domain.RestoreMode{domain.RestoreNewTenant, domain.RestoreInstance} {
+		t.Run(string(mode), func(t *testing.T) {
+			h := newStartHarness(t)
+			h.stepUp.available, h.stepUp.satisfied = true, true
+			member := caller()
+			member.Scopes = []string{"backup:manage"}
+
+			_, err := (StartRestore{Restorer: h.restorer()}).Execute(context.Background(), member,
+				restoreRequest(func(r *domain.RestoreRequest) {
+					r.Mode, r.TenantID, r.Confirmation = mode, shared.ID(""), "Acme GmbH"
+					r.StepUpToken = "a-proof"
+				}))
+
+			var domainErr *shared.Error
+			if !errors.As(err, &domainErr) || !errors.Is(err, shared.ErrForbidden) ||
+				domainErr.Params["scope"] != "admin:tenants" {
+				t.Fatalf("refused with %v, want the missing admin:tenants scope", err)
+			}
+			if len(h.restores.stored) != 0 || len(h.queued.requests) != 0 {
+				t.Error("a refused restore left a run or a job behind")
+			}
+		})
 	}
 }
 

@@ -131,6 +131,22 @@ func TestOnlyReplaceAndInstanceAreDestructive(t *testing.T) {
 	}
 }
 
+// §8.2: the modes that create a workspace or cross all of them are the installation operator's.
+func TestOnlyNewTenantAndInstanceAreTheOperators(t *testing.T) {
+	for mode, operators := range map[domain.RestoreMode]bool{
+		domain.RestoreInspect:       false,
+		domain.RestoreSelective:     false,
+		domain.RestoreMerge:         false,
+		domain.RestoreReplaceTenant: false,
+		domain.RestoreNewTenant:     true,
+		domain.RestoreInstance:      true,
+	} {
+		if mode.Operators() != operators {
+			t.Errorf("%s: the operator's is %v, want %v", mode, mode.Operators(), operators)
+		}
+	}
+}
+
 func TestOnlyInspectWritesNothing(t *testing.T) {
 	if domain.RestoreInspect.Writes() {
 		t.Error("INSPECT writes")
