@@ -1,0 +1,20 @@
+desktop: kept row reads: Their data removed | Answered | kept@example.invalid | Owed Oct 1, 2026, 10:00 AM | Received Sep 1, 2026, 10:00 AM | How much is removed is your choice, and it affects other people's work. Choose it on the case before it starts. | Partly completed: a legal hold keeps part of it, for legal claims (Art. 17(3)(e) GDPR). The rest is erased when the hold is lifted. | A hold on a hub or collection keeps 2 comments, 1 assignment and their name on no entry.
+desktop: focus before Enter: Start answering it
+desktop: focus in dialog: BUTTON Keep the case open
+desktop: dialog with hold reads: Erase erase@example.invalid? | Keep the case open | erase@example.invalid's account goes, and every comment they wrote goes with it. The entries they created stay, credited to nobody. This cannot be undone. | Legal holds keep part of this. It is kept and restricted rather than erased - for legal claims, Art. 17(3)(e) GDPR - and the rest of the erasure runs when each hold is lifted: | A hold on a hub or collection keeps 2 comments, 1 assignment and their name on no entry. | Keep the case open | Erase
+desktop: dialog after Escape: false
+desktop: errors: []
+desktop: dialog without hold reads: Erase erase@example.invalid? | Keep the case open | erase@example.invalid's account goes, and every comment they wrote goes with it. The entries they created stay, credited to nobody. This cannot be undone. | No legal hold reaches this person: everything the mode names goes. | Keep the case open | Erase
+desktop: person picker offers: Choose a person, Jérôme Winkel, Mara Lind
+desktop: hub picker offers: Choose a hub, House, House / Kitchen
+desktop: retention horizontal overflow px: 0; errors: []
+375: kept row reads: Their data removed | Answered | kept@example.invalid | Owed Oct 1, 2026, 10:00 AM | Received Sep 1, 2026, 10:00 AM | How much is removed is your choice, and it affects other people's work. Choose it on the case before it starts. | Partly completed: a legal hold keeps part of it, for legal claims (Art. 17(3)(e) GDPR). The rest is erased when the hold is lifted. | A hold on a hub or collection keeps 2 comments, 1 assignment and their name on no entry.
+375: focus before Enter: Start answering it
+375: focus in dialog: BUTTON Keep the case open
+375: dialog with hold reads: Erase erase@example.invalid? | Keep the case open | erase@example.invalid's account goes, and every comment they wrote goes with it. The entries they created stay, credited to nobody. This cannot be undone. | Legal holds keep part of this. It is kept and restricted rather than erased - for legal claims, Art. 17(3)(e) GDPR - and the rest of the erasure runs when each hold is lifted: | A hold on a hub or collection keeps 2 comments, 1 assignment and their name on no entry. | Keep the case open | Erase
+375: dialog after Escape: false
+375: errors: []
+375: dialog without hold reads: Erase erase@example.invalid? | Keep the case open | erase@example.invalid's account goes, and every comment they wrote goes with it. The entries they created stay, credited to nobody. This cannot be undone. | No legal hold reaches this person: everything the mode names goes. | Keep the case open | Erase
+375: person picker offers: Choose a person, Jérôme Winkel, Mara Lind
+375: hub picker offers: Choose a hub, House, House / Kitchen
+375: retention horizontal overflow px: 0; errors: []
