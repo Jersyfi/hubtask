@@ -242,9 +242,6 @@ exists. The journal is the floor under the trail, not a copy of it.
 | AT-6 | The automation and MCP paths produce the same audit entries as the REST path (channel parity) |
 | AT-7 | Deleting an account leaves its audit entries readable (the denormalised `actor_label`) |
 
-An older prefix, `AU-n`, still appears in places: AU-1 is SG-13, AU-2 is AT-1, AU-4 is AT-4, and the
-set AU-1…AU-7 is AT-1…AT-7.
-
 ---
 
 ## 9. Open points

@@ -154,7 +154,9 @@ reply's comment) are ordered within the file: the referenced row comes first.
 **Three references point forward.** In `work_items`, `cover_media_id` (#15), `recurrence_rule_id`
 (#17) and `origin_jumble_id` (#21) name rows of later files; an importer that enforces them sets
 them after the later file is applied. `work_items` also carries `recurrence_source_id`, a reference
-to another `work_items` row without a foreign key.
+to another `work_items` row without a foreign key. Of the three, only `cover_media_id` is a foreign
+key in Hubtask's own schema, and its restore applies `media_objects`, which references nothing,
+before `work_items` instead (and empties a replaced workspace in the reverse of that order).
 
 ## 7. Media
 
@@ -227,7 +229,9 @@ expected to keep sign-ins working. The export is handed outwards.
 ## 10. Importing
 
 * **Into a Hubtask installation**: a restore naming the archive's path as `source_archive` with mode
-  `NEW_TENANT` (backup-restore.md §8) — the provider-migration path.
+  `NEW_TENANT` (backup-restore.md §8) — the provider-migration path. The new installation's
+  operator runs it, and it is accepted because no workspace there bears the manifest's identifier.
+  Decided, not built: the restore refuses an archive of another workspace today (#1074).
 * **Into anything else**: apply the data files in §6's order; treat `id` as the row identity and
   the references as foreign keys; fetch media by digest. An importer that only wants the content
   can stop after `work_items`, `comments` and `media/`.
