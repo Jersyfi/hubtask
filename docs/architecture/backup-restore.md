@@ -220,8 +220,10 @@ writes only into the caller's own (BK-10).
 * **A legal hold stops a destructive mode.** `REPLACE_TENANT` is refused while any hold in the
   workspace is in force; one that runs keeps the workspace's own hold records and never takes the
   archive's, so a hold is neither dropped nor revived
-  ([data-protection.md](./data-protection.md) §5). Decided, not built: the replace clears the holds
-  and imports the archive's today (#1228).
+  ([data-protection.md](./data-protection.md) §5). `MERGE` and `SELECTIVE` leave the hold records
+  alone under every conflict rule; only `NEW_TENANT` writes the archive's, so a new workspace keeps
+  the obligations it arrives with. Decided, not built: every mode writes the archive's holds today,
+  and the replace clears them first (#1228).
 * **`NEW_TENANT`** imports beside the living data — the cheap look before a destructive mode. The use
   case mints the tenant identifier; the caller never names it. The copy keeps names and calendar
   UIDs: every unique index is per tenant.

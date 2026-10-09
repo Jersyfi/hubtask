@@ -106,9 +106,11 @@ Evaluated in this order; the first that applies wins:
 
    **A hold also stops the workspace's own deletion and a destructive restore**: while any hold in
    the workspace is in force, a deletion request is refused, a workspace already pending deletion
-   stays pending until the last hold is lifted, and `REPLACE_TENANT` is refused; a restore that runs
-   keeps the workspace's hold records, never the archive's
-   ([data-protection.md](./data-protection.md) §5). Decided, not built (#1228).
+   stays pending until the last hold is lifted, and `REPLACE_TENANT` is refused; a restore into a
+   living workspace — a replace, a merge, a selective restore — keeps the workspace's hold records,
+   never the archive's, while a restore as a new workspace takes the archive's along
+   ([data-protection.md](./data-protection.md) §5, [backup-restore.md](./backup-restore.md) §8.2).
+   Decided, not built (#1228).
 
    **A hold on an `ACCOUNT` is refused** (`lifecycle.hold_account_scope_unavailable`); the value
    stays in the model and the check constraint so honouring it needs no migration. Its reach is

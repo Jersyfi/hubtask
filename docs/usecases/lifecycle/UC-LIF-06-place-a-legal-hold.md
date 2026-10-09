@@ -52,9 +52,14 @@ stays on record, released, for whoever audits it later.
   PH-01 it is refused with `lifecycle.hold_account_scope_unavailable`.
 * A hold does not freeze editing; preserving the state at one moment is a backup's job.
 * A hold does not stop backups from expiring at their target.
-* A workspace already pending deletion when a hold is placed stays pending until the last hold is
-  released; its removal within 65 days ([data-protection.md](../../architecture/data-protection.md)
-  §5) waits for that.
+* A workspace already pending deletion while a hold is in force stays pending until the last hold
+  is released; its removal within 65 days
+  ([data-protection.md](../../architecture/data-protection.md) §5) waits for that. Its people
+  cannot sign in meanwhile, so the way back is the operator's *Cancel deletion*
+  ([UC-INS-08](../admin/UC-INS-08-suspend-resume-and-delete-a-workspace.md)).
+* Recovering the whole installation to an earlier moment is the operator's procedure
+  ([UC-BAK-08](../backup/UC-BAK-08-recover-the-whole-installation.md)), not a reset of the
+  workspace; what it does to holds placed after that moment is open (#1239).
 
 See [data-retention.md](../../architecture/data-retention.md) §4 and
 [ADR-0020](../../adr/ADR-0020-retention-policies.md).
