@@ -94,6 +94,16 @@ export const LEGAL_HOLDS = [
   { id: '01a0e2e0-0000-7000-8000-0000000003a2', reason: 'Tax inspection 2026', placed_by: ACCOUNT.id, placed_at: '2026-09-21T08:00:00Z', scope: { kind: 'ACCOUNT', id: OTHER.id } },
 ];
 
+/**
+ * The installation's workspaces as the operator lists them: one under a legal hold, one pending
+ * deletion under one, one with neither - the three rows a hold changes (data-protection.md §5).
+ */
+export const WORKSPACES = [
+  { id: '01a0e2e0-0000-7000-8000-0000000004a1', slug: 'acme', display_name: 'Acme GmbH', status: 'ACTIVE', default_locale: 'de', default_time_zone: 'Europe/Berlin', created_at: '2026-08-01T08:00:00Z', purge_after: null, legal_hold: true },
+  { id: '01a0e2e0-0000-7000-8000-0000000004a2', slug: 'leaving', display_name: 'Leaving Ltd', status: 'PENDING_DELETION', default_locale: 'en', default_time_zone: 'UTC', created_at: '2026-08-02T08:00:00Z', purge_after: '2026-09-30T08:00:00Z', legal_hold: true },
+  { id: '01a0e2e0-0000-7000-8000-0000000004a3', slug: 'household', display_name: 'Household', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', created_at: '2026-08-03T08:00:00Z', purge_after: null, legal_hold: false },
+];
+
 export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
@@ -164,6 +174,12 @@ export function stub(route) {
     return route.fulfill({ json: { mode: url.searchParams.get('mode') ?? 'ANONYMIZE', kept: PRIVACY_REQUESTS[4].kept } });
   }
   if (path.endsWith('/api/v1/legal-holds') && request.method() === 'GET') return route.fulfill({ json: LEGAL_HOLDS });
+  if (path.endsWith('/api/v1/admin/tenants') && request.method() === 'GET') return route.fulfill({ json: WORKSPACES });
+  // The operator's hour at the installation level, granted: a walk of those screens looks at them,
+  // not at the door (ADR-0070 §4).
+  if (path.endsWith('/api/v1/auth/sessions:elevate')) {
+    return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
+  }
   if (path.endsWith('/api/v1/privacy/requests') && request.method() === 'GET') {
     return route.fulfill({ json: { data: PRIVACY_REQUESTS, page: { next_cursor: null, has_more: false } } });
   }

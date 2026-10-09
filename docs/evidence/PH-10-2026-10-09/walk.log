@@ -1,0 +1,171 @@
+=== workspaces-held-desktop (1280x900) errors=[] overflow=false unstubbed=["GET /admin/settings"]
+Workspaces
+You are working on the installation. 60 minutes left.
+Every workspace on this installation, with its standing. What is inside one is not shown here and cannot be reached from here.
+New workspace
+Workspace
+Standing
+Since
+What can be done
+Acme GmbH
+acme
+Active
+Legal hold
+A legal hold is in force, so the workspace cannot be deleted until its owner releases every hold.
+Aug 1, 2026, 10:00 AM
+Suspend
+Limits
+Export
+Open the password
+Leaving Ltd
+leaving
+Being deleted
+Gone for good after Sep 30, 2026, 10:00 AM
+Legal hold
+A legal hold is in force: the deletion waits until every hold is released.
+Aug 2, 2026, 10:00 AM
+Limits
+Export
+Household
+household
+Active
+Aug 3, 2026, 10:00 AM
+Suspend
+Limits
+Export
+Open the password
+Delete
+
+=== restore-owner-replace-held-desktop (1280x900) errors=[] overflow=false unstubbed=["GET /tenant"]
+Administration
+Restore
+Restore
+Putting an archive back. Every restore is rehearsed first: you see what it would do before anything happens.
+Two ways in are the operator's
+Restoring into a new workspace, or restoring the whole installation, crosses or creates a workspace and is not something one workspace can do. Ask whoever runs this installation.
+What to put back
+Read from
+Choose a target
+How
+Look inside it
+Bring back what I choose
+Add what is missing
+Replace this workspace
+Everything here is replaced by what is in the archive. This is the only way in that removes things.
+A legal hold is in force
+While a legal hold is in force in this workspace, it cannot be reset to a backup. You can still rehearse the replace to see what it would do; it runs once every hold is released.
+This replaces everything in this workspace
+Every entry, collection, comment and attachment here is replaced by what the archive holds. Anything created since the archive was written is gone.
+Sign-in credentials do not survive this. The accounts, sessions and access tokens that can reach this workspace are among the rows being replaced, so you may not be able to sign back in afterwards — including with the account you are using now.
+I have read what this replaces, and that sign-in credentials do not survive it
+Type the workspace's name — — to confirm
+Exactly as it is written. This is the confirmation the server asks for.
+Take a copy of this workspace first
+On by default, and this is the way back. The copy is written to the same target before anything is replaced.
+See what it would do
+Choose what to bring back, and — where it replaces things — type the workspace's name and confirm what that costs.
+This is a rehearsal. It reads the archive, works out what would happen, and writes nothing.
+
+admin modes at desktop: Look inside it | Bring back what I choose | Add what is missing
+=== restore-admin-modes-desktop (1280x900) errors=[] overflow=false unstubbed=["GET /tenant"]
+Administration
+Restore
+Restore
+Putting an archive back. Every restore is rehearsed first: you see what it would do before anything happens.
+Two ways in are the operator's
+Restoring into a new workspace, or restoring the whole installation, crosses or creates a workspace and is not something one workspace can do. Ask whoever runs this installation.
+What to put back
+Read from
+Choose a target
+How
+Look inside it
+Bring back what I choose
+Add what is missing
+Reads the archive and reports what is in it. Nothing here changes, ever.
+See what it would do
+This is a rehearsal. It reads the archive, works out what would happen, and writes nothing.
+
+=== workspaces-held-375 (375x812) errors=[] overflow=false unstubbed=["GET /admin/settings"]
+Workspaces
+You are working on the installation. 60 minutes left.
+Every workspace on this installation, with its standing. What is inside one is not shown here and cannot be reached from here.
+New workspace
+Workspace
+Standing
+Since
+What can be done
+Acme GmbH
+acme
+Active
+Legal hold
+A legal hold is in force, so the workspace cannot be deleted until its owner releases every hold.
+Aug 1, 2026, 10:00 AM
+Suspend
+Limits
+Export
+Open the password
+Leaving Ltd
+leaving
+Being deleted
+Gone for good after Sep 30, 2026, 10:00 AM
+Legal hold
+A legal hold is in force: the deletion waits until every hold is released.
+Aug 2, 2026, 10:00 AM
+Limits
+Export
+Household
+household
+Active
+Aug 3, 2026, 10:00 AM
+Suspend
+Limits
+Export
+Open the password
+Delete
+
+=== restore-owner-replace-held-375 (375x812) errors=[] overflow=false unstubbed=["GET /tenant"]
+Administration
+Restore
+Putting an archive back. Every restore is rehearsed first: you see what it would do before anything happens.
+Two ways in are the operator's
+Restoring into a new workspace, or restoring the whole installation, crosses or creates a workspace and is not something one workspace can do. Ask whoever runs this installation.
+What to put back
+Read from
+Choose a target
+How
+Look inside it
+Bring back what I choose
+Add what is missing
+Replace this workspace
+Everything here is replaced by what is in the archive. This is the only way in that removes things.
+A legal hold is in force
+While a legal hold is in force in this workspace, it cannot be reset to a backup. You can still rehearse the replace to see what it would do; it runs once every hold is released.
+This replaces everything in this workspace
+Every entry, collection, comment and attachment here is replaced by what the archive holds. Anything created since the archive was written is gone.
+Sign-in credentials do not survive this. The accounts, sessions and access tokens that can reach this workspace are among the rows being replaced, so you may not be able to sign back in afterwards — including with the account you are using now.
+I have read what this replaces, and that sign-in credentials do not survive it
+Type the workspace's name — — to confirm
+Exactly as it is written. This is the confirmation the server asks for.
+Take a copy of this workspace first
+On by default, and this is the way back. The copy is written to the same target before anything is replaced.
+See what it would do
+Choose what to bring back, and — where it replaces things — type the workspace's name and confirm what that costs.
+This is a rehearsal. It reads the archive, works out what would happen, and writes nothing.
+
+admin modes at 375: Look inside it | Bring back what I choose | Add what is missing
+=== restore-admin-modes-375 (375x812) errors=[] overflow=false unstubbed=["GET /tenant"]
+Administration
+Restore
+Putting an archive back. Every restore is rehearsed first: you see what it would do before anything happens.
+Two ways in are the operator's
+Restoring into a new workspace, or restoring the whole installation, crosses or creates a workspace and is not something one workspace can do. Ask whoever runs this installation.
+What to put back
+Read from
+Choose a target
+How
+Look inside it
+Bring back what I choose
+Add what is missing
+Reads the archive and reports what is in it. Nothing here changes, ever.
+See what it would do
+This is a rehearsal. It reads the archive, works out what would happen, and writes nothing.
