@@ -24,6 +24,7 @@ jobs:
     # Not on a draft: its description is unfinished by design, and its CI run judged nothing (ADR-0079).
     if: github.event.pull_request.user.login != 'dependabot[bot]' && !github.event.pull_request.draft && (github.event.changes.body != null || github.event.changes.title != null)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       actions: write
       contents: read
