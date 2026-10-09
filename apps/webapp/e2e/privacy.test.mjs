@@ -228,7 +228,7 @@ test('chromium: a case a hold kept part of says so, with the legal basis', async
     const { page, failures, close } = await open(browser);
     const text = await row(page, KEPT).innerText();
     assert.match(text, /Partly completed: a legal hold keeps part of it, for legal claims \(Art\. 17\(3\)\(e\) GDPR\)/);
-    assert.match(text, /A hold on a hub or collection keeps 2 comments, 1 assignment and their name on 0 entries\./);
+    assert.match(text, /A hold on a hub or collection keeps 2 comments, 1 assignment and their name on no entry\./);
     assert.deepEqual(failures, []);
     await close();
   } finally {

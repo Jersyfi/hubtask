@@ -70,7 +70,7 @@ export const MANIFEST = {
     { field: 'bucket_id', operators: ['EQ', 'IN'], sortable: false, groupable: true, nullable: true },
   ],
   view_layouts: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'],
-  roles: [{ role: 'OWNER', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS'] }],
+  roles: [{ role: 'OWNER', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'DELETE_CONTAINER'] }],
   limits: { max_bulk_operations: 100 }, features: {},
 };
 export const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
@@ -85,7 +85,13 @@ export const PRIVACY_REQUESTS = [
   { id: '01a0e2e0-0000-7000-8000-0000000000a2', kind: 'PORTABILITY', status: 'IN_PROGRESS', scope: 'TENANT', subject_email: 'extended@example.invalid', received_at: '2026-09-01T08:00:00Z', due_at: '2026-11-20T22:59:59Z', original_due_at: '2026-10-01T08:00:00Z', extension_reason: 'NUMBER_OF_REQUESTS', informed_on: '2026-09-15' },
   { id: '01a0e2e0-0000-7000-8000-0000000000a3', kind: 'ACCESS', status: 'RECEIVED', scope: 'INSTALLATION', subject_email: 'everywhere@example.invalid', received_at: '2026-09-11T08:00:00Z', due_at: '2026-10-12T08:00:00Z', extendable_until: '2026-12-11' },
   { id: '01a0e2e0-0000-7000-8000-0000000000a4', kind: 'ERASURE', status: 'RECEIVED', scope: 'TENANT', subject_email: 'erase@example.invalid', erasure_mode: 'FULL_DELETE', received_at: '2026-09-11T08:00:00Z', due_at: '2026-10-13T08:00:00Z' },
-  { id: '01a0e2e0-0000-7000-8000-0000000000a5', kind: 'ERASURE', status: 'COMPLETED', scope: 'TENANT', subject_email: 'kept@example.invalid', erasure_mode: 'FULL_DELETE', received_at: '2026-09-01T08:00:00Z', due_at: '2026-10-01T08:00:00Z', completed_at: '2026-09-05T08:00:00Z', kept: [{ hold_id: '01a0e2e0-0000-7000-8000-0000000003a1', hold_scope: { kind: 'CONTAINER', id: '01a0e2e0-0000-7000-8000-0000000000b1' }, account: false, entries: 0, comments: 2, assignments: 1, intake: 0 }], kept_legal_basis: 'ART_17_3_E' },
+  { id: '01a0e2e0-0000-7000-8000-0000000000a5', kind: 'ERASURE', status: 'COMPLETED', scope: 'TENANT', subject_email: 'kept@example.invalid', erasure_mode: 'FULL_DELETE', received_at: '2026-09-01T08:00:00Z', due_at: '2026-10-01T08:00:00Z', completed_at: '2026-09-05T08:00:00Z', kept: [{ hold_id: '01a0e2e0-0000-7000-8000-0000000003a1', hold_scope: { kind: 'CONTAINER', id: HUB.id }, account: false, entries: 0, comments: 2, assignments: 1, intake: 0 }], kept_legal_basis: 'ART_17_3_E' },
+];
+
+/** Two holds in force: one on the hub, one on a person. */
+export const LEGAL_HOLDS = [
+  { id: '01a0e2e0-0000-7000-8000-0000000003a1', reason: 'Pending litigation, ref. 4 O 128/26', placed_by: ACCOUNT.id, placed_at: '2026-09-20T08:00:00Z', scope: { kind: 'CONTAINER', id: HUB.id } },
+  { id: '01a0e2e0-0000-7000-8000-0000000003a2', reason: 'Tax inspection 2026', placed_by: ACCOUNT.id, placed_at: '2026-09-21T08:00:00Z', scope: { kind: 'ACCOUNT', id: OTHER.id } },
 ];
 
 export function stub(route) {
@@ -122,7 +128,7 @@ export function stub(route) {
   if (path.endsWith('/buckets')) return route.fulfill({ json: BUCKETS });
   if (path.endsWith('/api/v1/memberships')) {
     const scope = url.searchParams.get('scope_type');
-    const rows = scope === 'COLLECTION' ? [{ id: 'm1', scope_type: 'COLLECTION', scope_id: COLLECTION.id, account_id: OTHER.id, role: 'MEMBER' }] : scope === 'HUB' ? [{ id: 'm2', scope_type: 'HUB', scope_id: HUB.id, account_id: ACCOUNT.id, role: 'OWNER' }] : [];
+    const rows = scope === 'COLLECTION' ? [{ id: 'm1', scope_type: 'COLLECTION', scope_id: COLLECTION.id, account_id: OTHER.id, role: 'MEMBER' }] : scope === 'HUB' ? [{ id: 'm2', scope_type: 'HUB', scope_id: HUB.id, account_id: ACCOUNT.id, role: 'OWNER' }] : scope === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }, { id: 'm9', scope_type: 'TENANT', account_id: OTHER.id, role: 'MEMBER' }] : [];
     return route.fulfill({ json: { ...PAGE, data: rows } });
   }
   if (path.endsWith('/api/v1/items:query')) {
@@ -153,6 +159,11 @@ export function stub(route) {
   if (path.match(/\/api\/v1\/items\/[^/]+\/(reminders|attachments|comments|activity)$/)) return route.fulfill({ json: { ...PAGE, data: [] } });
   if (path.match(/\/api\/v1\/items\/[^/]+\/recurrence$/)) return route.fulfill({ status: 404, json: { code: 'recurrence.not_found' } });
   if (/\/(views|templates|custom-fields|policies|feeds)$/.test(path)) return route.fulfill({ json: [] });
+  // What the holds would keep of an erasure: the hub's hold, over the person's comments there.
+  if (path.endsWith('/erasure-preview') && request.method() === 'GET') {
+    return route.fulfill({ json: { mode: url.searchParams.get('mode') ?? 'ANONYMIZE', kept: PRIVACY_REQUESTS[4].kept } });
+  }
+  if (path.endsWith('/api/v1/legal-holds') && request.method() === 'GET') return route.fulfill({ json: LEGAL_HOLDS });
   if (path.endsWith('/api/v1/privacy/requests') && request.method() === 'GET') {
     return route.fulfill({ json: { data: PRIVACY_REQUESTS, page: { next_cursor: null, has_more: false } } });
   }
