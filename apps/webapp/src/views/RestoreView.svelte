@@ -40,13 +40,16 @@
     Switch,
   } from '@hubtask/design-system/components';
 
+  import { actor } from '../lib/data/account.svelte.ts';
   import { backup, type Archive } from '../lib/data/backup.svelte.ts';
+  import { holds as roleHolds } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { jobs, type Watch } from '../lib/data/jobs.svelte.ts';
   import { isTerminal, mayCancel } from '../lib/data/jobs.ts';
   import { restores, type Asked, type Mode, type Run } from '../lib/data/restore.svelte.ts';
   import RestoreReport from '../lib/restore/RestoreReport.svelte';
-  import { isDestructive, MODES } from '../lib/data/restore.ts';
+  import { isDestructive, offeredModes } from '../lib/data/restore.ts';
+  import { people } from '../lib/data/people.svelte.ts';
   import { stepUp } from '../lib/data/stepup.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
@@ -90,6 +93,21 @@
   let watchedJob = $state('');
 
   $effect(() => untrack(() => backup.open()));
+
+  // Replacing the workspace is the owner's (DELETE_CONTAINER, backup-restore.md §8.2); the other
+  // modes are anybody's who reaches this screen. A prediction; the server decides (P-05).
+  $effect(() => untrack(() => people.open({})));
+  const workspaceRole = $derived(
+    people.along({}).find((membership) => membership.account_id === actor.account?.id)?.role as
+      | string
+      | undefined,
+  );
+  const mayReplace = $derived(roleHolds(workspaceRole, 'DELETE_CONTAINER').status === 'permitted');
+  const modes = $derived(offeredModes(mayReplace));
+  // A mode no longer offered - the role was read after the choice - falls back to the safe one.
+  $effect(() => {
+    if (!(modes as readonly string[]).includes(mode)) mode = 'INSPECT';
+  });
   $effect(() => untrack(() => workspace.open()));
   $effect(() => untrack(() => containers.start()));
   $effect(() => {
@@ -324,7 +342,7 @@
         <Select
           label={t('app.restore.mode')}
           bind:value={mode}
-          options={MODES.map((which) => ({ value: which, label: modeWord(which) }))}
+          options={modes.map((which) => ({ value: which, label: modeWord(which) }))}
         />
         <p class="quiet small">{t(`app.restore.mode_${mode.toLowerCase()}_note`)}</p>
 

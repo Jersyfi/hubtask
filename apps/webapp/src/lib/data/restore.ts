@@ -21,6 +21,14 @@ export type Mode = 'INSPECT' | 'SELECTIVE' | 'MERGE' | 'REPLACE_TENANT';
 export const MODES: readonly Mode[] = ['INSPECT', 'SELECTIVE', 'MERGE', 'REPLACE_TENANT'];
 
 /**
+ * The modes a screen offers this reader: the destructive one only where the role may destroy what
+ * is there (`DELETE_CONTAINER`, the server's own line). A prediction - the server decides (P-05).
+ */
+export function offeredModes(mayReplace: boolean): readonly Mode[] {
+  return mayReplace ? MODES : MODES.filter((mode) => !isDestructive(mode));
+}
+
+/**
  * The modes that replace what is here, and therefore need all three doors.
  *
  * A function rather than a comparison at each call site: "which of these is the dangerous one" is

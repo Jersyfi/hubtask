@@ -11,13 +11,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isDestructive, MODES, type Mode } from './restore.ts';
+import { isDestructive, MODES, offeredModes, type Mode } from './restore.ts';
 
 test('replacing the workspace is the destructive mode, and the other three are not', () => {
   assert.ok(isDestructive('REPLACE_TENANT'));
   for (const mode of ['INSPECT', 'SELECTIVE', 'MERGE'] as Mode[]) {
     assert.ok(!isDestructive(mode), mode);
   }
+});
+
+test('replacing the workspace is offered only to a role that may destroy what is there', () => {
+  // The server asks DELETE_CONTAINER of the destructive mode (backup-restore.md §8.2): offering it
+  // to an administrator would be a button that leads to a refusal the screen knew in advance (P-05).
+  assert.deepEqual([...offeredModes(true)], ['INSPECT', 'SELECTIVE', 'MERGE', 'REPLACE_TENANT']);
+  assert.deepEqual([...offeredModes(false)], ['INSPECT', 'SELECTIVE', 'MERGE']);
 });
 
 test('the two modes that cross or create a tenant are not among the ones offered', () => {
