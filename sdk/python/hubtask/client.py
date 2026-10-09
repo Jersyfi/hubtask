@@ -867,6 +867,10 @@ class Client:
         """Extend a case's deadline once"""
         return self._call("POST", "/privacy/requests/{requestId}:extend", {"requestId": request_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def preview_erasure(self, request_id: str, *, query: dict[str, Any] | None = None) -> "ErasurePreview":
+        """What legal holds would keep from an erasure"""
+        return self._call("GET", "/privacy/requests/{requestId}/erasure-preview", {"requestId": request_id}, query, {}, None, "none", None, "json")
+
     def restrict_processing(self, account_id: str, body: "ProcessingRestriction") -> "ProcessingState":
         """Restrict the processing of an account's data (Art. 18)"""
         return self._call("POST", "/accounts/{accountId}:restrict", {"accountId": account_id}, None, {}, body, "json", "application/json", "json")

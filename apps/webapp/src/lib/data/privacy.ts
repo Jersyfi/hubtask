@@ -24,6 +24,7 @@ import type {
   DataSubjectRequestExtensionReason,
   DataSubjectRequestKind,
   DataSubjectRequestStatus,
+  ErasureKept,
   ErasureMode as ContractErasureMode,
 } from '@hubtask/sync-engine';
 
@@ -62,6 +63,49 @@ export function producesArchive(kind: Kind): boolean {
 
 /** One case, as the contract answers it; what each field means is said there. */
 export type Request = DataSubjectRequest;
+
+/** A message code and its parameters, which a component renders through `t`. */
+export interface KeptPhrase {
+  readonly code: string;
+  readonly params: Readonly<Record<string, string | number>>;
+}
+
+/**
+ * What one hold keeps, as a sentence's code and counts (UC-PRV-03 check 11): the confirmation says
+ * it before the start, the row after. The scope's word is the caller's, because only it knows the
+ * names of hubs and people.
+ */
+export function keptPartPhrase(part: ErasureKept, scope: string): KeptPhrase {
+  return {
+    code: part.account ? 'app.privacy.kept_part_account' : 'app.privacy.kept_part',
+    params: {
+      scope,
+      comments: part.comments,
+      assignments: part.assignments,
+      entries: part.entries,
+      intake: part.intake,
+    },
+  };
+}
+
+/**
+ * The row's line for a case a hold kept part of: partly completed with how many holds and the legal
+ * basis, waiting with why, or the rest erased - and nothing where no hold kept anything (P-11).
+ */
+export function keptPhrase(request: Request): KeptPhrase | undefined {
+  const parts = request.kept ?? [];
+  if (parts.length === 0) return undefined;
+  const pending = parts.filter((part) => !part.erased_at);
+  if (pending.length === 0) {
+    const last = parts.map((part) => part.erased_at ?? '').sort().at(-1) ?? '';
+    return { code: 'app.privacy.kept_rest_erased', params: { at: last } };
+  }
+  const blocked = pending.find((part) => part.blocked);
+  if (blocked?.blocked) {
+    return { code: 'app.privacy.kept_waits', params: { holds: pending.length, rules: blocked.blocked.params?.rules ?? '' } };
+  }
+  return { code: 'app.privacy.kept_partly', params: { holds: pending.length } };
+}
 
 /**
  * How a deadline stands, in the product's own three states.
@@ -117,6 +161,23 @@ export interface Phrase {
  */
 export function canAct(request: Request): boolean {
   return request.scope !== 'INSTALLATION';
+}
+
+/**
+ * Whether the row offers *Start answering it* (P-05). Starting an erasure destroys work that belongs
+ * to the workspace as much as to the person, so the server asks the owner's `DELETE_CONTAINER` for
+ * it (data-protection.md §4) - and a reader without it is not offered a start that is refused.
+ */
+export function canStart(request: Request, mayDestroy: boolean): boolean {
+  return canAct(request) && request.status === 'RECEIVED' && (request.kind !== 'ERASURE' || mayDestroy);
+}
+
+/**
+ * Whether starting this case asks for a confirmation first: an erasure does (P-04, UC-PRV-03
+ * check 8) - it is the one start that cannot be undone.
+ */
+export function confirmsStart(request: Request): boolean {
+  return request.kind === 'ERASURE';
 }
 
 /**

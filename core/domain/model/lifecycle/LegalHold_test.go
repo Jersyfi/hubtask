@@ -34,6 +34,37 @@ func target() lifecycle.Target {
 		ItemID:          packageID,
 		ContainerIDs:    []shared.ID{hubID, collectionID},
 		AncestorItemIDs: []shared.ID{taskID, packageID},
+		Contributors:    []shared.ID{accountID},
+	}
+}
+
+// Which holds are in force on what: the account and the workspace are the two scopes that reach a
+// person's own record, and a removal reads contributors only while an account hold stands.
+func TestTheHoldsOnAnAccountAndOnTheWorkspaceAreFound(t *testing.T) {
+	onAccount := hold(lifecycle.HoldAccount, accountID)
+	onTenant := hold(lifecycle.HoldTenant, "")
+	holds := lifecycle.Holds{hold(lifecycle.HoldContainer, hubID), onAccount}
+
+	if !holds.AnyOnAccounts() {
+		t.Error("an account hold in force was not noticed")
+	}
+	if (lifecycle.Holds{hold(lifecycle.HoldContainer, hubID), hold(lifecycle.HoldAccount, "")}).AnyOnAccounts() {
+		t.Error("an account hold naming nobody counted")
+	}
+	if found, ok := holds.OnAccount(accountID); !ok || found.ScopeID != accountID {
+		t.Errorf("the hold on the account came back as %+v, %v", found, ok)
+	}
+	if _, ok := holds.OnAccount(otherAccountID); ok {
+		t.Error("another account was found held")
+	}
+	if _, ok := holds.OnAccount(""); ok {
+		t.Error("nobody was found held")
+	}
+	if _, ok := holds.OnTenant(); ok {
+		t.Error("a workspace hold was found where there is none")
+	}
+	if _, ok := append(holds, onTenant).OnTenant(); !ok {
+		t.Error("the workspace hold was not found")
 	}
 }
 
@@ -58,9 +89,11 @@ func TestAHoldReachesEverythingBelowWhatItNames(t *testing.T) {
 		{"the entry above it", lifecycle.Holds{hold(lifecycle.HoldItem, taskID)}, true},
 		{"the entry itself", lifecycle.Holds{hold(lifecycle.HoldItem, packageID)}, true},
 		{"a sibling entry", lifecycle.Holds{hold(lifecycle.HoldItem, shared.MustParseID("0192f000-0000-7000-8000-000000000003"))}, false},
-		// A hold on a person is about their own data - their profile, their trail - and is answered
-		// where that is erased. It does not freeze every entry they ever touched.
-		{"an account", lifecycle.Holds{hold(lifecycle.HoldAccount, accountID)}, false},
+		// A hold on a person covers what they contributed: an entry they created, commented on or
+		// attached a file to goes only with their data, so it is held (data-protection.md §4.1).
+		{"an account that contributed", lifecycle.Holds{hold(lifecycle.HoldAccount, accountID)}, true},
+		{"an account that did not", lifecycle.Holds{hold(lifecycle.HoldAccount, otherAccountID)}, false},
+		{"an account hold naming nobody", lifecycle.Holds{hold(lifecycle.HoldAccount, "")}, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			blocking, blocked := c.holds.Blocking(target())
@@ -188,26 +221,27 @@ func TestWhatAHoldCannotMean(t *testing.T) {
 	}
 }
 
-// The check constraint accepts ACCOUNT and `Blocking` deliberately ignores it, so storing one would
-// store a hold nobody honours - which is worse than none, because somebody believes it is in force.
-func TestAnAccountHoldIsRefusedRatherThanIgnored(t *testing.T) {
-	_, err := lifecycle.NewLegalHold(holdInput(func(in *lifecycle.NewHoldInput) {
+// A hold on a person is accepted: every deletion path and the erasure honour it
+// (data-protection.md §4.1), so it is no longer a hold nobody acts on.
+func TestAnAccountHoldIsAccepted(t *testing.T) {
+	hold, err := lifecycle.NewLegalHold(holdInput(func(in *lifecycle.NewHoldInput) {
 		in.Scope, in.ScopeID = lifecycle.HoldAccount, accountID
 	}))
+	if err != nil {
+		t.Fatalf("a hold on a person was refused: %v", err)
+	}
+	if hold.Scope != lifecycle.HoldAccount || hold.ScopeID != accountID {
+		t.Errorf("the hold covers %s %s", hold.Scope, hold.ScopeID)
+	}
 
-	if code := holdCode(t, err); code != lifecycle.CodeHoldAccountScopeUnavailable {
-		t.Fatalf("refused with %s, want %s", code, lifecycle.CodeHoldAccountScopeUnavailable)
-	}
-	if !errors.Is(err, shared.ErrConflict) {
-		t.Errorf("refused with %v, want a conflict - the request is well formed and unanswerable", err)
-	}
-	// And the scope stays a value the model knows, so that honouring it needs no migration
-	// (data-retention.md §4.1).
-	if !lifecycle.HoldAccount.Valid() {
-		t.Error("the ACCOUNT scope was removed rather than refused")
+	// It names somebody, like every scope but the workspace.
+	_, err = lifecycle.NewLegalHold(holdInput(func(in *lifecycle.NewHoldInput) {
+		in.Scope, in.ScopeID = lifecycle.HoldAccount, ""
+	}))
+	if code := holdCode(t, err); code != lifecycle.CodeHoldScopeIDMismatch {
+		t.Errorf("a hold on nobody was refused with %s", code)
 	}
 }
-
 func TestLiftingRecordsWhoAndWhyAndHappensOnce(t *testing.T) {
 	hold, err := lifecycle.NewLegalHold(holdInput(func(*lifecycle.NewHoldInput) {}))
 	if err != nil {

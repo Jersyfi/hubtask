@@ -47,6 +47,9 @@ func (s *trashStore) PurgeContainers(_ context.Context, ids []shared.ID) (int, e
 	s.purgedCont = append(s.purgedCont, ids...)
 	return len(ids), nil
 }
+func (s *trashStore) KeptBelow(context.Context, []shared.ID, []shared.ID) (map[shared.ID]int, error) {
+	return map[shared.ID]int{}, nil
+}
 
 var deletedEarlier = now.Add(-time.Hour)
 

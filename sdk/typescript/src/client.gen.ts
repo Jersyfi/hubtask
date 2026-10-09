@@ -1086,6 +1086,11 @@ export class HubtaskClient {
     return this.call("POST", "/privacy/requests/{requestId}:extend", { "requestId": requestId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** What legal holds would keep from an erasure */
+  previewErasure(requestId: string, options: CallOptions & { readonly query?: NonNullable<operations["previewErasure"]['parameters']['query']> } = {}): Promise<operations["previewErasure"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/privacy/requests/{requestId}/erasure-preview", { "requestId": requestId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Restrict the processing of an account's data (Art. 18) */
   restrictProcessing(accountId: string, body: NonNullable<operations["restrictProcessing"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["restrictProcessing"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/accounts/{accountId}:restrict", { "accountId": accountId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

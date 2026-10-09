@@ -73,6 +73,9 @@ type RunRetention struct {
 	// before, which is what makes the two halves independently deployable.
 	Rules   repository.Rules
 	Sweeper Sweeper
+	// Remainders seeds the rest of an erasure kept under a hold no longer in force that nothing
+	// seeded (data-protection.md §4.1). Optional: wired without it, a release still seeds its own.
+	Remainders ErasureRemainders
 }
 
 // RetentionSignals is the slice of the metrics adapter a run reports through
@@ -269,6 +272,16 @@ func (h RunRetention) Execute(
 	rules, err := h.sweepRules(ctx, actor, started)
 	if err != nil {
 		return outcome, err
+	}
+
+	if h.Remainders != nil {
+		active, err := h.Purger.Holds.Active(ctx)
+		if err != nil {
+			return outcome, err
+		}
+		if err := h.Remainders.Reconcile(ctx, actor.TenantID, active); err != nil {
+			return outcome, err
+		}
 	}
 
 	// Reported as one outcome, so that the job's decision about coming back straight away covers

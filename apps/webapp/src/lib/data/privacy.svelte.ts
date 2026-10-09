@@ -22,16 +22,21 @@
 import type {
   DataSubjectRequestCreate,
   DataSubjectRequestUpdate,
+  ErasurePreview,
   ResourceState,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import type { Extension, Request } from './privacy.ts';
+import type { ErasureMode, Extension, Request } from './privacy.ts';
 
 export {
   byDeadline,
   canAct,
   canExtend,
+  canStart,
+  confirmsStart,
+  keptPartPhrase,
+  keptPhrase,
   deadlineOfDay,
   deadlinePhrase,
   EXTENSION_REASONS,
@@ -136,6 +141,18 @@ class Privacy {
     return engine.mutate<Request>('PATCH', `${REQUESTS}/${requestId}`, patch, {
       invalidates: [REQUESTS],
     });
+  }
+
+  /**
+   * What the legal holds in force would keep of an erasure, for the mode named (UC-PRV-03
+   * check 11). Read when the confirmation opens rather than kept: a hold placed a minute ago counts.
+   * Undefined when it could not be read, which the confirmation says rather than hides (P-11).
+   */
+  async preview(requestId: string, mode: ErasureMode): Promise<ErasurePreview | undefined> {
+    const next = await engine.refresh<ErasurePreview>({
+      path: `${REQUESTS}/${requestId}/erasure-preview?mode=${mode}`,
+    });
+    return next.status === 'ready' ? next.data : undefined;
   }
 
   /**

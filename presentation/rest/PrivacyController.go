@@ -23,6 +23,7 @@ const (
 	listDataSubjectRequestsUseCase  = "ListDataSubjectRequests"
 	updateDataSubjectRequestUseCase = "UpdateDataSubjectRequest"
 	extendDataSubjectRequestUseCase = "ExtendDataSubjectRequest"
+	previewErasureUseCase           = "PreviewErasure"
 	restrictProcessingUseCase       = "RestrictProcessing"
 	withdrawConsentUseCase          = "WithdrawConsent"
 )
@@ -207,7 +208,73 @@ func dataSubjectRequestResponse(row usecase.Output) openapi.DataSubjectRequest {
 	}
 	request.InformedOn = dateOrNil(row.String("informed_on"))
 	request.ExtendableUntil = dateOrNil(row.String("extendable_until"))
+	if parts, ok := row["kept"].([]map[string]any); ok && len(parts) > 0 {
+		kept := erasureKeptResponse(parts)
+		request.Kept = &kept
+		basis := openapi.DataSubjectRequestKeptLegalBasis(row.String("kept_legal_basis"))
+		request.KeptLegalBasis = &basis
+	}
 	return request
+}
+
+// PreviewErasure answers GET /privacy/requests/{requestId}/erasure-preview.
+func (c *RestController) PreviewErasure(
+	w http.ResponseWriter, r *http.Request, requestID openapi_types.UUID,
+	params openapi.PreviewErasureParams,
+) {
+	in := usecase.Input{"request_id": requestID.String()}
+	if params.Mode != nil {
+		in["mode"] = string(*params.Mode)
+	}
+	out, ok := c.read(w, r, previewErasureUseCase, in)
+	if !ok {
+		return
+	}
+	parts, _ := out["kept"].([]map[string]any)
+	writeJSON(w, r, http.StatusOK, openapi.ErasurePreview{
+		Mode: openapi.ErasureMode(out.String("mode")), Kept: erasureKeptResponse(parts),
+	})
+}
+
+// erasureKeptResponse maps what each hold kept onto the contract's schema.
+func erasureKeptResponse(parts []map[string]any) []openapi.ErasureKept {
+	kept := make([]openapi.ErasureKept, 0, len(parts))
+	for _, part := range parts {
+		row := usecase.Output(part)
+		out := openapi.ErasureKept{
+			HoldId: uuidValue(row.String("hold_id")), Account: part["account"] == true,
+			Entries: intOf(part["entries"]), Comments: intOf(part["comments"]),
+			Assignments: intOf(part["assignments"]), Intake: intOf(part["intake"]),
+		}
+		if scope, ok := part["hold_scope"].(map[string]any); ok {
+			kind, _ := scope["kind"].(string)
+			out.HoldScope.Kind = openapi.ErasureKeptHoldScopeKind(kind)
+			if id, ok := scope["id"].(string); ok {
+				out.HoldScope.Id = uuidOrNil(id)
+			}
+		}
+		if erased, ok := part["erased_at"].(time.Time); ok {
+			out.ErasedAt = &erased
+		}
+		if blocked, ok := part["blocked"].(map[string]any); ok {
+			code, _ := blocked["code"].(string)
+			out.Blocked = &struct {
+				Code   string             `json:"code"`
+				Params *map[string]string `json:"params,omitempty"`
+			}{Code: code}
+			if params, ok := blocked["params"].(map[string]string); ok {
+				out.Blocked.Params = &params
+			}
+		}
+		kept = append(kept, out)
+	}
+	return kept
+}
+
+// intOf reads a count the use case answered as an int.
+func intOf(value any) int {
+	count, _ := value.(int)
+	return count
 }
 
 // dateOrNil is a calendar day the use case answered as YYYY-MM-DD, or nil where it answered none.

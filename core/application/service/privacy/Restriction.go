@@ -39,7 +39,10 @@ const (
 // leaves them out of its draw) and no AI is shown their content. Treating a restriction as a
 // lockout would punish somebody for exercising a right.
 type RestrictProcessing struct {
-	Subjects   repository.Subjects
+	Subjects repository.Subjects
+	// Kept answers whether an erasure keeps the account because of a legal hold, which its
+	// restriction then stands for.
+	Kept       repository.Kept
 	Authorizer Authorizer
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -85,6 +88,18 @@ func (h RestrictProcessing) Execute(
 	}
 
 	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if !cmd.Restricted && h.Kept != nil {
+			// A legal hold keeps this account from an erasure, restricted (data-protection.md
+			// §4.1). Lifting it would make held data processable again.
+			kept, err := h.Kept.KeepsAccount(ctx, cmd.AccountID)
+			if err != nil {
+				return err
+			}
+			if kept {
+				return shared.ErrConflict.WithDetail(domain.CodeRestrictionKeptByErasure).
+					WithParams(map[string]string{"account_id": cmd.AccountID.String()})
+			}
+		}
 		written, err := h.Subjects.SetStatus(ctx, cmd.AccountID, string(status), h.Clock.Now())
 		if err != nil {
 			return err

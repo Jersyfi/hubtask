@@ -154,6 +154,11 @@ func (s Sweeper) announce(
 		return Outcome{}, err
 	}
 
+	contributors, err := contributorsOf(ctx, s.Holds, holds, candidateIDs(candidates))
+	if err != nil {
+		return Outcome{}, err
+	}
+
 	outcome := Outcome{Matched: len(candidates), Blocked: map[string]int{}}
 	// One compilation per rule per pass rather than one per candidate. A pass judges a thousand
 	// entries against a handful of rules, and compiling is the expensive half.
@@ -180,7 +185,7 @@ func (s Sweeper) announce(
 			outcome.Matched--
 			continue
 		}
-		if reason, blocked := s.blocked(holds, candidate); blocked {
+		if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
 			outcome.blocked(reason)
 			// The object is told what is stopping it. §6's whole argument is that retention
 			// nobody can see surprises somebody, and "this would have been deleted and a legal
@@ -287,11 +292,15 @@ func (s Sweeper) announceChains(
 			return outcome, err
 		}
 		outcome.Matched += len(candidates)
+		contributors, err := contributorsOf(ctx, s.Holds, holds, candidateIDs(candidates))
+		if err != nil {
+			return outcome, err
+		}
 
 		ids := make([]shared.ID, 0, len(candidates))
 		kept := make([]repository.Candidate, 0, len(candidates))
 		for _, candidate := range candidates {
-			if reason, blocked := s.blocked(holds, candidate); blocked {
+			if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
 				outcome.blocked(reason)
 				continue
 			}
@@ -342,6 +351,10 @@ func (s Sweeper) act(
 	if err != nil {
 		return outcome, err
 	}
+	contributors, err := contributorsOf(ctx, s.Holds, holds, going)
+	if err != nil {
+		return outcome, err
+	}
 
 	byAction := map[domain.Action][]repository.Candidate{}
 	for _, candidate := range due {
@@ -351,7 +364,7 @@ func (s Sweeper) act(
 			outcome.Matched--
 			continue
 		}
-		if reason, blocked := s.blocked(holds, candidate); blocked {
+		if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
 			outcome.blocked(reason)
 			continue
 		}
@@ -561,12 +574,15 @@ func (v *candidateValues) Resolve(ctx context.Context, name string) (any, bool, 
 }
 
 // Until then nothing sets it, which is the honest state rather than a silent gap.
-func (s Sweeper) blocked(holds domain.Holds, candidate repository.Candidate) (string, bool) {
+func (s Sweeper) blocked(
+	holds domain.Holds, contributors map[shared.ID][]shared.ID, candidate repository.Candidate,
+) (string, bool) {
 	found := map[string]bool{}
 	if _, held := holds.Blocking(domain.Target{
 		ItemID:          candidate.ID,
 		ContainerIDs:    nonZero(candidate.HubID, candidate.CollectionID),
 		AncestorItemIDs: work.PathIDs(candidate.Path),
+		Contributors:    contributors[candidate.ID],
 	}); held {
 		found[domain.BlockedByLegalHold] = true
 	}

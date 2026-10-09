@@ -15,7 +15,38 @@
 SELECT id, scope_kind, scope_id, reason, placed_at
 FROM legal_hold
 WHERE released_at IS NULL
-ORDER BY placed_at;
+ORDER BY placed_at, id;
+
+-- name: ShareLegalHolds :exec
+-- Taken before the holds are read by anything that deletes, for the rest of its transaction.
+--
+-- A hold placed or lifted while a deletion runs would otherwise pass it: the deletion read the
+-- holds a moment before, and removes what the new hold names. Shared, so deletions never wait for
+-- each other; placing and lifting take the exclusive lock below and wait for them, or are waited
+-- for. Transaction-scoped, per tenant, like the audit chain's (Audit.sql).
+SELECT pg_advisory_xact_lock_shared(hashtext('legal_hold:' || current_tenant_id()::text));
+
+-- name: ExclusiveLegalHolds :exec
+-- Taken first by placing and lifting a hold, for the rest of the transaction. See ShareLegalHolds.
+SELECT pg_advisory_xact_lock(hashtext('legal_hold:' || current_tenant_id()::text));
+
+-- name: ItemContributors :many
+-- Whose own data goes with each of these entries: who created it, who commented on it, who uploaded
+-- a file attached to it. A hold on one of those accounts covers the entry, because the comments and
+-- the attachments fall with it (data-protection.md §4.1). Asked only while such a hold is in force.
+SELECT w.id AS item_id, w.created_by AS account_id
+FROM work_item w
+WHERE w.tenant_id = current_tenant_id() AND w.id = ANY(sqlc.arg('ids')::uuid[])
+UNION
+SELECT c.item_id, c.author_id
+FROM comment c
+WHERE c.tenant_id = current_tenant_id() AND c.item_id = ANY(sqlc.arg('ids')::uuid[])
+UNION
+SELECT a.item_id, m.created_by
+FROM item_attachment a
+JOIN media_object m ON m.tenant_id = a.tenant_id AND m.id = a.media_id
+WHERE a.tenant_id = current_tenant_id() AND a.item_id = ANY(sqlc.arg('ids')::uuid[])
+  AND m.created_by IS NOT NULL;
 
 -- name: InsertLegalHold :exec
 -- A hold, placed. `placed_by` is not optional: §4.1 makes lifting one auditable, and an obligation
@@ -25,6 +56,21 @@ VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('scope_kind'), sqlc.narg('scope_id'),
   sqlc.arg('reason'), sqlc.arg('placed_by'), sqlc.arg('placed_at')
 );
+
+-- name: LegalHoldTargetExists :one
+-- Whether what a hold names is in this workspace: a hub or collection, an entry, an account. In the
+-- trash or not - a hold on something already trashed is exactly the hold that stops its purge. The
+-- tenant comes from the transaction, so another workspace's identifier answers false like one that
+-- names nothing (SG-3).
+SELECT CASE sqlc.arg('scope_kind')::text
+  WHEN 'CONTAINER' THEN EXISTS (
+    SELECT 1 FROM container c WHERE c.tenant_id = current_tenant_id() AND c.id = sqlc.arg('scope_id')::uuid)
+  WHEN 'ITEM' THEN EXISTS (
+    SELECT 1 FROM work_item w WHERE w.tenant_id = current_tenant_id() AND w.id = sqlc.arg('scope_id')::uuid)
+  WHEN 'ACCOUNT' THEN EXISTS (
+    SELECT 1 FROM account a WHERE a.tenant_id = current_tenant_id() AND a.id = sqlc.arg('scope_id')::uuid)
+  ELSE false
+END::boolean AS present;
 
 -- name: FindLegalHold :one
 SELECT id, scope_kind, scope_id, reason, placed_by, placed_at,

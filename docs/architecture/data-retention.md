@@ -112,10 +112,13 @@ Evaluated in this order; the first that applies wins:
    ([data-protection.md](./data-protection.md) §5, [backup-restore.md](./backup-restore.md) §8.2).
    Decided, not built (#1228).
 
-   **A hold on an `ACCOUNT` is refused** (`lifecycle.hold_account_scope_unavailable`); the value
-   stays in the model and the check constraint so honouring it needs no migration. Its reach is
-   decided, not built
-   ([data-protection.md §4.1](./data-protection.md#41-three-decisions-of-2026-09-30)).
+   **A hold on an `ACCOUNT`** covers that person's account and what they contributed: an entry they
+   created, commented on or attached a file to goes only with their data, so every deletion path
+   reads the contributors of what it removes while such a hold stands. What a hold names must exist
+   in the workspace (`lifecycle.hold_target_not_found`). A purge judges every entry it removes, and
+   emptying the trash keeps back a parent or a container while anything below it stays (item 6).
+   An erasure under a hold:
+   [data-protection.md §4.1](./data-protection.md#41-three-decisions-of-2026-09-30).
 2. **A restriction of processing** (GDPR Art. 18) → the object is neither deleted nor changed. The
    **account** carries it (status `RESTRICTED`), not an open case
    ([data-protection.md](./data-protection.md) §4).

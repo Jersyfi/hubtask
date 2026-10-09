@@ -58,6 +58,9 @@ func (e expiredRows) Containers(
 type noHolds struct{}
 
 func (noHolds) Active(context.Context) (domain.Holds, error) { return nil, nil }
+func (noHolds) Contributors(context.Context, []shared.ID) (map[shared.ID][]shared.ID, error) {
+	return nil, nil
+}
 
 type noRemovals struct{}
 
@@ -76,6 +79,9 @@ func (noTrash) PurgeItems(_ context.Context, ids []shared.ID) (int, error) {
 }
 func (noTrash) PurgeContainers(_ context.Context, ids []shared.ID) (int, error) {
 	return len(ids), nil
+}
+func (noTrash) KeptBelow(context.Context, []shared.ID, []shared.ID) (map[shared.ID]int, error) {
+	return map[shared.ID]int{}, nil
 }
 
 type noEvents struct{}

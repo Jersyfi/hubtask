@@ -608,54 +608,6 @@ func (r PrivacyRepository) DiscardNotifications(
 	return int(rows), nil
 }
 
-// ReleaseAssignments hands the work back to nobody.
-func (r PrivacyRepository) ReleaseAssignments(
-	ctx context.Context, accountID shared.ID, at time.Time,
-) (int, error) {
-	queries, id, err := r.accountQuery(ctx, accountID)
-	if err != nil {
-		return 0, err
-	}
-
-	rows, err := queries.ClearAssignmentsOfAccount(ctx, sqlc.ClearAssignmentsOfAccountParams{
-		AccountID: id, UpdatedAt: timestampOf(at),
-	})
-	if err != nil {
-		return 0, erasureFailed("releasing the assignments of an account", err)
-	}
-	return int(rows), nil
-}
-
-// AuthoredComments answers the person's own contributions.
-func (r PrivacyRepository) AuthoredComments(
-	ctx context.Context, accountID shared.ID,
-) ([]repository.Authored, error) {
-	queries, id, err := r.accountQuery(ctx, accountID)
-	if err != nil {
-		return nil, err
-	}
-
-	rows, err := queries.CommentsAuthoredBy(ctx, id)
-	if err != nil {
-		return nil, erasureFailed("reading the comments of an account", err)
-	}
-
-	authored := make([]repository.Authored, 0, len(rows))
-	for _, row := range rows {
-		commentID, err := idFrom(row.ID)
-		if err != nil {
-			return nil, err
-		}
-		itemID, err := idFrom(row.ItemID)
-		if err != nil {
-			return nil, err
-		}
-		authored = append(authored, repository.Authored{ID: commentID, ItemID: itemID})
-	}
-	return authored, nil
-}
-
-// DeleteAuthoredComments removes them.
 // DiscardIntake removes what the person sent in by mail.
 func (r PrivacyRepository) DiscardIntake(ctx context.Context, accountID shared.ID) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)
@@ -698,21 +650,6 @@ func (r PrivacyRepository) AutomationsRunningAs(
 		return 0, erasureFailed("counting the rules that act as an account", err)
 	}
 	return int(count), nil
-}
-
-func (r PrivacyRepository) DeleteAuthoredComments(
-	ctx context.Context, accountID shared.ID,
-) (int, error) {
-	queries, id, err := r.accountQuery(ctx, accountID)
-	if err != nil {
-		return 0, err
-	}
-
-	rows, err := queries.DeleteCommentsAuthoredBy(ctx, id)
-	if err != nil {
-		return 0, erasureFailed("removing the comments of an account", err)
-	}
-	return int(rows), nil
 }
 
 // OrphanedMedia answers the uploads nothing points at any more.

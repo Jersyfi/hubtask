@@ -18,12 +18,8 @@ import (
 
 func performerFor(requests *requestStore, h *erasureHarness) Performer {
 	return Performer{
-		Requests: requests,
-		Eraser: Eraser{
-			Requests: requests, Erasure: h.storage, Pseudonyms: h.pseudonyms,
-			Removals: h.removals, Objects: h.objects, Audit: h.audit,
-			UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
-		},
+		Requests:   requests,
+		Eraser:     h.eraserFor(requests),
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}
 }

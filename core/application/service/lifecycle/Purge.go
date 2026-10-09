@@ -13,6 +13,7 @@ package lifecycle
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"time"
 
@@ -117,6 +118,23 @@ func (p Purger) Subtree(
 	if len(ids) == 0 {
 		return 0, nil
 	}
+	// Every entry that goes, not the root alone: a hold on an activity three levels down names
+	// that activity, and the root's own path says nothing about it. Each one shares the root's
+	// containers and ancestors, so its own identifier and its contributors are what is left to judge.
+	contributors, err := contributorsOf(ctx, p.Holds, holds, ids)
+	if err != nil {
+		return 0, err
+	}
+	for _, id := range ids {
+		if hold, blocked := holds.Blocking(domain.Target{
+			ItemID:          id,
+			ContainerIDs:    nonZero(hub, item.CollectionID),
+			AncestorItemIDs: work.PathIDs(item.Path),
+			Contributors:    contributors[id],
+		}); blocked {
+			return 0, legalHoldRefusal(hold)
+		}
+	}
 
 	removals := make([]domain.Removal, 0, len(ids))
 	for _, id := range ids {
@@ -201,6 +219,14 @@ func (p Purger) Sweep(
 	if err != nil {
 		return outcome, err
 	}
+	itemIDs := make([]shared.ID, 0, len(items))
+	for _, expired := range items {
+		itemIDs = append(itemIDs, expired.ID)
+	}
+	contributors, err := contributorsOf(ctx, p.Holds, holds, itemIDs)
+	if err != nil {
+		return outcome, err
+	}
 	removableItems := make([]shared.ID, 0, len(items))
 	for _, expired := range items {
 		outcome.Matched++
@@ -208,6 +234,7 @@ func (p Purger) Sweep(
 			ItemID:          expired.ID,
 			ContainerIDs:    nonZero(expired.HubID, expired.CollectionID),
 			AncestorItemIDs: work.PathIDs(expired.Path),
+			Contributors:    contributors[expired.ID],
 		}); held {
 			outcome.blocked(BlockedByLegalHold)
 			continue
@@ -237,6 +264,21 @@ func (p Purger) Sweep(
 			continue
 		}
 		removableContainers = append(removableContainers, expired.ID)
+	}
+
+	// The trash under data-retention.md §4 item 6: a parent or a container goes only with
+	// everything below it. The schema's cascades would otherwise take a held child with it -
+	// unjudged, unrecorded - so what stays below keeps it back for a later pass. Entries first,
+	// because a container counts the entries that stay; one question each, because the count runs
+	// over every depth below, so excluding a row cannot change what its ancestors already counted.
+	removableItems, err = p.keepBack(ctx, removableItems, removableItems, &outcome)
+	if err != nil {
+		return outcome, err
+	}
+	removableContainers, err = p.keepBack(ctx, removableContainers,
+		append(slices.Clone(removableItems), removableContainers...), &outcome)
+	if err != nil {
+		return outcome, err
 	}
 
 	removals := make([]domain.Removal, 0, len(removableItems)+len(removableContainers))
@@ -276,6 +318,49 @@ func (p Purger) Sweep(
 		}
 	}
 	return outcome, nil
+}
+
+// contributorsOf reads whose own data goes with each of these entries - only while an account hold
+// is in force, because nothing else asks, and a removal over a workspace with no such hold should
+// cost no extra statement.
+func contributorsOf(
+	ctx context.Context, port repository.LegalHolds, holds domain.Holds, ids []shared.ID,
+) (map[shared.ID][]shared.ID, error) {
+	if !holds.AnyOnAccounts() || len(ids) == 0 {
+		return nil, nil
+	}
+	return port.Contributors(ctx, ids)
+}
+
+// candidateIDs are the identifiers of a batch.
+func candidateIDs(candidates []repository.Candidate) []shared.ID {
+	ids := make([]shared.ID, 0, len(candidates))
+	for _, candidate := range candidates {
+		ids = append(ids, candidate.ID)
+	}
+	return ids
+}
+
+// keepBack takes out of candidates every row with something below it that is not in going.
+func (p Purger) keepBack(
+	ctx context.Context, candidates, going []shared.ID, outcome *Outcome,
+) ([]shared.ID, error) {
+	if len(candidates) == 0 {
+		return candidates, nil
+	}
+	kept, err := p.Trash.KeptBelow(ctx, candidates, going)
+	if err != nil {
+		return nil, err
+	}
+	removable := make([]shared.ID, 0, len(candidates))
+	for _, id := range candidates {
+		if kept[id] > 0 {
+			outcome.blocked(domain.BlockedByDescendant)
+			continue
+		}
+		removable = append(removable, id)
+	}
+	return removable, nil
 }
 
 // The tables a removal names, in the words the journal and the tombstone use.
@@ -324,7 +409,9 @@ func (p Purger) RecordAudit(
 		{Field: "matched", Classification: audit.Open, To: strconv.Itoa(outcome.Matched)},
 		{Field: "removed", Classification: audit.Open, To: strconv.Itoa(outcome.Removed)},
 	}
-	for _, blocked := range []string{BlockedByLegalHold, BlockedByTombstoneWindow} {
+	for _, blocked := range []string{
+		BlockedByLegalHold, BlockedByTombstoneWindow, domain.BlockedByDescendant,
+	} {
 		if count := outcome.Blocked[blocked]; count > 0 {
 			changes = append(changes, audit.Change{
 				Field: "blocked_" + blocked, Classification: audit.Open, To: strconv.Itoa(count),

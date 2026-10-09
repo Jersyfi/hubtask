@@ -498,6 +498,12 @@ func (pending) ExtendDataSubjectRequest(
 	notAvailable(w, r)
 }
 
+func (pending) PreviewErasure(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.PreviewErasureParams,
+) {
+	notAvailable(w, r)
+}
+
 // RestrictProcessing and WithdrawConsent are overridden by RestController, for the reason
 // ListDataSubjectRequests is.
 func (pending) RestrictProcessing(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
