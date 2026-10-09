@@ -1270,6 +1270,7 @@
   "backup.row_conflicts": "A row of the archive collides with one the workspace already holds ({constraint}), so the batch it was in was not written.",
   "backup.restore_confirmation_required": "This would replace everything in {name}. Type the workspace's name into confirmation to confirm it.",
   "backup.restore_archive_scope_mismatch": "That archive belongs to another workspace, so it cannot be restored here.",
+  "backup.restore_foreign_archive_encrypted": "That archive comes from another installation and is encrypted with its key, which this installation does not have. Restore an unencrypted export of the workspace instead.",
   "backup.restore_instance_is_the_operators": "Restoring the whole installation is not something Hubtask does: the database's own point-in-time recovery does it, and an operator runs it from the archive with the procedure in backup-restore.md §8.5. To bring one workspace back from a Hubtask archive, use NEW_TENANT or REPLACE_TENANT.",
   "backup.restore_tenant_not_new": "A restore into a new workspace needs a workspace that does not exist yet, and this one already does. Ask for the restore again.",
   "backup.restore_schema_ahead": "That archive comes from a newer version of Hubtask ({archive}) than this one ({installed}). Update first, then restore.",

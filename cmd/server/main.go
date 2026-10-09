@@ -470,6 +470,7 @@ func run() error {
 	backupRestorer := backupservice.Restorer{
 		Targets: backupTargets, Restores: backupRestores,
 		Workspace: postgres.NewWorkspaceRepository(), Jobs: jobs,
+		Workspaces: postgres.NewBackupImportRepository(),
 		// The step-up verifier - a fresh re-authentication on the
 		// current session, consumed by the one privileged action it is presented to - is handed in
 		// once the sign-in rule is taught (stepUpVerifier, below).

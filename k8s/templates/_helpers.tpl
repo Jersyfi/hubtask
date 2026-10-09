@@ -119,6 +119,12 @@ rather than a re-render of every deployment.
 - name: HUBTASK_LOAD_SHED_INFLIGHT
   value: {{ . | quote }}
 {{- end }}
+{{- with dig "resources" "limits" "memory" "" (index .root.Values.roles .role) }}
+# Derived from this role's memory limit, so that the two cannot drift apart: change the limit, and
+# the runtime's target follows (observability-reliability.md §6).
+- name: GOMEMLIMIT
+  value: {{ include "hubtask.goMemLimit" . | quote }}
+{{- end }}
 - name: HUBTASK_DB_DSN
   valueFrom:
     secretKeyRef:
@@ -174,4 +180,23 @@ readinessProbe:
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 2
+{{- end -}}
+
+{{/*
+GOMEMLIMIT from a memory limit: 90 % of it, in bytes. The Go runtime does not know the container's
+limit; without one of its own it lets the heap grow until the kernel kills the pod, rather than
+collecting harder as it nears the line (observability-reliability.md §6). The tenth left over is
+for what the runtime does not manage - the mapped binary, the page cache charged to the container -
+and for the collector to catch up once the target is crossed. The downward API could hand the limit
+over, but only whole, and a target equal to the limit leaves no room to react before the kill.
+*/}}
+{{- define "hubtask.goMemLimit" -}}
+{{- $quantity := ternary (toString (int64 .)) (toString .) (kindIs "float64" .) -}}
+{{- $units := dict "" 1 "k" 1000 "M" 1000000 "G" 1000000000 "T" 1000000000000 "Ki" 1024 "Mi" 1048576 "Gi" 1073741824 "Ti" 1099511627776 -}}
+{{- $number := regexFind "^[0-9]+([.][0-9]+)?" $quantity -}}
+{{- $suffix := trimPrefix $number $quantity -}}
+{{- if or (not $number) (not (hasKey $units $suffix)) -}}
+{{- fail (printf "the memory limit %q cannot be turned into GOMEMLIMIT: write it as a number with an optional k, M, G, T, Ki, Mi, Gi or Ti suffix" $quantity) -}}
+{{- end -}}
+{{- printf "%d" (int64 (floor (mulf (float64 $number) (index $units $suffix) 0.9))) -}}
 {{- end -}}

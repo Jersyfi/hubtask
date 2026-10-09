@@ -360,6 +360,50 @@ func TestReorderingBetweenTwoNeighboursTouchesOneRow(t *testing.T) {
 	}
 }
 
+// A card dragged to another column without leaving its level is a reorder, and the column is part of
+// it: a rank written without the column would show the card where it was dropped until the next read,
+// and back in the old column after it.
+func TestAReorderWritesTheColumnWithTheRank(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	todo := seedBucket(ctx, t, tenantA, collection, "a0")
+	doing := seedBucket(ctx, t, tenantA, collection, "a1")
+
+	id := freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, id, freshName(t), "a0"))
+	}); err != nil {
+		t.Fatalf("seeding the task: %v", err)
+	}
+	putInBucket(ctx, t, id, todo.ID)
+
+	for _, step := range []struct {
+		name   string
+		bucket shared.ID
+		key    string
+	}{
+		{name: "into another column", bucket: doing.ID, key: "a1"},
+		{name: "off the board", bucket: "", key: "a2"},
+	} {
+		moving := findWorkItem(ctx, t, tenantA, id)
+		placed := moving
+		placed.BucketID, placed.OrderKey = step.bucket, step.key
+		placed.UpdatedAt = created.Add(time.Hour)
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+			return itemRepo().SetOrderKey(ctx, placed, moving.Version)
+		}); err != nil {
+			t.Fatalf("%s: reordering: %v", step.name, err)
+		}
+
+		if got := bucketOf(ctx, t, id); got != step.bucket.String() {
+			t.Errorf("%s: the column is %q, want %q", step.name, got, step.bucket)
+		}
+		if after := findWorkItem(ctx, t, tenantA, id); after.OrderKey != step.key {
+			t.Errorf("%s: the rank is %q, want %q", step.name, after.OrderKey, step.key)
+		}
+	}
+}
+
 // The item being moved is excluded from its own level: measuring a new position against the rank it is
 // leaving would place it next to where it already is.
 func TestTheMovingItemIsNotItsOwnNeighbour(t *testing.T) {

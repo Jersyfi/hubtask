@@ -159,6 +159,17 @@ type Workspace interface {
 	Name(ctx context.Context) (string, error)
 }
 
+// Holder answers whether the tenant of the transaction has one row - its half of Import, and all
+// a reader needs that only asks whether a workspace exists here.
+type Holder interface {
+	// Holds reports whether the tenant already has the row this data identifies.
+	//
+	// Asked before the write rather than derived from it, because the dry run has to answer the
+	// same question without writing anything (§8.3 step 2). One question in both paths is also
+	// what makes the report a caller approved and the report they get back comparable.
+	Holds(ctx context.Context, table string, data map[string]any) (bool, error)
+}
+
 // Import is the tenant's rows as a restore writes them (backup-restore.md §8).
 //
 // The mirror of Export, in the same vocabulary and with the same seam: table names on this side,
@@ -171,12 +182,7 @@ type Workspace interface {
 // a restore cannot write into another tenant even deliberately - BK-10 at the layer where it
 // cannot be forgotten.
 type Import interface {
-	// Holds reports whether the tenant already has the row this data identifies.
-	//
-	// Asked before the write rather than derived from it, because the dry run has to answer the
-	// same question without writing anything (§8.3 step 2). One question in both paths is also
-	// what makes the report a caller approved and the report they get back comparable.
-	Holds(ctx context.Context, table string, data map[string]any) (bool, error)
+	Holder
 
 	// Write inserts the row, replaces it when overwrite is true, and answers whether anything was
 	// written. False is a collision the caller asked to leave alone - not an error.
