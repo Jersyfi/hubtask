@@ -1587,7 +1587,8 @@ INSERT INTO legal_hold (
   placed_by,
   placed_at,
   released_by,
-  released_at
+  released_at,
+  released_reason
 )
 SELECT
   r.id,
@@ -1598,7 +1599,8 @@ SELECT
   r.placed_by,
   r.placed_at,
   r.released_by,
-  r.released_at
+  r.released_at,
+  r.released_reason
 FROM jsonb_populate_record(
   NULL::legal_hold,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1611,7 +1613,8 @@ ON CONFLICT (id) DO UPDATE SET
   placed_by = EXCLUDED.placed_by,
   placed_at = EXCLUDED.placed_at,
   released_by = EXCLUDED.released_by,
-  released_at = EXCLUDED.released_at
+  released_at = EXCLUDED.released_at,
+  released_reason = EXCLUDED.released_reason
 WHERE $2::boolean
 `
 

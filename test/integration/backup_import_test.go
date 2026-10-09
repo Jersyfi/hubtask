@@ -801,3 +801,43 @@ func sameJSON(a, b any) bool {
 	}
 	return string(first) == string(second)
 }
+
+// A released hold comes back from an archive with both of its ends, the release's reason included
+// (UC-LIF-06 check 7): the export writes the whole row, and an import that dropped a column would
+// restore a hold somebody lifted without saying why.
+func TestARestoredHoldKeepsItsReleaseReason(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	id, scope := freshID(t), freshID(t)
+	placed := created.Add(-48 * time.Hour)
+	released := created.Add(-24 * time.Hour)
+
+	row := map[string]any{
+		"id": id.String(), "scope_kind": "ITEM", "scope_id": scope.String(),
+		"reason": "Supplier dispute", "placed_by": authorA.String(),
+		"placed_at":   placed.Format(time.RFC3339Nano),
+		"released_by": authorA.String(), "released_at": released.Format(time.RFC3339Nano),
+		"released_reason": "Settled out of court",
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "legal_hold", row, false)
+		return err
+	}); err != nil {
+		t.Fatalf("importing: %v", err)
+	}
+
+	var reason, releasedReason string
+	var releasedAt time.Time
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT reason, released_at, coalesce(released_reason, '') FROM legal_hold
+		 WHERE tenant_id = $1 AND id = $2`, tenantA.String(), id.String(),
+	).Scan(&reason, &releasedAt, &releasedReason); err != nil {
+		t.Fatalf("reading back the hold: %v", err)
+	}
+	if reason != "Supplier dispute" || !releasedAt.Equal(released) {
+		t.Errorf("the hold came back as %q released at %v", reason, releasedAt)
+	}
+	if releasedReason != "Settled out of court" {
+		t.Errorf("the release's reason came back as %q, want the archive's", releasedReason)
+	}
+}
