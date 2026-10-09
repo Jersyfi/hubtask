@@ -20,7 +20,8 @@ SELECT id::uuid, slug::text, display_name::text, status::text,
        -- Empty rather than NULL where no opening stands: the generator cannot see that the
        -- function's text columns may be NULL, and a NULL scanned into a string is an error.
        coalesce(password_opened_requester, '')::text AS password_opened_requester,
-       coalesce(password_opened_reason, '')::text AS password_opened_reason
+       coalesce(password_opened_reason, '')::text AS password_opened_reason,
+       legal_hold::boolean AS legal_hold
 FROM admin_tenants()
 `
 
@@ -36,6 +37,7 @@ type AdminTenantsRow struct {
 	PasswordOpenedUntil     pgtype.Timestamptz
 	PasswordOpenedRequester string
 	PasswordOpenedReason    string
+	LegalHold               bool
 }
 
 // The control plane (multi-tenancy.md §5): provisioning, suspension, the deletion request
@@ -68,6 +70,7 @@ func (q *Queries) AdminTenants(ctx context.Context) ([]AdminTenantsRow, error) {
 			&i.PasswordOpenedUntil,
 			&i.PasswordOpenedRequester,
 			&i.PasswordOpenedReason,
+			&i.LegalHold,
 		); err != nil {
 			return nil, err
 		}

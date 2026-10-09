@@ -33,7 +33,10 @@ type TenantRecord struct {
 	// PasswordOpening is an operator's opening of the password, as the row holds it (ADR-0078 §3).
 	// Whether it still stands is the reader's to judge against its clock.
 	PasswordOpening identity.PasswordOpening
-	Version         int
+	// LegalHold says a legal hold is in force in the workspace, so it is not deleted
+	// (data-protection.md §5). A state only: which hold, on what and why stay the workspace's.
+	LegalHold bool
+	Version   int
 }
 
 // Tenants is the lifecycle of the tenant row.

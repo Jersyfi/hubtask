@@ -2753,21 +2753,24 @@ GRANT EXECUTE ON FUNCTION count_provider_offers(uuid) TO hubtask_app;
 -- control plane's job, and the control plane must see its rows. SECURITY DEFINER for
 -- resolve_tenant's reason; what bounds it is the application - the use case behind it demands
 -- the admin:tenants scope, which no session carries.
--- It answers an operator's opening of the password beside the lifecycle (migration 0118).
+-- It answers an operator's opening of the password beside the lifecycle (migration 0118), and
+-- whether a legal hold is in force - a state, never which hold (migration 0121).
 CREATE OR REPLACE FUNCTION admin_tenants()
 RETURNS TABLE (
   id uuid, slug text, display_name text, status text,
   default_locale text, default_time_zone text,
   created_at timestamptz, purge_after timestamptz,
-  password_opened_until timestamptz, password_opened_requester text, password_opened_reason text
+  password_opened_until timestamptz, password_opened_requester text, password_opened_reason text,
+  legal_hold boolean
 )
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
-  SELECT id, slug, display_name, status::text,
-         default_locale, default_time_zone, created_at, purge_after,
-         password_opened_until, password_opened_requester, password_opened_reason
-  FROM tenant
-  WHERE deleted_at IS NULL
-  ORDER BY created_at, id
+  SELECT t.id, t.slug, t.display_name, t.status::text,
+         t.default_locale, t.default_time_zone, t.created_at, t.purge_after,
+         t.password_opened_until, t.password_opened_requester, t.password_opened_reason,
+         EXISTS (SELECT 1 FROM legal_hold h WHERE h.tenant_id = t.id AND h.released_at IS NULL)
+  FROM tenant t
+  WHERE t.deleted_at IS NULL
+  ORDER BY t.created_at, t.id
 $$;
 
 REVOKE ALL ON FUNCTION admin_tenants() FROM PUBLIC;

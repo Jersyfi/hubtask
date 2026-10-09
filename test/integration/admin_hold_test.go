@@ -12,6 +12,7 @@ import (
 
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -111,6 +112,47 @@ func TestAWorkspaceUnderAHoldOutlivesItsGraceAndGoesAfterTheRelease(t *testing.T
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM tenant WHERE id = $1`, tenant.String()).
 		Scan(&left); err != nil || left != 0 {
 		t.Errorf("the workspace is still there (%d, %v)", left, err)
+	}
+}
+
+// The operator's listing reads the hold as the app role, through the enumerator: in force says
+// true, released says false, and the workspace next door is not touched by either.
+func TestTheInstallationListingSaysWhichWorkspaceIsUnderAHold(t *testing.T) {
+	ctx := context.Background()
+	held, person := heldWorkspace(ctx, t)
+	free, _ := heldWorkspace(ctx, t)
+	hold := freshID(t)
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO legal_hold (id, tenant_id, scope_kind, scope_id, reason, placed_by, placed_at)
+		VALUES ($1, $2, 'ACCOUNT', $3, 'Pending litigation', $3, now())`,
+		hold.String(), held.String(), person.String()); err != nil {
+		t.Fatalf("placing the hold: %v", err)
+	}
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	listing := func() map[shared.ID]bool {
+		out := map[shared.ID]bool{}
+		if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+			records, err := postgres.NewAdminTenantRepository().List(ctx)
+			for _, record := range records {
+				out[record.ID] = record.LegalHold
+			}
+			return err
+		}); err != nil {
+			t.Fatalf("listing: %v", err)
+		}
+		return out
+	}
+
+	if seen := listing(); !seen[held] || seen[free] {
+		t.Errorf("the listing says held %v and free %v", seen[held], seen[free])
+	}
+	if _, err := admin.Exec(ctx, `UPDATE legal_hold SET released_at = now(), released_by = $2,
+		released_reason = 'Settled' WHERE id = $1`, hold.String(), person.String()); err != nil {
+		t.Fatalf("releasing: %v", err)
+	}
+	if seen := listing(); seen[held] {
+		t.Error("a released hold still marks the workspace")
 	}
 }
 

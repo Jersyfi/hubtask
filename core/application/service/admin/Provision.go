@@ -513,6 +513,7 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 		"default_time_zone": record.DefaultTimeZone,
 		"created_at":        record.CreatedAt,
 		"purge_after":       nil,
+		"legal_hold":        record.LegalHold,
 	}
 	if !record.PurgeAfter.IsZero() {
 		out["purge_after"] = record.PurgeAfter

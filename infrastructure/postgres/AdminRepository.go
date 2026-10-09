@@ -58,6 +58,7 @@ func (AdminTenantRepository) List(ctx context.Context) ([]repository.TenantRecor
 				Until:     timeFrom(row.PasswordOpenedUntil),
 				Requester: row.PasswordOpenedRequester, Reason: row.PasswordOpenedReason,
 			},
+			LegalHold: row.LegalHold,
 		})
 	}
 	return records, nil

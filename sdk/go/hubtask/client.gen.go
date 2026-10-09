@@ -3892,6 +3892,9 @@ type AdminTenant struct {
 	DisplayName     string             `json:"display_name"`
 	Id              openapi_types.UUID `json:"id"`
 
+	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
+	LegalHold *bool `json:"legal_hold,omitempty"`
+
 	// PasswordOpening The operator's opening of the password while it is in force, null otherwise - an opening past its end is answered as none, whatever the row still holds.
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
@@ -6655,7 +6658,10 @@ type ProvisionedTenant struct {
 	DisplayName         string             `json:"display_name"`
 	ExampleCollectionId openapi_types.UUID `json:"example_collection_id"`
 	Id                  openapi_types.UUID `json:"id"`
-	OwnerAccountId      openapi_types.UUID `json:"owner_account_id"`
+
+	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
+	LegalHold      *bool              `json:"legal_hold,omitempty"`
+	OwnerAccountId openapi_types.UUID `json:"owner_account_id"`
 
 	// OwnerRedemptionToken The owner's way in, shown for the only time: whoever the workspace is for redeems it, sets a password, and is signed in. Hand it to them; it cannot be read again.
 	OwnerRedemptionToken string `json:"owner_redemption_token"`

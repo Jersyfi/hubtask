@@ -646,6 +646,7 @@ class AdminTenant(TypedDict, total=False):
     default_time_zone: str
     created_at: Required[str]
     purge_after: str | None
+    legal_hold: bool
     password_opening: "PasswordOpening" | Any
 
 class PasswordOpening(TypedDict, total=False):
@@ -696,6 +697,7 @@ class ProvisionedTenant(TypedDict, total=False):
     default_time_zone: str
     created_at: Required[str]
     purge_after: str | None
+    legal_hold: bool
     password_opening: "PasswordOpening" | Any
     owner_account_id: Required[str]
     owner_redemption_token: Required[str]

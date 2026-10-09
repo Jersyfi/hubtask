@@ -6,9 +6,11 @@ package admin
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	lifecycle "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -131,6 +133,21 @@ func TestAPurgeThatRunsEarlyWaitsForTheDeadline(t *testing.T) {
 	}
 	if outcome.RunAgainIn != 36*time.Hour {
 		t.Errorf("the job comes back in %v, want at the deadline", outcome.RunAgainIn)
+	}
+}
+
+// The listing says a hold stands and nothing else about it: the operator learns the deletion cannot
+// proceed, not what the workspace is preserving (P-01).
+func TestTheListingSaysAHoldStandsAndNothingMore(t *testing.T) {
+	held := adminTenantOutput(adminrepo.TenantRecord{ID: lifecycleTenant, Slug: "acme", LegalHold: true})
+	free := adminTenantOutput(adminrepo.TenantRecord{ID: operatorHome, Slug: "home"})
+	if held["legal_hold"] != true || free["legal_hold"] != false {
+		t.Errorf("legal_hold answered %v and %v", held["legal_hold"], free["legal_hold"])
+	}
+	for key := range held {
+		if key != "legal_hold" && strings.Contains(key, "hold") {
+			t.Errorf("the listing carries %q about a hold", key)
+		}
 	}
 }
 
