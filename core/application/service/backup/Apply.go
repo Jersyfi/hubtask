@@ -311,9 +311,22 @@ func (a Applier) precheck(
 	// asker itself (StartRestore refuses any other), and for NEW_TENANT it is an identifier the
 	// use case minted a moment ago, guarded by assertFresh below. Comparing against the
 	// destination instead would mean a NEW_TENANT restore could never match its own archive.
-	if newest.Manifest.Scope.Kind != archive.ScopeTenant || newest.Manifest.Scope.ID != asking.String() {
+	// NEW_TENANT also takes an archive of a workspace this installation does not hold - the
+	// provider-migration path (§8.2) - and no mode takes one of another workspace held here.
+	origin, err := originOf(ctx, a.UnitOfWork, a.Import, newest.Manifest.Scope, asking)
+	if err != nil {
+		return nil, secret.Bytes{}, err
+	}
+	if !restore.Mode.Accepts(origin) {
 		return nil, secret.Bytes{}, shared.ErrValidation.
 			WithDetail(domain.CodeRestoreArchiveScopeMismatch).
+			WithParams(map[string]string{"archive": restore.SourceArchive})
+	}
+	// Its key is derived from another installation's master key, which this one does not hold:
+	// refused by name rather than left to fail as a decryption error (§4).
+	if origin == domain.ArchiveOfUnknownWorkspace && newest.Manifest.Encryption.IsEncrypted() {
+		return nil, secret.Bytes{}, shared.ErrValidation.
+			WithDetail(domain.CodeRestoreForeignArchiveEncrypted).
 			WithParams(map[string]string{"archive": restore.SourceArchive})
 	}
 
@@ -345,16 +358,9 @@ func (a Applier) precheck(
 // The mode's whole safety argument is that its destination was minted by the use case a moment
 // ago, so nothing of anybody else's can be under it. A run row naming a living tenant - however it
 // came to - is a row that argument no longer covers, and the honest outcome is a refusal before
-// the first row is written rather than a write into somebody's workspace. The read runs in the
-// destination's own scope, where row level security lets a tenant see exactly its own row: a
-// tenant that does not exist answers nothing, which is the answer this wants.
+// the first row is written rather than a write into somebody's workspace.
 func (a Applier) assertFresh(ctx context.Context, into persistence.Scope) error {
-	var held bool
-	err := a.UnitOfWork.WithinReadOnly(ctx, into, func(ctx context.Context) error {
-		var err error
-		held, err = a.Import.Holds(ctx, tenantTable, map[string]any{"id": into.TenantID.String()})
-		return err
-	})
+	held, err := holdsWorkspace(ctx, a.UnitOfWork, a.Import, into.TenantID)
 	if err != nil {
 		return err
 	}
@@ -362,6 +368,52 @@ func (a Applier) assertFresh(ctx context.Context, into persistence.Scope) error 
 		return shared.ErrConflict.WithDetail(domain.CodeRestoreTenantNotNew)
 	}
 	return nil
+}
+
+// holdsWorkspace answers whether a workspace exists on this installation.
+//
+// The read runs in that workspace's own scope, where row level security lets a tenant see exactly
+// its own row: a tenant that does not exist answers nothing, which is the answer this wants, and the
+// read never sees a row of any other workspace.
+func holdsWorkspace(
+	ctx context.Context, uow persistence.UnitOfWork, tenants repository.Holder, id shared.ID,
+) (bool, error) {
+	var held bool
+	err := uow.WithinReadOnly(ctx, persistence.Scope{TenantID: id}, func(ctx context.Context) error {
+		var err error
+		held, err = tenants.Holds(ctx, tenantTable, map[string]any{"id": id.String()})
+		return err
+	})
+	return held, err
+}
+
+// originOf is whose an archive is, seen from the workspace that asks (backup-restore.md §8.2).
+//
+// A scope that is not a workspace's, or not an identifier, has no origin and every mode refuses it.
+// The asker's own archive needs no read; any other is looked up, because whether it belongs to a
+// workspace of this installation is what keeps BK-10 between them.
+func originOf(
+	ctx context.Context, uow persistence.UnitOfWork, tenants repository.Holder,
+	scope archive.Scope, asking shared.ID,
+) (domain.ArchiveOrigin, error) {
+	if scope.Kind != archive.ScopeTenant {
+		return 0, nil
+	}
+	if scope.ID == asking.String() {
+		return domain.ArchiveOfOwnWorkspace, nil
+	}
+	id, err := shared.ParseID(scope.ID)
+	if err != nil {
+		return 0, nil //nolint:nilerr // an unreadable scope is no workspace's, and refused as such
+	}
+	held, err := holdsWorkspace(ctx, uow, tenants, id)
+	if err != nil {
+		return 0, err
+	}
+	if held {
+		return domain.ArchiveOfLocalWorkspace, nil
+	}
+	return domain.ArchiveOfUnknownWorkspace, nil
 }
 
 // takeSafetyCopy is §8.3 step 4: a copy of the current state before a destructive mode.
@@ -519,7 +571,10 @@ func (a Applier) apply(ctx context.Context, p plan) (domain.Report, error) {
 		return domain.Report{}, err
 	}
 
-	if !p.dry && p.restore.Mode == domain.RestoreReplaceTenant {
+	// Only before the first batch: a resumed attempt skips what an earlier one recorded, so
+	// emptying again would remove exactly that part of the archive for good (BK-7). The emptying
+	// commits before any batch, so recorded progress means it already happened.
+	if !p.dry && p.restore.Mode == domain.RestoreReplaceTenant && len(p.restore.Progress) == 0 {
 		if err := a.emptyTenant(ctx, p); err != nil {
 			return domain.Report{}, err
 		}

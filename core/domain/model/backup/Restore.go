@@ -65,6 +65,13 @@ func (m RestoreMode) Destructive() bool {
 	return m == RestoreReplaceTenant || m == RestoreInstance
 }
 
+// Operators reports the modes backup-restore.md §8.2 gives to the installation operator rather
+// than to a workspace: NEW_TENANT creates a workspace and INSTANCE crosses all of them, and no role
+// inside one workspace can answer for that.
+func (m RestoreMode) Operators() bool {
+	return m == RestoreNewTenant || m == RestoreInstance
+}
+
 // ConflictRule is how a MERGE decides an object that is in the archive and in the tenant.
 type ConflictRule string
 
@@ -465,6 +472,10 @@ const (
 	// which is BK-10's refusal. It is the one every mode is checked for, at the listing, at the
 	// dry run and at the execution.
 	CodeRestoreArchiveScopeMismatch = "backup.restore_archive_scope_mismatch"
+	// CodeRestoreForeignArchiveEncrypted is an encrypted archive of a workspace this installation
+	// does not hold. Its key comes from another installation's master key, so the refusal says
+	// that rather than arriving later as a decryption error (backup-restore.md §4).
+	CodeRestoreForeignArchiveEncrypted = "backup.restore_foreign_archive_encrypted"
 	// CodeRestoreTenantNotNew is a NEW_TENANT restore whose destination already exists. The mode's
 	// safety argument is that the identifier was minted by the use case a moment ago, so nothing
 	// of anybody else's can be under it - and a run row that names a living tenant, however it

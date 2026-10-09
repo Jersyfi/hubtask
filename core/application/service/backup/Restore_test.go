@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -147,6 +148,61 @@ func TestAnotherTenantsArchivesAreNotListed(t *testing.T) {
 	if len(archives) != 1 || archives[0].Path != mine {
 		t.Fatalf("the listing answered %d archives; the other tenant's is at %s", len(archives), theirs)
 	}
+}
+
+// §8.1: the operator's listing also shows an archive of a workspace this installation does not hold
+// - another installation's export, for a NEW_TENANT restore - and still none of a workspace held
+// here. A member's listing shows neither.
+func TestTheOperatorsListingShowsArchivesOfWorkspacesThisInstallationDoesNotHold(t *testing.T) {
+	local := shared.MustParseID("0192f000-0000-7000-8000-0000000000ff")
+	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000fe")
+	operator := caller()
+	operator.Scopes = []string{"backup:read", "admin:tenants"}
+
+	for name, test := range map[string]struct {
+		actor appshared.ActorContext
+		want  int
+	}{
+		"the operator": {operator, 2},
+		"a member":     {caller(), 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := newHarness()
+			enabledTarget(t, h)
+			putArchive(t, h, tenantID, now, archive.ModeFull, true)
+			putArchive(t, h, local, now, archive.ModeFull, true)
+			foreign := putArchive(t, h, elsewhere, now, archive.ModeFull, true)
+			workspaces := &workspacesHeld{ids: map[string]bool{tenantID.String(): true, local.String(): true}}
+			restorer := h.restorer()
+			restorer.Workspaces = workspaces
+
+			archives, err := (ListBackupsAtTarget{Restorer: restorer}).
+				Execute(context.Background(), test.actor, targetID, shared.ID(""))
+			if err != nil {
+				t.Fatalf("listing: %v", err)
+			}
+
+			if len(archives) != test.want {
+				t.Fatalf("%d archives listed, want %d: %+v", len(archives), test.want, archives)
+			}
+			for _, found := range archives {
+				if found.ScopeID == local.String() {
+					t.Errorf("the listing answered an archive of another workspace held here (BK-10)")
+				}
+			}
+			if test.want == 2 && archives[1].Path != foreign && archives[0].Path != foreign {
+				t.Errorf("the archive from elsewhere is missing: %+v", archives)
+			}
+		})
+	}
+}
+
+// workspacesHeld is this installation's workspaces, by identifier.
+type workspacesHeld struct{ ids map[string]bool }
+
+func (w *workspacesHeld) Holds(_ context.Context, table string, data map[string]any) (bool, error) {
+	id, _ := data["id"].(string)
+	return table == "tenant" && w.ids[id], nil
 }
 
 // And asking for them outright is refused rather than answered with an empty list. An empty list
@@ -417,7 +473,7 @@ func TestARestoreIntoAnotherTenantIsRefused(t *testing.T) {
 func TestANewTenantRestoreMintsTheTenantItself(t *testing.T) {
 	h := newStartHarness(t)
 
-	if _, err := (StartRestore{Restorer: h.restorer()}).Execute(context.Background(), caller(),
+	if _, err := (StartRestore{Restorer: h.restorer()}).Execute(context.Background(), operator(),
 		restoreRequest(func(r *domain.RestoreRequest) {
 			r.Mode, r.TenantID = domain.RestoreNewTenant, shared.ID("")
 		})); err != nil {
@@ -430,6 +486,42 @@ func TestANewTenantRestoreMintsTheTenantItself(t *testing.T) {
 	}
 	if stored.TenantID == tenantID {
 		t.Fatal("a NEW_TENANT restore was pointed at the living tenant")
+	}
+}
+
+// operator is a member whose credential carries the control plane's scope as well.
+func operator() appshared.ActorContext {
+	actor := caller()
+	actor.Scopes = []string{"backup:manage", "admin:tenants"}
+	return actor
+}
+
+// §8.2: NEW_TENANT creates a workspace and INSTANCE crosses all of them, so a member's right in
+// this workspace is not enough - the credential has to carry `admin:tenants`. Refused before
+// anything is written, naming the scope the client is missing.
+func TestAWorkspaceMemberCannotRestoreIntoANewOrEveryWorkspace(t *testing.T) {
+	for _, mode := range []domain.RestoreMode{domain.RestoreNewTenant, domain.RestoreInstance} {
+		t.Run(string(mode), func(t *testing.T) {
+			h := newStartHarness(t)
+			h.stepUp.available, h.stepUp.satisfied = true, true
+			member := caller()
+			member.Scopes = []string{"backup:manage"}
+
+			_, err := (StartRestore{Restorer: h.restorer()}).Execute(context.Background(), member,
+				restoreRequest(func(r *domain.RestoreRequest) {
+					r.Mode, r.TenantID, r.Confirmation = mode, shared.ID(""), "Acme GmbH"
+					r.StepUpToken = "a-proof"
+				}))
+
+			var domainErr *shared.Error
+			if !errors.As(err, &domainErr) || !errors.Is(err, shared.ErrForbidden) ||
+				domainErr.Params["scope"] != "admin:tenants" {
+				t.Fatalf("refused with %v, want the missing admin:tenants scope", err)
+			}
+			if len(h.restores.stored) != 0 || len(h.queued.requests) != 0 {
+				t.Error("a refused restore left a run or a job behind")
+			}
+		})
 	}
 }
 

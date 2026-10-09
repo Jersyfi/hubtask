@@ -2646,7 +2646,7 @@
         ],
         "operationId": "listBackupsAtTarget",
         "summary": "List the backups present at the target",
-        "description": "Reads the manifests **at the target**, not from the database. That means the listing\nworks even after a total loss, as long as the target credentials are known.\n",
+        "description": "Reads the manifests **at the target**, not from the database. That means the listing\nworks even after a total loss, as long as the target credentials are known.\n\nIt answers the workspace's own archives. A credential carrying `admin:tenants` - the\ninstallation operator's - also sees archives of workspaces this installation does not\nhold, such as an export written by another installation, which a `NEW_TENANT` restore\ntakes; never an archive of another workspace that exists here.\n",
         "parameters": [
           {
             "name": "targetId",
@@ -2955,7 +2955,7 @@
         ],
         "operationId": "startRestore",
         "summary": "Start a restore",
-        "description": "A dry run (`dry_run: true`) with a report by default. Destructive modes\n(`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the\ntenant name typed into `confirmation`. A restore fires no automation, sends no\nnotifications, and restores no tokens.\n",
+        "description": "A dry run (`dry_run: true`) with a report by default. Destructive modes\n(`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the\ntenant name typed into `confirmation`. `NEW_TENANT` and `INSTANCE` create a workspace or\ncross all of them, so they are the installation operator's: the credential needs the\n`admin:tenants` scope as well, and is refused with `access.insufficient_scope` without it.\nA restore fires no automation, sends no notifications, and restores no tokens.\n",
         "requestBody": {
           "required": true,
           "content": {

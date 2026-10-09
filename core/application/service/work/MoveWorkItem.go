@@ -538,6 +538,7 @@ func (w PlacementWriter) write(
 		FromParentID:     before.ParentID,
 		FromPath:         before.Path,
 		FromCollectionID: before.CollectionID,
+		FromBucketID:     before.BucketID,
 	}, event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now, event.Cause{})
 	if err != nil {
 		return MoveResult{}, err

@@ -208,6 +208,12 @@ permissions:
 * Actions are referenced by **commit SHA** with the tag as a comment; all actions of one
   repository share one commit (`test/architecture`). `make gate-action-pins` (nightly) asks GitHub
   whether each pin exists and the commented tag points at it.
+* Every job of every workflow carries `timeout-minutes` (`test/architecture`); without it a hung
+  step runs for GitHub's six hours and holds `CI required`. The limit is about three times the
+  slowest successful run of the job, rounded up to five minutes and no less than fifteen;
+  `deploy.yml`'s lies above its inner timeouts together, so it never cuts `helm upgrade` short. A
+  step that waits on something outside the runner (apt in `engines`) gets a shorter limit of its
+  own, so the log names it. A job that hits its limit is re-run once, like a flake.
 * Repository setting "Allow select actions" with an allowlist.
 * Secret scanning with push protection, and Dependabot alerts.
 * No `pull_request_target`; contributions from forks run without secrets.

@@ -11376,6 +11376,11 @@ type ClientInterface interface {
 	// Reads the manifests **at the target**, not from the database. That means the listing
 	// works even after a total loss, as long as the target credentials are known.
 	//
+	// It answers the workspace's own archives. A credential carrying `admin:tenants` - the
+	// installation operator's - also sees archives of workspaces this installation does not
+	// hold, such as an export written by another installation, which a `NEW_TENANT` restore
+	// takes; never an archive of another workspace that exists here.
+	//
 	// Corresponds with GET /backup-targets/{targetId}/backups (the `ListBackupsAtTarget` operationId).
 	ListBackupsAtTarget(ctx context.Context, targetId openapi_types.UUID, params *ListBackupsAtTargetParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -13095,8 +13100,10 @@ type ClientInterface interface {
 	//
 	// A dry run (`dry_run: true`) with a report by default. Destructive modes
 	// (`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the
-	// tenant name typed into `confirmation`. A restore fires no automation, sends no
-	// notifications, and restores no tokens.
+	// tenant name typed into `confirmation`. `NEW_TENANT` and `INSTANCE` create a workspace or
+	// cross all of them, so they are the installation operator's: the credential needs the
+	// `admin:tenants` scope as well, and is refused with `access.insufficient_scope` without it.
+	// A restore fires no automation, sends no notifications, and restores no tokens.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -13107,8 +13114,10 @@ type ClientInterface interface {
 	//
 	// A dry run (`dry_run: true`) with a report by default. Destructive modes
 	// (`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the
-	// tenant name typed into `confirmation`. A restore fires no automation, sends no
-	// notifications, and restores no tokens.
+	// tenant name typed into `confirmation`. `NEW_TENANT` and `INSTANCE` create a workspace or
+	// cross all of them, so they are the installation operator's: the credential needs the
+	// `admin:tenants` scope as well, and is refused with `access.insufficient_scope` without it.
+	// A restore fires no automation, sends no notifications, and restores no tokens.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -16404,6 +16413,11 @@ func (c *Client) DeleteBackupTarget(ctx context.Context, targetId openapi_types.
 //
 // Reads the manifests **at the target**, not from the database. That means the listing
 // works even after a total loss, as long as the target credentials are known.
+//
+// It answers the workspace's own archives. A credential carrying `admin:tenants` - the
+// installation operator's - also sees archives of workspaces this installation does not
+// hold, such as an export written by another installation, which a `NEW_TENANT` restore
+// takes; never an archive of another workspace that exists here.
 //
 // Corresponds with GET /backup-targets/{targetId}/backups (the `ListBackupsAtTarget` operationId).
 func (c *Client) ListBackupsAtTarget(ctx context.Context, targetId openapi_types.UUID, params *ListBackupsAtTargetParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -20254,8 +20268,10 @@ func (c *Client) ReadQuotas(ctx context.Context, reqEditors ...RequestEditorFn) 
 //
 // A dry run (`dry_run: true`) with a report by default. Destructive modes
 // (`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the
-// tenant name typed into `confirmation`. A restore fires no automation, sends no
-// notifications, and restores no tokens.
+// tenant name typed into `confirmation`. `NEW_TENANT` and `INSTANCE` create a workspace or
+// cross all of them, so they are the installation operator's: the credential needs the
+// `admin:tenants` scope as well, and is refused with `access.insufficient_scope` without it.
+// A restore fires no automation, sends no notifications, and restores no tokens.
 //
 // Takes any type of body and a specified content type.
 //
@@ -20276,8 +20292,10 @@ func (c *Client) StartRestoreWithBody(ctx context.Context, contentType string, b
 //
 // A dry run (`dry_run: true`) with a report by default. Destructive modes
 // (`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the
-// tenant name typed into `confirmation`. A restore fires no automation, sends no
-// notifications, and restores no tokens.
+// tenant name typed into `confirmation`. `NEW_TENANT` and `INSTANCE` create a workspace or
+// cross all of them, so they are the installation operator's: the credential needs the
+// `admin:tenants` scope as well, and is refused with `access.insufficient_scope` without it.
+// A restore fires no automation, sends no notifications, and restores no tokens.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -36339,6 +36357,11 @@ type ClientWithResponsesInterface interface {
 	// Reads the manifests **at the target**, not from the database. That means the listing
 	// works even after a total loss, as long as the target credentials are known.
 	//
+	// It answers the workspace's own archives. A credential carrying `admin:tenants` - the
+	// installation operator's - also sees archives of workspaces this installation does not
+	// hold, such as an export written by another installation, which a `NEW_TENANT` restore
+	// takes; never an archive of another workspace that exists here.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /backup-targets/{targetId}/backups (the `ListBackupsAtTarget` operationId).
@@ -38290,8 +38313,10 @@ type ClientWithResponsesInterface interface {
 	//
 	// A dry run (`dry_run: true`) with a report by default. Destructive modes
 	// (`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the
-	// tenant name typed into `confirmation`. A restore fires no automation, sends no
-	// notifications, and restores no tokens.
+	// tenant name typed into `confirmation`. `NEW_TENANT` and `INSTANCE` create a workspace or
+	// cross all of them, so they are the installation operator's: the credential needs the
+	// `admin:tenants` scope as well, and is refused with `access.insufficient_scope` without it.
+	// A restore fires no automation, sends no notifications, and restores no tokens.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -38302,8 +38327,10 @@ type ClientWithResponsesInterface interface {
 	//
 	// A dry run (`dry_run: true`) with a report by default. Destructive modes
 	// (`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the
-	// tenant name typed into `confirmation`. A restore fires no automation, sends no
-	// notifications, and restores no tokens.
+	// tenant name typed into `confirmation`. `NEW_TENANT` and `INSTANCE` create a workspace or
+	// cross all of them, so they are the installation operator's: the credential needs the
+	// `admin:tenants` scope as well, and is refused with `access.insufficient_scope` without it.
+	// A restore fires no automation, sends no notifications, and restores no tokens.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -54907,6 +54934,11 @@ func (c *ClientWithResponses) DeleteBackupTargetWithResponse(ctx context.Context
 // Reads the manifests **at the target**, not from the database. That means the listing
 // works even after a total loss, as long as the target credentials are known.
 //
+// It answers the workspace's own archives. A credential carrying `admin:tenants` - the
+// installation operator's - also sees archives of workspaces this installation does not
+// hold, such as an export written by another installation, which a `NEW_TENANT` restore
+// takes; never an archive of another workspace that exists here.
+//
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /backup-targets/{targetId}/backups (the `ListBackupsAtTarget` operationId).
@@ -58136,8 +58168,10 @@ func (c *ClientWithResponses) ReadQuotasWithResponse(ctx context.Context, reqEdi
 //
 // A dry run (`dry_run: true`) with a report by default. Destructive modes
 // (`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the
-// tenant name typed into `confirmation`. A restore fires no automation, sends no
-// notifications, and restores no tokens.
+// tenant name typed into `confirmation`. `NEW_TENANT` and `INSTANCE` create a workspace or
+// cross all of them, so they are the installation operator's: the credential needs the
+// `admin:tenants` scope as well, and is refused with `access.insufficient_scope` without it.
+// A restore fires no automation, sends no notifications, and restores no tokens.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -58154,8 +58188,10 @@ func (c *ClientWithResponses) StartRestoreWithBodyWithResponse(ctx context.Conte
 //
 // A dry run (`dry_run: true`) with a report by default. Destructive modes
 // (`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the
-// tenant name typed into `confirmation`. A restore fires no automation, sends no
-// notifications, and restores no tokens.
+// tenant name typed into `confirmation`. `NEW_TENANT` and `INSTANCE` create a workspace or
+// cross all of them, so they are the installation operator's: the credential needs the
+// `admin:tenants` scope as well, and is refused with `access.insufficient_scope` without it.
+// A restore fires no automation, sends no notifications, and restores no tokens.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

@@ -7,7 +7,7 @@ deployments: [D5, D6, D7]
 serves: [P-03, P-04, P-15]
 state: partial
 tasks: [H-06, SI-17]
-checked_by: [core/application/service/admin/Lifecycle_test.go, core/application/service/admin/Deletion_test.go]
+checked_by: [core/application/service/admin/Lifecycle_test.go, core/application/service/admin/Deletion_test.go, test/integration/tenant_deletion_test.go]
 ---
 
 # Suspend, resume and delete a workspace
@@ -39,9 +39,11 @@ that period *Cancel deletion* brings it back.
 
 * No partial deletion (one hub of a customer) from the installation level.
 * Why a workspace is suspended is not recorded in Hubtask ([P-15](../../vision/principles.md)).
+* A workspace under a legal hold is not deleted: the request is refused, and one already pending
+  deletion stays pending until the last hold is released
+  ([UC-LIF-06](../lifecycle/UC-LIF-06-place-a-legal-hold.md)).
 
 ## Today
 
 * Check 1: not met — *Suspend* has no confirmation and the operator's own workspace is not marked, tracked in #1064.
-* Check 4: not proven — deleting a workspace other than the operator's own asks for the step-up inside that workspace's transaction and, read from the code, answers 500; not reproduced yet, tracked in #1150.
 * Check 5: not met — there is no way to cancel a deletion, although the confirmation promises one, tracked in #1064.

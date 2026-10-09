@@ -290,7 +290,7 @@ test('chromium: 1280 px — assignment is two named questions, and the policy is
   const activity = await panelWith({ completion_policy: 'MANUAL' }, activityId);
   assert.deepEqual(activity.parts, ['Responsible', 'Also on it']);
   assert.deepEqual(activity.lists, ['Responsible'], 'an activity was offered a member list it can reach');
-  assert.deepEqual(activity.refusals, ['A ACTIVITY has no MEMBERS.']);
+  assert.deepEqual(activity.refusals, ['An activity has no members.']);
   assert.deepEqual(without.refusals, [], 'a task was refused one of the two');
 });
 
