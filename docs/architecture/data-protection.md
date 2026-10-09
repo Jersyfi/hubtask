@@ -100,8 +100,8 @@ practice. Rules:
 [`UC-PRV-01`](../usecases/privacy/UC-PRV-01-answer-a-data-subject-request-in-time.md),
 [`UC-PRV-03`](../usecases/privacy/UC-PRV-03-erase-a-person-on-request.md),
 [`UC-PRV-05`](../usecases/privacy/UC-PRV-05-withdraw-consent-to-optional-processing.md)); the
-extension is built, the legal hold and the AI position not yet. Until they are, a legal hold on an
-`ACCOUNT` is refused ([data-retention.md](./data-retention.md) §4).
+extension and the legal hold's reach are built; what a restriction keeps the kept data out of
+(below) and the AI position not yet.
 
 * **A deadline is extended once (Art. 12(3)).** An open case before its original deadline may be
   extended once, to at most three months after receipt, naming the reason (`COMPLEXITY` or
@@ -129,6 +129,32 @@ extension is built, the legal hold and the AI position not yet. Until they are, 
   naming what was kept, under which hold and why (Art. 12(4)). Releasing the hold seeds the recorded
   remainder's erasure. An `ACCOUNT` hold covers the account and everything the person contributed
   to the workspace; it stops their erasure and deletion, not their sign-in.
+  * **What each step keeps.** A row on an entry is kept when a hold covers the entry: the workspace,
+    its hub or collection, the entry or one above it, or the account that created it - so the
+    person's comments (in a full deletion), their assignments and the entries they created under it.
+    An `ACCOUNT` hold keeps that account's own rows: the entries it created with their fields, its
+    comments, its attached files, the account. The intake, matched by address, is kept only by a
+    hold on the workspace. Credentials, notifications and unattached uploads go in every case: no
+    hold reaches them. Several holds over one row: the oldest names it. One function decides it, and
+    the erasure and its preview both call it.
+  * **The account.** Only a hold on the person or on the workspace keeps the account itself - as it
+    is, `RESTRICTED`, signing in, without a pseudonym. Under any other hold it is anonymised and
+    pseudonymised exactly as without one, and the kept rows stay attributed to the former user; a
+    full deletion that kept a row anonymises the account instead of removing it, and the rest
+    removes it. Such a kept account's restriction cannot be lifted while the case keeps it.
+  * **The record.** A partly completed case is `COMPLETED` and carries, per hold, what was kept
+    (`erasure_kept`: counts, never content) and the legal basis, Art. 17(3)(e). The rows are written
+    in the erasure's own transaction, under the case's row lock and the shared hold lock that every
+    deletion takes before reading the holds; placing and lifting a hold take it exclusively.
+  * **The rest.** Lifting a hold queues, in its own transaction, one job per case it kept part of;
+    the job runs the same erasure against the holds in force, records what moved and writes
+    `dsr.remainder_erased`. It is not stopped by the restriction its own erasure set. A full
+    deletion whose kept person has come to run a rule waits, saying so, without a retry. The
+    retention pass seeds every remainder nothing seeded - a release by an older binary, a restore
+    that changed the holds. A kept entry moved out of its hold's reach goes with the next run of the
+    rest, not at the move.
+  * **Not yet built** (milestone PH): what a restriction keeps the kept data out of - automation,
+    AI, exports - and whether a hold stops a workspace's deletion or a destructive restore.
 * **AI: the workspace decides whether a person may keep their own content out.** Consent to AI
   processing stays the workspace's ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md));
   beside it the workspace takes one of two positions:
