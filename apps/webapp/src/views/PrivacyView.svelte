@@ -26,14 +26,19 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
+  import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
+  import { holds } from '../lib/data/capability.svelte.ts';
+  import { people } from '../lib/data/people.svelte.ts';
   import { backup } from '../lib/data/backup.svelte.ts';
   import {
     byDeadline,
     canAct,
     canExtend,
+    canStart,
+    confirmsStart,
     deadlineOfDay,
     deadlinePhrase,
     EXTENSION_REASONS,
@@ -77,6 +82,9 @@
   let extendReason = $state<string>('COMPLEXITY');
   let extendInformedOn = $state('');
 
+  /** The erasure whose start is being confirmed (UC-PRV-03 check 8). */
+  let confirming = $state<Request | undefined>(undefined);
+
   let restrictAccount = $state('');
   let restrictReason = $state('');
   let withdrawPurpose = $state('');
@@ -90,6 +98,16 @@
   // The workspace's zone: a deadline named as a day ends at the end of that day there.
   $effect(() => untrack(() => workspace.open()));
   const zone = $derived(workspace.workspace?.default_time_zone ?? deviceZone());
+
+  // The reader's role in the workspace, and whether it may start an erasure: the owner's
+  // DELETE_CONTAINER, as the server asks (data-protection.md §4). A prediction; the server decides.
+  $effect(() => untrack(() => people.open({})));
+  const workspaceRole = $derived(
+    people.along({}).find((membership) => membership.account_id === actor.account?.id)?.role as
+      | string
+      | undefined,
+  );
+  const mayDestroy = $derived(holds(workspaceRole, 'DELETE_CONTAINER').status === 'permitted');
 
   const reading = $derived(privacy.stateOf(includeClosed));
   const listed = $derived(byDeadline(privacy.of(includeClosed)));
@@ -353,16 +371,20 @@
               {#if canAct(request) && (request.status === 'RECEIVED' || request.status === 'IN_PROGRESS')}
                 <div class="row">
                   {#if request.status === 'RECEIVED'}
-                    <Button
-                      size="sm"
-                      tone="primary"
-                      isBusy={isWorking}
-                      busyLabel={t('app.privacy.starting')}
-                      onclick={() =>
-                        void attempt(() => privacy.change(request.id, { status: 'IN_PROGRESS' }), t('app.privacy.started_announced'))}
-                    >
-                      {t('app.privacy.start')}
-                    </Button>
+                    {#if canStart(request, mayDestroy)}
+                      <Button
+                        size="sm"
+                        tone="primary"
+                        isBusy={isWorking}
+                        busyLabel={t('app.privacy.starting')}
+                        onclick={() =>
+                          confirmsStart(request)
+                            ? (confirming = request)
+                            : void attempt(() => privacy.change(request.id, { status: 'IN_PROGRESS' }), t('app.privacy.started_announced'))}
+                      >
+                        {t('app.privacy.start')}
+                      </Button>
+                    {/if}
                   {:else}
                     <Button
                       size="sm"
@@ -621,6 +643,42 @@
     </Stack>
     </Stack>
 </Stack>
+
+<!-- Starting an erasure is the one start that cannot be undone, so it is confirmed first, naming
+     the person and what the chosen mode removes (P-04, UC-PRV-03 check 8). Nothing is sent before
+     the confirmation. -->
+<Dialog
+  title={t('app.privacy.confirm_erase_title', { name: confirming ? subjectOf(confirming) : '' })}
+  isOpen={confirming !== undefined}
+  dismissLabel={t('app.privacy.confirm_erase_cancel')}
+  onClose={() => (confirming = undefined)}
+>
+  {#snippet actions()}
+    <Button onclick={() => (confirming = undefined)}>{t('app.privacy.confirm_erase_cancel')}</Button>
+    <Button
+      tone="danger"
+      isBusy={isWorking}
+      busyLabel={t('app.privacy.starting')}
+      onclick={() => {
+        const request = confirming;
+        if (!request) return;
+        void attempt(async () => {
+          await privacy.change(request.id, { status: 'IN_PROGRESS' });
+          confirming = undefined;
+        }, t('app.privacy.started_announced'));
+      }}
+    >
+      {t('app.privacy.confirm_erase')}
+    </Button>
+  {/snippet}
+  <Stack gap="100">
+    <p>
+      {t(`app.privacy.confirm_erase_${(confirming?.erasure_mode ?? 'ANONYMIZE').toLowerCase()}`, {
+        name: confirming ? subjectOf(confirming) : '',
+      })}
+    </p>
+  </Stack>
+</Dialog>
 
 <style>
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the

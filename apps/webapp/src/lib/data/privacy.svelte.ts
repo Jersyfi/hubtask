@@ -28,6 +28,8 @@ export {
   byDeadline,
   canAct,
   canExtend,
+  canStart,
+  confirmsStart,
   deadlineOfDay,
   deadlinePhrase,
   EXTENSION_REASONS,

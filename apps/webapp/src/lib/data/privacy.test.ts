@@ -10,6 +10,8 @@ import {
   byDeadline,
   canAct,
   canExtend,
+  canStart,
+  confirmsStart,
   deadlineOfDay,
   deadlinePhrase,
   extensionPayload,
@@ -171,6 +173,18 @@ test('a row acts on this workspace\'s cases and on no installation-wide one', ()
   assert.equal(canAct(aCase()), true);
   assert.equal(canAct(aCase({ scope: 'TENANT' })), true);
   assert.equal(canAct(aCase({ scope: 'INSTALLATION' })), false);
+});
+
+test('an erasure is started only by whom the server lets start it, and only after a confirmation', () => {
+  // UC-PRV-03 checks 1 and 8, P-05: the owner's DELETE_CONTAINER, asked of an erasure alone.
+  const erasure = aCase({ kind: 'ERASURE' });
+  assert.equal(canStart(erasure, true), true);
+  assert.equal(canStart(erasure, false), false);
+  assert.equal(canStart(aCase(), false), true);
+  assert.equal(canStart(aCase({ status: 'IN_PROGRESS' }), true), false);
+  assert.equal(canStart(aCase({ kind: 'ERASURE', scope: 'INSTALLATION' }), true), false);
+  assert.equal(confirmsStart(erasure), true);
+  assert.equal(confirmsStart(aCase()), false);
 });
 
 test('owed soon starts seven days before the deadline, when the watch starts warning', () => {

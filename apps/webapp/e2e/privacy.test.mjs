@@ -16,12 +16,12 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { PRIVACY_REQUESTS, stub, forgetUnstubbed, unstubbedSoFar } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, PRIVACY_REQUESTS, stub, forgetUnstubbed, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
-const [OPEN, EXTENDED, INSTALLATION] = PRIVACY_REQUESTS;
+const [OPEN, EXTENDED, INSTALLATION, ERASURE] = PRIVACY_REQUESTS;
 const WORKSPACE = {
   id: '01a0e2e0-0000-7000-8000-0000000000b0', slug: 'house', display_name: 'House', status: 'ACTIVE',
   default_locale: 'en', default_time_zone: 'Europe/Berlin', require_admin_totp: false,
@@ -31,7 +31,16 @@ const WORKSPACE = {
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser) {
+/**
+ * The reader's role in the workspace. The owner holds DELETE_CONTAINER, which starting an erasure
+ * asks for; an administrator does not (data-protection.md §4).
+ */
+const ROLES = [
+  { role: 'OWNER', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'DELETE_CONTAINER'] },
+  { role: 'ADMIN', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS'] },
+];
+
+async function open(browser, role = 'OWNER') {
   const written = [];
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', async (route) => {
@@ -39,6 +48,15 @@ async function open(browser) {
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     // The workspace counts in Berlin, which is where a deadline named as a day ends.
     if (path === '/tenant' && request.method() === 'GET') return route.fulfill({ json: WORKSPACE });
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, roles: ROLES } });
+    if (path === '/memberships' && new URL(request.url()).searchParams.get('scope_type') === 'TENANT') {
+      return route.fulfill({ json: { data: [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role }], page: { next_cursor: null, has_more: false } } });
+    }
+    if (/^\/privacy\/requests\/[^/:]+$/.test(path) && request.method() === 'PATCH') {
+      written.push({ path, body: request.postDataJSON() });
+      const before = PRIVACY_REQUESTS.find((each) => path.endsWith(each.id));
+      return route.fulfill({ json: { ...before, ...request.postDataJSON() } });
+    }
     // The writes are kept for the assertions and answered by the fixture, as every walk's is.
     if (path.endsWith(':extend') && request.method() === 'POST') {
       written.push({ path, body: request.postDataJSON(), idempotencyKey: request.headers()['idempotency-key'] });
@@ -143,6 +161,51 @@ test('chromium: a case is recorded with its own deadline, owed to the end of tha
     assert.equal(written.length, 1);
     assert.equal(written[0].body.subject_email, 'new@example.invalid');
     assert.equal(written[0].body.due_at, '2027-03-28T21:59:59.000Z');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('chromium: starting an erasure asks first, naming the person and what the mode removes', async () => {
+  // UC-PRV-03 check 8, P-04: nothing is sent before the confirmation.
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, written, close } = await open(browser);
+    await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.waitFor();
+    assert.match(await dialog.innerText(), new RegExp(`Erase ${ERASURE.subject_email}\\?`));
+    assert.match(await dialog.innerText(), /account goes, and every comment they wrote goes with it/);
+    assert.equal(written.length, 0, 'the erasure started before it was confirmed');
+
+    await dialog.locator('footer').getByRole('button', { name: 'Keep the case open' }).click();
+    assert.equal(written.length, 0);
+
+    await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).click();
+    await page.getByRole('dialog').locator('footer').getByRole('button', { name: 'Erase' }).click();
+    for (let waited = 0; written.length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
+    assert.equal(written.length, 1);
+    assert.ok(written[0].path.endsWith(ERASURE.id));
+    assert.deepEqual(written[0].body, { status: 'IN_PROGRESS' });
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('chromium: an administrator is not offered the start of an erasure', async () => {
+  // UC-PRV-03 check 1, P-05: the server asks the owner's right; the screen does not offer what it
+  // would refuse. Other cases still start.
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await open(browser, 'ADMIN');
+    await page.waitForTimeout(200);
+    assert.equal(await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).count(), 0);
+    assert.equal(await row(page, OPEN).getByRole('button', { name: 'Start answering it' }).count(), 1);
     assert.deepEqual(failures, []);
     await close();
   } finally {

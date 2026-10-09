@@ -140,6 +140,23 @@ export function canAct(request: Request): boolean {
 }
 
 /**
+ * Whether the row offers *Start answering it* (P-05). Starting an erasure destroys work that belongs
+ * to the workspace as much as to the person, so the server asks the owner's `DELETE_CONTAINER` for
+ * it (data-protection.md §4) - and a reader without it is not offered a start that is refused.
+ */
+export function canStart(request: Request, mayDestroy: boolean): boolean {
+  return canAct(request) && request.status === 'RECEIVED' && (request.kind !== 'ERASURE' || mayDestroy);
+}
+
+/**
+ * Whether starting this case asks for a confirmation first: an erasure does (P-04, UC-PRV-03
+ * check 8) - it is the one start that cannot be undone.
+ */
+export function confirmsStart(request: Request): boolean {
+  return request.kind === 'ERASURE';
+}
+
+/**
  * Whether the row offers *Extend the deadline* (P-05: only where it can succeed).
  *
  * The server says when: `extendable_until` is answered while the case is open, not yet extended
