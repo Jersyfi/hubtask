@@ -519,7 +519,10 @@ func (a Applier) apply(ctx context.Context, p plan) (domain.Report, error) {
 		return domain.Report{}, err
 	}
 
-	if !p.dry && p.restore.Mode == domain.RestoreReplaceTenant {
+	// Only before the first batch: a resumed attempt skips what an earlier one recorded, so
+	// emptying again would remove exactly that part of the archive for good (BK-7). The emptying
+	// commits before any batch, so recorded progress means it already happened.
+	if !p.dry && p.restore.Mode == domain.RestoreReplaceTenant && len(p.restore.Progress) == 0 {
 		if err := a.emptyTenant(ctx, p); err != nil {
 			return domain.Report{}, err
 		}

@@ -29,6 +29,15 @@ Each measured against the deployments `D1`–`D7`:
 5. **The extension's audit action is `dsr.extended`**, not `privacy.request_extended`: every action
    of the privacy context is `dsr.*`, and `privacy.*` names its message codes (the owner,
    2026-10-07).
+6. **A legal hold stops a workspace's deletion and a destructive restore** (the owner, 2026-10-09,
+   #1233): the deletion request is refused while a hold is in force, a workspace pending deletion
+   stays pending until the last hold is lifted, and `REPLACE_TENANT` is refused under a hold and
+   keeps the workspace's holds when it runs — data-protection.md §5, UC-LIF-06 check 3. Built by
+   PH-10 (#1228).
+7. **What a hold keeps stays in backups and the workspace export** (the owner, 2026-10-09, #1234):
+   it is kept out of automation and AI only, and stays in backups, the workspace export and the
+   person's own Art. 15 copy — data-protection.md §4.1, UC-PRV-03 check 10. PH-09 (#1227) filters
+   no export.
 
 ---
 
@@ -171,10 +180,9 @@ The evidence under `docs/evidence/`; the use cases move to `built` or `verified`
 
 ---
 
-## PH-09 — What a hold keeps stays out of automation, AI and exports
+## PH-09 — What a hold keeps stays out of automation and AI
 
-*Depends on: PH-01 (the restriction an erasure leaves); PH-03 (the prompt builder's exclusion);
-the owner's answer on what "every export but the hold's own" means.*
+*Depends on: PH-01 (the restriction an erasure leaves); PH-03 (the prompt builder's exclusion).*
 
 **Use cases:** UC-PRV-03 (10)
 
@@ -182,12 +190,11 @@ What a hold keeps from an erasure is restricted: the account carries `RESTRICTED
 Art. 18. Today only automatic assignment reads it. The automation engine stops acting as or
 assigning to a restricted person, and the suggestion service stops asking about their entries
 (UC-PRV-04 checks 4 and 5, findings that block UC-PRV-03 check 10); the prompt builder treats a
-restricted person's content as it treats an objecting person's (PH-03); the exports leave the kept
-data out as the owner decides.
+restricted person's content as it treats an objecting person's (PH-03). Backups, the workspace
+export and the person's own Art. 15 copy keep the kept data (Decision 7); no export is filtered.
 
 **Acceptance:** a test that a rule neither acts as nor assigns to a restricted person; a test that a
-restricted person's comment never reaches a prompt the adapter receives; a test per export the
-owner's answer names.
+restricted person's comment never reaches a prompt the adapter receives.
 
 ---
 

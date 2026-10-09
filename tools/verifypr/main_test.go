@@ -101,7 +101,13 @@ func TestALiveLockIsWaitedFor(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
-	if _, err := acquireLock(ctx, dir, "/here"); err == nil {
+	release, err := acquireLock(ctx, dir, "/here")
+	if err == nil {
 		t.Fatal("a lock held by a live process was taken")
+	}
+	// The caller defers release before it asks; a refused lock must not turn into a panic.
+	release()
+	if _, err := os.Stat(filepath.Join(dir, "owner")); err != nil {
+		t.Error("releasing a refused lock removed the holder's lock")
 	}
 }

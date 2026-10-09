@@ -11,6 +11,7 @@ jobs:
   release:
     name: Build, sign, publish
     runs-on: ubuntu-latest
+    timeout-minutes: 50
     environment: production          # a protection rule with manual approval (ADR-0022)
     permissions:
       contents: write                # create the GitHub release
@@ -24,7 +25,7 @@ jobs:
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.2"
 
       - name: The image name in lower case
         # A Docker reference must be lower case, and github.repository keeps the owner's spelling.
@@ -87,7 +88,7 @@ jobs:
             COMMIT=${{ github.sha }}
 
       - name: Produce the SBOM (CycloneDX)
-        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           image: ghcr.io/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           format: cyclonedx-json

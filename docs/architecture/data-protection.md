@@ -124,11 +124,13 @@ extension and the legal hold's reach are built; what a restriction keeps the kep
     get theirs, a deleted one none; a case without an address names nobody elsewhere and queues
     nothing.
 * **A legal hold wins over an erasure, exactly as far as it reaches (Art. 17(3)(e), Art. 18).** The
-  erasure runs for everything no hold covers; what a hold covers is kept and *restricted* (out of
-  automation, AI and every export but the hold's own), and the case closes as partly completed,
-  naming what was kept, under which hold and why (Art. 12(4)). Releasing the hold seeds the recorded
-  remainder's erasure. An `ACCOUNT` hold covers the account and everything the person contributed
-  to the workspace; it stops their erasure and deletion, not their sign-in.
+  erasure runs for everything no hold covers; what a hold covers is kept and *restricted* — out of
+  automation and AI, but still in backups, the workspace export and the person's own Art. 15 copy,
+  since restriction allows storage (Art. 18(2)) and a move must not lose what the hold keeps — and
+  the case closes as partly completed, naming what was kept, under which hold and why (Art. 12(4)).
+  Releasing the hold seeds the recorded remainder's erasure. An `ACCOUNT` hold covers the account
+  and everything the person contributed to the workspace; it stops their erasure and deletion, not
+  their sign-in.
   * **What each step keeps.** A row on an entry is kept when a hold covers the entry: the workspace,
     its hub or collection, the entry or one above it, or the account that created it - so the
     person's comments (in a full deletion), their assignments and the entries they created under it.
@@ -153,8 +155,8 @@ extension and the legal hold's reach are built; what a restriction keeps the kep
     retention pass seeds every remainder nothing seeded - a release by an older binary, a restore
     that changed the holds. A kept entry moved out of its hold's reach goes with the next run of the
     rest, not at the move.
-  * **Not yet built** (milestone PH): what a restriction keeps the kept data out of - automation,
-    AI, exports - and whether a hold stops a workspace's deletion or a destructive restore.
+  * **Not yet built:** keeping what a hold keeps out of automation and AI (#1227), and a hold
+    stopping a workspace's deletion and a destructive restore (#1228).
 * **AI: the workspace decides whether a person may keep their own content out.** Consent to AI
   processing stays the workspace's ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md));
   beside it the workspace takes one of two positions:
@@ -206,7 +208,17 @@ the backup bucket's Object Lock retention are both 35 days. Three rules follow:
   the operator's own rotation must keep 35 days.
 
 It does **not** bind a tenant's own archive backups. With the 30-day tenant grace period, a deleted
-workspace is gone from everything the operator holds within 65 days of the request.
+workspace is gone from everything the operator holds within 65 days of the request, unless a legal
+hold stands:
+
+* **A hold stops a workspace's deletion.** While any hold in the workspace is in force, a deletion
+  request is refused, and a workspace already pending deletion stays pending until the last hold is
+  lifted ([multi-tenancy.md](./multi-tenancy.md) §5).
+* **A hold stops a destructive restore.** `REPLACE_TENANT` is refused while a hold is in force; one
+  that runs keeps the workspace's own hold records rather than the archive's, so no hold is dropped
+  or revived ([backup-restore.md](./backup-restore.md) §8.2).
+
+Decided, not built: the hard delete and a destructive restore read no hold today (#1228).
 
 **Media reconciliation** runs per tenant, seeded by an upload's staging and rescheduling itself
 ([multi-tenancy.md](./multi-tenancy.md) §2.1). One pass:

@@ -498,12 +498,23 @@ func NotRestored() map[string]string { return maps.Clone(notRestored) }
 
 // RestoredEntities are the entities a restore writes, in the order it writes them: a row's parents
 // before the row, so that the files are applied in sequence without deferring a foreign key.
+//
+// The format's order with one change. `work_items` names `media_objects` in `cover_media_id`, a
+// reference the format writes forward (tenant-export.md §6) and the schema enforces immediately,
+// so the media are applied first - they reference nothing, which is what makes that free. The same
+// order, reversed, is what a replace empties the tenant in, and there it takes the covered entries
+// out before the media their `ON DELETE RESTRICT` would hold.
 func RestoredEntities() []Entity {
+	media, _ := FindEntityByTable("media_object")
 	out := make([]Entity, 0, len(entities))
 	for _, entity := range entities {
-		if _, kept := notRestored[entity.Table]; !kept {
-			out = append(out, entity)
+		if _, kept := notRestored[entity.Table]; kept || entity.Table == media.Table {
+			continue
 		}
+		if entity.Table == "work_item" {
+			out = append(out, media)
+		}
+		out = append(out, entity)
 	}
 	return out
 }

@@ -19,10 +19,15 @@
  * which processing was lawful when.
  */
 
-import type { ErasurePreview, ResourceState } from '@hubtask/sync-engine';
+import type {
+  DataSubjectRequestCreate,
+  DataSubjectRequestUpdate,
+  ErasurePreview,
+  ResourceState,
+} from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import type { ErasureMode, Extension, Kind, Request, Status } from './privacy.ts';
+import type { ErasureMode, Extension, Request } from './privacy.ts';
 
 export {
   byDeadline,
@@ -116,14 +121,7 @@ class Privacy {
    * The deadline is thirty days from receipt unless one is named, and no work starts here: what
    * happens next is a decision, and a decision is a second request.
    */
-  async record(draft: {
-    kind: Kind;
-    subject_account_id?: string;
-    subject_email?: string;
-    due_at?: string;
-    notes?: string;
-    target_id?: string;
-  }): Promise<Request> {
+  async record(draft: Omit<DataSubjectRequestCreate, 'scope'>): Promise<Request> {
     return engine.mutate<Request>('POST', REQUESTS, { scope: 'TENANT', ...draft }, {
       idempotencyKey: crypto.randomUUID(),
       invalidates: [REQUESTS],
@@ -138,13 +136,7 @@ class Privacy {
    */
   async change(
     requestId: string,
-    patch: {
-      status?: Status;
-      erasure_mode?: ErasureMode;
-      rejection_reason?: string;
-      notes?: string;
-      target_id?: string;
-    },
+    patch: DataSubjectRequestUpdate,
   ): Promise<Request> {
     return engine.mutate<Request>('PATCH', `${REQUESTS}/${requestId}`, patch, {
       invalidates: [REQUESTS],

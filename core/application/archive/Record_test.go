@@ -250,6 +250,30 @@ func TestParentsComeBeforeChildren(t *testing.T) {
 	}
 }
 
+// The format writes media_objects after work_items, and work_item.cover_media_id is an immediate
+// foreign key into it. A restore applies the media first; everything else keeps the format's order.
+func TestARestoreAppliesTheMediaBeforeTheEntriesThatShowThem(t *testing.T) {
+	var written, restored []string
+	for _, entity := range Entities() {
+		if _, kept := NotRestored()[entity.Table]; !kept {
+			written = append(written, entity.Name)
+		}
+	}
+	for _, entity := range RestoredEntities() {
+		restored = append(restored, entity.Name)
+	}
+
+	if slices.Index(restored, "media_objects") > slices.Index(restored, "work_items") {
+		t.Fatalf("a restore writes media_objects after work_items: %v", restored)
+	}
+	moved := slices.DeleteFunc(slices.Clone(restored), func(name string) bool { return name == "media_objects" })
+	kept := slices.DeleteFunc(slices.Clone(written), func(name string) bool { return name == "media_objects" })
+	if !slices.Equal(moved, kept) || len(restored) != len(written) {
+		t.Errorf("the restore order is %v, want the format's %v with only media_objects moved",
+			restored, written)
+	}
+}
+
 func TestOnlyTheAuditTrailIsOptional(t *testing.T) {
 	for _, entity := range Entities() {
 		if entity.Optional && entity.Name != "audit" {

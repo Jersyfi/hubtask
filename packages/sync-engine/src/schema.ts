@@ -517,3 +517,17 @@ export type WorkspacePasswordOpening = components['schemas']['WorkspacePasswordO
  * operator at a terminal with the new key in their hand (ADR-0045, the concept's §5.7).
  */
 export type EncryptionStatus = components['schemas']['EncryptionStatus'];
+
+/**
+ * A right somebody exercised, as a case with a statutory deadline (data-protection.md §4), and what
+ * recording, moving and extending one sends.
+ */
+export type DataSubjectRequest = components['schemas']['DataSubjectRequest'];
+export type DataSubjectRequestKind = components['schemas']['DataSubjectRequestKind'];
+export type DataSubjectRequestStatus = components['schemas']['DataSubjectRequestStatus'];
+export type DataSubjectRequestCreate = components['schemas']['DataSubjectRequestCreate'];
+export type DataSubjectRequestUpdate = components['schemas']['DataSubjectRequestUpdate'];
+export type DataSubjectRequestExtension = components['schemas']['DataSubjectRequestExtension'];
+export type DataSubjectRequestExtensionReason = components['schemas']['DataSubjectRequestExtensionReason'];
+/** What an erasure does to other people's content. */
+export type ErasureMode = components['schemas']['ErasureMode'];

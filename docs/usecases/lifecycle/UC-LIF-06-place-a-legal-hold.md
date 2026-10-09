@@ -33,7 +33,9 @@ stays on record, released, for whoever audits it later.
    holds, placed and released.
 2. A hold names its scope (the workspace, a hub or collection, one task, or a person) and a reason;
    without a reason it is refused with `lifecycle.hold_reason_required`, and releasing needs a reason too.
-3. Deleting for good anything under a hold is refused with `lifecycle.legal_hold`.
+3. Deleting for good anything under a hold is refused with `lifecycle.legal_hold` — the workspace
+   itself included, and resetting the workspace to a backup while a hold is in force; a reset
+   that runs keeps the workspace's holds as they are, never the backup's.
 4. Emptying the trash leaves everything under a hold in place and reports it as kept because of a
    legal hold.
 5. No retention rule and no automatic trash purge removes anything under a hold.
@@ -49,10 +51,18 @@ stays on record, released, for whoever audits it later.
   [data-protection.md](../../architecture/data-protection.md) §4.1).
 * A hold does not freeze editing; preserving the state at one moment is a backup's job.
 * A hold does not stop backups from expiring at their target.
+* A workspace already pending deletion while a hold is in force stays pending until the last hold
+  is released; its removal within 65 days
+  ([data-protection.md](../../architecture/data-protection.md) §5) waits for that. Its people
+  cannot sign in meanwhile, so the way back is the operator's *Cancel deletion*
+  ([UC-INS-08](../admin/UC-INS-08-suspend-resume-and-delete-a-workspace.md)).
+* Recovering the whole installation to an earlier moment is the operator's procedure
+  ([UC-BAK-08](../backup/UC-BAK-08-recover-the-whole-installation.md)), not a reset of the
+  workspace; what it does to holds placed after that moment is open (#1239).
 
 See [data-retention.md](../../architecture/data-retention.md) §4 and
 [ADR-0020](../../adr/ADR-0020-retention-policies.md).
 
 ## Today
 
-* Check 3: not met for the workspace's deletion and a destructive restore, which read no hold, tracked in PH-10.
+* Check 3: not met — deleting the workspace and resetting it to a backup read no hold, and the reset replaces the holds with the backup's, tracked in #1228.

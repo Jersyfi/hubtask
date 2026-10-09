@@ -18,13 +18,21 @@
  * control that moves it off the row. The operator moves it through the API or `hubctl`.
  */
 
-import type { ErasureKept } from '@hubtask/sync-engine';
+import type {
+  DataSubjectRequest,
+  DataSubjectRequestExtension,
+  DataSubjectRequestExtensionReason,
+  DataSubjectRequestKind,
+  DataSubjectRequestStatus,
+  ErasureKept,
+  ErasureMode as ContractErasureMode,
+} from '@hubtask/sync-engine';
 
 import { nextDay } from './due.ts';
 import { instantOf } from '../i18n/zone.ts';
 
 /** The six rights the contract names. */
-export type Kind = 'ACCESS' | 'ERASURE' | 'PORTABILITY' | 'RESTRICTION' | 'OBJECTION' | 'RECTIFICATION';
+export type Kind = DataSubjectRequestKind;
 
 /** Every kind, in the order a picker should offer them. */
 export const KINDS: readonly Kind[] = [
@@ -37,13 +45,13 @@ export const KINDS: readonly Kind[] = [
 ];
 
 /** The state machine: `RECEIVED → IN_PROGRESS → COMPLETED | REJECTED`. */
-export type Status = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
+export type Status = DataSubjectRequestStatus;
 
 /** What an erasure does to other people's content. The default is the one that preserves it. */
-export type ErasureMode = 'ANONYMIZE' | 'FULL_DELETE';
+export type ErasureMode = ContractErasureMode;
 
 /** Why a deadline was extended: the two reasons Art. 12(3) names. */
-export type ExtensionReason = 'COMPLEXITY' | 'NUMBER_OF_REQUESTS';
+export type ExtensionReason = DataSubjectRequestExtensionReason;
 
 /** Both reasons, in the order the form offers them. */
 export const EXTENSION_REASONS: readonly ExtensionReason[] = ['COMPLEXITY', 'NUMBER_OF_REQUESTS'];
@@ -53,41 +61,8 @@ export function producesArchive(kind: Kind): boolean {
   return kind === 'ACCESS' || kind === 'PORTABILITY';
 }
 
-/** One case. */
-export interface Request {
-  readonly id: string;
-  readonly kind: Kind;
-  readonly status: Status;
-  readonly scope?: string;
-  readonly subject_account_id?: string | null;
-  /** Who asked, for a request that has no account behind it. */
-  readonly subject_email?: string | null;
-  readonly erasure_mode?: ErasureMode;
-  readonly received_at: string;
-  /** The deadline in force: thirty days from receipt unless named, and the extended one once extended. */
-  readonly due_at: string;
-  /** The deadline before the one extension, present once there was one. */
-  readonly original_due_at?: string | null;
-  readonly extension_reason?: ExtensionReason | null;
-  /** The day the person was told of the extension, as YYYY-MM-DD. */
-  readonly informed_on?: string | null;
-  /**
-   * The latest day the deadline can be extended to, as YYYY-MM-DD in the workspace's zone. The
-   * server answers it exactly while an extension can succeed, and nothing here recomputes it.
-   */
-  readonly extendable_until?: string;
-  readonly completed_at?: string | null;
-  readonly handled_by?: string | null;
-  readonly rejection_reason?: string | null;
-  /** Where the export was written at the backup target, once a case has produced one. */
-  readonly result_archive?: string | null;
-  readonly result_target_id?: string | null;
-  readonly notes?: string | null;
-  /** What legal holds kept of an erasure, one part per hold; present only where one kept something. */
-  readonly kept?: readonly ErasureKept[];
-  /** Why what a hold keeps is not erased, present exactly with `kept`. */
-  readonly kept_legal_basis?: string;
-}
+/** One case, as the contract answers it; what each field means is said there. */
+export type Request = DataSubjectRequest;
 
 /** A message code and its parameters, which a component renders through `t`. */
 export interface KeptPhrase {
@@ -243,11 +218,7 @@ export function extensionPhrase(
 }
 
 /** What the form sends: three facts, each required, both days as YYYY-MM-DD. */
-export interface Extension {
-  readonly due_on: string;
-  readonly reason: ExtensionReason;
-  readonly informed_on: string;
-}
+export type Extension = DataSubjectRequestExtension;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
