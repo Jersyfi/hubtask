@@ -2,7 +2,7 @@
 # RB-A12 — No successful backup in the last 24 hours
 
 **Alerts:** `HubtaskBackupStale`, and A-12's point-in-time recovery half — `HubtaskArchiveGap`,
-`HubtaskArchiveFailing`, `HubtaskBaseBackupStale`, `HubtaskNoRecoverabilityPoint`,
+`HubtaskArchiveBacklog`, `HubtaskBaseBackupStale`, `HubtaskNoRecoverabilityPoint`,
 `HubtaskReplicationLag` · **Severity:** page · **Catalogue:** A-12
 
 **Which half fired decides which section applies.** `HubtaskBackupStale` is about the *tenant
@@ -30,8 +30,9 @@ psql -c "SELECT status, started_at, finished_at, error_code, size_bytes
          FROM backup_run ORDER BY started_at DESC LIMIT 10;"
 ```
 
-* **No target rows** → nothing was ever set up. `/meta/health` has been carrying the
-  `config.backup_not_configured` warning since the first start. Set up a target
+* **No target rows** → nothing was ever set up. The alert fires on the absent metric: without a
+  target there is no series. `/meta/health` does not say so yet: its silence about backups is no
+  evidence that a target exists. Set up a target
   ([backup-restore.md](../../../docs/architecture/backup-restore.md)).
 * **Runs with `status = 'FAILED'`** → `error_code` names the cause: unreachable target, wrong
   credentials, no space.
@@ -102,7 +103,7 @@ kubectl -n <namespace> exec <cluster>-1 -c postgres -- \
 | Alert | What it means | Where to look first |
 |---|---|---|
 | `HubtaskArchiveGap` | Segments are piling up unarchived — the window is falling behind by that much | The archiver's `last_failed_wal`, then the bucket's reachability and its policy |
-| `HubtaskArchiveFailing` | The archiver is returning errors | The backup credentials' Secret, the endpoint, and whether the bucket's Object Lock retention still admits writes |
+| `HubtaskArchiveBacklog` | The archive queue has not once drained in half an hour — the archiver is failing rather than lagging | The backup credentials' Secret, the endpoint, and whether the bucket's Object Lock retention still admits writes |
 | `HubtaskBaseBackupStale` | The daily base backup has not succeeded for two days | `kubectl -n <namespace> get backup` — the newest one's phase and its error |
 | `HubtaskNoRecoverabilityPoint` | No base backup has *ever* completed | The `ScheduledBackup` exists and its first immediate run failed; read that Backup object |
 | `HubtaskReplicationLag` | A replica is past the recovery point objective | Only where a replica exists; the decided shape is one instance |

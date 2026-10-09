@@ -576,7 +576,7 @@ func TestTheExpectedVersionArrivesThroughTheCatalogue(t *testing.T) {
 	}
 }
 
-// The declaration the audit gate reads (AU-1), and the scope a token needs.
+// The declaration the audit gate reads (SG-13, audit.md §8), and the scope a token needs.
 func TestTheDescriptorDeclaresWhatTheGatesRead(t *testing.T) {
 	descriptor := UpdateWorkItem{}.Descriptor()
 

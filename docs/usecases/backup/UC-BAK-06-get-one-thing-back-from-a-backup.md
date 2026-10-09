@@ -36,7 +36,9 @@ and renaming it afterwards is an ordinary edit. Everything else in the workspace
    longer exist in the workspace.
 3. Choosing a collection brings back everything under it and everything that hangs off it
    (buckets, labels, tasks, comments).
-4. With *skip*, existing things are left; with *overwrite*, the archive's version replaces them;
+4. With *skip*, existing things are left; with *overwrite*, the archive's version replaces them,
+   except the workspace's legal holds and an account's restriction of processing, which stay as
+   they are;
    with *duplicate*, a copy lands beside them and the top of the copied tree is named
    `<name> (restored <date> <six characters>)`.
 5. Restoring the same archive twice with *duplicate* lands a second copy with a different suffix;
@@ -58,4 +60,5 @@ See [backup-restore.md](../../architecture/backup-restore.md) §8.2.
 
 * Check 2: not met in the web app — the selection offers only hubs that exist in the workspace today; a collection, a task or a hub that is gone cannot be chosen.
 * Check 3: not proven — the server computes the closure of a selection, but nothing restores a selection and inspects what landed.
+* Check 4: not met — *overwrite* replaces the workspace's legal holds with the archive's, tracked in #1228, and a live restriction with the archive's account status, tracked in #1240.
 * Check 8: not met for `hubctl` — `hubctl restore run` has no selection flags.

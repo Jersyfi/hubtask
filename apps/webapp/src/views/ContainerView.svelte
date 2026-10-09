@@ -488,7 +488,7 @@
     isReadOnly
       ? t('app.workspace.archived')
       : rootTypes().length === 0
-        ? t('items.capability_not_supported', { type: '', capability: 'CREATE' })
+        ? t('app.entries.no_root_type')
         : undefined,
   );
 

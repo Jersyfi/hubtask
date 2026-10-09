@@ -21,7 +21,7 @@ go 1.27.0
 // The toolchain is pinned to a patched release: gate-security runs govulncheck, and an unpatched
 // standard library is a finding there. Whoever builds with an older Go gets this one fetched
 // automatically - which is the guarantee the `go` directive above must not try to make.
-toolchain go1.27.1
+toolchain go1.27.2
 
 // Dependencies are added step by step from milestone 0.1.0 onwards.
 // The core (core/domain, core/port, core/shared) stays permanently free of
@@ -48,7 +48,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
 	golang.org/x/crypto v0.57.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/text v0.42.0
 	gopkg.in/yaml.v3 v3.0.1
