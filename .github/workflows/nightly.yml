@@ -238,6 +238,7 @@ jobs:
   vulnerabilities:
     name: Vulnerabilities in the published build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write
@@ -328,6 +329,7 @@ jobs:
     # strength of a job that never finished would be the pessimistic lie's mirror image.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       issues: write

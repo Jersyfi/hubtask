@@ -444,8 +444,23 @@
 
   /* Today is the one mark that runs through the whole picture, so that a bar is read against it
      without counting columns. Rule 3: it is drawn on the axis and said in words below. */
-  .tick[data-today],
-  .cell[data-today] { border-inline-start: var(--bw-ring) solid var(--accent-primary); }
+  .tick[data-today] { border-inline-start: var(--bw-ring) solid var(--accent-primary); }
+
+  /* In a track the mark is drawn over the cell rather than as its border: a border is taken out of
+     the column, and on today's column - where bars most often start - a bar end would lose the
+     ring's width and fall under the target floor. Drawn at the same inline start as the tick's
+     border, so the line still runs straight through axis and rows; it takes no pointer. */
+  .cell[data-today] { position: relative; }
+
+  .cell[data-today]::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: var(--bw-ring);
+    background: var(--accent-primary);
+    pointer-events: none;
+  }
 
   .rows,
   .plain {
