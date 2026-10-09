@@ -65,6 +65,13 @@ func (m RestoreMode) Destructive() bool {
 	return m == RestoreReplaceTenant || m == RestoreInstance
 }
 
+// Operators reports the modes backup-restore.md §8.2 gives to the installation operator rather
+// than to a workspace: NEW_TENANT creates a workspace and INSTANCE crosses all of them, and no role
+// inside one workspace can answer for that.
+func (m RestoreMode) Operators() bool {
+	return m == RestoreNewTenant || m == RestoreInstance
+}
+
 // ConflictRule is how a MERGE decides an object that is in the archive and in the tenant.
 type ConflictRule string
 
