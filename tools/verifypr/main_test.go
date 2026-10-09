@@ -105,13 +105,9 @@ func TestALiveLockIsWaitedFor(t *testing.T) {
 	if err == nil {
 		t.Fatal("a lock held by a live process was taken")
 	}
-	// The caller defers the release before it knows whether the lock was taken; a nil one turned
-	// the wait's own message into a nil-pointer panic.
-	if release == nil {
-		t.Fatal("a lock that was not taken returns no release to defer")
-	}
+	// The caller defers release before it asks; a refused lock must not turn into a panic.
 	release()
-	if _, err := os.Stat(dir); err != nil {
-		t.Error("releasing a lock that was not taken removed the other session's lock")
+	if _, err := os.Stat(filepath.Join(dir, "owner")); err != nil {
+		t.Error("releasing a refused lock removed the holder's lock")
 	}
 }
