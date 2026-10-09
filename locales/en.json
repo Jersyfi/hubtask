@@ -239,6 +239,7 @@
   "workspace.version_conflict": "Somebody else changed the workspace. Read it again and retry.",
   "workspace.admin_flag_contradicts_rule": "This change says two different things about who needs a second factor. Send only the rule.",
   "admin.tenant_leaving": "That workspace is pending deletion. Its lifecycle only moves forward from here.",
+  "admin.holds_not_wired": "This installation is misconfigured: a deletion cannot read the legal holds, so it does not proceed.",
   "admin.deletion_confirmation_required": "Deleting a workspace needs its display name, typed exactly. Expected {name}.",
   "admin.password_opening_hours": "An opening lasts from one hour to {maximum} hours.",
   "admin.password_opening_requester_required": "Say who asked for the opening - a ticket reference will do.",
