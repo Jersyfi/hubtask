@@ -499,4 +499,7 @@ const (
 	// CodeRestoreFailed is anything unclassified, so that a dashboard never shows a driver's
 	// message.
 	CodeRestoreFailed = "backup.restore_failed"
+	// CodeRestoreHoldsNotWired is an installation whose restore cannot read the legal holds. A
+	// reset is refused then rather than run blind over what a hold keeps.
+	CodeRestoreHoldsNotWired = "backup.restore_holds_not_wired"
 )

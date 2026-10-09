@@ -28,7 +28,7 @@ func (h *harness) restorer() Restorer {
 	return Restorer{
 		Targets: h.targets, Encryptor: h.encryptor, Opener: h.opener,
 		Cipher: &maskingCipher{}, Authorizer: h.authorizer, Audit: h.audit,
-		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: ids{next: runID},
+		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: ids{next: runID}, Holds: &holdsDouble{},
 	}
 }
 

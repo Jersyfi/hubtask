@@ -172,7 +172,21 @@ const (
 	// does not have.
 	CodeHoldTargetNotFound  = "lifecycle.hold_target_not_found"
 	CodeHoldAlreadyReleased = "lifecycle.hold_already_released"
+	// CodeLegalHold refuses removing for good what a hold covers.
+	CodeLegalHold = "lifecycle.legal_hold"
+	// RefusalScopeWorkspace is the scope a refusal names when the workspace as a whole is to go -
+	// deleted, or reset to a backup. Never the hold's own scope: whoever asks learns that a hold
+	// stands, not that a person or one entry is under it (P-01).
+	RefusalScopeWorkspace = "WORKSPACE"
 )
+
+// WorkspaceUnderHold is the refusal of an act that would remove the whole workspace's data while
+// any hold is in force (data-protection.md §5): its deletion, or a reset to a backup. A conflict,
+// because the state is what stands in the way, and waiting for the hold's release is what helps.
+func WorkspaceUnderHold() error {
+	return shared.ErrConflict.WithDetail(CodeLegalHold).
+		WithParams(map[string]string{"scope": RefusalScopeWorkspace})
+}
 
 // Target is what a hard delete is about to remove, expressed as the levels a hold could name.
 //

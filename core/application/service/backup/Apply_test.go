@@ -269,7 +269,7 @@ func (a *applyHarness) applier() Applier {
 	return Applier{
 		Restores: a.restores, Targets: a.targets, Import: a.imports, Journal: a.journal,
 		Opener: a.opener, Encryptor: a.encryptor, Keys: a.keys, Cipher: a.cipher,
-		Objects: a.objects, Safety: a.safety, UnitOfWork: a.uow, Epochs: a.epochs,
+		Objects: a.objects, Safety: a.safety, UnitOfWork: a.uow, Epochs: a.epochs, Holds: &holdsDouble{},
 		Clock: clock.Fixed(now), IDs: ids{next: runID}, SchemaVersion: "0032", Batch: 2,
 	}
 }
