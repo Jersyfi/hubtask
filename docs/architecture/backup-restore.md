@@ -215,6 +215,11 @@ writes only into the caller's own (BK-10).
 * **Destructive is `REPLACE_TENANT` and `INSTANCE`** — not `MERGE` with `overwrite`, which replaces
   only the objects the archive names; a replace also removes what it does *not* name. Only the
   destructive modes ask for the typed workspace name and a step-up (§8.3).
+* **A legal hold stops a destructive mode.** `REPLACE_TENANT` is refused while any hold in the
+  workspace is in force; one that runs keeps the workspace's own hold records and never takes the
+  archive's, so a hold is neither dropped nor revived
+  ([data-protection.md](./data-protection.md) §5). Decided, not built: the replace clears the holds
+  and imports the archive's today (#1228).
 * **`NEW_TENANT`** imports beside the living data — the cheap look before a destructive mode. The use
   case mints the tenant identifier; the caller never names it. The copy keeps names and calendar
   UIDs: every unique index is per tenant.

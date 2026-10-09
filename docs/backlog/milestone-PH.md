@@ -29,6 +29,11 @@ Each measured against the deployments `D1`–`D7`:
 5. **The extension's audit action is `dsr.extended`**, not `privacy.request_extended`: every action
    of the privacy context is `dsr.*`, and `privacy.*` names its message codes (the owner,
    2026-10-07).
+6. **A legal hold stops a workspace's deletion and a destructive restore** (the owner, 2026-10-09,
+   #1233): the deletion request is refused while a hold is in force, a workspace pending deletion
+   stays pending until the last hold is lifted, and `REPLACE_TENANT` is refused under a hold and
+   keeps the workspace's holds when it runs — data-protection.md §5, UC-LIF-06 check 3. Built by
+   PH-10 (#1228).
 
 ---
 

@@ -180,7 +180,17 @@ the backup bucket's Object Lock retention are both 35 days. Three rules follow:
   the operator's own rotation must keep 35 days.
 
 It does **not** bind a tenant's own archive backups. With the 30-day tenant grace period, a deleted
-workspace is gone from everything the operator holds within 65 days of the request.
+workspace is gone from everything the operator holds within 65 days of the request, unless a legal
+hold stands:
+
+* **A hold stops a workspace's deletion.** While any hold in the workspace is in force, a deletion
+  request is refused, and a workspace already pending deletion stays pending until the last hold is
+  lifted ([multi-tenancy.md](./multi-tenancy.md) §5).
+* **A hold stops a destructive restore.** `REPLACE_TENANT` is refused while a hold is in force; one
+  that runs keeps the workspace's own hold records rather than the archive's, so no hold is dropped
+  or revived ([backup-restore.md](./backup-restore.md) §8.2).
+
+Decided, not built: the hard delete and a destructive restore read no hold today (#1228).
 
 **Media reconciliation** runs per tenant, seeded by an upload's staging and rescheduling itself
 ([multi-tenancy.md](./multi-tenancy.md) §2.1). One pass:
