@@ -51,6 +51,11 @@ type HoldWriter interface {
 	// believed and protect nothing.
 	TargetExists(ctx context.Context, scope domain.HoldScope, id shared.ID) (bool, error)
 
+	// WorkspaceLeaving answers whether the transaction's workspace is pending deletion. Placing a
+	// hold asks it after Lock: the deletion request reads the holds under the shared lock, so the
+	// two cannot pass each other (data-protection.md §5).
+	WorkspaceLeaving(ctx context.Context) (bool, error)
+
 	// Find answers one hold, released or not, or ErrNotFound.
 	Find(ctx context.Context, id shared.ID) (domain.LegalHold, error)
 
