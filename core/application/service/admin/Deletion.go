@@ -86,22 +86,14 @@ func (h RequestTenantDeletion) Execute(
 		return DeletionScheduled{}, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
 	}
 
-	var scheduled DeletionScheduled
+	// The typed name first, then the proof: a mistyped name must not burn a step-up the operator
+	// then has to earn again.
 	scope := persistence.Scope{TenantID: cmd.TenantID, ActorID: actor.AccountID}
-	err := h.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		record, err := h.Tenants.Find(ctx)
+	err := h.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		record, err := h.findStaying(ctx)
 		if err != nil {
-			if errors.Is(err, shared.ErrNotFound) {
-				return shared.ErrNotFound.WithDetail("admin.tenant_not_found")
-			}
 			return err
 		}
-		if record.Status == domain.TenantPendingDeletion {
-			return shared.ErrConflict.WithDetail("admin.tenant_leaving")
-		}
-
-		// The typed name first, then the proof: a mistyped name must not burn a step-up the
-		// operator then has to earn again.
 		if cmd.Confirmation != record.DisplayName {
 			return shared.ErrValidation.WithDetail("admin.deletion_confirmation_required").
 				WithParams(map[string]string{"name": record.DisplayName}).
@@ -109,7 +101,21 @@ func (h RequestTenantDeletion) Execute(
 					Path: "/confirmation", Code: "admin.deletion_confirmation_required",
 				})
 		}
-		if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
+		return nil
+	})
+	if err != nil {
+		return DeletionScheduled{}, err
+	}
+	// Outside the workspace's transaction: the proof lives in the operator's own workspace, and a
+	// nested scope may not switch tenant (postgres.tenant_switch_in_transaction).
+	if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
+		return DeletionScheduled{}, err
+	}
+
+	var scheduled DeletionScheduled
+	err = h.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		record, err := h.findStaying(ctx)
+		if err != nil {
 			return err
 		}
 
@@ -180,6 +186,21 @@ func (h RequestTenantDeletion) Execute(
 		return DeletionScheduled{}, err
 	}
 	return scheduled, nil
+}
+
+// findStaying reads the transaction's workspace, refusing one that is already leaving.
+func (h RequestTenantDeletion) findStaying(ctx context.Context) (adminrepo.TenantRecord, error) {
+	record, err := h.Tenants.Find(ctx)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return adminrepo.TenantRecord{}, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
+		}
+		return adminrepo.TenantRecord{}, err
+	}
+	if record.Status == domain.TenantPendingDeletion {
+		return adminrepo.TenantRecord{}, shared.ErrConflict.WithDetail("admin.tenant_leaving")
+	}
+	return record, nil
 }
 
 // Descriptor is the catalogue entry.
