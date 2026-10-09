@@ -6753,7 +6753,7 @@ type RestoreReport struct {
 	// Skipped Objects left as they are.
 	Skipped *int `json:"skipped,omitempty"`
 
-	// Withheld What the restore deliberately did not bring back, counted by reason - `deletion_journal`, `excluded_entity`, `media_missing`, `orphaned` (a row whose parent is in neither the archive nor the target) - and, for an import, what the source carried that the product has no place for - `unmapped_members`. An object rather than a total, so that a client can say why.
+	// Withheld What the restore deliberately did not bring back, counted by reason - `deletion_journal`, `excluded_entity`, `media_missing`, `orphaned` (a row whose parent is in neither the archive nor the target), `legal_hold_kept` (a legal hold of the archive that a restore into a living workspace does not take, because the workspace keeps its own) - and, for an import, what the source carried that the product has no place for - `unmapped_members`. An object rather than a total, so that a client can say why.
 	Withheld *map[string]int `json:"withheld,omitempty"`
 }
 

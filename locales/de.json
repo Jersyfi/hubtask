@@ -921,6 +921,7 @@
   "app.restore.report_nothing": "Nichts würde sich ändern.",
   "app.restore.withheld_deletion_journal": "Absichtlich nicht zurückgeholt, weil sie nach dem Schreiben des Archivs gelöscht wurden: {count}.",
   "app.restore.withheld_excluded_entity": "Absichtlich nicht zurückgeholt, weil eine Wiederherstellung sie nie zurückholt: {count}.",
+  "app.restore.withheld_legal_hold_kept": "{count, plural, one {# rechtliche Sperre des Archivs wurde} other {# rechtliche Sperren des Archivs wurden}} nicht übernommen: Der Workspace behält seine eigenen Sperren, wie sie sind.",
   "app.restore.withheld_other": "Absichtlich nicht zurückgeholt, Grund {reason}: {count}.",
   "app.restore.rehearsal_failed": "Die Probe ist nicht zu Ende gekommen, darum gibt es nichts zu lesen",
   "app.restore.rehearsal_wrote_nothing": "Noch ist nichts passiert. Das ist, was passieren würde.",

@@ -615,6 +615,11 @@ func (a Applier) emptyTenant(ctx context.Context, p plan) error {
 			if entity.Table == tenantTable {
 				continue
 			}
+			// Nor are the workspace's legal holds: the replace keeps them and takes none of the
+			// archive's (backup-restore.md §8.2).
+			if entity.Table == legalHoldTable {
+				continue
+			}
 			if _, err := a.Import.Clear(ctx, entity.Table); err != nil {
 				return err
 			}
@@ -623,7 +628,10 @@ func (a Applier) emptyTenant(ctx context.Context, p plan) error {
 	})
 }
 
-const tenantTable = "tenant"
+const (
+	tenantTable    = "tenant"
+	legalHoldTable = "legal_hold"
+)
 
 // state is what one restore accumulates while it reads: what it may not bring back, what it was
 // asked for, what it has already given a new identity to, and the batch waiting to be written.
@@ -865,6 +873,14 @@ func (s *state) stage(ctx context.Context, entity archive.Entity, record archive
 	if reason, out := s.keptOut(entity, record); out {
 		s.withhold(entity.Table, record.ID)
 		s.report.Withhold(reason)
+		return nil
+	}
+	// A workspace's legal holds are its obligations now, not the archive's: a hold placed since
+	// stays, one released since stays released (backup-restore.md §8.2). A new workspace has none
+	// of its own and takes the archive's along with the data they cover.
+	if !s.plan.remapAll && entity.Table == legalHoldTable {
+		s.withhold(entity.Table, record.ID)
+		s.report.Withhold(domain.WithheldLegalHoldKept)
 		return nil
 	}
 	if !s.inSelection(entity, record) {

@@ -2233,6 +2233,7 @@
   "app.restore.report_nothing": "Nothing would change.",
   "app.restore.withheld_deletion_journal": "Deliberately not brought back, because they were deleted after the archive was written: {count}.",
   "app.restore.withheld_excluded_entity": "Deliberately not brought back, because a restore never brings them: {count}.",
+  "app.restore.withheld_legal_hold_kept": "{count, plural, one {# legal hold of the archive was} other {# legal holds of the archive were}} not taken over: the workspace keeps its own holds as they are.",
   "app.restore.withheld_other": "Deliberately not brought back for {reason}: {count}.",
   "app.restore.rehearsal_failed": "The rehearsal did not finish, so there is nothing to read",
   "app.restore.rehearsal_wrote_nothing": "Nothing has happened yet. This is what would happen.",

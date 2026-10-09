@@ -265,6 +265,10 @@ const (
 	// WithheldOrphaned is a row whose parent in its own table is in neither the archive nor the
 	// target (backup-restore.md §8.3): a child the restore cannot point at anything.
 	WithheldOrphaned = "orphaned"
+	// WithheldLegalHoldKept is a legal hold the archive carries and a restore into a living
+	// workspace does not take: the workspace's own holds stay as they are, so none is dropped or
+	// revived by going back in time (backup-restore.md §8.2).
+	WithheldLegalHoldKept = "legal_hold_kept"
 )
 
 // Count records one decision about one object: the rule that decided it, and whether there was
