@@ -154,7 +154,9 @@ reply's comment) are ordered within the file: the referenced row comes first.
 **Three references point forward.** In `work_items`, `cover_media_id` (#15), `recurrence_rule_id`
 (#17) and `origin_jumble_id` (#21) name rows of later files; an importer that enforces them sets
 them after the later file is applied. `work_items` also carries `recurrence_source_id`, a reference
-to another `work_items` row without a foreign key.
+to another `work_items` row without a foreign key. Of the three, only `cover_media_id` is a foreign
+key in Hubtask's own schema, and its restore applies `media_objects`, which references nothing,
+before `work_items` instead (and empties a replaced workspace in the reverse of that order).
 
 ## 7. Media
 

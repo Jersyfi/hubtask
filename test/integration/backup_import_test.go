@@ -346,6 +346,131 @@ func TestEveryForeignKeyBetweenArchivedEntitiesIsDeclared(t *testing.T) {
 	}
 }
 
+// A restore writes the entities one after another and each row in its own statement, so an
+// immediate foreign key between two of them holds only if the row it points at was written by an
+// earlier entity. A reference within one table is the applier's to defer; every other one is the
+// order's.
+func TestEveryImmediateForeignKeyPointsAtAnEntityRestoredEarlier(t *testing.T) {
+	ctx := context.Background()
+
+	rows, err := adminPool(ctx, t).Query(ctx, `
+		SELECT c.conrelid::regclass::text, a.attname, c.confrelid::regclass::text
+		FROM pg_constraint c
+		JOIN unnest(c.conkey) WITH ORDINALITY AS k(attnum, ord) ON true
+		JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum
+		WHERE c.contype = 'f' AND NOT c.condeferred AND c.conrelid <> c.confrelid`)
+	if err != nil {
+		t.Fatalf("reading the foreign keys: %v", err)
+	}
+	defer rows.Close()
+
+	position := map[string]int{}
+	for i, entity := range archive.RestoredEntities() {
+		position[entity.Table] = i
+	}
+
+	for rows.Next() {
+		var source, column, target string
+		if err := rows.Scan(&source, &column, &target); err != nil {
+			t.Fatalf("reading a foreign key: %v", err)
+		}
+		if column == "tenant_id" {
+			continue
+		}
+		from, restored := position[source]
+		if !restored {
+			continue
+		}
+		to, restored := position[target]
+		if !restored {
+			continue
+		}
+		if to > from {
+			t.Errorf("%s.%s points at %s, which a restore writes after it", source, column, target)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("reading the foreign keys: %v", err)
+	}
+}
+
+// An entry with an image cover, put back the way a restore writes an archive: entity by entity in
+// the restore's order, one statement per row. The cover's foreign key is immediate, so the medium
+// has to be there before the entry that shows it.
+func TestAnEntryWithAnImageCoverIsRestored(t *testing.T) {
+	ctx := context.Background()
+	admin := adminPool(ctx, t)
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	itemID, mediaID := freshID(t), freshID(t)
+
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, status)
+		VALUES ($1, $2, $3, 'image/png', 4, 'COVER', 'READY')`,
+		mediaID.String(), tenantA.String(), "media/cover/"+mediaID.String()); err != nil {
+		t.Fatalf("seeding the medium: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, itemID, "With a picture", "a0"))
+	}); err != nil {
+		t.Fatalf("seeding the entry: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `
+		UPDATE work_item SET cover_kind = 'IMAGE', cover_media_id = $3
+		WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), itemID.String(), mediaID.String()); err != nil {
+		t.Fatalf("giving the entry its cover: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = admin.Exec(context.Background(),
+			`DELETE FROM work_item WHERE tenant_id = $1 AND id = $2`, tenantA.String(), itemID.String())
+		_, _ = admin.Exec(context.Background(),
+			`DELETE FROM media_object WHERE tenant_id = $1 AND id = $2`, tenantA.String(), mediaID.String())
+	})
+
+	// What the archive carries of the two.
+	held := map[string]map[string]any{"work_item": exportedShape(ctx, t, tenantA, itemID)}
+	for _, row := range exported(ctx, t, tenantA, 100, "media_object", time.Time{}) {
+		if row.ID == mediaID.String() {
+			held["media_object"] = row.Data
+		}
+	}
+	if held["media_object"] == nil {
+		t.Fatal("the medium was not exported")
+	}
+
+	// Both gone, as after a replace's clear, and written back in the restore's order.
+	if _, err := admin.Exec(ctx, `DELETE FROM work_item WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), itemID.String()); err != nil {
+		t.Fatalf("removing the entry: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `DELETE FROM media_object WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), mediaID.String()); err != nil {
+		t.Fatalf("removing the medium: %v", err)
+	}
+	for _, entity := range archive.RestoredEntities() {
+		row, carried := held[entity.Table]
+		if !carried {
+			continue
+		}
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+			_, err := importRepo().Write(ctx, entity.Table, row, false)
+			return err
+		}); err != nil {
+			t.Fatalf("restoring %s: %v", entity.Table, err)
+		}
+	}
+
+	var cover string
+	if err := admin.QueryRow(ctx,
+		`SELECT cover_media_id::text FROM work_item WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), itemID.String()).Scan(&cover); err != nil {
+		t.Fatalf("reading the restored entry: %v", err)
+	}
+	if cover != mediaID.String() {
+		t.Errorf("the restored entry's cover is %q, want %s", cover, mediaID)
+	}
+}
+
 // The rename against the index it exists for.
 //
 // The applier's own tests answer with a store that has no unique index, so they prove the copy is
