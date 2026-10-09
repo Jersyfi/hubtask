@@ -250,3 +250,38 @@ test('the types that carry a capability are derived, never named', () => {
   assert.deepEqual(typesWith(manifest, 'NOTHING_HAS_THIS'), []);
   assert.deepEqual(typesWith(undefined, 'BUCKET'), []);
 });
+
+test('a capability refusal reads as a sentence, not as the identifiers behind it', async () => {
+  // The verdict carries the manifest's own values, because the server's refusal of the same
+  // request carries them too and one sentence has to read well for both: the words are the
+  // catalogue's. A type or a capability this client was built without still reads as a sentence.
+  const { createMessages } = await import('../i18n/messages.ts');
+  const messages = createMessages({ locale: 'en' });
+  const identifier = /\b[A-Z][A-Z_]+\b/;
+
+  const types = ['TASK', 'WORK_PACKAGE', 'ACTIVITY', 'MILESTONE'];
+  const capabilities = [
+    'COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'BUCKET', 'NOTES',
+    'LABELS', 'COMMENTS', 'COVER', 'ATTACHMENTS', 'HISTORY', 'RECURRENCE', 'CUSTOM_FIELDS',
+    'CHECKLIST',
+  ];
+  const bare = {
+    item_types: types.map((type) => ({ type, capabilities: [] })),
+  } as unknown as Capabilities;
+
+  for (const type of types) {
+    for (const capability of capabilities) {
+      const verdict = capabilityVerdict(bare, type, capability);
+      assert.equal(verdict.status, 'refused');
+      if (verdict.status !== 'refused') continue;
+      const sentence = messages.t(verdict.code, verdict.params);
+      assert.doesNotMatch(sentence, identifier, `${type} without ${capability} reads "${sentence}"`);
+    }
+  }
+
+  const verdict = capabilityVerdict(bare, 'ACTIVITY', 'MEMBERS');
+  assert.equal(
+    verdict.status === 'refused' ? messages.t(verdict.code, verdict.params) : null,
+    'An activity has no members.',
+  );
+});
