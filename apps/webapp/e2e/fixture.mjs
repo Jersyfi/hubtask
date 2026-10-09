@@ -244,9 +244,12 @@ export function unstubbedSoFar() {
   return [...new Set(unstubbed)];
 }
 
-/** A signed-in tab at a width, with the failures the bundle throws collected. */
-export async function signedIn(browser, width, height = 800) {
-  const context = await browser.newContext({ viewport: { width, height } });
+/**
+ * A signed-in tab at a width, with the failures the bundle throws collected. A walk about days
+ * passes `timezoneId`, so it reads the same on every machine; nothing else is taken from `options`.
+ */
+export async function signedIn(browser, width, height = 800, { timezoneId } = {}) {
+  const context = await browser.newContext({ viewport: { width, height }, ...(timezoneId ? { timezoneId } : {}) });
   await context.route('**/api/v1/**', stub);
   await context.addInitScript(() => { sessionStorage.setItem('hubtask.bearer', 'e2e-bearer'); sessionStorage.setItem('hubtask.refresh', 'e2e-refresh'); });
   const page = await context.newPage();
