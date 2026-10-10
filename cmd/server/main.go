@@ -2696,6 +2696,9 @@ func run() error {
 			// The synchronisation's records: the operation log and the tombstones past
 			// the offline window; the change log's months fall as partitions, the leader's duty.
 			SyncLog: postgres.NewSyncLogSweeper(),
+			// The text a legal hold kept on a deleted comment, cleared once no hold
+			// covers it (data-retention.md §4).
+			KeptTexts: postgres.KeptCommentTextRepository{},
 			// What AI proposed. Thirty days, the shortest default in the catalogue: a
 			// suggestion is about a state of an entry, and an entry's state does not stay still.
 			Proposals: postgres.NewSuggestionRepository(cursors),
