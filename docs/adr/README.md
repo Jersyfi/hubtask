@@ -19,6 +19,16 @@ read that section for what holds today ([ADR-0081](./ADR-0081-how-work-is-organi
 - Every new ADR is named to the owner. When the code that implements a proposed ADR merges, the
   same pull request moves it to `accepted` here and in its header.
 
+- A section an ADR cites that does not exist is not corrected in the ADR: the errata table below
+  names the section it means. `make gate-docs` refuses a section citation in an ADR that resolves
+  neither in the cited document nor through a row of the table.
+
+## Errata
+
+| ADR | Cites | Means |
+|---|---|---|
+| ADR-0025 | versioning-release.md §8 | versioning-release.md §2 |
+
 Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 
 | ADR | Title | Status | Concerns |
