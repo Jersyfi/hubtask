@@ -5,7 +5,7 @@ context: lifecycle
 actors: [PE-owner, PE-auditor, PE-scripter]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-07, P-08, P-11]
-state: built
+state: partial
 tasks: [PH-01, PH-10, E-08, F4-18]
 checked_by: [core/application/service/lifecycle/LegalHolds_test.go, core/domain/model/lifecycle/LegalHold_test.go, test/integration/legal_hold_test.go, test/retention/retention_test.go, cmd/hubctl/Hold_test.go, core/application/service/lifecycle/Purge_test.go, test/retention/account_hold_test.go, test/integration/privacy_hold_test.go, apps/webapp/e2e/retention.test.mjs, core/application/service/admin/Hold_test.go, core/application/service/backup/Hold_test.go, test/integration/admin_hold_test.go, test/integration/restore_hold_test.go]
 ---
@@ -43,13 +43,16 @@ stays on record, released, for whoever audits it later.
 7. A hold is never deleted; a released hold stays listed with both reasons and moments. Placing and
    releasing write `lifecycle.hold_placed` and `lifecycle.hold_released`.
 8. The web app offers only the scopes a hold can be placed on.
+9. Deleting a comment under a hold shows it as deleted to everybody, as without a hold, and keeps
+   its text; the text is cleared once the last hold covering the comment is released.
 
 ## Where it ends
 
 * A hold on one person's data (an account) covers that person's contributions and the account,
   and stops their erasure, not their sign-in (R-3, 2026-09-30,
   [data-protection.md](../../architecture/data-protection.md) §4.1).
-* A hold does not freeze editing; preserving the state at one moment is a backup's job.
+* A hold does not freeze editing — a comment's earlier wording included; preserving the state at
+  one moment is a backup's job.
 * A hold does not stop backups from expiring at their target.
 * A workspace already pending deletion while a hold is in force stays pending until the last hold
   is released; its removal within 65 days
@@ -62,3 +65,7 @@ stays on record, released, for whoever audits it later.
 
 See [data-retention.md](../../architecture/data-retention.md) §4 and
 [ADR-0020](../../adr/ADR-0020-retention-policies.md).
+
+## Today
+
+* Check 9: not met — deleting a comment clears its text whatever hold covers it, tracked in #1232.

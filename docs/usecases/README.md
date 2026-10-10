@@ -258,7 +258,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-LIF-03](./lifecycle/UC-LIF-03-archive-finished-work.md) | Archive finished work and bring it back when needed | lifecycle | partial |
 | [UC-LIF-04](./lifecycle/UC-LIF-04-set-a-retention-rule.md) | Set a retention rule and see what it would do before it acts | lifecycle | partial |
 | [UC-LIF-05](./lifecycle/UC-LIF-05-be-warned-and-keep-my-work.md) | Be warned before a rule removes my work, and keep it | lifecycle | partial |
-| [UC-LIF-06](./lifecycle/UC-LIF-06-place-a-legal-hold.md) | Place a legal hold so that nothing is destroyed | lifecycle | built |
+| [UC-LIF-06](./lifecycle/UC-LIF-06-place-a-legal-hold.md) | Place a legal hold so that nothing is destroyed | lifecycle | partial |
 | [UC-BAK-01](./backup/UC-BAK-01-choose-where-backups-go.md) | Choose where the workspace's backups go | backup | partial |
 | [UC-BAK-02](./backup/UC-BAK-02-back-up-on-a-schedule.md) | Back up on a schedule and keep the right generations | backup | partial |
 | [UC-BAK-03](./backup/UC-BAK-03-back-up-now-and-check-it-opens.md) | Back up now and check that the backup opens | backup | built |
