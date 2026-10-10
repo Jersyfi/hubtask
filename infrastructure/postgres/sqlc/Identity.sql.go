@@ -218,6 +218,20 @@ func (q *Queries) AdministratorsAlongPath(ctx context.Context, arg Administrator
 	return items, nil
 }
 
+const countPeople = `-- name: CountPeople :one
+SELECT count(*) FROM account
+WHERE kind = 'USER' AND status <> 'ANONYMIZED' AND deleted_at IS NULL
+`
+
+// The people of the workspace: accounts of persons that are not anonymised and not deleted. What
+// decides whether a client offers a private hub at all (UC-ID-16 check 8).
+func (q *Queries) CountPeople(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countPeople)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteGroup = `-- name: DeleteGroup :execrows
 DELETE FROM account_group WHERE id = $1
 `

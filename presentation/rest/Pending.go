@@ -1226,3 +1226,5 @@ func (pending) CancelInstanceIdentityProviderWithdrawal(
 ) {
 	notAvailable(w, r)
 }
+
+func (pending) ListPrivateHubs(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

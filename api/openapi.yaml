@@ -4631,6 +4631,29 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /private-hubs:
+    get:
+      tags: [meta]
+      operationId: listPrivateHubs
+      summary: The workspace's private hubs, without their names
+      description: >
+        Every private hub of the workspace, the trashed ones included: whose it is - the accounts
+        holding OWNER on it - and how much it holds, with no name, description or content. Enough to
+        run the workspace - its storage, a person leaving - and nothing to read. Needs the
+        permission that manages members. Oldest first; a workspace has a handful, so the answer is
+        not paged.
+      responses:
+        "200":
+          description: The private hubs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PrivateHubSummary"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /tenant/accounts-without-provider:
     get:
       tags: [auth]
@@ -9223,6 +9246,31 @@ components:
         decision or the standard contractual clauses, and the transfer impact assessment, remain
         the operator's obligation.
 
+    PrivateHubSummary:
+      type: object
+      description: >
+        A private hub as an administrator sees it: whose, how big, and when it goes if it is in the
+        trash. Deliberately without a name.
+      required: [id, owners, collections, entries, attachment_bytes, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        owners:
+          type: array
+          items: { type: string, format: uuid }
+          description: The accounts holding OWNER on the hub itself. Empty for a hub nobody owns any more.
+        collections: { type: integer, description: "Collections in it, the trashed ones included." }
+        entries: { type: integer, description: "Entries in it, the trashed ones included." }
+        attachment_bytes:
+          type: integer
+          format: int64
+          description: The bytes of the files attached to its entries.
+        created_at: { type: string, format: date-time }
+        trashed_at: { type: [string, "null"], format: date-time }
+        purge_on:
+          type: [string, "null"]
+          format: date
+          description: The day a trashed hub is deleted for good, by the workspace's trash period.
+
     Workspace:
       type: object
       description: >
@@ -9276,6 +9324,13 @@ components:
         version:
           type: integer
           description: The optimistic lock, as everywhere else.
+        private_hubs_offered:
+          type: boolean
+          readOnly: true
+          description: >
+            Whether a client offers to make a hub private: the workspace holds more than one person
+            whose account is not anonymised. A workspace of one has nobody to keep a hub from, and
+            a screen that offered it would be noise. The server accepts a private hub either way.
         sign_in_policy:
           $ref: "#/components/schemas/SignInPolicy"
           description: >

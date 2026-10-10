@@ -727,6 +727,10 @@ class Client:
         """Change how the workspace is set up"""
         return self._call("PATCH", "/tenant", {}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/merge-patch+json", "json")
 
+    def list_private_hubs(self) -> dict[str, Any]:
+        """The workspace's private hubs, without their names"""
+        return self._call("GET", "/private-hubs", {}, None, {}, None, "none", None, "json")
+
     def count_accounts_without_provider(self) -> "AccountsWithoutProvider":
         """How many people here no provider switched on here signs in"""
         return self._call("GET", "/tenant/accounts-without-provider", {}, None, {}, None, "none", None, "json")

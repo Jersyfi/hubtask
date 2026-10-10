@@ -6576,6 +6576,27 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PrivateHubSummary A private hub as an administrator sees it: whose, how big, and when it goes if it is in the trash. Deliberately without a name.
+type PrivateHubSummary struct {
+	// AttachmentBytes The bytes of the files attached to its entries.
+	AttachmentBytes int64 `json:"attachment_bytes"`
+
+	// Collections Collections in it, the trashed ones included.
+	Collections int       `json:"collections"`
+	CreatedAt   time.Time `json:"created_at"`
+
+	// Entries Entries in it, the trashed ones included.
+	Entries int                `json:"entries"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// Owners The accounts holding OWNER on the hub itself. Empty for a hub nobody owns any more.
+	Owners []openapi_types.UUID `json:"owners"`
+
+	// PurgeOn The day a trashed hub is deleted for good, by the workspace's trash period.
+	PurgeOn   *openapi_types.Date `json:"purge_on,omitempty"`
+	TrashedAt *time.Time          `json:"trashed_at,omitempty"`
+}
+
 // Problem defines model for Problem.
 type Problem struct {
 	// Code A stable, machine-readable error code (part of the contract).
@@ -8466,6 +8487,9 @@ type Workspace struct {
 
 	// PasswordOpening The installation operator's opening of the password for this workspace, while it is in force: the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.
 	PasswordOpening *WorkspacePasswordOpening `json:"password_opening,omitempty"`
+
+	// PrivateHubsOffered Whether a client offers to make a hub private: the workspace holds more than one person whose account is not anonymised. A workspace of one has nobody to keep a hub from, and a screen that offered it would be noise. The server accepts a private hub either way.
+	PrivateHubsOffered *bool `json:"private_hubs_offered,omitempty"`
 
 	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree. Kept for the clients that read it.
 	RequireAdminTotp bool `json:"require_admin_totp"`
@@ -13252,6 +13276,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /privacy/requests/{requestId}:extend (the `ExtendDataSubjectRequest` operationId).
 	ExtendDataSubjectRequest(ctx context.Context, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, body ExtendDataSubjectRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPrivateHubs The workspace's private hubs, without their names
+	//
+	// Every private hub of the workspace, the trashed ones included: whose it is - the accounts holding OWNER on it - and how much it holds, with no name, description or content. Enough to run the workspace - its storage, a person leaving - and nothing to read. Needs the permission that manages members. Oldest first; a workspace has a handful, so the answer is not paged.
+	//
+	// Corresponds with GET /private-hubs (the `ListPrivateHubs` operationId).
+	ListPrivateHubs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadQuotas The workspace's quota standing
 	//
@@ -20461,6 +20492,23 @@ func (c *Client) ExtendDataSubjectRequestWithBody(ctx context.Context, requestId
 // Corresponds with POST /privacy/requests/{requestId}:extend (the `ExtendDataSubjectRequest` operationId).
 func (c *Client) ExtendDataSubjectRequest(ctx context.Context, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, body ExtendDataSubjectRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExtendDataSubjectRequestRequest(c.Server, requestId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPrivateHubs The workspace's private hubs, without their names
+//
+// Every private hub of the workspace, the trashed ones included: whose it is - the accounts holding OWNER on it - and how much it holds, with no name, description or content. Enough to run the workspace - its storage, a person leaving - and nothing to read. Needs the permission that manages members. Oldest first; a workspace has a handful, so the answer is not paged.
+//
+// Corresponds with GET /private-hubs (the `ListPrivateHubs` operationId).
+func (c *Client) ListPrivateHubs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPrivateHubsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -33383,6 +33431,33 @@ func NewExtendDataSubjectRequestRequestWithBody(server string, requestId openapi
 	return req, nil
 }
 
+// NewListPrivateHubsRequest constructs an http.Request for the ListPrivateHubs method
+func NewListPrivateHubsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/private-hubs")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewReadQuotasRequest constructs an http.Request for the ReadQuotas method
 func NewReadQuotasRequest(server string) (*http.Request, error) {
 	var err error
@@ -38680,6 +38755,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /privacy/requests/{requestId}:extend (the `ExtendDataSubjectRequest` operationId).
 	ExtendDataSubjectRequestWithResponse(ctx context.Context, requestId openapi_types.UUID, params *ExtendDataSubjectRequestParams, body ExtendDataSubjectRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*ExtendDataSubjectRequestResult, error)
+
+	// ListPrivateHubsWithResponse The workspace's private hubs, without their names
+	//
+	// Every private hub of the workspace, the trashed ones included: whose it is - the accounts holding OWNER on it - and how much it holds, with no name, description or content. Enough to run the workspace - its storage, a person leaving - and nothing to read. Needs the permission that manages members. Oldest first; a workspace has a handful, so the answer is not paged.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /private-hubs (the `ListPrivateHubs` operationId).
+	ListPrivateHubsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPrivateHubsResult, error)
 
 	// ReadQuotasWithResponse The workspace's quota standing
 	//
@@ -51255,6 +51339,54 @@ func (r ExtendDataSubjectRequestResult) ContentType() string {
 	return ""
 }
 
+type ListPrivateHubsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]PrivateHubSummary
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPrivateHubsResult) GetJSON200() *[]PrivateHubSummary {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPrivateHubsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPrivateHubsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPrivateHubsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPrivateHubsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPrivateHubsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadQuotasResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -58683,6 +58815,21 @@ func (c *ClientWithResponses) ExtendDataSubjectRequestWithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseExtendDataSubjectRequestResult(rsp)
+}
+
+// ListPrivateHubsWithResponse The workspace's private hubs, without their names
+//
+// Every private hub of the workspace, the trashed ones included: whose it is - the accounts holding OWNER on it - and how much it holds, with no name, description or content. Enough to run the workspace - its storage, a person leaving - and nothing to read. Needs the permission that manages members. Oldest first; a workspace has a handful, so the answer is not paged.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /private-hubs (the `ListPrivateHubs` operationId).
+func (c *ClientWithResponses) ListPrivateHubsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPrivateHubsResult, error) {
+	rsp, err := c.ListPrivateHubs(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPrivateHubsResult(rsp)
 }
 
 // ReadQuotasWithResponse The workspace's quota standing
@@ -68289,6 +68436,39 @@ func ParseExtendDataSubjectRequestResult(rsp *http.Response) (*ExtendDataSubject
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest DataSubjectRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPrivateHubsResult parses an HTTP response from a ListPrivateHubsWithResponse call
+func ParseListPrivateHubsResult(rsp *http.Response) (*ListPrivateHubsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPrivateHubsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []PrivateHubSummary
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

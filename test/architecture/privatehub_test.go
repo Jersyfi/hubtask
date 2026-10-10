@@ -61,6 +61,7 @@ var privateHubExemptions = map[string]string{
 	"GetWebhookSubscription":       ownSubscriptions,
 	"ListWebhookDeliveries":        ownSubscriptions,
 	"ListWebhookSubscriptions":     ownSubscriptions,
+	"ListPrivateHubs":              "ADR-0073 §3's list: owners and sizes, never a name or content",
 	"PollTriggerEvents":            filteredPoll,
 	"ReadAiProvider":               noHub,
 	"CheckPassword":                noHub,

@@ -1060,3 +1060,20 @@ type CustomFields interface {
 	// the values stay in the entries and stop being visible.
 	SetDeleted(ctx context.Context, definition work.CustomFieldDefinition, expectedVersion int) error
 }
+
+// PrivateHubSummary is one private hub as an administrator may see it (ADR-0073 §3): no name.
+type PrivateHubSummary struct {
+	ID              shared.ID
+	Owners          []shared.ID
+	Collections     int
+	Entries         int
+	AttachmentBytes int64
+	CreatedAt       time.Time
+	// TrashedAt is set while the hub is in the trash.
+	TrashedAt *time.Time
+}
+
+// PrivateHubs lists the workspace's private hubs, oldest first, the trashed ones included.
+type PrivateHubs interface {
+	ListPrivateHubs(ctx context.Context) ([]PrivateHubSummary, error)
+}

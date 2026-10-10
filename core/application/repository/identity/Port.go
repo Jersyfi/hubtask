@@ -141,6 +141,12 @@ type HubLocks interface {
 	GroupHoldsRoleUnder(ctx context.Context, hubID shared.ID) (bool, error)
 }
 
+// People counts the workspace's persons that can still act: accounts of kind USER, neither
+// anonymised nor deleted.
+type People interface {
+	CountPeople(ctx context.Context) (int, error)
+}
+
 // Hub is what the authoriser needs to know about the hub a container or an entry sits under.
 type Hub struct {
 	ID shared.ID

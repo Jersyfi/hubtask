@@ -831,3 +831,29 @@ WHERE due_at IS NOT NULL
 UPDATE work_item
 SET origin_jumble_id = sqlc.arg('origin_jumble_id')
 WHERE id = sqlc.arg('id') AND origin_jumble_id IS NULL AND deleted_at IS NULL;
+
+-- name: ListPrivateHubs :many
+-- The workspace's private hubs as an administrator may see them (ADR-0073 §3): whose - the
+-- accounts holding OWNER on the hub itself - and how much, never a name. Trashed ones included,
+-- with their stamp, because "a person left and the hub is going" is what the list is for.
+SELECT
+  h.id, h.created_at, h.deleted_at,
+  coalesce((
+    SELECT array_agg(m.account_id ORDER BY m.account_id)
+    FROM membership m
+    WHERE m.scope_type = 'HUB' AND m.scope_id = h.id AND m.role = 'OWNER' AND m.account_id IS NOT NULL
+  ), '{}')::uuid[] AS owners,
+  (SELECT count(*) FROM container c WHERE c.parent_id = h.id) AS collections,
+  (SELECT count(*) FROM work_item w JOIN container c ON c.id = w.collection_id
+    WHERE c.parent_id = h.id) AS entries,
+  coalesce((
+    SELECT sum(mo.byte_size)
+    FROM item_attachment a
+    JOIN media_object mo ON mo.id = a.media_id
+    JOIN work_item w ON w.id = a.item_id
+    JOIN container c ON c.id = w.collection_id
+    WHERE c.parent_id = h.id
+  ), 0)::bigint AS attachment_bytes
+FROM container h
+WHERE h.type = 'HUB' AND h.private
+ORDER BY h.created_at, h.id;

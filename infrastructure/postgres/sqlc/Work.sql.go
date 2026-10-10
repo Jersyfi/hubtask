@@ -1014,6 +1014,71 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 	return items, nil
 }
 
+const listPrivateHubs = `-- name: ListPrivateHubs :many
+SELECT
+  h.id, h.created_at, h.deleted_at,
+  coalesce((
+    SELECT array_agg(m.account_id ORDER BY m.account_id)
+    FROM membership m
+    WHERE m.scope_type = 'HUB' AND m.scope_id = h.id AND m.role = 'OWNER' AND m.account_id IS NOT NULL
+  ), '{}')::uuid[] AS owners,
+  (SELECT count(*) FROM container c WHERE c.parent_id = h.id) AS collections,
+  (SELECT count(*) FROM work_item w JOIN container c ON c.id = w.collection_id
+    WHERE c.parent_id = h.id) AS entries,
+  coalesce((
+    SELECT sum(mo.byte_size)
+    FROM item_attachment a
+    JOIN media_object mo ON mo.id = a.media_id
+    JOIN work_item w ON w.id = a.item_id
+    JOIN container c ON c.id = w.collection_id
+    WHERE c.parent_id = h.id
+  ), 0)::bigint AS attachment_bytes
+FROM container h
+WHERE h.type = 'HUB' AND h.private
+ORDER BY h.created_at, h.id
+`
+
+type ListPrivateHubsRow struct {
+	ID              pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	Owners          []pgtype.UUID
+	Collections     int64
+	Entries         int64
+	AttachmentBytes int64
+}
+
+// The workspace's private hubs as an administrator may see them (ADR-0073 §3): whose - the
+// accounts holding OWNER on the hub itself - and how much, never a name. Trashed ones included,
+// with their stamp, because "a person left and the hub is going" is what the list is for.
+func (q *Queries) ListPrivateHubs(ctx context.Context) ([]ListPrivateHubsRow, error) {
+	rows, err := q.db.Query(ctx, listPrivateHubs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPrivateHubsRow{}
+	for rows.Next() {
+		var i ListPrivateHubsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.DeletedAt,
+			&i.Owners,
+			&i.Collections,
+			&i.Entries,
+			&i.AttachmentBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWorkItems = `-- name: ListWorkItems :many
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,

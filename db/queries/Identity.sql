@@ -367,3 +367,9 @@ WHERE (
 -- disagree about where a name sorts (migration 0080).
 ORDER BY lower(name) COLLATE hubtask_name, id
 LIMIT sqlc.arg('page_size');
+
+-- name: CountPeople :one
+-- The people of the workspace: accounts of persons that are not anonymised and not deleted. What
+-- decides whether a client offers a private hub at all (UC-ID-16 check 8).
+SELECT count(*) FROM account
+WHERE kind = 'USER' AND status <> 'ANONYMIZED' AND deleted_at IS NULL;

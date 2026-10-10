@@ -1088,6 +1088,7 @@ func run() error {
 
 	workspaceWriter := identity.WorkspaceWriter{
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		People:     postgres.NewPrivateHubRepository(),
 		// The hosts the workspace answers at. Read-only: nothing resolves a request
 		// through them yet.
 		Hosts: postgres.NewTenantHostRepository(),
@@ -1564,6 +1565,10 @@ func run() error {
 		}.Descriptor(),
 		work.RenameContainer{Writer: containerWriter}.Descriptor(),
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
+		work.ListPrivateHubs{
+			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.SetHubPrivacy{
 			Writer: containerWriter, Hubs: postgres.NewHubLockRepository(), Revocations: revocations,
 		}.Descriptor(),

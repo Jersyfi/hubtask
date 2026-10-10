@@ -6570,6 +6570,27 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PrivateHubSummary A private hub as an administrator sees it: whose, how big, and when it goes if it is in the trash. Deliberately without a name.
+type PrivateHubSummary struct {
+	// AttachmentBytes The bytes of the files attached to its entries.
+	AttachmentBytes int64 `json:"attachment_bytes"`
+
+	// Collections Collections in it, the trashed ones included.
+	Collections int       `json:"collections"`
+	CreatedAt   time.Time `json:"created_at"`
+
+	// Entries Entries in it, the trashed ones included.
+	Entries int                `json:"entries"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// Owners The accounts holding OWNER on the hub itself. Empty for a hub nobody owns any more.
+	Owners []openapi_types.UUID `json:"owners"`
+
+	// PurgeOn The day a trashed hub is deleted for good, by the workspace's trash period.
+	PurgeOn   *openapi_types.Date `json:"purge_on,omitempty"`
+	TrashedAt *time.Time          `json:"trashed_at,omitempty"`
+}
+
 // Problem defines model for Problem.
 type Problem struct {
 	// Code A stable, machine-readable error code (part of the contract).
@@ -8460,6 +8481,9 @@ type Workspace struct {
 
 	// PasswordOpening The installation operator's opening of the password for this workspace, while it is in force: the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.
 	PasswordOpening *WorkspacePasswordOpening `json:"password_opening,omitempty"`
+
+	// PrivateHubsOffered Whether a client offers to make a hub private: the workspace holds more than one person whose account is not anonymised. A workspace of one has nobody to keep a hub from, and a screen that offered it would be noise. The server accepts a private hub either way.
+	PrivateHubsOffered *bool `json:"private_hubs_offered,omitempty"`
 
 	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree. Kept for the clients that read it.
 	RequireAdminTotp bool `json:"require_admin_totp"`
@@ -10789,6 +10813,9 @@ type ServerInterface interface {
 	// ExtendDataSubjectRequest Extend a case's deadline once
 	// (POST /privacy/requests/{requestId}:extend)
 	ExtendDataSubjectRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID, params ExtendDataSubjectRequestParams)
+	// ListPrivateHubs The workspace's private hubs, without their names
+	// (GET /private-hubs)
+	ListPrivateHubs(w http.ResponseWriter, r *http.Request)
 	// ReadQuotas The workspace's quota standing
 	// (GET /quotas)
 	ReadQuotas(w http.ResponseWriter, r *http.Request)
@@ -19731,6 +19758,20 @@ func (siw *ServerInterfaceWrapper) ExtendDataSubjectRequest(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
+// ListPrivateHubs operation middleware
+func (siw *ServerInterfaceWrapper) ListPrivateHubs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPrivateHubs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadQuotas operation middleware
 func (siw *ServerInterfaceWrapper) ReadQuotas(w http.ResponseWriter, r *http.Request) {
 
@@ -21322,6 +21363,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant", wrapper.ReadWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant", wrapper.UpdateWorkspace)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs", wrapper.ListPrivateHubs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureFirstIdentityProvider)
