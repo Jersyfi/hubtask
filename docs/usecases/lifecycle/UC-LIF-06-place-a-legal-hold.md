@@ -61,7 +61,8 @@ stays on record, released, for whoever audits it later.
   ([UC-INS-08](../admin/UC-INS-08-suspend-resume-and-delete-a-workspace.md)).
 * Recovering the whole installation to an earlier moment is the operator's procedure
   ([UC-BAK-08](../backup/UC-BAK-08-recover-the-whole-installation.md)), not a reset of the
-  workspace; what it does to holds placed after that moment is open (#1239).
+  workspace; it places the holds of the rewound period again before traffic is admitted (UC-BAK-08
+  check 3).
 
 See [data-retention.md](../../architecture/data-retention.md) §4 and
 [ADR-0020](../../adr/ADR-0020-retention-policies.md).

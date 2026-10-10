@@ -41,6 +41,10 @@ Each measured against the deployments `D1`–`D7`:
 8. **A deleted comment keeps its text under a hold** (the owner, 2026-10-10, #1246): it reads as
    deleted to everybody, and the sweep clears the text once the last hold covering it is lifted;
    editing stays free — data-retention.md §4, UC-LIF-06 check 9. Built by the fix of #1232.
+9. **A point-in-time recovery places the legal holds of the rewound period again** (the owner,
+   2026-10-10, #1247): from the audit export, before the erasures are re-applied and before traffic
+   is admitted; a hold released in that period stays in force until its owner releases it again —
+   backup-restore.md §8.5, data-protection.md §5, UC-BAK-08 check 3. Built by the fix of #1239.
 
 ---
 

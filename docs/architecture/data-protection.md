@@ -201,8 +201,9 @@ backups when the period has elapsed; data subjects are told. The storage enforce
 the backup bucket's Object Lock retention are both 35 days. Three rules follow:
 
 * The system backup plan keeps **no** monthly or yearly generation.
-* A point-in-time restore re-applies the erasures from the rewound period before traffic is
-  admitted ([backup-restore.md](./backup-restore.md) §7, §8.5).
+* A point-in-time restore places the legal holds of the rewound period again, then re-applies its
+  erasures, before traffic is admitted; a hold released in that period stays in force until its
+  owner releases it again ([backup-restore.md](./backup-restore.md) §7, §8.5).
 * Where the system backup is a `pg_dump` ([backup-restore.md §8.6](./backup-restore.md#86-the-minimal-path-a-dump-and-what-it-does-not-give)),
   the operator's own rotation must keep 35 days.
 

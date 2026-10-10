@@ -174,7 +174,7 @@ data:
   ([data-protection.md](./data-protection.md) §5). A tenant's own archive backups are the tenant's to
   plan, starting from §6's generation defaults.
 * **A point-in-time restore is the one restore the journal does not cover** — the journal lives in
-  the rewound database; §8.5 step 5 re-applies the erasures.
+  the rewound database; §8.5 step 5 places the legal holds again and re-applies the erasures.
 * `include_audit` weighs evidence against longer persistence of personal metadata.
 * No route hands an archive to a caller; one that does will audit the download (`backup.downloaded`,
   reserved).
@@ -325,9 +325,13 @@ can carry out the procedure.**
 4. **Check what came back before admitting traffic**, with the drill's checks (`cmd/restore-drill`
    against a target time): the markers, the schema version, index and constraint validity, row
    level security forced on every tenant table, the application role still unable to bypass it.
-5. **Re-apply the erasures the rewind undid**: read those completed after the recovery point from
-   the audit export at the backup target — outside the rewound database — and re-run them before
-   traffic is admitted (§7).
+5. **Re-place the legal holds, then re-apply the erasures the rewind undid**: read from the audit
+   export at the backup target — outside the rewound database — the holds placed after the recovery
+   point (`lifecycle.hold_placed`, with scope and reason) and place them again, then the erasures
+   completed after it and re-run them, both before traffic is admitted (§7). The holds go first, so
+   no re-run erasure removes what one of them keeps. A hold released after the recovery point stays
+   in force — the safe side — and its owner is told to release it again
+   ([data-protection.md](./data-protection.md) §5).
 6. **Point the application at the recovered cluster** and scale back up; forward-only migrations
    take the recovered schema the rest of the way.
 7. **Write down what happened** for the incident record. RPO and RTO figures stay internal.
