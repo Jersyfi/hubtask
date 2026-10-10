@@ -781,7 +781,11 @@ type Comments interface {
 
 	// SetDeleted writes the tombstone, or reports a version conflict. Also never matches one
 	// that is already a tombstone - the caller decides idempotence on what it read.
-	SetDeleted(ctx context.Context, comment work.Comment, expectedVersion int) error
+	//
+	// keepText is a legal hold covering the comment (data-retention.md §4): the stored text stays
+	// until the retention pass clears it, and no read serves it meanwhile - Find and List answer a
+	// tombstone's body empty whatever is stored.
+	SetDeleted(ctx context.Context, comment work.Comment, expectedVersion int, keepText bool) error
 }
 
 // Reminders stores the promises to say something about an entry at a particular moment.
