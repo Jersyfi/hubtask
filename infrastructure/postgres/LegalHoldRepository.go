@@ -89,6 +89,20 @@ func (r LegalHoldRepository) TargetExists(
 	return present, nil
 }
 
+// WorkspaceLeaving answers whether the transaction's workspace is pending deletion.
+func (r LegalHoldRepository) WorkspaceLeaving(ctx context.Context) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	leaving, err := queries.WorkspaceLeaving(ctx)
+	if err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading whether the workspace is leaving: %w", err))
+	}
+	return leaving, nil
+}
+
 // Find answers one hold, released or not.
 func (r LegalHoldRepository) Find(ctx context.Context, id shared.ID) (domain.LegalHold, error) {
 	queries, err := queriesFrom(ctx)

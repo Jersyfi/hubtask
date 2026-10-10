@@ -632,3 +632,18 @@ func (q *Queries) StartRetentionRun(ctx context.Context, arg StartRetentionRunPa
 	_, err := q.db.Exec(ctx, startRetentionRun, arg.ID, arg.DataKind, arg.StartedAt)
 	return err
 }
+
+const workspaceLeaving = `-- name: WorkspaceLeaving :one
+SELECT EXISTS (
+  SELECT 1 FROM tenant WHERE id = current_tenant_id() AND status = 'PENDING_DELETION'
+) AS leaving
+`
+
+// Whether the transaction's workspace is pending deletion: placing a hold asks it after the
+// exclusive hold lock (data-protection.md §5).
+func (q *Queries) WorkspaceLeaving(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, workspaceLeaving)
+	var leaving bool
+	err := row.Scan(&leaving)
+	return leaving, err
+}

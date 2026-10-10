@@ -21,6 +21,23 @@ export type Mode = 'INSPECT' | 'SELECTIVE' | 'MERGE' | 'REPLACE_TENANT';
 export const MODES: readonly Mode[] = ['INSPECT', 'SELECTIVE', 'MERGE', 'REPLACE_TENANT'];
 
 /**
+ * The modes a screen offers this reader: the destructive one only where the role may destroy what
+ * is there (`DELETE_CONTAINER`, the server's own line). A prediction - the server decides (P-05).
+ */
+export function offeredModes(mayReplace: boolean): readonly Mode[] {
+  return mayReplace ? MODES : MODES.filter((mode) => !isDestructive(mode));
+}
+
+/**
+ * Whether a rehearsed mode may be run for real. A replace is refused while a legal hold is in force
+ * in the workspace (backup-restore.md §8.2); its rehearsal writes nothing and stays possible. A
+ * prediction from the holds list - the server decides (P-05).
+ */
+export function mayRunForReal(mode: Mode, holdInForce: boolean): boolean {
+  return !(isDestructive(mode) && holdInForce);
+}
+
+/**
  * The modes that replace what is here, and therefore need all three doors.
  *
  * A function rather than a comparison at each call site: "which of these is the dangerous one" is

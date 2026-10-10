@@ -111,6 +111,16 @@ func (h PlaceLegalHold) Execute(
 		if err := h.Holds.Holds.Lock(ctx); err != nil {
 			return err
 		}
+		// A workspace pending deletion takes no new hold: its people are shut out and none could
+		// lift it again. A request admitted a moment before the deletion flipped the status meets
+		// it here, after the lock the deletion request's shared one excludes.
+		leaving, err := h.Holds.Holds.WorkspaceLeaving(ctx)
+		if err != nil {
+			return err
+		}
+		if leaving {
+			return shared.ErrForbidden.WithDetail("access.tenant_pending_deletion")
+		}
 		if hold.Scope != domain.HoldTenant {
 			present, err := h.Holds.Holds.TargetExists(ctx, hold.Scope, hold.ScopeID)
 			if err != nil {

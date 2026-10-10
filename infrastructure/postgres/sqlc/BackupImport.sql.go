@@ -10,9 +10,11 @@ import (
 )
 
 const clearAccount = `-- name: ClearAccount :execrows
-DELETE FROM account
+DELETE FROM account WHERE status <> 'RESTRICTED'
 `
 
+// A replace keeps a restricted account, for ImportAccount's reason: the archive's row then meets it
+// and leaves it as it is.
 func (q *Queries) ClearAccount(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearAccount)
 	if err != nil {
@@ -743,7 +745,7 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = EXCLUDED.updated_at,
   deleted_at = EXCLUDED.deleted_at,
   version = EXCLUDED.version
-WHERE $2::boolean
+WHERE $2::boolean AND account.status <> 'RESTRICTED'
 `
 
 type ImportAccountParams struct {
@@ -751,6 +753,9 @@ type ImportAccountParams struct {
 	Overwrite bool
 }
 
+// A restricted account is neither deleted nor changed (data-retention.md §4 item 2): the archive's
+// version of it would lift a restriction of processing - one a legal hold may be keeping - by going
+// back in time, which only a deliberate act may do (Art. 18).
 func (q *Queries) ImportAccount(ctx context.Context, arg ImportAccountParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importAccount, arg.Payload, arg.Overwrite)
 	if err != nil {
@@ -1587,7 +1592,8 @@ INSERT INTO legal_hold (
   placed_by,
   placed_at,
   released_by,
-  released_at
+  released_at,
+  released_reason
 )
 SELECT
   r.id,
@@ -1598,7 +1604,8 @@ SELECT
   r.placed_by,
   r.placed_at,
   r.released_by,
-  r.released_at
+  r.released_at,
+  r.released_reason
 FROM jsonb_populate_record(
   NULL::legal_hold,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1611,7 +1618,8 @@ ON CONFLICT (id) DO UPDATE SET
   placed_by = EXCLUDED.placed_by,
   placed_at = EXCLUDED.placed_at,
   released_by = EXCLUDED.released_by,
-  released_at = EXCLUDED.released_at
+  released_at = EXCLUDED.released_at,
+  released_reason = EXCLUDED.released_reason
 WHERE $2::boolean
 `
 

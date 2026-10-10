@@ -29,6 +29,14 @@ type holdWriter struct {
 	missing map[shared.ID]bool
 	asked   []shared.ID
 	locked  int
+	// leaving is a workspace pending deletion; lockedFirst says the status was read after the lock.
+	leaving     bool
+	lockedFirst bool
+}
+
+func (w *holdWriter) WorkspaceLeaving(context.Context) (bool, error) {
+	w.lockedFirst = w.locked > 0
+	return w.leaving, nil
 }
 
 func (w *holdWriter) Lock(context.Context) error {
@@ -215,6 +223,28 @@ func TestAHoldOnSomethingNotHereIsRefused(t *testing.T) {
 	}
 	if len(h.holds.asked) != 0 {
 		t.Errorf("a hold on the workspace looked up %v", h.holds.asked)
+	}
+}
+
+// A workspace pending deletion takes no new hold (data-protection.md §5): its people are shut out,
+// so none could lift it again, and a hold placed by a request admitted just before the deletion
+// flipped the status would keep it pending with no way out. Read after the exclusive hold lock,
+// which the deletion request's shared one excludes, so the two cannot pass each other.
+func TestAWorkspacePendingDeletionTakesNoNewHold(t *testing.T) {
+	h := newHoldsHarness()
+	h.holds.leaving = true
+
+	_, err := (PlaceLegalHold{Holds: h.service()}).Execute(context.Background(), actor(), placeCommand(func(*PlaceLegalHoldCommand) {}))
+
+	if !errors.Is(err, shared.ErrForbidden) ||
+		shared.AsError(err).DetailCode != "access.tenant_pending_deletion" {
+		t.Fatalf("refused with %v, want access.tenant_pending_deletion", err)
+	}
+	if !h.holds.lockedFirst {
+		t.Error("the status was read before the hold lock was taken")
+	}
+	if len(h.holds.stored) != 0 || len(h.audit.entries) != 0 {
+		t.Error("a refused hold left something behind")
 	}
 }
 

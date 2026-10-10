@@ -72,6 +72,13 @@ SELECT CASE sqlc.arg('scope_kind')::text
   ELSE false
 END::boolean AS present;
 
+-- name: WorkspaceLeaving :one
+-- Whether the transaction's workspace is pending deletion: placing a hold asks it after the
+-- exclusive hold lock (data-protection.md §5).
+SELECT EXISTS (
+  SELECT 1 FROM tenant WHERE id = current_tenant_id() AND status = 'PENDING_DELETION'
+) AS leaving;
+
 -- name: FindLegalHold :one
 SELECT id, scope_kind, scope_id, reason, placed_by, placed_at,
        released_by, released_at, released_reason

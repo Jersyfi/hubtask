@@ -12,7 +12,9 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/backup"
+	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/backup"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -49,6 +51,10 @@ type Applier struct {
 	Keys      crypto.KeyMaterialiser
 	Cipher    crypto.StreamCipher
 	Objects   storage.ObjectStore
+	// Holds are the workspace's legal holds in force. A replace reads them in the transaction that
+	// empties the workspace, under the shared hold lock, and refuses while any stands
+	// (backup-restore.md §8.2): a hold placed after the request is met here.
+	Holds lifecyclerepo.LegalHolds
 	// Safety takes the copy before a destructive mode. Optional: an installation with no target
 	// to write it to refuses the destructive mode rather than proceeding without the copy.
 	Safety     SafetyBackup
@@ -609,10 +615,18 @@ func (a Applier) emptyTenant(ctx context.Context, p plan) error {
 	slices.Reverse(entities)
 
 	return a.UnitOfWork.Within(ctx, p.scope, func(ctx context.Context) error {
+		if err := refuseUnderHold(ctx, a.Holds); err != nil {
+			return err
+		}
 		for _, entity := range entities {
 			// The tenant's own row is not emptied - it is the row the transaction is standing
 			// inside - and it is overwritten by the archive's copy like everything else.
 			if entity.Table == tenantTable {
+				continue
+			}
+			// Nor are the workspace's legal holds: the replace keeps them and takes none of the
+			// archive's (backup-restore.md §8.2).
+			if entity.Table == legalHoldTable {
 				continue
 			}
 			if _, err := a.Import.Clear(ctx, entity.Table); err != nil {
@@ -623,7 +637,28 @@ func (a Applier) emptyTenant(ctx context.Context, p plan) error {
 	})
 }
 
-const tenantTable = "tenant"
+const (
+	tenantTable    = "tenant"
+	legalHoldTable = "legal_hold"
+)
+
+// refuseUnderHold refuses while any legal hold of the transaction's workspace is in force. Active
+// takes the shared hold lock for the rest of the transaction, so a hold placed concurrently waits
+// for the caller or is read by it. Unwired is refused rather than waved through: a reset that
+// cannot ask is one that might destroy what a hold keeps.
+func refuseUnderHold(ctx context.Context, holds lifecyclerepo.LegalHolds) error {
+	if holds == nil {
+		return shared.ErrInternal.WithDetail(domain.CodeRestoreHoldsNotWired)
+	}
+	inForce, err := holds.Active(ctx)
+	if err != nil {
+		return err
+	}
+	if len(inForce) > 0 {
+		return lifecycle.WorkspaceUnderHold()
+	}
+	return nil
+}
 
 // state is what one restore accumulates while it reads: what it may not bring back, what it was
 // asked for, what it has already given a new identity to, and the batch waiting to be written.
@@ -865,6 +900,14 @@ func (s *state) stage(ctx context.Context, entity archive.Entity, record archive
 	if reason, out := s.keptOut(entity, record); out {
 		s.withhold(entity.Table, record.ID)
 		s.report.Withhold(reason)
+		return nil
+	}
+	// A workspace's legal holds are its obligations now, not the archive's: a hold placed since
+	// stays, one released since stays released (backup-restore.md §8.2). A new workspace has none
+	// of its own and takes the archive's along with the data they cover.
+	if !s.plan.remapAll && entity.Table == legalHoldTable {
+		s.withhold(entity.Table, record.ID)
+		s.report.Withhold(domain.WithheldLegalHoldKept)
 		return nil
 	}
 	if !s.inSelection(entity, record) {

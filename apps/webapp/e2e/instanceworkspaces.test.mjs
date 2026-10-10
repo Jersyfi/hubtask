@@ -121,3 +121,46 @@ test('chromium: an operator opens the password for one workspace, sees it on the
   assert.equal(sent[2].path, `/admin/tenants/${TENANT}:close-password`);
   assert.doesNotMatch(await row.textContent() ?? '', /Password open/);
 });
+
+// A workspace under a legal hold cannot be deleted (data-protection.md §5): the row says a hold is
+// in force and offers no *Delete*; a workspace pending deletion under a hold says its deletion
+// waits. Neither says which hold - that stays the workspace's (P-01).
+test('chromium: a workspace under a legal hold is marked and offers no deletion', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const rows = [
+    { ...workspace(), legal_hold: true },
+    { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034a2', slug: 'leaving', display_name: 'Leaving',
+      status: 'PENDING_DELETION', purge_after: '2026-09-20T00:00:00Z', legal_hold: true },
+    { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034a3', slug: 'free', display_name: 'Free', legal_hold: false },
+  ];
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/auth/sessions:elevate') {
+      return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
+    }
+    if (path === '/admin/tenants' && route.request().method() === 'GET') return route.fulfill({ json: rows });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/instance/workspaces`);
+
+  const held = page.getByRole('row').filter({ hasText: 'acme' });
+  await held.waitFor();
+  assert.match(await held.textContent() ?? '', /Legal hold/);
+  assert.match(await held.textContent() ?? '', /cannot be deleted until its owner releases every hold/);
+  assert.equal(await held.getByRole('button', { name: 'Delete' }).count(), 0);
+
+  const leaving = page.getByRole('row').filter({ hasText: 'Leaving' });
+  assert.match(await leaving.textContent() ?? '', /the deletion waits until every hold is released/);
+
+  const free = page.getByRole('row').filter({ hasText: 'Free' });
+  assert.doesNotMatch(await free.textContent() ?? '', /Legal hold/);
+  assert.equal(await free.getByRole('button', { name: 'Delete' }).count(), 1);
+});

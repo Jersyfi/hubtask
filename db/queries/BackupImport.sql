@@ -122,13 +122,18 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = EXCLUDED.updated_at,
   deleted_at = EXCLUDED.deleted_at,
   version = EXCLUDED.version
-WHERE sqlc.arg('overwrite')::boolean;
+-- A restricted account is neither deleted nor changed (data-retention.md §4 item 2): the archive's
+-- version of it would lift a restriction of processing - one a legal hold may be keeping - by going
+-- back in time, which only a deliberate act may do (Art. 18).
+WHERE sqlc.arg('overwrite')::boolean AND account.status <> 'RESTRICTED';
 
 -- name: HoldsAccount :one
 SELECT EXISTS (SELECT 1 FROM account WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
 
 -- name: ClearAccount :execrows
-DELETE FROM account;
+-- A replace keeps a restricted account, for ImportAccount's reason: the archive's row then meets it
+-- and leaves it as it is.
+DELETE FROM account WHERE status <> 'RESTRICTED';
 
 -- name: ImportAccountGroup :execrows
 INSERT INTO account_group (
@@ -1405,7 +1410,8 @@ INSERT INTO legal_hold (
   placed_by,
   placed_at,
   released_by,
-  released_at
+  released_at,
+  released_reason
 )
 SELECT
   r.id,
@@ -1416,7 +1422,8 @@ SELECT
   r.placed_by,
   r.placed_at,
   r.released_by,
-  r.released_at
+  r.released_at,
+  r.released_reason
 FROM jsonb_populate_record(
   NULL::legal_hold,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1429,7 +1436,8 @@ ON CONFLICT (id) DO UPDATE SET
   placed_by = EXCLUDED.placed_by,
   placed_at = EXCLUDED.placed_at,
   released_by = EXCLUDED.released_by,
-  released_at = EXCLUDED.released_at
+  released_at = EXCLUDED.released_at,
+  released_reason = EXCLUDED.released_reason
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsLegalHold :one

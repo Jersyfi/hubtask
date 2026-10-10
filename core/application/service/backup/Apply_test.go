@@ -269,7 +269,7 @@ func (a *applyHarness) applier() Applier {
 	return Applier{
 		Restores: a.restores, Targets: a.targets, Import: a.imports, Journal: a.journal,
 		Opener: a.opener, Encryptor: a.encryptor, Keys: a.keys, Cipher: a.cipher,
-		Objects: a.objects, Safety: a.safety, UnitOfWork: a.uow, Epochs: a.epochs,
+		Objects: a.objects, Safety: a.safety, UnitOfWork: a.uow, Epochs: a.epochs, Holds: &holdsDouble{},
 		Clock: clock.Fixed(now), IDs: ids{next: runID}, SchemaVersion: "0032", Batch: 2,
 	}
 }
@@ -1370,5 +1370,81 @@ func TestTheTrialInspectsAnArchiveAndRefusesADamagedOne(t *testing.T) {
 		TenantID: tenantID, TargetID: targetID, Store: h.opener.store, Archive: h.prefix,
 	}); err == nil {
 		t.Error("an archive missing a member was read back as sound")
+	}
+}
+
+// heldArchiveRows is containerRows with a legal hold the archive still has in force.
+func heldArchiveRows(export *rows) {
+	containerRows(export)
+	export.byTable["legal_hold"] = []repository.Row{
+		{ID: "h1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+			"id": "h1", "scope_kind": "TENANT", "reason": "archived", "released_at": nil,
+		}},
+	}
+}
+
+// A restore into a living workspace keeps the workspace's legal holds as they are and never takes
+// the archive's - neither a hold placed since nor one released since changes (data-retention.md
+// §4, backup-restore.md §8.2). Only a new workspace takes the archive's along: the obligations
+// travel with the data they cover.
+func TestARestoreIntoALivingWorkspaceKeepsItsOwnLegalHolds(t *testing.T) {
+	cases := map[string]struct {
+		change func(*domain.Restore)
+		// taken says the archive's hold lands; otherwise the live ones are untouched.
+		taken bool
+	}{
+		"REPLACE_TENANT": {func(r *domain.Restore) { r.Mode = domain.RestoreReplaceTenant }, false},
+		"MERGE skip":     {func(r *domain.Restore) { r.Mode = domain.RestoreMerge }, false},
+		"MERGE overwrite": {func(r *domain.Restore) {
+			r.Mode, r.ConflictRule = domain.RestoreMerge, domain.ConflictOverwrite
+		}, false},
+		"SELECTIVE overwrite": {func(r *domain.Restore) {
+			r.Mode, r.ConflictRule = domain.RestoreSelective, domain.ConflictOverwrite
+			r.Selection = domain.Selection{ContainerIDs: []shared.ID{"c1"}}
+		}, false},
+		"NEW_TENANT": {func(r *domain.Restore) {
+			r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant
+		}, true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := newApplyHarness(t, heldArchiveRows)
+			if !tc.taken {
+				// The live workspace released the archive's hold since, and placed another.
+				h.imports.tables["legal_hold"] = map[string]map[string]any{
+					"h1": {"id": "h1", "scope_kind": "TENANT", "reason": "archived",
+						"released_at": "2026-09-01T00:00:00Z", "released_reason": "settled"},
+					"h2": {"id": "h2", "scope_kind": "TENANT", "reason": "placed since"},
+				}
+			}
+			in := h.accept(t, tc.change)
+
+			report, err := h.applier().Apply(context.Background(), in)
+			if err != nil {
+				t.Fatalf("restoring: %v", err)
+			}
+
+			holds := h.imports.tables["legal_hold"]
+			if tc.taken {
+				if len(holds) != 1 {
+					t.Fatalf("a new workspace holds %d legal holds, want the archive's one", len(holds))
+				}
+				return
+			}
+			if len(holds) != 2 {
+				t.Fatalf("the workspace holds %d legal holds after the restore, want its own two", len(holds))
+			}
+			if holds["h1"]["released_reason"] != "settled" {
+				t.Errorf("a released hold was rewritten from the archive: %+v", holds["h1"])
+			}
+			for _, table := range h.imports.cleared {
+				if table == "legal_hold" {
+					t.Error("the workspace's legal holds were emptied")
+				}
+			}
+			if report.Withheld[domain.WithheldLegalHoldKept] != 1 {
+				t.Errorf("the report says %v, want the archive's hold counted as kept back", report.Withheld)
+			}
+		})
 	}
 }

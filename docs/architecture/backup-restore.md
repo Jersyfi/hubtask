@@ -227,8 +227,11 @@ still asked because the archive is read through the caller's own workspace's tar
   archive's, so a hold is neither dropped nor revived
   ([data-protection.md](./data-protection.md) §5). `MERGE` and `SELECTIVE` leave the hold records
   alone under every conflict rule; only `NEW_TENANT` writes the archive's, so a new workspace keeps
-  the obligations it arrives with. Decided, not built: every mode writes the archive's holds today,
-  and the replace clears them first (#1228).
+  the obligations it arrives with; the report counts the holds it did not take as
+  `legal_hold_kept`. The refusal is asked when the restore is requested and again by the job in the
+  transaction that would empty the workspace; a rehearsal stays possible. A restore into a living
+  workspace also leaves a `RESTRICTED` account as it is: the replace keeps its row, and an
+  overwrite passes it by ([data-retention.md](./data-retention.md) §4 item 2).
 * **`NEW_TENANT`** imports beside the living data — the cheap look before a destructive mode. The use
   case mints the tenant identifier; the caller never names it. The copy keeps names and calendar
   UIDs: every unique index is per tenant.

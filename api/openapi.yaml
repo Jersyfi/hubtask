@@ -10401,6 +10401,12 @@ components:
           type: [string, "null"]
           format: date-time
           description: Set while a deletion request stands - when the grace runs out.
+        legal_hold:
+          type: boolean
+          description: >
+            Whether a legal hold is in force in the workspace. While one is, a deletion request is
+            refused, and a workspace already pending deletion stays pending until the last hold is
+            lifted. Only the state: which hold, on what and why stay the workspace's.
         password_opening:
           description: >
             The operator's opening of the password while it is in force, null
@@ -14178,7 +14184,9 @@ components:
           description: >
             What the restore deliberately did not bring back, counted by reason - `deletion_journal`,
             `excluded_entity`, `media_missing`, `orphaned` (a row whose parent is in neither the
-            archive nor the target) - and, for an import, what the source carried that the product
+            archive nor the target), `legal_hold_kept` (a legal hold of the archive that a restore
+            into a living workspace does not take, because the workspace keeps its own) - and, for
+            an import, what the source carried that the product
             has no place for - `unmapped_members`. An object rather than a total, so that a client
             can say why.
         media: { type: integer, description: Attachments transferred back into the object store. }

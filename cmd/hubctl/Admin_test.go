@@ -47,6 +47,29 @@ func TestListingWorkspacesShowsTheirStatusAndTheGraceWhereOneRuns(t *testing.T) 
 	}
 }
 
+// A workspace under a legal hold is marked, and one pending deletion under a hold says that its
+// deletion waits (data-protection.md §5) - what the operator's screen says, through this door too.
+func TestListingWorkspacesMarksALegalHold(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `[
+  {"id":"`+acmeID+`","slug":"acme","display_name":"Acme","status":"ACTIVE",
+   "created_at":"2026-09-01T09:00:00Z","purge_after":null,"legal_hold":true},
+  {"id":"`+othersID+`","slug":"others","display_name":"Others","status":"PENDING_DELETION",
+   "created_at":"2026-09-02T09:00:00Z","purge_after":"2026-10-02T09:00:00Z","legal_hold":true},
+  {"id":"`+ownerID+`","slug":"free","display_name":"Free","status":"ACTIVE",
+   "created_at":"2026-09-03T09:00:00Z","purge_after":null,"legal_hold":false}]`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "tenant", "ls")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, "LEGAL HOLD") {
+		t.Errorf("the table has no legal hold column: %q", out)
+	}
+	if strings.Count(out, "in force") != 2 || !strings.Contains(out, "in force, deletion waits") {
+		t.Errorf("the holds are not marked as they stand: %q", out)
+	}
+}
+
 // The owner's way in is answered once. Same discipline as every other credential this client
 // meets: readable by a script on standard output, with the warning beside it.
 func TestProvisioningPrintsTheRedemptionTokenOnceAndWarnsBesideIt(t *testing.T) {

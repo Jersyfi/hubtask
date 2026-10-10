@@ -110,7 +110,7 @@ Evaluated in this order; the first that applies wins:
    living workspace — a replace, a merge, a selective restore — keeps the workspace's hold records,
    never the archive's, while a restore as a new workspace takes the archive's along
    ([data-protection.md](./data-protection.md) §5, [backup-restore.md](./backup-restore.md) §8.2).
-   Decided, not built (#1228).
+   A restore into a living workspace also leaves an account's restriction as it is (item 2).
 
    **A hold on an `ACCOUNT`** covers that person's account and what they contributed: an entry they
    created, commented on or attached a file to goes only with their data, so every deletion path

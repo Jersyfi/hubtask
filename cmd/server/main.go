@@ -471,6 +471,8 @@ func run() error {
 		Targets: backupTargets, Restores: backupRestores,
 		Workspace: postgres.NewWorkspaceRepository(), Jobs: jobs,
 		Workspaces: postgres.NewBackupImportRepository(),
+		// The legal holds a reset of the workspace asks before it is accepted (backup-restore.md §8.2).
+		Holds: postgres.NewLifecycleRepository(),
 		// The step-up verifier - a fresh re-authentication on the
 		// current session, consumed by the one privileged action it is presented to - is handed in
 		// once the sign-in rule is taught (stepUpVerifier, below).
@@ -1912,6 +1914,7 @@ func run() error {
 		adminservice.RequestTenantDeletion{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Automations: postgres.NewAutomationSwitch(), Jobs: jobs,
+			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
@@ -2659,6 +2662,8 @@ func run() error {
 		Opener:  backupAdapters, Encryptor: encryptor, Keys: encryptor,
 		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Objects: mediaStore,
 		Safety: backupPerformer, UnitOfWork: unitOfWork,
+		// The legal holds a replace reads in the transaction that empties the workspace (§8.2).
+		Holds: postgres.NewLifecycleRepository(),
 		// The synchronisation epoch a restore advances (backup-restore.md §8.3), so that every
 		// device's cursor minted before is refused and the restored rows reach them through the walk.
 		Epochs: postgres.NewEpochRepository(),
@@ -2906,6 +2911,7 @@ func run() error {
 			Deletion: adminservice.HardDeleteTenant{
 				Tenants: postgres.NewAdminTenantRepository(), Purge: postgres.NewTenantPurge(),
 				Journal: postgres.NewInstanceJournal(cursors), Store: mediaStore,
+				Holds:      postgres.NewLifecycleRepository(),
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			},
 		},

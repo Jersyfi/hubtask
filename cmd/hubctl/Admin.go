@@ -390,12 +390,25 @@ func tenantTable(tenants []openapi.AdminTenant) Table {
 			shortTime(&tenant.CreatedAt),
 			purgeAfter(tenant.PurgeAfter),
 			passwordOpenUntil(tenant.PasswordOpening),
+			legalHold(tenant),
 		})
 	}
 	return Table{
-		Columns: []string{"id", "slug", "name", "status", "locale", "created", "purged after", "password open until"},
+		Columns: []string{"id", "slug", "name", "status", "locale", "created", "purged after", "password open until", "legal hold"},
 		Rows:    rows,
 	}
+}
+
+// legalHold says a hold is in force, and for a workspace pending deletion that its deletion waits
+// for the last one to be lifted (data-protection.md §5). Only the state: the workspace keeps which.
+func legalHold(tenant openapi.AdminTenant) string {
+	if tenant.LegalHold == nil || !*tenant.LegalHold {
+		return "-"
+	}
+	if tenant.Status == openapi.AdminTenantStatusPENDINGDELETION {
+		return "in force, deletion waits"
+	}
+	return "in force"
 }
 
 // passwordOpenUntil is a dash for every workspace whose password no operator has opened.

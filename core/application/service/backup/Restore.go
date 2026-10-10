@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/backup"
+	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -59,6 +60,9 @@ type Restorer struct {
 	// Workspaces answers whether a workspace exists on this installation, for the operator's
 	// listing of archives a NEW_TENANT restore may take (§8.1).
 	Workspaces repository.Holder
+	// Holds are the workspace's legal holds in force: a real REPLACE_TENANT is refused while any
+	// stands (backup-restore.md §8.2).
+	Holds      lifecyclerepo.LegalHolds
 	Jobs       queue.Queue
 	StepUp     stepup.Verifier
 	Encryptor  crypto.Encryptor
@@ -386,6 +390,14 @@ func (h StartRestore) Execute(
 
 	var accepted Accepted
 	err := h.Restorer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// Before the typed name and the proof, so that a refusal never burns a step-up. A
+		// rehearsal writes nothing and stays possible (UC-BAK-05 check 1); the job asks again
+		// before it empties anything.
+		if request.Mode == domain.RestoreReplaceTenant && !request.DryRun {
+			if err := refuseUnderHold(ctx, h.Restorer.Holds); err != nil {
+				return err
+			}
+		}
 		if err := h.confirm(ctx, actor, request); err != nil {
 			return err
 		}
