@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -158,7 +159,7 @@ func TestTheTombstoneClearsTheText(t *testing.T) {
 	comment := seedComment(ctx, t, tenantA, task, authorA, "Take this down", created)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return commentRepo().SetDeleted(ctx, comment.Removed(changedAt), comment.Version)
+		return commentRepo().SetDeleted(ctx, comment.Removed(changedAt), comment.Version, false)
 	}); err != nil {
 		t.Fatalf("deleting: %v", err)
 	}
@@ -169,6 +170,11 @@ func TestTheTombstoneClearsTheText(t *testing.T) {
 	}
 	if stored.CreatedAt.IsZero() || stored.AuthorID != authorA {
 		t.Error("the tombstone lost its identity")
+	}
+	// The read answers a tombstone empty whatever is stored, so the row itself is what proves the
+	// text is gone.
+	if got := storedCommentBody(ctx, t, comment.ID); got != "" {
+		t.Errorf("stored body %q, want the text cleared without a hold", got)
 	}
 
 	// And the text cannot be written back: the statement never matches a tombstone.
@@ -196,14 +202,13 @@ func TestAKeptTextIsNeverRead(t *testing.T) {
 	comment := seedComment(ctx, t, tenantA, task, authorA, "We pay anyway", created)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return commentRepo().SetDeleted(ctx, comment.Removed(changedAt), comment.Version)
+		return commentRepo().SetDeleted(ctx, comment.Removed(changedAt), comment.Version, true)
 	}); err != nil {
 		t.Fatalf("deleting: %v", err)
 	}
-	// The stored shape a hold leaves behind, written past the application on purpose.
-	if _, err := adminPool(ctx, t).Exec(ctx,
-		`UPDATE comment SET body = 'We pay anyway' WHERE id = $1`, comment.ID.String()); err != nil {
-		t.Fatalf("keeping the text: %v", err)
+	// The stored row, read past the application: the text is there.
+	if got := storedCommentBody(ctx, t, comment.ID); got != "We pay anyway" {
+		t.Fatalf("stored body %q, want the text kept", got)
 	}
 
 	if stored := findComment(ctx, t, tenantA, comment.ID); stored.Body != "" || stored.DeletedAt == nil {
@@ -219,6 +224,128 @@ func TestAKeptTextIsNeverRead(t *testing.T) {
 	}
 	if len(page.Comments) != 1 || page.Comments[0].Body != "" {
 		t.Errorf("List served %+v, want the tombstone without its text", page.Comments)
+	}
+}
+
+// storedCommentBody reads the body as stored, as the superuser: what a reader never sees.
+func storedCommentBody(ctx context.Context, t *testing.T, id shared.ID) string {
+	t.Helper()
+
+	var body string
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT body FROM comment WHERE id = $1`, id.String()).Scan(&body); err != nil {
+		t.Fatalf("reading the stored body: %v", err)
+	}
+	return body
+}
+
+func keptTexts(ctx context.Context, t *testing.T, tenant shared.ID) []lifecyclerepo.KeptCommentText {
+	t.Helper()
+
+	var kept []lifecyclerepo.KeptCommentText
+	if err := read(ctx, t, tenant, func(ctx context.Context) error {
+		var err error
+		kept, err = postgres.KeptCommentTextRepository{}.Kept(ctx, "", 1000)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the kept texts: %v", err)
+	}
+	return kept
+}
+
+func keptIDs(kept []lifecyclerepo.KeptCommentText) map[shared.ID]lifecyclerepo.KeptCommentText {
+	byID := make(map[shared.ID]lifecyclerepo.KeptCommentText, len(kept))
+	for _, text := range kept {
+		byID[text.ID] = text
+	}
+	return byID
+}
+
+// The retention pass's half: it finds a kept text with where its entry is, passes over a cleared
+// tombstone and a living comment, and clearing it leaves the rest of the row as it was.
+func TestAKeptTextIsFoundAndCleared(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	task := seedTask(ctx, t, tenantA, authorA, collection)
+	kept := seedComment(ctx, t, tenantA, task, authorA, "Keep me", created)
+	cleared := seedComment(ctx, t, tenantA, task, authorA, "Clear me", created)
+	living := seedComment(ctx, t, tenantA, task, authorA, "Still here", created)
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := commentRepo().SetDeleted(ctx, kept.Removed(changedAt), kept.Version, true); err != nil {
+			return err
+		}
+		return commentRepo().SetDeleted(ctx, cleared.Removed(changedAt), cleared.Version, false)
+	}); err != nil {
+		t.Fatalf("deleting: %v", err)
+	}
+
+	found := keptIDs(keptTexts(ctx, t, tenantA))
+	text, ok := found[kept.ID]
+	if !ok {
+		t.Fatalf("the kept text is not listed: %+v", found)
+	}
+	if text.ItemID != task || text.CollectionID != collection || text.HubID != hub || text.Path == "" {
+		t.Errorf("listed %+v, want the entry %s in %s under %s with its path", text, task, collection, hub)
+	}
+	if _, listed := found[cleared.ID]; listed {
+		t.Error("a tombstone without text is listed")
+	}
+	if _, listed := found[living.ID]; listed {
+		t.Error("a living comment is listed")
+	}
+
+	before := findComment(ctx, t, tenantA, kept.ID)
+	var count int
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		count, err = postgres.KeptCommentTextRepository{}.Clear(ctx, []shared.ID{kept.ID, living.ID})
+		return err
+	}); err != nil {
+		t.Fatalf("clearing: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("cleared %d, want the one kept text and not the living comment", count)
+	}
+	if got := storedCommentBody(ctx, t, kept.ID); got != "" {
+		t.Errorf("stored body %q after clearing, want none", got)
+	}
+	if got := storedCommentBody(ctx, t, living.ID); got != "Still here" {
+		t.Errorf("the living comment reads %q after clearing", got)
+	}
+	if after := findComment(ctx, t, tenantA, kept.ID); after.Version != before.Version ||
+		after.DeletedAt == nil || !after.DeletedAt.Equal(*before.DeletedAt) {
+		t.Errorf("clearing changed the row: %+v, was %+v", after, before)
+	}
+}
+
+// Another workspace's pass neither sees nor clears this workspace's kept text (gate SG-3).
+func TestAKeptTextIsInvisibleFromAnotherTenant(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	task := seedTask(ctx, t, tenantA, authorA, collection)
+	comment := seedComment(ctx, t, tenantA, task, authorA, "Ours alone", created)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return commentRepo().SetDeleted(ctx, comment.Removed(changedAt), comment.Version, true)
+	}); err != nil {
+		t.Fatalf("deleting: %v", err)
+	}
+
+	if _, listed := keptIDs(keptTexts(ctx, t, tenantB))[comment.ID]; listed {
+		t.Error("tenant B listed tenant A's kept text")
+	}
+	var count int
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		count, err = postgres.KeptCommentTextRepository{}.Clear(ctx, []shared.ID{comment.ID})
+		return err
+	}); err != nil {
+		t.Fatalf("clearing: %v", err)
+	}
+	if count != 0 || storedCommentBody(ctx, t, comment.ID) != "Ours alone" {
+		t.Errorf("tenant B cleared tenant A's kept text (%d rows)", count)
 	}
 }
 
@@ -286,7 +413,7 @@ func TestCommentsAreInvisibleFromAnotherTenant(t *testing.T) {
 
 	t.Run("set deleted", func(t *testing.T) {
 		err := write(ctx, t, tenantB, func(ctx context.Context) error {
-			return commentRepo().SetDeleted(ctx, comment.Removed(changedAt), comment.Version)
+			return commentRepo().SetDeleted(ctx, comment.Removed(changedAt), comment.Version, false)
 		})
 		if !errors.Is(err, shared.ErrVersionConflict) {
 			t.Fatalf("error = %v, want the same answer as a row that moved on", err)

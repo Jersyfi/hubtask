@@ -31,6 +31,8 @@ type comments struct {
 type attributeVersion struct {
 	comment         domain.Comment
 	expectedVersion int
+	// keptText is a tombstone written with its text kept, as under a legal hold.
+	keptText bool
 }
 
 func newComments() *comments {
@@ -75,12 +77,16 @@ func (c *comments) SetBody(_ context.Context, comment domain.Comment, expectedVe
 	return nil
 }
 
-func (c *comments) SetDeleted(_ context.Context, comment domain.Comment, expectedVersion int) error {
+func (c *comments) SetDeleted(
+	_ context.Context, comment domain.Comment, expectedVersion int, keepText bool,
+) error {
 	stored, found := c.stored[comment.ID]
 	if !found || stored.Version != expectedVersion || stored.DeletedAt != nil {
 		return shared.ErrVersionConflict.WithDetail("comments.version_conflict")
 	}
-	c.tombstones = append(c.tombstones, attributeVersion{comment: comment, expectedVersion: expectedVersion})
+	c.tombstones = append(c.tombstones, attributeVersion{
+		comment: comment, expectedVersion: expectedVersion, keptText: keepText,
+	})
 	written := comment
 	written.Version = expectedVersion + 1
 	c.stored[comment.ID] = written

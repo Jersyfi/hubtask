@@ -146,7 +146,7 @@ func (commentDouble) List(context.Context, shared.ID, Page) (CommentPage, error)
 }
 func (commentDouble) Insert(context.Context, work.Comment) error       { return nil }
 func (commentDouble) SetBody(context.Context, work.Comment, int) error { return nil }
-func (commentDouble) SetDeleted(context.Context, work.Comment, int) error {
+func (commentDouble) SetDeleted(context.Context, work.Comment, int, bool) error {
 	return nil
 }
 

@@ -221,7 +221,7 @@ func (w CommentWriter) store(
 	if want == editing {
 		return w.Comments.SetBody(ctx, comment, expected)
 	}
-	return w.Comments.SetDeleted(ctx, comment, expected)
+	return w.Comments.SetDeleted(ctx, comment, expected, false)
 }
 
 // announceChange records what the change owes: the event outwards, the change log entry for

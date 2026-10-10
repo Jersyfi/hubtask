@@ -33,6 +33,30 @@ type LegalHolds interface {
 	Contributors(ctx context.Context, itemIDs []shared.ID) (map[shared.ID][]shared.ID, error)
 }
 
+// KeptCommentTexts are the deleted comments whose text a legal hold kept (data-retention.md §4): a
+// comment has no trash, so a deletion under a hold keeps the text in the row, and the retention
+// pass clears it once no hold covers it.
+type KeptCommentTexts interface {
+	// Kept returns one page of them after the identifier given, in identifier order, with where
+	// their entry is.
+	Kept(ctx context.Context, after shared.ID, batch int) ([]KeptCommentText, error)
+
+	// Clear removes the kept text of the comments named and answers how many it cleared. A living
+	// comment is never touched.
+	Clear(ctx context.Context, ids []shared.ID) (int, error)
+}
+
+// KeptCommentText is one deleted comment whose text is kept, as a hold judges it: by its entry.
+type KeptCommentText struct {
+	ID     shared.ID
+	ItemID shared.ID
+	// Path is the entry's chain above it, CollectionID its collection and HubID that collection's
+	// hub: what a hold on an entry above or on a container is matched against.
+	Path         string
+	CollectionID shared.ID
+	HubID        shared.ID
+}
+
 // HoldWriter places and lifts them.
 //
 // Its own port rather than methods on LegalHolds, for the reason the read and the write of a
