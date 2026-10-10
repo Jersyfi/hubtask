@@ -168,9 +168,10 @@ paths:
       tags: [templates]
       operationId: deleteTemplate
       description: >
-        Removes a template. A soft delete: the trees it has already stamped out are ordinary
-        entries and outlive it, and a template defined later under the same name is a new template
-        rather than the old one coming back.
+        Removes a template for good. The trees it has already stamped out are ordinary entries and
+        outlive it, and a template defined later under the same name is a new template rather than
+        the old one coming back. While a legal hold covers the template's scope it is kept,
+        unreadable, until the hold is released.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       responses:
