@@ -449,6 +449,11 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// same rule every other optional part of the installation follows: what a server
 			// serves is read, never compiled in.
 			"sign_in_rules": true,
+			// Whether `POST /search` takes a filter and answers one with no words (ADR-0064,
+			// api-guidelines.md §3). A property of this version, so a constant - it is here for
+			// sign_in_rules' reason: a client that also talks to an older server, which does not
+			// answer the key, offers no filter there instead of probing for one.
+			"search_filter": true,
 		},
 		Legal:             legal,
 		InstanceReachable: instanceReachable,
