@@ -1869,6 +1869,48 @@ func (e LegalHoldCreateScopeKind) Valid() bool {
 	}
 }
 
+// Defines values for LegalHoldRecordScopeKind.
+const (
+	LegalHoldRecordScopeKindACCOUNT   LegalHoldRecordScopeKind = "ACCOUNT"
+	LegalHoldRecordScopeKindCONTAINER LegalHoldRecordScopeKind = "CONTAINER"
+	LegalHoldRecordScopeKindITEM      LegalHoldRecordScopeKind = "ITEM"
+	LegalHoldRecordScopeKindTENANT    LegalHoldRecordScopeKind = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the LegalHoldRecordScopeKind enum.
+func (e LegalHoldRecordScopeKind) Valid() bool {
+	switch e {
+	case LegalHoldRecordScopeKindACCOUNT:
+		return true
+	case LegalHoldRecordScopeKindCONTAINER:
+		return true
+	case LegalHoldRecordScopeKindITEM:
+		return true
+	case LegalHoldRecordScopeKindTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LegalHoldReplaceResultHoldsOutcome.
+const (
+	PLACED  LegalHoldReplaceResultHoldsOutcome = "PLACED"
+	PRESENT LegalHoldReplaceResultHoldsOutcome = "PRESENT"
+)
+
+// Valid indicates whether the value is a known member of the LegalHoldReplaceResultHoldsOutcome enum.
+func (e LegalHoldReplaceResultHoldsOutcome) Valid() bool {
+	switch e {
+	case PLACED:
+		return true
+	case PRESENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MediaObjectStatus.
 const (
 	MediaObjectStatusPENDING MediaObjectStatus = "PENDING"
@@ -6036,11 +6078,56 @@ type LegalHoldCreate struct {
 // LegalHoldCreateScopeKind defines model for LegalHoldCreate.Scope.Kind.
 type LegalHoldCreateScopeKind string
 
+// LegalHoldRecord One hold as it stood before the rewind.
+type LegalHoldRecord struct {
+	Id       openapi_types.UUID `json:"id"`
+	PlacedAt time.Time          `json:"placed_at"`
+	PlacedBy openapi_types.UUID `json:"placed_by"`
+	Reason   string             `json:"reason"`
+
+	// ReleasedAt When it was released in the rewound period, if it was. The hold is placed in force all the same; this only puts it on the list of holds whose owner releases them again.
+	ReleasedAt *time.Time `json:"released_at,omitempty"`
+	Scope      struct {
+		Id   *openapi_types.UUID      `json:"id,omitempty"`
+		Kind LegalHoldRecordScopeKind `json:"kind"`
+	} `json:"scope"`
+}
+
+// LegalHoldRecordScopeKind defines model for LegalHoldRecord.Scope.Kind.
+type LegalHoldRecordScopeKind string
+
 // LegalHoldRelease defines model for LegalHoldRelease.
 type LegalHoldRelease struct {
 	// Reason Why the hold is being lifted. Required - "released" with no reason is an entry an auditor cannot act on.
 	Reason string `json:"reason"`
 }
+
+// LegalHoldReplaceRequest defines model for LegalHoldReplaceRequest.
+type LegalHoldReplaceRequest struct {
+	Holds []LegalHoldRecord `json:"holds"`
+
+	// RecoveryPoint The moment the installation was recovered to; recorded with each hold placed.
+	RecoveryPoint time.Time `json:"recovery_point"`
+}
+
+// LegalHoldReplaceResult defines model for LegalHoldReplaceResult.
+type LegalHoldReplaceResult struct {
+	Holds []struct {
+		Id openapi_types.UUID `json:"id"`
+
+		// Outcome PLACED when this run placed it, PRESENT when the workspace already had it.
+		Outcome LegalHoldReplaceResultHoldsOutcome `json:"outcome"`
+
+		// ReleasedInPeriod Whether it had been released in the rewound period - its owner releases it again.
+		ReleasedInPeriod bool `json:"released_in_period"`
+
+		// TargetPresent Whether what the hold names exists in the recovered workspace.
+		TargetPresent bool `json:"target_present"`
+	} `json:"holds"`
+}
+
+// LegalHoldReplaceResultHoldsOutcome PLACED when this run placed it, PRESENT when the workspace already had it.
+type LegalHoldReplaceResultHoldsOutcome string
 
 // LegalLinks The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
 type LegalLinks struct {
@@ -9716,6 +9803,9 @@ type ExportTenantJSONRequestBody = TenantExportRequest
 // OpenTenantPasswordJSONRequestBody defines body for OpenTenantPassword for application/json ContentType.
 type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
 
+// ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
+type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
+
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
@@ -10559,6 +10649,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
 	OpenTenantPassword(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceLegalHoldsWithBody Place the legal holds of a rewound period again
+	//
+	// After a point-in-time recovery of the installation, before traffic is admitted, the operator places again the legal holds the rewind removed from this workspace. Each hold keeps its identifier, scope, reason, placer and moment; one released in the rewound period is placed in force all the same, and its owner releases it again. A hold the workspace already has is left as it is, so a second run changes nothing. A hold whose target the recovery removed is placed and reported. Demands `admin:tenants`. Each hold placed writes `lifecycle.hold_replaced` into the workspace's trail.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:replace-legal-holds (the `ReplaceLegalHolds` operationId).
+	ReplaceLegalHoldsWithBody(ctx context.Context, tenantId AdminTenantId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceLegalHolds Place the legal holds of a rewound period again
+	//
+	// After a point-in-time recovery of the installation, before traffic is admitted, the operator places again the legal holds the rewind removed from this workspace. Each hold keeps its identifier, scope, reason, placer and moment; one released in the rewound period is placed in force all the same, and its owner releases it again. A hold the workspace already has is left as it is, so a second run changes nothing. A hold whose target the recovery removed is placed and reported. Demands `admin:tenants`. Each hold placed writes `lifecycle.hold_replaced` into the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:replace-legal-holds (the `ReplaceLegalHolds` operationId).
+	ReplaceLegalHolds(ctx context.Context, tenantId AdminTenantId, body ReplaceLegalHoldsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ResumeTenant Reactivate a workspace
 	//
@@ -14686,6 +14794,44 @@ func (c *Client) OpenTenantPasswordWithBody(ctx context.Context, tenantId AdminT
 // Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
 func (c *Client) OpenTenantPassword(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewOpenTenantPasswordRequest(c.Server, tenantId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceLegalHoldsWithBody Place the legal holds of a rewound period again
+//
+// After a point-in-time recovery of the installation, before traffic is admitted, the operator places again the legal holds the rewind removed from this workspace. Each hold keeps its identifier, scope, reason, placer and moment; one released in the rewound period is placed in force all the same, and its owner releases it again. A hold the workspace already has is left as it is, so a second run changes nothing. A hold whose target the recovery removed is placed and reported. Demands `admin:tenants`. Each hold placed writes `lifecycle.hold_replaced` into the workspace's trail.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:replace-legal-holds (the `ReplaceLegalHolds` operationId).
+func (c *Client) ReplaceLegalHoldsWithBody(ctx context.Context, tenantId AdminTenantId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceLegalHoldsRequestWithBody(c.Server, tenantId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceLegalHolds Place the legal holds of a rewound period again
+//
+// After a point-in-time recovery of the installation, before traffic is admitted, the operator places again the legal holds the rewind removed from this workspace. Each hold keeps its identifier, scope, reason, placer and moment; one released in the rewound period is placed in force all the same, and its owner releases it again. A hold the workspace already has is left as it is, so a second run changes nothing. A hold whose target the recovery removed is placed and reported. Demands `admin:tenants`. Each hold placed writes `lifecycle.hold_replaced` into the workspace's trail.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:replace-legal-holds (the `ReplaceLegalHolds` operationId).
+func (c *Client) ReplaceLegalHolds(ctx context.Context, tenantId AdminTenantId, body ReplaceLegalHoldsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceLegalHoldsRequest(c.Server, tenantId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -22815,6 +22961,53 @@ func NewOpenTenantPasswordRequestWithBody(server string, tenantId AdminTenantId,
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewReplaceLegalHoldsRequest calls the generic ReplaceLegalHolds builder with application/json body
+func NewReplaceLegalHoldsRequest(server string, tenantId AdminTenantId, body ReplaceLegalHoldsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReplaceLegalHoldsRequestWithBody(server, tenantId, "application/json", bodyReader)
+}
+
+// NewReplaceLegalHoldsRequestWithBody constructs an http.Request for the ReplaceLegalHolds method, with any body, and a specified content type
+func NewReplaceLegalHoldsRequestWithBody(server string, tenantId AdminTenantId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s:replace-legal-holds", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -35584,6 +35777,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
 	OpenTenantPasswordWithResponse(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*OpenTenantPasswordResult, error)
 
+	// ReplaceLegalHoldsWithBodyWithResponse Place the legal holds of a rewound period again
+	//
+	// After a point-in-time recovery of the installation, before traffic is admitted, the operator places again the legal holds the rewind removed from this workspace. Each hold keeps its identifier, scope, reason, placer and moment; one released in the rewound period is placed in force all the same, and its owner releases it again. A hold the workspace already has is left as it is, so a second run changes nothing. A hold whose target the recovery removed is placed and reported. Demands `admin:tenants`. Each hold placed writes `lifecycle.hold_replaced` into the workspace's trail.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:replace-legal-holds (the `ReplaceLegalHolds` operationId).
+	ReplaceLegalHoldsWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceLegalHoldsResult, error)
+
+	// ReplaceLegalHoldsWithResponse Place the legal holds of a rewound period again
+	//
+	// After a point-in-time recovery of the installation, before traffic is admitted, the operator places again the legal holds the rewind removed from this workspace. Each hold keeps its identifier, scope, reason, placer and moment; one released in the rewound period is placed in force all the same, and its owner releases it again. A hold the workspace already has is left as it is, so a second run changes nothing. A hold whose target the recovery removed is placed and reported. Demands `admin:tenants`. Each hold placed writes `lifecycle.hold_replaced` into the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:replace-legal-holds (the `ReplaceLegalHolds` operationId).
+	ReplaceLegalHoldsWithResponse(ctx context.Context, tenantId AdminTenantId, body ReplaceLegalHoldsJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceLegalHoldsResult, error)
+
 	// ResumeTenantWithResponse Reactivate a workspace
 	//
 	// One write. The next request of the tenant's people works again.
@@ -40567,6 +40778,54 @@ func (r OpenTenantPasswordResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r OpenTenantPasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReplaceLegalHoldsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *LegalHoldReplaceResult
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReplaceLegalHoldsResult) GetJSON200() *LegalHoldReplaceResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReplaceLegalHoldsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReplaceLegalHoldsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReplaceLegalHoldsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReplaceLegalHoldsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReplaceLegalHoldsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -53677,6 +53936,36 @@ func (c *ClientWithResponses) OpenTenantPasswordWithResponse(ctx context.Context
 	return ParseOpenTenantPasswordResult(rsp)
 }
 
+// ReplaceLegalHoldsWithBodyWithResponse Place the legal holds of a rewound period again
+//
+// After a point-in-time recovery of the installation, before traffic is admitted, the operator places again the legal holds the rewind removed from this workspace. Each hold keeps its identifier, scope, reason, placer and moment; one released in the rewound period is placed in force all the same, and its owner releases it again. A hold the workspace already has is left as it is, so a second run changes nothing. A hold whose target the recovery removed is placed and reported. Demands `admin:tenants`. Each hold placed writes `lifecycle.hold_replaced` into the workspace's trail.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:replace-legal-holds (the `ReplaceLegalHolds` operationId).
+func (c *ClientWithResponses) ReplaceLegalHoldsWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceLegalHoldsResult, error) {
+	rsp, err := c.ReplaceLegalHoldsWithBody(ctx, tenantId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceLegalHoldsResult(rsp)
+}
+
+// ReplaceLegalHoldsWithResponse Place the legal holds of a rewound period again
+//
+// After a point-in-time recovery of the installation, before traffic is admitted, the operator places again the legal holds the rewind removed from this workspace. Each hold keeps its identifier, scope, reason, placer and moment; one released in the rewound period is placed in force all the same, and its owner releases it again. A hold the workspace already has is left as it is, so a second run changes nothing. A hold whose target the recovery removed is placed and reported. Demands `admin:tenants`. Each hold placed writes `lifecycle.hold_replaced` into the workspace's trail.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:replace-legal-holds (the `ReplaceLegalHolds` operationId).
+func (c *ClientWithResponses) ReplaceLegalHoldsWithResponse(ctx context.Context, tenantId AdminTenantId, body ReplaceLegalHoldsJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceLegalHoldsResult, error) {
+	rsp, err := c.ReplaceLegalHolds(ctx, tenantId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceLegalHoldsResult(rsp)
+}
+
 // ResumeTenantWithResponse Reactivate a workspace
 //
 // One write. The next request of the tenant's people works again.
@@ -60382,6 +60671,39 @@ func ParseOpenTenantPasswordResult(rsp *http.Response) (*OpenTenantPasswordResul
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AdminTenant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReplaceLegalHoldsResult parses an HTTP response from a ReplaceLegalHoldsWithResponse call
+func ParseReplaceLegalHoldsResult(rsp *http.Response) (*ReplaceLegalHoldsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReplaceLegalHoldsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest LegalHoldReplaceResult
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

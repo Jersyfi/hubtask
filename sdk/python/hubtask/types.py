@@ -661,6 +661,22 @@ class WorkspacePasswordOpening(TypedDict, total=False):
     requester: str
     reason: str
 
+class LegalHoldReplaceRequest(TypedDict, total=False):
+    recovery_point: Required[str]
+    holds: Required[list["LegalHoldRecord"]]
+
+class LegalHoldRecord(TypedDict, total=False):
+    """One hold as it stood before the rewind."""
+    id: Required[str]
+    scope: Required[dict[str, Any]]
+    reason: Required[str]
+    placed_by: Required[str]
+    placed_at: Required[str]
+    released_at: str | None
+
+class LegalHoldReplaceResult(TypedDict, total=False):
+    holds: Required[list[dict[str, Any]]]
+
 class PasswordOpeningRequest(TypedDict, total=False):
     hours: int
     requester: Required[str]

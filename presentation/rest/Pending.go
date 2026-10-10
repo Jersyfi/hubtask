@@ -210,6 +210,10 @@ func (pending) OpenTenantPassword(w http.ResponseWriter, r *http.Request, _ open
 	notAvailable(w, r)
 }
 
+func (pending) ReplaceLegalHolds(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
+	notAvailable(w, r)
+}
+
 func (pending) CloseTenantPassword(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
 	notAvailable(w, r)
 }

@@ -810,6 +810,11 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants/{tenantId}:close-password", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Place the legal holds of a rewound period again */
+  replaceLegalHolds(tenantId: string, body: NonNullable<operations["replaceLegalHolds"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["replaceLegalHolds"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants/{tenantId}:replace-legal-holds", { "tenantId": tenantId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Export a workspace whole */
   exportTenant(tenantId: string, body: NonNullable<operations["exportTenant"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exportTenant"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/admin/tenants/{tenantId}:export", { "tenantId": tenantId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

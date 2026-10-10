@@ -647,6 +647,10 @@ class Client:
         """Close an operator's opening of the password early"""
         return self._call("POST", "/admin/tenants/{tenantId}:close-password", {"tenantId": tenant_id}, None, {}, None, "none", None, "json")
 
+    def replace_legal_holds(self, tenant_id: str, body: "LegalHoldReplaceRequest") -> "LegalHoldReplaceResult":
+        """Place the legal holds of a rewound period again"""
+        return self._call("POST", "/admin/tenants/{tenantId}:replace-legal-holds", {"tenantId": tenant_id}, None, {}, body, "json", "application/json", "json")
+
     def export_tenant(self, tenant_id: str, body: "TenantExportRequest") -> "JobRef":
         """Export a workspace whole"""
         return self._call("POST", "/admin/tenants/{tenantId}:export", {"tenantId": tenant_id}, None, {}, body, "json", "application/json", "json")
