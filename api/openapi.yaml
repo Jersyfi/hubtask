@@ -15112,7 +15112,14 @@ components:
             The keys are open, and a key that is absent is not a promise in either direction - it
             is a part of the product that has not been asked to describe itself yet. The ones
             answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`,
-            `backup_targets`, `ai_suggestions`, `semantic_search` and `natural_ordering`.
+            `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`,
+            `sign_in_rules` and `search_filter`.
+
+            Two of them describe this version rather than its configuration, and every
+            installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is
+            served) and `search_filter` (`POST /search` takes a `filter`, and answers one without
+            `words`). They are here for a client that also talks to an older server, which does
+            not answer them: it can tell rather than probe.
 
             `ai_suggestions` and `semantic_search` are the same two names `degraded_features`
             uses in `/meta/health`, so a client reading either
