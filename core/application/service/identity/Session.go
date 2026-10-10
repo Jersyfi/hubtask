@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -71,20 +72,29 @@ type IdentityConnector interface {
 type SessionWriter struct {
 	// Connector finishes a provider link at the end of the second factor's step (E2). Nil where
 	// nothing links - a sign-in that never began at a provider carries no link to finish.
-	Connector  IdentityConnector
-	Accounts   repository.SignInAccounts
-	Sessions   repository.Sessions
-	Refresh    repository.RefreshTokens
-	Attempts   repository.AuthAttempts
-	Tenants    repository.TenantDirectory
-	Passwords  cryptoport.PasswordHasher
-	Signer     cryptoport.SessionTokenSigner
-	Audit      audit.Sink
-	Signals    AuthSignals
-	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
-	IDs        clock.IDGenerator
-	Entropy    clock.Entropy
+	Connector IdentityConnector
+	Accounts  repository.SignInAccounts
+	Sessions  repository.Sessions
+	// Jobs seeds the workspace's retention sweep with every session it opens (data-retention.md
+	// §5). A session is the first thing the sweep ages out, and the sign-in the one write every
+	// workspace a person uses makes - single mode's included, whose workspace no use case
+	// provisions. Nil is a build without a queue, which only a test makes.
+	Jobs SessionJobs
+	// RetentionInterval is the sweep's own cadence. The seed asks for a run one interval out, and
+	// the enqueue keeps the earlier of a pending run and the request's - so a sign-in never pulls
+	// the sweep forward, and a busy workspace sweeps at its interval rather than at every sign-in.
+	RetentionInterval time.Duration
+	Refresh           repository.RefreshTokens
+	Attempts          repository.AuthAttempts
+	Tenants           repository.TenantDirectory
+	Passwords         cryptoport.PasswordHasher
+	Signer            cryptoport.SessionTokenSigner
+	Audit             audit.Sink
+	Signals           AuthSignals
+	UnitOfWork        persistence.UnitOfWork
+	Clock             clock.Clock
+	IDs               clock.IDGenerator
+	Entropy           clock.Entropy
 	// Domains brings a typed address's domain to the ASCII form the stored one has, so that a
 	// person who types `anna@müller.de` finds the row that holds `anna@xn--mller-kva.de`.
 	Domains text.DomainEncoder
@@ -444,6 +454,20 @@ func (w SessionWriter) familyDies(
 	return refreshRefused()
 }
 
+// SessionJobs is the slice of the queue the session writer seeds the retention sweep through.
+type SessionJobs interface {
+	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
+}
+
+// seedRetention asks for the workspace's sweep in the transaction that opens the session.
+func (w SessionWriter) seedRetention(ctx context.Context, tenantID shared.ID, now time.Time) error {
+	if w.Jobs == nil {
+		return nil
+	}
+	_, err := w.Jobs.Enqueue(ctx, queue.RetentionSweep(tenantID, now.Add(w.RetentionInterval)))
+	return err
+}
+
 // openSession is the shared tail of every door in: the ledger wiped, the session row, the first
 // link of the chain, the audit entry, the pair.
 // openSessionWith is openSession told what bounds the session and how it was opened (ADR-0068 §3).
@@ -491,6 +515,9 @@ func (w SessionWriter) openSessionVia(
 			return err
 		}
 		if err := w.Sessions.Insert(ctx, session); err != nil {
+			return err
+		}
+		if err := w.seedRetention(ctx, tenantID, now); err != nil {
 			return err
 		}
 

@@ -126,11 +126,12 @@ const (
 	// KindRetentionSweep removes what one tenant's retention periods say may go (ADR-0020).
 	//
 	// One job per tenant, which reschedules itself forever: a poller lives as one row rather than
-	// as a new row per round (Result.Repeat). It is created by a deletion rather than by a
+	// as a new row per round (Result.Repeat). It is seeded by writes in the tenant rather than by a
 	// scheduler enumerating tenants, because nothing in this system may enumerate them - the
 	// `tenant` table is behind row level security with no bypass for the application role, and
-	// tenant administration runs through the control plane (db/migrations/0001_init.sql). A
-	// deletion scheduling its own cleanup is also the more honest statement of what has to happen.
+	// tenant administration runs through the control plane (db/migrations/0001_init.sql). The writes
+	// are a deletion, the workspace's provisioning and every session opened (RetentionSweep,
+	// data-retention.md §5).
 	KindRetentionSweep Kind = "retention.sweep"
 
 	// KindMediaReconcile makes one tenant's media reference counts honest and reclaims what nothing
@@ -361,6 +362,17 @@ type Request struct {
 	// MaxAttempts is how often the job is tried before it goes to the dead letter. Zero leaves
 	// the database default in place.
 	MaxAttempts int
+}
+
+// RetentionSweep is the request every write that seeds a tenant's sweep makes: a deletion that
+// starts a trash clock, a workspace provisioned, a session opened (data-retention.md §5). One
+// constructor, so the kind and the dedupe key - the tenant - are written once.
+//
+// The run-at is the caller's to choose, and the enqueue keeps the earlier of a pending job's and the
+// request's: a deletion asks for now, a session for one interval later, and a later request never
+// moves an earlier run.
+func RetentionSweep(tenantID shared.ID, runAt time.Time) Request {
+	return Request{Kind: KindRetentionSweep, TenantID: tenantID, DedupeKey: tenantID.String(), RunAt: runAt}
 }
 
 // Job is one claimed unit of work, as the runner hands it to a handler.
