@@ -848,6 +848,25 @@ fi
 rm -f "$WORKFLOW"
 mv "$MATRIX.selftest-backup" "$MATRIX"
 
+header "Section citations in ADRs (make gate-docs)"
+
+# An accepted ADR is not edited, so a section it cites that does not exist is answered by a row of
+# the errata table in docs/adr/README.md. Without the row, the citation it covers has to go red.
+CHECKS=$((CHECKS + 1))
+ADR_INDEX="docs/adr/README.md"
+cp "$ADR_INDEX" "$ADR_INDEX.selftest-backup"
+sed -i.tmp '/^| ADR-0025 | versioning-release.md §[8] |/d' "$ADR_INDEX" && rm -f "$ADR_INDEX.tmp"
+if cmp -s "$ADR_INDEX" "$ADR_INDEX.selftest-backup"; then
+	printf '  FAILED  %-44s the probe changed nothing - its sed programme is stale\n' "an ADR citing a section that is gone"
+	FAILURES=$((FAILURES + 1))
+elif make --no-print-directory gate-docs >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "an ADR citing a section that is gone"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-docs\n' "an ADR citing a section that is gone"
+fi
+mv "$ADR_INDEX.selftest-backup" "$ADR_INDEX"
+
 header "The Go version (make gate-docs)"
 
 # The Go version stands in seventeen places across eight files, and nothing kept them in step. A

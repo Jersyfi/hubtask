@@ -74,6 +74,7 @@ func main() {
 	problems = append(problems, checkRuleTags(root)...)
 	problems = append(problems, checkADRRuleLines(root)...)
 	problems = append(problems, checkCodeCitations(root)...)
+	problems = append(problems, checkADRCitations(root)...)
 
 	if len(problems) > 0 {
 		sort.Strings(problems)
