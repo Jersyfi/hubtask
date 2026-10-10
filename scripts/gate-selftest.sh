@@ -45,7 +45,9 @@ expect_lint_failure() {
 
 	write "$dir" "selftest.go" "$content"
 	local out
-	out="$($LINT run "./$dir/$SCRATCH/..." 2>&1 || true)"
+	# --allow-serial-runners: another worktree's run holds a machine-wide lock, and its error would
+	# stand in the output where the linter's finding belongs.
+	out="$($LINT run --allow-serial-runners "./$dir/$SCRATCH/..." 2>&1 || true)"
 	cleanup
 
 	if grep -q "($linter)" <<<"$out"; then
