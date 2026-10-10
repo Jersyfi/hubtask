@@ -266,7 +266,8 @@ SELECT
   aap.candidates AS auto_assign_candidates,
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
-  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
+  c.private
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -295,6 +296,7 @@ type FindContainerRow struct {
 	CreatedAt            pgtype.Timestamptz
 	UpdatedAt            pgtype.Timestamptz
 	Version              int32
+	Private              bool
 }
 
 // The tenant is never a parameter here: it comes from the transaction's own context through
@@ -348,6 +350,7 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.Private,
 	)
 	return i, err
 }
@@ -597,12 +600,13 @@ func (q *Queries) FindWorkItemByCalendarUID(ctx context.Context, calendarUid str
 const insertContainer = `-- name: InsertContainer :exec
 INSERT INTO container (
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
-  created_by, created_at, updated_at, version
+  created_by, created_at, updated_at, version, private
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   normalize($4::text, NFC),
   $5, $6, $7, $8,
-  $9, $10, $10, 1
+  $9, $10, $10, 1,
+  $11::boolean
 )
 `
 
@@ -617,6 +621,7 @@ type InsertContainerParams struct {
 	OrderKey    string
 	CreatedBy   pgtype.UUID
 	CreatedAt   pgtype.Timestamptz
+	Private     bool
 }
 
 // The name arrives in Unicode normal form C - the constructor brings it there, behind the
@@ -637,6 +642,7 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 		arg.OrderKey,
 		arg.CreatedBy,
 		arg.CreatedAt,
+		arg.Private,
 	)
 	return err
 }
@@ -880,7 +886,8 @@ SELECT
   aap.candidates AS auto_assign_candidates,
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
-  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
+  c.private
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -928,6 +935,7 @@ type ListContainersRow struct {
 	CreatedAt            pgtype.Timestamptz
 	UpdatedAt            pgtype.Timestamptz
 	Version              int32
+	Private              bool
 }
 
 // One level of the container tree, in its manual order: the hubs when no parent is named, that
@@ -994,6 +1002,7 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Private,
 		); err != nil {
 			return nil, err
 		}

@@ -107,6 +107,9 @@ type Container struct {
 	// Version is the optimistic lock. It starts at 1, which is what the column default says, so
 	// that a freshly created container has an ETag before it has been read back.
 	Version int
+	// Private is a hub reached only through a membership on it or below it (ADR-0073 §1). Only a
+	// hub carries it: privacy is per hub, never per collection.
+	Private bool
 }
 
 // NewContainerInput is what a container is made of. A struct rather than eleven parameters,
@@ -125,6 +128,9 @@ type NewContainerInput struct {
 	OrderKey  string
 	CreatedBy shared.ID
 	Now       time.Time
+
+	// Private makes the new hub private (ADR-0073 §1); refused on a collection.
+	Private bool
 
 	// Text brings the name and the description to normal form C before they are bounded and stored
 	// (i18n-l10n.md §5); NewWorkItemInput says why it is handed in.
@@ -157,6 +163,9 @@ func NewContainer(in NewContainerInput) (Container, error) {
 	if err := checkParent(in.Type, in.ParentID); err != nil {
 		return Container{}, err
 	}
+	if in.Private && in.Type != ContainerHub {
+		return Container{}, ErrPrivateOnlyHubs()
+	}
 
 	// The identifiers and the rank come from ports, not from a client. Missing means the use case
 	// was wired wrong, which is a defect rather than something the caller can fix (security.md §9).
@@ -183,7 +192,16 @@ func NewContainer(in NewContainerInput) (Container, error) {
 		CreatedAt:        in.Now,
 		UpdatedAt:        in.Now,
 		Version:          1,
+		Private:          in.Private,
 	}, nil
+}
+
+// ErrPrivateOnlyHubs refuses privacy on anything but a hub: there are no private collections
+// inside a shared hub (UC-ID-16, *Where it ends*).
+func ErrPrivateOnlyHubs() error {
+	return shared.ErrValidation.
+		WithDetail("containers.private_only_hubs").
+		WithFields(shared.FieldError{Path: "/private", Code: "containers.private_only_hubs"})
 }
 
 // checkParent is invariant I-C1 read upwards: a hub has no container above it, a collection has

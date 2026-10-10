@@ -135,6 +135,43 @@ func TestNewContainerChecksTheParentInvariant(t *testing.T) {
 	})
 }
 
+// Privacy is per hub (ADR-0073 §1): a hub takes it, a collection is refused at /private.
+func TestNewContainerTakesPrivacyOnAHubOnly(t *testing.T) {
+	cases := []struct {
+		name    string
+		in      work.NewContainerInput
+		private bool
+		refused bool
+	}{
+		{name: "a shared hub", in: baseHub},
+		{name: "a private hub", in: baseHub, private: true},
+		{name: "a shared collection", in: baseColl},
+		{name: "a private collection", in: baseColl, private: true, refused: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			in := tc.in
+			in.Private = tc.private
+
+			container, err := work.NewContainer(in)
+			if tc.refused {
+				assertDetail(t, err, shared.ErrValidation, "containers.private_only_hubs")
+				var validation *shared.Error
+				if errors.As(err, &validation) && (len(validation.Fields) != 1 || validation.Fields[0].Path != "/private") {
+					t.Errorf("the refusal names %+v, want /private", validation.Fields)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("refused: %v", err)
+			}
+			if container.Private != tc.private {
+				t.Errorf("private is %v, want %v", container.Private, tc.private)
+			}
+		})
+	}
+}
+
 func TestNewContainerRefusesAnUnknownType(t *testing.T) {
 	in := baseHub
 	in.Type = "PROJECT"

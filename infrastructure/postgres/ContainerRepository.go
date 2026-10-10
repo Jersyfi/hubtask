@@ -188,6 +188,7 @@ func (r ContainerRepository) Insert(ctx context.Context, container work.Containe
 		OrderKey:    container.OrderKey,
 		CreatedBy:   createdBy,
 		CreatedAt:   timestampOf(container.CreatedAt),
+		Private:     container.Private,
 	})
 	if err == nil {
 		return nil
@@ -476,6 +477,7 @@ func containerFrom(row sqlc.FindContainerRow) (work.Container, error) {
 		CreatedAt:        timeFrom(row.CreatedAt),
 		UpdatedAt:        timeFrom(row.UpdatedAt),
 		Version:          int(row.Version),
+		Private:          row.Private,
 	}, nil
 }
 

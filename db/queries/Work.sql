@@ -33,7 +33,8 @@ SELECT
   aap.candidates AS auto_assign_candidates,
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
-  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
+  c.private
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -63,12 +64,13 @@ LIMIT 1;
 -- two cannot disagree.
 INSERT INTO container (
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
-  created_by, created_at, updated_at, version
+  created_by, created_at, updated_at, version, private
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('type'), sqlc.narg('parent_id'),
   normalize(sqlc.arg('name')::text, NFC),
   sqlc.narg('description'), sqlc.narg('icon'), sqlc.narg('color_token'), sqlc.arg('order_key'),
-  sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
+  sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
+  sqlc.arg('private')::boolean
 );
 
 -- name: ListContainers :many
@@ -105,7 +107,8 @@ SELECT
   aap.candidates AS auto_assign_candidates,
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
-  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
+  c.private
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id

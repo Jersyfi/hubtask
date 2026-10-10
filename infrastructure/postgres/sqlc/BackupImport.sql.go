@@ -1263,7 +1263,8 @@ INSERT INTO container (
   created_by,
   created_at,
   updated_at,
-  version
+  version,
+  private
 )
 SELECT
   r.id,
@@ -1284,7 +1285,10 @@ SELECT
   r.created_by,
   r.created_at,
   r.updated_at,
-  r.version
+  r.version,
+  -- An archive written before 0123 carries no flag, and its hubs were shared when it was taken
+  -- (tenant-export.md §11: an additive field keeps the format).
+  coalesce(r.private, false)
 FROM jsonb_populate_record(
   NULL::container,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1307,7 +1311,8 @@ ON CONFLICT (id) DO UPDATE SET
   created_by = EXCLUDED.created_by,
   created_at = EXCLUDED.created_at,
   updated_at = EXCLUDED.updated_at,
-  version = EXCLUDED.version
+  version = EXCLUDED.version,
+  private = EXCLUDED.private
 WHERE $2::boolean
 `
 
