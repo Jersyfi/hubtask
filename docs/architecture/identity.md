@@ -664,3 +664,27 @@ hub or below it is refused (`memberships.group_in_private_hub`, 422), and so is 
 private while a group holds a role in it (`containers.private_hub_has_groups`, 409). Both take the
 hub's row first (`HubLocks`), so the two cannot pass each other. It refuses only what concerns a
 private hub; nothing that existed before private hubs behaves differently.
+
+**Who else follows the rule.** A rule matches an event of a private hub only when its `run_as`
+reaches the hub; a webhook subscription delivers it only when its creator does, a trigger poll
+answers it only when the caller does; a notification about an entry in one goes only to a recipient
+who reaches it ([automation.md](./automation.md) §2.0, §3.1). The installation's message bus is the
+operator's, like the database, and carries every event.
+
+**What administrators see** (ADR-0073 §3): `ListPrivateHubs` (`GET /private-hubs`), with
+`MANAGE_MEMBERS` on the workspace, answers each private hub's identifier, its owners (accounts
+holding `OWNER` on the hub itself), the counts of its collections and entries, the bytes of its
+attachments, when it was made, and while it is in the trash when it went and when it is purged —
+never a name, a description or anything inside. `Workspace.private_hubs_offered` is true where the
+workspace has more than one person who can act (`USER`, neither anonymised nor deleted); a client
+offers *Private* only then, the server accepts it always.
+
+**The last member** (ADR-0073 §5). A member is an account, neither anonymised nor deleted, holding a
+role on the hub, on a collection in it or on an entry in one. When a revocation, or an erasure that
+anonymises or deletes the account, leaves a private hub without one, the same transaction moves the
+hub into the trash as the system with the ordinary grace (`container.deleted`, reason
+`private_hub_orphaned`) and mails every owner of the workspace a membership message that names
+neither the hub nor the person. The retention pass does the same for a hub a path missed. The
+workspace's owners cannot restore it - they reach nothing in it; taking it over is the emergency
+access, letting it go is the purge. A person's grant on a hub or below takes the hub's row too, so a
+role given while the last member leaves is seen.
