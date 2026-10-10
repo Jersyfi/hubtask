@@ -1499,7 +1499,7 @@ func run() error {
 			Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
 		}.Descriptor(),
 		integrationservice.PollTriggerEvents{
-			Events: outbox, Policies: lifecycleStore,
+			Events: outbox, Policies: lifecycleStore, Reach: authorizer,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
 			Rendering: cloudEventRendering{source: cfg.BaseURL},
 			// The pull half renders through the very function the push half delivers, so that one
@@ -2393,7 +2393,7 @@ func run() error {
 	notify := notification.RecordNotifications{
 		Notifications: notifications, Preferences: notificationPreferences, Accounts: accounts,
 		Items: items, ItemMembers: itemMembers, Jobs: jobs,
-		Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+		Clock: clockadapter.System{}, IDs: ids, Signals: metrics, Reach: authorizer,
 	}
 
 	// The automation engine. The subscriber turns one event into one job per matching rule;
@@ -2452,6 +2452,7 @@ func run() error {
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Jobs:          jobs, Clock: clockadapter.System{}, IDs: ids,
+		Reach: authorizer,
 	}
 
 	dispatcher := eventbus.Dispatcher{
@@ -2718,7 +2719,7 @@ func run() error {
 					Notifications: notifications, Accounts: accounts,
 					Memberships: postgres.NewMembershipRepository(), Members: itemMembers,
 					Preferences: notificationPreferences, Jobs: jobs,
-					Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+					Clock: clockadapter.System{}, IDs: ids, Signals: metrics, Reach: authorizer,
 				},
 				Export: backupservice.RetentionExport{
 					Performer: backupPerformer, IDs: ids,
