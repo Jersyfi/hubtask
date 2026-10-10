@@ -2405,6 +2405,7 @@ func run() error {
 		Conditions: celexpression.New(),
 		Jumble:     postgres.NewJumbleRepository(cursors),
 		Clock:      clockadapter.System{},
+		Reach:      authorizer,
 	}
 
 	// The relative-date producer. A second subscriber rather than a branch inside the first,
@@ -2801,6 +2802,7 @@ func run() error {
 	// transaction, and an action is a use case.
 	automationRun := worker.AutomationRun{
 		Engine: automationservice.RunRule{
+			Reach:      authorizer,
 			Quota:      quotaGuard,
 			Rules:      postgres.NewAutomationRuleRepository(cursors),
 			Runs:       automationRuns,

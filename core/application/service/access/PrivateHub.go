@@ -7,6 +7,7 @@ import (
 	"context"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
@@ -52,4 +53,24 @@ func (s Service) AuthorizeOwnPrivateHub(
 		return notPermitted(request)
 	}
 	return nil
+}
+
+// Hidden answers whether the path runs through a private hub the actor holds nothing in - a hub
+// that, for them, is not there (ADR-0073 §1). Nothing is recorded: it is asked about somebody on
+// whose behalf something would run - a rule's run_as, a subscription's creator - before anything
+// is read for them, and nobody was refused anything.
+//
+// It answers only the private hub's question. A path the actor simply holds no role on is not
+// hidden, so a reader that never asked before asks nothing new of a shared hub.
+func (s Service) Hidden(
+	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
+) (bool, error) {
+	if len(path) == 0 {
+		return false, nil
+	}
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, path)
+	if err != nil {
+		return false, err
+	}
+	return hidden(memberships, at), nil
 }

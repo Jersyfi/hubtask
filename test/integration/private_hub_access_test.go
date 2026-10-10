@@ -132,6 +132,21 @@ func TestAPrivateHubIsReachedOnlyByItsMembers(t *testing.T) {
 		t.Errorf("the owner through a collection path: allowed %v, error %v; want refused", allowed, err)
 	}
 
+	// The question a rule's run_as and a subscription's creator are asked (D4, D5).
+	for name, tc := range map[string]struct {
+		account shared.ID
+		path    []identity.Scope
+		want    bool
+	}{
+		"the owner, the private hub":  {w.administrator, privatePath, true},
+		"the member, the private hub": {w.member, privatePath, false},
+		"the owner, a shared hub":     {w.administrator, sharedPath, false},
+	} {
+		if hidden, err := authoriser.Hidden(ctx, reader(w.tenant, tc.account), tc.path); err != nil || hidden != tc.want {
+			t.Errorf("%s: hidden %v, error %v; want %v", name, hidden, err, tc.want)
+		}
+	}
+
 	answers, err := authoriser.Permitted(ctx, reader(w.tenant, w.administrator),
 		access.Request{Permission: service.PermissionRead}, [][]identity.Scope{privatePath, sharedPath})
 	if err != nil || len(answers) != 2 || answers[0] || !answers[1] {
