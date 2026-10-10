@@ -5,9 +5,9 @@ context: lifecycle
 actors: [PE-owner, PE-auditor, PE-scripter]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-07, P-08, P-11]
-state: partial
+state: built
 tasks: [PH-01, PH-10, E-08, F4-18]
-checked_by: [core/application/service/lifecycle/LegalHolds_test.go, core/domain/model/lifecycle/LegalHold_test.go, test/integration/legal_hold_test.go, test/retention/retention_test.go, cmd/hubctl/Hold_test.go, core/application/service/lifecycle/Purge_test.go, test/retention/account_hold_test.go, test/integration/privacy_hold_test.go, apps/webapp/e2e/retention.test.mjs, core/application/service/admin/Hold_test.go, core/application/service/backup/Hold_test.go, test/integration/admin_hold_test.go, test/integration/restore_hold_test.go]
+checked_by: [core/application/service/lifecycle/LegalHolds_test.go, core/domain/model/lifecycle/LegalHold_test.go, test/integration/legal_hold_test.go, test/retention/retention_test.go, cmd/hubctl/Hold_test.go, core/application/service/lifecycle/Purge_test.go, test/retention/account_hold_test.go, test/integration/privacy_hold_test.go, apps/webapp/e2e/retention.test.mjs, core/application/service/admin/Hold_test.go, core/application/service/backup/Hold_test.go, test/integration/admin_hold_test.go, test/integration/restore_hold_test.go, core/application/service/work/ChangeCommentHold_test.go, core/application/service/lifecycle/RunRetentionKeptTexts_test.go, test/integration/comment_test.go, test/retention/comment_hold_test.go]
 ---
 
 # Place a legal hold so that nothing is destroyed
@@ -66,7 +66,3 @@ stays on record, released, for whoever audits it later.
 
 See [data-retention.md](../../architecture/data-retention.md) §4 and
 [ADR-0020](../../adr/ADR-0020-retention-policies.md).
-
-## Today
-
-* Check 9: not met — deleting a comment clears its text whatever hold covers it, tracked in #1232.

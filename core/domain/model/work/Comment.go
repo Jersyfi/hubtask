@@ -30,7 +30,9 @@ type Comment struct {
 	ParentCommentID shared.ID
 	// Body is the text, and empty exactly when the comment is deleted: a soft deletion keeps the
 	// row so the thread stays readable, and clears the text because a deletion that only hid the
-	// words would be retained personal content with no purpose (data-protection.md).
+	// words would be retained personal content with no purpose (data-protection.md). A legal hold
+	// is such a purpose: the store then keeps the text, but this value never carries it
+	// (data-retention.md §4).
 	Body      string
 	CreatedAt time.Time
 	// EditedAt is when the body was last rewritten, nil for never. Its own stamp rather than a
