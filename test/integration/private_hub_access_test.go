@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -28,6 +29,10 @@ type privateWorld struct {
 	hub, collection, item shared.ID
 	administrator, member shared.ID
 	sharedHub, sharedColl shared.ID
+	// title is the entry's, one word nothing else in the shared database carries, for the search.
+	title string
+	// trashed is an entry of the hub in the trash, where a reader's table seeds one.
+	trashed shared.ID
 }
 
 func seedPrivateWorld(ctx context.Context, t *testing.T) privateWorld {
@@ -35,6 +40,7 @@ func seedPrivateWorld(ctx context.Context, t *testing.T) privateWorld {
 	seedContainerTenants(ctx, t)
 
 	w := privateWorld{tenant: tenantA, administrator: freshID(t), member: freshID(t)}
+	w.title = "tagebuch" + strings.ReplaceAll(freshID(t).String(), "-", "")[20:]
 	w.hub = privateHub(ctx, t, tenantA, authorA)
 	w.collection, w.item = freshID(t), freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
@@ -44,7 +50,7 @@ func seedPrivateWorld(ctx context.Context, t *testing.T) privateWorld {
 		if err := containerRepo().Insert(ctx, collection); err != nil {
 			return err
 		}
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, w.collection, w.item, "Diary", "a0"))
+		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, w.collection, w.item, w.title, "a0"))
 	}); err != nil {
 		t.Fatalf("seeding the private hub's content: %v", err)
 	}
