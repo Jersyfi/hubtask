@@ -213,7 +213,7 @@ func (r MembershipRepository) HubsOf(
 		if err != nil {
 			return nil, err
 		}
-		hubs[namedID] = repository.Hub{ID: hubID}
+		hubs[namedID] = repository.Hub{ID: hubID, Private: row.Private}
 	}
 	return hubs, nil
 }

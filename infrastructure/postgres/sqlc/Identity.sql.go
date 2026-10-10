@@ -542,12 +542,12 @@ func (q *Queries) GroupMembers(ctx context.Context, groupID pgtype.UUID) ([]pgty
 }
 
 const hubsOf = `-- name: HubsOf :many
-SELECT c.id AS named_id, h.id AS hub_id
+SELECT c.id AS named_id, h.id AS hub_id, h.private
 FROM container c
 JOIN container h ON h.id = CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
 WHERE c.id = ANY($1::uuid[])
 UNION ALL
-SELECT w.id AS named_id, h.id AS hub_id
+SELECT w.id AS named_id, h.id AS hub_id, h.private
 FROM work_item w
 JOIN container col ON col.id = w.collection_id
 JOIN container h ON h.id = col.parent_id
@@ -557,13 +557,15 @@ WHERE w.id = ANY($1::uuid[])
 type HubsOfRow struct {
 	NamedID pgtype.UUID
 	HubID   pgtype.UUID
+	Private bool
 }
 
 // The hub each named container or entry sits under, for the authoriser (domain-model.md §3.2).
 //
 // One statement for both kinds, because a path names containers and entries alike and the caller
 // should not have to know which identifier is which. Trashed and archived rows answer as they are
-// stored: a role on the hub applies to what lies in its trash as much as to the rest.
+// stored: a role on the hub applies to what lies in its trash as much as to the rest, and a private
+// hub's trash is as private as the hub (ADR-0073 §1).
 func (q *Queries) HubsOf(ctx context.Context, ids []pgtype.UUID) ([]HubsOfRow, error) {
 	rows, err := q.db.Query(ctx, hubsOf, ids)
 	if err != nil {
@@ -573,7 +575,7 @@ func (q *Queries) HubsOf(ctx context.Context, ids []pgtype.UUID) ([]HubsOfRow, e
 	items := []HubsOfRow{}
 	for rows.Next() {
 		var i HubsOfRow
-		if err := rows.Scan(&i.NamedID, &i.HubID); err != nil {
+		if err := rows.Scan(&i.NamedID, &i.HubID, &i.Private); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

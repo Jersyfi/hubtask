@@ -11,7 +11,6 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
-	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -94,11 +93,7 @@ func ReferenceFields() map[string]repository.ReferenceKind {
 type CheckRules struct {
 	Rules      repository.Rules
 	References repository.References
-	// Memberships answers whether the account the rule runs as holds a role anywhere on the
-	// rule's scope path. Nil in a build that does not ask - the question is then not
-	// asked, as a nil Conditions asks nothing about the conditions.
-	Memberships identityrepository.Memberships
-	Catalogue   Catalogue
+	Catalogue  Catalogue
 	// Conditions compiles every condition and every branch's, as the write does (ADR-0009).
 	Conditions expression.Compiler
 	Authorizer Authorizer
@@ -210,7 +205,7 @@ func (h CheckRules) permits(
 func (h CheckRules) checkOne(
 	ctx context.Context, actor appshared.ActorContext, rule domain.Rule, now time.Time,
 ) (domain.Rule, error) {
-	findings, err := h.inspect(ctx, rule)
+	findings, err := h.inspect(ctx, actor, rule)
 	if err != nil {
 		return domain.Rule{}, err
 	}
@@ -254,7 +249,9 @@ func (h CheckRules) checkOne(
 }
 
 // inspect asks the six questions of ADR-0060 and answers with findings, cheapest first.
-func (h CheckRules) inspect(ctx context.Context, rule domain.Rule) ([]domain.Finding, error) {
+func (h CheckRules) inspect(
+	ctx context.Context, actor appshared.ActorContext, rule domain.Rule,
+) ([]domain.Finding, error) {
 	var findings []domain.Finding
 
 	// The trigger's event type, against what this build emits.
@@ -275,16 +272,16 @@ func (h CheckRules) inspect(ctx context.Context, rule domain.Rule) ([]domain.Fin
 			Level: domain.FindingBroken, Path: "/run_as", Code: FindingAccountGone,
 			Params: map[string]string{"account_id": rule.RunAs.String()},
 		})
-	} else if h.Memberships != nil {
+	} else {
 		// An account that exists and holds nothing on the path can run and will find nothing:
 		// every entry action answers items.not_found, which is the right refusal for the API and
 		// useless to the rule's writer. ATTENTION rather than BROKEN, because the run
 		// answers the question per action and a rule of outbound steps needs no role at all.
-		held, err := h.Memberships.Along(ctx, rule.RunAs, rule.Scope.Path())
+		_, holds, err := h.Authorizer.RoleOf(ctx, actor, rule.RunAs, rule.Scope.Path())
 		if err != nil {
 			return nil, err
 		}
-		if len(held) == 0 {
+		if !holds {
 			findings = append(findings, domain.Finding{
 				Level: domain.FindingAttention, Path: "/run_as", Code: FindingRunnerWithoutRole,
 				Params: map[string]string{"account_id": rule.RunAs.String(), "scope": string(rule.Scope.Type)},

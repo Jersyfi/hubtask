@@ -60,6 +60,24 @@ func TestTheHubOfAContainerAndAnEntryIsFound(t *testing.T) {
 	}
 }
 
+// A private hub answers its flag for itself, its collections and their entries alike: the authoriser
+// reads privacy from storage rather than from the path it was given (ADR-0073 §1).
+func TestTheHubsAnswerTheirPrivacy(t *testing.T) {
+	ctx := context.Background()
+	hub := privateHub(ctx, t, tenantA, authorA)
+	sharedHub, collection, item := hubCollectionAndEntry(ctx, t, tenantA, authorA)
+
+	hubs := hubsOf(ctx, t, tenantA, hub, sharedHub, collection, item)
+	if !hubs[hub].Private {
+		t.Error("the private hub answered shared")
+	}
+	for _, id := range []shared.ID{sharedHub, collection, item} {
+		if hubs[id].Private {
+			t.Errorf("%s answered private under a shared hub", id)
+		}
+	}
+}
+
 // The cross-tenant negative test for HubsOf (gate SG-3): another tenant's containers and entries
 // answer nothing, even when their identifiers are known.
 func TestTheHubsOfAnotherTenantAreInvisible(t *testing.T) {

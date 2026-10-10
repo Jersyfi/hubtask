@@ -118,14 +118,16 @@ type Memberships interface {
 	// the transaction's tenant is absent from the answer rather than an error.
 	//
 	// It exists so that the authoriser judges a path by storage rather than by how carefully its
-	// caller built it: a path that names a collection without its hub is completed here, and a
-	// hub's memberships still count.
+	// caller built it: a path that names a collection without its hub is completed here, and
+	// whether the path runs through a private hub is read here rather than carried by the path.
 	HubsOf(ctx context.Context, ids []shared.ID) (map[shared.ID]Hub, error)
 }
 
 // Hub is what the authoriser needs to know about the hub a container or an entry sits under.
 type Hub struct {
 	ID shared.ID
+	// Private is the hub's own flag (ADR-0073 §1): only a membership on it or below it reaches it.
+	Private bool
 }
 
 // Accounts is the store of people and service accounts.

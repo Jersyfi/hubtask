@@ -8,7 +8,6 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
-	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
@@ -63,6 +62,11 @@ const (
 type Authorizer interface {
 	Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error
 	Permits(ctx context.Context, actor appshared.ActorContext, request access.Request) (bool, error)
+	// RoleOf is the role an account holds along a path - the writer's own or the `run_as`'s -
+	// resolved where every other role is, so that a private hub on the path counts here too.
+	RoleOf(
+		ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []identity.Scope,
+	) (identity.Role, bool, error)
 }
 
 // Accounts is the slice of the account repository this package reads: one lookup, to find out what
@@ -80,10 +84,9 @@ type Writer struct {
 	// Schedules moves a rule's next moment when it is switched on. Separate from Rules for the
 	// port's reason: advancing a moment is not editing a definition, and it deliberately does not
 	// bump the version.
-	Schedules   repository.Schedules
-	Accounts    Accounts
-	Memberships identityrepo.Memberships
-	Catalogue   Catalogue
+	Schedules repository.Schedules
+	Accounts  Accounts
+	Catalogue Catalogue
 	// Conditions compiles a rule's expressions when it is written. A port, so that the use case
 	// never learns which engine evaluates one (ADR-0009, rule 1).
 	Conditions expression.Compiler
@@ -621,21 +624,10 @@ func (w Writer) canDelegateTo(
 		return nil
 	}
 
-	var (
-		runAs  identity.Account
-		mine   []identity.Membership
-		theirs []identity.Membership
-	)
+	var runAs identity.Account
 	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var findErr error
-		if runAs, findErr = w.Accounts.Find(ctx, rule.RunAs); findErr != nil {
-			return findErr
-		}
-		path := rule.Scope.Path()
-		if mine, findErr = w.Memberships.Along(ctx, actor.AccountID, path); findErr != nil {
-			return findErr
-		}
-		theirs, findErr = w.Memberships.Along(ctx, rule.RunAs, path)
+		runAs, findErr = w.Accounts.Find(ctx, rule.RunAs)
 		return findErr
 	})
 	if err != nil {
@@ -654,14 +646,20 @@ func (w Writer) canDelegateTo(
 	}
 
 	path := rule.Scope.Path()
-	theirRole, theyHold := service.EffectiveRole(theirs, path, service.SharedPath)
+	theirRole, theyHold, err := w.Authorizer.RoleOf(ctx, actor, rule.RunAs, path)
+	if err != nil {
+		return err
+	}
 	if !theyHold {
 		// An account with no role at the scope can do nothing there, so delegating to it grants
 		// nothing. A rule that does nothing is a rule somebody has misconfigured rather than a
 		// privilege problem, and the run will say so.
 		return nil
 	}
-	myRole, iHold := service.EffectiveRole(mine, path, service.SharedPath)
+	myRole, iHold, err := w.Authorizer.RoleOf(ctx, actor, actor.AccountID, path)
+	if err != nil {
+		return err
+	}
 	if !iHold || !myRole.AtLeast(theirRole) {
 		return shared.ErrForbidden.
 			WithDetail("automation.run_as_exceeds_writer").

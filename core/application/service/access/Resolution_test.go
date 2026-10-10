@@ -123,3 +123,99 @@ func TestAFailedHubReadIsNotARefusal(t *testing.T) {
 		t.Errorf("a failed read was recorded as a refusal: %+v", trail.entries)
 	}
 }
+
+// ADR-0073 §1 through the authoriser: the workspace's administrator holds nothing on a private hub,
+// and what they ask about it is answered as for anything they hold nothing on.
+func TestAWorkspaceRoleDoesNotReachAPrivateHub(t *testing.T) {
+	authorizer, store, _, _ := serviceWith([]identity.Membership{
+		{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleOwner},
+	})
+	store.hubs = map[shared.ID]identityrepository.Hub{
+		hubID: {ID: hubID, Private: true}, collectionID: {ID: hubID, Private: true},
+	}
+	path := []identity.Scope{
+		identity.TenantScope(), identity.HubScope(hubID), identity.CollectionScope(collectionID),
+	}
+
+	allowed, err := authorizer.Permits(context.Background(), actorWithScopes(),
+		Request{Permission: service.PermissionRead, Path: path})
+	if err != nil || allowed {
+		t.Fatalf("allowed %v, error %v; the workspace's owner read a private hub", allowed, err)
+	}
+
+	entry := shared.MustParseID("0192f000-0000-7000-8000-0000000000e1")
+	err = authorizer.Authorize(context.Background(), actorWithScopes(), Request{
+		Permission: service.PermissionRead, Path: path, Action: "item.read",
+		On: ItemSubject{Does: service.ItemRead, ID: entry},
+	})
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("an entry in a private hub answered %v, want not found (T-04)", err)
+	}
+
+	if _, found, err := authorizer.RoleAlong(context.Background(), actorWithScopes(), path); err != nil || found {
+		t.Errorf("a role along a private hub: found %v, error %v", found, err)
+	}
+	if visible, err := authorizer.CanSee(context.Background(), actorWithScopes(), accountID, path); err != nil || visible {
+		t.Errorf("CanSee answered %v, error %v; want false", visible, err)
+	}
+}
+
+// A membership on the hub, or below it, still grants what it grants (ADR-0073 §1).
+func TestAMembershipOnOrBelowAPrivateHubStillGrants(t *testing.T) {
+	for name, scope := range map[string]identity.Scope{
+		"the hub":        identity.HubScope(hubID),
+		"its collection": identity.CollectionScope(collectionID),
+	} {
+		t.Run(name, func(t *testing.T) {
+			authorizer, store, _, _ := serviceWith([]identity.Membership{
+				{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleOwner},
+				{AccountID: accountID, Scope: scope, Role: identity.RoleMember},
+			})
+			store.hubs = map[shared.ID]identityrepository.Hub{
+				hubID: {ID: hubID, Private: true}, collectionID: {ID: hubID, Private: true},
+			}
+			path := []identity.Scope{
+				identity.TenantScope(), identity.HubScope(hubID), identity.CollectionScope(collectionID),
+			}
+
+			role, found, err := authorizer.RoleAlong(context.Background(), actorWithScopes(), path)
+			if err != nil || !found || role != identity.RoleMember {
+				t.Fatalf("role %q, found %v, error %v; want MEMBER from %s", role, found, err, name)
+			}
+		})
+	}
+}
+
+// Nobody with a role on the workspace is asked about privacy: only such a role is ever discounted,
+// so the ordinary question costs no second read.
+func TestPrivacyIsReadOnlyForAWorkspaceRole(t *testing.T) {
+	authorizer, store, _, _ := serviceWith([]identity.Membership{
+		{AccountID: accountID, Scope: identity.HubScope(hubID), Role: identity.RoleMember},
+	})
+
+	if _, err := authorizer.Permits(context.Background(), actorWithScopes(), Request{
+		Permission: service.PermissionRead,
+		Path:       []identity.Scope{identity.TenantScope(), identity.HubScope(hubID)},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.asked) != 0 {
+		t.Errorf("the hubs were read for somebody holding nothing on the workspace: %v", store.asked)
+	}
+}
+
+// RoleOf answers about another account by the same rule: a rule's run_as holding a workspace role
+// reaches nothing in a private hub.
+func TestRoleOfAnotherAccountKnowsAPrivateHub(t *testing.T) {
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000e2")
+	authorizer, store, _, _ := serviceWith([]identity.Membership{
+		{AccountID: other, Scope: identity.TenantScope(), Role: identity.RoleAdmin},
+	})
+	store.hubs = map[shared.ID]identityrepository.Hub{hubID: {ID: hubID, Private: true}}
+
+	_, found, err := authorizer.RoleOf(context.Background(), actorWithScopes(), other,
+		[]identity.Scope{identity.TenantScope(), identity.HubScope(hubID)})
+	if err != nil || found {
+		t.Errorf("found %v, error %v; want no role in a private hub", found, err)
+	}
+}

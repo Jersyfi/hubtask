@@ -149,11 +149,11 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 
 // satisfiedBy is the permission half of the decision: the one asked for, or the alternative where
 // the request names one (A-4).
-func (r Request) satisfiedBy(memberships []identity.Membership, path []identity.Scope) bool {
-	if service.Allows(memberships, path, service.SharedPath, r.Permission) {
+func (r Request) satisfiedBy(memberships []identity.Membership, at resolved) bool {
+	if service.Allows(memberships, at.path, at.privacy, r.Permission) {
 		return true
 	}
-	return r.Alternative != "" && service.Allows(memberships, path, service.SharedPath, r.Alternative)
+	return r.Alternative != "" && service.Allows(memberships, at.path, at.privacy, r.Alternative)
 }
 
 // Permits answers whether the actor holds the permission along the path, and records nothing.
@@ -259,9 +259,9 @@ func (s Service) ReachInto(
 // on is out of everybody's reach by the same sentence.
 func (s Service) decideAboutTheEntry(
 	ctx context.Context, actor appshared.ActorContext, request Request,
-	memberships []identity.Membership, path []identity.Scope,
+	memberships []identity.Membership, at resolved,
 ) error {
-	role, found := service.EffectiveRole(memberships, path, service.SharedPath)
+	role, found := service.EffectiveRole(memberships, at.path, at.privacy)
 	if !found {
 		s.recordRefusal(ctx, actor, request, "sharing")
 		if request.On.ID.IsZero() {
@@ -327,14 +327,14 @@ func (s Service) Permitted(
 		return nil, nil
 	}
 
-	memberships, completed, err := s.held(ctx, actor.PersistenceScope(), actor.AccountID, paths)
+	memberships, answers, err := s.held(ctx, actor.PersistenceScope(), actor.AccountID, paths)
 	if err != nil {
 		// Not a refusal: nobody was denied anything, the question could not be answered.
 		return nil, err
 	}
 
 	allowed := make([]bool, len(paths))
-	for i, path := range completed {
+	for i, path := range answers {
 		allowed[i] = request.satisfiedBy(memberships, path)
 	}
 	return allowed, nil
@@ -375,7 +375,7 @@ func (s Service) CanSee(
 		// send a client off to grant a permission that is not the problem.
 		return false, err
 	}
-	return service.Allows(memberships, completed, service.SharedPath, service.PermissionRead), nil
+	return service.Allows(memberships, completed.path, completed.privacy, service.PermissionRead), nil
 }
 
 // RoleAlong returns the actor's own effective role along the path, and whether they hold one at
@@ -392,12 +392,27 @@ func (s Service) CanSee(
 func (s Service) RoleAlong(
 	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
 ) (identity.Role, bool, error) {
-	memberships, completed, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, path)
+	return s.RoleOf(ctx, actor, actor.AccountID, path)
+}
+
+// RoleOf is RoleAlong about another account, read in the actor's tenant: the role an automation
+// rule's `run_as` holds where the rule acts, which its writer may not exceed (automation.md
+// §2.1). Here rather than in the automation service so that a private hub on the path is judged
+// as everywhere else (ADR-0073 §1). An account of another tenant holds nothing this can find.
+//
+// Nothing is audited, for RoleAlong's reason.
+func (s Service) RoleOf(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []identity.Scope,
+) (identity.Role, bool, error) {
+	if accountID.IsZero() {
+		return "", false, nil
+	}
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), accountID, path)
 	if err != nil {
 		return "", false, err
 	}
 
-	role, found := service.EffectiveRole(memberships, completed, service.SharedPath)
+	role, found := service.EffectiveRole(memberships, at.path, at.privacy)
 	return role, found, nil
 }
 
