@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
@@ -272,6 +273,11 @@ func TestTheFullCodePKCEFlow(t *testing.T) {
 	leashed := fixture.session.sessions.inserted[len(fixture.session.sessions.inserted)-1]
 	if leashed.GrantID.IsZero() || len(leashed.Scopes) != 1 || leashed.Scopes[0] != "items:read" {
 		t.Fatalf("the issued session is not leashed: %+v", leashed)
+	}
+	// A leashed session seeds the workspace's retention sweep like any other (data-retention.md §5).
+	if jobs := fixture.session.jobs.requests; len(jobs) != 1 || jobs[0].Kind != queue.KindRetentionSweep ||
+		jobs[0].TenantID != tenant {
+		t.Errorf("the exchange asked for %+v, want the workspace's one sweep", jobs)
 	}
 
 	// A code replayed after exchange is refused.

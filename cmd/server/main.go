@@ -448,6 +448,8 @@ func run() error {
 		Domains:  domains,
 		Accounts: signInStore,
 		Sessions: sessions,
+		// Every session opened seeds its workspace's retention sweep (data-retention.md §5).
+		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
 		Refresh:  postgres.NewRefreshTokenRepository(security.NewSessionRefreshHasher(cfg.SecretKey)),
 		Attempts: signInStore, Tenants: signInStore,
 		Passwords: passwords, Signer: sessionSigner,
