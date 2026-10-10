@@ -302,9 +302,10 @@ type SetTemplateDeletedParams struct {
 	ExpectedVersion int32
 }
 
-// The soft delete. The trees the template has stamped out are ordinary entries and are not
-// touched; what goes is the ability to stamp out more - and the name, which the partial unique
-// index frees for a template defined afterwards.
+// The deletion while a legal hold covers the template (data-retention.md §4): the row stays,
+// unreadable, until the retention pass removes it (RemoveDeletedTemplates). The trees the template
+// has stamped out are ordinary entries and are not touched; what goes is the ability to stamp out
+// more - and the name, which the partial unique index frees for a template defined afterwards.
 func (q *Queries) SetTemplateDeleted(ctx context.Context, arg SetTemplateDeletedParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setTemplateDeleted, arg.DeletedAt, arg.ID, arg.ExpectedVersion)
 	if err != nil {

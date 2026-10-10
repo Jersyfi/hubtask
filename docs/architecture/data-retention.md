@@ -105,7 +105,10 @@ Evaluated in this order; the first that applies wins:
    `blocked_by: legal_hold`, with no date. A comment has no trash: deleted under a hold, it reads as
    deleted to everybody but keeps its text until the last hold covering it is lifted, and the sweep
    clears it then. A deleted template, which has no trash either, stays the same way until its
-   last hold is lifted, and the sweep removes the row then.
+   last hold is lifted, and the sweep removes the row then; without a hold, deleting it removes the
+   row at once. What reaches a template is a hold on the workspace or on the hub or collection it is
+   defined on — it sits on no entry and names no author, so neither an entry hold nor an account
+   hold does.
 
    **A hold also stops the workspace's own deletion and a destructive restore**: while any hold in
    the workspace is in force, a deletion request is refused, a workspace already pending deletion
