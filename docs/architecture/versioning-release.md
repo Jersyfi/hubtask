@@ -135,7 +135,7 @@ unfiltered, and `release.yml` runs `make verify` again on the tag. The jobs and 
 | Gate | Condition | Where |
 |---|---|---|
 | Tests | Unit green with coverage `core/domain` ≥ 85 %, `core/application` ≥ 75 %; integration green against a real PostgreSQL; contract tests (`make gate-contract`) | `unit`, `integration` |
-| Compatibility check | OpenAPI diff against the last tag; a breaking change without `!`/`BREAKING CHANGE` fails | **Not built** ([ci-cd.md](./ci-cd.md) §8) |
+| Compatibility check | OpenAPI diff against the last tag; a breaking change without `!`/`BREAKING CHANGE` fails ([ci-cd.md](./ci-cd.md) §3) | `api-compat` |
 | Structure | Layer and import rules, use case parity across REST, MCP and automation, the i18n check, RT-12, SG-13, no `go` statement outside `core/shared/concurrency`; `make generate` without a diff; `golangci-lint`, `go vet` | `architecture`, `quick` |
 | Security | SG-1…SG-12 ([security.md](./security.md) §13), `govulncheck`; fuzzing and the image scan nightly; SBOM and signature per release | `security`, `secrets`, `nightly.yml`, `release.yml` |
 | Reliability | RT-1…RT-5, RT-7, RT-10, RT-12 per pull request; RT-6, RT-8, RT-11 nightly; RT-9 (restore drill) per release ([observability-reliability.md](./observability-reliability.md) §12); no `hubtask_panics_recovered_total > 0` | `resilience`, `nightly.yml`, the chart's drill |

@@ -44,6 +44,11 @@ var Jobs = []Job{
 	{ID: "chart", Filters: goPipeline, InVerify: true},
 	{ID: "licences", InVerify: true},
 	{ID: "docs", InVerify: true},
+	// The base is where the branch left main, as CI's is the pull request's base: only the breaks the
+	// branch adds are its to mark.
+	{ID: "api-compat", Filters: goPipeline, Steps: []Step{
+		{Name: "gate-api-compat", Command: `make gate-api-compat API_BASE="$(git merge-base origin/main HEAD)"`},
+	}},
 	{ID: "build", Filters: goPipeline, Steps: []Step{
 		{Name: "build (linux/amd64)", Command: "GOOS=linux GOARCH=amd64 make build"},
 		{Name: "build (linux/arm64)", Command: "GOOS=linux GOARCH=arm64 make build"},
