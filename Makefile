@@ -37,6 +37,10 @@ PNPM        ?= $(shell test -x $(TOOLS_DIR)/pnpm && echo $(PWD)/$(TOOLS_DIR)/pnp
 # anchor for no reason (ADR-0015).
 HELM_VERSION          := v3.16.4
 GO_LICENSES_VERSION   := v1.6.0
+# oasdiff compares the contract with the last release (gate-api-compat). Installed like the others,
+# through the module proxy with the checksum database vouching for it; a development tool that never
+# ships in the product.
+OASDIFF_VERSION       := v1.33.0
 # promtool cannot be installed with `go install`: the Prometheus module carries replace
 # directives, which the tool refuses. So it comes as the project's own release archive, pinned by
 # version *and* by checksum - a download without one is a supply chain decision made by whoever
@@ -93,8 +97,8 @@ endef
 TOOLS_PINS  := golangci-lint@$(GOLANGCI_LINT_VERSION) oapi-codegen@$(OAPI_CODEGEN_VERSION) \
 	sqlc@$(SQLC_VERSION) goose@$(GOOSE_VERSION) govulncheck@$(GOVULNCHECK_VERSION) \
 	actionlint@$(ACTIONLINT_VERSION) helm@$(HELM_VERSION) go-licenses@$(GO_LICENSES_VERSION) \
-	promtool@$(PROMTOOL_VERSION)
-# What the stamp records: the pins, and the Go that compiled them. Eight of the nine are built
+	promtool@$(PROMTOOL_VERSION) oasdiff@$(OASDIFF_VERSION)
+# What the stamp records: the pins, and the Go that compiled them. Nine of the ten are built
 # from source, so a moved toolchain is as much a reason to install again as a moved pin - and a
 # directory restored from a cache says nothing about which Go built it.
 TOOLS_IDENTITY := $(shell $(GO) env GOVERSION) $(TOOLS_PINS)
@@ -114,6 +118,7 @@ tools:
 	@$(MAKE) --no-print-directory tools-helm
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
 	@$(MAKE) --no-print-directory tools-promtool
+	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/oasdiff/oasdiff@$(OASDIFF_VERSION)
 	@printf '%s\n' "$(TOOLS_IDENTITY)" > $(TOOLS_STAMP)
 	@echo "tools: $(TOOLS_DIR) holds the pinned set"
 
@@ -147,7 +152,7 @@ tools-ensure:
 ## tools-licenses: Install only go-licenses
 # The narrow counterpart to `make tools`, for the one job that runs unconditionally.
 #
-# gate-licenses needs one tool and takes about twenty seconds; `make tools` installs eight and
+# gate-licenses needs one tool and takes about twenty seconds; `make tools` installs ten and
 # takes over three minutes. On a documentation-only pull request that was the whole run - three
 # minutes of installing a Helm binary and a linter to answer a question about licences. The point
 # of filtering the pipeline by what changed is lost if the jobs that always run are the slow ones.
@@ -497,6 +502,15 @@ gate-security:
 	$(call require_tool,govulncheck)
 	$(TOOLS_DIR)/govulncheck ./...
 	$(call go_test,,./test/security/...,)
+
+## gate-api-compat: The contract against the last release tag - a breaking change fails unless marked (API_BASE=<commit> judges only the branch's own)
+# Not in `make verify`: it needs the history back to the tag, which a shallow checkout lacks, and
+# verify-pr runs it as CI does, through its own job (tools/cilocal). API_SINCE replaces the tag;
+# API_TEXT names a file with the pull request's title and description, which may mark the break.
+.PHONY: gate-api-compat
+gate-api-compat:
+	$(call require_tool,oasdiff)
+	$(GO) run ./tools/apicompat $(if $(API_SINCE),-since $(API_SINCE),) $(if $(API_BASE),-base $(API_BASE),) $(if $(API_TEXT),-text $(API_TEXT),)
 
 ## gate-privacy: PG-1..PG-8, the cheap half
 # The container-backed half - PG-2 (the deletion test across every storage location) and PG-7 (the
