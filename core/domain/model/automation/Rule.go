@@ -77,6 +77,10 @@ type Scope struct {
 
 // Path is the scope as the authoriser reads it: from the tenant downwards.
 //
+// A collection's path names the collection without its hub, because the rule stores one
+// identifier; the authoriser completes it with the hub from storage (access.Service), so a role
+// held on the hub counts as it does everywhere else.
+//
 // It is here rather than in the application layer because it is the translation between this
 // aggregate's two fields and the permission path, and a translation written at each call site is a
 // translation one call site gets wrong.

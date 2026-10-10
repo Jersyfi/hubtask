@@ -33,7 +33,8 @@ SELECT
   aap.candidates AS auto_assign_candidates,
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
-  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
+  c.private
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -63,12 +64,13 @@ LIMIT 1;
 -- two cannot disagree.
 INSERT INTO container (
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
-  created_by, created_at, updated_at, version
+  created_by, created_at, updated_at, version, private
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('type'), sqlc.narg('parent_id'),
   normalize(sqlc.arg('name')::text, NFC),
   sqlc.narg('description'), sqlc.narg('icon'), sqlc.narg('color_token'), sqlc.arg('order_key'),
-  sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
+  sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
+  sqlc.arg('private')::boolean
 );
 
 -- name: ListContainers :many
@@ -105,7 +107,8 @@ SELECT
   aap.candidates AS auto_assign_candidates,
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
-  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
+  c.private
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -160,6 +163,15 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 UPDATE container SET
   policies   = jsonb_set(policies, '{completion_policy}',
                to_jsonb(sqlc.arg('completion_policy')::text), true),
+  updated_at = sqlc.arg('updated_at'),
+  version    = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: SetContainerPrivate :execrows
+-- Whether a hub is private (ADR-0073 §1). The column's CHECK refuses it on a collection whatever
+-- the caller did.
+UPDATE container SET
+  private    = sqlc.arg('private')::boolean,
   updated_at = sqlc.arg('updated_at'),
   version    = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
@@ -819,3 +831,109 @@ WHERE due_at IS NOT NULL
 UPDATE work_item
 SET origin_jumble_id = sqlc.arg('origin_jumble_id')
 WHERE id = sqlc.arg('id') AND origin_jumble_id IS NULL AND deleted_at IS NULL;
+
+-- name: ListPrivateHubs :many
+-- The workspace's private hubs as an administrator may see them (ADR-0073 §3): whose - the
+-- accounts holding OWNER on the hub itself - and how much, never a name. Trashed ones included,
+-- with their stamp, because "a person left and the hub is going" is what the list is for.
+SELECT
+  h.id, h.created_at, h.deleted_at,
+  coalesce((
+    SELECT array_agg(m.account_id ORDER BY m.account_id)
+    FROM membership m
+    WHERE m.scope_type = 'HUB' AND m.scope_id = h.id AND m.role = 'OWNER' AND m.account_id IS NOT NULL
+  ), '{}')::uuid[] AS owners,
+  (SELECT count(*) FROM container c WHERE c.parent_id = h.id) AS collections,
+  (SELECT count(*) FROM work_item w JOIN container c ON c.id = w.collection_id
+    WHERE c.parent_id = h.id) AS entries,
+  coalesce((
+    SELECT sum(mo.byte_size)
+    FROM item_attachment a
+    JOIN media_object mo ON mo.id = a.media_id
+    JOIN work_item w ON w.id = a.item_id
+    JOIN container c ON c.id = w.collection_id
+    WHERE c.parent_id = h.id
+  ), 0)::bigint AS attachment_bytes
+FROM container h
+WHERE h.type = 'HUB' AND h.private
+ORDER BY h.created_at, h.id;
+
+-- name: OrphanedPrivateHubs :many
+-- The private hubs, not in the trash, that no member is left in (ADR-0073 §5): no account that is
+-- neither anonymised nor deleted holds a role on the hub, on a collection in it, or on an entry in
+-- one. Groups are not asked - none may hold a role there (identity.md §22). `named` narrows it to
+-- the hubs the named hubs, collections or entries sit under; null asks about every private hub,
+-- which is the retention pass's catch-all.
+SELECT h.id
+FROM container h
+WHERE h.type = 'HUB' AND h.private AND h.deleted_at IS NULL
+  AND (
+    sqlc.narg('named')::uuid[] IS NULL
+    OR h.id IN (
+      SELECT CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
+      FROM container c WHERE c.id = ANY(sqlc.narg('named')::uuid[])
+      UNION ALL
+      SELECT col.parent_id
+      FROM work_item w JOIN container col ON col.id = w.collection_id
+      WHERE w.id = ANY(sqlc.narg('named')::uuid[])
+    )
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM membership m
+    JOIN account a ON a.id = m.account_id
+    WHERE a.status <> 'ANONYMIZED' AND a.deleted_at IS NULL
+      AND (
+        (m.scope_type = 'HUB' AND m.scope_id = h.id)
+        OR (m.scope_type = 'COLLECTION'
+            AND m.scope_id IN (SELECT c.id FROM container c WHERE c.parent_id = h.id))
+        OR (m.scope_type = 'ITEM'
+            AND m.scope_id IN (
+              SELECT w.id FROM work_item w JOIN container c ON c.id = w.collection_id
+              WHERE c.parent_id = h.id))
+      )
+  )
+ORDER BY h.id;
+
+-- name: LockContainers :exec
+-- Takes the named containers' rows for the rest of the transaction. A grant on a hub or below it
+-- takes the same row (LockHubOf), so "no member is left", asked again after this, sees a grant that
+-- committed meanwhile.
+SELECT id FROM container WHERE id = ANY(sqlc.arg('ids')::uuid[]) ORDER BY id FOR UPDATE;
+
+-- name: PrivateHubsHeldBy :many
+-- The private hubs, not in the trash, the account holds a role on, on a collection in, or on an
+-- entry in: what an erasure asks before the account's memberships go with it.
+SELECT DISTINCT h.id
+FROM membership m
+JOIN container h ON h.type = 'HUB' AND h.private AND h.deleted_at IS NULL
+WHERE m.account_id = sqlc.arg('account_id')::uuid
+  AND (
+    (m.scope_type = 'HUB' AND m.scope_id = h.id)
+    OR (m.scope_type = 'COLLECTION'
+        AND m.scope_id IN (SELECT c.id FROM container c WHERE c.parent_id = h.id))
+    OR (m.scope_type = 'ITEM'
+        AND m.scope_id IN (
+          SELECT w.id FROM work_item w JOIN container c ON c.id = w.collection_id
+          WHERE c.parent_id = h.id))
+  )
+ORDER BY h.id;
+
+-- name: WorkspaceOwners :many
+-- The persons holding OWNER on the workspace itself, directly or through a group, who can still be
+-- told something: told when a private hub lost its last member (ADR-0073 §5).
+SELECT a.id
+FROM account a
+WHERE a.kind = 'USER' AND a.status <> 'ANONYMIZED' AND a.deleted_at IS NULL
+  AND (
+    EXISTS (
+      SELECT 1 FROM membership m
+      WHERE m.account_id = a.id AND m.scope_type = 'TENANT' AND m.role = 'OWNER'
+    )
+    OR EXISTS (
+      SELECT 1 FROM membership m
+      JOIN account_group_member g ON g.group_id = m.group_id
+      WHERE g.account_id = a.id AND m.scope_type = 'TENANT' AND m.role = 'OWNER'
+    )
+  )
+ORDER BY a.id;

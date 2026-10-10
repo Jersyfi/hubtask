@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/condition"
 	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -99,6 +100,9 @@ type PollTriggerEvents struct {
 	Clock      clock.Clock
 	// Lag is how far behind the present a page may reach. See environment.QueueConfig.
 	Lag time.Duration
+	// Reach leaves out the events of a private hub the caller does not reach (D5, ADR-0073 §1).
+	// The cursor still moves past them, so a page may come back short (api-guidelines.md §4).
+	Reach PrivateReach
 }
 
 // PollTriggerEventsCommand is one poll.
@@ -170,6 +174,13 @@ func (h PollTriggerEvents) Execute(
 
 	rendered := make([]map[string]any, 0, len(envelopes))
 	for _, envelope := range envelopes {
+		hidden, err := hiddenFrom(ctx, h.Reach, actor.TenantID, actor.AccountID, condition.PlaceOf(envelope))
+		if err != nil {
+			return Page{}, err
+		}
+		if hidden {
+			continue
+		}
 		rendered = append(rendered, h.Rendering.Render(envelope))
 	}
 

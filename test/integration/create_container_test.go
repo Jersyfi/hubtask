@@ -15,8 +15,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
@@ -40,14 +42,17 @@ func catalogueFor(t *testing.T) *usecase.Registry {
 	}
 	sink := postgres.NewAuditSink(ids)
 
+	authoriser := access.Service{
+		Memberships: postgres.NewMembershipRepository(),
+		UnitOfWork:  unitOfWork,
+		Audit:       sink,
+		Clock:       fixed,
+	}
 	registry, err := usecase.NewRegistry(nil, work.CreateContainer{
 		Containers: containerRepo(),
-		Authorizer: access.Service{
-			Memberships: postgres.NewMembershipRepository(),
-			UnitOfWork:  unitOfWork,
-			Audit:       sink,
-			Clock:       fixed,
-		},
+		Authorizer: authoriser,
+		OwnHubs:    authoriser,
+		Grants:     postgres.NewMembershipGrantRepository(pageCursors()),
 		Events:     postgres.NewOutbox(jobQueue(t)),
 		Changes:    postgres.NewChangeLog(),
 		Audit:      sink,
@@ -338,5 +343,45 @@ func TestAnInvalidInputIsRefusedByTheCatalogue(t *testing.T) {
 	// And the domain's own vocabulary is what the enum was built from.
 	if len(domain.ContainerTypes()) != 2 {
 		t.Errorf("the container types changed without this test: %v", domain.ContainerTypes())
+	}
+}
+
+// UC-ID-16 check 1 against PostgreSQL: a plain member - no STRUCTURE - creates a private hub, owns
+// it by a membership row written in the same transaction, and the workspace's owner does not reach
+// it (ADR-0073 §1, §2).
+func TestAMemberCreatesAPrivateHubAndOwnsIt(t *testing.T) {
+	ctx := context.Background()
+	w := seedPrivateWorld(ctx, t)
+	registry := catalogueFor(t)
+
+	out, err := registry.Invoke(ctx, "CreateContainer", administrator(w.tenant, w.member),
+		usecase.Input{"type": "HUB", "name": freshName(t), "private": true})
+	if err != nil {
+		t.Fatalf("the member was refused a private hub: %v", err)
+	}
+	hub := shared.MustParseID(out.String("id"))
+	if !storedContainer(ctx, t, w.tenant, hub).Private {
+		t.Fatal("the hub was stored shared")
+	}
+	if owners := countIn(ctx, t,
+		`SELECT count(*) FROM membership WHERE scope_type = 'HUB' AND scope_id = $1
+		   AND account_id = $2 AND role = 'OWNER'`, hub.String(), w.member.String()); owners != 1 {
+		t.Errorf("%d ownerships of the new hub, want the creator's", owners)
+	}
+	if granted := countIn(ctx, t,
+		`SELECT count(*) FROM audit_log WHERE tenant_id = $1 AND action = 'membership.granted'
+		   AND actor_id = $2`, w.tenant.String(), w.member.String()); granted < 1 {
+		t.Error("the ownership is not in the trail")
+	}
+
+	authoriser := realAuthoriser(ctx, t)
+	path := []identity.Scope{identity.TenantScope(), identity.HubScope(hub)}
+	if allowed, _ := authoriser.Permits(ctx, reader(w.tenant, w.administrator),
+		access.Request{Permission: service.PermissionRead, Path: path}); allowed {
+		t.Error("the workspace's owner reads the member's private hub")
+	}
+	if allowed, _ := authoriser.Permits(ctx, reader(w.tenant, w.member),
+		access.Request{Permission: service.PermissionRead, Path: path}); !allowed {
+		t.Error("the creator does not read their own private hub")
 	}
 }

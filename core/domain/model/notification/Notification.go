@@ -297,5 +297,14 @@ func (n Notification) Failed(final bool) Notification {
 	return n
 }
 
+// PrivateHubTrashed reports whether this is the message that a private hub lost its last member
+// and went to the trash (ADR-0073 §5): a membership message about no subject. Every other
+// membership message names the entry it is about, and a record whose entry is purged goes with the
+// entry, so a membership record without a subject is this one and nothing else.
+func (n Notification) PrivateHubTrashed() bool {
+	return n.Category == CategoryMembership &&
+		n.ItemID.IsZero() && n.RuleID.IsZero() && n.SubscriptionID.IsZero()
+}
+
 // Pending reports whether the delivery still has to do something about this.
 func (n Notification) Pending() bool { return n.State == StatePending }

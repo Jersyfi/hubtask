@@ -15,9 +15,12 @@ import (
 	"context"
 	"errors"
 
+	"github.com/Jersyfi/hubtask/core/application/condition"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/notification"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -78,6 +81,39 @@ type RecordNotifications struct {
 	// Signals is the observability slice. Optional: the consumer runs without it, which is what
 	// keeps a metrics adapter from being a dependency of the notification path.
 	Signals Signals
+	// Reach drops a recipient who does not reach the private hub the entry is in - a former
+	// assignee, somebody on its member list who has since left the hub (D6, ADR-0073 §1): no record,
+	// no mail. Nil only in a build that has no private hubs to keep.
+	Reach PrivateReach
+}
+
+// PrivateReach is the authoriser's question about a private hub, asked about each person a
+// notification would go to (access.Service.Hidden).
+type PrivateReach interface {
+	Hidden(ctx context.Context, actor appshared.ActorContext, path []identity.Scope) (bool, error)
+}
+
+// reachable keeps the recipients who reach the place: everybody, unless it is a private hub some
+// of them hold nothing in.
+func reachable(
+	ctx context.Context, reach PrivateReach, tenantID shared.ID, place []identity.Scope, recipients []shared.ID,
+) ([]shared.ID, error) {
+	if reach == nil || len(place) < 2 {
+		return recipients, nil
+	}
+	kept := recipients[:0:0]
+	for _, recipient := range recipients {
+		hidden, err := reach.Hidden(ctx, appshared.ActorContext{
+			Kind: appshared.ActorUser, TenantID: tenantID, AccountID: recipient,
+		}, place)
+		if err != nil {
+			return nil, err
+		}
+		if !hidden {
+			kept = append(kept, recipient)
+		}
+	}
+	return kept, nil
 }
 
 // Signals is the slice of the metrics adapter this package reports through
@@ -131,6 +167,9 @@ func (r RecordNotifications) Deliver(ctx context.Context, envelope event.Envelop
 	}
 	recipients, err := r.recipients(ctx, envelope, itemID)
 	if err != nil {
+		return err
+	}
+	if recipients, err = reachable(ctx, r.Reach, envelope.TenantID, condition.PlaceOf(envelope), recipients); err != nil {
 		return err
 	}
 

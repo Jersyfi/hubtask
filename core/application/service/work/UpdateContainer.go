@@ -332,13 +332,22 @@ func (w ContainerWriter) recordChanges(
 			ActorID:     actor.AccountID,
 			HLC:         w.HLC.Next(),
 			Field:       change.Field,
-			Payload:     map[string]any{change.Field: clearedAsNull(change.To)},
+			Payload:     map[string]any{change.Field: changedValue(change)},
 		})
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// changedValue is the field's new value as the API spells it: `private` a boolean, every other
+// field a text that is null when cleared.
+func changedValue(change domain.FieldChange) any {
+	if change.Field == domain.FieldPrivate {
+		return change.To == "true"
+	}
+	return clearedAsNull(change.To)
 }
 
 // clearedAsNull is how "the field is now empty" reaches a payload: as null, which is what the API

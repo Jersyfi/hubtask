@@ -97,8 +97,9 @@ admin API; the browser setup at first start is
 The effective permission is the highest role along the path (inherited downwards). One exception: a
 **private hub** is reached only through a membership on the hub or below it — roles higher up do not
 flow into it, and the workspace owner reaches it only through the transparent emergency access of
-[ADR-0073](../adr/ADR-0073-private-hubs.md). `Group(id, tenantId, name, members[])` is the target
-for assignment strategies and permissions.
+[ADR-0073](../adr/ADR-0073-private-hubs.md). No group holds a role on a private hub or below it:
+a group's members are the workspace administrators' to change ([identity.md](./identity.md) §22).
+`Group(id, tenantId, name, members[])` is the target for assignment strategies and permissions.
 
 Roles and rights (an extract):
 
@@ -147,6 +148,7 @@ matrix with both qualifiers.
 | `orderKey` | string | A fractional index within the parent: a hub among the workspace's hubs, a collection among its hub's |
 | `policies` | JSONB | `completionPolicy`, `defaultBucketId`, `capabilityOverrides`, `autoAssign` |
 | `archivedAt`, `deletedAt` | timestamptz? | Lifecycle |
+| `private` | bool | A `HUB` only; reached only through a membership on it or below it (§3.2) |
 | `version` | int | Optimistic locking |
 
 Invariants:
@@ -154,6 +156,7 @@ Invariants:
 * I-C2: deleting a container moves the entire subtree to the trash (a cascading soft delete with a shared `trashBatchId`, so that restoring is atomic).
 * I-C3: an archived container is read-only; children inherit `effectiveArchived`.
 * I-C4: `POST /containers/{id}:reorder` writes only the moved container's own `orderKey` — no neighbour is rewritten; an archived container refuses it.
+* I-C5: only a `HUB` is `private`; a collection shares its hub's privacy (`containers.private_only_hubs`).
 
 ### 3.4 `WorkItem` (the aggregate root)
 
@@ -363,6 +366,7 @@ choice is not the obvious one:
 | Backup | Creating a target asks for `DELETE_CONTAINER`: a target is a channel the data leaves by. Listing targets, what is at one, and restores asks for `STRUCTURE`. The connection test writes, reads back and deletes, and answers a result rather than an error. Restore modes: [backup-restore.md](./backup-restore.md) §8.2 |
 | Jobs | `GetJob` asks for `READ`, `CancelJob` for `STRUCTURE`, both at the tenant (a job belongs to no container). A job answers its status, its progress where computable, a result reference and the last failure's code — never the payload, attempts, lease or deduplication key |
 | Automation | [automation.md](./automation.md) §2.1 |
+| Private hubs | `CreateContainer` with `private: true` asks no `STRUCTURE`: any person holding a role anywhere in the workspace makes one and owns it. `SetHubPrivacy` (`PUT /containers/{id}/privacy`) marks with `STRUCTURE` on the workspace and `OWNER` on the hub itself, unmarks with that `OWNER` alone. `ListPrivateHubs` asks for `MANAGE_MEMBERS` and names no hub ([identity.md](./identity.md) §22) |
 
 ---
 

@@ -121,7 +121,7 @@ re-mints identities must rewrite exactly these).
 | 3 | `account_groups` | `account_group` | `id` | — |
 | 4 | `account_group_members` | `account_group_member` | `group_id/account_id` | `group_id`→account_groups, `account_id`→accounts |
 | 5 | `memberships` | `membership` | `id` | `account_id`→accounts, `group_id`→account_groups |
-| 6 | `containers` | `container` | `id` | `parent_id`→containers (hubs first — a parent precedes its children within the file) |
+| 6 | `containers` | `container` | `id` | `parent_id`→containers (hubs first — a parent precedes its children within the file). `private` marks a private hub; an archive without it restores the hub shared, as it was |
 | 7 | `buckets` | `bucket` | `id` | `collection_id`→containers |
 | 8 | `labels` | `label` | `id` | `collection_id`→containers |
 | 9 | `custom_field_definitions` | `custom_field_definition` | `id` | `collection_id`→containers |

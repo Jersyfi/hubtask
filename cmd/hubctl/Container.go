@@ -87,13 +87,15 @@ func containerList(ctx context.Context, cli *CLI, args []string) error {
 }
 
 func containerCreate(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "container", "create", "--type HUB|COLLECTION --name <name> [--parent <id>]")
+	flags := commandFlags(cli, "container", "create",
+		"--type HUB|COLLECTION --name <name> [--parent <id>] [--private]")
 	kind := flags.String("type", "", "HUB or COLLECTION")
 	name := flags.String("name", "", "what it is called")
 	parent := flags.String("parent", "", "the hub a collection goes into")
 	description := flags.String("description", "", "a longer description")
 	icon := flags.String("icon", "", "an icon token")
 	colour := flags.String("color", "", "a colour token")
+	private := flags.Bool("private", false, "a hub only its own members reach, you its owner")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -114,6 +116,10 @@ func containerCreate(ctx context.Context, cli *CLI, args []string) error {
 		body.ParentId = &parsed
 	}
 	body.Description, body.Icon, body.ColorToken = optional(*description), optional(*icon), optional(*colour)
+	if *private {
+		// Sent only when asked, so a create without the flag reads as it always did.
+		body.Private = private
+	}
 
 	client, err := cli.client()
 	if err != nil {

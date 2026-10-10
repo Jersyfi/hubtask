@@ -77,6 +77,66 @@ SELECT DISTINCT account_id FROM (
     AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
 ) AS holders;
 
+-- name: HubsOf :many
+-- The hub each named container or entry sits under, for the authoriser (domain-model.md §3.2).
+--
+-- One statement for both kinds, because a path names containers and entries alike and the caller
+-- should not have to know which identifier is which. Trashed and archived rows answer as they are
+-- stored: a role on the hub applies to what lies in its trash as much as to the rest, and a private
+-- hub's trash is as private as the hub (ADR-0073 §1).
+SELECT c.id AS named_id, h.id AS hub_id, h.private
+FROM container c
+JOIN container h ON h.id = CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
+WHERE c.id = ANY(sqlc.arg('ids')::uuid[])
+UNION ALL
+SELECT w.id AS named_id, h.id AS hub_id, h.private
+FROM work_item w
+JOIN container col ON col.id = w.collection_id
+JOIN container h ON h.id = col.parent_id
+WHERE w.id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: HoldsAnyMembership :one
+-- Whether the account holds a role anywhere in the tenant, directly or through a group.
+SELECT EXISTS (
+  SELECT 1 FROM membership m
+  WHERE m.account_id = sqlc.arg('account_id')::uuid
+     OR m.group_id IN (
+       SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')::uuid
+     )
+) AS held;
+
+-- name: LockHubOf :one
+-- The hub a container or an entry sits under, locked for the transaction: granting a group a role
+-- under a private hub and making a hub private both take this row first, so the second waits for
+-- the first and sees what it wrote (ADR-0073 §1).
+SELECT h.id, h.private
+FROM container h
+WHERE h.id = (
+  SELECT CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
+  FROM container c WHERE c.id = sqlc.arg('id')::uuid
+  UNION ALL
+  SELECT col.parent_id
+  FROM work_item w JOIN container col ON col.id = w.collection_id
+  WHERE w.id = sqlc.arg('id')::uuid
+  LIMIT 1
+)
+FOR UPDATE OF h;
+
+-- name: GroupHoldsRoleUnderHub :one
+-- Whether a group holds a role on the hub, a collection in it, or an entry in one.
+SELECT EXISTS (
+  SELECT 1 FROM membership m
+  WHERE m.group_id IS NOT NULL
+    AND (
+      m.scope_id = sqlc.arg('hub_id')::uuid
+      OR m.scope_id IN (SELECT c.id FROM container c WHERE c.parent_id = sqlc.arg('hub_id')::uuid)
+      OR m.scope_id IN (
+        SELECT w.id FROM work_item w JOIN container col ON col.id = w.collection_id
+        WHERE col.parent_id = sqlc.arg('hub_id')::uuid
+      )
+    )
+) AS held;
+
 -- name: SharedItemsInCollection :many
 -- The entries inside one collection that the account holds a membership on directly, or through
 -- one of its groups.
@@ -307,3 +367,9 @@ WHERE (
 -- disagree about where a name sorts (migration 0080).
 ORDER BY lower(name) COLLATE hubtask_name, id
 LIMIT sqlc.arg('page_size');
+
+-- name: CountPeople :one
+-- The people of the workspace: accounts of persons that are not anonymised and not deleted. What
+-- decides whether a client offers a private hub at all (UC-ID-16 check 8).
+SELECT count(*) FROM account
+WHERE kind = 'USER' AND status <> 'ANONYMIZED' AND deleted_at IS NULL;

@@ -271,6 +271,17 @@ AiProviderKind = Literal["NOOP", "OPENAI_COMPATIBLE", "OLLAMA"]
 
 AiJurisdiction = Literal["SELF_HOSTED", "EEA", "ADEQUACY", "THIRD_COUNTRY"]
 
+class PrivateHubSummary(TypedDict, total=False):
+    """A private hub as an administrator sees it: whose, how big, and when it goes if it is in the trash. Deliberately without a name."""
+    id: Required[str]
+    owners: Required[list[str]]
+    collections: Required[int]
+    entries: Required[int]
+    attachment_bytes: Required[int]
+    created_at: Required[str]
+    trashed_at: str | None
+    purge_on: str | None
+
 class Workspace(TypedDict, total=False):
     """A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on."""
     id: Required[str]
@@ -284,6 +295,7 @@ class Workspace(TypedDict, total=False):
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
+    private_hubs_offered: bool
     sign_in_policy: "SignInPolicy"
     hosts: list["WorkspaceHost"]
     password_opening: "WorkspacePasswordOpening"
@@ -876,6 +888,7 @@ class Container(TypedDict, total=False):
     created_at: str
     updated_at: str
     version: Required[int]
+    private: bool
 
 class ContainerCreate(TypedDict, total=False):
     type: Required["ContainerType"]
@@ -884,12 +897,16 @@ class ContainerCreate(TypedDict, total=False):
     description: str | None
     icon: str | None
     color_token: str | None
+    private: bool
 
 class ContainerUpdate(TypedDict, total=False):
     name: str
     description: str | None
     icon: str | None
     color_token: str | None
+
+class HubPrivacy(TypedDict, total=False):
+    private: Required[bool]
 
 class ContainerPolicies(TypedDict, total=False):
     """How a collection works, as opposed to what it is called. Two keys, and no more: a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign."""

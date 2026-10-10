@@ -8,8 +8,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -40,10 +43,32 @@ type FanOut struct {
 	Jobs          Queue
 	Clock         clock.Clock
 	IDs           clock.IDGenerator
+	// Reach keeps an event of a private hub from every subscription whose creator does not reach
+	// the hub (D5, ADR-0073 §1): an administrator's subscription would otherwise read a family
+	// member's diary titles. Nil only in a build that has no private hubs to keep.
+	Reach PrivateReach
 	// CollapseGrace is how long a pushed event's delivery waits before its first attempt, so
 	// that the events of one push, dispatched across a few rounds, fold onto one delivery
 	// rather than racing the worker to the target (offline-sync.md §8). Zero means the default.
 	CollapseGrace time.Duration
+}
+
+// PrivateReach is the authoriser's question about a private hub, asked for the person a
+// subscription or a poll delivers to (access.Service.Hidden).
+type PrivateReach interface {
+	Hidden(ctx context.Context, actor appshared.ActorContext, path []identity.Scope) (bool, error)
+}
+
+// hiddenFrom answers whether the event happened in a private hub the account does not reach.
+func hiddenFrom(
+	ctx context.Context, reach PrivateReach, tenantID, account shared.ID, place []identity.Scope,
+) (bool, error) {
+	if reach == nil || !condition.Placed(place) {
+		return false, nil
+	}
+	return reach.Hidden(ctx, appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: tenantID, AccountID: account,
+	}, place)
 }
 
 // DefaultCollapseGrace is a few dispatch rounds: long enough for a push of five hundred
@@ -85,6 +110,7 @@ func (f FanOut) Deliver(ctx context.Context, envelope event.Envelope) error {
 
 	now := f.Clock.Now()
 	key := domain.CollapseKey{PushID: envelope.PushID, Subject: envelope.Subject, EventType: envelope.Type.String()}
+	place := condition.PlaceOf(envelope)
 	for _, stored := range wanting {
 		subscription := stored.Subscription
 		// Asked again here, and not because the query might be wrong: the query answers what the
@@ -92,6 +118,13 @@ func (f FanOut) Deliver(ctx context.Context, envelope event.Envelope) error {
 		// point - a state check in one place only is a state check somebody can move the table
 		// past.
 		if !subscription.Wants(envelope.Type) {
+			continue
+		}
+		hidden, err := hiddenFrom(ctx, f.Reach, envelope.TenantID, subscription.CreatedBy, place)
+		if err != nil {
+			return err
+		}
+		if hidden {
 			continue
 		}
 

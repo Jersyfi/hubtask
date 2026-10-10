@@ -94,8 +94,63 @@ var _ repository.MembershipGrants = (*grantStore)(nil)
 
 func grantHandler(grants *grantStore, accounts *accountStore, groups *groupStore, auth *authorizer, sink *auditSink) GrantMembership {
 	return GrantMembership{
-		Grants: grants, Accounts: accounts, Groups: groups, Authorizer: auth, Audit: sink,
+		Grants: grants, Accounts: accounts, Groups: groups, Hubs: &hubLocks{}, Authorizer: auth, Audit: sink,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: ids{next: membershipID},
+	}
+}
+
+// hubLocks answers which hubs are private, and records which it locked.
+type hubLocks struct {
+	private map[shared.ID]bool
+	locked  []shared.ID
+}
+
+func (h *hubLocks) LockHubOf(_ context.Context, id shared.ID) (repository.Hub, bool, error) {
+	h.locked = append(h.locked, id)
+	return repository.Hub{ID: id, Private: h.private[id]}, true, nil
+}
+
+func (h *hubLocks) GroupHoldsRoleUnder(context.Context, shared.ID) (bool, error) { return false, nil }
+
+// A group inside a private hub would be the workspace's administrators' way in (identity.md §22):
+// refused, under the hub's lock. A person may be given a role there, and a group anywhere else.
+func TestAGroupIsRefusedARoleInAPrivateHub(t *testing.T) {
+	group := domain.Group{ID: groupID, TenantID: tenant, Name: "Parents"}
+	cases := []struct {
+		name    string
+		cmd     GrantMembershipCommand
+		private bool
+		refused bool
+	}{
+		{"a group on a private hub", GrantMembershipCommand{GroupID: groupID, Scope: domain.HubScope(hubID), Role: domain.RoleViewer}, true, true},
+		{"a group on a collection of a private hub", GrantMembershipCommand{GroupID: groupID, Scope: domain.CollectionScope(hubID), Role: domain.RoleViewer}, true, true},
+		{"a group on a shared hub", GrantMembershipCommand{GroupID: groupID, Scope: domain.HubScope(hubID), Role: domain.RoleViewer}, false, false},
+		{"a person on a private hub", GrantMembershipCommand{AccountID: invitedID, Scope: domain.HubScope(hubID), Role: domain.RoleViewer}, true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			grants := newGrants()
+			handler := grantHandler(grants, newAccounts(invitedAccount(t)), newGroups(group), &authorizer{}, &auditSink{})
+			locks := &hubLocks{private: map[shared.ID]bool{hubID: tc.private}}
+			handler.Hubs = locks
+
+			_, err := handler.Execute(t.Context(), admin(), tc.cmd)
+			if !tc.refused {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				return
+			}
+			if err == nil || shared.AsError(err).DetailCode != "memberships.group_in_private_hub" {
+				t.Fatalf("error %v, want memberships.group_in_private_hub", err)
+			}
+			if !errors.Is(err, shared.ErrValidation) {
+				t.Errorf("error %v, want a validation error (422)", err)
+			}
+			if len(grants.granted) != 0 || len(locks.locked) != 1 {
+				t.Errorf("granted %v, locked %v; want nothing granted after one lock", grants.granted, locks.locked)
+			}
+		})
 	}
 }
 
@@ -266,6 +321,41 @@ func TestARevocationIsAnnouncedToWhoeverHeldTheRole(t *testing.T) {
 	}
 	if len(told.announced) != 1 || told.announced[0].Accounts[0] != invitedID || told.announced[0].Scope != domain.HubScope(hubID) {
 		t.Errorf("announced %v, want the account at the hub", told.announced)
+	}
+}
+
+type lastMember struct{ named [][]shared.ID }
+
+func (l *lastMember) AfterMemberLeft(_ context.Context, _ shared.ID, named []shared.ID) (int, error) {
+	l.named = append(l.named, named)
+	return 0, nil
+}
+
+// UC-ID-16 check 6: a person's grant revoked asks whether the hub it was on has a member left; a
+// workspace grant cannot leave a private hub empty, and is not asked about.
+func TestARevocationAsksWhetherTheHubHasAMemberLeft(t *testing.T) {
+	last := &lastMember{}
+	handler := revokeHandler(newGrants(existingGrant(t)), &authorizer{}, &auditSink{})
+	handler.LastMember = last
+	if err := handler.Execute(t.Context(), admin(), RevokeMembershipCommand{MembershipID: membershipID}); err != nil {
+		t.Fatalf("revoking: %v", err)
+	}
+	if len(last.named) != 1 || len(last.named[0]) != 1 || last.named[0][0] != hubID {
+		t.Errorf("asked about %v, want the hub the grant was on", last.named)
+	}
+
+	workspace, err := domain.NewGrant(membershipID, tenant, invitedID, "", domain.TenantScope(), domain.RoleMember)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last = &lastMember{}
+	handler = revokeHandler(newGrants(workspace), &authorizer{}, &auditSink{})
+	handler.LastMember = last
+	if err := handler.Execute(t.Context(), admin(), RevokeMembershipCommand{MembershipID: membershipID}); err != nil {
+		t.Fatalf("revoking: %v", err)
+	}
+	if len(last.named) != 0 {
+		t.Errorf("a workspace grant asked about %v", last.named)
 	}
 }
 

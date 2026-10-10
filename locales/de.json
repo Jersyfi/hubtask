@@ -34,6 +34,8 @@
   "email.retention.subject.withheld": "Etwas, das du erreichen kannst, wird demnächst entfernt",
   "email.retention.body": "Eine Aufbewahrungsregel in diesem Workspace wird demnächst auf „{title}“ wirken. Bis dahin kann jeder, der den Eintrag bearbeiten darf, ihn aus der Frist nehmen - durch Bearbeiten, Verschieben oder eine Bitte, ihn zu behalten.\n\n{link}",
   "email.retention.body.withheld": "Eine Aufbewahrungsregel in diesem Workspace wird demnächst auf etwas wirken, das du erreichen kannst. Bis dahin kann jeder, der den Eintrag bearbeiten darf, ihn aus der Frist nehmen - durch Bearbeiten, Verschieben oder eine Bitte, ihn zu behalten.\n\n{link}",
+  "email.private_hub_trashed.subject": "Ein privater Hub liegt im Papierkorb",
+  "email.private_hub_trashed.body": "Ein privater Hub in diesem Workspace hat sein letztes Mitglied verloren und wurde in den Papierkorb verschoben. Niemand kann ihn jetzt öffnen; er wird endgültig entfernt, wenn die Frist des Papierkorbs abläuft. Die Liste der privaten Hubs zeigt seine Größe und den Tag, an dem er entfernt wird.\n\n{link}",
   "email.password_opened.subject": "Das Passwort ist für {workspace} geöffnet",
   "email.password_opened.body": "Der Betreiber dieser Installation hat das Passwort für {workspace} bis {until} geöffnet. Bis dahin kann sich dort jeder mit seinem Passwort anmelden, der eines hat - unabhängig von euren Anmeldeeinstellungen, meist weil euer Anbieter nicht erreichbar ist. Wer das angefragt hat und warum, steht im Audit-Protokoll des Workspaces. Wenn niemand bei euch das angefragt hat, sag dem Betreiber Bescheid.\n\n{link}",
   "email.password_closed.subject": "Das Passwort ist für {workspace} wieder geschlossen",

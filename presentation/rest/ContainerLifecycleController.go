@@ -18,6 +18,7 @@ import (
 const (
 	renameContainerUseCase         = "RenameContainer"
 	updateContainerPoliciesUseCase = "UpdateContainerPolicies"
+	setHubPrivacyUseCase           = "SetHubPrivacy"
 )
 
 // RenameContainer answers PATCH /containers/{containerId}.
@@ -116,6 +117,39 @@ func (c *RestController) UpdateContainerPolicies(
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), updateContainerPoliciesUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	w.Header().Set("ETag", etag(out.Int("version")))
+	writeJSON(w, r, http.StatusOK, containerResponse(out))
+}
+
+// SetHubPrivacy answers PUT /containers/{containerId}/privacy.
+func (c *RestController) SetHubPrivacy(
+	w http.ResponseWriter, r *http.Request,
+	containerID openapi.ContainerId, params openapi.SetHubPrivacyParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.HubPrivacy
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	in := usecase.Input{"container_id": containerID.String(), "private": body.Private}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), setHubPrivacyUseCase, actorOf(r), in)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return

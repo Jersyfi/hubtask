@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -48,9 +49,11 @@ type GrantMembershipCommand struct {
 // why the permission is checked at the scope being granted rather than at the tenant: an
 // administrator of one hub may hand out roles inside it and nowhere else.
 type GrantMembership struct {
-	Grants     repository.MembershipGrants
-	Accounts   repository.Accounts
-	Groups     repository.Groups
+	Grants   repository.MembershipGrants
+	Accounts repository.Accounts
+	Groups   repository.Groups
+	// Hubs refuses a group a role inside a private hub, under the hub's lock.
+	Hubs       repository.HubLocks
 	Authorizer Authorizer
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -95,6 +98,9 @@ func (h GrantMembership) Execute(
 		if err := h.subjectExists(ctx, grant); err != nil {
 			return err
 		}
+		if err := h.noGroupInPrivateHub(ctx, grant); err != nil {
+			return err
+		}
 		if err := h.Grants.Grant(ctx, grant); err != nil {
 			return err
 		}
@@ -129,12 +135,48 @@ func (h GrantMembership) subjectExists(ctx context.Context, grant domain.Grant) 
 	return nil
 }
 
+// noGroupInPrivateHub refuses a group a role on a private hub or below it (identity.md §22).
+//
+// A group's members are changed by whoever holds MANAGE_MEMBERS on the workspace, so a group inside
+// a private hub would be a way in the workspace's administrators hold the key to - the one way
+// ADR-0073 §1 rules out. The hub's row is locked first, as making a hub private locks it, so a
+// group cannot slip in while the hub turns private. A person's grant takes the same lock: a private
+// hub whose last member is leaving is trashed under it (work.LastMember), and a person given a role
+// meanwhile is then seen rather than handed a hub on its way out.
+func (h GrantMembership) noGroupInPrivateHub(ctx context.Context, grant domain.Grant) error {
+	if grant.Scope.Type == domain.ScopeTenant {
+		return nil
+	}
+	if h.Hubs == nil {
+		if grant.GroupID.IsZero() {
+			return nil
+		}
+		return shared.ErrInternal.WithDetail("memberships.hub_locks_missing")
+	}
+	hub, found, err := h.Hubs.LockHubOf(ctx, grant.Scope.ID)
+	if err != nil || !found || !hub.Private || grant.GroupID.IsZero() {
+		return err
+	}
+	return shared.ErrValidation.
+		WithDetail("memberships.group_in_private_hub").
+		WithFields(shared.FieldError{Path: "/group_id", Code: "memberships.group_in_private_hub"})
+}
+
 func (h GrantMembership) recordAudit(
 	ctx context.Context, grant domain.Grant, actor appshared.ActorContext,
 ) error {
-	return h.Audit.Append(ctx, audit.Entry{
+	return h.Audit.Append(ctx, GrantedEntry(ctx, grant, actor, h.Clock.Now()))
+}
+
+// GrantedEntry is the trail's entry for a grant, for every writer of one: a grant made as a side
+// effect - the owner of a private hub made with it (ADR-0073 §2) - reads exactly as one made here,
+// which is what an access review filters on.
+func GrantedEntry(
+	ctx context.Context, grant domain.Grant, actor appshared.ActorContext, at time.Time,
+) audit.Entry {
+	return audit.Entry{
 		TenantID:   grant.TenantID,
-		OccurredAt: h.Clock.Now(),
+		OccurredAt: at,
 		Action:     MembershipGrantedAction,
 		Outcome:    audit.OutcomeSuccess,
 		// Notice, like an invitation: this is the entry an access review looks for.
@@ -146,7 +188,7 @@ func (h GrantMembership) recordAudit(
 		TargetID:   grant.ID,
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		Changes:    grantChanges(grant),
-	})
+	}
 }
 
 // grantChanges is what both entries record. Everything about a grant is a code or an identifier -
@@ -314,11 +356,21 @@ type RevokeMembership struct {
 	Grants      repository.MembershipGrants
 	Authorizer  Authorizer
 	Revocations Revoker
-	Audit       audit.Sink
-	UnitOfWork  persistence.UnitOfWork
-	Clock       clock.Clock
+	// LastMember trashes a private hub the revocation left without a member (ADR-0073 §5). Optional:
+	// wired without it, the retention pass finds the hub instead.
+	LastMember LastMember
+	Audit      audit.Sink
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
 	// StepUp judges the fresh proof revoking an OWNER membership demands.
 	StepUp stepup.Verifier
+}
+
+// LastMember is the work context's answer to a membership that ended: a private hub nobody is left
+// in goes to the trash, in the caller's transaction. Named are the hubs, collections or entries the
+// ended memberships were on.
+type LastMember interface {
+	AfterMemberLeft(ctx context.Context, tenantID shared.ID, named []shared.ID) (int, error)
 }
 
 // Execute removes the membership.
@@ -387,7 +439,16 @@ func (h RevokeMembership) Execute(
 		if err := h.Revocations.Announce(ctx, grant.TenantID, loss); err != nil {
 			return err
 		}
-		return h.recordAudit(ctx, grant, actor)
+		if err := h.recordAudit(ctx, grant, actor); err != nil {
+			return err
+		}
+		// After the audit entry, so the trail reads the revocation before the deletion it caused.
+		// A group's grant cannot be the last member's: no group holds a role in a private hub.
+		if h.LastMember == nil || grant.Scope.Type == domain.ScopeTenant || grant.AccountID.IsZero() {
+			return nil
+		}
+		_, err = h.LastMember.AfterMemberLeft(ctx, grant.TenantID, []shared.ID{grant.Scope.ID})
+		return err
 	})
 }
 

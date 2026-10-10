@@ -85,6 +85,9 @@ type containerVerb struct {
 	// op is what an offline client is told about each container of the batch: a deletion for one it
 	// should drop, an upsert for one that is back (offline-sync.md §3.1).
 	op changelog.Operation
+	// reason is why the system rather than a person trashed it, for the audit entry; empty for a
+	// person's act, whose reason is that they asked.
+	reason string
 }
 
 var (
@@ -93,6 +96,14 @@ var (
 		entering: true,
 		announce: announceCascade(event.NewContainerDeleted),
 		op:       changelog.Delete,
+	}
+	// orphanedHub is the system's deletion of a private hub nobody is left in (ADR-0073 §5).
+	orphanedHub = containerVerb{
+		action:   ContainerDeletedAction,
+		entering: true,
+		announce: announceCascade(event.NewContainerDeleted),
+		op:       changelog.Delete,
+		reason:   ReasonPrivateHubOrphaned,
 	}
 	restoringContainer = containerVerb{
 		action:   ContainerRestoredAction,
@@ -305,6 +316,15 @@ func (w ContainerWriter) recordTrashAudit(
 	if container.DeletedAt != nil {
 		deletedAt = container.DeletedAt.UTC().Format(time.RFC3339Nano)
 	}
+	changes := []audit.Change{
+		{Field: "type", Classification: audit.Open, To: string(container.Type)},
+		{Field: domain.FieldDeletedAt, Classification: audit.Open, To: deletedAt},
+		{Field: "collections", Classification: audit.Open, To: strconv.Itoa(len(cascade.Collections))},
+		{Field: "items", Classification: audit.Open, To: strconv.Itoa(cascade.Items)},
+	}
+	if verb.reason != "" {
+		changes = append(changes, audit.Change{Field: "reason", Classification: audit.Open, To: verb.reason})
+	}
 
 	return w.Audit.Append(ctx, audit.Entry{
 		TenantID:   container.TenantID,
@@ -320,17 +340,7 @@ func (w ContainerWriter) recordTrashAudit(
 		TargetType: containerTarget,
 		TargetID:   container.ID,
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-		Changes: audit.Changes(
-			audit.Change{Field: "type", Classification: audit.Open, To: string(container.Type)},
-			audit.Change{Field: domain.FieldDeletedAt, Classification: audit.Open, To: deletedAt},
-			audit.Change{
-				Field: "collections", Classification: audit.Open,
-				To: strconv.Itoa(len(cascade.Collections)),
-			},
-			audit.Change{
-				Field: "items", Classification: audit.Open, To: strconv.Itoa(cascade.Items),
-			},
-		),
+		Changes:    audit.Changes(changes...),
 	})
 }
 

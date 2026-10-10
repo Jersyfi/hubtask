@@ -170,3 +170,69 @@ func (r MembershipRepository) Administrators(
 	}
 	return administrators, nil
 }
+
+// HubsOf answers the hub each named container or entry sits under.
+//
+// The tenant is not a parameter: row level security bounds the query to the tenant of the running
+// transaction, so another tenant's container answers nothing even when its identifier is known
+// (ADR-0010).
+func (r MembershipRepository) HubsOf(
+	ctx context.Context, ids []shared.ID,
+) (map[shared.ID]repository.Hub, error) {
+	if len(ids) == 0 {
+		return map[shared.ID]repository.Hub{}, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	named := make([]pgtype.UUID, 0, len(ids))
+	for _, each := range ids {
+		id, err := uuidOf(each)
+		if err != nil {
+			return nil, err
+		}
+		named = append(named, id)
+	}
+
+	rows, err := queries.HubsOf(ctx, named)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the hubs: %w", err))
+	}
+
+	hubs := make(map[shared.ID]repository.Hub, len(rows))
+	for _, row := range rows {
+		namedID, err := idFrom(row.NamedID)
+		if err != nil {
+			return nil, err
+		}
+		hubID, err := idFrom(row.HubID)
+		if err != nil {
+			return nil, err
+		}
+		hubs[namedID] = repository.Hub{ID: hubID, Private: row.Private}
+	}
+	return hubs, nil
+}
+
+// HoldsAny answers whether the account holds a role anywhere in the transaction's tenant.
+func (r MembershipRepository) HoldsAny(ctx context.Context, accountID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	held, err := queries.HoldsAnyMembership(ctx, account)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading whether the account holds a role: %w", err))
+	}
+	return held, nil
+}
