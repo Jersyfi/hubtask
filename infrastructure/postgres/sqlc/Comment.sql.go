@@ -11,19 +11,57 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearCommentTexts = `-- name: ClearCommentTexts :execrows
+UPDATE comment SET body = ''
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NOT NULL AND body <> ''
+  AND id = ANY($1::uuid[])
+`
+
+// The kept text, gone once no hold covers it. Nothing else of the row changes and no version is
+// spent: every reader already saw an empty body (FindComment), so nobody can tell the difference
+// and nothing is announced. A living comment is never matched.
+func (q *Queries) ClearCommentTexts(ctx context.Context, ids []pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCommentTexts, ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const findComment = `-- name: FindComment :one
-SELECT id, tenant_id, item_id, author_id, parent_comment_id, body,
+SELECT id, tenant_id, item_id, author_id, parent_comment_id,
+       (CASE WHEN deleted_at IS NULL THEN body ELSE '' END)::text AS body,
        created_at, edited_at, deleted_at, version, kind, system_code, system_params
 FROM comment
 WHERE id = $1
 `
 
+type FindCommentRow struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	ItemID          pgtype.UUID
+	AuthorID        pgtype.UUID
+	ParentCommentID pgtype.UUID
+	Body            string
+	CreatedAt       pgtype.Timestamptz
+	EditedAt        pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	Version         int32
+	Kind            string
+	SystemCode      *string
+	SystemParams    []byte
+}
+
 // Tombstones are returned rather than filtered out: whether a deleted comment may be edited is
 // the domain's question, and a query that hid one would turn "it was deleted" into "it never
 // existed" - which is not what a thread full of replies to it says.
-func (q *Queries) FindComment(ctx context.Context, id pgtype.UUID) (Comment, error) {
+//
+// A tombstone's body is answered empty whatever is stored: the text a legal hold keeps
+// (SetCommentDeleted) is the hold's, never a reader's, and masking it here is what keeps every door
+// from serving it.
+func (q *Queries) FindComment(ctx context.Context, id pgtype.UUID) (FindCommentRow, error) {
 	row := q.db.QueryRow(ctx, findComment, id)
-	var i Comment
+	var i FindCommentRow
 	err := row.Scan(
 		&i.ID,
 		&i.TenantID,
@@ -90,8 +128,63 @@ func (q *Queries) InsertComment(ctx context.Context, arg InsertCommentParams) er
 	return err
 }
 
+const keptCommentTexts = `-- name: KeptCommentTexts :many
+SELECT c.id, c.item_id, w.path, w.collection_id, col.parent_id AS hub_id
+FROM comment c
+JOIN work_item w ON w.tenant_id = c.tenant_id AND w.id = c.item_id
+JOIN container col ON col.tenant_id = w.tenant_id AND col.id = w.collection_id
+WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NOT NULL AND c.body <> ''
+  AND c.id > $1::uuid
+ORDER BY c.id
+LIMIT $2
+`
+
+type KeptCommentTextsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type KeptCommentTextsRow struct {
+	ID           pgtype.UUID
+	ItemID       pgtype.UUID
+	Path         string
+	CollectionID pgtype.UUID
+	HubID        pgtype.UUID
+}
+
+// The tombstones whose text a legal hold kept, with where their entry is: what a hold is judged
+// against (lifecycle.Target) - the entry's path, its collection and the collection's hub. One page
+// in identifier order; the pass walks every page, because a text still held stays in the set.
+// Served by comment_kept_text_idx, which is partial on exactly this predicate.
+func (q *Queries) KeptCommentTexts(ctx context.Context, arg KeptCommentTextsParams) ([]KeptCommentTextsRow, error) {
+	rows, err := q.db.Query(ctx, keptCommentTexts, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []KeptCommentTextsRow{}
+	for rows.Next() {
+		var i KeptCommentTextsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ItemID,
+			&i.Path,
+			&i.CollectionID,
+			&i.HubID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listComments = `-- name: ListComments :many
-SELECT id, tenant_id, item_id, author_id, parent_comment_id, body,
+SELECT id, tenant_id, item_id, author_id, parent_comment_id,
+       (CASE WHEN deleted_at IS NULL THEN body ELSE '' END)::text AS body,
        created_at, edited_at, deleted_at, version, kind, system_code, system_params
 FROM comment
 WHERE item_id = $1
@@ -110,15 +203,32 @@ type ListCommentsParams struct {
 	PageSize        int32
 }
 
+type ListCommentsRow struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	ItemID          pgtype.UUID
+	AuthorID        pgtype.UUID
+	ParentCommentID pgtype.UUID
+	Body            string
+	CreatedAt       pgtype.Timestamptz
+	EditedAt        pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	Version         int32
+	Kind            string
+	SystemCode      *string
+	SystemParams    []byte
+}
+
 // One page of one entry's discussion, oldest first: a conversation reads top down, and a page
 // boundary in the middle of it must not reorder what was already read. Tombstones are in it -
-// that is the point of a soft deletion (§3.5) - and the caller serves them without their body.
+// that is the point of a soft deletion (§3.5) - and the caller serves them without their body,
+// which is answered empty here whatever a hold keeps (FindComment).
 //
 // Keyset rather than an offset, like every list in this schema (api-guidelines.md §4). The
 // boundary is the pair (created_at, id): two comments written in the same millisecond are one
 // timestamp, and a cursor on the time alone would skip the second or return the first forever.
 // Served by comment_item_idx, whose leading columns are this ORDER BY.
-func (q *Queries) ListComments(ctx context.Context, arg ListCommentsParams) ([]Comment, error) {
+func (q *Queries) ListComments(ctx context.Context, arg ListCommentsParams) ([]ListCommentsRow, error) {
 	rows, err := q.db.Query(ctx, listComments,
 		arg.ItemID,
 		arg.CursorCreatedAt,
@@ -129,9 +239,9 @@ func (q *Queries) ListComments(ctx context.Context, arg ListCommentsParams) ([]C
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Comment{}
+	items := []ListCommentsRow{}
 	for rows.Next() {
-		var i Comment
+		var i ListCommentsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.TenantID,
@@ -192,15 +302,16 @@ func (q *Queries) SetCommentBody(ctx context.Context, arg SetCommentBodyParams) 
 
 const setCommentDeleted = `-- name: SetCommentDeleted :execrows
 UPDATE comment SET
-  body       = '',
-  deleted_at = $1,
+  body       = CASE WHEN $1::boolean THEN body ELSE '' END,
+  deleted_at = $2,
   version    = version + 1
-WHERE id = $2::uuid
-  AND version = $3
+WHERE id = $3::uuid
+  AND version = $4
   AND deleted_at IS NULL
 `
 
 type SetCommentDeletedParams struct {
+	KeepText        bool
 	DeletedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -209,8 +320,17 @@ type SetCommentDeletedParams struct {
 // The tombstone: text gone, identity and timestamps kept. edited_at survives
 // deliberately - that the words had been rewritten is part of the thread's history, what they
 // were is not.
+//
+// keep_text is a legal hold covering the comment (data-retention.md §4): the row is a tombstone for
+// every reader all the same, and the text stays until the retention pass clears it
+// (ClearCommentTexts) once no hold covers it.
 func (q *Queries) SetCommentDeleted(ctx context.Context, arg SetCommentDeletedParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setCommentDeleted, arg.DeletedAt, arg.ID, arg.ExpectedVersion)
+	result, err := q.db.Exec(ctx, setCommentDeleted,
+		arg.KeepText,
+		arg.DeletedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
 	if err != nil {
 		return 0, err
 	}

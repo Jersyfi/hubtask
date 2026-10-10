@@ -186,6 +186,42 @@ func TestTheTombstoneClearsTheText(t *testing.T) {
 	}
 }
 
+// A tombstone whose text a legal hold kept reads exactly like any other: no read hands the text
+// out, whatever the row stores (data-retention.md §4, UC-LIF-06 check 9).
+func TestAKeptTextIsNeverRead(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	task := seedTask(ctx, t, tenantA, authorA, collection)
+	comment := seedComment(ctx, t, tenantA, task, authorA, "We pay anyway", created)
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return commentRepo().SetDeleted(ctx, comment.Removed(changedAt), comment.Version)
+	}); err != nil {
+		t.Fatalf("deleting: %v", err)
+	}
+	// The stored shape a hold leaves behind, written past the application on purpose.
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE comment SET body = 'We pay anyway' WHERE id = $1`, comment.ID.String()); err != nil {
+		t.Fatalf("keeping the text: %v", err)
+	}
+
+	if stored := findComment(ctx, t, tenantA, comment.ID); stored.Body != "" || stored.DeletedAt == nil {
+		t.Errorf("Find served %q, want the tombstone without its text", stored.Body)
+	}
+	var page repository.CommentPage
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		page, err = commentRepo().List(ctx, task, repository.Page{Size: 10})
+		return err
+	}); err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	if len(page.Comments) != 1 || page.Comments[0].Body != "" {
+		t.Errorf("List served %+v, want the tombstone without its text", page.Comments)
+	}
+}
+
 func TestCommentsAreInvisibleFromAnotherTenant(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
