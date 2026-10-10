@@ -190,6 +190,9 @@ type Containers interface {
 	// document is written and the rest is left alone - the others have use cases of their own.
 	SetPolicies(ctx context.Context, container work.Container, expectedVersion int) error
 
+	// SetPrivate writes whether a hub is private, or reports a version conflict.
+	SetPrivate(ctx context.Context, container work.Container, expectedVersion int) error
+
 	// SetArchived writes the container's own archive stamp, set or cleared, or reports a version
 	// conflict.
 	//

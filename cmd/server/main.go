@@ -1564,6 +1564,9 @@ func run() error {
 		}.Descriptor(),
 		work.RenameContainer{Writer: containerWriter}.Descriptor(),
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
+		work.SetHubPrivacy{
+			Writer: containerWriter, Hubs: postgres.NewHubLockRepository(), Revocations: revocations,
+		}.Descriptor(),
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.MoveContainer{Writer: containerWriter, Revocations: revocations}.Descriptor(),

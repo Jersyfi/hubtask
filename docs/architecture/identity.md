@@ -633,3 +633,34 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 | I-9 | The installation's provider secret is not re-sealed by a key rotation ([security.md](./security.md) §16, S-6). |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
 | I-11 | Passkeys (the contract is shaped for them: `methods` a list, `signed_in_with` a closed set, recovery codes on the account), then plans, then custom domains. |
+
+---
+
+## 22. Private hubs
+
+A private hub is reached only through a membership on the hub itself, on a collection in it or on
+an entry in one; a role held on the workspace - its owners' and administrators' included - grants
+nothing there ([ADR-0073](../adr/ADR-0073-private-hubs.md) §1,
+[UC-ID-16](../usecases/identity/UC-ID-16-keep-a-hub-private.md)). The rule is
+`service.EffectiveRole` and `service.Allows` on a path the authoriser marks private; the
+authoriser reads the mark from the hub itself (`Memberships.HubsOf`), never from how a caller
+built the path, and resolves every role in the product (`test/architecture`,
+`TestTheRoleIsResolvedOnlyByTheAuthoriser`).
+
+| Act | Who | Answer otherwise |
+|---|---|---|
+| Create a private hub (`private: true`) | a person (`USER`) holding any role anywhere in the workspace, with `containers:write`; no `STRUCTURE`. The creator is granted `OWNER` on it in the same transaction, audited as `membership.granted` | `access.not_permitted` 403 for a service account or somebody holding nothing; `containers.private_only_hubs` 422 on a collection |
+| Make an existing hub private | `STRUCTURE` on the workspace **and** `OWNER` held on the hub itself | `access.not_permitted` 403; not found for a hub the actor cannot see |
+| Share it again | `OWNER` held on the hub itself | the same |
+| Anything in a private hub the actor holds nothing in | nobody | `containers.not_found` / `items.not_found` 404, as for a hub that is not there (T-04) |
+
+A role on the workspace never makes anybody a hub's owner: whoever created a shared hub owns it
+only once granted `OWNER` there.
+
+**No group inside a private hub.** A group's members are changed by whoever holds
+`MANAGE_MEMBERS` on the workspace, so a group holding a role in a private hub would be the
+administrators' way in - the one way ADR-0073 §1 rules out. Granting a group a role on a private
+hub or below it is refused (`memberships.group_in_private_hub`, 422), and so is making a hub
+private while a group holds a role in it (`containers.private_hub_has_groups`, 409). Both take the
+hub's row first (`HubLocks`), so the two cannot pass each other. It refuses only what concerns a
+private hub; nothing that existed before private hubs behaves differently.

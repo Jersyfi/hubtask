@@ -172,6 +172,35 @@ func TestNewContainerTakesPrivacyOnAHubOnly(t *testing.T) {
 	}
 }
 
+// Marking and unmarking: a hub moves and says so, the same value moves nothing, a collection and a
+// trashed hub are refused.
+func TestWithPrivacy(t *testing.T) {
+	hub, _ := work.NewContainer(baseHub)
+	later := created.Add(time.Hour)
+
+	private, changes, err := hub.WithPrivacy(true, later)
+	if err != nil || !private.Private || len(changes) != 1 || changes[0].From != "false" ||
+		changes[0].To != "true" || !private.UpdatedAt.Equal(later) {
+		t.Fatalf("marking: %+v, %+v, %v", private, changes, err)
+	}
+	if _, changes, err := private.WithPrivacy(true, later); err != nil || len(changes) != 0 {
+		t.Errorf("marking again moved %+v (%v)", changes, err)
+	}
+	if shared, changes, err := private.WithPrivacy(false, later); err != nil || shared.Private || len(changes) != 1 {
+		t.Errorf("unmarking: %+v, %+v, %v", shared, changes, err)
+	}
+
+	collection, _ := work.NewContainer(baseColl)
+	_, _, err = collection.WithPrivacy(true, later)
+	assertDetail(t, err, shared.ErrValidation, "containers.private_only_hubs")
+
+	trashed := hub
+	trashed.DeletedAt = &later
+	if _, _, err := trashed.WithPrivacy(true, later); err == nil {
+		t.Error("a trashed hub was made private")
+	}
+}
+
 func TestNewContainerRefusesAnUnknownType(t *testing.T) {
 	in := baseHub
 	in.Type = "PROJECT"

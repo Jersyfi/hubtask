@@ -143,7 +143,7 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 	if !request.satisfiedBy(memberships, path) {
 		if hidden(memberships, path) {
 			s.recordRefusal(ctx, actor, request, "private")
-			return appshared.ContainerNotFound()
+			return appshared.ContainerNotFound(deepestContainer(path.path))
 		}
 		s.recordRefusal(ctx, actor, request, "permission")
 		return notPermitted(request)
@@ -248,7 +248,7 @@ func (s Service) ReachInto(
 
 	if hidden(memberships, path) {
 		s.recordRefusal(ctx, actor, request, "private")
-		return Reach{}, appshared.ContainerNotFound()
+		return Reach{}, appshared.ContainerNotFound(containerID)
 	}
 	s.recordRefusal(ctx, actor, request, "permission")
 	return Reach{}, notPermitted(request)
@@ -275,7 +275,7 @@ func (s Service) decideAboutTheEntry(
 		if request.On.ID.IsZero() {
 			if at.privacy == service.PrivatePath {
 				// Except inside a private hub, which is not there for whoever holds nothing in it.
-				return appshared.ContainerNotFound()
+				return appshared.ContainerNotFound(deepestContainer(at.path))
 			}
 			// A creation names no entry, so there is no existence to disclose: the caller named a
 			// container it already holds an identifier for, and hiding that is the container
@@ -309,6 +309,17 @@ func hidden(memberships []identity.Membership, at resolved) bool {
 	}
 	_, found := service.EffectiveRole(memberships, at.path, at.privacy)
 	return !found
+}
+
+// deepestContainer is the lowest hub or collection on a path: the one a caller named.
+func deepestContainer(path []identity.Scope) shared.ID {
+	var id shared.ID
+	for _, step := range path {
+		if step.Type == identity.ScopeHub || step.Type == identity.ScopeCollection {
+			id = step.ID
+		}
+	}
+	return id
 }
 
 // notPermitted is the one refusal, so that every path to it reads the same to a client.

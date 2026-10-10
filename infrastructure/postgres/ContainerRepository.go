@@ -256,6 +256,28 @@ func (r ContainerRepository) SetPolicies(
 	return containerConflict(affected, container, expectedVersion)
 }
 
+// SetPrivate writes whether a hub is private.
+func (r ContainerRepository) SetPrivate(
+	ctx context.Context, container work.Container, expectedVersion int,
+) error {
+	queries, id, err := containerWrite(ctx, container.ID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetContainerPrivate(ctx, sqlc.SetContainerPrivateParams{
+		Private:   container.Private,
+		UpdatedAt: timestampOf(container.UpdatedAt),
+		ID:        id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return containerWriteError(err, container, "writing the privacy")
+	}
+	return containerConflict(affected, container, expectedVersion)
+}
+
 // SetArchived writes the container's own archive stamp, set or cleared.
 func (r ContainerRepository) SetArchived(
 	ctx context.Context, container work.Container, expectedVersion int,

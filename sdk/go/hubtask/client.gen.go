@@ -5450,6 +5450,12 @@ type HttpRequestCall struct {
 // HttpRequestCallMethod defines model for HttpRequestCall.Method.
 type HttpRequestCallMethod string
 
+// HubPrivacy defines model for HubPrivacy.
+type HubPrivacy struct {
+	// Private true to make the hub private, false to share it again.
+	Private bool `json:"private"`
+}
+
 // IdentityProvider One provider people can sign in through. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
 type IdentityProvider struct {
 	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.
@@ -8951,6 +8957,12 @@ type UpdateContainerPoliciesParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetHubPrivacyParams defines parameters for SetHubPrivacy.
+type SetHubPrivacyParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ArchiveContainerParams defines parameters for ArchiveContainer.
 type ArchiveContainerParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -9838,6 +9850,9 @@ type UpdateLabelApplicationMergePatchPlusJSONRequestBody = LabelUpdate
 
 // UpdateContainerPoliciesJSONRequestBody defines body for UpdateContainerPolicies for application/json ContentType.
 type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
+
+// SetHubPrivacyJSONRequestBody defines body for SetHubPrivacy for application/json ContentType.
+type SetHubPrivacyJSONRequestBody = HubPrivacy
 
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
@@ -11673,6 +11688,18 @@ type ClientInterface interface {
 	//
 	// Replaces a collection's policies - the way it works, as opposed to what it is called. A key that is not sent falls back to its default rather than keeping the stored value: this is a PUT, and a document that partly remembers what it replaced is one nobody can reason about. A hub carries no policies and is refused.
 	UpdateContainerPolicies(ctx context.Context, containerId ContainerId, params *UpdateContainerPoliciesParams, body UpdateContainerPoliciesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetHubPrivacyWithBody performs a PUT /containers/{containerId}/privacy (the `SetHubPrivacy` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
+	SetHubPrivacyWithBody(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetHubPrivacy performs a PUT /containers/{containerId}/privacy (the `SetHubPrivacy` operationId) request.
+	// Takes a body of the `application/json` content type.
+	//
+	// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
+	SetHubPrivacy(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, body SetHubPrivacyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ArchiveContainer performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 	//
@@ -17020,6 +17047,38 @@ func (c *Client) UpdateContainerPoliciesWithBody(ctx context.Context, containerI
 // Replaces a collection's policies - the way it works, as opposed to what it is called. A key that is not sent falls back to its default rather than keeping the stored value: this is a PUT, and a document that partly remembers what it replaced is one nobody can reason about. A hub carries no policies and is refused.
 func (c *Client) UpdateContainerPolicies(ctx context.Context, containerId ContainerId, params *UpdateContainerPoliciesParams, body UpdateContainerPoliciesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateContainerPoliciesRequest(c.Server, containerId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetHubPrivacyWithBody performs a PUT /containers/{containerId}/privacy (the `SetHubPrivacy` operationId) request,
+// with any type of body and a specified content type.
+//
+// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
+func (c *Client) SetHubPrivacyWithBody(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetHubPrivacyRequestWithBody(c.Server, containerId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetHubPrivacy performs a PUT /containers/{containerId}/privacy (the `SetHubPrivacy` operationId) request.
+// Takes a body of the `application/json` content type.
+//
+// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
+func (c *Client) SetHubPrivacy(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, body SetHubPrivacyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetHubPrivacyRequest(c.Server, containerId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -26604,6 +26663,68 @@ func NewUpdateContainerPoliciesRequestWithBody(server string, containerId Contai
 	}
 
 	operationPath := fmt.Sprintf("/containers/%s/policies", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewSetHubPrivacyRequest calls the generic SetHubPrivacy builder with application/json body
+func NewSetHubPrivacyRequest(server string, containerId ContainerId, params *SetHubPrivacyParams, body SetHubPrivacyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetHubPrivacyRequestWithBody(server, containerId, params, "application/json", bodyReader)
+}
+
+// NewSetHubPrivacyRequestWithBody constructs an http.Request for the SetHubPrivacy method, with any body, and a specified content type
+func NewSetHubPrivacyRequestWithBody(server string, containerId ContainerId, params *SetHubPrivacyParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/privacy", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -36802,6 +36923,20 @@ type ClientWithResponsesInterface interface {
 	// Replaces a collection's policies - the way it works, as opposed to what it is called. A key that is not sent falls back to its default rather than keeping the stored value: this is a PUT, and a document that partly remembers what it replaced is one nobody can reason about. A hub carries no policies and is refused.
 	UpdateContainerPoliciesWithResponse(ctx context.Context, containerId ContainerId, params *UpdateContainerPoliciesParams, body UpdateContainerPoliciesJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateContainerPoliciesResult, error)
 
+	// SetHubPrivacyWithBodyWithResponse performs a PUT /containers/{containerId}/privacy (the `SetHubPrivacy` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	SetHubPrivacyWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetHubPrivacyResult, error)
+
+	// SetHubPrivacyWithResponse performs a PUT /containers/{containerId}/privacy (the `SetHubPrivacy` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
+	SetHubPrivacyWithResponse(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, body SetHubPrivacyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetHubPrivacyResult, error)
+
 	// ArchiveContainerWithResponse performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 	//
 	// Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.
@@ -44660,6 +44795,61 @@ func (r UpdateContainerPoliciesResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateContainerPoliciesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// SetHubPrivacyResult200Headers the declared response headers of an HTTP 200 response for SetHubPrivacy
+type SetHubPrivacyResult200Headers struct {
+	ETag *string
+}
+
+type SetHubPrivacyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Container
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *SetHubPrivacyResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetHubPrivacyResult) GetJSON200() *Container {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetHubPrivacyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetHubPrivacyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetHubPrivacyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetHubPrivacyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetHubPrivacyResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -55627,6 +55817,32 @@ func (c *ClientWithResponses) UpdateContainerPoliciesWithResponse(ctx context.Co
 	return ParseUpdateContainerPoliciesResult(rsp)
 }
 
+// SetHubPrivacyWithBodyWithResponse performs a PUT /containers/{containerId}/privacy (the `SetHubPrivacy` operationId) request,
+// with any type of body and a specified content type.
+//
+// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) SetHubPrivacyWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetHubPrivacyResult, error) {
+	rsp, err := c.SetHubPrivacyWithBody(ctx, containerId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetHubPrivacyResult(rsp)
+}
+
+// SetHubPrivacyWithResponse performs a PUT /containers/{containerId}/privacy (the `SetHubPrivacy` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
+func (c *ClientWithResponses) SetHubPrivacyWithResponse(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, body SetHubPrivacyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetHubPrivacyResult, error) {
+	rsp, err := c.SetHubPrivacy(ctx, containerId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetHubPrivacyResult(rsp)
+}
+
 // ArchiveContainerWithResponse performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 //
 // Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.
@@ -63293,6 +63509,52 @@ func ParseUpdateContainerPoliciesResult(rsp *http.Response) (*UpdateContainerPol
 	switch {
 	case rsp.StatusCode == 200:
 		var headers UpdateContainerPoliciesResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseSetHubPrivacyResult parses an HTTP response from a SetHubPrivacyWithResponse call
+func ParseSetHubPrivacyResult(rsp *http.Response) (*SetHubPrivacyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetHubPrivacyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Container
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers SetHubPrivacyResult200Headers
 		if values := rsp.Header.Values("ETag"); len(values) > 0 {
 			var value string
 			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {

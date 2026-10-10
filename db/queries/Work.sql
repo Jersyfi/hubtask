@@ -167,6 +167,15 @@ UPDATE container SET
   version    = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
+-- name: SetContainerPrivate :execrows
+-- Whether a hub is private (ADR-0073 §1). The column's CHECK refuses it on a collection whatever
+-- the caller did.
+UPDATE container SET
+  private    = sqlc.arg('private')::boolean,
+  updated_at = sqlc.arg('updated_at'),
+  version    = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
 -- name: SetContainerArchived :execrows
 -- The archive stamp, set or cleared. One statement for both directions, because they differ in the
 -- value and in nothing else.

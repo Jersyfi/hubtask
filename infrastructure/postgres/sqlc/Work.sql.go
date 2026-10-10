@@ -1495,6 +1495,36 @@ func (q *Queries) SetContainerPolicies(ctx context.Context, arg SetContainerPoli
 	return result.RowsAffected(), nil
 }
 
+const setContainerPrivate = `-- name: SetContainerPrivate :execrows
+UPDATE container SET
+  private    = $1::boolean,
+  updated_at = $2,
+  version    = version + 1
+WHERE id = $3::uuid AND version = $4
+`
+
+type SetContainerPrivateParams struct {
+	Private         bool
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// Whether a hub is private (ADR-0073 §1). The column's CHECK refuses it on a collection whatever
+// the caller did.
+func (q *Queries) SetContainerPrivate(ctx context.Context, arg SetContainerPrivateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setContainerPrivate,
+		arg.Private,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setContainerRank = `-- name: SetContainerRank :execrows
 UPDATE container SET
   order_key  = $1,

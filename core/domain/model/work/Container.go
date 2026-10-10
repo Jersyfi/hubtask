@@ -4,6 +4,7 @@
 package work
 
 import (
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -366,6 +367,7 @@ const (
 	FieldColorToken       = "color_token"
 	FieldCompletionPolicy = "completion_policy"
 	FieldAutoAssign       = "auto_assign"
+	FieldPrivate          = "private"
 	FieldParentID         = "parent_id"
 	FieldOrderKey         = "order_key"
 	FieldArchivedAt       = "archived_at"
@@ -535,6 +537,25 @@ func (c Container) WithPolicies(policies ContainerPolicies, at time.Time) (Conta
 	}
 	c.UpdatedAt = at
 	return c, changes, nil
+}
+
+// WithPrivacy makes a hub private or shared again (ADR-0073 §1) and reports whether it moved. Who
+// may is the application's question; that only a hub can be, and only one that may be written,
+// is this one's.
+func (c Container) WithPrivacy(private bool, at time.Time) (Container, []FieldChange, error) {
+	if c.Type != ContainerHub {
+		return Container{}, nil, ErrPrivateOnlyHubs()
+	}
+	if err := c.EnsureEditable(); err != nil {
+		return Container{}, nil, err
+	}
+	if c.Private == private {
+		return c, nil, nil
+	}
+	change := FieldChange{Field: FieldPrivate, From: strconv.FormatBool(c.Private), To: strconv.FormatBool(private)}
+	c.Private = private
+	c.UpdatedAt = at
+	return c, []FieldChange{change}, nil
 }
 
 // autoAssignChange compares the stored auto_assign key with the submitted one. The change set

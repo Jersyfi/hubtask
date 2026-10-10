@@ -7772,6 +7772,57 @@
         }
       }
     },
+    "/containers/{containerId}/privacy": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ContainerId"
+        }
+      ],
+      "put": {
+        "tags": [
+          "containers"
+        ],
+        "operationId": "setHubPrivacy",
+        "description": "Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HubPrivacy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Container"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/containers/{containerId}:move": {
       "parameters": [
         {
@@ -15090,6 +15141,18 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "HubPrivacy": {
+        "type": "object",
+        "required": [
+          "private"
+        ],
+        "properties": {
+          "private": {
+            "type": "boolean",
+            "description": "true to make the hub private, false to share it again."
           }
         }
       },

@@ -935,6 +935,10 @@ class Client:
         """PUT /containers/{containerId}/policies"""
         return self._call("PUT", "/containers/{containerId}/policies", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def set_hub_privacy(self, container_id: str, body: "HubPrivacy", *, if_match: str | None = None) -> "Container":
+        """PUT /containers/{containerId}/privacy"""
+        return self._call("PUT", "/containers/{containerId}/privacy", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
     def move_container(self, container_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "Container":
         """POST /containers/{containerId}:move"""
         return self._call("POST", "/containers/{containerId}:move", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")

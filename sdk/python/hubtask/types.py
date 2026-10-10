@@ -893,6 +893,9 @@ class ContainerUpdate(TypedDict, total=False):
     icon: str | None
     color_token: str | None
 
+class HubPrivacy(TypedDict, total=False):
+    private: Required[bool]
+
 class ContainerPolicies(TypedDict, total=False):
     """How a collection works, as opposed to what it is called. Two keys, and no more: a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign."""
     completion_policy: "CompletionPolicy"

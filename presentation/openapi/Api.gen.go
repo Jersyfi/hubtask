@@ -5444,6 +5444,12 @@ type HttpRequestCall struct {
 // HttpRequestCallMethod defines model for HttpRequestCall.Method.
 type HttpRequestCallMethod string
 
+// HubPrivacy defines model for HubPrivacy.
+type HubPrivacy struct {
+	// Private true to make the hub private, false to share it again.
+	Private bool `json:"private"`
+}
+
 // IdentityProvider One provider people can sign in through. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
 type IdentityProvider struct {
 	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.
@@ -8945,6 +8951,12 @@ type UpdateContainerPoliciesParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetHubPrivacyParams defines parameters for SetHubPrivacy.
+type SetHubPrivacyParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ArchiveContainerParams defines parameters for ArchiveContainer.
 type ArchiveContainerParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -9833,6 +9845,9 @@ type UpdateLabelApplicationMergePatchPlusJSONRequestBody = LabelUpdate
 // UpdateContainerPoliciesJSONRequestBody defines body for UpdateContainerPolicies for application/json ContentType.
 type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
 
+// SetHubPrivacyJSONRequestBody defines body for SetHubPrivacy for application/json ContentType.
+type SetHubPrivacyJSONRequestBody = HubPrivacy
+
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
 
@@ -10384,6 +10399,9 @@ type ServerInterface interface {
 
 	// (PUT /containers/{containerId}/policies)
 	UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UpdateContainerPoliciesParams)
+
+	// (PUT /containers/{containerId}/privacy)
+	SetHubPrivacy(w http.ResponseWriter, r *http.Request, containerId ContainerId, params SetHubPrivacyParams)
 
 	// (POST /containers/{containerId}:archive)
 	ArchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ArchiveContainerParams)
@@ -14384,6 +14402,56 @@ func (siw *ServerInterfaceWrapper) UpdateContainerPolicies(w http.ResponseWriter
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateContainerPolicies(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetHubPrivacy operation middleware
+func (siw *ServerInterfaceWrapper) SetHubPrivacy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetHubPrivacyParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetHubPrivacy(w, r, containerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -21306,6 +21374,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}", wrapper.GetContainer)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.RenameContainer)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/policies", wrapper.UpdateContainerPolicies)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/privacy", wrapper.SetHubPrivacy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:move", wrapper.MoveContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:reorder", wrapper.ReorderContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:restore", wrapper.RestoreContainer)

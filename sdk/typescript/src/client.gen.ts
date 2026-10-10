@@ -1171,6 +1171,11 @@ export class HubtaskClient {
     return this.call("PUT", "/containers/{containerId}/policies", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** PUT /containers/{containerId}/privacy */
+  setHubPrivacy(containerId: string, body: NonNullable<operations["setHubPrivacy"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setHubPrivacy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/containers/{containerId}/privacy", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** POST /containers/{containerId}:move */
   moveContainer(containerId: string, body: NonNullable<operations["moveContainer"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["moveContainer"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/containers/{containerId}:move", { "containerId": containerId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);

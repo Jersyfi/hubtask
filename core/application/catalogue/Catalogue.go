@@ -51,6 +51,7 @@ func Descriptors() []usecase.Descriptor {
 		work.UpdateWorkItem{}.Descriptor(),
 		work.RenameContainer{}.Descriptor(),
 		work.UpdateContainerPolicies{}.Descriptor(),
+		work.SetHubPrivacy{}.Descriptor(),
 		work.ArchiveContainer{}.Descriptor(),
 		work.UnarchiveContainer{}.Descriptor(),
 		work.MoveContainer{}.Descriptor(),
