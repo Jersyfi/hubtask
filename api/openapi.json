@@ -15011,6 +15011,10 @@
           },
           "version": {
             "type": "integer"
+          },
+          "private": {
+            "type": "boolean",
+            "description": "Whether this hub is private: reached only by people holding a role on it or below it, not by the workspace's own roles - its owners and administrators included. Always false on a collection, which shares its hub's privacy.\n"
           }
         }
       },

@@ -298,6 +298,8 @@ func containerOutput(container domain.Container) usecase.Output {
 		"created_at": container.CreatedAt,
 		"updated_at": container.UpdatedAt,
 		"version":    container.Version,
+		// Always present, so a client reads a hub's privacy off every response (ADR-0073 §1).
+		"private": container.Private,
 	}
 	if !container.ParentID.IsZero() {
 		out["parent_id"] = container.ParentID.String()

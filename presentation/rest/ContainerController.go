@@ -194,6 +194,8 @@ func containerResponse(out usecase.Output) openapi.Container {
 	// that only appeared once something was archived is one a client cannot rely on.
 	effectiveArchived, _ := out["effective_archived"].(bool)
 	container.EffectiveArchived = &effectiveArchived
+	private, _ := out["private"].(bool)
+	container.Private = &private
 	if policies, ok := out["policies"].(map[string]any); ok {
 		container.Policies = &openapi.ContainerPolicies{}
 		if policy, ok := policies["completion_policy"].(string); ok {

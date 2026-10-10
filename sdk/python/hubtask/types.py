@@ -876,6 +876,7 @@ class Container(TypedDict, total=False):
     created_at: str
     updated_at: str
     version: Required[int]
+    private: bool
 
 class ContainerCreate(TypedDict, total=False):
     type: Required["ContainerType"]

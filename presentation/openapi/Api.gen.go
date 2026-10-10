@@ -4861,10 +4861,13 @@ type Container struct {
 	ParentId          *openapi_types.UUID `json:"parent_id,omitempty"`
 
 	// Policies How a collection works, as opposed to what it is called. Two keys, and no more: a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
-	Policies  *ContainerPolicies `json:"policies,omitempty"`
-	Type      ContainerType      `json:"type"`
-	UpdatedAt *time.Time         `json:"updated_at,omitempty"`
-	Version   int                `json:"version"`
+	Policies *ContainerPolicies `json:"policies,omitempty"`
+
+	// Private Whether this hub is private: reached only by people holding a role on it or below it, not by the workspace's own roles - its owners and administrators included. Always false on a collection, which shares its hub's privacy.
+	Private   *bool         `json:"private,omitempty"`
+	Type      ContainerType `json:"type"`
+	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
+	Version   int           `json:"version"`
 }
 
 // ContainerCreate defines model for ContainerCreate.

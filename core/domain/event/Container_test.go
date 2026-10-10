@@ -115,6 +115,24 @@ func TestTheEventOfAHubSaysItsParentIsNull(t *testing.T) {
 	}
 }
 
+// The snapshot says whether a hub is private, always, so a subscriber does not read a missing key
+// as shared (ADR-0073 §1).
+func TestTheSnapshotSaysWhetherTheHubIsPrivate(t *testing.T) {
+	for _, private := range []bool{false, true} {
+		hub := work.Container{
+			ID: eventHub, TenantID: eventTenant, Type: work.ContainerHub, Name: "Diary", Private: private,
+			OrderKey: "a0", CreatedBy: eventAuthor, CreatedAt: occurred, UpdatedAt: occurred, Version: 1,
+		}
+		envelope, err := NewContainerCreated(eventID, hub, by(), occurred, Cause{})
+		if err != nil {
+			t.Fatalf("building the event: %v", err)
+		}
+		if got, present := envelope.Payload["private"]; !present || got != private {
+			t.Errorf("private = %v (present %v), want %v", got, present, private)
+		}
+	}
+}
+
 // The two archive facts stay separate in the payload: `archived_at` is this container's own stamp,
 // `effective_archived` is whether it may be written to at all.
 func TestTheArchiveFieldsSayWhichArchivingItIs(t *testing.T) {

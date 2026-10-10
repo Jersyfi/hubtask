@@ -134,6 +134,7 @@ func containerPayload(container work.Container) map[string]any {
 		"created_by":         container.CreatedBy.String(),
 		"updated_at":         container.UpdatedAt.UTC(),
 		"version":            container.Version,
+		"private":            container.Private,
 	}
 	if !container.ParentID.IsZero() {
 		payload["parent_id"] = container.ParentID.String()

@@ -242,6 +242,10 @@
           "type": "string",
           "format": "date-time"
         },
+        "private": {
+          "type": "boolean",
+          "description": "Whether the hub is private: reached only by people holding a role on it or below it. Always false on a collection. Optional: events recorded before the key existed do not carry it."
+        },
         "version": {
           "type": "integer"
         }
