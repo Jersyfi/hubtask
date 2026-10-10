@@ -38,6 +38,13 @@ Each measured against the deployments `D1`–`D7`:
    it is kept out of automation and AI only, and stays in backups, the workspace export and the
    person's own Art. 15 copy — data-protection.md §4.1, UC-PRV-03 check 10. PH-09 (#1227) filters
    no export.
+8. **A deleted comment keeps its text under a hold** (the owner, 2026-10-10, #1246): it reads as
+   deleted to everybody, and the sweep clears the text once the last hold covering it is lifted;
+   editing stays free — data-retention.md §4, UC-LIF-06 check 9. Built by the fix of #1232.
+9. **A point-in-time recovery places the legal holds of the rewound period again** (the owner,
+   2026-10-10, #1247): from the audit export, before the erasures are re-applied and before traffic
+   is admitted; a hold released in that period stays in force until its owner releases it again —
+   backup-restore.md §8.5, data-protection.md §5, UC-BAK-08 check 3. Built by the fix of #1239.
 
 ---
 
@@ -45,7 +52,7 @@ Each measured against the deployments `D1`–`D7`:
 
 *Depends on: nothing. First, because it is a defect.*
 
-**Use cases:** UC-PRV-03 (9, 10, 11, 12, 13), UC-LIF-06
+**Use cases:** UC-PRV-03 (9, 10, 11, 12, 13), UC-LIF-06 (1–8)
 
 The erasure asks the holds before it removes anything: whatever a hold on the workspace, a hub, a
 collection, an entry or the person's account covers is kept rather than erased; the rest is erased.

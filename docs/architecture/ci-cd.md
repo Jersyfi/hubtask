@@ -69,7 +69,7 @@ run in parallel.
 
 **Contract gate.** In CI, `make gate-contract` runs in one place, the last step of
 `integration`; there is no separate `contract` job. It needs no database and runs in seconds, so
-`make verify` runs it as well. The OpenAPI diff against the last tag is not built (§8, CI-6).
+`make verify` runs it as well. The OpenAPI diff against the last tag is decided, with `oasdiff`, and not built (§8, CI-6).
 
 **The hubctl session spends the rate limit.** `scripts/hubctl-e2e.sh` runs as one client against
 the anonymous and per-token budgets, with `curl --retry` on every call, so a section appended late
@@ -291,7 +291,7 @@ regression guard, and the capacity ramp runs per release on the integration serv
 | # | Point | Needed by |
 |---|---|---|
 | CI-2 | Whether to enable the merge queue (worthwhile once several contributors work in parallel) | As needed |
-| CI-6 | The OpenAPI compatibility check against the last tag (§3) | Before `1.0.0` |
+| CI-6 | The OpenAPI compatibility check against the last tag (§3), with `oasdiff` as a pinned development tool in `make tools` (the owner, 2026-10-10) | Before `1.0.0` |
 | CI-7 | `scorecard.yml` (§2) | Open |
 
 ---
