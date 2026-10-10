@@ -1251,6 +1251,18 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 	return items, nil
 }
 
+const lockContainers = `-- name: LockContainers :exec
+SELECT id FROM container WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE
+`
+
+// Takes the named containers' rows for the rest of the transaction. A grant on a hub or below it
+// takes the same row (LockHubOf), so "no member is left", asked again after this, sees a grant that
+// committed meanwhile.
+func (q *Queries) LockContainers(ctx context.Context, ids []pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockContainers, ids)
+	return err
+}
+
 const moveWorkItemSubtree = `-- name: MoveWorkItemSubtree :execrows
 UPDATE work_item SET
   collection_id = $1::uuid,
@@ -1392,6 +1404,103 @@ func (q *Queries) OrderKeyNeighbours(ctx context.Context, arg OrderKeyNeighbours
 	var i OrderKeyNeighboursRow
 	err := row.Scan(&i.NextKey, &i.PreviousKey)
 	return i, err
+}
+
+const orphanedPrivateHubs = `-- name: OrphanedPrivateHubs :many
+SELECT h.id
+FROM container h
+WHERE h.type = 'HUB' AND h.private AND h.deleted_at IS NULL
+  AND (
+    $1::uuid[] IS NULL
+    OR h.id IN (
+      SELECT CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
+      FROM container c WHERE c.id = ANY($1::uuid[])
+      UNION ALL
+      SELECT col.parent_id
+      FROM work_item w JOIN container col ON col.id = w.collection_id
+      WHERE w.id = ANY($1::uuid[])
+    )
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM membership m
+    JOIN account a ON a.id = m.account_id
+    WHERE a.status <> 'ANONYMIZED' AND a.deleted_at IS NULL
+      AND (
+        (m.scope_type = 'HUB' AND m.scope_id = h.id)
+        OR (m.scope_type = 'COLLECTION'
+            AND m.scope_id IN (SELECT c.id FROM container c WHERE c.parent_id = h.id))
+        OR (m.scope_type = 'ITEM'
+            AND m.scope_id IN (
+              SELECT w.id FROM work_item w JOIN container c ON c.id = w.collection_id
+              WHERE c.parent_id = h.id))
+      )
+  )
+ORDER BY h.id
+`
+
+// The private hubs, not in the trash, that no member is left in (ADR-0073 §5): no account that is
+// neither anonymised nor deleted holds a role on the hub, on a collection in it, or on an entry in
+// one. Groups are not asked - none may hold a role there (identity.md §22). `named` narrows it to
+// the hubs the named hubs, collections or entries sit under; null asks about every private hub,
+// which is the retention pass's catch-all.
+func (q *Queries) OrphanedPrivateHubs(ctx context.Context, named []pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, orphanedPrivateHubs, named)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const privateHubsHeldBy = `-- name: PrivateHubsHeldBy :many
+SELECT DISTINCT h.id
+FROM membership m
+JOIN container h ON h.type = 'HUB' AND h.private AND h.deleted_at IS NULL
+WHERE m.account_id = $1::uuid
+  AND (
+    (m.scope_type = 'HUB' AND m.scope_id = h.id)
+    OR (m.scope_type = 'COLLECTION'
+        AND m.scope_id IN (SELECT c.id FROM container c WHERE c.parent_id = h.id))
+    OR (m.scope_type = 'ITEM'
+        AND m.scope_id IN (
+          SELECT w.id FROM work_item w JOIN container c ON c.id = w.collection_id
+          WHERE c.parent_id = h.id))
+  )
+ORDER BY h.id
+`
+
+// The private hubs, not in the trash, the account holds a role on, on a collection in, or on an
+// entry in: what an erasure asks before the account's memberships go with it.
+func (q *Queries) PrivateHubsHeldBy(ctx context.Context, accountID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, privateHubsHeldBy, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setContainerArchived = `-- name: SetContainerArchived :execrows
@@ -2160,6 +2269,46 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const workspaceOwners = `-- name: WorkspaceOwners :many
+SELECT a.id
+FROM account a
+WHERE a.kind = 'USER' AND a.status <> 'ANONYMIZED' AND a.deleted_at IS NULL
+  AND (
+    EXISTS (
+      SELECT 1 FROM membership m
+      WHERE m.account_id = a.id AND m.scope_type = 'TENANT' AND m.role = 'OWNER'
+    )
+    OR EXISTS (
+      SELECT 1 FROM membership m
+      JOIN account_group_member g ON g.group_id = m.group_id
+      WHERE g.account_id = a.id AND m.scope_type = 'TENANT' AND m.role = 'OWNER'
+    )
+  )
+ORDER BY a.id
+`
+
+// The persons holding OWNER on the workspace itself, directly or through a group, who can still be
+// told something: told when a private hub lost its last member (ADR-0073 §5).
+func (q *Queries) WorkspaceOwners(ctx context.Context) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, workspaceOwners)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

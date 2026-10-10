@@ -736,6 +736,16 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
 
+	// A private hub nobody is left in goes to the trash, and the workspace's owners are told without
+	// its name (ADR-0073 §5): after a revocation, after an erasure, and in the retention pass.
+	lastMember := work.LastMember{
+		Hubs: postgres.NewPrivateHubRepository(), Writer: containerWriter,
+		Owners: notification.RecordPrivateHubTrashed{
+			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+			Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+		},
+	}
+
 	// Every verb that changes an existing column shares one dependency set: they read the same
 	// bucket, ask the same permission question of the same collection, and owe the same four writes
 	// (work.BucketWriter).
@@ -1288,7 +1298,8 @@ func run() error {
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
 		identity.RevokeMembership{
-			Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
+			Grants: grants, Authorizer: authorizer, Revocations: revocations, LastMember: lastMember,
+			Audit:      auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
@@ -2632,7 +2643,7 @@ func run() error {
 		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
 		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-		TombstoneWindow: cfg.Retention.TombstoneWindow,
+		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
 	}
 	privacyExporter := privacyservice.Exporter{
 		Requests: privacyStore, Subjects: privacyStore,
@@ -2689,6 +2700,7 @@ func run() error {
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
 			Remainders: privacyservice.ErasureRemainders{Kept: privacyStore, Jobs: jobs},
+			Orphans:    lastMember,
 			History:    notifications,
 			// The outbox's own rows: ADR-0007's second countermeasure, for a table that would
 			// otherwise only ever grow.

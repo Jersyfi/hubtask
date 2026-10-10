@@ -1077,3 +1077,24 @@ type PrivateHubSummary struct {
 type PrivateHubs interface {
 	ListPrivateHubs(ctx context.Context) ([]PrivateHubSummary, error)
 }
+
+// OrphanedHubs answers which private hubs have lost their last member (ADR-0073 §5). A member is
+// an account, neither anonymised nor deleted, holding a role on the hub, on a collection in it or
+// on an entry in one; no group may hold one there (identity.md §22).
+type OrphanedHubs interface {
+	// Orphaned answers the private hubs, not in the trash, without a member, among the hubs the
+	// named hubs, collections or entries sit under. Nil names every private hub of the workspace.
+	Orphaned(ctx context.Context, named []shared.ID) ([]shared.ID, error)
+
+	// Lock takes the hubs' rows for the rest of the transaction - the row a grant under the hub
+	// takes too, so that Orphaned asked afterwards sees a grant that committed meanwhile.
+	Lock(ctx context.Context, hubIDs []shared.ID) error
+
+	// HeldBy answers the private hubs, not in the trash, the account is a member of: what an
+	// erasure asks before the account's memberships go with it.
+	HeldBy(ctx context.Context, accountID shared.ID) ([]shared.ID, error)
+
+	// WorkspaceOwners answers the persons holding OWNER on the workspace itself, directly or
+	// through a group, neither anonymised nor deleted.
+	WorkspaceOwners(ctx context.Context) ([]shared.ID, error)
+}

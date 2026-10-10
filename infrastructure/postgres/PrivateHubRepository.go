@@ -19,8 +19,9 @@ type PrivateHubRepository struct{}
 func NewPrivateHubRepository() PrivateHubRepository { return PrivateHubRepository{} }
 
 var (
-	_ repository.PrivateHubs = PrivateHubRepository{}
-	_ identityrepo.People    = PrivateHubRepository{}
+	_ repository.PrivateHubs  = PrivateHubRepository{}
+	_ identityrepo.People     = PrivateHubRepository{}
+	_ repository.OrphanedHubs = PrivateHubRepository{}
 )
 
 // ListPrivateHubs lists the private hubs of the transaction's tenant; row level security bounds it
@@ -75,4 +76,79 @@ func (r PrivateHubRepository) CountPeople(ctx context.Context) (int, error) {
 			WithCause(fmt.Errorf("counting the people: %w", err))
 	}
 	return int(count), nil
+}
+
+// Orphaned answers the private hubs without a member among those the named rows sit under; nil
+// names every private hub of the transaction's tenant.
+func (r PrivateHubRepository) Orphaned(ctx context.Context, named []shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := uuidsOf(named)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.OrphanedPrivateHubs(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the private hubs without a member: %w", err))
+	}
+	return idsFrom(rows)
+}
+
+// Lock takes the hubs' rows for the rest of the transaction.
+func (r PrivateHubRepository) Lock(ctx context.Context, hubIDs []shared.ID) error {
+	if len(hubIDs) == 0 {
+		return nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	keys, err := uuidsOf(hubIDs)
+	if err != nil {
+		return err
+	}
+	if err := queries.LockContainers(ctx, keys); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("locking the private hubs: %w", err))
+	}
+	return nil
+}
+
+// HeldBy answers the private hubs the account is a member of.
+func (r PrivateHubRepository) HeldBy(ctx context.Context, accountID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	key, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.PrivateHubsHeldBy(ctx, key)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the private hubs of an account: %w", err))
+	}
+	return idsFrom(rows)
+}
+
+// WorkspaceOwners answers the persons holding OWNER on the workspace itself.
+func (r PrivateHubRepository) WorkspaceOwners(ctx context.Context) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.WorkspaceOwners(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the workspace's owners: %w", err))
+	}
+	return idsFrom(rows)
 }

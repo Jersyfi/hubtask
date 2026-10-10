@@ -324,6 +324,41 @@ func TestARevocationIsAnnouncedToWhoeverHeldTheRole(t *testing.T) {
 	}
 }
 
+type lastMember struct{ named [][]shared.ID }
+
+func (l *lastMember) AfterMemberLeft(_ context.Context, _ shared.ID, named []shared.ID) (int, error) {
+	l.named = append(l.named, named)
+	return 0, nil
+}
+
+// UC-ID-16 check 6: a person's grant revoked asks whether the hub it was on has a member left; a
+// workspace grant cannot leave a private hub empty, and is not asked about.
+func TestARevocationAsksWhetherTheHubHasAMemberLeft(t *testing.T) {
+	last := &lastMember{}
+	handler := revokeHandler(newGrants(existingGrant(t)), &authorizer{}, &auditSink{})
+	handler.LastMember = last
+	if err := handler.Execute(t.Context(), admin(), RevokeMembershipCommand{MembershipID: membershipID}); err != nil {
+		t.Fatalf("revoking: %v", err)
+	}
+	if len(last.named) != 1 || len(last.named[0]) != 1 || last.named[0][0] != hubID {
+		t.Errorf("asked about %v, want the hub the grant was on", last.named)
+	}
+
+	workspace, err := domain.NewGrant(membershipID, tenant, invitedID, "", domain.TenantScope(), domain.RoleMember)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last = &lastMember{}
+	handler = revokeHandler(newGrants(workspace), &authorizer{}, &auditSink{})
+	handler.LastMember = last
+	if err := handler.Execute(t.Context(), admin(), RevokeMembershipCommand{MembershipID: membershipID}); err != nil {
+		t.Fatalf("revoking: %v", err)
+	}
+	if len(last.named) != 0 {
+		t.Errorf("a workspace grant asked about %v", last.named)
+	}
+}
+
 // Revoking what is not there answers not found rather than reporting a removal that did not
 // happen.
 func TestRevokingSomethingThatIsNotThereIsNotFound(t *testing.T) {

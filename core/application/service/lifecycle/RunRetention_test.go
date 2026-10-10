@@ -341,6 +341,28 @@ func TestAPassSweepsExpiredSessionsAtTheirOwnPeriod(t *testing.T) {
 	}
 }
 
+type orphanSweep struct{ tenants []shared.ID }
+
+func (o *orphanSweep) Sweep(_ context.Context, tenantID shared.ID) (int, error) {
+	o.tenants = append(o.tenants, tenantID)
+	return 1, nil
+}
+
+// UC-ID-16 check 6: the pass is the catch-all for a private hub without a member that the
+// revocation or the erasure missed, for the tenant it runs for.
+func TestThePassTrashesAPrivateHubNobodyIsLeftIn(t *testing.T) {
+	h := newRunHarness()
+	orphans := &orphanSweep{}
+	h.run.Orphans = orphans
+
+	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+	if len(orphans.tenants) != 1 || orphans.tenants[0] != actor().TenantID {
+		t.Errorf("swept %v, want the run's tenant once", orphans.tenants)
+	}
+}
+
 // Without the wiring the pass does what it did before, the outbox's reasoning: the rows it
 // would have removed are already unusable, so nothing but bookkeeping waits.
 func TestAPassWithoutTheSessionSweepStillRuns(t *testing.T) {

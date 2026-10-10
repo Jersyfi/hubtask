@@ -622,6 +622,8 @@
   "email.retention.subject.withheld": "Something you can reach is due to be removed",
   "email.retention.body": "A retention rule in this workspace is due to act on “{title}”. Until it does, anybody who may edit it can take it out of the period - by editing it, moving it, or asking to keep it.\n\n{link}",
   "email.retention.body.withheld": "A retention rule in this workspace is due to act on something you can reach. Until it does, anybody who may edit it can take it out of the period - by editing it, moving it, or asking to keep it.\n\n{link}",
+  "email.private_hub_trashed.subject": "A private hub went to the trash",
+  "email.private_hub_trashed.body": "A private hub in this workspace lost its last member and was moved to the trash. Nobody can open it now; it is removed for good when the trash's period ends. The list of private hubs shows its size and the day it goes.\n\n{link}",
   "mail.recipient_missing": "This installation could not send a message: it had no address to send it to.",
   "mail.header_injection": "This installation refused to send a message whose subject or address was not on one line.",
   "usecase.input_invalid": "The request contains invalid values.",

@@ -50,6 +50,10 @@ const (
 	bodyReminder        = "email.reminder.body"
 	bodyIntegration     = "email.integration.body"
 	bodyRetention       = "email.retention.body"
+	// A private hub nobody was left in went to the trash: MEMBERSHIP's category, its own sentence,
+	// and never a title - there is none it may carry (ADR-0073 §5).
+	subjectPrivateHubTrashed = "email.private_hub_trashed.subject"
+	bodyPrivateHubTrashed    = "email.private_hub_trashed.body"
 	// withheldSuffix names the variant of a message that has no title to put in it - because the
 	// recipient asked for none, or because the entry is gone.
 	withheldSuffix = ".withheld"
@@ -317,6 +321,13 @@ func (d DeliverNotification) send(ctx context.Context, loaded subject) error {
 // the same message as a preference that withholds the title, which is the honest outcome in both
 // cases: somebody is told that something concerns them, and where to look.
 func (d DeliverNotification) compose(loaded subject) domain.Message {
+	if loaded.record.PrivateHubTrashed() {
+		return domain.Message{
+			SubjectCode: subjectPrivateHubTrashed,
+			BodyCode:    bodyPrivateHubTrashed,
+			Link:        d.link(loaded.record),
+		}
+	}
 	subjectCode, bodyCode := codesFor(loaded.record.Category)
 	if !loaded.record.RuleID.IsZero() {
 		subjectCode, bodyCode = subjectRuleDisabled, bodyRuleDisabled
@@ -384,6 +395,8 @@ func (d DeliverNotification) link(record domain.Notification) string {
 		return base + "/administration/webhooks"
 	case !record.ItemID.IsZero():
 		return base + "/items/" + url.PathEscape(record.ItemID.String())
+	case record.PrivateHubTrashed():
+		return base + "/administration/private-hubs"
 	}
 	return base
 }

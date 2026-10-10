@@ -76,6 +76,15 @@ type RunRetention struct {
 	// Remainders seeds the rest of an erasure kept under a hold no longer in force that nothing
 	// seeded (data-protection.md §4.1). Optional: wired without it, a release still seeds its own.
 	Remainders ErasureRemainders
+	// Orphans trashes a private hub nobody is left in that the revocation or the erasure did not
+	// catch - a cascade, a pod older than the rule (ADR-0073 §5). Optional: those paths trash their
+	// own.
+	Orphans OrphanedHubs
+}
+
+// OrphanedHubs is the work context's catch-all for private hubs without a member.
+type OrphanedHubs interface {
+	Sweep(ctx context.Context, tenantID shared.ID) (int, error)
 }
 
 // RetentionSignals is the slice of the metrics adapter a run reports through
@@ -272,6 +281,12 @@ func (h RunRetention) Execute(
 	rules, err := h.sweepRules(ctx, actor, started)
 	if err != nil {
 		return outcome, err
+	}
+
+	if h.Orphans != nil {
+		if _, err := h.Orphans.Sweep(ctx, actor.TenantID); err != nil {
+			return outcome, err
+		}
 	}
 
 	if h.Remainders != nil {
