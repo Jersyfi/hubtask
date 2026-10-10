@@ -356,11 +356,7 @@ func scheduleRetention(ctx context.Context, jobs queue.Queue, tenantID shared.ID
 	if jobs == nil {
 		return nil
 	}
-	_, enqueued := jobs.Enqueue(ctx, queue.Request{
-		Kind:      queue.KindRetentionSweep,
-		TenantID:  tenantID,
-		DedupeKey: tenantID.String(),
-	})
+	_, enqueued := jobs.Enqueue(ctx, queue.RetentionSweep(tenantID, time.Time{}))
 	return enqueued
 }
 

@@ -363,6 +363,17 @@ type Request struct {
 	MaxAttempts int
 }
 
+// RetentionSweep is the request every write that seeds a tenant's sweep makes: a deletion that
+// starts a trash clock, a workspace provisioned, a session opened (data-retention.md §5). One
+// constructor, so the kind and the dedupe key - the tenant - are written once.
+//
+// The run-at is the caller's to choose, and the enqueue keeps the earlier of a pending job's and the
+// request's: a deletion asks for now, a session for one interval later, and a later request never
+// moves an earlier run.
+func RetentionSweep(tenantID shared.ID, runAt time.Time) Request {
+	return Request{Kind: KindRetentionSweep, TenantID: tenantID, DedupeKey: tenantID.String(), RunAt: runAt}
+}
+
 // Job is one claimed unit of work, as the runner hands it to a handler.
 type Job struct {
 	ID       shared.ID
