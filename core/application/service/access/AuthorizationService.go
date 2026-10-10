@@ -150,10 +150,10 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 // satisfiedBy is the permission half of the decision: the one asked for, or the alternative where
 // the request names one (A-4).
 func (r Request) satisfiedBy(memberships []identity.Membership, path []identity.Scope) bool {
-	if service.Allows(memberships, path, r.Permission) {
+	if service.Allows(memberships, path, service.SharedPath, r.Permission) {
 		return true
 	}
-	return r.Alternative != "" && service.Allows(memberships, path, r.Alternative)
+	return r.Alternative != "" && service.Allows(memberships, path, service.SharedPath, r.Alternative)
 }
 
 // Permits answers whether the actor holds the permission along the path, and records nothing.
@@ -261,7 +261,7 @@ func (s Service) decideAboutTheEntry(
 	ctx context.Context, actor appshared.ActorContext, request Request,
 	memberships []identity.Membership, path []identity.Scope,
 ) error {
-	role, found := service.EffectiveRole(memberships, path)
+	role, found := service.EffectiveRole(memberships, path, service.SharedPath)
 	if !found {
 		s.recordRefusal(ctx, actor, request, "sharing")
 		if request.On.ID.IsZero() {
@@ -375,7 +375,7 @@ func (s Service) CanSee(
 		// send a client off to grant a permission that is not the problem.
 		return false, err
 	}
-	return service.Allows(memberships, completed, service.PermissionRead), nil
+	return service.Allows(memberships, completed, service.SharedPath, service.PermissionRead), nil
 }
 
 // RoleAlong returns the actor's own effective role along the path, and whether they hold one at
@@ -397,7 +397,7 @@ func (s Service) RoleAlong(
 		return "", false, err
 	}
 
-	role, found := service.EffectiveRole(memberships, completed)
+	role, found := service.EffectiveRole(memberships, completed, service.SharedPath)
 	return role, found, nil
 }
 

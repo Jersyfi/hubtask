@@ -654,14 +654,14 @@ func (w Writer) canDelegateTo(
 	}
 
 	path := rule.Scope.Path()
-	theirRole, theyHold := service.EffectiveRole(theirs, path)
+	theirRole, theyHold := service.EffectiveRole(theirs, path, service.SharedPath)
 	if !theyHold {
 		// An account with no role at the scope can do nothing there, so delegating to it grants
 		// nothing. A rule that does nothing is a rule somebody has misconfigured rather than a
 		// privilege problem, and the run will say so.
 		return nil
 	}
-	myRole, iHold := service.EffectiveRole(mine, path)
+	myRole, iHold := service.EffectiveRole(mine, path, service.SharedPath)
 	if !iHold || !myRole.AtLeast(theirRole) {
 		return shared.ErrForbidden.
 			WithDetail("automation.run_as_exceeds_writer").

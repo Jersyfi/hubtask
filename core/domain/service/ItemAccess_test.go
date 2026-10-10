@@ -141,14 +141,14 @@ func TestAShareResolvesThroughTheEntrysOwnScope(t *testing.T) {
 	}
 
 	share := []identity.Membership{grant(identity.ItemScope(item), identity.RoleGuest)}
-	role, found := service.EffectiveRole(share, pathTo(item))
+	role, found := service.EffectiveRole(share, pathTo(item), service.SharedPath)
 	if !found || role != identity.RoleGuest {
 		t.Errorf("a share on the entry resolves to %q (found %v), want GUEST", role, found)
 	}
 
 	// The same membership says nothing about the entry beside it: that is the whole of "shared
 	// items only", and it needs no rule of its own.
-	if _, found := service.EffectiveRole(share, pathTo(neighbour)); found {
+	if _, found := service.EffectiveRole(share, pathTo(neighbour), service.SharedPath); found {
 		t.Error("a share on one entry reached another")
 	}
 }
