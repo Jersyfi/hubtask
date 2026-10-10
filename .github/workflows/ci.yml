@@ -249,8 +249,8 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      # The pinned tool set, restored rather than compiled (ADR-0062). `make tools` installs nine
-      # tools, eight of them from source, which costs minutes in every job that needs them.
+      # The pinned tool set, restored rather than compiled (ADR-0062). `make tools` installs ten
+      # tools, nine of them from source, which costs minutes in every job that needs them.
       # setup-go's own cache cannot pay for it: it saves only when the key is not yet present, so
       # the first job to finish wins it, and the first job to finish is the one that compiles
       # nothing.
@@ -394,6 +394,47 @@ jobs:
       # command here and on a laptop (ADR-0022, ci-cd.md).
       - run: make tools-ensure
       - run: make gate-chart
+
+  # The contract against the last release (versioning-release.md §6): a breaking change since the
+  # tag fails unless it is marked. The whole history, because the tag and the commits that may mark
+  # a break are behind HEAD. Only the breaks this pull request adds are judged - on a push to main,
+  # those of the pushed commit - and the title and description are read from the API, so a title
+  # given its `!` afterwards counts when the failed job is re-run.
+  api-compat:
+    name: API compatibility with the last release
+    needs: quick
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
+      - run: make tools-ensure
+      - name: The title and the description, as they stand now
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.title + "\n" + (.body // "")' > "${RUNNER_TEMP}/pull-request.txt"
+      # API_BASE and API_TEXT travel in the environment, where make reads them as variables.
+      - run: make gate-api-compat
+        env:
+          API_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          API_TEXT: ${{ github.event_name == 'pull_request' && format('{0}/pull-request.txt', runner.temp) || '' }}
 
   # This is also the container build. The image contains both halves now (ADR-0028), so a change
   # to the webapp or to what it is built from has to run it even when no Go file moved.
@@ -910,6 +951,7 @@ jobs:
       - resilience
       - observability
       - chart
+      - api-compat
       - compose
       - e2e
       - engine-session

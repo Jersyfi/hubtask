@@ -26,6 +26,7 @@ SKIPPED=0
 cleanup() {
 	find . -type d -name "$SCRATCH" -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
 	rm -f db/queries/zz_gate_selftest.sql locales/zz.json sdk/python/hubtask/zz_gate_selftest.py
+	if [ -f api/openapi.yaml.selftest-backup ]; then mv api/openapi.yaml.selftest-backup api/openapi.yaml; fi
 }
 trap cleanup EXIT INT TERM
 cleanup
@@ -1086,6 +1087,41 @@ else
 	' "$ERASER.selftest-backup" > "$ERASER"
 	expect_full_privacy_failure "an erasure that leaves a location behind" "$ERASER"
 fi
+
+header "The contract against the last release (make gate-api-compat)"
+
+# The plainest break of versioning-release.md §2: an endpoint gone. The probe compares the tree with
+# HEAD rather than with the release tag, so it needs no history. Unmarked, the gate must go red and
+# say why; marked by a pull request title, the same break must pass - otherwise the red would only
+# show that the gate could not run.
+CHECKS=$((CHECKS + 1))
+api_text="$(mktemp)"
+cp api/openapi.yaml api/openapi.yaml.selftest-backup
+sed -i.tmp 's|^  /meta/health:$|  /meta/health-selftest:|' api/openapi.yaml && rm -f api/openapi.yaml.tmp
+if cmp -s api/openapi.yaml api/openapi.yaml.selftest-backup; then
+	printf '  FAILED  %-44s the probe changed nothing - its sed programme is stale\n' "an endpoint removed, unmarked"
+	FAILURES=$((FAILURES + 1))
+else
+	printf 'fix(api): an ordinary title\n' > "$api_text"
+	out="$(make --no-print-directory gate-api-compat API_SINCE=HEAD API_BASE=HEAD API_TEXT="$api_text" 2>&1 || true)"
+	if grep -q "not marked as breaking" <<<"$out"; then
+		printf '  ok      %-44s caught by make gate-api-compat\n' "an endpoint removed, unmarked"
+	else
+		printf '  FAILED  %-44s make gate-api-compat did not report it\n' "an endpoint removed, unmarked"
+		printf '%s\n' "$out" | sed 's/^/            /'
+		FAILURES=$((FAILURES + 1))
+	fi
+	CHECKS=$((CHECKS + 1))
+	printf 'feat(api)!: the health report moves\n' > "$api_text"
+	if make --no-print-directory gate-api-compat API_SINCE=HEAD API_BASE=HEAD API_TEXT="$api_text" >/dev/null 2>&1; then
+		printf '  ok      %-44s passed by make gate-api-compat\n' "the same break, marked by the title"
+	else
+		printf '  FAILED  %-44s make gate-api-compat refused a marked break\n' "the same break, marked by the title"
+		FAILURES=$((FAILURES + 1))
+	fi
+fi
+rm -f "$api_text"
+cleanup
 
 header "The generated SDK (make gate-sdk)"
 

@@ -49,6 +49,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `resilience` | `make gate-resilience`: RT-1…RT-5, RT-7, RT-10, RT-12 (§3.2) |
 | `observability` | `make gate-observability`: `promtool check rules` and `promtool test rules` over the four rule files, and `test/observability` |
 | `chart` | `make gate-chart`: `helm lint` and `helm template` with every optional object on; the chart's copy of rules and dashboards current |
+| `api-compat` | `make gate-api-compat`: `api/openapi.yaml` against the newest `v*` tag through the pinned `oasdiff` (below) |
 | `compose` | `make gate-compose`: builds the image from this commit and starts the self-hosting stack until `/readyz` answers |
 | `e2e` | `make gate-e2e`: the `hubctl` session against the Compose stack (`scripts/hubctl-e2e.sh`), including `hubctl sync-conformance` |
 | `engine-session` | `make gate-engine-conformance`: the first-party sync engine against its own Compose stack, answering [offline-sync.md](./offline-sync.md) §9's eight client requirements by number |
@@ -69,7 +70,19 @@ run in parallel.
 
 **Contract gate.** In CI, `make gate-contract` runs in one place, the last step of
 `integration`; there is no separate `contract` job. It needs no database and runs in seconds, so
-`make verify` runs it as well. The OpenAPI diff against the last tag is decided, with `oasdiff`, and not built (§8, CI-6).
+`make verify` runs it as well.
+
+**Compatibility gate.** `api-compat` compares `api/openapi.yaml` with the newest `v*` tag behind the
+commit through `oasdiff`, a pinned development tool that never ships, and classifies by
+[versioning-release.md](./versioning-release.md) §2: a new value in a response enum is lowered to
+compatible, the rest is `oasdiff`'s own judgement. Only the breaking changes the pull request adds
+to those already on its base are judged — on a push to `main`, those of the pushed commit — and
+each one fails unless the change is marked: `!` in a commit's or the pull request's title, or a
+`BREAKING CHANGE:` footer in a commit message or the description. A break already on the base was
+judged when it landed. The job checks out the whole history; with no tag behind the commit it
+skips with a notice. `make verify-pr` runs it against the merge base with `origin/main`, reading
+only the commits; `make gate-api-compat` without `API_BASE` judges every break since the tag
+against every commit since it.
 
 **The hubctl session spends the rate limit.** `scripts/hubctl-e2e.sh` runs as one client against
 the anonymous and per-token budgets, with `curl --retry` on every call, so a section appended late
@@ -291,7 +304,6 @@ regression guard, and the capacity ramp runs per release on the integration serv
 | # | Point | Needed by |
 |---|---|---|
 | CI-2 | Whether to enable the merge queue (worthwhile once several contributors work in parallel) | As needed |
-| CI-6 | The OpenAPI compatibility check against the last tag (§3), with `oasdiff` as a pinned development tool in `make tools` (the owner, 2026-10-10) | Before `1.0.0` |
 | CI-7 | `scorecard.yml` (§2) | Open |
 
 ---
