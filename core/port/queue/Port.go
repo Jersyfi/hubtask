@@ -126,11 +126,12 @@ const (
 	// KindRetentionSweep removes what one tenant's retention periods say may go (ADR-0020).
 	//
 	// One job per tenant, which reschedules itself forever: a poller lives as one row rather than
-	// as a new row per round (Result.Repeat). It is created by a deletion rather than by a
+	// as a new row per round (Result.Repeat). It is seeded by writes in the tenant rather than by a
 	// scheduler enumerating tenants, because nothing in this system may enumerate them - the
 	// `tenant` table is behind row level security with no bypass for the application role, and
-	// tenant administration runs through the control plane (db/migrations/0001_init.sql). A
-	// deletion scheduling its own cleanup is also the more honest statement of what has to happen.
+	// tenant administration runs through the control plane (db/migrations/0001_init.sql). The writes
+	// are a deletion, the workspace's provisioning and every session opened (RetentionSweep,
+	// data-retention.md §5).
 	KindRetentionSweep Kind = "retention.sweep"
 
 	// KindMediaReconcile makes one tenant's media reference counts honest and reclaims what nothing
