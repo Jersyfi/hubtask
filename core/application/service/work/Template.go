@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -66,6 +67,12 @@ type TemplateWriter struct {
 	// Text brings a template's name, its description and every node's title and notes to normal
 	// form C on the way in, and the entries an instantiation writes with them (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Holds, Removals and TombstoneWindow are the deletion's (data-retention.md §4): a template no
+	// legal hold covers is removed at once, with the journal entry and the tombstone every removal
+	// leaves; one a hold covers is only marked deleted, for the retention pass to remove later.
+	Holds           lifecyclerepo.LegalHolds
+	Removals        lifecyclerepo.Removals
+	TombstoneWindow time.Duration
 }
 
 // CreateTemplate defines a template.

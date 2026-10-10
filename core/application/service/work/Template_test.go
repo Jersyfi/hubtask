@@ -139,6 +139,8 @@ type templateHarness struct {
 	history     *journal
 	visibility  *visibility
 	authorizer  *authorizer
+	holds       *templateHolds
+	removals    *removalLog
 }
 
 func newTemplateHarness(t *testing.T) *templateHarness {
@@ -151,6 +153,8 @@ func newTemplateHarness(t *testing.T) *templateHarness {
 		changes:    &changes{}, audit: &sink{}, events: &events{}, history: &journal{},
 		visibility: newVisibility(accountID, colleagueAccountID),
 		authorizer: &authorizer{},
+		holds:      &templateHolds{},
+		removals:   &removalLog{},
 	}
 
 	writer := TemplateWriter{
@@ -158,6 +162,7 @@ func newTemplateHarness(t *testing.T) *templateHarness {
 		Profiles: &profiles{rows: templateProfiles()}, Authorizer: h.authorizer,
 		Changes: h.changes, Audit: h.audit,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		Holds: h.holds, Removals: h.removals, TombstoneWindow: 90 * 24 * time.Hour,
 	}
 	h.create = CreateTemplate{Writer: writer}
 	h.update = UpdateTemplate{Writer: writer}
@@ -387,7 +392,7 @@ func TestInstantiatingAsksForTheRightToCreateEntries(t *testing.T) {
 	}
 }
 
-// A deletion is soft and idempotent, and what it stamped out is not touched.
+// A deletion removes the template, cannot be repeated, and what it stamped out is not touched.
 func TestDeletingATemplateLeavesItsTreesStanding(t *testing.T) {
 	h := newTemplateHarness(t)
 	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{

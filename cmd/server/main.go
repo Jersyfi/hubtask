@@ -931,7 +931,9 @@ func run() error {
 		Templates: templates, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Changes: changes, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-		Text: forms,
+		Text:  forms,
+		Holds: postgres.NewLifecycleRepository(), Removals: postgres.NewLifecycleRepository(),
+		TombstoneWindow: cfg.Retention.TombstoneWindow,
 	}
 
 	// The bulk performs the other use cases, so it needs the catalogue that is built from its own
