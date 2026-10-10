@@ -210,6 +210,7 @@ func (pending) OpenTenantPassword(w http.ResponseWriter, r *http.Request, _ open
 	notAvailable(w, r)
 }
 
+// ReplaceLegalHolds is overridden by RestController, for the reason given at CreateContainer.
 func (pending) ReplaceLegalHolds(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
 	notAvailable(w, r)
 }

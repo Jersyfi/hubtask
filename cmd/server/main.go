@@ -1708,6 +1708,10 @@ func run() error {
 		lifecycle.PlaceLegalHold{Holds: legalHolds}.Descriptor(),
 		lifecycle.ReleaseLegalHold{Holds: legalHolds}.Descriptor(),
 		lifecycle.ListLegalHolds{Holds: legalHolds}.Descriptor(),
+		// The operator's step of a point-in-time recovery (backup-restore.md §8.5 step 5).
+		lifecycle.ReplaceLegalHolds{
+			Holds: legalHolds, Workspaces: postgres.NewAdminTenantRepository(),
+		}.Descriptor(),
 		auditservice.ListAuditEntries{
 			Trail: auditTrail, Authorizer: authorizer, Pseudonyms: privacyStore,
 			UnitOfWork: unitOfWork,
