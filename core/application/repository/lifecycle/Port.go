@@ -321,3 +321,25 @@ type Runs interface {
 	// Finish closes it with what the run did.
 	Finish(ctx context.Context, id shared.ID, result RunResult) error
 }
+
+// DeletedTemplates are the templates deleted while a legal hold covered them (data-retention.md
+// §4): elsewhere a deletion removes the row at once, so these are all the soft-deleted ones there
+// are, and the retention pass removes each once no hold covers it.
+type DeletedTemplates interface {
+	// Deleted returns one page of them after the identifier given, in identifier order, with what
+	// a hold is judged against.
+	Deleted(ctx context.Context, after shared.ID, batch int) ([]DeletedTemplate, error)
+
+	// Remove deletes the named ones that are still deleted and answers which went, so that the
+	// journal names exactly those. A living template is never touched.
+	Remove(ctx context.Context, ids []shared.ID) ([]shared.ID, error)
+}
+
+// DeletedTemplate is one deleted template as a hold judges it: by where it is defined.
+type DeletedTemplate struct {
+	ID shared.ID
+	// ScopeID is the hub or collection it is defined on, empty for a workspace-wide one; HubID is
+	// the hub above a collection, empty otherwise.
+	ScopeID shared.ID
+	HubID   shared.ID
+}

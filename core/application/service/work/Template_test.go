@@ -25,6 +25,8 @@ type templates struct {
 	inserted []domain.Template
 	updates  []domain.Template
 	deleted  []domain.Template
+	// removed are the templates deleted for good, where no hold kept them.
+	removed []shared.ID
 }
 
 func newTemplates() *templates {
@@ -96,6 +98,18 @@ func (s *templates) SetDeleted(
 	written := template
 	written.Version = expectedVersion + 1
 	s.stored[template.ID] = written
+	return nil
+}
+
+func (s *templates) Remove(
+	_ context.Context, template domain.Template, expectedVersion int,
+) error {
+	stored, found := s.stored[template.ID]
+	if !found || stored.Version != expectedVersion || stored.DeletedAt != nil {
+		return shared.ErrVersionConflict.WithDetail("templates.version_conflict")
+	}
+	s.removed = append(s.removed, template.ID)
+	delete(s.stored, template.ID)
 	return nil
 }
 
