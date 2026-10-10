@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -271,6 +272,10 @@ func (m *memberships) SharedItemsIn(_ context.Context, _, _ shared.ID) ([]shared
 }
 
 func (m *memberships) Administrators(context.Context, []identity.Scope) ([]shared.ID, error) {
+	return nil, nil
+}
+
+func (m *memberships) HubsOf(context.Context, []shared.ID) (map[shared.ID]identityrepository.Hub, error) {
 	return nil, nil
 }
 

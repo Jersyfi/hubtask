@@ -112,6 +112,20 @@ type Memberships interface {
 	// name a wider audience. Which roles those are is the role matrix's answer and not a
 	// parameter: a caller that could name VIEWER would be a caller warning everybody.
 	Administrators(ctx context.Context, path []identity.Scope) ([]shared.ID, error)
+
+	// HubsOf answers the hub each named container or entry sits under: a hub answers itself, a
+	// collection its parent, an entry its collection's parent. An identifier that names nothing in
+	// the transaction's tenant is absent from the answer rather than an error.
+	//
+	// It exists so that the authoriser judges a path by storage rather than by how carefully its
+	// caller built it: a path that names a collection without its hub is completed here, and a
+	// hub's memberships still count.
+	HubsOf(ctx context.Context, ids []shared.ID) (map[shared.ID]Hub, error)
+}
+
+// Hub is what the authoriser needs to know about the hub a container or an entry sits under.
+type Hub struct {
+	ID shared.ID
 }
 
 // Accounts is the store of people and service accounts.

@@ -239,6 +239,10 @@ func (m membershipsFake) Administrators(context.Context, []domain.Scope) ([]shar
 	return nil, nil
 }
 
+func (m membershipsFake) HubsOf(context.Context, []shared.ID) (map[shared.ID]repository.Hub, error) {
+	return nil, nil
+}
+
 // encryptorFake seals by remembering the plaintext under the purpose - which also proves the
 // purpose binding: opening under another purpose fails as the real envelope would.
 // encryptorFake seals by purpose, the binding the tests are about. Each sealing is its own

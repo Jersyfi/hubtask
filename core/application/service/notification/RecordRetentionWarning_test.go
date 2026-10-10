@@ -7,6 +7,7 @@ import (
 	"context"
 	"testing"
 
+	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	lifecycle "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
@@ -45,6 +46,10 @@ func (s *administratorStore) Administrators(
 		key = "path"
 	}
 	return s.byPath[key], nil
+}
+
+func (s *administratorStore) HubsOf(context.Context, []shared.ID) (map[shared.ID]identityrepository.Hub, error) {
+	return nil, nil
 }
 
 func warningRecorder(

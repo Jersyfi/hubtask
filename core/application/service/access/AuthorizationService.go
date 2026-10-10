@@ -129,9 +129,7 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 		}
 	}
 
-	path := request.scopePath()
-
-	memberships, err := s.resolve(ctx, actor, path)
+	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.scopePath())
 	if err != nil {
 		// Not a refusal: nobody was denied anything, the question could not be answered. Reporting
 		// it as forbidden would send a client off to fix a permission that is not the problem.
@@ -158,22 +156,6 @@ func (r Request) satisfiedBy(memberships []identity.Membership, path []identity.
 	return r.Alternative != "" && service.Allows(memberships, path, r.Alternative)
 }
 
-// resolve reads what the account holds along the path, in a transaction of its own.
-func (s Service) resolve(
-	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
-) ([]identity.Membership, error) {
-	var memberships []identity.Membership
-	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		memberships, err = s.Memberships.Along(ctx, actor.AccountID, path)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	return memberships, nil
-}
-
 // Permits answers whether the actor holds the permission along the path, and records nothing.
 //
 // The counterpart of Authorize for a *filter* rather than an attempt, and the distinction is
@@ -193,13 +175,13 @@ func (s Service) Permits(
 		return false, nil
 	}
 
-	memberships, err := s.resolve(ctx, actor, request.scopePath())
+	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.scopePath())
 	if err != nil {
 		// Not "may not": nobody was refused anything, the question could not be answered. A caller
 		// that read this as a refusal would silently shorten a stream on a database blip.
 		return false, err
 	}
-	return request.satisfiedBy(memberships, request.scopePath()), nil
+	return request.satisfiedBy(memberships, path), nil
 }
 
 // Reach is how much of a container's entries an actor may see.
@@ -239,11 +221,11 @@ func (s Service) ReachInto(
 		}
 	}
 
-	memberships, err := s.resolve(ctx, actor, request.Path)
+	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.Path)
 	if err != nil {
 		return Reach{}, err
 	}
-	if request.satisfiedBy(memberships, request.Path) {
+	if request.satisfiedBy(memberships, path) {
 		return Reach{All: true}, nil
 	}
 
@@ -345,19 +327,14 @@ func (s Service) Permitted(
 		return nil, nil
 	}
 
-	var memberships []identity.Membership
-	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		memberships, err = s.Memberships.Along(ctx, actor.AccountID, union(paths))
-		return err
-	})
+	memberships, completed, err := s.held(ctx, actor.PersistenceScope(), actor.AccountID, paths)
 	if err != nil {
 		// Not a refusal: nobody was denied anything, the question could not be answered.
 		return nil, err
 	}
 
 	allowed := make([]bool, len(paths))
-	for i, path := range paths {
+	for i, path := range completed {
 		allowed[i] = request.satisfiedBy(memberships, path)
 	}
 	return allowed, nil
@@ -392,18 +369,13 @@ func (s Service) CanSee(
 		return false, nil
 	}
 
-	var memberships []identity.Membership
-	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		memberships, err = s.Memberships.Along(ctx, accountID, path)
-		return err
-	})
+	memberships, completed, err := s.heldAlong(ctx, actor.PersistenceScope(), accountID, path)
 	if err != nil {
 		// Not an answer of "no": the question could not be asked. Reporting it as a refusal would
 		// send a client off to grant a permission that is not the problem.
 		return false, err
 	}
-	return service.Allows(memberships, path, service.PermissionRead), nil
+	return service.Allows(memberships, completed, service.PermissionRead), nil
 }
 
 // RoleAlong returns the actor's own effective role along the path, and whether they hold one at
@@ -420,17 +392,12 @@ func (s Service) CanSee(
 func (s Service) RoleAlong(
 	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
 ) (identity.Role, bool, error) {
-	var memberships []identity.Membership
-	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		memberships, err = s.Memberships.Along(ctx, actor.AccountID, path)
-		return err
-	})
+	memberships, completed, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, path)
 	if err != nil {
 		return "", false, err
 	}
 
-	role, found := service.EffectiveRole(memberships, path)
+	role, found := service.EffectiveRole(memberships, completed)
 	return role, found, nil
 }
 
