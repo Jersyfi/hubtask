@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -180,6 +181,12 @@ func (w CommentWriter) change(
 		if err != nil {
 			return err
 		}
+		keepText := false
+		if want == deleting {
+			if keepText, err = w.underHold(ctx, item, collection); err != nil {
+				return err
+			}
+		}
 
 		expected := cmd.ExpectedVersion
 		if expected == 0 {
@@ -187,7 +194,7 @@ func (w CommentWriter) change(
 			// the check: a concurrent write between the read and here is still caught.
 			expected = current.Version
 		}
-		if err := w.store(ctx, wanted, expected, want); err != nil {
+		if err := w.store(ctx, wanted, expected, want, keepText); err != nil {
 			return err
 		}
 		wanted.Version = expected + 1
@@ -216,12 +223,50 @@ func (w CommentWriter) applyChange(
 
 // store writes the one column set the change owns.
 func (w CommentWriter) store(
-	ctx context.Context, comment domain.Comment, expected int, want commentChange,
+	ctx context.Context, comment domain.Comment, expected int, want commentChange, keepText bool,
 ) error {
 	if want == editing {
 		return w.Comments.SetBody(ctx, comment, expected)
 	}
-	return w.Comments.SetDeleted(ctx, comment, expected, false)
+	return w.Comments.SetDeleted(ctx, comment, expected, keepText)
+}
+
+// underHold answers whether a legal hold covers a comment on this entry, so that its deletion keeps
+// the text (data-retention.md §4, UC-LIF-06 check 9).
+//
+// The comment is judged by its entry, with the target a purge of that entry would use: a comment
+// goes with its entry, so whatever would keep the entry keeps its comments' text. That includes an
+// account hold on anybody who contributed to the entry - other authors' comments too - which is
+// the reach a purge has. Active takes the shared hold lock first, so a hold placed or lifted
+// meanwhile waits for this transaction or is read by it.
+//
+// Asked on the deletion only, never on an edit: a hold does not freeze editing (check 6).
+func (w CommentWriter) underHold(
+	ctx context.Context, item domain.WorkItem, collection domain.Container,
+) (bool, error) {
+	holds, err := w.Holds.Active(ctx)
+	if err != nil || len(holds) == 0 {
+		return false, err
+	}
+	var contributors []shared.ID
+	if holds.AnyOnAccounts() {
+		byItem, err := w.Holds.Contributors(ctx, []shared.ID{item.ID})
+		if err != nil {
+			return false, err
+		}
+		contributors = byItem[item.ID]
+	}
+	containers := []shared.ID{collection.ID}
+	if !collection.ParentID.IsZero() {
+		containers = append(containers, collection.ParentID)
+	}
+	_, held := holds.Blocking(lifecycle.Target{
+		ItemID:          item.ID,
+		ContainerIDs:    containers,
+		AncestorItemIDs: domain.PathIDs(item.Path),
+		Contributors:    contributors,
+	})
+	return held, nil
 }
 
 // announceChange records what the change owes: the event outwards, the change log entry for

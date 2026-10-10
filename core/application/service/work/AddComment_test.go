@@ -133,6 +133,7 @@ func newCommentHarness(t *testing.T) *commentHarness {
 		Events: h.events, Changes: h.changes, Audit: h.audit,
 		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		Holds: &legalHolds{},
 	}
 
 	h.containers.stored[hubID] = domain.Container{

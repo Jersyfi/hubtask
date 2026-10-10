@@ -877,6 +877,7 @@ func run() error {
 		Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+		Holds: postgres.NewLifecycleRepository(),
 	}
 
 	// The reminder's three writes share one dependency set (work.ReminderWriter): the same reads,
