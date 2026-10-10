@@ -125,11 +125,13 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 		Policies: store, Runs: store, History: postgres.NewNotificationRepository(),
 		// The jumble, as the server wires it: the engine refuses to run with a kind
 		// unwired, and RE-8's cross-tenant question is asked of this kind too.
-		Inbox:  postgres.NewJumbleRepository(security.NewCursorCodec(installationSecret)),
-		Purger: purger,
-		Clock:  clock.Fixed(at),
-		IDs:    ids,
-		Rules:  postgres.NewRetentionRuleRepository(),
+		Inbox: postgres.NewJumbleRepository(security.NewCursorCodec(installationSecret)),
+		// The templates a legal hold kept after their deletion, as the server wires it.
+		DeletedTemplates: postgres.DeletedTemplateRepository{},
+		Purger:           purger,
+		Clock:            clock.Fixed(at),
+		IDs:              ids,
+		Rules:            postgres.NewRetentionRuleRepository(),
 		Sweeper: lifecycle.Sweeper{
 			Rules:   postgres.NewRetentionRuleRepository(),
 			Marking: postgres.NewRetentionMarkingRepository(),

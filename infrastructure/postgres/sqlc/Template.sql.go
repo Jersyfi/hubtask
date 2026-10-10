@@ -11,6 +11,56 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deletedTemplates = `-- name: DeletedTemplates :many
+SELECT t.id, t.scope_type, t.scope_id, c.parent_id AS hub_id
+FROM template t
+LEFT JOIN container c ON c.tenant_id = t.tenant_id AND c.id = t.scope_id
+WHERE t.tenant_id = current_tenant_id() AND t.deleted_at IS NOT NULL
+  AND t.id > $1::uuid
+ORDER BY t.id
+LIMIT $2
+`
+
+type DeletedTemplatesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type DeletedTemplatesRow struct {
+	ID        pgtype.UUID
+	ScopeType string
+	ScopeID   pgtype.UUID
+	HubID     pgtype.UUID
+}
+
+// The templates deleted under a legal hold, with what a hold is judged against: the scope and, for
+// a collection, the hub above it. One page in identifier order; the retention pass walks every
+// page, because a template still held stays in the set.
+func (q *Queries) DeletedTemplates(ctx context.Context, arg DeletedTemplatesParams) ([]DeletedTemplatesRow, error) {
+	rows, err := q.db.Query(ctx, deletedTemplates, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DeletedTemplatesRow{}
+	for rows.Next() {
+		var i DeletedTemplatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.HubID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findTemplate = `-- name: FindTemplate :one
 SELECT id, tenant_id, scope_type, scope_id, name, description, root_type, nodes,
        created_at, updated_at, deleted_at, version
@@ -184,6 +234,59 @@ func (q *Queries) ListTemplatesInScopes(ctx context.Context, arg ListTemplatesIn
 	return items, nil
 }
 
+const removeDeletedTemplates = `-- name: RemoveDeletedTemplates :many
+DELETE FROM template
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NOT NULL
+  AND id = ANY($1::uuid[])
+RETURNING id
+`
+
+// The held templates no hold covers any more, removed. The identifiers come back so that the
+// journal names exactly the rows that went. A living template is never matched.
+func (q *Queries) RemoveDeletedTemplates(ctx context.Context, ids []pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, removeDeletedTemplates, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeTemplate = `-- name: RemoveTemplate :execrows
+DELETE FROM template
+WHERE id = $1::uuid
+  AND version = $2
+  AND deleted_at IS NULL
+`
+
+type RemoveTemplateParams struct {
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The deletion where no legal hold covers the template: the row goes at once (data-retention.md
+// §4). Nothing shows a deleted template's name and nothing references one, so there is no
+// tombstone row to keep; the journal and the tombstone the caller writes are the record. Under the
+// same optimistic lock as the edit, and never on a row already deleted - that one is the hold's.
+func (q *Queries) RemoveTemplate(ctx context.Context, arg RemoveTemplateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, removeTemplate, arg.ID, arg.ExpectedVersion)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setTemplateDeleted = `-- name: SetTemplateDeleted :execrows
 UPDATE template SET
   deleted_at = $1,
@@ -199,9 +302,10 @@ type SetTemplateDeletedParams struct {
 	ExpectedVersion int32
 }
 
-// The soft delete. The trees the template has stamped out are ordinary entries and are not
-// touched; what goes is the ability to stamp out more - and the name, which the partial unique
-// index frees for a template defined afterwards.
+// The deletion while a legal hold covers the template (data-retention.md §4): the row stays,
+// unreadable, until the retention pass removes it (RemoveDeletedTemplates). The trees the template
+// has stamped out are ordinary entries and are not touched; what goes is the ability to stamp out
+// more - and the name, which the partial unique index frees for a template defined afterwards.
 func (q *Queries) SetTemplateDeleted(ctx context.Context, arg SetTemplateDeletedParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setTemplateDeleted, arg.DeletedAt, arg.ID, arg.ExpectedVersion)
 	if err != nil {

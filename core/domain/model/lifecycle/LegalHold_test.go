@@ -38,6 +38,39 @@ func target() lifecycle.Target {
 	}
 }
 
+// A template is judged by where it is defined, and by nothing else (data-retention.md §4).
+func TestATemplateIsReachedOnlyByTheWorkspaceAndItsContainers(t *testing.T) {
+	cases := []struct {
+		name       string
+		scope, hub shared.ID
+		hold       lifecycle.LegalHold
+		reached    bool
+	}{
+		{"a workspace-wide one, a workspace hold", "", "",
+			lifecycle.LegalHold{ID: holdID, Scope: lifecycle.HoldTenant}, true},
+		{"a workspace-wide one, a hub hold", "", "",
+			lifecycle.LegalHold{ID: holdID, Scope: lifecycle.HoldContainer, ScopeID: hubID}, false},
+		{"a collection's, a hold on it", collectionID, hubID,
+			lifecycle.LegalHold{ID: holdID, Scope: lifecycle.HoldContainer, ScopeID: collectionID}, true},
+		{"a collection's, a hold on the hub above", collectionID, hubID,
+			lifecycle.LegalHold{ID: holdID, Scope: lifecycle.HoldContainer, ScopeID: hubID}, true},
+		{"a hub's, a hold on another hub", hubID, "",
+			lifecycle.LegalHold{ID: holdID, Scope: lifecycle.HoldContainer, ScopeID: otherHubID}, false},
+		{"a collection's, an entry hold", collectionID, hubID,
+			lifecycle.LegalHold{ID: holdID, Scope: lifecycle.HoldItem, ScopeID: taskID}, false},
+		{"a collection's, an account hold", collectionID, hubID,
+			lifecycle.LegalHold{ID: holdID, Scope: lifecycle.HoldAccount, ScopeID: accountID}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, reached := lifecycle.Holds{c.hold}.Blocking(lifecycle.TemplateTarget(c.scope, c.hub))
+			if reached != c.reached {
+				t.Errorf("reached = %v, want %v", reached, c.reached)
+			}
+		})
+	}
+}
+
 // Which holds are in force on what: the account and the workspace are the two scopes that reach a
 // person's own record, and a removal reads contributors only while an account hold stands.
 func TestTheHoldsOnAnAccountAndOnTheWorkspaceAreFound(t *testing.T) {

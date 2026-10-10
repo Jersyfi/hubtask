@@ -898,8 +898,13 @@ type Templates interface {
 	// Update writes the whole document under the optimistic lock, or reports a version conflict.
 	Update(ctx context.Context, template work.Template, expectedVersion int) error
 
-	// SetDeleted writes the soft deletion, or reports a version conflict.
+	// SetDeleted writes the soft deletion, or reports a version conflict. Only a legal hold covering
+	// the template asks for it (data-retention.md §4); otherwise a deletion is Remove.
 	SetDeleted(ctx context.Context, template work.Template, expectedVersion int) error
+
+	// Remove deletes the row for good under the optimistic lock, or reports a version conflict. A
+	// template already deleted is never matched.
+	Remove(ctx context.Context, template work.Template, expectedVersion int) error
 }
 
 // TemplatePage is one page of templates and the walk's state.

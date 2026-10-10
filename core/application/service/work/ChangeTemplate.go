@@ -5,12 +5,15 @@ package work
 
 import (
 	"context"
+	"errors"
 	"strconv"
+	"time"
 
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -65,6 +68,50 @@ func (h DeleteTemplate) Execute(
 ) error {
 	_, err := h.Writer.change(ctx, actor, cmd, removingTemplate)
 	return err
+}
+
+// remove ends a template (data-retention.md §4): removed at once with its journal entry and its
+// tombstone - so a restore does not bring it back - unless a legal hold covers it; then it is only
+// marked deleted, unreadable as before, and the retention pass removes it once no hold does. The
+// tombstone window is not waited for: this is a person's own act, as emptying the trash by hand is.
+func (w TemplateWriter) remove(
+	ctx context.Context, removed domain.Template, expected int, now time.Time,
+) error {
+	held, err := w.underHold(ctx, removed)
+	if err != nil {
+		return err
+	}
+	if held {
+		return w.Templates.SetDeleted(ctx, removed, expected)
+	}
+	if err := w.Templates.Remove(ctx, removed, expected); err != nil {
+		return err
+	}
+	return w.Removals.Record(ctx, []lifecycle.Removal{{
+		Entity: templateTable, EntityID: removed.ID, Reason: lifecycle.DeletedByUser,
+	}}, now, now.Add(w.TombstoneWindow))
+}
+
+// templateTable is the template's table, in the words the journal and the tombstone use.
+const templateTable = "template"
+
+// underHold answers whether a legal hold covers the template. Active takes the shared hold lock
+// first, so a hold placed or lifted meanwhile waits for this transaction or is read by it.
+func (w TemplateWriter) underHold(ctx context.Context, template domain.Template) (bool, error) {
+	holds, err := w.Holds.Active(ctx)
+	if err != nil || len(holds) == 0 {
+		return false, err
+	}
+	var hub shared.ID
+	if template.Scope == domain.TemplateScopeCollection && !template.ScopeID.IsZero() {
+		collection, err := w.Containers.Find(ctx, template.ScopeID)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return false, err
+		}
+		hub = collection.ParentID
+	}
+	_, covered := holds.Blocking(lifecycle.TemplateTarget(template.ScopeID, hub))
+	return covered, nil
 }
 
 // templateChange is which change the caller asked for. Not a boolean, for the reason the comment's
@@ -135,7 +182,7 @@ func (w TemplateWriter) change(
 			if expected == 0 {
 				expected = stored.Version
 			}
-			if err := w.Templates.SetDeleted(ctx, removed, expected); err != nil {
+			if err := w.remove(ctx, removed, expected, now); err != nil {
 				return err
 			}
 			removed.Version = expected + 1
@@ -310,12 +357,13 @@ func (h UpdateTemplate) invoke(
 func (h DeleteTemplate) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: DeleteTemplateName,
-		Summary: "Removes a template. A soft delete: the trees it has already stamped out are " +
+		Summary: "Removes a template for good. The trees it has already stamped out are " +
 			"ordinary entries and outlive it, and a template defined afterwards under the same " +
-			"name is a new one rather than this one coming back. Needs STRUCTURE at the " +
+			"name is a new one rather than this one coming back. While a legal hold covers its " +
+			"scope it is kept, unreadable, until the hold is released. Needs STRUCTURE at the " +
 			"template's scope.",
-		SideEffects: "Marks the template deleted, records the deletion for offline clients and " +
-			"writes an audit entry.",
+		SideEffects: "Removes the template and journals the removal - or, under a legal hold, " +
+			"marks it deleted - records the deletion for offline clients and writes an audit entry.",
 		TokenScope: templatesWrite,
 		Input: []usecase.Field{
 			{

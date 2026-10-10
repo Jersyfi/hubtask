@@ -931,7 +931,9 @@ func run() error {
 		Templates: templates, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Changes: changes, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-		Text: forms,
+		Text:  forms,
+		Holds: postgres.NewLifecycleRepository(), Removals: postgres.NewLifecycleRepository(),
+		TombstoneWindow: cfg.Retention.TombstoneWindow,
 	}
 
 	// The bulk performs the other use cases, so it needs the catalogue that is built from its own
@@ -2678,7 +2680,10 @@ func run() error {
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
 			Remainders: privacyservice.ErasureRemainders{Kept: privacyStore, Jobs: jobs},
-			History:    notifications,
+			// The templates a legal hold kept after their deletion, removed once none does
+			// (data-retention.md §4).
+			DeletedTemplates: postgres.DeletedTemplateRepository{},
+			History:          notifications,
 			// The outbox's own rows: ADR-0007's second countermeasure, for a table that would
 			// otherwise only ever grow.
 			Events: postgres.NewDispatchedEvents(),

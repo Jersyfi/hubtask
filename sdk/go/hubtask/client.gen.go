@@ -13644,7 +13644,7 @@ type ClientInterface interface {
 
 	// DeleteTemplate performs a DELETE /templates/{templateId} (the `DeleteTemplate` operationId) request.
 	//
-	// Removes a template. A soft delete: the trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back.
+	// Removes a template for good. The trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back. While a legal hold covers the template's scope it is kept, unreadable, until the hold is released.
 	DeleteTemplate(ctx context.Context, templateId TemplateId, params *DeleteTemplateParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetTemplate performs a GET /templates/{templateId} (the `GetTemplate` operationId) request.
@@ -21130,7 +21130,7 @@ func (c *Client) CreateTemplate(ctx context.Context, params *CreateTemplateParam
 
 // DeleteTemplate performs a DELETE /templates/{templateId} (the `DeleteTemplate` operationId) request.
 //
-// Removes a template. A soft delete: the trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back.
+// Removes a template for good. The trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back. While a legal hold covers the template's scope it is kept, unreadable, until the hold is released.
 func (c *Client) DeleteTemplate(ctx context.Context, templateId TemplateId, params *DeleteTemplateParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteTemplateRequest(c.Server, templateId, params)
 	if err != nil {
@@ -38990,7 +38990,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteTemplateWithResponse performs a DELETE /templates/{templateId} (the `DeleteTemplate` operationId) request.
 	//
-	// Removes a template. A soft delete: the trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back.
+	// Removes a template for good. The trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back. While a legal hold covers the template's scope it is kept, unreadable, until the hold is released.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	DeleteTemplateWithResponse(ctx context.Context, templateId TemplateId, params *DeleteTemplateParams, reqEditors ...RequestEditorFn) (*DeleteTemplateResult, error)
@@ -59093,7 +59093,7 @@ func (c *ClientWithResponses) CreateTemplateWithResponse(ctx context.Context, pa
 
 // DeleteTemplateWithResponse performs a DELETE /templates/{templateId} (the `DeleteTemplate` operationId) request.
 //
-// Removes a template. A soft delete: the trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back.
+// Removes a template for good. The trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back. While a legal hold covers the template's scope it is kept, unreadable, until the hold is released.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) DeleteTemplateWithResponse(ctx context.Context, templateId TemplateId, params *DeleteTemplateParams, reqEditors ...RequestEditorFn) (*DeleteTemplateResult, error) {

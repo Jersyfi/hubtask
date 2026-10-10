@@ -76,6 +76,10 @@ type RunRetention struct {
 	// Remainders seeds the rest of an erasure kept under a hold no longer in force that nothing
 	// seeded (data-protection.md §4.1). Optional: wired without it, a release still seeds its own.
 	Remainders ErasureRemainders
+	// DeletedTemplates are the templates deleted while a legal hold covered them; the pass removes
+	// each once no hold does (data-retention.md §4). Optional: wired without it, they stay until a
+	// pass that has it.
+	DeletedTemplates repository.DeletedTemplates
 }
 
 // RetentionSignals is the slice of the metrics adapter a run reports through
@@ -283,6 +287,12 @@ func (h RunRetention) Execute(
 			return outcome, err
 		}
 	}
+
+	templates, err := h.sweepDeletedTemplates(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+	outcome.add(templates)
 
 	// Reported as one outcome, so that the job's decision about coming back straight away covers
 	// every kind: a pass that emptied the trash and left a full batch of notifications has not
@@ -839,3 +849,71 @@ func (h RunRetention) Exhausted(outcome Outcome) bool {
 
 // RetentionRunAction is the audit code of a run that removed something.
 const RetentionRunAction audit.Action = "retention.executed"
+
+// sweepDeletedTemplates removes every deleted template no legal hold covers any more
+// (data-retention.md §4), with the journal entry and the tombstone every removal leaves, so a
+// restore does not bring one back.
+//
+// A deletion removes a template at once unless a hold covers it, so what is here was deleted under
+// a hold - or before deletions removed at all, and those go on the first pass. Every page in one
+// pass: a template still held stays in the set, and a page of them must not hide a released one
+// behind it. A template still held counts as blocked, never as matched, so a hold that stands for
+// months does not bring the job straight back (Exhausted). No audit entry: the deletion was
+// audited (`template.deleted`), and so is the release that lets it go.
+func (h RunRetention) sweepDeletedTemplates(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.DeletedTemplates == nil {
+		return Outcome{}, nil
+	}
+	holds, err := h.Purger.Holds.Active(ctx)
+	if err != nil {
+		return Outcome{}, err
+	}
+	if _, held := holds.OnTenant(); held {
+		return Outcome{}, nil
+	}
+
+	outcome := Outcome{}
+	batch := h.Purger.BatchSize
+	var after shared.ID
+	for {
+		page, err := h.DeletedTemplates.Deleted(ctx, after, batch)
+		if err != nil {
+			return outcome, err
+		}
+		if len(page) == 0 {
+			break
+		}
+		released := make([]shared.ID, 0, len(page))
+		for _, template := range page {
+			if _, held := holds.Blocking(domain.TemplateTarget(template.ScopeID, template.HubID)); held {
+				outcome.blocked(domain.BlockedByLegalHold)
+				continue
+			}
+			released = append(released, template.ID)
+		}
+		removed, err := h.DeletedTemplates.Remove(ctx, released)
+		if err != nil {
+			return outcome, err
+		}
+		removals := make([]domain.Removal, 0, len(removed))
+		for _, id := range removed {
+			removals = append(removals, domain.Removal{
+				Entity: templateTable, EntityID: id, Reason: domain.DeletedByRetention,
+			})
+		}
+		if err := h.Purger.record(ctx, removals, started); err != nil {
+			return outcome, err
+		}
+		outcome.Matched += len(removed)
+		outcome.Removed += len(removed)
+
+		if len(page) < batch {
+			break
+		}
+		after = page[len(page)-1].ID
+	}
+	return outcome, nil
+}
+
+// templateTable is the template's table, in the words the journal and the tombstone use.
+const templateTable = "template"
