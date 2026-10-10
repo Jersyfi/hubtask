@@ -73,3 +73,33 @@ UPDATE template SET
 WHERE id = sqlc.arg('id')::uuid
   AND version = sqlc.arg('expected_version')
   AND deleted_at IS NULL;
+
+-- name: RemoveTemplate :execrows
+-- The deletion where no legal hold covers the template: the row goes at once (data-retention.md
+-- §4). Nothing shows a deleted template's name and nothing references one, so there is no
+-- tombstone row to keep; the journal and the tombstone the caller writes are the record. Under the
+-- same optimistic lock as the edit, and never on a row already deleted - that one is the hold's.
+DELETE FROM template
+WHERE id = sqlc.arg('id')::uuid
+  AND version = sqlc.arg('expected_version')
+  AND deleted_at IS NULL;
+
+-- name: DeletedTemplates :many
+-- The templates deleted under a legal hold, with what a hold is judged against: the scope and, for
+-- a collection, the hub above it. One page in identifier order; the retention pass walks every
+-- page, because a template still held stays in the set.
+SELECT t.id, t.scope_type, t.scope_id, c.parent_id AS hub_id
+FROM template t
+LEFT JOIN container c ON c.tenant_id = t.tenant_id AND c.id = t.scope_id
+WHERE t.tenant_id = current_tenant_id() AND t.deleted_at IS NOT NULL
+  AND t.id > sqlc.arg('after')::uuid
+ORDER BY t.id
+LIMIT sqlc.arg('batch');
+
+-- name: RemoveDeletedTemplates :many
+-- The held templates no hold covers any more, removed. The identifiers come back so that the
+-- journal names exactly the rows that went. A living template is never matched.
+DELETE FROM template
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NOT NULL
+  AND id = ANY(sqlc.arg('ids')::uuid[])
+RETURNING id;
