@@ -144,13 +144,24 @@ func TestAPrivateHubIsReachedOnlyByItsMembers(t *testing.T) {
 func TestAPrivateHubIsNotReachedFromAnotherWorkspace(t *testing.T) {
 	ctx := context.Background()
 	w := seedPrivateWorld(ctx, t)
-	authoriser := realAuthoriser(ctx, t)
 
-	allowed, err := authoriser.Permits(ctx, reader(tenantB, authorB), access.Request{
-		Permission: service.PermissionRead,
-		Path:       []identity.Scope{identity.TenantScope(), identity.HubScope(w.hub)},
+	// The boundary is row level security on the read every reader makes before it asks the
+	// authoriser: the hub, its collection and its entry are not there in tenant B.
+	err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		for _, id := range []shared.ID{w.hub, w.collection} {
+			if _, err := containerRepo().Find(ctx, id); !errors.Is(err, shared.ErrNotFound) {
+				t.Errorf("tenant B read %s: %v, want not found", id, err)
+			}
+		}
+		if _, err := itemRepo().Find(ctx, w.item); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("tenant B read the entry: %v, want not found", err)
+		}
+		return nil
 	})
-	if err != nil || allowed {
-		t.Errorf("another workspace's owner: allowed %v, error %v; want refused", allowed, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hubs := hubsOf(ctx, t, tenantB, w.hub, w.collection, w.item); len(hubs) != 0 {
+		t.Errorf("tenant B learnt about the private hub: %+v", hubs)
 	}
 }

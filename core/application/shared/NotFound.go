@@ -20,3 +20,10 @@ func ItemNotFound(id shared.ID) error {
 		WithDetail("items.not_found").
 		WithParams(map[string]string{"item_id": id.String()})
 }
+
+// ContainerNotFound is the answer for a hub or collection the actor cannot reach: the one the
+// container repository gives for an identifier that is not in the tenant, so that a private hub
+// and a missing one read alike (T-04, ADR-0073 §1).
+func ContainerNotFound() error {
+	return shared.ErrNotFound.WithDetail("containers.not_found")
+}

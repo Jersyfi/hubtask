@@ -141,6 +141,10 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 	}
 
 	if !request.satisfiedBy(memberships, path) {
+		if hidden(memberships, path) {
+			s.recordRefusal(ctx, actor, request, "private")
+			return appshared.ContainerNotFound()
+		}
 		s.recordRefusal(ctx, actor, request, "permission")
 		return notPermitted(request)
 	}
@@ -242,6 +246,10 @@ func (s Service) ReachInto(
 		return Reach{Shared: sharedWith}, nil
 	}
 
+	if hidden(memberships, path) {
+		s.recordRefusal(ctx, actor, request, "private")
+		return Reach{}, appshared.ContainerNotFound()
+	}
 	s.recordRefusal(ctx, actor, request, "permission")
 	return Reach{}, notPermitted(request)
 }
@@ -265,6 +273,10 @@ func (s Service) decideAboutTheEntry(
 	if !found {
 		s.recordRefusal(ctx, actor, request, "sharing")
 		if request.On.ID.IsZero() {
+			if at.privacy == service.PrivatePath {
+				// Except inside a private hub, which is not there for whoever holds nothing in it.
+				return appshared.ContainerNotFound()
+			}
 			// A creation names no entry, so there is no existence to disclose: the caller named a
 			// container it already holds an identifier for, and hiding that is the container
 			// list's business rather than this call's. It is refused as it always was.
@@ -285,6 +297,18 @@ func (s Service) decideAboutTheEntry(
 		s.recordRefusal(ctx, actor, request, "permission")
 	}
 	return notPermitted(request)
+}
+
+// hidden is whether a refusal must read as "not found": the path runs through a private hub and
+// the actor holds nothing on it or below it. A private hub is not there for anybody outside it
+// (ADR-0073 §1, UC-ID-16 check 2), so telling them it exists and they may not touch it would
+// be the disclosure T-04 forbids. Somebody who does hold a role inside it is refused as anywhere.
+func hidden(memberships []identity.Membership, at resolved) bool {
+	if at.privacy != service.PrivatePath {
+		return false
+	}
+	_, found := service.EffectiveRole(memberships, at.path, at.privacy)
+	return !found
 }
 
 // notPermitted is the one refusal, so that every path to it reads the same to a client.

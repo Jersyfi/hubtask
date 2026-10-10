@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
 // A rule scoped to a collection names the collection and not its hub (automation.Scope.Path); the
@@ -157,6 +158,40 @@ func TestAWorkspaceRoleDoesNotReachAPrivateHub(t *testing.T) {
 	}
 	if visible, err := authorizer.CanSee(context.Background(), actorWithScopes(), accountID, path); err != nil || visible {
 		t.Errorf("CanSee answered %v, error %v; want false", visible, err)
+	}
+}
+
+// Outside a private hub, any question about it reads as a hub that is not there (UC-ID-16 check
+// 2, T-04); inside it, a refusal is the ordinary one.
+func TestARefusalOnAPrivateHubIsNotFoundForOutsidersOnly(t *testing.T) {
+	path := []identity.Scope{identity.TenantScope(), identity.HubScope(hubID)}
+	hubs := map[shared.ID]identityrepository.Hub{hubID: {ID: hubID, Private: true}}
+	ask := func(held []identity.Membership, does service.ItemAction) ([]audit.Entry, error) {
+		authorizer, store, trail, _ := serviceWith(held)
+		store.hubs = hubs
+		request := Request{Permission: service.PermissionStructure, Path: path, Action: "container.updated"}
+		if does != "" {
+			request.On = ItemSubject{Does: does}
+		}
+		err := authorizer.Authorize(context.Background(), actorWithScopes(), request)
+		return trail.entries, err
+	}
+
+	owner := []identity.Membership{{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleOwner}}
+	for name, does := range map[string]service.ItemAction{"a container": "", "a creation": service.ItemCreate} {
+		entries, err := ask(owner, does)
+		var refusal *shared.Error
+		if !errors.As(err, &refusal) || !errors.Is(err, shared.ErrNotFound) || refusal.DetailCode != "containers.not_found" {
+			t.Errorf("%s: the workspace's owner was answered %v, want containers.not_found", name, err)
+		}
+		if len(entries) != 1 {
+			t.Errorf("%s: the refusal was not recorded: %+v", name, entries)
+		}
+	}
+
+	viewer := []identity.Membership{{AccountID: accountID, Scope: identity.HubScope(hubID), Role: identity.RoleViewer}}
+	if _, err := ask(viewer, ""); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("the hub's viewer was answered %v, want forbidden", err)
 	}
 }
 
