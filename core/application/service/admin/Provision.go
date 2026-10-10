@@ -32,6 +32,7 @@ import (
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -142,6 +143,12 @@ type ProvisionTenant struct {
 	// without it provisions without a host - nothing resolves through the table, so a missing row
 	// costs nothing.
 	Hosts identityrepo.TenantHosts
+	// Jobs seeds the new workspace's retention sweep in the provisioning transaction
+	// (data-retention.md §5): nothing may enumerate tenants (multi-tenancy.md §2.1), so the write
+	// that creates the workspace asks for it. Nil is a build without a queue, which only a test makes.
+	Jobs JobQueue
+	// RetentionInterval is the sweep's own cadence, the first run one interval out.
+	RetentionInterval time.Duration
 	// InstallationHost is this installation's own host, from which the canonical one is derived: the
 	// slug in front of it in multi mode, and the host itself in single mode. From the configured
 	// base URL at composition, never from a request - a host a caller chooses is a host a caller
@@ -237,6 +244,11 @@ func (h ProvisionTenant) Execute(
 
 		if err := h.recordAudit(ctx, tenant, owner, actor, now); err != nil {
 			return err
+		}
+		if h.Jobs != nil {
+			if _, err := h.Jobs.Enqueue(ctx, queue.RetentionSweep(tenant.ID, now.Add(h.RetentionInterval))); err != nil {
+				return err
+			}
 		}
 		return h.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: h.IDs.NewID(), OccurredAt: now, Action: journalProvisioned,

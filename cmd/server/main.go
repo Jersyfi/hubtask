@@ -1898,6 +1898,7 @@ func run() error {
 			// The one host the new workspace answers at. The installation's own host comes
 			// from the configured base URL and never from a request.
 			Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
+			Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
 		}.Descriptor(),
 		adminservice.ListTenants{
 			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
