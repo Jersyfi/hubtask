@@ -564,6 +564,24 @@ func (q *Queries) GroupMembers(ctx context.Context, groupID pgtype.UUID) ([]pgty
 	return items, nil
 }
 
+const holdsAnyMembership = `-- name: HoldsAnyMembership :one
+SELECT EXISTS (
+  SELECT 1 FROM membership m
+  WHERE m.account_id = $1::uuid
+     OR m.group_id IN (
+       SELECT group_id FROM account_group_member WHERE account_id = $1::uuid
+     )
+) AS held
+`
+
+// Whether the account holds a role anywhere in the tenant, directly or through a group.
+func (q *Queries) HoldsAnyMembership(ctx context.Context, accountID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAnyMembership, accountID)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const hubsOf = `-- name: HubsOf :many
 SELECT c.id AS named_id, h.id AS hub_id, h.private
 FROM container c

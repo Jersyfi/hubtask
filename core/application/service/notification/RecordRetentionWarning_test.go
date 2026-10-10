@@ -52,6 +52,8 @@ func (s *administratorStore) HubsOf(context.Context, []shared.ID) (map[shared.ID
 	return nil, nil
 }
 
+func (s *administratorStore) HoldsAny(context.Context, shared.ID) (bool, error) { return true, nil }
+
 func warningRecorder(
 	members []shared.ID, administrators map[string][]shared.ID,
 ) (RecordRetentionWarning, *notificationStore, *jobQueue, *administratorStore) {

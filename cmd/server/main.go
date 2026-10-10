@@ -1510,6 +1510,8 @@ func run() error {
 		work.CreateContainer{
 			Containers: containers,
 			Authorizer: authorizer,
+			OwnHubs:    authorizer,
+			Grants:     grants,
 			Events:     outbox,
 			Changes:    changes,
 			Audit:      auditSink,

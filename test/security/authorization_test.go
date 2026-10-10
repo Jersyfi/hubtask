@@ -279,6 +279,8 @@ func (m *memberships) HubsOf(context.Context, []shared.ID) (map[shared.ID]identi
 	return nil, nil
 }
 
+func (m *memberships) HoldsAny(context.Context, shared.ID) (bool, error) { return true, nil }
+
 type trail struct{ entries []audit.Entry }
 
 func (s *trail) Append(_ context.Context, entry audit.Entry) error {

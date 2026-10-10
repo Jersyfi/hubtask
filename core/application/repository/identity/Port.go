@@ -121,6 +121,10 @@ type Memberships interface {
 	// caller built it: a path that names a collection without its hub is completed here, and
 	// whether the path runs through a private hub is read here rather than carried by the path.
 	HubsOf(ctx context.Context, ids []shared.ID) (map[shared.ID]Hub, error)
+
+	// HoldsAny answers whether the account holds a role anywhere in the workspace, directly or
+	// through a group: what a person needs to make a private hub of their own (ADR-0073 §2).
+	HoldsAny(ctx context.Context, accountID shared.ID) (bool, error)
 }
 
 // HubLocks guards the two writes that must not interleave on a private hub: a group granted a role

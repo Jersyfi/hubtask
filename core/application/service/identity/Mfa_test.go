@@ -243,6 +243,8 @@ func (m membershipsFake) HubsOf(context.Context, []shared.ID) (map[shared.ID]rep
 	return nil, nil
 }
 
+func (m membershipsFake) HoldsAny(context.Context, shared.ID) (bool, error) { return true, nil }
+
 // encryptorFake seals by remembering the plaintext under the purpose - which also proves the
 // purpose binding: opening under another purpose fails as the real envelope would.
 // encryptorFake seals by purpose, the binding the tests are about. Each sealing is its own

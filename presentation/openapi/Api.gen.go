@@ -4877,7 +4877,10 @@ type ContainerCreate struct {
 	Icon        *string             `json:"icon,omitempty"`
 	Name        string              `json:"name"`
 	ParentId    *openapi_types.UUID `json:"parent_id,omitempty"`
-	Type        ContainerType       `json:"type"`
+
+	// Private Makes the new hub private: reached only by people holding a role on it or below it, not by the workspace's owners and administrators. Any person holding a role anywhere in the workspace may create one, without the right to create shared hubs, and becomes its owner. A service account may not. Refused on a collection (`containers.private_only_hubs`).
+	Private *bool         `json:"private,omitempty"`
+	Type    ContainerType `json:"type"`
 }
 
 // ContainerPage defines model for ContainerPage.

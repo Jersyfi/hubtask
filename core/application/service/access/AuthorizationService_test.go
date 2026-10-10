@@ -56,6 +56,12 @@ type memberships struct {
 	// hubs is what storage says each container or entry sits under; asked records the questions.
 	hubs  map[shared.ID]identityrepository.Hub
 	asked [][]shared.ID
+	// holdsNothing makes HoldsAny answer no.
+	holdsNothing bool
+}
+
+func (m *memberships) HoldsAny(context.Context, shared.ID) (bool, error) {
+	return !m.holdsNothing, m.err
 }
 
 func (m *memberships) HubsOf(_ context.Context, ids []shared.ID) (map[shared.ID]identityrepository.Hub, error) {

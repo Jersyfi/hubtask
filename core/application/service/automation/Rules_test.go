@@ -184,6 +184,8 @@ func (m memberships) HubsOf(context.Context, []shared.ID) (map[shared.ID]identit
 	return nil, nil
 }
 
+func (m memberships) HoldsAny(context.Context, shared.ID) (bool, error) { return true, nil }
+
 // authorizer answers the permission question, and records what it was asked.
 type authorizer struct {
 	refuse   bool

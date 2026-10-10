@@ -885,6 +885,7 @@ class ContainerCreate(TypedDict, total=False):
     description: str | None
     icon: str | None
     color_token: str | None
+    private: bool
 
 class ContainerUpdate(TypedDict, total=False):
     name: str

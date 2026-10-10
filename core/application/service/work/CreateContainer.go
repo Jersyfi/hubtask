@@ -9,10 +9,12 @@ import (
 	"errors"
 	"time"
 
+	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -45,6 +47,12 @@ type Authorizer interface {
 	Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error
 }
 
+// OwnHubs is the authorisation question a private hub of one's own asks instead of STRUCTURE
+// (ADR-0073 §2).
+type OwnHubs interface {
+	AuthorizeOwnPrivateHub(ctx context.Context, actor appshared.ActorContext, request access.Request) error
+}
+
 // Anchored is the slice of the authorisation service a list anchored to a container needs: not
 // "may I read this", but "how much of it may I read".
 //
@@ -68,6 +76,9 @@ type CreateContainerCommand struct {
 	Description string
 	Icon        string
 	ColorToken  string
+
+	// Private makes a new hub private, its creator its owner (ADR-0073 §2).
+	Private bool
 }
 
 // CreateContainer creates a hub or a collection.
@@ -80,6 +91,11 @@ type CreateContainerCommand struct {
 type CreateContainer struct {
 	Containers repository.Containers
 	Authorizer Authorizer
+	// OwnHubs answers who may make a private hub; Grants makes its creator its owner. Both are
+	// needed only for a private hub, and a build without them refuses one rather than making a hub
+	// nobody holds.
+	OwnHubs    OwnHubs
+	Grants     identityrepository.MembershipGrants
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
@@ -95,18 +111,12 @@ type CreateContainer struct {
 func (h CreateContainer) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd CreateContainerCommand,
 ) (domain.Container, error) {
-	// Before the transaction, deliberately: a refusal writes an audit entry, and an entry written
-	// inside this transaction would be rolled back together with the refusal (audit.md §7).
-	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission: service.PermissionStructure,
-		Path:       authorizationPath(cmd.ParentID),
-		Action:     ContainerCreatedAction,
-		TokenScope: containersWrite,
-		TargetType: containerTarget,
-		// The container does not exist yet, so the refusal names what it would have been created
-		// in. For a hub that is the tenant itself, which the entry already carries.
-		TargetID: cmd.ParentID,
-	}); err != nil {
+	if cmd.Private && cmd.Type != domain.ContainerHub {
+		// Before the permission, so that the answer is the same for everybody: the request asks for
+		// something that does not exist.
+		return domain.Container{}, domain.ErrPrivateOnlyHubs()
+	}
+	if err := h.authorize(ctx, actor, cmd); err != nil {
 		return domain.Container{}, err
 	}
 
@@ -135,6 +145,7 @@ func (h CreateContainer) Execute(
 			CreatedBy:   actor.AccountID,
 			Now:         now,
 			Text:        h.Text,
+			Private:     cmd.Private,
 		})
 		if err != nil {
 			return err
@@ -162,6 +173,11 @@ func (h CreateContainer) Execute(
 		if err := h.recordAudit(ctx, container, actor, now); err != nil {
 			return err
 		}
+		if container.Private {
+			if err := h.ownedBy(ctx, container, actor, now); err != nil {
+				return err
+			}
+		}
 
 		created = container
 		return nil
@@ -170,6 +186,50 @@ func (h CreateContainer) Execute(
 		return domain.Container{}, err
 	}
 	return created, nil
+}
+
+// authorize asks the question the container decides: STRUCTURE where it is created, or - for a
+// private hub - the question a hub of one's own asks (ADR-0073 §2).
+//
+// Before the transaction, deliberately: a refusal writes an audit entry, and an entry written
+// inside the transaction would be rolled back together with the refusal (audit.md §7).
+func (h CreateContainer) authorize(
+	ctx context.Context, actor appshared.ActorContext, cmd CreateContainerCommand,
+) error {
+	request := access.Request{
+		Permission: service.PermissionStructure,
+		Path:       authorizationPath(cmd.ParentID),
+		Action:     ContainerCreatedAction,
+		TokenScope: containersWrite,
+		TargetType: containerTarget,
+		// The container does not exist yet, so the refusal names what it would have been created
+		// in. For a hub that is the tenant itself, which the entry already carries.
+		TargetID: cmd.ParentID,
+	}
+	if !cmd.Private {
+		return h.Authorizer.Authorize(ctx, actor, request)
+	}
+	if h.OwnHubs == nil || h.Grants == nil {
+		return shared.ErrInternal.WithDetail("containers.private_hubs_unwired")
+	}
+	return h.OwnHubs.AuthorizeOwnPrivateHub(ctx, actor, request)
+}
+
+// ownedBy makes the creator of a private hub its owner, in the hub's own transaction: a private
+// hub is reached only through a membership on it, and one made without would be reached by
+// nobody (ADR-0073 §2). Audited as the grant it is.
+func (h CreateContainer) ownedBy(
+	ctx context.Context, hub domain.Container, actor appshared.ActorContext, now time.Time,
+) error {
+	grant, err := identity.NewGrant(
+		h.IDs.NewID(), hub.TenantID, actor.AccountID, "", identity.HubScope(hub.ID), identity.RoleOwner)
+	if err != nil {
+		return err
+	}
+	if err := h.Grants.Grant(ctx, grant); err != nil {
+		return err
+	}
+	return h.Audit.Append(ctx, identityservice.GrantedEntry(ctx, grant, actor, now))
 }
 
 // checkParent enforces I-C1 and I-C3 against the container the new one would sit in.
@@ -387,6 +447,12 @@ func (h CreateContainer) Descriptor() usecase.Descriptor {
 				Name: "color_token", Kind: usecase.KindString,
 				Description: "A theme token rather than a colour value, so clients render it in their own palette.",
 			},
+			{
+				Name: "private", Kind: usecase.KindBool,
+				Description: "A hub reached only by its own members, the workspace's administrators " +
+					"included; the creator becomes its owner. Any person holding a role in the " +
+					"workspace may create one. Refused on a collection.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ContainerCreatedAction, TargetType: containerTarget,
@@ -418,6 +484,7 @@ func (h CreateContainer) invoke(
 		Description: in.String("description"),
 		Icon:        in.String("icon"),
 		ColorToken:  in.String("color_token"),
+		Private:     in.Bool("private"),
 	})
 	if err != nil {
 		return nil, err

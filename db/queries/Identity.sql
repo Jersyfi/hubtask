@@ -95,6 +95,16 @@ JOIN container col ON col.id = w.collection_id
 JOIN container h ON h.id = col.parent_id
 WHERE w.id = ANY(sqlc.arg('ids')::uuid[]);
 
+-- name: HoldsAnyMembership :one
+-- Whether the account holds a role anywhere in the tenant, directly or through a group.
+SELECT EXISTS (
+  SELECT 1 FROM membership m
+  WHERE m.account_id = sqlc.arg('account_id')::uuid
+     OR m.group_id IN (
+       SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')::uuid
+     )
+) AS held;
+
 -- name: LockHubOf :one
 -- The hub a container or an entry sits under, locked for the transaction: granting a group a role
 -- under a private hub and making a hub private both take this row first, so the second waits for

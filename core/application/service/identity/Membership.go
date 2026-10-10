@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -159,9 +160,18 @@ func (h GrantMembership) noGroupInPrivateHub(ctx context.Context, grant domain.G
 func (h GrantMembership) recordAudit(
 	ctx context.Context, grant domain.Grant, actor appshared.ActorContext,
 ) error {
-	return h.Audit.Append(ctx, audit.Entry{
+	return h.Audit.Append(ctx, GrantedEntry(ctx, grant, actor, h.Clock.Now()))
+}
+
+// GrantedEntry is the trail's entry for a grant, for every writer of one: a grant made as a side
+// effect - the owner of a private hub made with it (ADR-0073 §2) - reads exactly as one made here,
+// which is what an access review filters on.
+func GrantedEntry(
+	ctx context.Context, grant domain.Grant, actor appshared.ActorContext, at time.Time,
+) audit.Entry {
+	return audit.Entry{
 		TenantID:   grant.TenantID,
-		OccurredAt: h.Clock.Now(),
+		OccurredAt: at,
 		Action:     MembershipGrantedAction,
 		Outcome:    audit.OutcomeSuccess,
 		// Notice, like an invitation: this is the entry an access review looks for.
@@ -173,7 +183,7 @@ func (h GrantMembership) recordAudit(
 		TargetID:   grant.ID,
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		Changes:    grantChanges(grant),
-	})
+	}
 }
 
 // grantChanges is what both entries record. Everything about a grant is a code or an identifier -

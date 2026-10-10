@@ -53,6 +53,7 @@ func (c *RestController) CreateContainer(w http.ResponseWriter, r *http.Request,
 		"description": optionalStringField(body.Description),
 		"icon":        optionalStringField(body.Icon),
 		"color_token": optionalStringField(body.ColorToken),
+		"private":     optionalBoolField(body.Private),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
