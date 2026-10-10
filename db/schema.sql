@@ -687,7 +687,7 @@ CREATE TABLE container (
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now(),
   version      integer NOT NULL DEFAULT 1,
-  -- A private hub is reached only through a membership on it or below it (ADR-0073 §1, 0123).
+  -- A private hub is reached only through a membership on it or below it (ADR-0073 §1, 0124).
   private      boolean NOT NULL DEFAULT false,
   CHECK ((type = 'HUB') = (parent_id IS NULL)),
   CONSTRAINT container_private_hub_check CHECK (NOT private OR type = 'HUB')

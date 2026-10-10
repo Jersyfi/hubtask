@@ -1286,7 +1286,7 @@ SELECT
   r.created_at,
   r.updated_at,
   r.version,
-  -- An archive written before 0123 carries no flag, and its hubs were shared when it was taken
+  -- An archive written before 0124 carries no flag, and its hubs were shared when it was taken
   -- (tenant-export.md §11: an additive field keeps the format).
   coalesce(r.private, false)
 FROM jsonb_populate_record(
