@@ -1863,6 +1863,48 @@ func (e LegalHoldCreateScopeKind) Valid() bool {
 	}
 }
 
+// Defines values for LegalHoldRecordScopeKind.
+const (
+	LegalHoldRecordScopeKindACCOUNT   LegalHoldRecordScopeKind = "ACCOUNT"
+	LegalHoldRecordScopeKindCONTAINER LegalHoldRecordScopeKind = "CONTAINER"
+	LegalHoldRecordScopeKindITEM      LegalHoldRecordScopeKind = "ITEM"
+	LegalHoldRecordScopeKindTENANT    LegalHoldRecordScopeKind = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the LegalHoldRecordScopeKind enum.
+func (e LegalHoldRecordScopeKind) Valid() bool {
+	switch e {
+	case LegalHoldRecordScopeKindACCOUNT:
+		return true
+	case LegalHoldRecordScopeKindCONTAINER:
+		return true
+	case LegalHoldRecordScopeKindITEM:
+		return true
+	case LegalHoldRecordScopeKindTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LegalHoldReplaceResultHoldsOutcome.
+const (
+	PLACED  LegalHoldReplaceResultHoldsOutcome = "PLACED"
+	PRESENT LegalHoldReplaceResultHoldsOutcome = "PRESENT"
+)
+
+// Valid indicates whether the value is a known member of the LegalHoldReplaceResultHoldsOutcome enum.
+func (e LegalHoldReplaceResultHoldsOutcome) Valid() bool {
+	switch e {
+	case PLACED:
+		return true
+	case PRESENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MediaObjectStatus.
 const (
 	MediaObjectStatusPENDING MediaObjectStatus = "PENDING"
@@ -6030,11 +6072,56 @@ type LegalHoldCreate struct {
 // LegalHoldCreateScopeKind defines model for LegalHoldCreate.Scope.Kind.
 type LegalHoldCreateScopeKind string
 
+// LegalHoldRecord One hold as it stood before the rewind.
+type LegalHoldRecord struct {
+	Id       openapi_types.UUID `json:"id"`
+	PlacedAt time.Time          `json:"placed_at"`
+	PlacedBy openapi_types.UUID `json:"placed_by"`
+	Reason   string             `json:"reason"`
+
+	// ReleasedAt When it was released in the rewound period, if it was. The hold is placed in force all the same; this only puts it on the list of holds whose owner releases them again.
+	ReleasedAt *time.Time `json:"released_at,omitempty"`
+	Scope      struct {
+		Id   *openapi_types.UUID      `json:"id,omitempty"`
+		Kind LegalHoldRecordScopeKind `json:"kind"`
+	} `json:"scope"`
+}
+
+// LegalHoldRecordScopeKind defines model for LegalHoldRecord.Scope.Kind.
+type LegalHoldRecordScopeKind string
+
 // LegalHoldRelease defines model for LegalHoldRelease.
 type LegalHoldRelease struct {
 	// Reason Why the hold is being lifted. Required - "released" with no reason is an entry an auditor cannot act on.
 	Reason string `json:"reason"`
 }
+
+// LegalHoldReplaceRequest defines model for LegalHoldReplaceRequest.
+type LegalHoldReplaceRequest struct {
+	Holds []LegalHoldRecord `json:"holds"`
+
+	// RecoveryPoint The moment the installation was recovered to; recorded with each hold placed.
+	RecoveryPoint time.Time `json:"recovery_point"`
+}
+
+// LegalHoldReplaceResult defines model for LegalHoldReplaceResult.
+type LegalHoldReplaceResult struct {
+	Holds []struct {
+		Id openapi_types.UUID `json:"id"`
+
+		// Outcome PLACED when this run placed it, PRESENT when the workspace already had it.
+		Outcome LegalHoldReplaceResultHoldsOutcome `json:"outcome"`
+
+		// ReleasedInPeriod Whether it had been released in the rewound period - its owner releases it again.
+		ReleasedInPeriod bool `json:"released_in_period"`
+
+		// TargetPresent Whether what the hold names exists in the recovered workspace.
+		TargetPresent bool `json:"target_present"`
+	} `json:"holds"`
+}
+
+// LegalHoldReplaceResultHoldsOutcome PLACED when this run placed it, PRESENT when the workspace already had it.
+type LegalHoldReplaceResultHoldsOutcome string
 
 // LegalLinks The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
 type LegalLinks struct {
@@ -9710,6 +9797,9 @@ type ExportTenantJSONRequestBody = TenantExportRequest
 // OpenTenantPasswordJSONRequestBody defines body for OpenTenantPassword for application/json ContentType.
 type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
 
+// ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
+type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
+
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
@@ -10129,6 +10219,9 @@ type ServerInterface interface {
 	// OpenTenantPassword Open the password for one workspace
 	// (POST /admin/tenants/{tenantId}:open-password)
 	OpenTenantPassword(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params OpenTenantPasswordParams)
+	// ReplaceLegalHolds Place the legal holds of a rewound period again
+	// (POST /admin/tenants/{tenantId}:replace-legal-holds)
+	ReplaceLegalHolds(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
 	// ResumeTenant Reactivate a workspace
 	// (POST /admin/tenants/{tenantId}:resume)
 	ResumeTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
@@ -11742,6 +11835,32 @@ func (siw *ServerInterfaceWrapper) OpenTenantPassword(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.OpenTenantPassword(w, r, tenantId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplaceLegalHolds operation middleware
+func (siw *ServerInterfaceWrapper) ReplaceLegalHolds(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplaceLegalHolds(w, r, tenantId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -21228,6 +21347,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:delete", wrapper.RequestTenantDeletion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:open-password", wrapper.OpenTenantPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:close-password", wrapper.CloseTenantPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:replace-legal-holds", wrapper.ReplaceLegalHolds)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/settings", wrapper.ReadInstanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/settings", wrapper.WriteInstanceSettings)

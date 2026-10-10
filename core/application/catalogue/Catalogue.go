@@ -157,6 +157,7 @@ func Descriptors() []usecase.Descriptor {
 		lifecycle.PlaceLegalHold{}.Descriptor(),
 		lifecycle.ReleaseLegalHold{}.Descriptor(),
 		lifecycle.ListLegalHolds{}.Descriptor(),
+		lifecycle.ReplaceLegalHolds{}.Descriptor(),
 		auditservice.ListAuditEntries{}.Descriptor(),
 		auditservice.VerifyAuditChain{}.Descriptor(),
 		auditservice.ConfigureAuditAnchoring{}.Descriptor(),

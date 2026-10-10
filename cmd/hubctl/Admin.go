@@ -39,7 +39,7 @@ func adminGroup() group {
 		commands: []command{
 			{
 				name:    "tenant",
-				usage:   "ls|create|suspend|resume|delete|export|open-password|close-password …",
+				usage:   "ls|create|suspend|resume|delete|export|open-password|close-password|replace-holds …",
 				summary: "the workspaces, and their lifecycle",
 				run:     adminTenant,
 				// The export waits on a job, and `--timeout` bounds one call rather than one
@@ -76,7 +76,7 @@ func adminGroup() group {
 
 // adminTenant is a noun under a noun, and dispatches its own verb - `backup target`'s reasoning.
 func adminTenant(ctx context.Context, cli *CLI, args []string) error {
-	const verbs = "ls, create, suspend, resume, delete, export, open-password, close-password"
+	const verbs = "ls, create, suspend, resume, delete, export, open-password, close-password, replace-holds"
 	if len(args) == 0 {
 		return usagef("admin tenant needs a command: %s", verbs)
 	}
@@ -97,6 +97,8 @@ func adminTenant(ctx context.Context, cli *CLI, args []string) error {
 		return adminTenantOpenPassword(ctx, cli, args[1:])
 	case "close-password":
 		return adminTenantClosePassword(ctx, cli, args[1:])
+	case "replace-holds":
+		return adminTenantReplaceHolds(ctx, cli, args[1:])
 	default:
 		return usagef("admin tenant has no command %q: %s", args[0], verbs)
 	}
