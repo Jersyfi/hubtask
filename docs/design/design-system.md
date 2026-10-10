@@ -117,15 +117,18 @@ CJK.
 
 | Style | Family | Size / line height | Weight | Used for |
 |---|---|---|---|---|
-| `display.lg` | Plex Sans Condensed | 56 / 1.05 | 700 | Website hero |
-| `display.md` | Plex Sans Condensed | 32 / 1.10 | 700 | Page and section titles |
-| `heading` | Plex Sans | 21 / 1.15 | 600 | Section heading |
-| `title` | Plex Sans | 16 / 1.30 | 600 | Card and dialog titles |
-| `body` | Plex Sans | 14 / 1.50 | 450 | Interface, documentation body copy |
-| `caption` | Plex Sans | 12 / 1.50 | 400 | Helper text, metadata |
-| `data` | Plex Mono | 12 / 1.40 | 400 | IDs, timestamps, counters, `tabular-nums` |
-| `code` | Plex Mono | 13 / 1.60 | 400 | Documentation, API examples |
-| `label` | Plex Sans | 12 / 1.30 | 600 | Field names in a details column, group titles in a navigation — `text.subtle`, so the name reads as a name beside the value |
+| `display.lg` | Plex Sans Condensed | 56 / `tight` (1.15) | 700 | Website hero |
+| `display.md` | Plex Sans Condensed | 32 / `tight` (1.15) | 700 | Page and section titles |
+| `heading` | Plex Sans | 21 / `tight` (1.15) | 600 | Section heading |
+| `title` | Plex Sans | 16 / `snug` (1.30) | 600 | Card and dialog titles |
+| `body` | Plex Sans | 14 / `normal` (1.50) | 450 | Interface, documentation body copy |
+| `caption` | Plex Sans | 12 / `normal` (1.50) | 400 | Helper text, metadata |
+| `data` | Plex Mono | 12 / `snug` (1.30) | 400 | IDs, timestamps, counters, `tabular-nums` |
+| `code` | Plex Mono | 13 / `normal` (1.50) | 400 | Documentation, API examples |
+| `label` | Plex Sans | 12 / `snug` (1.30) | 600 | Field names in a details column, group titles in a navigation — `text.subtle`, so the name reads as a name beside the value |
+
+The line heights are the four `lineHeight` tokens in `tokens.json`; `loose` (1.65) is for long
+prose on the website, such as the legal pages.
 
 Font files ship with the product (`THIRD-PARTY-LICENSES.md`), never from Google Fonts: a self-hosted
 Hubtask contacts no foreign domain on load, which `font-src 'self'` enforces.
