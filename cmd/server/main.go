@@ -1281,8 +1281,9 @@ func run() error {
 			Authorizer: authorizer, Permits: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		identity.GrantMembership{
-			Grants: grants, Accounts: accounts, Groups: groups, Authorizer: authorizer,
-			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Grants: grants, Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids,
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
 		identity.RevokeMembership{

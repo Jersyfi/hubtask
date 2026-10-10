@@ -95,6 +95,38 @@ JOIN container col ON col.id = w.collection_id
 JOIN container h ON h.id = col.parent_id
 WHERE w.id = ANY(sqlc.arg('ids')::uuid[]);
 
+-- name: LockHubOf :one
+-- The hub a container or an entry sits under, locked for the transaction: granting a group a role
+-- under a private hub and making a hub private both take this row first, so the second waits for
+-- the first and sees what it wrote (ADR-0073 §1).
+SELECT h.id, h.private
+FROM container h
+WHERE h.id = (
+  SELECT CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
+  FROM container c WHERE c.id = sqlc.arg('id')::uuid
+  UNION ALL
+  SELECT col.parent_id
+  FROM work_item w JOIN container col ON col.id = w.collection_id
+  WHERE w.id = sqlc.arg('id')::uuid
+  LIMIT 1
+)
+FOR UPDATE OF h;
+
+-- name: GroupHoldsRoleUnderHub :one
+-- Whether a group holds a role on the hub, a collection in it, or an entry in one.
+SELECT EXISTS (
+  SELECT 1 FROM membership m
+  WHERE m.group_id IS NOT NULL
+    AND (
+      m.scope_id = sqlc.arg('hub_id')::uuid
+      OR m.scope_id IN (SELECT c.id FROM container c WHERE c.parent_id = sqlc.arg('hub_id')::uuid)
+      OR m.scope_id IN (
+        SELECT w.id FROM work_item w JOIN container col ON col.id = w.collection_id
+        WHERE col.parent_id = sqlc.arg('hub_id')::uuid
+      )
+    )
+) AS held;
+
 -- name: SharedItemsInCollection :many
 -- The entries inside one collection that the account holds a membership on directly, or through
 -- one of its groups.

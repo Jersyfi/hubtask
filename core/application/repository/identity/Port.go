@@ -123,6 +123,20 @@ type Memberships interface {
 	HubsOf(ctx context.Context, ids []shared.ID) (map[shared.ID]Hub, error)
 }
 
+// HubLocks guards the two writes that must not interleave on a private hub: a group granted a role
+// on it or below it, and the hub being made private (ADR-0073 §1, identity.md §22). Both take the
+// hub's row first, so one of them sees the other's result.
+type HubLocks interface {
+	// LockHubOf locks the hub the named container or entry sits under - a hub itself included - for
+	// the rest of the transaction, and answers it. Found is false when the identifier names nothing
+	// in the transaction's tenant.
+	LockHubOf(ctx context.Context, id shared.ID) (hub Hub, found bool, err error)
+
+	// GroupHoldsRoleUnder answers whether any group holds a role on the hub, on a collection in it,
+	// or on an entry in one.
+	GroupHoldsRoleUnder(ctx context.Context, hubID shared.ID) (bool, error)
+}
+
 // Hub is what the authoriser needs to know about the hub a container or an entry sits under.
 type Hub struct {
 	ID shared.ID

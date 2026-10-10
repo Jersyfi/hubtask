@@ -48,9 +48,11 @@ type GrantMembershipCommand struct {
 // why the permission is checked at the scope being granted rather than at the tenant: an
 // administrator of one hub may hand out roles inside it and nowhere else.
 type GrantMembership struct {
-	Grants     repository.MembershipGrants
-	Accounts   repository.Accounts
-	Groups     repository.Groups
+	Grants   repository.MembershipGrants
+	Accounts repository.Accounts
+	Groups   repository.Groups
+	// Hubs refuses a group a role inside a private hub, under the hub's lock.
+	Hubs       repository.HubLocks
 	Authorizer Authorizer
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -95,6 +97,9 @@ func (h GrantMembership) Execute(
 		if err := h.subjectExists(ctx, grant); err != nil {
 			return err
 		}
+		if err := h.noGroupInPrivateHub(ctx, grant); err != nil {
+			return err
+		}
 		if err := h.Grants.Grant(ctx, grant); err != nil {
 			return err
 		}
@@ -127,6 +132,28 @@ func (h GrantMembership) subjectExists(ctx context.Context, grant domain.Grant) 
 		return err
 	}
 	return nil
+}
+
+// noGroupInPrivateHub refuses a group a role on a private hub or below it (identity.md §22).
+//
+// A group's members are changed by whoever holds MANAGE_MEMBERS on the workspace, so a group inside
+// a private hub would be a way in the workspace's administrators hold the key to - the one way
+// ADR-0073 §1 rules out. The hub's row is locked first, as making a hub private locks it, so a
+// group cannot slip in while the hub turns private.
+func (h GrantMembership) noGroupInPrivateHub(ctx context.Context, grant domain.Grant) error {
+	if grant.GroupID.IsZero() || grant.Scope.Type == domain.ScopeTenant {
+		return nil
+	}
+	if h.Hubs == nil {
+		return shared.ErrInternal.WithDetail("memberships.hub_locks_missing")
+	}
+	hub, found, err := h.Hubs.LockHubOf(ctx, grant.Scope.ID)
+	if err != nil || !found || !hub.Private {
+		return err
+	}
+	return shared.ErrValidation.
+		WithDetail("memberships.group_in_private_hub").
+		WithFields(shared.FieldError{Path: "/group_id", Code: "memberships.group_in_private_hub"})
 }
 
 func (h GrantMembership) recordAudit(

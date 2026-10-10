@@ -517,6 +517,29 @@ func (q *Queries) GrantMembership(ctx context.Context, arg GrantMembershipParams
 	return err
 }
 
+const groupHoldsRoleUnderHub = `-- name: GroupHoldsRoleUnderHub :one
+SELECT EXISTS (
+  SELECT 1 FROM membership m
+  WHERE m.group_id IS NOT NULL
+    AND (
+      m.scope_id = $1::uuid
+      OR m.scope_id IN (SELECT c.id FROM container c WHERE c.parent_id = $1::uuid)
+      OR m.scope_id IN (
+        SELECT w.id FROM work_item w JOIN container col ON col.id = w.collection_id
+        WHERE col.parent_id = $1::uuid
+      )
+    )
+) AS held
+`
+
+// Whether a group holds a role on the hub, a collection in it, or an entry in one.
+func (q *Queries) GroupHoldsRoleUnderHub(ctx context.Context, hubID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, groupHoldsRoleUnderHub, hubID)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const groupMembers = `-- name: GroupMembers :many
 SELECT account_id FROM account_group_member WHERE group_id = $1
 `
@@ -797,6 +820,36 @@ func (q *Queries) ListMembershipsAtScope(ctx context.Context, arg ListMembership
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockHubOf = `-- name: LockHubOf :one
+SELECT h.id, h.private
+FROM container h
+WHERE h.id = (
+  SELECT CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
+  FROM container c WHERE c.id = $1::uuid
+  UNION ALL
+  SELECT col.parent_id
+  FROM work_item w JOIN container col ON col.id = w.collection_id
+  WHERE w.id = $1::uuid
+  LIMIT 1
+)
+FOR UPDATE OF h
+`
+
+type LockHubOfRow struct {
+	ID      pgtype.UUID
+	Private bool
+}
+
+// The hub a container or an entry sits under, locked for the transaction: granting a group a role
+// under a private hub and making a hub private both take this row first, so the second waits for
+// the first and sees what it wrote (ADR-0073 §1).
+func (q *Queries) LockHubOf(ctx context.Context, id pgtype.UUID) (LockHubOfRow, error) {
+	row := q.db.QueryRow(ctx, lockHubOf, id)
+	var i LockHubOfRow
+	err := row.Scan(&i.ID, &i.Private)
+	return i, err
 }
 
 const membershipsAlongPath = `-- name: MembershipsAlongPath :many

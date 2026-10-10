@@ -88,3 +88,66 @@ func TestTheHubsOfAnotherTenantAreInvisible(t *testing.T) {
 		t.Errorf("tenant B read %d of tenant A's hubs: %+v", len(hubs), hubs)
 	}
 }
+
+// The hub's lock is taken from anything under it, answers its privacy, and sees a group holding a
+// role anywhere below it; another tenant's hub is neither locked nor answered.
+func TestTheHubIsLockedFromBelowAndItsGroupsAreSeen(t *testing.T) {
+	ctx := context.Background()
+	hub := privateHub(ctx, t, tenantA, authorA)
+	_, collection, item := hubCollectionAndEntry(ctx, t, tenantA, authorA)
+	locks := postgres.NewHubLockRepository()
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		got, found, err := locks.LockHubOf(ctx, hub)
+		if err != nil || !found || got.ID != hub || !got.Private {
+			t.Errorf("locking the private hub: %+v, found %v, error %v", got, found, err)
+		}
+		for _, id := range []shared.ID{collection, item} {
+			got, found, err := locks.LockHubOf(ctx, id)
+			if err != nil || !found || got.Private {
+				t.Errorf("locking the hub of %s: %+v, found %v, error %v", id, got, found, err)
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	group := freshID(t)
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`INSERT INTO account_group (id, tenant_id, name) VALUES ($1, $2, 'Parents')`,
+		group.String(), tenantA.String()); err != nil {
+		t.Fatalf("seeding the group: %v", err)
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`INSERT INTO membership (id, tenant_id, group_id, scope_type, scope_id, role)
+		 VALUES ($1, $2, $3, 'ITEM', $4, 'VIEWER')`,
+		freshID(t).String(), tenantA.String(), group.String(), item.String()); err != nil {
+		t.Fatalf("granting the group: %v", err)
+	}
+	hubOfItem := hubsOf(ctx, t, tenantA, item)[item].ID
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		if held, err := locks.GroupHoldsRoleUnder(ctx, hubOfItem); err != nil || !held {
+			t.Errorf("a group on an entry was not seen under its hub: %v, %v", held, err)
+		}
+		if held, err := locks.GroupHoldsRoleUnder(ctx, hub); err != nil || held {
+			t.Errorf("a group was seen under a hub it holds nothing in: %v, %v", held, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Tenant B: nothing to lock, and nothing held.
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, found, err := locks.LockHubOf(ctx, hub); err != nil || found {
+			t.Errorf("tenant B locked tenant A's hub: found %v, error %v", found, err)
+		}
+		if held, err := locks.GroupHoldsRoleUnder(ctx, hubOfItem); err != nil || held {
+			t.Errorf("tenant B saw tenant A's group: %v, %v", held, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
