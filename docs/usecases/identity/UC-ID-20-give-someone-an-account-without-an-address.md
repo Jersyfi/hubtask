@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6]
 serves: [P-02, P-05, P-09, P-10, P-11]
 state: partial
 tasks: [PH-06, PH-07]
-checked_by: [core/domain/model/identity/ManagedAccount_test.go, core/application/service/identity/CreateManagedAccount_test.go, core/application/service/identity/SignInName_test.go, core/application/service/identity/OwedChange_test.go, core/application/service/identity/ManagedAccountsSwitch_test.go, core/application/service/identity/SignInNamesRule_test.go, core/application/service/admin/ManagedAccountsLevel_test.go, cmd/hubctl/LoginPasswordChange_test.go, test/integration/managed_account_test.go, test/integration/managed_sign_in_test.go, test/integration/managed_presence_test.go, apps/webapp/e2e/managed.test.mjs, apps/webapp/e2e/signinnames.test.mjs, apps/webapp/e2e/managedmailbox.test.mjs]
+checked_by: [core/domain/model/identity/ManagedAccount_test.go, core/application/service/identity/CreateManagedAccount_test.go, core/application/service/identity/SignInName_test.go, core/application/service/identity/OwedChange_test.go, core/application/service/identity/ManagedAccountsSwitch_test.go, core/application/service/identity/SignInNamesRule_test.go, core/application/service/admin/ManagedAccountsLevel_test.go, cmd/hubctl/LoginPasswordChange_test.go, test/integration/managed_account_test.go, test/integration/managed_sign_in_test.go, test/integration/managed_presence_test.go, test/integration/managed_card_test.go, apps/webapp/e2e/managed.test.mjs, apps/webapp/e2e/signinnames.test.mjs, apps/webapp/e2e/managedmailbox.test.mjs]
 ---
 
 # Give a family member an account without their own mail address
