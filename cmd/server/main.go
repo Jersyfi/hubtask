@@ -446,6 +446,7 @@ func run() error {
 			RedirectURL: oidcRedirectURL,
 		},
 		Domains:  domains,
+		Text:     forms,
 		Accounts: signInStore,
 		Sessions: sessions,
 		Refresh:  postgres.NewRefreshTokenRepository(security.NewSessionRefreshHasher(cfg.SecretKey)),

@@ -88,6 +88,9 @@ type SessionWriter struct {
 	// Domains brings a typed address's domain to the ASCII form the stored one has, so that a
 	// person who types `anna@müller.de` finds the row that holds `anna@xn--mller-kva.de`.
 	Domains text.DomainEncoder
+	// Text folds a typed sign-in name to the form a stored one has (ADR-0074): compatibility form,
+	// lower case. Set in the literal that builds the writer, never later - every door is a copy.
+	Text text.Normalizer
 	// Multi is tenant resolution's mode switch (multi-tenancy.md §3): in multi mode the tenant
 	// comes from the subdomain or the header, in single mode from the installation's only row -
 	// one code path, one special case (multi-tenancy.md §1).
@@ -193,8 +196,12 @@ type SessionPair struct {
 // the session (T-01); the tenant fields are tenant resolution's sources (multi-tenancy.md §3),
 // resolved before the credential is checked.
 type SignInCommand struct {
-	Email    string
-	Password secret.Secret
+	// Identifier is what the person typed into the card's first field: an address, or a managed
+	// account's sign-in name (ADR-0074). Email is the same for a client that knows only addresses;
+	// exactly one of the two is sent.
+	Identifier string
+	Email      string
+	Password   secret.Secret
 	// UserAgent and RemoteAddr are recorded on the session, coarsened by the domain.
 	UserAgent  string
 	RemoteAddr string
@@ -217,6 +224,13 @@ type SignIn struct{ Writer SessionWriter }
 func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, error) {
 	w := h.Writer
 
+	// A refusal of the request's shape, before anything is asked: it depends on nothing but the
+	// two fields, so it says nothing about who exists.
+	typed, err := identifierOf(cmd)
+	if err != nil {
+		return SignInResult{}, err
+	}
+
 	tenantID, err := w.resolveTenant(ctx, cmd.TenantSlug, cmd.TenantHeader)
 	if err != nil {
 		return SignInResult{}, err
@@ -229,8 +243,8 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 		return SignInResult{}, err
 	}
 
-	address := domain.LookupAddress(cmd.Email, w.Domains)
-	subjects := attemptSubjects(address, cmd.RemoteAddr)
+	identifier := w.lookupIdentifier(typed)
+	subjects := attemptSubjects(identifier, cmd.RemoteAddr)
 	scope := persistence.Scope{TenantID: tenantID}
 
 	// First transaction: the ledger's standing and the stored hash. The password work happens
@@ -246,7 +260,7 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 			return err
 		}
 
-		read, err := w.Accounts.FindForSignIn(ctx, address)
+		read, err := w.Accounts.FindForSignIn(ctx, identifier)
 		if err != nil {
 			if errors.Is(err, shared.ErrNotFound) {
 				// Remembered, not answered: the decoy below makes this cost what a real check
@@ -662,8 +676,32 @@ func (w SessionWriter) recordFailure(
 	})
 }
 
-// attemptSubjects is T-02's "per account and per IP": the address as presented, and the network
-// it came from. Both count whether or not an account exists - the ledger stores only hashes, so
+// identifierOf takes the one identifier a sign-in carries: `identifier` from a client that knows
+// sign-in names, `email` from one that knows only addresses - never both, never neither.
+func identifierOf(cmd SignInCommand) (string, error) {
+	switch {
+	case cmd.Identifier != "" && cmd.Email == "":
+		return cmd.Identifier, nil
+	case cmd.Email != "" && cmd.Identifier == "":
+		return cmd.Email, nil
+	}
+	return "", shared.ErrValidation.WithDetail("auth.identifier_one").
+		WithFields(shared.FieldError{Path: "/identifier", Code: "auth.identifier_one"})
+}
+
+// lookupIdentifier brings a typed identifier to the form a stored one has, by its shape alone: one
+// with `@` is an address (lower case, the domain in its ASCII form), one without a sign-in name
+// (compatibility form, lower case). Nothing is judged - a name no account could hold simply matches
+// no row, and meets the same refusal as a wrong password (T-02).
+func (w SessionWriter) lookupIdentifier(typed string) string {
+	if domain.IsSignInName(typed) {
+		return domain.FoldSignInName(typed, w.Text)
+	}
+	return domain.LookupAddress(typed, w.Domains)
+}
+
+// attemptSubjects is T-02's "per account and per IP": the address or sign-in name as presented,
+// folded, and the network it came from. A name and an address are the same kind of subject. Both count whether or not an account exists - the ledger stores only hashes, so
 // counting a guessed address creates no record of it.
 func attemptSubjects(email, remoteAddr string) []string {
 	subjects := []string{"account:" + strings.ToLower(strings.TrimSpace(email))}
@@ -769,8 +807,14 @@ func (h SignIn) Descriptor() usecase.Descriptor {
 			"advances the attempt ledger on failure.",
 		Input: []usecase.Field{
 			{
-				Name: "email", Kind: usecase.KindString, Required: true,
-				Description: "The address the account was invited or created under.",
+				Name: "identifier", Kind: usecase.KindString,
+				Description: "The address the account signs in with, or a managed account's " +
+					"sign-in name. Exactly one of identifier and email.",
+			},
+			{
+				Name: "email", Kind: usecase.KindString,
+				Description: "The address the account was invited or created under, for a client " +
+					"that knows only addresses. Exactly one of identifier and email.",
 			},
 			{
 				Name: "password", Kind: usecase.KindString, Required: true,
@@ -811,6 +855,7 @@ func (h SignIn) invoke(
 	ctx context.Context, _ appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	result, err := h.Execute(ctx, SignInCommand{
+		Identifier:   in.String("identifier"),
 		Email:        in.String("email"),
 		Password:     secret.New(in.String("password")),
 		UserAgent:    in.String("user_agent"),

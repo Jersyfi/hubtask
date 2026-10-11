@@ -45,8 +45,9 @@ func (c *RestController) SignIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), signInUseCase, actorOf(r), usecase.Input{
-		"email":    emailOf(body.Email),
-		"password": body.Password,
+		"identifier": optionalStringField(body.Identifier),
+		"email":      emailOf(body.Email),
+		"password":   body.Password,
 		// The client hints and the tenant sources are the request's, and only this adapter has
 		// the request - which is why they travel as declared inputs rather than being re-derived
 		// somewhere that never saw the connection.

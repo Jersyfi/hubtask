@@ -231,6 +231,7 @@ func (w PasswordWriter) historyViolations(
 func (w PasswordWriter) contextOf(candidate PasswordCandidate) domain.PasswordContext {
 	return domain.PasswordContext{
 		Email:         candidate.Account.Account.Email,
+		SignInName:    candidate.Account.Account.SignInName,
 		DisplayName:   candidate.Account.Account.DisplayName,
 		WorkspaceName: candidate.Rules.Workspace.DisplayName,
 		WorkspaceHost: candidate.Rules.Workspace.Slug,
@@ -777,6 +778,7 @@ func (w PasswordWriter) JudgeSignIn(
 		policy.Password, w.Text, password.Reveal(),
 		domain.PasswordContext{
 			Email:         account.Email,
+			SignInName:    account.SignInName,
 			DisplayName:   account.DisplayName,
 			WorkspaceName: rules.Workspace.DisplayName,
 			WorkspaceHost: rules.Workspace.Slug,
@@ -791,7 +793,11 @@ func (w PasswordWriter) JudgeSignIn(
 	// them. `max_age_days` reads it the same way.
 	rotated := !policy.RotationFrom.IsZero() && !setAt.IsZero() && setAt.Before(policy.RotationFrom)
 
-	verdict.MustChangePassword = refused || expired || rotated
+	// A start password Hubtask drew is never kept (ADR-0074 §2): whatever the rule says of it, the
+	// person chooses their own at the first sign-in.
+	started := !held.StartPasswordAt.IsZero()
+
+	verdict.MustChangePassword = refused || expired || rotated || started
 	return verdict, nil
 }
 

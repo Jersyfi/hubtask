@@ -155,9 +155,11 @@ type RefreshTokens interface {
 // SignInAccounts is the account surface of the sign-in flow: the credential check's read and the
 // invitation redeemed.
 type SignInAccounts interface {
-	// FindForSignIn returns the account an address names together with its stored hash, or an
-	// error wrapping shared.ErrNotFound. The caller turns both refusals into one answer (T-02).
-	FindForSignIn(ctx context.Context, email string) (SignInAccount, error)
+	// FindForSignIn returns the account an identifier names together with its stored hash, or an
+	// error wrapping shared.ErrNotFound. The identifier is folded already, and its shape says what
+	// it is: with `@` an address, without a managed account's sign-in name. The caller turns both
+	// refusals into one answer (T-02).
+	FindForSignIn(ctx context.Context, identifier string) (SignInAccount, error)
 
 	// SetRedemptionToken stores the hash of a freshly minted redemption token on an invited
 	// account, replacing any earlier one. False means the account is not waiting.
