@@ -372,7 +372,9 @@ gate-quick:
 	@diff=$$($(TOOLS_DIR)/golangci-lint fmt --diff ./... 2>&1); \
 		test -z "$$diff" || { echo "formatting violations - run 'make fmt':"; echo "$$diff"; exit 1; }
 	$(GO) vet ./...
-	$(TOOLS_DIR)/golangci-lint run ./...
+	@# Another worktree's run holds a machine-wide lock; without the flag this one fails at once
+	@# instead of waiting, and a green change goes red.
+	$(TOOLS_DIR)/golangci-lint run --allow-serial-runners ./...
 	@# The comparison is against the state before generating, not against HEAD: a work tree with
 	@# uncommitted changes must still be able to run the gate.
 	@before="$$(git status --porcelain)"; \
