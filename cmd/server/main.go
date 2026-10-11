@@ -1266,6 +1266,17 @@ func run() error {
 			Password: sessionWriter,
 		}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.CreateManagedAccount{
+			Managed: postgres.NewAccountRepository(), Authorizer: authorizer,
+			Grant: identity.GrantMembership{
+				Grants: grants, Accounts: accounts, Groups: groups, Authorizer: authorizer,
+				Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+				StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			},
+			Rule: signInPolicyResolver, Passwords: passwords, Entropy: clockadapter.CryptoRandom{},
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Text: forms,
+		}.Descriptor(),
 		identity.UpdateAccountPreferences{
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},

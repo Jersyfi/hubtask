@@ -222,10 +222,11 @@ func accountOutput(account domain.Account) usecase.Output {
 	// Absent rather than empty: a client distinguishes "inherits the workspace default" from "set
 	// to nothing", and only one of those is a thing a person chose.
 	for field, value := range map[string]string{
-		"email":      account.Email,
-		"locale":     account.Locale,
-		"time_zone":  account.TimeZone,
-		"week_start": account.WeekStart,
+		"email":        account.Email,
+		"sign_in_name": account.SignInName,
+		"locale":       account.Locale,
+		"time_zone":    account.TimeZone,
+		"week_start":   account.WeekStart,
 	} {
 		if value != "" {
 			out[field] = value

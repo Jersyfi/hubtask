@@ -67,6 +67,11 @@ type ActorContext struct {
 	// Scopes are the token's bounds. They are a second, independent limit on top of the role: a
 	// token can never do more than its scopes allow, whatever role its owner holds (ADR-0005).
 	Scopes []string
+	// RunsForRule is the automation rule this act runs for, set by the rule engine and nowhere else;
+	// empty for every act a caller makes itself. The engine acts as the rule's service account, which
+	// a caller holding that account's token would be too - only this tells an act whose answer
+	// nobody reads from one whose caller reads it.
+	RunsForRule shared.ID
 	// APIClient is the OAuth client the credential was issued to, empty for everything
 	// that is not a grant session. It is what the audit trail records as the acting app.
 	APIClient shared.ID

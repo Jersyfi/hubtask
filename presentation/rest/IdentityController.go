@@ -21,6 +21,7 @@ import (
 // are reconciled by the parity test rather than by these constants.
 const (
 	inviteAccountUseCase               = "InviteAccount"
+	createManagedAccountUseCase        = "CreateManagedAccount"
 	getOwnAccountUseCase               = "GetOwnAccount"
 	getAccountUseCase                  = "GetAccount"
 	updateAccountPreferencesUseCase    = "UpdateAccountPreferences"
@@ -51,6 +52,40 @@ func (c *RestController) InviteAccount(w http.ResponseWriter, r *http.Request, _
 		account := accountResponse(out)
 		w.Header().Set("Location", APIBasePath+"/accounts/"+account.Id.String())
 		writeJSON(w, r, http.StatusCreated, account)
+	})
+}
+
+// CreateManagedAccount answers POST /accounts:create-managed.
+//
+// The answer carries the start password, once: it is marked `no-store`, so neither a cache nor the
+// idempotency record keeps it.
+func (c *RestController) CreateManagedAccount(
+	w http.ResponseWriter, r *http.Request, params openapi.CreateManagedAccountParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.ManagedAccountCreate
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+		return c.UseCases.Invoke(r.Context(), createManagedAccountUseCase, actor, usecase.Input{
+			"display_name":  body.DisplayName,
+			"sign_in_name":  body.SignInName,
+			"role":          string(body.Role),
+			"scope_type":    string(body.ScopeType),
+			"scope_id":      optionalUUIDField(body.ScopeId),
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+		})
+	}, func(out usecase.Output) {
+		account, _ := out["account"].(usecase.Output)
+		membership, _ := out["membership"].(usecase.Output)
+		created := openapi.ManagedAccountCreated{
+			Account:       accountResponse(account),
+			Membership:    membershipResponse(membership),
+			StartPassword: out.String("start_password"),
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Location", APIBasePath+"/accounts/"+created.Account.Id.String())
+		writeJSON(w, r, http.StatusCreated, created)
 	})
 }
 
@@ -396,6 +431,9 @@ func accountResponse(out usecase.Output) openapi.Account {
 	if email := out.String("email"); email != "" {
 		address := openapi_types.Email(email)
 		account.Email = &address
+	}
+	if name := out.String("sign_in_name"); name != "" {
+		account.SignInName = &name
 	}
 	if locale := out.String("locale"); locale != "" {
 		account.Locale = &locale
