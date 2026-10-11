@@ -54,6 +54,7 @@ class Account(TypedDict, total=False):
     id: Required[str]
     kind: Required[Literal["USER", "SERVICE_ACCOUNT"]]
     email: str | None
+    sign_in_name: str | None
     display_name: Required[str]
     status: Required[Literal["ACTIVE", "INVITED", "DISABLED", "RESTRICTED", "ANONYMIZED"]]
     locale: str | None
@@ -77,6 +78,19 @@ class AccountSummary(TypedDict, total=False):
     kind: Required[Literal["USER", "SERVICE_ACCOUNT"]]
     display_name: Required[str]
     status: Required[Literal["ACTIVE", "INVITED", "DISABLED", "RESTRICTED", "ANONYMIZED"]]
+    has_address: bool
+
+class ManagedAccountCreate(TypedDict, total=False):
+    display_name: Required[str]
+    sign_in_name: Required[str]
+    role: Required["MembershipRole"]
+    scope_type: Required["MembershipScope"]
+    scope_id: str | None
+
+class ManagedAccountCreated(TypedDict, total=False):
+    account: Required["Account"]
+    membership: Required["Membership"]
+    start_password: Required[str]
 
 class AccountInvite(TypedDict, total=False):
     email: Required[str]
@@ -137,7 +151,9 @@ class AccessTokenSecret(TypedDict, total=False):
     token: Required[str]
 
 class SignIn(TypedDict, total=False):
-    email: Required[str]
+    """Exactly one of `identifier` and `email`; neither, or both, is `auth.identifier_one`. A refusal of the shape, the same for everybody - nothing in it depends on who exists."""
+    identifier: str
+    email: str
     password: Required[str]
 
 class SessionRefresh(TypedDict, total=False):
@@ -339,6 +355,7 @@ class SignInPolicy(TypedDict, total=False):
     methods: Required["SignInPolicyMethods"]
     session: Required["SessionPolicySettings"]
     legal: Required["LegalPolicySettings"]
+    managed_accounts: "SignInPolicyFlag"
     rotation_from: Required[str | None]
 
 class PasswordPolicySettings(TypedDict, total=False):
@@ -400,6 +417,7 @@ class SignInPolicyChange(TypedDict, total=False):
     privacy_url: str
     terms_url: str
     accessibility_url: str
+    managed_accounts: bool
     rotation_from: Literal["now"]
 
 class IdentityProvider(TypedDict, total=False):
@@ -591,6 +609,7 @@ class SignInRules(TypedDict, total=False):
     password: Required["PasswordRules"]
     legal: Required["LegalLinks"]
     password_fallback: bool
+    sign_in_names: bool
 
 class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""

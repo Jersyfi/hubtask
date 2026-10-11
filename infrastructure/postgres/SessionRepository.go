@@ -566,7 +566,7 @@ func (r SignInRepository) FindForSignIn(
 		return repository.SignInAccount{}, err
 	}
 
-	row, err := queries.FindAccountForSignIn(ctx, email)
+	row, err := queries.FindAccountForSignIn(ctx, sqlc.FindAccountForSignInParams{Address: &email})
 	if err != nil {
 		if IsNoRows(err) {
 			return repository.SignInAccount{}, shared.ErrNotFound.WithDetail("accounts.not_found")

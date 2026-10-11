@@ -86,8 +86,9 @@ func signIn(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 
+	typed := openapitypes.Email(*email)
 	status, answer, err := client.PostStatus(ctx, sessionsPath, openapi.SignIn{
-		Email: openapitypes.Email(*email), Password: password,
+		Email: &typed, Password: password,
 	})
 	if err != nil {
 		return err

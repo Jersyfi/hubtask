@@ -40,23 +40,25 @@ const findAccountByEmailForPassword = `-- name: FindAccountByEmailForPassword :o
 SELECT
   a.id, a.tenant_id, a.kind, a.email, a.display_name, a.status,
   a.locale, a.time_zone, a.week_start,
-  a.password_hash, a.password_set_at
+  a.password_hash, a.password_set_at, a.sign_in_name, a.start_password_at
 FROM account a
 WHERE lower(a.email) = lower($1) AND a.deleted_at IS NULL
 `
 
 type FindAccountByEmailForPasswordRow struct {
-	ID            pgtype.UUID
-	TenantID      pgtype.UUID
-	Kind          AccountKind
-	Email         *string
-	DisplayName   string
-	Status        AccountStatus
-	Locale        *string
-	TimeZone      *string
-	WeekStart     *string
-	PasswordHash  *string
-	PasswordSetAt pgtype.Timestamptz
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	Kind            AccountKind
+	Email           *string
+	DisplayName     string
+	Status          AccountStatus
+	Locale          *string
+	TimeZone        *string
+	WeekStart       *string
+	PasswordHash    *string
+	PasswordSetAt   pgtype.Timestamptz
+	SignInName      *string
+	StartPasswordAt pgtype.Timestamptz
 }
 
 // The same, by address, for the reset that must answer identically whether or not it found one.
@@ -75,6 +77,8 @@ func (q *Queries) FindAccountByEmailForPassword(ctx context.Context, email strin
 		&i.WeekStart,
 		&i.PasswordHash,
 		&i.PasswordSetAt,
+		&i.SignInName,
+		&i.StartPasswordAt,
 	)
 	return i, err
 }
@@ -83,23 +87,25 @@ const findAccountForPassword = `-- name: FindAccountForPassword :one
 SELECT
   a.id, a.tenant_id, a.kind, a.email, a.display_name, a.status,
   a.locale, a.time_zone, a.week_start,
-  a.password_hash, a.password_set_at
+  a.password_hash, a.password_set_at, a.sign_in_name, a.start_password_at
 FROM account a
 WHERE a.id = $1 AND a.deleted_at IS NULL
 `
 
 type FindAccountForPasswordRow struct {
-	ID            pgtype.UUID
-	TenantID      pgtype.UUID
-	Kind          AccountKind
-	Email         *string
-	DisplayName   string
-	Status        AccountStatus
-	Locale        *string
-	TimeZone      *string
-	WeekStart     *string
-	PasswordHash  *string
-	PasswordSetAt pgtype.Timestamptz
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	Kind            AccountKind
+	Email           *string
+	DisplayName     string
+	Status          AccountStatus
+	Locale          *string
+	TimeZone        *string
+	WeekStart       *string
+	PasswordHash    *string
+	PasswordSetAt   pgtype.Timestamptz
+	SignInName      *string
+	StartPasswordAt pgtype.Timestamptz
 }
 
 // What setting or judging a password needs of the account (ADR-0068 §5).
@@ -118,6 +124,8 @@ func (q *Queries) FindAccountForPassword(ctx context.Context, id pgtype.UUID) (F
 		&i.WeekStart,
 		&i.PasswordHash,
 		&i.PasswordSetAt,
+		&i.SignInName,
+		&i.StartPasswordAt,
 	)
 	return i, err
 }
@@ -160,6 +168,7 @@ const setAccountPassword = `-- name: SetAccountPassword :execrows
 UPDATE account
    SET password_hash = $1,
        password_set_at = $2,
+       start_password_at = NULL,
        updated_at = $2,
        version = version + 1
  WHERE id = $3 AND deleted_at IS NULL
@@ -171,7 +180,8 @@ type SetAccountPasswordParams struct {
 	AccountID    pgtype.UUID
 }
 
-// The hash and the moment in one statement, so no reader sees one without the other.
+// The hash and the moment in one statement, so no reader sees one without the other. A password set
+// through any door is the person's own, so a start password's mark goes with it (ADR-0074 §2).
 func (q *Queries) SetAccountPassword(ctx context.Context, arg SetAccountPasswordParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setAccountPassword, arg.PasswordHash, arg.At, arg.AccountID)
 	if err != nil {

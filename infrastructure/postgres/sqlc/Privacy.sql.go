@@ -16,8 +16,10 @@ const anonymiseAccount = `-- name: AnonymiseAccount :execrows
 UPDATE account SET
   display_name     = $1,
   email            = NULL,
+  sign_in_name     = NULL,
   external_subject = NULL,
   password_hash    = NULL,
+  start_password_at = NULL,
   locale           = NULL,
   time_zone        = NULL,
   week_start       = NULL,

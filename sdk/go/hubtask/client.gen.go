@@ -3779,6 +3779,9 @@ type Account struct {
 	// SecondFactorRequired Whether the workspace's sign-in rule in force demands a second factor of this person, answered on `GET /accounts/me` and on nothing else. The same reading signing in and turning the factor off make, so a screen can say "your workspace requires it" instead of offering a control the server would refuse.
 	SecondFactorRequired *bool `json:"second_factor_required,omitempty"`
 
+	// SignInName What a managed account signs in with instead of an address: unique in the workspace, stored folded (compatibility form, lower case). Absent on an account that signs in with its address.
+	SignInName *string `json:"sign_in_name,omitempty"`
+
 	// Status `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
 	// stays, and what stops is this system deciding anything about the person by machine.
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
@@ -3829,10 +3832,13 @@ type AccountPreferencesWeekStart string
 // AccountSummary An account as another member of the same tenant may see it: enough to render a name where a record carries an identifier, and nothing else. Deliberately not `Account` - that carries the email and the caller's own preferences, which are a different permission.
 type AccountSummary struct {
 	// DisplayName An erased account carries the marker its erasure wrote here, so a reader sees that somebody acted without learning who they were.
-	DisplayName string               `json:"display_name"`
-	Id          openapi_types.UUID   `json:"id"`
-	Kind        AccountSummaryKind   `json:"kind"`
-	Status      AccountSummaryStatus `json:"status"`
+	DisplayName string `json:"display_name"`
+
+	// HasAddress False for an account that has no mail address - a managed account - so a screen can say that a reminder by mail does not reach this person, instead of letting it fail silently. The address itself is not answered here.
+	HasAddress *bool                `json:"has_address,omitempty"`
+	Id         openapi_types.UUID   `json:"id"`
+	Kind       AccountSummaryKind   `json:"kind"`
+	Status     AccountSummaryStatus `json:"status"`
 }
 
 // AccountSummaryKind defines model for AccountSummary.Kind.
@@ -5700,7 +5706,7 @@ type InstanceSettings struct {
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
 
-	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, and the two session bounds. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
+	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds and `managed_accounts`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 
 	// Source Where the values in force came from - the database, or the path of the file enforcing them.
@@ -6065,6 +6071,34 @@ type LinkCompletion struct {
 
 	// PendingToken The `LINK` challenge's credential. It dies on use.
 	PendingToken string `json:"pending_token"`
+}
+
+// ManagedAccountCreate defines model for ManagedAccountCreate.
+type ManagedAccountCreate struct {
+	DisplayName string `json:"display_name"`
+
+	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
+	// the configuration and no content at all. It exists because the
+	// alternative, in practice, is giving an auditor administrator rights - a permissions
+	// problem that arises precisely where evidence is being demanded. Somebody who needs both
+	// holds two memberships; the rights add up rather than the stronger one winning.
+	Role MembershipRole `json:"role"`
+
+	// ScopeId Absent for `TENANT`; the hub, collection or entry otherwise.
+	ScopeId   *openapi_types.UUID `json:"scope_id,omitempty"`
+	ScopeType MembershipScope     `json:"scope_type"`
+
+	// SignInName 3 to 32 characters after folding (compatibility form, lower case, trimmed); no `@`, no whitespace and no control character. Unique in the workspace.
+	SignInName string `json:"sign_in_name"`
+}
+
+// ManagedAccountCreated defines model for ManagedAccountCreated.
+type ManagedAccountCreated struct {
+	Account    Account    `json:"account"`
+	Membership Membership `json:"membership"`
+
+	// StartPassword Shown here and never again. The person types it once, with the sign-in name, and then chooses their own.
+	StartPassword string `json:"start_password"`
 }
 
 // MediaObject defines model for MediaObject.
@@ -7448,9 +7482,13 @@ type SessionTokens struct {
 // SessionTokensTokenType defines model for SessionTokens.TokenType.
 type SessionTokensTokenType string
 
-// SignIn defines model for SignIn.
+// SignIn Exactly one of `identifier` and `email`; neither, or both, is `auth.identifier_one`. A refusal of the shape, the same for everybody - nothing in it depends on who exists.
 type SignIn struct {
-	Email openapi_types.Email `json:"email"`
+	// Email The address, for a client that knows only addresses. `identifier` takes either.
+	Email *openapi_types.Email `json:"email,omitempty"`
+
+	// Identifier The address the account signs in with, or its sign-in name where it has one instead (a managed account). One with `@` is read as an address, one without as a sign-in name; both are compared after the same folding the stored values had. Every failure is the one refusal, whichever it was.
+	Identifier *string `json:"identifier,omitempty"`
 
 	// Password Checked in constant shape against the stored Argon2id hash. No minimum here: the policy binds where a password is *set*, and refusing a short guess differently from a wrong one would leak which it was.
 	Password string `json:"password"`
@@ -7482,8 +7520,11 @@ type SignInPasswordChange struct {
 // **A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.
 type SignInPolicy struct {
 	// Legal The four links, each with its own lock - B2C locks them, B2B leaves them open.
-	Legal   LegalPolicySettings `json:"legal"`
-	Methods SignInPolicyMethods `json:"methods"`
+	Legal LegalPolicySettings `json:"legal"`
+
+	// ManagedAccounts Whether owners and administrators may give somebody an account without a mail address. On by default; off is the stricter value. Off stops new ones only - the managed accounts already here keep signing in.
+	ManagedAccounts *SignInPolicyFlag   `json:"managed_accounts,omitempty"`
+	Methods         SignInPolicyMethods `json:"methods"`
 
 	// MfaRequiredFor `NONE`, `ADMINS` or `EVERYONE`. What `require_admin_totp` grew into.
 	MfaRequiredFor SignInPolicyText `json:"mfa_required_for"`
@@ -7506,8 +7547,9 @@ type SignInPolicyChange struct {
 	ContextWords     *bool   `json:"context_words,omitempty"`
 
 	// HistoryCount 0 is off. At most ten.
-	HistoryCount *int    `json:"history_count,omitempty"`
-	ImprintUrl   *string `json:"imprint_url,omitempty"`
+	HistoryCount    *int    `json:"history_count,omitempty"`
+	ImprintUrl      *string `json:"imprint_url,omitempty"`
+	ManagedAccounts *bool   `json:"managed_accounts,omitempty"`
 
 	// MaxAgeDays 0 is off, which is the shipped value.
 	MaxAgeDays *int `json:"max_age_days,omitempty"`
@@ -7620,6 +7662,9 @@ type SignInRules struct {
 	// PasswordFallback True while `PASSWORD` is among the methods only because no other way into the workspace works - its rule leaves the password out and no provider is switched on there, whatever the cause: an offer that ended, an installation default or lock, a restore. The password opens for the accounts that hold one, under the workspace's own rules, until an administrator switches on a way in. The administrators' screen says so.
 	PasswordFallback *bool             `json:"password_fallback,omitempty"`
 	Providers        []ProviderSummary `json:"providers"`
+
+	// SignInNames True while this workspace has at least one managed account - a person who signs in with a sign-in name instead of an address - so the card's first field asks for either. False everywhere else, a host without a workspace included.
+	SignInNames *bool `json:"sign_in_names,omitempty"`
 
 	// WorkspaceHost The host this answer was resolved for, which is what the card shows.
 	WorkspaceHost string `json:"workspace_host"`
@@ -8639,6 +8684,12 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// CreateManagedAccountParams defines parameters for CreateManagedAccount.
+type CreateManagedAccountParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
 
 // InviteAccountParams defines parameters for InviteAccount.
 type InviteAccountParams struct {
@@ -9683,6 +9734,9 @@ type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountP
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
 
+// CreateManagedAccountJSONRequestBody defines body for CreateManagedAccount for application/json ContentType.
+type CreateManagedAccountJSONRequestBody = ManagedAccountCreate
+
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
@@ -10253,6 +10307,60 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /accounts/{accountId}:restrict (the `RestrictProcessing` operationId).
 	RestrictProcessing(ctx context.Context, accountId AccountId, body RestrictProcessingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateManagedAccountWithBody Give somebody an account without a mail address
+	//
+	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
+	// and the role they hold at one scope, in one step. The account is active at once - there is
+	// no invitation to redeem, because there is no mailbox to send one to.
+	//
+	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
+	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
+	// choosing the person's own password under the workspace's rule.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace and at the scope of the role, and refuses with
+	// `accounts.managed_accounts_off` where the workspace's sign-in rule does not allow managed
+	// accounts (`sign_in_policy.managed_accounts`). A sign-in name already taken here, in any
+	// spelling that folds to the same name, is `409 accounts.sign_in_name_taken`. An act an
+	// automation rule runs is refused with `accounts.managed_needs_a_person`: a run reads no
+	// answer, so the start password would reach nobody. Granting `OWNER` demands the step-up,
+	// as the grant does.
+	//
+	// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+	// no-store`: an answer kept for a replay would keep the start password with it. A repeat after
+	// a lost answer finds the name taken.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
+	CreateManagedAccountWithBody(ctx context.Context, params *CreateManagedAccountParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateManagedAccount Give somebody an account without a mail address
+	//
+	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
+	// and the role they hold at one scope, in one step. The account is active at once - there is
+	// no invitation to redeem, because there is no mailbox to send one to.
+	//
+	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
+	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
+	// choosing the person's own password under the workspace's rule.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace and at the scope of the role, and refuses with
+	// `accounts.managed_accounts_off` where the workspace's sign-in rule does not allow managed
+	// accounts (`sign_in_policy.managed_accounts`). A sign-in name already taken here, in any
+	// spelling that folds to the same name, is `409 accounts.sign_in_name_taken`. An act an
+	// automation rule runs is refused with `accounts.managed_needs_a_person`: a run reads no
+	// answer, so the start password would reach nobody. Granting `OWNER` demands the step-up,
+	// as the grant does.
+	//
+	// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+	// no-store`: an answer kept for a replay would keep the start password with it. A repeat after
+	// a lost answer finds the name taken.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
+	CreateManagedAccount(ctx context.Context, params *CreateManagedAccountParams, body CreateManagedAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// InviteAccountWithBody Invite a person into this workspace
 	//
@@ -14040,6 +14148,80 @@ func (c *Client) RestrictProcessingWithBody(ctx context.Context, accountId Accou
 // Corresponds with POST /accounts/{accountId}:restrict (the `RestrictProcessing` operationId).
 func (c *Client) RestrictProcessing(ctx context.Context, accountId AccountId, body RestrictProcessingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRestrictProcessingRequest(c.Server, accountId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateManagedAccountWithBody Give somebody an account without a mail address
+//
+// Creates a managed account: a person who signs in with a sign-in name instead of an address,
+// and the role they hold at one scope, in one step. The account is active at once - there is
+// no invitation to redeem, because there is no mailbox to send one to.
+//
+// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
+// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
+// choosing the person's own password under the workspace's rule.
+//
+// Asks `MANAGE_MEMBERS` at the workspace and at the scope of the role, and refuses with
+// `accounts.managed_accounts_off` where the workspace's sign-in rule does not allow managed
+// accounts (`sign_in_policy.managed_accounts`). A sign-in name already taken here, in any
+// spelling that folds to the same name, is `409 accounts.sign_in_name_taken`. An act an
+// automation rule runs is refused with `accounts.managed_needs_a_person`: a run reads no
+// answer, so the start password would reach nobody. Granting `OWNER` demands the step-up,
+// as the grant does.
+//
+// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+// no-store`: an answer kept for a replay would keep the start password with it. A repeat after
+// a lost answer finds the name taken.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
+func (c *Client) CreateManagedAccountWithBody(ctx context.Context, params *CreateManagedAccountParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateManagedAccountRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateManagedAccount Give somebody an account without a mail address
+//
+// Creates a managed account: a person who signs in with a sign-in name instead of an address,
+// and the role they hold at one scope, in one step. The account is active at once - there is
+// no invitation to redeem, because there is no mailbox to send one to.
+//
+// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
+// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
+// choosing the person's own password under the workspace's rule.
+//
+// Asks `MANAGE_MEMBERS` at the workspace and at the scope of the role, and refuses with
+// `accounts.managed_accounts_off` where the workspace's sign-in rule does not allow managed
+// accounts (`sign_in_policy.managed_accounts`). A sign-in name already taken here, in any
+// spelling that folds to the same name, is `409 accounts.sign_in_name_taken`. An act an
+// automation rule runs is refused with `accounts.managed_needs_a_person`: a run reads no
+// answer, so the start password would reach nobody. Granting `OWNER` demands the step-up,
+// as the grant does.
+//
+// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+// no-store`: an answer kept for a replay would keep the start password with it. A repeat after
+// a lost answer finds the name taken.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
+func (c *Client) CreateManagedAccount(ctx context.Context, params *CreateManagedAccountParams, body CreateManagedAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateManagedAccountRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -21807,6 +21989,61 @@ func NewRestrictProcessingRequestWithBody(server string, accountId AccountId, co
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCreateManagedAccountRequest calls the generic CreateManagedAccount builder with application/json body
+func NewCreateManagedAccountRequest(server string, params *CreateManagedAccountParams, body CreateManagedAccountJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateManagedAccountRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCreateManagedAccountRequestWithBody constructs an http.Request for the CreateManagedAccount method, with any body, and a specified content type
+func NewCreateManagedAccountRequestWithBody(server string, params *CreateManagedAccountParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts:create-managed")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -35254,6 +35491,60 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /accounts/{accountId}:restrict (the `RestrictProcessing` operationId).
 	RestrictProcessingWithResponse(ctx context.Context, accountId AccountId, body RestrictProcessingJSONRequestBody, reqEditors ...RequestEditorFn) (*RestrictProcessingResult, error)
 
+	// CreateManagedAccountWithBodyWithResponse Give somebody an account without a mail address
+	//
+	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
+	// and the role they hold at one scope, in one step. The account is active at once - there is
+	// no invitation to redeem, because there is no mailbox to send one to.
+	//
+	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
+	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
+	// choosing the person's own password under the workspace's rule.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace and at the scope of the role, and refuses with
+	// `accounts.managed_accounts_off` where the workspace's sign-in rule does not allow managed
+	// accounts (`sign_in_policy.managed_accounts`). A sign-in name already taken here, in any
+	// spelling that folds to the same name, is `409 accounts.sign_in_name_taken`. An act an
+	// automation rule runs is refused with `accounts.managed_needs_a_person`: a run reads no
+	// answer, so the start password would reach nobody. Granting `OWNER` demands the step-up,
+	// as the grant does.
+	//
+	// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+	// no-store`: an answer kept for a replay would keep the start password with it. A repeat after
+	// a lost answer finds the name taken.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
+	CreateManagedAccountWithBodyWithResponse(ctx context.Context, params *CreateManagedAccountParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateManagedAccountResult, error)
+
+	// CreateManagedAccountWithResponse Give somebody an account without a mail address
+	//
+	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
+	// and the role they hold at one scope, in one step. The account is active at once - there is
+	// no invitation to redeem, because there is no mailbox to send one to.
+	//
+	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
+	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
+	// choosing the person's own password under the workspace's rule.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace and at the scope of the role, and refuses with
+	// `accounts.managed_accounts_off` where the workspace's sign-in rule does not allow managed
+	// accounts (`sign_in_policy.managed_accounts`). A sign-in name already taken here, in any
+	// spelling that folds to the same name, is `409 accounts.sign_in_name_taken`. An act an
+	// automation rule runs is refused with `accounts.managed_needs_a_person`: a run reads no
+	// answer, so the start password would reach nobody. Granting `OWNER` demands the step-up,
+	// as the grant does.
+	//
+	// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+	// no-store`: an answer kept for a replay would keep the start password with it. A repeat after
+	// a lost answer finds the name taken.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
+	CreateManagedAccountWithResponse(ctx context.Context, params *CreateManagedAccountParams, body CreateManagedAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateManagedAccountResult, error)
+
 	// InviteAccountWithBodyWithResponse Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
@@ -39484,6 +39775,54 @@ func (r RestrictProcessingResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RestrictProcessingResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateManagedAccountResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *ManagedAccountCreated
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateManagedAccountResult) GetJSON201() *ManagedAccountCreated {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateManagedAccountResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateManagedAccountResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateManagedAccountResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateManagedAccountResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateManagedAccountResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -53143,6 +53482,72 @@ func (c *ClientWithResponses) RestrictProcessingWithResponse(ctx context.Context
 	return ParseRestrictProcessingResult(rsp)
 }
 
+// CreateManagedAccountWithBodyWithResponse Give somebody an account without a mail address
+//
+// Creates a managed account: a person who signs in with a sign-in name instead of an address,
+// and the role they hold at one scope, in one step. The account is active at once - there is
+// no invitation to redeem, because there is no mailbox to send one to.
+//
+// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
+// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
+// choosing the person's own password under the workspace's rule.
+//
+// Asks `MANAGE_MEMBERS` at the workspace and at the scope of the role, and refuses with
+// `accounts.managed_accounts_off` where the workspace's sign-in rule does not allow managed
+// accounts (`sign_in_policy.managed_accounts`). A sign-in name already taken here, in any
+// spelling that folds to the same name, is `409 accounts.sign_in_name_taken`. An act an
+// automation rule runs is refused with `accounts.managed_needs_a_person`: a run reads no
+// answer, so the start password would reach nobody. Granting `OWNER` demands the step-up,
+// as the grant does.
+//
+// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+// no-store`: an answer kept for a replay would keep the start password with it. A repeat after
+// a lost answer finds the name taken.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
+func (c *ClientWithResponses) CreateManagedAccountWithBodyWithResponse(ctx context.Context, params *CreateManagedAccountParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateManagedAccountResult, error) {
+	rsp, err := c.CreateManagedAccountWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateManagedAccountResult(rsp)
+}
+
+// CreateManagedAccountWithResponse Give somebody an account without a mail address
+//
+// Creates a managed account: a person who signs in with a sign-in name instead of an address,
+// and the role they hold at one scope, in one step. The account is active at once - there is
+// no invitation to redeem, because there is no mailbox to send one to.
+//
+// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
+// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
+// choosing the person's own password under the workspace's rule.
+//
+// Asks `MANAGE_MEMBERS` at the workspace and at the scope of the role, and refuses with
+// `accounts.managed_accounts_off` where the workspace's sign-in rule does not allow managed
+// accounts (`sign_in_policy.managed_accounts`). A sign-in name already taken here, in any
+// spelling that folds to the same name, is `409 accounts.sign_in_name_taken`. An act an
+// automation rule runs is refused with `accounts.managed_needs_a_person`: a run reads no
+// answer, so the start password would reach nobody. Granting `OWNER` demands the step-up,
+// as the grant does.
+//
+// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+// no-store`: an answer kept for a replay would keep the start password with it. A repeat after
+// a lost answer finds the name taken.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
+func (c *ClientWithResponses) CreateManagedAccountWithResponse(ctx context.Context, params *CreateManagedAccountParams, body CreateManagedAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateManagedAccountResult, error) {
+	rsp, err := c.CreateManagedAccount(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateManagedAccountResult(rsp)
+}
+
 // InviteAccountWithBodyWithResponse Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
@@ -59639,6 +60044,39 @@ func ParseRestrictProcessingResult(rsp *http.Response) (*RestrictProcessingResul
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateManagedAccountResult parses an HTTP response from a CreateManagedAccountWithResponse call
+func ParseCreateManagedAccountResult(rsp *http.Response) (*CreateManagedAccountResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateManagedAccountResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ManagedAccountCreated
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

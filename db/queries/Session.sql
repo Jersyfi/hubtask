@@ -15,15 +15,19 @@ SELECT resolve_tenant(sqlc.narg('slug'))::uuid AS tenant_id;
 
 -- name: FindAccountForSignIn :one
 -- The credential check's read: the stored hash beside everything the session will need, in one
--- round trip. Compared lower case, the way the uniqueness index does (account_email_uq).
-SELECT a.id, a.kind, a.email, a.display_name, a.status,
+-- round trip. An identifier is an address or a sign-in name by its shape, so exactly one of the
+-- two arguments is set: the address compared lower case, as account_email_uq does; the name folded
+-- by the caller, as account_sign_in_name_uq stores it. One statement for both, so a name and an
+-- address cost the same round trip (T-02).
+SELECT a.id, a.kind, a.email, a.sign_in_name, a.display_name, a.status,
        a.locale AS account_locale, a.time_zone AS account_time_zone,
        a.password_hash,
        n.default_locale, n.default_time_zone,
        n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM account a
 JOIN tenant n ON n.id = a.tenant_id
-WHERE lower(a.email) = lower(sqlc.arg('email')) AND a.deleted_at IS NULL;
+WHERE (lower(a.email) = lower(sqlc.narg('address')) OR a.sign_in_name = sqlc.narg('sign_in_name'))
+  AND a.deleted_at IS NULL;
 
 -- ============================== Sessions ==============================
 
@@ -376,12 +380,13 @@ WHERE account_id = sqlc.arg('account_id') AND used_at IS NULL;
 -- name: InsertPendingCredential :exec
 INSERT INTO auth_pending
   (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
-   link_provider_id, link_subject, link_proof)
+   link_provider_id, link_subject, link_proof, password_change_owed)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('token_hash'),
   sqlc.arg('purpose'), sqlc.narg('user_agent'), sqlc.narg('ip_class'),
   sqlc.arg('created_at'), sqlc.arg('expires_at'),
-  sqlc.narg('link_provider_id'), sqlc.narg('link_subject'), sqlc.narg('link_proof')
+  sqlc.narg('link_provider_id'), sqlc.narg('link_subject'), sqlc.narg('link_proof'),
+  sqlc.arg('password_change_owed')
 );
 
 -- name: FindPendingByHash :one
@@ -389,6 +394,7 @@ VALUES (
 -- FindSessionForAuth's shape.
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
+       p.password_change_owed,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -408,6 +414,7 @@ WHERE p.token_hash = sqlc.arg('token_hash') AND a.deleted_at IS NULL;
 -- transaction is bound to.
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
+       p.password_change_owed,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
