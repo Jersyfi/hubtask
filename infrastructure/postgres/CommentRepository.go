@@ -195,9 +195,10 @@ func (r CommentRepository) SetBody(
 	return commentConflictIfUntouched(affected, comment.ID, expectedVersion)
 }
 
-// SetDeleted writes the tombstone under the optimistic lock.
+// SetDeleted writes the tombstone under the optimistic lock, keeping the stored text when a legal
+// hold covers the comment.
 func (r CommentRepository) SetDeleted(
-	ctx context.Context, comment work.Comment, expectedVersion int,
+	ctx context.Context, comment work.Comment, expectedVersion int, keepText bool,
 ) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -214,6 +215,7 @@ func (r CommentRepository) SetDeleted(
 	}
 
 	affected, err := queries.SetCommentDeleted(ctx, sqlc.SetCommentDeletedParams{
+		KeepText:  keepText,
 		DeletedAt: timestampOf(*comment.DeletedAt),
 		ID:        id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
