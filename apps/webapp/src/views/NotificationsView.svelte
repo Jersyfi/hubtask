@@ -87,7 +87,11 @@
 
       {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
-      {#if reading === undefined || reading.status === 'loading' || reading.status === 'idle'}
+      {#if account && account.kind === 'USER' && !account.email}
+        <!-- A managed account (ADR-0074 §5): mail has nowhere to go, and a table of switches for it
+             would be a promise nothing keeps. -->
+        <p class="quiet">{t('app.profile.no_mailbox')}</p>
+      {:else if reading === undefined || reading.status === 'loading' || reading.status === 'idle'}
         <div aria-busy="true"><Skeleton lines={3} /></div>
       {:else if reading.status === 'failed'}
         <ErrorState
