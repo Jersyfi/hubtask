@@ -51,6 +51,10 @@ Each measured against the deployments `D1`–`D7`:
     archive with the audit trail, its gap reported per workspace. It replaces "from the audit
     export" of Decision 9 — backup-restore.md §8.5 step 5, data-protection.md §5. Built by the fix
     of #1239.
+11. **A managed account's password door stays open where the password is switched off** (the
+    owner, 2026-10-11, #1268): an identifier without `@` keeps sign-in, the `PASSWORD_CHANGE` step
+    and the step-up under the workspace's rules; an address is refused as before — identity.md §4.1,
+    §17.1. Built by PH-06.
 
 ---
 
