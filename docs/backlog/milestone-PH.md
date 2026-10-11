@@ -45,6 +45,16 @@ Each measured against the deployments `D1`–`D7`:
    2026-10-10, #1247): from the audit export, before the erasures are re-applied and before traffic
    is admitted; a hold released in that period stays in force until its owner releases it again —
    backup-restore.md §8.5, data-protection.md §5, UC-BAK-08 check 3. Built by the fix of #1239.
+10. **The holds of the rewound period come from the end of the WAL archive** (the owner,
+    2026-10-11, #1262): a temporary second cluster recovered to the end of the archive supplies
+    every `legal_hold` row the recovered database lacks; the fallback is the newest workspace
+    archive with the audit trail, its gap reported per workspace. It replaces "from the audit
+    export" of Decision 9 — backup-restore.md §8.5 step 5, data-protection.md §5. Built by the fix
+    of #1239.
+11. **A managed account's password door stays open where the password is switched off** (the
+    owner, 2026-10-11, #1268): an identifier without `@` keeps sign-in, the `PASSWORD_CHANGE` step
+    and the step-up under the workspace's rules; an address is refused as before — identity.md §4.1,
+    §17.1. Built by PH-06.
 
 ---
 
