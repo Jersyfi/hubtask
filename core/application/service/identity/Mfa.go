@@ -409,7 +409,7 @@ func (w SessionWriter) refuseWhereDemanded(
 func (w SessionWriter) proveByPassword(
 	ctx context.Context, actor appshared.ActorContext, password secret.Secret,
 ) error {
-	if err := w.passwordShut(ctx, actor.TenantID); err != nil {
+	if err := w.passwordShutFor(ctx, actor.TenantID, actor.AccountID); err != nil {
 		return err
 	}
 	// The hash is read in one transaction and verified outside it, sign-in's reasoning: Argon2id

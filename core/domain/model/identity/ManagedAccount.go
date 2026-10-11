@@ -81,6 +81,12 @@ func signInNameRefused(code, bound string, value int) error {
 // sign-in name never holds `@` (SignInName refuses one), and an address always does.
 func IsSignInName(identifier string) bool { return !strings.Contains(identifier, "@") }
 
+// OnlyThePasswordReaches reports whether the password is this account's one way in: a sign-in name
+// and no address, so no identity provider can ever recognise it. Where a workspace's methods leave
+// the password out, its password doors stay open for such an account and for nobody else
+// (identity.md §4.1) - an account that also holds an address has a provider's way.
+func (a Account) OnlyThePasswordReaches() bool { return a.SignInName != "" && a.Email == "" }
+
 // NewManagedAccount produces the account a managed account is: a person, active from the moment it
 // exists - there is no mailbox an invitation could prove, so nothing waits to be accepted - with a
 // sign-in name instead of an address. The display name falls back to the name, an invitation's

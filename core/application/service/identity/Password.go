@@ -835,8 +835,9 @@ func (h SetPasswordAndSignIn) Execute(
 	tenantID := token.TenantID()
 	scope := persistence.Scope{TenantID: tenantID}
 	// The step a password sign-in was owed: once the workspace switched the password off, it completes
-	// nothing.
-	if err := refuseShut(w.PasswordOpen(ctx, tenantID)); err != nil {
+	// nothing - unless only the password reaches the account (identity.md §4.1), asked once it is read.
+	open, _, err := w.PasswordOpen(ctx, tenantID)
+	if err != nil {
 		return SessionPair{}, err
 	}
 
@@ -869,6 +870,9 @@ func (h SetPasswordAndSignIn) Execute(
 	held, err := w.AccountFor(ctx, tenantID, lookup.Account.ID)
 	if err != nil {
 		return SessionPair{}, err
+	}
+	if !open && !held.Account.OnlyThePasswordReaches() {
+		return SessionPair{}, passwordNotOffered()
 	}
 	rules, err := w.ResolveFor(ctx, tenantID)
 	if err != nil {

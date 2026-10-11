@@ -97,6 +97,24 @@ func TestAnIdentifierIsANameByItsShape(t *testing.T) {
 
 // A managed account is a person, active at once, with a name and no address; the display name falls
 // back to the name rather than to nothing.
+func TestOnlyAnAccountWithANameAndNoAddressIsReachedByThePasswordAlone(t *testing.T) {
+	cases := []struct {
+		name    string
+		account Account
+		want    bool
+	}{
+		{"a sign-in name, no address", Account{SignInName: "lena"}, true},
+		{"a sign-in name and an address", Account{SignInName: "lena", Email: "lena@example.org"}, false},
+		{"an address only", Account{Email: "bert@example.org"}, false},
+		{"neither", Account{}, false},
+	}
+	for _, c := range cases {
+		if got := c.account.OnlyThePasswordReaches(); got != c.want {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
 func TestAManagedAccountIsAnActivePersonWithAName(t *testing.T) {
 	account, err := NewManagedAccount(accountID, tenantID, "Lena", "", text.Composing{})
 	if err != nil {

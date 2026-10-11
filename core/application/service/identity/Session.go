@@ -236,11 +236,15 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 		return SignInResult{}, err
 	}
 	// Before any account is looked up: where the workspace switched the password off, the answer is
-	// the same for every address. Whether it is open only as the fallback is read here, once,
-	// and recorded below once the password has proved right.
-	fallback, err := w.passwordDoor(ctx, tenantID)
+	// the same for every address. A sign-in name goes on - the account it names may be one only the
+	// password reaches, which is asked once the password has proved right (identity.md §4.1). Whether
+	// the password is open only as the fallback is read here, once, and recorded below.
+	open, fallback, err := w.passwordOpenHere(ctx, tenantID)
 	if err != nil {
 		return SignInResult{}, err
+	}
+	if !open && !domain.IsSignInName(typed) {
+		return SignInResult{}, passwordNotOffered()
 	}
 
 	identifier := w.lookupIdentifier(typed)
@@ -299,6 +303,9 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 
 	// The password was right; from here the answers may talk about the account, because the
 	// caller has proved they are its holder.
+	if !open && !found.Account.OnlyThePasswordReaches() {
+		return SignInResult{}, passwordNotOffered()
+	}
 	if err := found.Account.Verify(); err != nil {
 		return SignInResult{}, err
 	}
