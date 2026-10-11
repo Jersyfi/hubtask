@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,6 +13,11 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
+
+	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 const replaceTenantID = "01936f2a-7c1e-7000-8000-0000000000a1"
@@ -113,5 +119,74 @@ func TestReplacingHoldsNeedsAMomentAndASource(t *testing.T) {
 	}
 	if called {
 		t.Error("a refused command reached the server")
+	}
+}
+
+// The temporary cluster is read for the workspace named, and every hold it holds goes to the
+// operation as it was - its placer, its moment, its release.
+func TestReplacingHoldsReadsTheTemporaryCluster(t *testing.T) {
+	placed := time.Date(2026, 8, 20, 8, 0, 0, 0, time.UTC)
+	var askedDSN string
+	var askedTenant shared.ID
+	recoveredHolds = func(_ context.Context, dsn string, tenantID shared.ID, timeout time.Duration) ([]domain.LegalHold, error) {
+		askedDSN, askedTenant = dsn, tenantID
+		if timeout <= 0 {
+			t.Error("the read has no bound")
+		}
+		return []domain.LegalHold{
+			{ID: holdID, Scope: domain.HoldContainer, ScopeID: collectionID, Reason: "the Meier proceedings",
+				PlacedBy: itemID, PlacedAt: placed},
+			{ID: replaceTenantID, Scope: domain.HoldTenant, Reason: "Inspection",
+				PlacedBy: itemID, PlacedAt: placed, ReleasedBy: itemID, ReleasedAt: placed.Add(time.Hour)},
+		}, nil
+	}
+	t.Cleanup(func() { recoveredHolds = postgres.ReadRecoveredHolds })
+	stub := serveJSON(t, http.StatusOK, `{"holds":[]}`)
+
+	const dsn = "postgres://hubtask_app@recovered.hubtask.svc:5432/hubtask"
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "tenant", "replace-holds", replaceTenantID,
+		"--recovery-point", "2026-08-16T00:00:00Z", "--from-cluster", dsn)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if askedDSN != dsn || askedTenant != replaceTenantID {
+		t.Errorf("read %q for %q", askedDSN, askedTenant)
+	}
+	var sent struct {
+		Holds []map[string]any `json:"holds"`
+	}
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	if len(sent.Holds) != 2 {
+		t.Fatalf("sent %d holds", len(sent.Holds))
+	}
+	first, second := sent.Holds[0], sent.Holds[1]
+	scope, _ := first["scope"].(map[string]any)
+	if first["id"] != holdID || scope["kind"] != "CONTAINER" || scope["id"] != collectionID ||
+		first["placed_by"] != itemID || first["placed_at"] != "2026-08-20T08:00:00Z" || first["released_at"] != nil {
+		t.Errorf("the first hold went as %v", first)
+	}
+	scope, _ = second["scope"].(map[string]any)
+	if _, named := scope["id"]; named || second["released_at"] != "2026-08-20T09:00:00Z" {
+		t.Errorf("the released workspace hold went as %v", second)
+	}
+}
+
+// One source at a time: a cluster and a file together are refused before anything is read.
+func TestReplacingHoldsReadsOneSource(t *testing.T) {
+	recoveredHolds = func(context.Context, string, shared.ID, time.Duration) ([]domain.LegalHold, error) {
+		t.Error("the cluster was read")
+		return nil, nil
+	}
+	t.Cleanup(func() { recoveredHolds = postgres.ReadRecoveredHolds })
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "tenant", "replace-holds", replaceTenantID, "--recovery-point", "2026-08-16T00:00:00Z",
+		"--from-cluster", "postgres://recovered/hubtask", "--from", "holds.json")
+	if code != exitUsage {
+		t.Errorf("exit %d, want %d: %s", code, exitUsage, errOut)
 	}
 }
