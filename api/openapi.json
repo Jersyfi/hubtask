@@ -4238,7 +4238,7 @@
         "operationId": "completeSignIn",
         "security": [],
         "summary": "Present the second factor and receive the pair",
-        "description": "The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.\nA code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.\n",
+        "description": "The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.\nA code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.\nWhere the password the sign-in began with no longer meets the workspace's rule - or is a start password Hubtask drew - the change step still stands after the code: the answer is then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -4256,6 +4256,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SessionTokens"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The code was right and the password the sign-in began with must be changed first: the `PASSWORD_CHANGE` step, with the rule the new one is judged against.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaChallenge"
                 }
               }
             }
@@ -14009,7 +14019,18 @@
                 "type": "null"
               }
             ],
-            "description": "The pair, when a pending credential completed a sign-in here. Absent for a signed-in caller, who already holds one.\n"
+            "description": "The pair, when a pending credential completed a sign-in here. Absent for a signed-in caller, who already holds one, and where `challenge` stands instead.\n"
+          },
+          "challenge": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MfaChallenge"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The `PASSWORD_CHANGE` step, when a pending credential completed the enrolment and the password the sign-in began with must still be changed - one the rule refuses, or a start password Hubtask drew. The pair then comes from `/auth/sessions:set-password`.\n"
           }
         }
       },

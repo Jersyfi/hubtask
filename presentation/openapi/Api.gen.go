@@ -8127,7 +8127,10 @@ type TotpConfirmed struct {
 	// Armed Always true on success; the field exists so the answer is a statement, not an empty object.
 	Armed bool `json:"armed"`
 
-	// Tokens The pair, when a pending credential completed a sign-in here. Absent for a signed-in caller, who already holds one.
+	// Challenge The `PASSWORD_CHANGE` step, when a pending credential completed the enrolment and the password the sign-in began with must still be changed - one the rule refuses, or a start password Hubtask drew. The pair then comes from `/auth/sessions:set-password`.
+	Challenge *MfaChallenge `json:"challenge,omitempty"`
+
+	// Tokens The pair, when a pending credential completed a sign-in here. Absent for a signed-in caller, who already holds one, and where `challenge` stands instead.
 	Tokens *SessionTokens `json:"tokens,omitempty"`
 }
 

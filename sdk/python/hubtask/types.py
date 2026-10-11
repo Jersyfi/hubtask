@@ -655,6 +655,7 @@ class TotpConfirmation(TypedDict, total=False):
 class TotpConfirmed(TypedDict, total=False):
     armed: Required[bool]
     tokens: "SessionTokens" | Any
+    challenge: "MfaChallenge" | Any
 
 class AdminTenant(TypedDict, total=False):
     id: Required[str]

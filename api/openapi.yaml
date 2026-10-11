@@ -3118,6 +3118,10 @@ paths:
         presented again is refused, because a code that worked twice is a code somebody
         shoulder-read. A recovery code works exactly once, its consumption is audited, and the
         answer says how many remain. Failures count against the same attempt ledger sign-in uses.
+
+        Where the password the sign-in began with no longer meets the workspace's rule - or is a
+        start password Hubtask drew - the change step still stands after the code: the answer is
+        then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.
       requestBody:
         required: true
         content:
@@ -3131,6 +3135,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SessionTokens"
+        "202":
+          description: >
+            The code was right and the password the sign-in began with must be changed first: the
+            `PASSWORD_CHANGE` step, with the rule the new one is judged against.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaChallenge"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -10498,7 +10510,15 @@ components:
             - type: "null"
           description: >
             The pair, when a pending credential completed a sign-in here. Absent for a signed-in
-            caller, who already holds one.
+            caller, who already holds one, and where `challenge` stands instead.
+        challenge:
+          anyOf:
+            - $ref: "#/components/schemas/MfaChallenge"
+            - type: "null"
+          description: >
+            The `PASSWORD_CHANGE` step, when a pending credential completed the enrolment and the
+            password the sign-in began with must still be changed - one the rule refuses, or a start
+            password Hubtask drew. The pair then comes from `/auth/sessions:set-password`.
 
     AdminTenant:
       type: object

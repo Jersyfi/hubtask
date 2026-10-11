@@ -220,6 +220,8 @@ type ConfirmTotpCommand struct {
 // completed a sign-in here - the pair.
 type ConfirmedEnrollment struct {
 	Pair *SessionPair
+	// Challenge is the change step the sign-in still owes, where it stands instead of the pair.
+	Challenge *SignInChallenge
 }
 
 // ConfirmTotp arms the enrolment: the caller proves the authenticator holds the secret.
@@ -296,6 +298,13 @@ func (h ConfirmTotp) Execute(
 
 	if !caller.enforcementFlow() {
 		return ConfirmedEnrollment{}, nil
+	}
+	if caller.pending.PasswordChangeOwed {
+		challenge, err := w.owedChange(ctx, scope, caller.account, caller.pending)
+		if err != nil {
+			return ConfirmedEnrollment{}, err
+		}
+		return ConfirmedEnrollment{Challenge: challenge}, nil
 	}
 	// The enrolment's own step ends in a session, and it was opened with a password and a code -
 	// the code having just been confirmed is what the enforcement flow is. Bounded as the ordinary
@@ -555,6 +564,9 @@ func (h ConfirmTotp) invoke(
 	out := usecase.Output{"armed": true}
 	if confirmed.Pair != nil {
 		out["tokens"] = pairOutput(*confirmed.Pair)
+	}
+	if confirmed.Challenge != nil {
+		out["challenge"] = challengeOutput(*confirmed.Challenge)
 	}
 	return out, nil
 }

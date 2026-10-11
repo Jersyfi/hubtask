@@ -346,6 +346,8 @@ func (r MfaRepository) Insert(
 		IpClass:   nullableString(credential.IPClass),
 		CreatedAt: pgtype.Timestamptz{Time: credential.CreatedAt, Valid: true},
 		ExpiresAt: pgtype.Timestamptz{Time: credential.ExpiresAt, Valid: true},
+		// The change a factor's step still owes (migration 0127).
+		PasswordChangeOwed: credential.PasswordChangeOwed,
 	}
 	if link := credential.Link; link != nil {
 		// The provider identity waiting for the account's proof (migration 0110).
@@ -440,16 +442,17 @@ func pendingLookupOf(row sqlc.FindPendingByHashRow, tenantID shared.ID) (reposit
 
 	return repository.PendingLookup{
 		Credential: identity.PendingCredential{
-			ID:         credentialID,
-			TenantID:   tenantID,
-			AccountID:  accountID,
-			Purpose:    identity.PendingPurpose(row.Purpose),
-			UserAgent:  stringFrom(row.UserAgent),
-			IPClass:    stringFrom(row.IpClass),
-			CreatedAt:  timeFrom(row.CreatedAt),
-			ExpiresAt:  timeFrom(row.ExpiresAt),
-			ConsumedAt: timeFrom(row.ConsumedAt),
-			Link:       link,
+			ID:                 credentialID,
+			TenantID:           tenantID,
+			AccountID:          accountID,
+			Purpose:            identity.PendingPurpose(row.Purpose),
+			PasswordChangeOwed: row.PasswordChangeOwed,
+			UserAgent:          stringFrom(row.UserAgent),
+			IPClass:            stringFrom(row.IpClass),
+			CreatedAt:          timeFrom(row.CreatedAt),
+			ExpiresAt:          timeFrom(row.ExpiresAt),
+			ConsumedAt:         timeFrom(row.ConsumedAt),
+			Link:               link,
 		},
 		Account: identity.Account{
 			ID:          accountID,

@@ -8133,7 +8133,10 @@ type TotpConfirmed struct {
 	// Armed Always true on success; the field exists so the answer is a statement, not an empty object.
 	Armed bool `json:"armed"`
 
-	// Tokens The pair, when a pending credential completed a sign-in here. Absent for a signed-in caller, who already holds one.
+	// Challenge The `PASSWORD_CHANGE` step, when a pending credential completed the enrolment and the password the sign-in began with must still be changed - one the rule refuses, or a start password Hubtask drew. The pair then comes from `/auth/sessions:set-password`.
+	Challenge *MfaChallenge `json:"challenge,omitempty"`
+
+	// Tokens The pair, when a pending credential completed a sign-in here. Absent for a signed-in caller, who already holds one, and where `challenge` stands instead.
 	Tokens *SessionTokens `json:"tokens,omitempty"`
 }
 
@@ -11234,6 +11237,7 @@ type ClientInterface interface {
 	//
 	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 	// A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
+	// Where the password the sign-in began with no longer meets the workspace's rule - or is a start password Hubtask drew - the change step still stands after the code: the answer is then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -11244,6 +11248,7 @@ type ClientInterface interface {
 	//
 	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 	// A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
+	// Where the password the sign-in began with no longer meets the workspace's rule - or is a start password Hubtask drew - the change step still stands after the code: the answer is then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -15974,6 +15979,7 @@ func (c *Client) SetPasswordAndSignIn(ctx context.Context, body SetPasswordAndSi
 //
 // The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 // A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
+// Where the password the sign-in began with no longer meets the workspace's rule - or is a start password Hubtask drew - the change step still stands after the code: the answer is then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15994,6 +16000,7 @@ func (c *Client) CompleteSignInWithBody(ctx context.Context, contentType string,
 //
 // The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 // A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
+// Where the password the sign-in began with no longer meets the workspace's rule - or is a start password Hubtask drew - the change step still stands after the code: the answer is then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -36467,6 +36474,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 	// A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
+	// Where the password the sign-in began with no longer meets the workspace's rule - or is a start password Hubtask drew - the change step still stands after the code: the answer is then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36477,6 +36485,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 	// A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
+	// Where the password the sign-in began with no longer meets the workspace's rule - or is a start password Hubtask drew - the change step still stands after the code: the answer is then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -42544,6 +42553,8 @@ type CompleteSignInResult struct {
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
 	JSON201 *SessionTokens
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *MfaChallenge
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 }
@@ -42551,6 +42562,11 @@ type CompleteSignInResult struct {
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
 func (r CompleteSignInResult) GetJSON201() *SessionTokens {
 	return r.JSON201
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r CompleteSignInResult) GetJSON202() *MfaChallenge {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -54992,6 +55008,7 @@ func (c *ClientWithResponses) SetPasswordAndSignInWithResponse(ctx context.Conte
 //
 // The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 // A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
+// Where the password the sign-in began with no longer meets the workspace's rule - or is a start password Hubtask drew - the change step still stands after the code: the answer is then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -55008,6 +55025,7 @@ func (c *ClientWithResponses) CompleteSignInWithBodyWithResponse(ctx context.Con
 //
 // The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes.
 // A code verifies within one step of drift either side and never twice: the same step presented again is refused, because a code that worked twice is a code somebody shoulder-read. A recovery code works exactly once, its consumption is audited, and the answer says how many remain. Failures count against the same attempt ledger sign-in uses.
+// Where the password the sign-in began with no longer meets the workspace's rule - or is a start password Hubtask drew - the change step still stands after the code: the answer is then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -61984,6 +62002,13 @@ func ParseCompleteSignInResult(rsp *http.Response) (*CompleteSignInResult, error
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest MfaChallenge
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

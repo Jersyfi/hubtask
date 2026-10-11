@@ -104,6 +104,8 @@ func (w SessionWriter) challengeFor(
 			IPClass:   domain.IPClass(cmd.RemoteAddr),
 			CreatedAt: now.UTC(),
 			ExpiresAt: now.Add(domain.PendingLifetime).UTC(),
+			// A factor's step comes first; the change the password owes follows it.
+			PasswordChangeOwed: purpose != domain.PendingPassword && verdict.MustChangePassword,
 		}
 		if err := w.Pending.Insert(ctx, credential, presented); err != nil {
 			return err
@@ -248,21 +250,24 @@ type CompleteSignIn struct{ Writer SessionWriter }
 // Execute verifies. The pending credential dies on use whatever happens next; a code verifies
 // within one step of drift and never twice; a recovery code burns; and failures count against
 // the account's own ledger subject, because the code space is small and the clock is patient.
+//
+// The answer is the pair, or - where the password the sign-in began with still owes the change
+// step - that step's challenge.
 func (h CompleteSignIn) Execute(
 	ctx context.Context, cmd CompleteSignInCommand,
-) (SessionPair, int, error) {
+) (SignInResult, int, error) {
 	w := h.Writer
 
 	token, err := domain.ParsePendingToken(cmd.PendingToken.Reveal())
 	if err != nil {
 		w.failure(ctx, FailureMfa)
-		return SessionPair{}, -1, challengeRefused()
+		return SignInResult{}, -1, challengeRefused()
 	}
 	if cmd.TenantHeader != "" && cmd.TenantHeader != token.TenantID().String() {
-		return SessionPair{}, -1, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
+		return SignInResult{}, -1, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
 	if cmd.Code == "" && cmd.RecoveryCode.IsEmpty() {
-		return SessionPair{}, -1, shared.ErrValidation.
+		return SignInResult{}, -1, shared.ErrValidation.
 			WithDetail("auth.mfa_code_required").
 			WithFields(shared.FieldError{Path: "/code", Code: "auth.mfa_code_required"})
 	}
@@ -363,14 +368,21 @@ func (h CompleteSignIn) Execute(
 	})
 	err = w.settleRefusal(ctx, scope, err)
 	if err != nil {
-		return SessionPair{}, -1, err
+		return SignInResult{}, -1, err
+	}
+	if hint.PasswordChangeOwed {
+		challenge, err := w.owedChange(ctx, scope, account, hint)
+		if err != nil {
+			return SignInResult{}, -1, err
+		}
+		return SignInResult{Challenge: challenge}, remaining, nil
 	}
 	// The bounds the session it is about to open answers to. Read after the credential was spent,
 	// because the password is not in hand here - the verdict's other answers were settled at the
 	// first step, and what is needed now is only the two numbers.
 	bounds, err = w.sessionBounds(ctx, token.TenantID(), account)
 	if err != nil {
-		return SessionPair{}, -1, err
+		return SignInResult{}, -1, err
 	}
 
 	// How it was opened, for the list a person reads: the code, or one of the ten they kept.
@@ -387,9 +399,45 @@ func (h CompleteSignIn) Execute(
 	pair, err := w.openSessionWithHint(ctx, scope, token.TenantID(), account,
 		hint.UserAgent, hint.IPClass, action, bounds, method, via)
 	if err != nil {
-		return SessionPair{}, -1, err
+		return SignInResult{}, -1, err
 	}
-	return pair, remaining, nil
+	return SignInResult{Pair: &pair}, remaining, nil
+}
+
+// owedChange answers the change step a factor's step still owes (identity.md §4.2): a new
+// credential of the PASSWORD purpose, for the device the sign-in began on, with the rule the new
+// password is judged against. The factor's credential is spent already, so this is the one way on.
+func (w SessionWriter) owedChange(
+	ctx context.Context, scope persistence.Scope, account domain.Account, hint domain.PendingCredential,
+) (*SignInChallenge, error) {
+	verdict, err := w.Rule.JudgeSignIn(ctx, scope.TenantID, account, secret.Secret{})
+	if err != nil {
+		return nil, err
+	}
+	material, err := w.Entropy.Bytes(domain.TokenSecretBytes)
+	if err != nil {
+		return nil, shared.ErrInternal.WithDetail("auth.session_unmintable").WithCause(err)
+	}
+	presented, err := domain.NewPendingToken(scope.TenantID, material)
+	if err != nil {
+		return nil, err
+	}
+	now := w.Clock.Now()
+	credential := domain.PendingCredential{
+		ID: w.IDs.NewID(), TenantID: scope.TenantID, AccountID: account.ID,
+		Purpose: domain.PendingPassword, UserAgent: hint.UserAgent, IPClass: hint.IPClass,
+		CreatedAt: now.UTC(), ExpiresAt: now.Add(domain.PendingLifetime).UTC(),
+	}
+	if err := w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		return w.Pending.Insert(ctx, credential, presented)
+	}); err != nil {
+		return nil, err
+	}
+	rules := verdict.Rules
+	return &SignInChallenge{
+		Token: secret.New(presented.Secret()), ExpiresAt: credential.ExpiresAt,
+		Methods: []string{methodPasswordChange}, PasswordRules: &rules,
+	}, nil
 }
 
 // verifyTotpCode opens the sealed secret, judges the code, and advances the replay floor
@@ -584,7 +632,7 @@ func (h CompleteSignIn) Descriptor() usecase.Descriptor {
 func (h CompleteSignIn) invoke(
 	ctx context.Context, _ appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	pair, remaining, err := h.Execute(ctx, CompleteSignInCommand{
+	result, remaining, err := h.Execute(ctx, CompleteSignInCommand{
 		PendingToken: secret.New(in.String("pending_token")),
 		Code:         in.String("code"),
 		RecoveryCode: secret.New(in.String("recovery_code")),
@@ -593,7 +641,12 @@ func (h CompleteSignIn) invoke(
 	if err != nil {
 		return nil, err
 	}
-	out := pairOutput(pair)
+	var out usecase.Output
+	if result.Challenge != nil {
+		out = challengeOutput(*result.Challenge)
+	} else {
+		out = pairOutput(*result.Pair)
+	}
 	if remaining >= 0 {
 		out["recovery_codes_remaining"] = remaining
 	}

@@ -85,7 +85,9 @@ the step owed; the client draws exactly the step the server names.
 * The pending credential (`hbt_mfa_…`, an `auth_pending` row with a purpose) only completes its
   step: five minutes (`expires_at` answered), single use, never extended; then the client returns
   to the first step, the address kept.
-* Steps chain: a `LINK` continues into `TOTP` where the account has a factor.
+* Steps chain: a `LINK` continues into `TOTP` where the account has a factor, and a `TOTP` or
+  `ENROLL` continues into `PASSWORD_CHANGE` where the password owes the change - the factor first,
+  the change after it, never forgotten.
 
 ### 4.3 Refusals and attempts
 
