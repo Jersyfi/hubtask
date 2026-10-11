@@ -2704,6 +2704,9 @@ func run() error {
 			// The synchronisation's records: the operation log and the tombstones past
 			// the offline window; the change log's months fall as partitions, the leader's duty.
 			SyncLog: postgres.NewSyncLogSweeper(),
+			// Requests' stored answers, a day after they arrived: the data catalogue's promise,
+			// and the floor of the replay api-guidelines.md §5 promises.
+			IdempotencyKeys: postgres.NewIdempotencyStore(),
 			// The text a legal hold kept on a deleted comment, cleared once no hold
 			// covers it (data-retention.md §4).
 			KeptTexts: postgres.KeptCommentTextRepository{},
