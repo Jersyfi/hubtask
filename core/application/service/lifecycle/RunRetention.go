@@ -63,8 +63,11 @@ type RunRetention struct {
 	// the operation log and the tombstones. Optional for the device's reason. The change log is
 	// not swept here - its months fall as partitions, the leader's duty.
 	SyncLog ExpiredSyncLog
-	Clock   clock.Clock
-	IDs     clock.IDGenerator
+	// IdempotencyKeys is the remover of requests' stored answers past their day. Optional for the
+	// session's reason: an installation wired without it sweeps exactly what it did before.
+	IdempotencyKeys ExpiredIdempotencyKeys
+	Clock           clock.Clock
+	IDs             clock.IDGenerator
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
 	// a metrics adapter from being a dependency of the deletion path.
 	Signals RetentionSignals
@@ -140,6 +143,13 @@ type ExpiredDevices interface {
 // (offline-sync.md §7): the operation log rows and the tombstones past the window, in one pass
 // per batch, the device's two methods and the same shape on purpose.
 type ExpiredSyncLog interface {
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
+}
+
+// ExpiredIdempotencyKeys is the slice of the idempotency store this run removes through
+// (api-guidelines.md §5): the session's two methods, and the same shape on purpose.
+type ExpiredIdempotencyKeys interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
@@ -269,6 +279,11 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	keys, err := h.sweepIdempotencyKeys(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	rules, err := h.sweepRules(ctx, actor, started)
 	if err != nil {
 		return outcome, err
@@ -302,10 +317,58 @@ func (h RunRetention) Execute(
 	outcome.Removed += devices.Removed
 	outcome.Matched += syncLog.Matched
 	outcome.Removed += syncLog.Removed
+	outcome.Matched += keys.Matched
+	outcome.Removed += keys.Removed
 	// add rather than the two additions, the jumble's reasoning: a suggestion is somebody's work
 	// before anybody has filed it, so a tenant-wide hold reaches it and the blocked count has to
 	// reach the pass.
 	outcome.add(proposals)
+	return outcome, nil
+}
+
+// sweepIdempotencyKeys removes one batch of requests' stored answers past their period
+// (data-retention.md §3). No hold and no audit entry, on sweepSessions' reasoning: a key is
+// bookkeeping about a request, and the floor - one day, FloorFor - is what keeps the replay that
+// api-guidelines.md §5 promises.
+func (h RunRetention) sweepIdempotencyKeys(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.IdempotencyKeys == nil {
+		return Outcome{}, nil
+	}
+
+	policy, err := h.Policies.Find(ctx, domain.KindIdempotencyKey)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	runID := h.IDs.NewID()
+	if err := h.Runs.Start(ctx, runID, domain.KindIdempotencyKey, started); err != nil {
+		return Outcome{}, err
+	}
+
+	cutoff := policy.Cutoff(started)
+	matched, err := h.IdempotencyKeys.CountExpired(ctx, cutoff, h.Purger.BatchSize)
+	if err != nil {
+		return Outcome{}, err
+	}
+	removed, sweepErr := h.IdempotencyKeys.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+
+	finished := h.Clock.Now()
+	status := repository.RunSucceeded
+	if sweepErr != nil {
+		status = repository.RunFailed
+	}
+	outcome := Outcome{Matched: matched, Removed: removed}
+	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+		Matched: outcome.Matched, Removed: outcome.Removed,
+		Status: status, FinishedAt: finished,
+	}); err != nil {
+		return outcome, err
+	}
+	if sweepErr != nil {
+		return outcome, sweepErr
+	}
+
+	h.report(ctx, domain.KindIdempotencyKey, outcome, finished.Sub(started))
 	return outcome, nil
 }
 

@@ -125,11 +125,13 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 		Policies: store, Runs: store, History: postgres.NewNotificationRepository(),
 		// The jumble, as the server wires it: the engine refuses to run with a kind
 		// unwired, and RE-8's cross-tenant question is asked of this kind too.
-		Inbox:  postgres.NewJumbleRepository(security.NewCursorCodec(installationSecret)),
-		Purger: purger,
-		Clock:  clock.Fixed(at),
-		IDs:    ids,
-		Rules:  postgres.NewRetentionRuleRepository(),
+		Inbox: postgres.NewJumbleRepository(security.NewCursorCodec(installationSecret)),
+		// Requests' stored answers, as the server wires them.
+		IdempotencyKeys: postgres.NewIdempotencyStore(),
+		Purger:          purger,
+		Clock:           clock.Fixed(at),
+		IDs:             ids,
+		Rules:           postgres.NewRetentionRuleRepository(),
 		Sweeper: lifecycle.Sweeper{
 			Rules:   postgres.NewRetentionRuleRepository(),
 			Marking: postgres.NewRetentionMarkingRepository(),
@@ -528,6 +530,60 @@ func TestTheNotificationHistoryIsSweptAtNinetyDays(t *testing.T) {
 	}
 	if runs != 1 {
 		t.Errorf("%d logged runs for the notification history, want 1", runs)
+	}
+}
+
+// The IDEMPOTENCY_KEY kind: a request's stored answer goes a day after it arrived and not before,
+// the data catalogue's promise (data-retention.md §3) - through the engine as the server wires it,
+// in a real transaction as the app role, so row level security bounds what it reaches.
+func TestIdempotencyKeysAreSweptAfterADay(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	other := newSuite(t, 24*time.Hour)
+	ctx := s.ctx
+
+	seed := func(tenant shared.ID, key string, createdAt time.Time) {
+		t.Helper()
+		if _, err := s.admin.Exec(ctx, `
+			INSERT INTO idempotency_key (tenant_id, key, endpoint, request_hash, response_code, created_at)
+			VALUES ($1, $2, 'POST /v1/containers', '\x00', 201, $3)`,
+			tenant.String(), key, createdAt); err != nil {
+			t.Fatalf("seeding the key: %v", err)
+		}
+	}
+	seed(s.tenant, "expired", now.Add(-25*time.Hour))
+	seed(s.tenant, "fresh", now.Add(-23*time.Hour))
+	seed(other.tenant, "expired", now.Add(-25*time.Hour))
+
+	s.sweep(t)
+
+	left := func(tenant shared.ID) []string {
+		t.Helper()
+		rows, err := s.admin.Query(ctx,
+			`SELECT key FROM idempotency_key WHERE tenant_id = $1 ORDER BY key`, tenant.String())
+		if err != nil {
+			t.Fatalf("reading the keys: %v", err)
+		}
+		defer rows.Close()
+		var keys []string
+		for rows.Next() {
+			var key string
+			if err := rows.Scan(&key); err != nil {
+				t.Fatalf("scanning: %v", err)
+			}
+			keys = append(keys, key)
+		}
+		return keys
+	}
+	if got := left(s.tenant); len(got) != 1 || got[0] != "fresh" {
+		t.Errorf("the swept workspace keeps %v, want only the key younger than a day", got)
+	}
+	if got := left(other.tenant); len(got) != 1 {
+		t.Errorf("the sweep reached another workspace's keys: %v left there", got)
+	}
+	if runs := s.count(t,
+		`SELECT count(*) FROM retention_run WHERE tenant_id = $1 AND data_kind = 'IDEMPOTENCY_KEY'`,
+		s.tenant.String()); runs != 1 {
+		t.Errorf("%d logged runs for the idempotency keys, want 1", runs)
 	}
 }
 
