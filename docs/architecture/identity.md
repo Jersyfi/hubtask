@@ -372,7 +372,8 @@ password and an address added later are decided, not built.*
 * Sign-in takes `identifier`: with `@` an address, without a sign-in name, one lookup, one refusal
   and the same kind of ledger subject (§4.3). The first field reads "Email address or sign-in name"
   where the workspace has a managed account (`sign_in_names` on the sign-in rules), elsewhere
-  "Email address".
+  "Email address". Where the methods leave the password out, a sign-in name keeps its password
+  (§4.1): the card draws the providers and, after them, a *Sign-in name* form.
 * **The one exception to "an administrator does not recover an account":** an owner or
   administrator may issue a new start password — step-up, recorded, every session ended, next
   sign-in into `PASSWORD_CHANGE`, an armed factor still demanded.
