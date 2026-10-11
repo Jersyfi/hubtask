@@ -372,6 +372,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `lifecycle.hold_placed` | ListLegalHolds | `legal_hold` | INFO | When refused |
 | `lifecycle.hold_placed` | PlaceLegalHold | `legal_hold` | WARNING | Every time |
 | `lifecycle.hold_released` | ReleaseLegalHold | `legal_hold` | WARNING | Every time |
+| `lifecycle.hold_replaced` | ReplaceLegalHolds | `legal_hold` | WARNING | Every time |
 | `lifecycle.retained` | RetainItem | `item` | WARNING | Every time |
 | `lifecycle.rule_changed` | CreateRetentionPolicy | `retention_policy` | WARNING | Every time |
 | `lifecycle.rule_changed` | ListRetentionPolicies | `retention_policy` | INFO | When refused |

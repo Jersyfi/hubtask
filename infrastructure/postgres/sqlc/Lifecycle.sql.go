@@ -552,6 +552,64 @@ func (q *Queries) RecordTombstones(ctx context.Context, arg RecordTombstonesPara
 	return err
 }
 
+const recoveredLegalHolds = `-- name: RecoveredLegalHolds :many
+SELECT id, scope_kind, scope_id, reason, placed_by, placed_at,
+       released_by, released_at, released_reason
+FROM legal_hold
+WHERE tenant_id = current_tenant_id()
+ORDER BY placed_at, id
+`
+
+type RecoveredLegalHoldsRow struct {
+	ID             pgtype.UUID
+	ScopeKind      string
+	ScopeID        pgtype.UUID
+	Reason         string
+	PlacedBy       pgtype.UUID
+	PlacedAt       pgtype.Timestamptz
+	ReleasedBy     pgtype.UUID
+	ReleasedAt     pgtype.Timestamptz
+	ReleasedReason *string
+}
+
+// Every hold of the transaction's workspace, released or not, as a second database holds them: the
+// temporary cluster recovered to the end of the WAL archive, read to place the holds of a rewound
+// period again (backup-restore.md §8.5 step 5).
+//
+// The workspace is named here although row level security names it too, and unlike every other
+// statement in this file: the operator connects to the temporary cluster with whatever role it
+// has, and its superuser bypasses the policy. Without the predicate that connection would hand
+// back every workspace's holds, and they would be placed in this one.
+func (q *Queries) RecoveredLegalHolds(ctx context.Context) ([]RecoveredLegalHoldsRow, error) {
+	rows, err := q.db.Query(ctx, recoveredLegalHolds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RecoveredLegalHoldsRow{}
+	for rows.Next() {
+		var i RecoveredLegalHoldsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScopeKind,
+			&i.ScopeID,
+			&i.Reason,
+			&i.PlacedBy,
+			&i.PlacedAt,
+			&i.ReleasedBy,
+			&i.ReleasedAt,
+			&i.ReleasedReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const releaseLegalHold = `-- name: ReleaseLegalHold :execrows
 UPDATE legal_hold SET
   released_by     = $1,

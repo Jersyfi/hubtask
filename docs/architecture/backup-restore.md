@@ -339,6 +339,46 @@ can carry out the procedure.**
    take the recovered schema the rest of the way.
 7. **Write down what happened** for the incident record. RPO and RTO figures stay internal.
 
+#### Step 5's holds, by hand
+
+The holds are placed through the application, not into the database: each one keeps its trail
+entry and its workspace's transaction (rule 3). So for step 5 the application already runs against
+the recovered cluster — step 6's pointing, with the ingress still closed — and the operator works
+with `hubctl` and a credential that holds `admin:tenants`.
+
+1. **Recover the temporary cluster** like step 3, from the same archive and under another name, with
+   no `recoveryTarget`: CloudNativePG then replays to the end of the archive. It is read only; it is
+   removed after step 5.
+2. **Per workspace**, read its holds there and place the missing ones in the recovered cluster:
+
+   ```bash
+   export PGPASSWORD=…    # the temporary cluster's app role; never in the connection string
+   hubctl admin tenant replace-holds <workspace> --recovery-point <step 1's moment> \
+     --from-cluster "postgres://hubtask_app@<temporary>-rw.<namespace>.svc:5432/<database>"
+   ```
+
+   `hubctl` reads through a read-only session under the workspace's own scope, and its statement
+   names the workspace, so even the cluster's superuser reads one workspace only. The answer lists
+   each hold: `PLACED` or already `PRESENT`, whether what it names exists in the recovered
+   workspace, and whether it was released in the rewound period — that owner is told to release it
+   again. A second run changes nothing.
+3. **Where the end of the archive is unusable**, the source is the workspace's newest archive that
+   includes the audit trail (`hubctl backup ls --target <target>`), read by the server, which holds
+   the archive's key:
+
+   ```bash
+   hubctl admin tenant replace-holds <workspace> --recovery-point <step 1's moment> \
+     --from-archive <archive path> --target <target>
+   ```
+
+   It places the holds the archive's copy of the workspace carries and those its trail records as
+   placed or placed again, and prints, per workspace, when the archive was taken — a hold placed
+   between then and the loss is not in it, and goes into the incident record as the gap — whether
+   the archive included the trail, and how many records named too little to place.
+
+The workspaces are those the recovered installation lists (`hubctl admin tenant ls`); a workspace
+created after the recovery point is not among them, and its holds went with it.
+
 #### What proves it in advance
 
 **RT-9, per release (a hook) and weekly (a `CronJob`):** `hubtask-restore-drill` writes two marker
