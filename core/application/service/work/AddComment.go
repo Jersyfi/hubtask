@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
@@ -61,6 +62,10 @@ type CommentWriter struct {
 	HLC        clock.HLCSource
 	// Text brings the body to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Holds are the legal holds a deletion is judged against: under one, the deleted comment keeps
+	// its text until the retention pass clears it (data-retention.md §4). Only the deletion reads
+	// them.
+	Holds lifecyclerepo.LegalHolds
 }
 
 // AddComment puts a contribution on an entry's discussion.
