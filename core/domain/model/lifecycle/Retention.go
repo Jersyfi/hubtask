@@ -84,6 +84,9 @@ func DefaultPolicies() []Policy {
 		// lower bound too: kept shorter, a device that was offline would recreate what was deleted
 		// and a first push that half-succeeded would apply twice (offline-sync.md §7).
 		{DataKind: KindSyncLog, RetainDays: 90, MinDays: 90},
+		// Idempotency keys. One day, the data catalogue's promise, and the day is the lower
+		// bound: api-guidelines.md §5 promises a replay for at least that long.
+		{DataKind: KindIdempotencyKey, RetainDays: 1, MinDays: 1},
 	}
 }
 
