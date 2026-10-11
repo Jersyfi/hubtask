@@ -449,6 +449,8 @@ func run() error {
 		Text:     forms,
 		Accounts: signInStore,
 		Sessions: sessions,
+		// Every session opened seeds its workspace's retention sweep (data-retention.md §5).
+		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
 		Refresh:  postgres.NewRefreshTokenRepository(security.NewSessionRefreshHasher(cfg.SecretKey)),
 		Attempts: signInStore, Tenants: signInStore,
 		Passwords: passwords, Signer: sessionSigner,
@@ -1915,6 +1917,7 @@ func run() error {
 			// The one host the new workspace answers at. The installation's own host comes
 			// from the configured base URL and never from a request.
 			Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
+			Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
 		}.Descriptor(),
 		adminservice.ListTenants{
 			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
@@ -2715,6 +2718,9 @@ func run() error {
 			// The synchronisation's records: the operation log and the tombstones past
 			// the offline window; the change log's months fall as partitions, the leader's duty.
 			SyncLog: postgres.NewSyncLogSweeper(),
+			// Requests' stored answers, a day after they arrived: the data catalogue's promise,
+			// and the floor of the replay api-guidelines.md §5 promises.
+			IdempotencyKeys: postgres.NewIdempotencyStore(),
 			// The text a legal hold kept on a deleted comment, cleared once no hold
 			// covers it (data-retention.md §4).
 			KeptTexts: postgres.KeptCommentTextRepository{},

@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
@@ -304,6 +305,7 @@ type sessionFixture struct {
 	signals  *signalsFake
 	audit    *auditSink
 	work     *unitOfWork
+	jobs     *notifier
 }
 
 func newSessionFixture(at time.Time) *sessionFixture {
@@ -319,6 +321,7 @@ func newSessionFixture(at time.Time) *sessionFixture {
 		signals: &signalsFake{},
 		audit:   &auditSink{},
 		work:    &unitOfWork{},
+		jobs:    &notifier{},
 	}
 	f.work.ledger = f.attempts
 	f.writer = SessionWriter{
@@ -329,6 +332,7 @@ func newSessionFixture(at time.Time) *sessionFixture {
 		UnitOfWork: f.work, Clock: clock.Fixed(at),
 		IDs:     &idSequence{queue: []shared.ID{sessionRowID, refreshRowID}},
 		Entropy: clock.FixedEntropy{},
+		Jobs:    f.jobs, RetentionInterval: time.Hour,
 	}
 	return f
 }
@@ -396,6 +400,38 @@ func TestASignInOpensASessionAndAnswersThePair(t *testing.T) {
 }
 
 // T-02: the two refusals are one answer, byte for byte, and both cost the ledger a failure.
+// A session opened seeds its workspace's retention sweep one interval out (data-retention.md §5):
+// the sign-in is the write every workspace a person uses makes, single mode's included. A refused
+// sign-in opens nothing and seeds nothing.
+func TestASignInSeedsTheWorkspacesRetentionSweep(t *testing.T) {
+	fixture := newSessionFixture(now)
+	fixture.withAccount("bert@example.org", "correct horse battery")
+
+	if _, err := (SignIn{Writer: fixture.writer}).Execute(t.Context(), SignInCommand{
+		Email: "bert@example.org", Password: secret.New("a wrong password!"), RemoteAddr: "203.0.113.7:1",
+	}); err == nil {
+		t.Fatal("a wrong password was let in")
+	}
+	if len(fixture.jobs.requests) != 0 {
+		t.Fatalf("a refused sign-in asked for %+v", fixture.jobs.requests)
+	}
+
+	if _, err := (SignIn{Writer: fixture.writer}).Execute(t.Context(), SignInCommand{
+		Email: "bert@example.org", Password: secret.New("correct horse battery"), RemoteAddr: "203.0.113.7:1",
+	}); err != nil {
+		t.Fatalf("signing in: %v", err)
+	}
+	if len(fixture.jobs.requests) != 1 {
+		t.Fatalf("%d jobs asked for, want the one sweep: %+v", len(fixture.jobs.requests), fixture.jobs.requests)
+	}
+	want := queue.RetentionSweep(tenant, now.Add(time.Hour))
+	got := fixture.jobs.requests[0]
+	if got.Kind != want.Kind || got.TenantID != want.TenantID || got.DedupeKey != want.DedupeKey ||
+		!got.RunAt.Equal(want.RunAt) {
+		t.Errorf("asked for %+v, want %+v", got, want)
+	}
+}
+
 func TestWrongPasswordAndNoAccountAreOneAnswer(t *testing.T) {
 	fixture := newSessionFixture(now)
 	fixture.withAccount("bert@example.org", "correct horse battery")

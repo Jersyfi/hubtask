@@ -7,6 +7,8 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const completeIdempotencyRecord = `-- name: CompleteIdempotencyRecord :exec
@@ -30,6 +32,59 @@ func (q *Queries) CompleteIdempotencyRecord(ctx context.Context, arg CompleteIde
 		arg.ResponseBody,
 	)
 	return err
+}
+
+const countExpiredIdempotencyKeys = `-- name: CountExpiredIdempotencyKeys :one
+SELECT count(*) FROM (
+  SELECT 1 FROM idempotency_key AS expired
+  WHERE expired.created_at < $1
+  LIMIT $2
+) AS due
+`
+
+type CountExpiredIdempotencyKeysParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+// What is due, bounded by the batch the pass would take plus one, CountExpiredSessions' reason.
+func (q *Queries) CountExpiredIdempotencyKeys(ctx context.Context, arg CountExpiredIdempotencyKeysParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countExpiredIdempotencyKeys, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteExpiredIdempotencyKeys = `-- name: DeleteExpiredIdempotencyKeys :execrows
+
+DELETE FROM idempotency_key
+WHERE (key, endpoint) IN (
+  SELECT expired.key, expired.endpoint FROM idempotency_key AS expired
+  WHERE expired.created_at < $1
+  ORDER BY expired.created_at
+  LIMIT $2
+)
+`
+
+type DeleteExpiredIdempotencyKeysParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// ========================= The retention sweep =========================
+// The IDEMPOTENCY_KEY data kind's sweep (data-retention.md §3: anchor `created_at`, one day, never
+// less): the stored answer of a request old enough that nobody may replay it any more. A
+// reservation still waiting for its answer goes the same way - no request runs for a day.
+//
+// Batched through a subquery, DeleteExpiredSessions' shape: DELETE takes no LIMIT, and a pass that
+// took every expired row would be a pass nobody can stop. Oldest first, so a backlog drains in the
+// order it built up. The tenant is the transaction's, through row level security.
+func (q *Queries) DeleteExpiredIdempotencyKeys(ctx context.Context, arg DeleteExpiredIdempotencyKeysParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredIdempotencyKeys, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const findIdempotencyRecord = `-- name: FindIdempotencyRecord :one

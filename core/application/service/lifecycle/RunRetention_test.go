@@ -352,6 +352,81 @@ func TestAPassWithoutTheSessionSweepStillRuns(t *testing.T) {
 	}
 }
 
+// keyStore is ExpiredIdempotencyKeys as an in-memory table: the stored answers and when each
+// request arrived.
+type keyStore struct {
+	created []time.Time
+	askedAt time.Time
+}
+
+func (s *keyStore) due(cutoff time.Time, limit int) []int {
+	var due []int
+	for index, at := range s.created {
+		if at.Before(cutoff) {
+			due = append(due, index)
+		}
+		if len(due) >= limit {
+			break
+		}
+	}
+	return due
+}
+
+func (s *keyStore) CountExpired(_ context.Context, cutoff time.Time, ceiling int) (int, error) {
+	s.askedAt = cutoff
+	return len(s.due(cutoff, ceiling)), nil
+}
+
+func (s *keyStore) DeleteExpired(_ context.Context, cutoff time.Time, batch int) (int, error) {
+	removed := s.due(cutoff, batch)
+	kept := make([]time.Time, 0, len(s.created))
+	for index, at := range s.created {
+		if !slices.Contains(removed, index) {
+			kept = append(kept, at)
+		}
+	}
+	s.created = kept
+	return len(removed), nil
+}
+
+// The IDEMPOTENCY_KEY kind: a request's stored answer goes a day after it arrived, the data
+// catalogue's promise - and never sooner, because the day is also the floor that keeps the replay
+// api-guidelines.md §5 promises.
+func TestAPassSweepsIdempotencyKeysAfterTheirDay(t *testing.T) {
+	h := newRunHarness()
+	keys := &keyStore{created: []time.Time{now.Add(-48 * time.Hour), now.Add(-time.Hour)}}
+	h.run.IdempotencyKeys = keys
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if want := now.AddDate(0, 0, -1); !keys.askedAt.Equal(want) {
+		t.Errorf("cut off at %v, want one day back", keys.askedAt)
+	}
+	if len(keys.created) != 1 {
+		t.Errorf("%d keys left, want the one an hour old", len(keys.created))
+	}
+	if outcome.Removed < 1 {
+		t.Errorf("the pass reported %d removed, and a key went", outcome.Removed)
+	}
+	if !slices.Contains(h.runs.kinds, domain.KindIdempotencyKey) {
+		t.Errorf("the log names %v and not the idempotency keys", h.runs.kinds)
+	}
+}
+
+// A period below the day is cut off at the day: no rule takes a replay away sooner.
+func TestTheIdempotencyKeysFloorIsOneDay(t *testing.T) {
+	if floor := domain.FloorFor(domain.KindIdempotencyKey); floor != 1 {
+		t.Fatalf("the floor is %d days, want one", floor)
+	}
+	shorter := domain.Policy{DataKind: domain.KindIdempotencyKey, RetainDays: 0}
+	if got, want := shorter.Cutoff(now), now.AddDate(0, 0, -1); !got.Equal(want) {
+		t.Errorf("a period of none cuts off at %v, want the day's %v", got, want)
+	}
+}
+
 // A pass seeds what the tenant has not decided, reads what it has, and cuts off at the period it
 // found: the whole of "periods are data, not code" in one call (ADR-0020).
 func TestAPassReadsThePeriodAndCutsOffAtIt(t *testing.T) {
