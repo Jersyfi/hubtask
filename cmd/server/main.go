@@ -448,6 +448,8 @@ func run() error {
 		Domains:  domains,
 		Accounts: signInStore,
 		Sessions: sessions,
+		// Every session opened seeds its workspace's retention sweep (data-retention.md §5).
+		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
 		Refresh:  postgres.NewRefreshTokenRepository(security.NewSessionRefreshHasher(cfg.SecretKey)),
 		Attempts: signInStore, Tenants: signInStore,
 		Passwords: passwords, Signer: sessionSigner,
@@ -941,7 +943,9 @@ func run() error {
 		Templates: templates, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Changes: changes, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-		Text: forms,
+		Text:  forms,
+		Holds: postgres.NewLifecycleRepository(), Removals: postgres.NewLifecycleRepository(),
+		TombstoneWindow: cfg.Retention.TombstoneWindow,
 	}
 
 	// The bulk performs the other use cases, so it needs the catalogue that is built from its own
@@ -1919,6 +1923,7 @@ func run() error {
 			// The one host the new workspace answers at. The installation's own host comes
 			// from the configured base URL and never from a request.
 			Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
+			Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
 		}.Descriptor(),
 		adminservice.ListTenants{
 			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
@@ -2702,7 +2707,10 @@ func run() error {
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
 			Remainders: privacyservice.ErasureRemainders{Kept: privacyStore, Jobs: jobs},
 			Orphans:    lastMember,
-			History:    notifications,
+			// The templates a legal hold kept after their deletion, removed once none does
+			// (data-retention.md §4).
+			DeletedTemplates: postgres.DeletedTemplateRepository{},
+			History:          notifications,
 			// The outbox's own rows: ADR-0007's second countermeasure, for a table that would
 			// otherwise only ever grow.
 			Events: postgres.NewDispatchedEvents(),
@@ -2719,6 +2727,9 @@ func run() error {
 			// The synchronisation's records: the operation log and the tombstones past
 			// the offline window; the change log's months fall as partitions, the leader's duty.
 			SyncLog: postgres.NewSyncLogSweeper(),
+			// Requests' stored answers, a day after they arrived: the data catalogue's promise,
+			// and the floor of the replay api-guidelines.md §5 promises.
+			IdempotencyKeys: postgres.NewIdempotencyStore(),
 			// The text a legal hold kept on a deleted comment, cleared once no hold
 			// covers it (data-retention.md §4).
 			KeptTexts: postgres.KeptCommentTextRepository{},

@@ -255,6 +255,15 @@ var catalogue = []Kind{
 		Actions: []Action{ActionHardDelete},
 	},
 	{
+		// The stored answers of idempotent requests (api-guidelines.md §5): a request repeated
+		// with the same key is answered as the first was, for at least a day - which is the
+		// lower bound, so no rule can take a replay away sooner. The data catalogue promises the
+		// day. No marking phase and no hold, the session's reasoning: a key is bookkeeping about a
+		// request, and nobody can take it out of its period.
+		Name: KindIdempotencyKey, Anchor: AnchorCreatedAt, DefaultDays: 1, MinDays: 1,
+		Actions: []Action{ActionHardDelete},
+	},
+	{
 		// 400 days is a decision rather than a placeholder (audit.md §1): a year plus a quarter, so
 		// that an annual review still reaches the start of the year it is reviewing. No action,
 		// because nothing in this build removes an audit entry - the trail is pseudonymised rather
@@ -285,6 +294,7 @@ const (
 	KindSession               DataKind = "SESSION"
 	KindDevice                DataKind = "DEVICE"
 	KindSyncLog               DataKind = "SYNC_LOG"
+	KindIdempotencyKey        DataKind = "IDEMPOTENCY_KEY"
 	KindAudit                 DataKind = "AUDIT"
 	KindMediaOrphan           DataKind = "MEDIA_ORPHAN"
 	KindDeletedAccountResidue DataKind = "DELETED_ACCOUNT_RESIDUE"

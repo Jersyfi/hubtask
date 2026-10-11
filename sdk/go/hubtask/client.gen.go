@@ -4697,7 +4697,8 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search` and `natural_ordering`.
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules` and `search_filter`.
+	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
@@ -13708,7 +13709,7 @@ type ClientInterface interface {
 
 	// DeleteTemplate performs a DELETE /templates/{templateId} (the `DeleteTemplate` operationId) request.
 	//
-	// Removes a template. A soft delete: the trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back.
+	// Removes a template for good. The trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back. While a legal hold covers the template's scope it is kept, unreadable, until the hold is released.
 	DeleteTemplate(ctx context.Context, templateId TemplateId, params *DeleteTemplateParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetTemplate performs a GET /templates/{templateId} (the `GetTemplate` operationId) request.
@@ -21243,7 +21244,7 @@ func (c *Client) CreateTemplate(ctx context.Context, params *CreateTemplateParam
 
 // DeleteTemplate performs a DELETE /templates/{templateId} (the `DeleteTemplate` operationId) request.
 //
-// Removes a template. A soft delete: the trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back.
+// Removes a template for good. The trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back. While a legal hold covers the template's scope it is kept, unreadable, until the hold is released.
 func (c *Client) DeleteTemplate(ctx context.Context, templateId TemplateId, params *DeleteTemplateParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteTemplateRequest(c.Server, templateId, params)
 	if err != nil {
@@ -39215,7 +39216,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteTemplateWithResponse performs a DELETE /templates/{templateId} (the `DeleteTemplate` operationId) request.
 	//
-	// Removes a template. A soft delete: the trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back.
+	// Removes a template for good. The trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back. While a legal hold covers the template's scope it is kept, unreadable, until the hold is released.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	DeleteTemplateWithResponse(ctx context.Context, templateId TemplateId, params *DeleteTemplateParams, reqEditors ...RequestEditorFn) (*DeleteTemplateResult, error)
@@ -59462,7 +59463,7 @@ func (c *ClientWithResponses) CreateTemplateWithResponse(ctx context.Context, pa
 
 // DeleteTemplateWithResponse performs a DELETE /templates/{templateId} (the `DeleteTemplate` operationId) request.
 //
-// Removes a template. A soft delete: the trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back.
+// Removes a template for good. The trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back. While a legal hold covers the template's scope it is kept, unreadable, until the hold is released.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) DeleteTemplateWithResponse(ctx context.Context, templateId TemplateId, params *DeleteTemplateParams, reqEditors ...RequestEditorFn) (*DeleteTemplateResult, error) {

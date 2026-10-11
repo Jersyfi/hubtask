@@ -106,3 +106,21 @@ func TestPG5EveryDataKindHasALowerBound(t *testing.T) {
 		}
 	}
 }
+
+// The idempotency keys' floor (data-retention.md §3): a rule may keep a request's stored answer
+// longer, never shorter than the day api-guidelines.md §5 promises a replay for.
+func TestPG5AnIdempotencyKeyRuleBelowTheDayIsRefused(t *testing.T) {
+	kind, known := lifecycle.FindKind(lifecycle.KindIdempotencyKey)
+	if !known || kind.MinDays != 1 {
+		t.Fatalf("the idempotency keys' entry is %+v (known %v), want a floor of one day", kind, known)
+	}
+
+	_, err := lifecycle.NewRule(ruleInput(func(in *lifecycle.NewRuleInput) {
+		in.DataKind = lifecycle.KindIdempotencyKey
+		in.RetainDays = 0
+	}))
+	var problem *shared.Error
+	if !errors.As(err, &problem) || problem.DetailCode != lifecycle.CodeBelowLowerBound {
+		t.Fatalf("a rule of no days for the idempotency keys answered %v, want the floor's refusal", err)
+	}
+}

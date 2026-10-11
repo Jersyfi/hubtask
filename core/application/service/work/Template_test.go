@@ -25,6 +25,8 @@ type templates struct {
 	inserted []domain.Template
 	updates  []domain.Template
 	deleted  []domain.Template
+	// removed are the templates deleted for good, where no hold kept them.
+	removed []shared.ID
 }
 
 func newTemplates() *templates {
@@ -99,6 +101,18 @@ func (s *templates) SetDeleted(
 	return nil
 }
 
+func (s *templates) Remove(
+	_ context.Context, template domain.Template, expectedVersion int,
+) error {
+	stored, found := s.stored[template.ID]
+	if !found || stored.Version != expectedVersion || stored.DeletedAt != nil {
+		return shared.ErrVersionConflict.WithDetail("templates.version_conflict")
+	}
+	s.removed = append(s.removed, template.ID)
+	delete(s.stored, template.ID)
+	return nil
+}
+
 // templateProfiles is the copy's fixture with the due date put back where the matrix grants it:
 // every type carries one, and a template's relative dates are only testable where it does.
 func templateProfiles() []domain.CapabilityProfile {
@@ -125,6 +139,8 @@ type templateHarness struct {
 	history     *journal
 	visibility  *visibility
 	authorizer  *authorizer
+	holds       *templateHolds
+	removals    *removalLog
 }
 
 func newTemplateHarness(t *testing.T) *templateHarness {
@@ -137,6 +153,8 @@ func newTemplateHarness(t *testing.T) *templateHarness {
 		changes:    &changes{}, audit: &sink{}, events: &events{}, history: &journal{},
 		visibility: newVisibility(accountID, colleagueAccountID),
 		authorizer: &authorizer{},
+		holds:      &templateHolds{},
+		removals:   &removalLog{},
 	}
 
 	writer := TemplateWriter{
@@ -144,6 +162,7 @@ func newTemplateHarness(t *testing.T) *templateHarness {
 		Profiles: &profiles{rows: templateProfiles()}, Authorizer: h.authorizer,
 		Changes: h.changes, Audit: h.audit,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		Holds: h.holds, Removals: h.removals, TombstoneWindow: 90 * 24 * time.Hour,
 	}
 	h.create = CreateTemplate{Writer: writer}
 	h.update = UpdateTemplate{Writer: writer}
@@ -373,7 +392,7 @@ func TestInstantiatingAsksForTheRightToCreateEntries(t *testing.T) {
 	}
 }
 
-// A deletion is soft and idempotent, and what it stamped out is not touched.
+// A deletion removes the template, cannot be repeated, and what it stamped out is not touched.
 func TestDeletingATemplateLeavesItsTreesStanding(t *testing.T) {
 	h := newTemplateHarness(t)
 	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{
