@@ -333,6 +333,7 @@ func mergeCatalogueFor(ctx context.Context, t *testing.T) (*usecase.Registry, wo
 		Comments: commentRepo(), Items: itemRepo(), Containers: containerRepo(), Profiles: profiles,
 		Authorizer: authorizer, Moderation: authorizer, Events: outbox, Changes: changes, Audit: sink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid, Text: text.Composing{},
+		Holds: postgres.NewLifecycleRepository(),
 	}}
 
 	registry, err := usecase.NewRegistry(nil,

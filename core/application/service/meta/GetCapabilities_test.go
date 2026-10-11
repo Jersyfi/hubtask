@@ -594,6 +594,29 @@ func TestTheManifestSaysWhichCollationNamesSortUnder(t *testing.T) {
 	}
 }
 
+// The search's filter is a property of this version: every caller, signed in or not, reads it as
+// true (ADR-0064 decision 6). A client that finds it absent is talking to an older server.
+func TestTheManifestSaysTheSearchTakesAFilter(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		actor appshared.ActorContext
+	}{
+		{"a member", member()},
+		{"an anonymous caller", appshared.Anonymous("en", "UTC")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+			capabilities, err := handler.Execute(t.Context(), tc.actor)
+			if err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+			if got, present := capabilities.Features["search_filter"]; !present || !got {
+				t.Errorf("search_filter = %v (present %v), want true", got, present)
+			}
+		})
+	}
+}
+
 // locales stands in for the renderer: the catalogues present, as rows.
 type locales []i18n.LocaleInfo
 

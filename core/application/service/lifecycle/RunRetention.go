@@ -11,6 +11,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
@@ -63,8 +64,15 @@ type RunRetention struct {
 	// the operation log and the tombstones. Optional for the device's reason. The change log is
 	// not swept here - its months fall as partitions, the leader's duty.
 	SyncLog ExpiredSyncLog
-	Clock   clock.Clock
-	IDs     clock.IDGenerator
+	// IdempotencyKeys is the remover of requests' stored answers past their day. Optional for the
+	// session's reason: an installation wired without it sweeps exactly what it did before.
+	IdempotencyKeys ExpiredIdempotencyKeys
+	// KeptTexts are the deleted comments whose text a legal hold kept; the pass clears each text
+	// once no hold covers it (data-retention.md §4). Optional for the session's reason: wired
+	// without it, a kept text stays until a pass that has it.
+	KeptTexts repository.KeptCommentTexts
+	Clock     clock.Clock
+	IDs       clock.IDGenerator
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
 	// a metrics adapter from being a dependency of the deletion path.
 	Signals RetentionSignals
@@ -76,6 +84,10 @@ type RunRetention struct {
 	// Remainders seeds the rest of an erasure kept under a hold no longer in force that nothing
 	// seeded (data-protection.md §4.1). Optional: wired without it, a release still seeds its own.
 	Remainders ErasureRemainders
+	// DeletedTemplates are the templates deleted while a legal hold covered them; the pass removes
+	// each once no hold does (data-retention.md §4). Optional: wired without it, they stay until a
+	// pass that has it.
+	DeletedTemplates repository.DeletedTemplates
 }
 
 // RetentionSignals is the slice of the metrics adapter a run reports through
@@ -140,6 +152,13 @@ type ExpiredDevices interface {
 // (offline-sync.md §7): the operation log rows and the tombstones past the window, in one pass
 // per batch, the device's two methods and the same shape on purpose.
 type ExpiredSyncLog interface {
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
+}
+
+// ExpiredIdempotencyKeys is the slice of the idempotency store this run removes through
+// (api-guidelines.md §5): the session's two methods, and the same shape on purpose.
+type ExpiredIdempotencyKeys interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
@@ -269,7 +288,17 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	keys, err := h.sweepIdempotencyKeys(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	rules, err := h.sweepRules(ctx, actor, started)
+	if err != nil {
+		return outcome, err
+	}
+
+	texts, err := h.sweepKeptTexts(ctx, started)
 	if err != nil {
 		return outcome, err
 	}
@@ -283,6 +312,12 @@ func (h RunRetention) Execute(
 			return outcome, err
 		}
 	}
+
+	templates, err := h.sweepDeletedTemplates(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+	outcome.add(templates)
 
 	// Reported as one outcome, so that the job's decision about coming back straight away covers
 	// every kind: a pass that emptied the trash and left a full batch of notifications has not
@@ -302,10 +337,136 @@ func (h RunRetention) Execute(
 	outcome.Removed += devices.Removed
 	outcome.Matched += syncLog.Matched
 	outcome.Removed += syncLog.Removed
+	outcome.Matched += keys.Matched
+	outcome.Removed += keys.Removed
 	// add rather than the two additions, the jumble's reasoning: a suggestion is somebody's work
 	// before anybody has filed it, so a tenant-wide hold reaches it and the blocked count has to
 	// reach the pass.
 	outcome.add(proposals)
+	outcome.add(texts)
+	return outcome, nil
+}
+
+// sweepKeptTexts clears the text of every deleted comment no legal hold covers any more
+// (data-retention.md §4, UC-LIF-06 check 9).
+//
+// Each comment is judged by its entry, with the target a purge of that entry would use - the
+// judgement the deletion made when it kept the text (work.CommentWriter). Every page in one pass
+// rather than one batch: a text still held stays in the set, so a single batch of held texts would
+// hide every released one behind it. The set is only what was deleted under a hold.
+//
+// A text still held counts as blocked, never as matched: Matched decides whether the job comes
+// straight back (Exhausted), and a hold that stands for months would otherwise keep it spinning.
+// No audit entry: the deletion was audited (`comment.deleted`), and the release that let the text
+// go is audited (`lifecycle.hold_released`).
+func (h RunRetention) sweepKeptTexts(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.KeptTexts == nil {
+		return Outcome{}, nil
+	}
+	holds, err := h.Purger.Holds.Active(ctx)
+	if err != nil {
+		return Outcome{}, err
+	}
+	if _, held := holds.OnTenant(); held {
+		// Everything is covered; nothing could be cleared, and reading it would say so at length.
+		return Outcome{}, nil
+	}
+
+	outcome := Outcome{}
+	batch := h.Purger.BatchSize
+	var after shared.ID
+	for {
+		page, err := h.KeptTexts.Kept(ctx, after, batch)
+		if err != nil {
+			return outcome, err
+		}
+		if len(page) == 0 {
+			break
+		}
+		items := make([]shared.ID, 0, len(page))
+		for _, text := range page {
+			items = append(items, text.ItemID)
+		}
+		contributors, err := contributorsOf(ctx, h.Purger.Holds, holds, items)
+		if err != nil {
+			return outcome, err
+		}
+
+		released := make([]shared.ID, 0, len(page))
+		for _, text := range page {
+			if _, held := holds.Blocking(domain.Target{
+				ItemID:          text.ItemID,
+				ContainerIDs:    nonZero(text.HubID, text.CollectionID),
+				AncestorItemIDs: work.PathIDs(text.Path),
+				Contributors:    contributors[text.ItemID],
+			}); held {
+				outcome.blocked(domain.BlockedByLegalHold)
+				continue
+			}
+			released = append(released, text.ID)
+		}
+		cleared, err := h.KeptTexts.Clear(ctx, released)
+		if err != nil {
+			return outcome, err
+		}
+		outcome.Matched += cleared
+		outcome.Removed += cleared
+
+		if len(page) < batch {
+			break
+		}
+		after = page[len(page)-1].ID
+	}
+
+	if outcome.Removed > 0 || len(outcome.Blocked) > 0 {
+		h.report(ctx, domain.KindComment, outcome, h.Clock.Now().Sub(started))
+	}
+	return outcome, nil
+}
+
+// sweepIdempotencyKeys removes one batch of requests' stored answers past their period
+// (data-retention.md §3). No hold and no audit entry, on sweepSessions' reasoning: a key is
+// bookkeeping about a request, and the floor - one day, FloorFor - is what keeps the replay that
+// api-guidelines.md §5 promises.
+func (h RunRetention) sweepIdempotencyKeys(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.IdempotencyKeys == nil {
+		return Outcome{}, nil
+	}
+
+	policy, err := h.Policies.Find(ctx, domain.KindIdempotencyKey)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	runID := h.IDs.NewID()
+	if err := h.Runs.Start(ctx, runID, domain.KindIdempotencyKey, started); err != nil {
+		return Outcome{}, err
+	}
+
+	cutoff := policy.Cutoff(started)
+	matched, err := h.IdempotencyKeys.CountExpired(ctx, cutoff, h.Purger.BatchSize)
+	if err != nil {
+		return Outcome{}, err
+	}
+	removed, sweepErr := h.IdempotencyKeys.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+
+	finished := h.Clock.Now()
+	status := repository.RunSucceeded
+	if sweepErr != nil {
+		status = repository.RunFailed
+	}
+	outcome := Outcome{Matched: matched, Removed: removed}
+	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+		Matched: outcome.Matched, Removed: outcome.Removed,
+		Status: status, FinishedAt: finished,
+	}); err != nil {
+		return outcome, err
+	}
+	if sweepErr != nil {
+		return outcome, sweepErr
+	}
+
+	h.report(ctx, domain.KindIdempotencyKey, outcome, finished.Sub(started))
 	return outcome, nil
 }
 
@@ -839,3 +1000,71 @@ func (h RunRetention) Exhausted(outcome Outcome) bool {
 
 // RetentionRunAction is the audit code of a run that removed something.
 const RetentionRunAction audit.Action = "retention.executed"
+
+// sweepDeletedTemplates removes every deleted template no legal hold covers any more
+// (data-retention.md §4), with the journal entry and the tombstone every removal leaves, so a
+// restore does not bring one back.
+//
+// A deletion removes a template at once unless a hold covers it, so what is here was deleted under
+// a hold - or before deletions removed at all, and those go on the first pass. Every page in one
+// pass: a template still held stays in the set, and a page of them must not hide a released one
+// behind it. A template still held counts as blocked, never as matched, so a hold that stands for
+// months does not bring the job straight back (Exhausted). No audit entry: the deletion was
+// audited (`template.deleted`), and so is the release that lets it go.
+func (h RunRetention) sweepDeletedTemplates(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.DeletedTemplates == nil {
+		return Outcome{}, nil
+	}
+	holds, err := h.Purger.Holds.Active(ctx)
+	if err != nil {
+		return Outcome{}, err
+	}
+	if _, held := holds.OnTenant(); held {
+		return Outcome{}, nil
+	}
+
+	outcome := Outcome{}
+	batch := h.Purger.BatchSize
+	var after shared.ID
+	for {
+		page, err := h.DeletedTemplates.Deleted(ctx, after, batch)
+		if err != nil {
+			return outcome, err
+		}
+		if len(page) == 0 {
+			break
+		}
+		released := make([]shared.ID, 0, len(page))
+		for _, template := range page {
+			if _, held := holds.Blocking(domain.TemplateTarget(template.ScopeID, template.HubID)); held {
+				outcome.blocked(domain.BlockedByLegalHold)
+				continue
+			}
+			released = append(released, template.ID)
+		}
+		removed, err := h.DeletedTemplates.Remove(ctx, released)
+		if err != nil {
+			return outcome, err
+		}
+		removals := make([]domain.Removal, 0, len(removed))
+		for _, id := range removed {
+			removals = append(removals, domain.Removal{
+				Entity: templateTable, EntityID: id, Reason: domain.DeletedByRetention,
+			})
+		}
+		if err := h.Purger.record(ctx, removals, started); err != nil {
+			return outcome, err
+		}
+		outcome.Matched += len(removed)
+		outcome.Removed += len(removed)
+
+		if len(page) < batch {
+			break
+		}
+		after = page[len(page)-1].ID
+	}
+	return outcome, nil
+}
+
+// templateTable is the template's table, in the words the journal and the tombstone use.
+const templateTable = "template"

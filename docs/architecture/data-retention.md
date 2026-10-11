@@ -87,6 +87,7 @@ into both, needs no engine change, and needs something that removes it.
 | `SESSION` | `last_seen_at` | 30 days | The sweep | No marking phase |
 | `DEVICE` | `last_seen_at` | 30 days | The sweep | A silent device's session is revoked before its row goes ([offline-sync.md](./offline-sync.md) §6). No marking phase |
 | `SYNC_LOG` | `occurred_at` | 90 days, the offline window | The leader (change log months) and the sweep (operation log, tombstones) | One clock, `HUBTASK_TOMBSTONE_WINDOW`, which is also the **lower bound** ([offline-sync.md](./offline-sync.md) §7). No marking phase |
+| `IDEMPOTENCY_KEY` | `created_at` | 1 day | The sweep | A request's stored answer for its replay ([api-guidelines.md](./api-guidelines.md) §5); the day is also the **lower bound**. No marking phase, no hold |
 | `AUDIT` | `occurred_at` | 400 days | **Nothing yet** — no `audit_log` partition is dropped today | Pseudonymisation instead of deletion ([audit.md](./audit.md) §6) |
 | `MEDIA_ORPHAN` | `created_at` | 7 days | Nothing — the media reconciliation's own graces ([data-protection.md](./data-protection.md) §5) | Unreferenced objects |
 | `DELETED_ACCOUNT_RESIDUE` | `deleted_at` | 30 days | Nothing yet | Residual data after account deletion |
@@ -105,7 +106,10 @@ Evaluated in this order; the first that applies wins:
    `blocked_by: legal_hold`, with no date. A comment has no trash: deleted under a hold, it reads as
    deleted to everybody but keeps its text until the last hold covering it is lifted, and the sweep
    clears it then. A deleted template, which has no trash either, stays the same way until its
-   last hold is lifted, and the sweep removes the row then.
+   last hold is lifted, and the sweep removes the row then; without a hold, deleting it removes the
+   row at once. What reaches a template is a hold on the workspace or on the hub or collection it is
+   defined on — it sits on no entry and names no author, so neither an entry hold nor an account
+   hold does.
 
    **A hold also stops the workspace's own deletion and a destructive restore**: while any hold in
    the workspace is in force, a deletion request is refused, a workspace already pending deletion
@@ -141,9 +145,14 @@ Evaluated in this order; the first that applies wins:
 
 ## 5. Execution
 
-* A job per tenant (`retention.sweep`), seeded by trashing an entry or a container, then
-  rescheduling itself ([multi-tenancy.md](./multi-tenancy.md) §2.1); throttled, 1,000 objects per
-  transaction by default.
+* A job per tenant (`retention.sweep`), then rescheduling itself every interval
+  (`HUBTASK_RETENTION_INTERVAL`, an hour by default; [multi-tenancy.md](./multi-tenancy.md) §2.1);
+  throttled, 1,000 objects per transaction by default. Nothing enumerates tenants, so a write in the
+  workspace seeds it: trashing an entry or a container (at once), provisioning the workspace, and
+  every session opened (one interval out — the enqueue keeps the earlier of a waiting run and the
+  request's, so a sign-in never pulls the sweep forward). A workspace nobody has signed into and in
+  which nothing was trashed has no sweep yet; it has no session to age out either, and its first
+  sign-in or trash seeds it.
 * **Two-phase:** phase 1 marks and notifies (`retention_pending_until`); phase 2 executes after the
   grace period. In between, anyone with permission can take the object out by editing, moving, or
   `:retain`.
