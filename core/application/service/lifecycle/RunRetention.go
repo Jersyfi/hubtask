@@ -11,6 +11,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
@@ -63,8 +64,12 @@ type RunRetention struct {
 	// the operation log and the tombstones. Optional for the device's reason. The change log is
 	// not swept here - its months fall as partitions, the leader's duty.
 	SyncLog ExpiredSyncLog
-	Clock   clock.Clock
-	IDs     clock.IDGenerator
+	// KeptTexts are the deleted comments whose text a legal hold kept; the pass clears each text
+	// once no hold covers it (data-retention.md §4). Optional for the session's reason: wired
+	// without it, a kept text stays until a pass that has it.
+	KeptTexts repository.KeptCommentTexts
+	Clock     clock.Clock
+	IDs       clock.IDGenerator
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
 	// a metrics adapter from being a dependency of the deletion path.
 	Signals RetentionSignals
@@ -274,6 +279,11 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	texts, err := h.sweepKeptTexts(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	if h.Remainders != nil {
 		active, err := h.Purger.Holds.Active(ctx)
 		if err != nil {
@@ -306,6 +316,84 @@ func (h RunRetention) Execute(
 	// before anybody has filed it, so a tenant-wide hold reaches it and the blocked count has to
 	// reach the pass.
 	outcome.add(proposals)
+	outcome.add(texts)
+	return outcome, nil
+}
+
+// sweepKeptTexts clears the text of every deleted comment no legal hold covers any more
+// (data-retention.md §4, UC-LIF-06 check 9).
+//
+// Each comment is judged by its entry, with the target a purge of that entry would use - the
+// judgement the deletion made when it kept the text (work.CommentWriter). Every page in one pass
+// rather than one batch: a text still held stays in the set, so a single batch of held texts would
+// hide every released one behind it. The set is only what was deleted under a hold.
+//
+// A text still held counts as blocked, never as matched: Matched decides whether the job comes
+// straight back (Exhausted), and a hold that stands for months would otherwise keep it spinning.
+// No audit entry: the deletion was audited (`comment.deleted`), and the release that let the text
+// go is audited (`lifecycle.hold_released`).
+func (h RunRetention) sweepKeptTexts(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.KeptTexts == nil {
+		return Outcome{}, nil
+	}
+	holds, err := h.Purger.Holds.Active(ctx)
+	if err != nil {
+		return Outcome{}, err
+	}
+	if _, held := holds.OnTenant(); held {
+		// Everything is covered; nothing could be cleared, and reading it would say so at length.
+		return Outcome{}, nil
+	}
+
+	outcome := Outcome{}
+	batch := h.Purger.BatchSize
+	var after shared.ID
+	for {
+		page, err := h.KeptTexts.Kept(ctx, after, batch)
+		if err != nil {
+			return outcome, err
+		}
+		if len(page) == 0 {
+			break
+		}
+		items := make([]shared.ID, 0, len(page))
+		for _, text := range page {
+			items = append(items, text.ItemID)
+		}
+		contributors, err := contributorsOf(ctx, h.Purger.Holds, holds, items)
+		if err != nil {
+			return outcome, err
+		}
+
+		released := make([]shared.ID, 0, len(page))
+		for _, text := range page {
+			if _, held := holds.Blocking(domain.Target{
+				ItemID:          text.ItemID,
+				ContainerIDs:    nonZero(text.HubID, text.CollectionID),
+				AncestorItemIDs: work.PathIDs(text.Path),
+				Contributors:    contributors[text.ItemID],
+			}); held {
+				outcome.blocked(domain.BlockedByLegalHold)
+				continue
+			}
+			released = append(released, text.ID)
+		}
+		cleared, err := h.KeptTexts.Clear(ctx, released)
+		if err != nil {
+			return outcome, err
+		}
+		outcome.Matched += cleared
+		outcome.Removed += cleared
+
+		if len(page) < batch {
+			break
+		}
+		after = page[len(page)-1].ID
+	}
+
+	if outcome.Removed > 0 || len(outcome.Blocked) > 0 {
+		h.report(ctx, domain.KindComment, outcome, h.Clock.Now().Sub(started))
+	}
 	return outcome, nil
 }
 
