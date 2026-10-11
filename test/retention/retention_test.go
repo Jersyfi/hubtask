@@ -126,6 +126,8 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 		// The jumble, as the server wires it: the engine refuses to run with a kind
 		// unwired, and RE-8's cross-tenant question is asked of this kind too.
 		Inbox: postgres.NewJumbleRepository(security.NewCursorCodec(installationSecret)),
+		// The templates a legal hold kept after their deletion, as the server wires it.
+		DeletedTemplates: postgres.DeletedTemplateRepository{},
 		// The text a legal hold kept on a deleted comment, as the server wires it.
 		KeptTexts: postgres.KeptCommentTextRepository{},
 		Purger:    purger,
