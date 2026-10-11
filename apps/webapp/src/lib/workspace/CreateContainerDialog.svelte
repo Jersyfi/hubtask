@@ -16,10 +16,17 @@
   // needs an icon picker and a colour picker - two components, and
   // the design system grows in the order of design-system.md §4, never as a side effect of other
   // work, so this dialog offers neither.
+  //
+  // *Private* is offered for a hub where the workspace has more than one person
+  // (`private_hubs_offered`, UC-ID-16 check 8): a workspace of one has nobody to keep a hub from.
+  // Every person may make one, whatever their role, so the switch carries no gate of its own.
 
-  import { Button, Dialog, Input, Stack, Textarea } from '@hubtask/design-system/components';
+  import { untrack } from 'svelte';
+
+  import { Button, Dialog, Input, Stack, Switch, Textarea } from '@hubtask/design-system/components';
 
   import { containers } from '../data/containers.svelte.ts';
+  import { workspace } from '../data/workspace.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -39,6 +46,7 @@
 
   let name = $state('');
   let description = $state('');
+  let isPrivate = $state(false);
   let isSaving = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isNameFailure = $state(false);
@@ -48,11 +56,18 @@
     if (isOpen) return;
     name = '';
     description = '';
+    isPrivate = false;
     failure = undefined;
     isNameFailure = false;
   });
 
   const isHub = $derived(type === 'HUB');
+
+  $effect(() => {
+    if (!isOpen || type !== 'HUB') return;
+    return untrack(() => workspace.open());
+  });
+  const isPrivacyOffered = $derived(isHub && workspace.workspace?.private_hubs_offered === true);
 
   async function create() {
     if (name.trim() === '' || isSaving) return;
@@ -68,6 +83,7 @@
           parent_id: isHub ? null : parentId,
           name: name.trim(),
           description: description.trim() === '' ? null : description.trim(),
+          ...(isPrivacyOffered && isPrivate ? { private: true } : {}),
         },
         crypto.randomUUID(),
       );
@@ -98,6 +114,9 @@
       error={isNameFailure ? failure?.message : undefined}
     />
     <Textarea label={t('app.workspace.description')} bind:value={description} />
+    {#if isPrivacyOffered}
+      <Switch label={t('app.workspace.private')} hint={t('app.workspace.private_hint')} bind:checked={isPrivate} />
+    {/if}
     <!-- Everything that is not about the name is a sentence above the buttons rather than a field
          error, because there is no field for it to land on. -->
     {#if failure && !isNameFailure}

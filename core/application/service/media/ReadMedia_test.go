@@ -59,6 +59,7 @@ func (c *containers) SetAttributes(context.Context, work.Container, int) error {
 	return nil
 }
 func (c *containers) SetPolicies(context.Context, work.Container, int) error { return nil }
+func (c *containers) SetPrivate(context.Context, work.Container, int) error  { return nil }
 func (c *containers) SetArchived(context.Context, work.Container, int) error { return nil }
 func (c *containers) TrashSubtree(context.Context, workrepo.ContainerTrash) (workrepo.Cascade, error) {
 	return workrepo.Cascade{}, nil

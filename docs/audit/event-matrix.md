@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**266 use cases, 227 distinct action codes, 190 of them recorded on every call.** A use case that
+**269 use cases, 230 distinct action codes, 192 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -199,6 +199,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `container.moved` | MoveContainer | `container` | INFO | Every time |
 | `container.moved` | ReorderContainer | `container` | INFO | Every time |
 | `container.policies_updated` | UpdateContainerPolicies | `container` | INFO | Every time |
+| `container.privacy_changed` | SetHubPrivacy | `container` | NOTICE | Every time |
 | `container.read` | GetContainer | `container` | INFO | When refused |
 | `container.read` | ListContainers | `container` | INFO | When refused |
 | `container.renamed` | RenameContainer | `container` | INFO | Every time |
@@ -338,6 +339,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `membership.read` | ListMemberships | `membership` | INFO | When refused |
 | `membership.revoked` | RevokeMembership | `membership` | NOTICE | Every time |
 
+## Private_hubs
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `private_hubs.read` | ListPrivateHubs | `tenant` | INFO | When refused |
+
 ## Quota
 
 | Action | Use case | Target | Severity | Recorded |
@@ -364,6 +371,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `lifecycle.hold_placed` | ListLegalHolds | `legal_hold` | INFO | When refused |
 | `lifecycle.hold_placed` | PlaceLegalHold | `legal_hold` | WARNING | Every time |
 | `lifecycle.hold_released` | ReleaseLegalHold | `legal_hold` | WARNING | Every time |
+| `lifecycle.hold_replaced` | ReplaceLegalHolds | `legal_hold` | WARNING | Every time |
 | `lifecycle.retained` | RetainItem | `item` | WARNING | Every time |
 | `lifecycle.rule_changed` | CreateRetentionPolicy | `retention_policy` | WARNING | Every time |
 | `lifecycle.rule_changed` | ListRetentionPolicies | `retention_policy` | INFO | When refused |

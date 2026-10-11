@@ -47,6 +47,9 @@ type RecordRetentionWarning struct {
 	Clock         clock.Clock
 	IDs           clock.IDGenerator
 	Signals       Signals
+	// Reach drops an administrator - of the workspace above all - who does not reach the private
+	// hub the entry is in (D6, ADR-0073 §1): the warning names the entry.
+	Reach PrivateReach
 }
 
 // RetentionWarning is one marked entry and what the rule said about warning people.
@@ -78,6 +81,10 @@ func (r RecordRetentionWarning) Warn(ctx context.Context, warning RetentionWarni
 
 	recipients, err := r.resolve(ctx, warning)
 	if err != nil {
+		return err
+	}
+	place := append(append([]identity.Scope{}, warning.Path...), identity.ItemScope(warning.ItemID))
+	if recipients, err = reachable(ctx, r.Reach, warning.TenantID, place, recipients); err != nil {
 		return err
 	}
 	for _, recipient := range recipients {

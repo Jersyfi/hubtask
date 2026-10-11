@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Membership } from '@hubtask/sync-engine';
 
-import { candidatesOf, groupsNamedBy, holdersOf, membershipsPath, ownershipOf, scopesAlong } from './people.ts';
+import { candidatesOf, groupsNamedBy, holdersOf, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
 
 const HUB = '11111111-0000-4000-8000-000000000001';
 const COLLECTION = '11111111-0000-4000-8000-000000000002';
@@ -18,6 +18,15 @@ const FITTERS = '33333333-0000-4000-8000-00000000000f';
 function grant(over: Partial<Membership> & Pick<Membership, 'id' | 'scope_type' | 'role'>): Membership {
   return { account_id: null, group_id: null, scope_id: null, ...over } as Membership;
 }
+
+test('in a private hub the workspace holds nothing: its roles are not in force (UC-ID-16)', () => {
+  const path = { hubId: HUB, collectionId: COLLECTION };
+  assert.deepEqual(scopesInForce(path, true), [
+    { scopeType: 'HUB', scopeId: HUB },
+    { scopeType: 'COLLECTION', scopeId: COLLECTION },
+  ]);
+  assert.deepEqual(scopesInForce(path, false), scopesAlong(path));
+});
 
 test('the path is read from the workspace downwards, and the workspace carries no identifier', () => {
   assert.deepEqual(scopesAlong({ hubId: HUB, collectionId: COLLECTION, itemId: ITEM }), [

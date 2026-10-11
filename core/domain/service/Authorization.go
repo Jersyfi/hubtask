@@ -110,6 +110,20 @@ func RoleAllows(role identity.Role, permission Permission) bool {
 	return false
 }
 
+// Privacy says whether a path runs through a private hub (ADR-0073 §1).
+//
+// It is a property of the stored hub, not of how a caller built the path, so the authoriser reads
+// it from storage and hands it in; no path builder sets it.
+type Privacy bool
+
+const (
+	// SharedPath is a path through no private hub: every membership on it counts.
+	SharedPath Privacy = false
+	// PrivatePath runs through a private hub: only a membership on the hub itself or below it
+	// counts, and a role held on the workspace grants nothing there.
+	PrivatePath Privacy = true
+)
+
 // EffectiveRole is the highest role the account holds anywhere along the path, and reports
 // whether it holds one at all.
 //
@@ -117,15 +131,22 @@ func RoleAllows(role identity.Role, permission Permission) bool {
 // only - a role on one collection says nothing about its neighbour - and the highest wins, so a
 // tenant administrator does not lose anything by also being a viewer somewhere.
 //
+// The one exception is a private hub (domain-model.md §3.2): on a path through one, a membership
+// above the hub - which can only be the workspace's - does not count. It is not a deny list and
+// not a second kind of role: the memberships that count are fewer, and the same resolution runs
+// over them.
+//
 // Memberships that name a scope outside the path are ignored rather than refused: the caller
 // passes what it read, and filtering here means the query may be generous without the answer
 // being wrong.
-func EffectiveRole(memberships []identity.Membership, path []identity.Scope) (identity.Role, bool) {
+func EffectiveRole(
+	memberships []identity.Membership, path []identity.Scope, privacy Privacy,
+) (identity.Role, bool) {
 	var best identity.Role
 	found := false
 
 	for _, membership := range memberships {
-		if !membership.Role.Valid() || !onPath(membership.Scope, path) {
+		if !counts(membership, path, privacy) {
 			continue
 		}
 		if !found || membership.Role.AtLeast(best) {
@@ -133,6 +154,14 @@ func EffectiveRole(memberships []identity.Membership, path []identity.Scope) (id
 		}
 	}
 	return best, found
+}
+
+// counts is whether one membership takes part in the decision about this path.
+func counts(membership identity.Membership, path []identity.Scope, privacy Privacy) bool {
+	if !membership.Role.Valid() || !onPath(membership.Scope, path) {
+		return false
+	}
+	return privacy == SharedPath || membership.Scope.Type != identity.ScopeTenant
 }
 
 func onPath(scope identity.Scope, path []identity.Scope) bool {
@@ -151,10 +180,13 @@ func onPath(scope identity.Scope, path []identity.Scope) bool {
 // that are a ladder the two are the same answer - each row contains the one below it - and the
 // union is the one that stays right once a role is not on the ladder: somebody who is an AUDITOR
 // on the workspace and a MEMBER of one collection reads the trail *and* their collection, where
-// "the highest role wins" would have to pick one of the two and take the other away.
-func Allows(memberships []identity.Membership, path []identity.Scope, permission Permission) bool {
+// "the highest role wins" would have to pick one of the two and take the other away. The
+// memberships that count are EffectiveRole's.
+func Allows(
+	memberships []identity.Membership, path []identity.Scope, privacy Privacy, permission Permission,
+) bool {
 	for _, membership := range memberships {
-		if !membership.Role.Valid() || !onPath(membership.Scope, path) {
+		if !counts(membership, path, privacy) {
 			continue
 		}
 		if RoleAllows(membership.Role, permission) {

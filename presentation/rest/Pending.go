@@ -210,6 +210,11 @@ func (pending) OpenTenantPassword(w http.ResponseWriter, r *http.Request, _ open
 	notAvailable(w, r)
 }
 
+// ReplaceLegalHolds is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ReplaceLegalHolds(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
+	notAvailable(w, r)
+}
+
 func (pending) CloseTenantPassword(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
 	notAvailable(w, r)
 }
@@ -578,6 +583,10 @@ func (pending) RenameContainer(w http.ResponseWriter, r *http.Request, _ openapi
 }
 
 func (pending) UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.UpdateContainerPoliciesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SetHubPrivacy(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.SetHubPrivacyParams) {
 	notAvailable(w, r)
 }
 
@@ -1222,3 +1231,5 @@ func (pending) CancelInstanceIdentityProviderWithdrawal(
 ) {
 	notAvailable(w, r)
 }
+
+func (pending) ListPrivateHubs(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

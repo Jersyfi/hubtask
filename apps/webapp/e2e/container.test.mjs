@@ -212,7 +212,7 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   assert.equal(await page.getByRole('button', { name: 'Create collection' }).count(), 1);
   assert.equal(await page.getByRole('button', { name: /Import/ }).count(), 1);
   await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();
-  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Rename', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'People', 'Move to the trash']);
+  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Rename', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'People', 'Make private', 'Move to the trash']);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Create collection' }).click();
   await page.locator('dialog[open]').waitFor({ timeout: 5_000 });

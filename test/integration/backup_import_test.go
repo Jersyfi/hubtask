@@ -778,10 +778,61 @@ func TestARealRowSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
 	}
 }
 
-// exportedShape reads one row back through the export, which is the same shape the archive carries.
+// The same round trip for `container`, whose import statement lists its columns as well: a trashed
+// collection carries who trashed it, and a restore that dropped the column would forget it.
+func TestARealContainerSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+
+	// Trashed by somebody, with every nullable column filled, so that no column is compared as
+	// two nulls.
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE container SET description = 'kept', icon = 'star', color_token = 'blue',
+		   archived_at = now(), deleted_at = now(), trash_batch_id = $3,
+		   deleted_by_type = 'USER', deleted_by_id = $4
+		 WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), collection.String(), freshID(t).String(), authorA.String()); err != nil {
+		t.Fatalf("trashing the collection: %v", err)
+	}
+
+	exportedRow := exportedRowOf(ctx, t, tenantA, "container", collection)
+	for _, column := range []string{"deleted_by_type", "deleted_by_id"} {
+		if exportedRow[column] == nil {
+			t.Fatalf("the export carries no %s, so this test proves nothing", column)
+		}
+	}
+
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`DELETE FROM container WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), collection.String()); err != nil {
+		t.Fatalf("removing the original: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "container", exportedRow, false)
+		return err
+	}); err != nil {
+		t.Fatalf("importing the row back: %v", err)
+	}
+
+	restored := exportedRowOf(ctx, t, tenantA, "container", collection)
+	for column, before := range exportedRow {
+		if after := restored[column]; !sameJSON(before, after) {
+			t.Errorf("%s came back as %#v, want %#v", column, after, before)
+		}
+	}
+}
+
+// exportedShape reads one entry back through the export, which is the same shape the archive
+// carries.
 func exportedShape(ctx context.Context, t *testing.T, tenant, id shared.ID) map[string]any {
 	t.Helper()
-	for _, row := range exported(ctx, t, tenant, 100, "work_item", time.Time{}) {
+	return exportedRowOf(ctx, t, tenant, "work_item", id)
+}
+
+// exportedRowOf reads one row of an entity back through the export.
+func exportedRowOf(ctx context.Context, t *testing.T, tenant shared.ID, entity string, id shared.ID) map[string]any {
+	t.Helper()
+	for _, row := range exported(ctx, t, tenant, 100, entity, time.Time{}) {
 		if row.ID == id.String() {
 			return row.Data
 		}

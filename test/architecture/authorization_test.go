@@ -119,3 +119,53 @@ func keyed(literal *ast.CompositeLit, field string) bool {
 	}
 	return false
 }
+
+// TestTheRoleIsResolvedOnlyByTheAuthoriser holds ADR-0073's "one rule in one place" (rule 2): a
+// role resolved from memberships outside core/application/service/access would not know that a
+// private hub discounts the workspace's roles, and would read a private hub for an administrator
+// who may not.
+func TestTheRoleIsResolvedOnlyByTheAuthoriser(t *testing.T) {
+	resolutions := map[string]bool{"EffectiveRole": true, "Allows": true, "Along": true}
+	// Each with why it may resolve on its own.
+	exempt := map[string]string{
+		// The tenant switch for the second factor asks whether somebody holds OWNER or ADMIN on the
+		// workspace itself, at sign-in, before there is an actor; it reads no hub and reaches nothing.
+		"core/application/service/identity/TwoStep.go": "the workspace's own roles, at sign-in",
+	}
+
+	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd"},
+		func(path string, f *ast.File, fset *token.FileSet) {
+			name := rel(path)
+			if strings.HasSuffix(name, "_test.go") ||
+				strings.HasPrefix(name, "core/application/service/access/") ||
+				strings.HasPrefix(name, "core/domain/service/") {
+				return
+			}
+			if _, ok := exempt[name]; ok {
+				return
+			}
+
+			ast.Inspect(f, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok {
+					return true
+				}
+				selector, ok := call.Fun.(*ast.SelectorExpr)
+				if !ok || !resolutions[selector.Sel.Name] {
+					return true
+				}
+				// EffectiveRole and Allows are the domain service's; a capability profile's Allows
+				// is another question. Along is the membership port's, whatever holds it.
+				if selector.Sel.Name != "Along" {
+					if pkg, ok := selector.X.(*ast.Ident); !ok ||
+						(pkg.Name != "service" && pkg.Name != "domainservice") {
+						return true
+					}
+				}
+				t.Errorf("%s:%d: %s resolves a role outside the authoriser - ask access.Service, "+
+					"which knows a private hub (rule 2, ADR-0073 §1)",
+					name, fset.Position(call.Pos()).Line, selector.Sel.Name)
+				return true
+			})
+		})
+}

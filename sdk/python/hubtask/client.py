@@ -647,6 +647,10 @@ class Client:
         """Close an operator's opening of the password early"""
         return self._call("POST", "/admin/tenants/{tenantId}:close-password", {"tenantId": tenant_id}, None, {}, None, "none", None, "json")
 
+    def replace_legal_holds(self, tenant_id: str, body: "LegalHoldReplaceRequest") -> "LegalHoldReplaceResult":
+        """Place the legal holds of a rewound period again"""
+        return self._call("POST", "/admin/tenants/{tenantId}:replace-legal-holds", {"tenantId": tenant_id}, None, {}, body, "json", "application/json", "json")
+
     def export_tenant(self, tenant_id: str, body: "TenantExportRequest") -> "JobRef":
         """Export a workspace whole"""
         return self._call("POST", "/admin/tenants/{tenantId}:export", {"tenantId": tenant_id}, None, {}, body, "json", "application/json", "json")
@@ -726,6 +730,10 @@ class Client:
     def update_workspace(self, body: "WorkspaceUpdate", *, if_match: str | None = None, step_up: str | None = None) -> "Workspace":
         """Change how the workspace is set up"""
         return self._call("PATCH", "/tenant", {}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/merge-patch+json", "json")
+
+    def list_private_hubs(self) -> dict[str, Any]:
+        """The workspace's private hubs, without their names"""
+        return self._call("GET", "/private-hubs", {}, None, {}, None, "none", None, "json")
 
     def count_accounts_without_provider(self) -> "AccountsWithoutProvider":
         """How many people here no provider switched on here signs in"""
@@ -934,6 +942,10 @@ class Client:
     def update_container_policies(self, container_id: str, body: "ContainerPolicies", *, if_match: str | None = None) -> "Container":
         """PUT /containers/{containerId}/policies"""
         return self._call("PUT", "/containers/{containerId}/policies", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def set_hub_privacy(self, container_id: str, body: "HubPrivacy", *, if_match: str | None = None) -> "Container":
+        """PUT /containers/{containerId}/privacy"""
+        return self._call("PUT", "/containers/{containerId}/privacy", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def move_container(self, container_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "Container":
         """POST /containers/{containerId}:move"""

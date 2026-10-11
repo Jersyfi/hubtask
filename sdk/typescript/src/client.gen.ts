@@ -810,6 +810,11 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants/{tenantId}:close-password", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Place the legal holds of a rewound period again */
+  replaceLegalHolds(tenantId: string, body: NonNullable<operations["replaceLegalHolds"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["replaceLegalHolds"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants/{tenantId}:replace-legal-holds", { "tenantId": tenantId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Export a workspace whole */
   exportTenant(tenantId: string, body: NonNullable<operations["exportTenant"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exportTenant"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/admin/tenants/{tenantId}:export", { "tenantId": tenantId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
@@ -908,6 +913,11 @@ export class HubtaskClient {
   /** Change how the workspace is set up */
   updateWorkspace(body: NonNullable<operations["updateWorkspace"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string; readonly stepUp?: string } = {}): Promise<operations["updateWorkspace"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/tenant", {  }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** The workspace's private hubs, without their names */
+  listPrivateHubs(options: CallOptions = {}): Promise<operations["listPrivateHubs"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/private-hubs", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** How many people here no provider switched on here signs in */
@@ -1169,6 +1179,11 @@ export class HubtaskClient {
   /** PUT /containers/{containerId}/policies */
   updateContainerPolicies(containerId: string, body: NonNullable<operations["updateContainerPolicies"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateContainerPolicies"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/containers/{containerId}/policies", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** PUT /containers/{containerId}/privacy */
+  setHubPrivacy(containerId: string, body: NonNullable<operations["setHubPrivacy"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setHubPrivacy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/containers/{containerId}/privacy", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
   /** POST /containers/{containerId}:move */

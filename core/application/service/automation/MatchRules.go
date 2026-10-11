@@ -9,8 +9,10 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/eventbus"
@@ -57,6 +59,16 @@ type MatchRules struct {
 	// falls back to the unique one rather than collapsing every arrival into one job.
 	Jumble condition.JumbleEntries
 	Clock  clock.Clock
+	// Reach keeps an event of a private hub from every rule whose run_as does not reach the hub
+	// (ADR-0073 §1): no condition reads it, no action sends it anywhere. Nil only in a build that
+	// has no private hubs to keep - the composition root always wires it.
+	Reach PrivateReach
+}
+
+// PrivateReach is the authoriser's question about a private hub, asked for somebody a rule or a
+// subscription acts for (access.Service.Hidden).
+type PrivateReach interface {
+	Hidden(ctx context.Context, actor appshared.ActorContext, path []identity.Scope) (bool, error)
 }
 
 var _ eventbus.Subscriber = MatchRules{}
@@ -112,11 +124,49 @@ func (m MatchRules) Deliver(ctx context.Context, envelope event.Envelope) error 
 		if !covers(rule.Scope, location) {
 			continue
 		}
+		hidden, err := hiddenFrom(ctx, m.Reach, envelope.TenantID, rule.RunAs, location)
+		if err != nil {
+			return err
+		}
+		if hidden {
+			continue
+		}
 		if err := m.enqueue(ctx, rule, envelope); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// hiddenFrom answers whether an event's place is a private hub the account does not reach. A rule
+// scoped to the whole workspace covers every event, so the scope cannot answer it; the account the
+// rule acts as can.
+func hiddenFrom(
+	ctx context.Context, reach PrivateReach, tenantID, account shared.ID, at location,
+) (bool, error) {
+	if reach == nil || (at.HubID.IsZero() && at.CollectionID.IsZero()) {
+		return false, nil
+	}
+	return reach.Hidden(ctx, actingAs(tenantID, account), at.path())
+}
+
+// actingAs is the account a rule runs as, as the authoriser is asked about it.
+func actingAs(tenantID, account shared.ID) appshared.ActorContext {
+	return appshared.ActorContext{
+		Kind: appshared.ActorServiceAccount, TenantID: tenantID, AccountID: account,
+	}
+}
+
+// path is the place as the authoriser reads it; a collection without its hub is completed there.
+func (l location) path() []identity.Scope {
+	path := []identity.Scope{identity.TenantScope()}
+	if !l.HubID.IsZero() {
+		path = append(path, identity.HubScope(l.HubID))
+	}
+	if !l.CollectionID.IsZero() {
+		path = append(path, identity.CollectionScope(l.CollectionID))
+	}
+	return path
 }
 
 // deliverJumble queues one job per JUMBLE_ENTRY rule for one arrival.
@@ -241,6 +291,12 @@ type location struct {
 // container event carries as its own identity. The hub is one read, and only when the event is in a
 // collection at all.
 func (m MatchRules) locate(ctx context.Context, envelope event.Envelope) (location, error) {
+	return locateEvent(ctx, m.Containers, envelope)
+}
+
+// locateEvent is locate for anybody holding the container lookup: the engine asks it again when
+// a run starts.
+func locateEvent(ctx context.Context, containers Containers, envelope event.Envelope) (location, error) {
 	// A hub's own event names the hub directly, which no collection lookup could find: a hub sits
 	// under nothing, so asking for its parent would answer the tenant.
 	if hubID := condition.HubOf(envelope); !hubID.IsZero() {
@@ -252,13 +308,13 @@ func (m MatchRules) locate(ctx context.Context, envelope event.Envelope) (locati
 		return location{}, nil
 	}
 
-	if m.Containers == nil {
+	if containers == nil {
 		// A rule scoped to a collection can still be matched; one scoped to a hub cannot, and says
 		// so by not matching rather than by matching everything.
 		return location{CollectionID: collectionID}, nil
 	}
 
-	container, err := m.Containers.Find(ctx, collectionID)
+	container, err := containers.Find(ctx, collectionID)
 	switch {
 	case errors.Is(err, shared.ErrNotFound):
 		// Gone between the event and the delivery. Not an error, and it does not let a hub-scoped

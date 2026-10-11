@@ -47,7 +47,8 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { ADMINISTRATION, DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
+  import { DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, administration, currentDestination, primary } from '../navigation.ts';
+  import { privateHubs } from '../data/privatehubs.svelte.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -97,6 +98,14 @@
     return untrack(() => quotas.open());
   });
 
+  // The private hubs, read while the administration is open: whether its row is drawn is this
+  // answer (`navigation.ts`, `administration`).
+  const isInAdministration = $derived(route.area === 'administration');
+  $effect(() => {
+    if (!session.isSignedIn || !isInAdministration) return;
+    return untrack(() => privateHubs.open());
+  });
+
   // Whose list of recently opened entries this device is holding. The account's id is the key, so
   // it is adopted when the account arrives and dropped when it changes — two people sharing a
   // browser never read each other's (`lib/recents.svelte.ts`).
@@ -126,7 +135,7 @@
    */
   const section = $derived(
     route.area === 'administration'
-      ? { label: t('app.admin.nav'), groups: ADMINISTRATION }
+      ? { label: t('app.admin.nav'), groups: administration({ hasPrivateHubs: privateHubs.hasAny }) }
       : route.area === 'instance'
         ? { label: t('app.instance.nav'), groups: INSTANCE }
         : route.area === 'profile'
