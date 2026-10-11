@@ -59,7 +59,8 @@ type LifecycleWriter struct {
 	// A deletion scheduling its own cleanup is not only convenient, it is the only shape available:
 	// nothing in this system may enumerate tenants - the `tenant` table is behind row level security
 	// with no bypass for the application role - so no scheduler can create one sweep job per tenant.
-	// The job that a deletion creates reschedules itself forever afterwards (queue.KindRetentionSweep).
+	// The job reschedules itself forever afterwards (queue.KindRetentionSweep); provisioning and
+	// every session opened seed it too, so a deletion is not the only way a workspace gets one.
 	Queue queue.Queue
 }
 
@@ -356,11 +357,7 @@ func scheduleRetention(ctx context.Context, jobs queue.Queue, tenantID shared.ID
 	if jobs == nil {
 		return nil
 	}
-	_, enqueued := jobs.Enqueue(ctx, queue.Request{
-		Kind:      queue.KindRetentionSweep,
-		TenantID:  tenantID,
-		DedupeKey: tenantID.String(),
-	})
+	_, enqueued := jobs.Enqueue(ctx, queue.RetentionSweep(tenantID, time.Time{}))
 	return enqueued
 }
 

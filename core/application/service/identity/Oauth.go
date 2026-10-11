@@ -579,6 +579,9 @@ func (w SessionWriter) openLeashedSession(
 		if err := w.Sessions.Insert(ctx, session); err != nil {
 			return err
 		}
+		if err := w.seedRetention(ctx, tenantID, now); err != nil {
+			return err
+		}
 
 		first, presented, err := w.mintRefresh(session, material, now)
 		if err != nil {

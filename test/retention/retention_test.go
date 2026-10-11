@@ -128,10 +128,14 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 		Inbox: postgres.NewJumbleRepository(security.NewCursorCodec(installationSecret)),
 		// Requests' stored answers, as the server wires them.
 		IdempotencyKeys: postgres.NewIdempotencyStore(),
-		Purger:          purger,
-		Clock:           clock.Fixed(at),
-		IDs:             ids,
-		Rules:           postgres.NewRetentionRuleRepository(),
+		// The templates a legal hold kept after their deletion, as the server wires it.
+		DeletedTemplates: postgres.DeletedTemplateRepository{},
+		// The text a legal hold kept on a deleted comment, as the server wires it.
+		KeptTexts: postgres.KeptCommentTextRepository{},
+		Purger:    purger,
+		Clock:     clock.Fixed(at),
+		IDs:       ids,
+		Rules:     postgres.NewRetentionRuleRepository(),
 		Sweeper: lifecycle.Sweeper{
 			Rules:   postgres.NewRetentionRuleRepository(),
 			Marking: postgres.NewRetentionMarkingRepository(),

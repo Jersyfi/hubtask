@@ -209,6 +209,21 @@ type Target struct {
 	Contributors []shared.ID
 }
 
+// TemplateTarget is what a hold is judged against for a template (data-retention.md §4): the hub or
+// collection it is defined on and, for a collection, the hub above it - empty for a workspace-wide
+// one, which only a workspace hold reaches. No entry: a template sits on none, so an entry hold
+// never reaches it. No contributors: a template names no author, so an account hold finds nothing
+// of the person's in it - a node's assignee is a name in a plan, not something they contributed.
+func TemplateTarget(scopeID, hubID shared.ID) Target {
+	containers := make([]shared.ID, 0, 2)
+	for _, id := range []shared.ID{scopeID, hubID} {
+		if !id.IsZero() {
+			containers = append(containers, id)
+		}
+	}
+	return Target{ContainerIDs: containers}
+}
+
 // Holds is the set of holds in force for one tenant.
 //
 // A type rather than a slice, because the question asked of it is always the same one and answering

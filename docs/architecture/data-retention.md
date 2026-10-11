@@ -106,7 +106,10 @@ Evaluated in this order; the first that applies wins:
    `blocked_by: legal_hold`, with no date. A comment has no trash: deleted under a hold, it reads as
    deleted to everybody but keeps its text until the last hold covering it is lifted, and the sweep
    clears it then. A deleted template, which has no trash either, stays the same way until its
-   last hold is lifted, and the sweep removes the row then.
+   last hold is lifted, and the sweep removes the row then; without a hold, deleting it removes the
+   row at once. What reaches a template is a hold on the workspace or on the hub or collection it is
+   defined on — it sits on no entry and names no author, so neither an entry hold nor an account
+   hold does.
 
    **A hold also stops the workspace's own deletion and a destructive restore**: while any hold in
    the workspace is in force, a deletion request is refused, a workspace already pending deletion
@@ -142,9 +145,14 @@ Evaluated in this order; the first that applies wins:
 
 ## 5. Execution
 
-* A job per tenant (`retention.sweep`), seeded by trashing an entry or a container, then
-  rescheduling itself ([multi-tenancy.md](./multi-tenancy.md) §2.1); throttled, 1,000 objects per
-  transaction by default.
+* A job per tenant (`retention.sweep`), then rescheduling itself every interval
+  (`HUBTASK_RETENTION_INTERVAL`, an hour by default; [multi-tenancy.md](./multi-tenancy.md) §2.1);
+  throttled, 1,000 objects per transaction by default. Nothing enumerates tenants, so a write in the
+  workspace seeds it: trashing an entry or a container (at once), provisioning the workspace, and
+  every session opened (one interval out — the enqueue keeps the earlier of a waiting run and the
+  request's, so a sign-in never pulls the sweep forward). A workspace nobody has signed into and in
+  which nothing was trashed has no sweep yet; it has no session to age out either, and its first
+  sign-in or trash seeds it.
 * **Two-phase:** phase 1 marks and notifies (`retention_pending_until`); phase 2 executes after the
   grace period. In between, anyone with permission can take the object out by editing, moving, or
   `:retain`.
