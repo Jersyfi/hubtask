@@ -797,6 +797,7 @@ type Container struct {
 	Version       int32
 	DeletedByType *string
 	DeletedByID   pgtype.UUID
+	Private       bool
 }
 
 type CustomFieldDefinition struct {

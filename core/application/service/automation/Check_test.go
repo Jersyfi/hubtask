@@ -68,8 +68,9 @@ func newCheck(rules ...domain.Rule) *checkHarness {
 		Name: "AddLabelToItem", TokenScope: "items:write",
 		Input: []usecase.Field{{Name: "item_id", Kind: usecase.KindID}, {Name: "label_id", Kind: usecase.KindID}},
 	}
+	h.auth.held = h.held
 	h.check = CheckRules{
-		Rules: h.rules, References: h.refs, Memberships: h.held, Catalogue: known, Conditions: compiler{},
+		Rules: h.rules, References: h.refs, Catalogue: known, Conditions: compiler{},
 		Authorizer: h.auth, Audit: h.audit, Owners: h.told, Signals: h.sig,
 		UnitOfWork: unitOfWork{}, Clock: clock.Fixed(now),
 	}

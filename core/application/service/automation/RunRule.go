@@ -109,6 +109,9 @@ type RunRule struct {
 	Conditions expression.Compiler
 	Entries    Entries
 	Containers Containers
+	// Reach asks, as a run starts, whether its event is in a private hub the run_as does not
+	// reach (MatchRules.Reach).
+	Reach PrivateReach
 	// Labels and Members are the entry's sets beside it, for a condition on `item.labels` or
 	// `item.members`. Optional, as in condition.Values.
 	Labels  condition.Sets
@@ -248,6 +251,11 @@ func (h RunRule) Execute(
 		// producer that queued this no longer speaks for the rule, and a run recorded against a
 		// trigger the rule no longer has would be a log entry that never happened.
 		return domain.Run{}, nil
+	}
+	if hidden, err := h.hidden(ctx, actor, rule, cmd); err != nil || hidden {
+		// Its hub turned private, or the run_as left it, between the match and the run
+		// (ADR-0073 §1): nothing of it is read, and no run is recorded that would say it happened.
+		return domain.Run{}, err
 	}
 
 	runID := cmd.RunID
@@ -563,6 +571,25 @@ func (h RunRule) throttled(ctx context.Context, rule domain.Rule, now time.Time)
 }
 
 // envelope reads the event the run is about, or an empty one for a run nothing published started.
+// hidden asks again, as the run starts, what matching asked: whether the event happened in a
+// private hub the rule's run_as does not reach.
+func (h RunRule) hidden(
+	ctx context.Context, actor appshared.ActorContext, rule domain.Rule, cmd Command,
+) (bool, error) {
+	if h.Reach == nil || cmd.EventID.IsZero() {
+		return false, nil
+	}
+	envelope, err := h.envelope(ctx, cmd.EventID)
+	if err != nil || envelope.ID.IsZero() {
+		return false, err
+	}
+	at, err := locateEvent(ctx, h.Containers, envelope)
+	if err != nil {
+		return false, err
+	}
+	return hiddenFrom(ctx, h.Reach, actor.TenantID, rule.RunAs, at)
+}
+
 func (h RunRule) envelope(ctx context.Context, id shared.ID) (event.Envelope, error) {
 	if id.IsZero() || h.Source == nil {
 		return event.Envelope{}, nil

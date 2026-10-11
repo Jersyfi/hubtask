@@ -67,6 +67,7 @@ export type {
   Account,
   AccountPreferences,
   AccountSummary,
+  PrivateHubSummary,
   ActivityEntry,
   ActivityPage,
   Assignment,

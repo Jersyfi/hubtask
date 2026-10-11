@@ -286,7 +286,9 @@ cleared. The rule's sentence stands collapsed under the name.
 
 1. **The dispatcher hands the event to a subscriber**, which selects the enabled rules with this
    event as trigger, narrowed by scope, in the dispatcher's transaction and without the use case
-   registry.
+   registry. An event of a private hub matches only a rule whose `run_as` reaches the hub, so no
+   condition reads it and no action sends it anywhere; the run asks again when it starts
+   ([identity.md](./identity.md) §22).
 2. **One job per matching rule**, not per event: failure isolation, backoff and dead letter per rule.
 3. **The engine runs the job** in the queue runner's transaction: the run row, the actions' effects,
    the idempotency records and the job's completion commit together; after a crash none stands and
@@ -399,6 +401,8 @@ reason.
   every event of its types in the whole workspace: it takes no scope, and a `filter` is refused with
   `webhooks.filter_not_supported`; a CEL filter and a scope are planned
   ([UC-INT-01](../usecases/integration/UC-INT-01-receive-workspace-events-on-my-server.md)).
+  An event of a private hub is delivered only where the subscription's creator reaches the hub
+  ([identity.md](./identity.md) §22).
 * Payload: **CloudEvents 1.0** (structured JSON), identical to the internal event.
 * Signature: `X-Hubtask-Signature: t=<ts>,v1=<hmac-sha256(secret, ts + "." + body)>`, replays bounded by a time window.
 * Headers: `X-Hubtask-Event-Id` (for deduplication), `X-Hubtask-Event-Type`, `X-Hubtask-Delivery-Attempt`.
@@ -421,7 +425,8 @@ order with a stable cursor, deduplicable through `event_id`.
   default); an older cursor is `410 gone` with `triggers.cursor_expired`, never silently restarted.
 * **Authorisation is the event's, not the endpoint's.** A poll needs `automation:manage` (as a
   webhook subscription does) *and* the event type's own read scope
-  (`core/domain/event/ReadScope.go`).
+  (`core/domain/event/ReadScope.go`); an event of a private hub is answered only to a caller who
+  reaches the hub.
 * **A poll reads a moment behind the present.** `occurred_at` is stamped by the writing transaction,
   not its commit, so an earlier transaction can commit a row behind an answered cursor; rows younger
   than `HUBTASK_TRIGGER_POLL_LAG` are withheld from page and cursor until the next poll. Webhooks are

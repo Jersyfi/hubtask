@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/catalogue.ts';
-import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, TRASH, YOU_CODE, account, currentDestination, firstScreen, primary } from './navigation.ts';
+import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, TRASH, YOU_CODE, account, administration, currentDestination, firstScreen, primary } from './navigation.ts';
 import { ROUTES } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -186,4 +186,11 @@ test('the installation section lists every screen of its area, and every word of
 
   // And its front door is a screen of the section rather than the way out.
   assert.equal(firstScreen(INSTANCE), '/instance');
+});
+
+test('the private hubs row is drawn only where a private hub exists (UC-ID-16 check 3)', () => {
+  const rowsOf = (groups: typeof ADMINISTRATION) => groups.flatMap((group) => group.rows).map((row) => row.id);
+  assert.ok(rowsOf(administration({ hasPrivateHubs: true })).includes('private-hubs'));
+  assert.ok(!rowsOf(administration({ hasPrivateHubs: false })).includes('private-hubs'));
+  assert.equal(rowsOf(administration({ hasPrivateHubs: false })).length, rowsOf(ADMINISTRATION).length - 1, 'nothing else goes');
 });

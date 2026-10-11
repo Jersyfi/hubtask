@@ -11,6 +11,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
+	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -18,6 +19,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
@@ -178,10 +180,28 @@ func (m memberships) Administrators(context.Context, []identity.Scope) ([]shared
 	return nil, nil
 }
 
+func (m memberships) HubsOf(context.Context, []shared.ID) (map[shared.ID]identityrepository.Hub, error) {
+	return nil, nil
+}
+
+func (m memberships) HoldsAny(context.Context, shared.ID) (bool, error) { return true, nil }
+
 // authorizer answers the permission question, and records what it was asked.
 type authorizer struct {
 	refuse   bool
 	requests []access.Request
+	// held answers RoleOf, as the real authoriser resolves it on a shared path.
+	held *memberships
+}
+
+func (a *authorizer) RoleOf(
+	_ context.Context, _ appshared.ActorContext, accountID shared.ID, path []identity.Scope,
+) (identity.Role, bool, error) {
+	if a.held == nil {
+		return "", false, nil
+	}
+	role, found := service.EffectiveRole(a.held.rows[accountID], path, service.SharedPath)
+	return role, found, nil
 }
 
 func (a *authorizer) Authorize(
@@ -291,8 +311,9 @@ func newHarness(existing ...domain.Rule) *harness {
 		held:   &memberships{rows: map[shared.ID][]identity.Membership{}},
 		sealer: &sealer{},
 	}
+	h.auth.held = h.held
 	h.writer = Writer{
-		Rules: h.store, Accounts: h.people, Memberships: h.held,
+		Rules: h.store, Accounts: h.people,
 		Catalogue: defaultCatalogue(), Authorizer: h.auth, Audit: h.sink,
 		Encryptor:  h.sealer,
 		UnitOfWork: unitOfWork{}, Clock: clock.Fixed(now), IDs: ids{next: newRuleID},

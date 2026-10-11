@@ -96,7 +96,7 @@ const ROUTES = [
   '/administration/groups', '/administration/permissions', '/administration/service-accounts',
   // `/administration/rules/:id` is not here: the editor is a canvas with a stub of its own in
   // `rules.test.mjs`, and what it would add to a walk of the bar is a second copy of that stub.
-  '/administration/apps', '/administration/rules', '/administration/runs', '/administration/webhooks', '/administration/quotas',
+  '/administration/apps', '/administration/rules', '/administration/runs', '/administration/webhooks', '/administration/quotas', '/administration/private-hubs',
   '/administration/backup', '/administration/retention', '/administration/restore',
   '/administration/audit', '/administration/privacy', '/administration/identity-provider',
   '/administration/ai',
@@ -173,6 +173,7 @@ const SECTION = [
   ['/administration/apps', 'Third-party apps'],
   ['/administration/webhooks', 'Webhooks'],
   ['/administration/quotas', 'Limits'],
+  ['/administration/private-hubs', 'Private hubs'],
   ['/administration/backup', 'Backup'],
   ['/administration/retention', 'Retention and holds'],
   ['/administration/restore', 'Restore'],

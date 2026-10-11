@@ -19,9 +19,10 @@
 import type { GroupDetail, Membership, MembershipPage, MembershipRole, MembershipScope } from '@hubtask/sync-engine';
 
 import { accounts } from './accounts.svelte.ts';
+import { containers } from './containers.svelte.ts';
 import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
-import { candidatesOf, groupsNamedBy, holdersOf, membershipsPath, scopesAlong, type Holder, type Path, type Scope } from './people.ts';
+import { candidatesOf, groupsNamedBy, holdersOf, membershipsPath, scopesAlong, scopesInForce, type Holder, type Path, type Scope } from './people.ts';
 
 /** A membership write changes who may be named, and therefore every list composed from one. */
 const TOUCHES = ['/memberships'];
@@ -53,9 +54,13 @@ class People {
     return () => {};
   }
 
-  /** The memberships in force along a path: every scope's rows, from the workspace downwards. */
+  /**
+   * The memberships in force along a path: every scope's rows, from the workspace downwards - and
+   * none of the workspace's where the path runs through a private hub, which they do not reach.
+   */
   along(path: Path): readonly Membership[] {
-    return scopesAlong(path).flatMap((scope) => this.#scopes[membershipsPath(scope)] ?? []);
+    const isPrivate = path.hubId ? containers.find(path.hubId)?.private === true : false;
+    return scopesInForce(path, isPrivate).flatMap((scope) => this.#scopes[membershipsPath(scope)] ?? []);
   }
 
   /** Who may be named on an entry at this path: the accounts, with the groups expanded. */

@@ -559,11 +559,10 @@ func run() error {
 		Authorizer: authorizer, UnitOfWork: unitOfWork,
 	}
 	ruleWriter := automationservice.Writer{
-		Rules:       postgres.NewAutomationRuleRepository(cursors),
-		Schedules:   postgres.NewAutomationRuleRepository(cursors),
-		Accounts:    accounts,
-		Memberships: postgres.NewMembershipRepository(),
-		Catalogue:   ruleCatalogue,
+		Rules:     postgres.NewAutomationRuleRepository(cursors),
+		Schedules: postgres.NewAutomationRuleRepository(cursors),
+		Accounts:  accounts,
+		Catalogue: ruleCatalogue,
 		// The one place the expression engine is constructed. A rule's conditions are compiled
 		// when it is written, so a mistake reaches its author rather than a log (ADR-0009).
 		Conditions: celexpression.New(),
@@ -738,6 +737,16 @@ func run() error {
 		Containers: containers, Policies: postgres.AutoAssignPolicyRepository{}, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+	}
+
+	// A private hub nobody is left in goes to the trash, and the workspace's owners are told without
+	// its name (ADR-0073 §5): after a revocation, after an erasure, and in the retention pass.
+	lastMember := work.LastMember{
+		Hubs: postgres.NewPrivateHubRepository(), Writer: containerWriter,
+		Owners: notification.RecordPrivateHubTrashed{
+			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+			Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+		},
 	}
 
 	// Every verb that changes an existing column shares one dependency set: they read the same
@@ -1095,6 +1104,7 @@ func run() error {
 
 	workspaceWriter := identity.WorkspaceWriter{
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		People:     postgres.NewPrivateHubRepository(),
 		// The hosts the workspace answers at. Read-only: nothing resolves a request
 		// through them yet.
 		Hosts: postgres.NewTenantHostRepository(),
@@ -1229,10 +1239,9 @@ func run() error {
 	// the resolver for what a rule names, and the streak's own path to the author. One value,
 	// because the job a deletion seeds runs the same check the route serves.
 	ruleCheck := automationservice.CheckRules{
-		Rules:       postgres.NewAutomationRuleRepository(cursors),
-		References:  postgres.NewAutomationReferenceRepository(),
-		Memberships: postgres.NewMembershipRepository(),
-		Catalogue:   ruleCatalogue, Conditions: celexpression.New(),
+		Rules:      postgres.NewAutomationRuleRepository(cursors),
+		References: postgres.NewAutomationReferenceRepository(),
+		Catalogue:  ruleCatalogue, Conditions: celexpression.New(),
 		Authorizer: authorizer, Audit: auditSink,
 		Owners: notification.RecordRuleDisabled{
 			Notifications: notifications, Accounts: accounts,
@@ -1300,12 +1309,14 @@ func run() error {
 			Authorizer: authorizer, Permits: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		identity.GrantMembership{
-			Grants: grants, Accounts: accounts, Groups: groups, Authorizer: authorizer,
-			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Grants: grants, Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids,
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
 		identity.RevokeMembership{
-			Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
+			Grants: grants, Authorizer: authorizer, Revocations: revocations, LastMember: lastMember,
+			Audit:      auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
@@ -1519,7 +1530,7 @@ func run() error {
 			Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
 		}.Descriptor(),
 		integrationservice.PollTriggerEvents{
-			Events: outbox, Policies: lifecycleStore,
+			Events: outbox, Policies: lifecycleStore, Reach: authorizer,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
 			Rendering: cloudEventRendering{source: cfg.BaseURL},
 			// The pull half renders through the very function the push half delivers, so that one
@@ -1530,6 +1541,8 @@ func run() error {
 		work.CreateContainer{
 			Containers: containers,
 			Authorizer: authorizer,
+			OwnHubs:    authorizer,
+			Grants:     grants,
 			Events:     outbox,
 			Changes:    changes,
 			Audit:      auditSink,
@@ -1582,6 +1595,13 @@ func run() error {
 		}.Descriptor(),
 		work.RenameContainer{Writer: containerWriter}.Descriptor(),
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
+		work.ListPrivateHubs{
+			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.SetHubPrivacy{
+			Writer: containerWriter, Hubs: postgres.NewHubLockRepository(), Revocations: revocations,
+		}.Descriptor(),
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.MoveContainer{Writer: containerWriter, Revocations: revocations}.Descriptor(),
@@ -2409,7 +2429,7 @@ func run() error {
 	notify := notification.RecordNotifications{
 		Notifications: notifications, Preferences: notificationPreferences, Accounts: accounts,
 		Items: items, ItemMembers: itemMembers, Jobs: jobs,
-		Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+		Clock: clockadapter.System{}, IDs: ids, Signals: metrics, Reach: authorizer,
 	}
 
 	// The automation engine. The subscriber turns one event into one job per matching rule;
@@ -2421,6 +2441,7 @@ func run() error {
 		Conditions: celexpression.New(),
 		Jumble:     postgres.NewJumbleRepository(cursors),
 		Clock:      clockadapter.System{},
+		Reach:      authorizer,
 	}
 
 	// The relative-date producer. A second subscriber rather than a branch inside the first,
@@ -2467,6 +2488,7 @@ func run() error {
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Jobs:          jobs, Clock: clockadapter.System{}, IDs: ids,
+		Reach: authorizer,
 	}
 
 	dispatcher := eventbus.Dispatcher{
@@ -2641,7 +2663,7 @@ func run() error {
 		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
 		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-		TombstoneWindow: cfg.Retention.TombstoneWindow,
+		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
 	}
 	privacyExporter := privacyservice.Exporter{
 		Requests: privacyStore, Subjects: privacyStore,
@@ -2698,6 +2720,7 @@ func run() error {
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
 			Remainders: privacyservice.ErasureRemainders{Kept: privacyStore, Jobs: jobs},
+			Orphans:    lastMember,
 			// The templates a legal hold kept after their deletion, removed once none does
 			// (data-retention.md §4).
 			DeletedTemplates: postgres.DeletedTemplateRepository{},
@@ -2742,7 +2765,7 @@ func run() error {
 					Notifications: notifications, Accounts: accounts,
 					Memberships: postgres.NewMembershipRepository(), Members: itemMembers,
 					Preferences: notificationPreferences, Jobs: jobs,
-					Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+					Clock: clockadapter.System{}, IDs: ids, Signals: metrics, Reach: authorizer,
 				},
 				Export: backupservice.RetentionExport{
 					Performer: backupPerformer, IDs: ids,
@@ -2826,6 +2849,7 @@ func run() error {
 	// transaction, and an action is a use case.
 	automationRun := worker.AutomationRun{
 		Engine: automationservice.RunRule{
+			Reach:      authorizer,
 			Quota:      quotaGuard,
 			Rules:      postgres.NewAutomationRuleRepository(cursors),
 			Runs:       automationRuns,
