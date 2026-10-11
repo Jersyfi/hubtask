@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
@@ -265,6 +266,7 @@ type provisionFixture struct {
 	renderer   *renderer
 	work       *unitOfWork
 	hosts      *hostsStore
+	jobs       *jobsFake
 }
 
 // hostsStore is the hosts a workspace answers at, in memory.
@@ -283,7 +285,7 @@ func newProvisionFixture() *provisionFixture {
 		redemption: &redemptionStore{}, grants: &grantsStore{}, containers: &containersStore{},
 		buckets: &bucketsStore{}, labels: &labelsStore{}, events: &eventsStore{},
 		changes: &changesStore{}, audit: &auditSink{}, renderer: &renderer{}, work: &unitOfWork{},
-		hosts: &hostsStore{},
+		hosts: &hostsStore{}, jobs: &jobsFake{},
 	}
 	f.handler = ProvisionTenant{
 		Tenants: f.tenants, Journal: f.journal, Accounts: f.accounts,
@@ -293,8 +295,31 @@ func newProvisionFixture() *provisionFixture {
 		Clock: clock.Fixed(now), IDs: &sequentialIDs{}, HLC: &hlcSource{},
 		Entropy: clock.FixedEntropy{}, Tenancy: env.TenancyMulti, Text: text.Composing{},
 		Hosts: f.hosts, InstallationHost: "hubtask.example",
+		Jobs: f.jobs, RetentionInterval: time.Hour,
 	}
 	return f
+}
+
+// A new workspace's retention sweep is asked for by the provisioning itself, one interval out
+// (data-retention.md §5): nothing enumerates tenants, so a workspace in which nobody ever trashed
+// anything would otherwise never age out its sessions, notifications or jumble.
+func TestProvisioningSeedsTheWorkspacesRetentionSweep(t *testing.T) {
+	f := newProvisionFixture()
+
+	provisioned, err := f.handler.Execute(t.Context(), operator(), provisionCommand())
+	if err != nil {
+		t.Fatalf("provisioning: %v", err)
+	}
+
+	if len(f.jobs.requests) != 1 {
+		t.Fatalf("%d jobs asked for, want the one sweep: %+v", len(f.jobs.requests), f.jobs.requests)
+	}
+	want := queue.RetentionSweep(provisioned.Tenant.ID, now.Add(time.Hour))
+	got := f.jobs.requests[0]
+	if got.Kind != want.Kind || got.TenantID != want.TenantID || got.DedupeKey != want.DedupeKey ||
+		!got.RunAt.Equal(want.RunAt) {
+		t.Errorf("asked for %+v, want %+v", got, want)
+	}
 }
 
 // sequentialIDs answers distinct, valid identifiers, because provisioning mints a dozen rows in

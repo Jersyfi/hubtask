@@ -278,6 +278,37 @@ func TestADedupeKeyCollapsesRepeatedRequestsAndPullsTheWakeUpForward(t *testing.
 	}
 }
 
+// A session's opening seeds the tenant's retention sweep one interval out, at every sign-in
+// (data-retention.md §5). Two sign-ins in a row must not move the run: the second request is later,
+// and the enqueue keeps the earlier run-at - so a busy workspace sweeps at its interval, not at every
+// sign-in.
+func TestTwoRetentionSeedsInARowDoNotPullTheRunForward(t *testing.T) {
+	ctx := context.Background()
+	// The job table carries no foreign key to the tenant, so a fresh identifier is a tenant whose
+	// sweep nobody else's test can have seeded.
+	tenant := freshID(t)
+	first := queueClock.Now().Add(time.Hour)
+	second := first.Add(5 * time.Minute)
+
+	enqueue(ctx, t, queue.RetentionSweep(tenant, first))
+	enqueue(ctx, t, queue.RetentionSweep(tenant, second))
+
+	admin := adminPool(ctx, t)
+	var rows int
+	var runAt time.Time
+	if err := admin.QueryRow(ctx,
+		`SELECT count(*), min(run_at) FROM job WHERE kind = $1 AND dedupe_key = $2 AND state = 'PENDING'`,
+		queue.KindRetentionSweep.String(), tenant.String()).Scan(&rows, &runAt); err != nil {
+		t.Fatalf("counting: %v", err)
+	}
+	if rows != 1 {
+		t.Errorf("%d sweeps for one tenant, want one", rows)
+	}
+	if !runAt.UTC().Equal(first.UTC()) {
+		t.Errorf("the sweep runs at %v, want it left at the first seed's %v", runAt.UTC(), first.UTC())
+	}
+}
+
 // The queue is the one table without a tenant boundary, and this is the test that keeps that
 // deliberate: a worker sees the jobs of every tenant, and each job says whose it is - which is how
 // the transaction that runs it gets opened under the right one.
