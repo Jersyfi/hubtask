@@ -74,6 +74,9 @@
       failure = renderProblem(error as never, messages);
     }
   }
+
+  /** A managed account (ADR-0074 §5): no address, so no mail and no table of switches for it. */
+  const withoutMailbox = $derived(account?.kind === 'USER' && !account.email);
 </script>
 
 {#if !account}
@@ -83,11 +86,12 @@
     <SettingsHead row="notifications" />
 
     <Stack gap="150">
-      <p class="quiet">{t('app.profile.notifications_hint')}</p>
+      <!-- The lead promises rows, so it stands only where the rows can be drawn. -->
+      {#if !withoutMailbox}<p class="quiet">{t('app.profile.notifications_hint')}</p>{/if}
 
       {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
-      {#if account && account.kind === 'USER' && !account.email}
+      {#if withoutMailbox}
         <!-- A managed account (ADR-0074 §5): mail has nowhere to go, and a table of switches for it
              would be a promise nothing keeps. -->
         <p class="quiet">{t('app.profile.no_mailbox')}</p>

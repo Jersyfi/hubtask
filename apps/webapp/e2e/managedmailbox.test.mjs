@@ -49,6 +49,8 @@ test('a managed person reads that mail is not possible without a mailbox', async
     await page.goto(`${served.origin}/profile/notifications`);
     await page.getByText('Not possible without a mailbox', { exact: false }).waitFor();
     assert.equal(await page.getByRole('table').count(), 0, 'a table of switches for mail that goes nowhere');
+    // Nor a lead that promises the rows the page does not draw.
+    assert.equal(await page.getByText('One row for each thing', { exact: false }).count(), 0);
   } finally {
     await close();
     await browser.close();
