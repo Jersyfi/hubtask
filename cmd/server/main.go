@@ -1284,8 +1284,8 @@ func run() error {
 		identity.CreateManagedAccount{
 			Managed: postgres.NewAccountRepository(), Authorizer: authorizer,
 			Grant: identity.GrantMembership{
-				Grants: grants, Accounts: accounts, Groups: groups, Authorizer: authorizer,
-				Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+				Grants: grants, Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),
+				Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 				StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			},
 			Rule: signInPolicyResolver, Passwords: passwords, Entropy: clockadapter.CryptoRandom{},
