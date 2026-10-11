@@ -113,3 +113,41 @@ test('chromium: the owner of the hub makes it private, told whom it shuts out, a
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });
+
+test('chromium: the administration lists the private hubs - whose and how big, never a name', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/administration/workspace`);
+  const nav = page.getByRole('navigation', { name: 'Administration', exact: true });
+  await nav.getByRole('treeitem', { name: 'Private hubs', exact: true }).click();
+  const table = page.getByRole('table', { name: 'Private hubs' });
+  await table.waitFor({ timeout: 10_000 });
+  const rows = table.getByRole('row');
+  // The head and the two hubs of the fixture: one of Mara's, one nobody is left in.
+  assert.equal(await rows.count(), 3);
+  await table.getByRole('rowheader', { name: OTHER.display_name }).waitFor({ timeout: 5_000 });
+  await table.getByRole('rowheader', { name: 'Nobody — its last member left' }).waitFor();
+  assert.ok((await table.textContent()).includes('In the trash, removed for good on'));
+  assert.equal(await page.getByRole('link', { name: /House|Diary/ }).count(), 0, 'no hub is named or linked');
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+test('chromium: no private hub, or no right to the list, and the row is absent', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  for (const answer of [{ json: [] }, { status: 403, json: { code: 'access.not_permitted' } }]) {
+    const { page, failures, context } = await signedIn(browser, 1280, 900);
+    await context.route('**/api/v1/private-hubs', (route) => route.fulfill(answer));
+    await page.goto(`${served.origin}/administration/workspace`);
+    const nav = page.getByRole('navigation', { name: 'Administration', exact: true });
+    await nav.getByRole('treeitem', { name: 'Limits', exact: true }).waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(300);
+    assert.equal(await nav.getByRole('treeitem', { name: 'Private hubs', exact: true }).count(), 0, `answered ${answer.status ?? 200}`);
+    assert.deepEqual(failures, []);
+    await context.close();
+  }
+});

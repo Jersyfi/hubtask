@@ -5,9 +5,9 @@ context: identity
 actors: [PE-member, PE-child, PE-owner, PE-admin]
 deployments: [D2, D3, D4, D5, D6]
 serves: [P-01, P-04, P-05, P-06, P-10]
-state: specified
+state: partial
 tasks: [PH-04, PH-05]
-checked_by: []
+checked_by: [core/domain/service/Authorization_test.go, core/application/service/work/CreatePrivateHub_test.go, core/application/service/work/SetHubPrivacy_test.go, core/application/service/work/LastMember_test.go, test/integration/private_hub_access_test.go, test/integration/private_hub_readers_test.go, test/integration/private_hub_list_test.go, test/integration/private_hub_storage_test.go, test/integration/private_hub_orphan_test.go, test/integration/private_hub_automation_test.go, apps/webapp/e2e/privatehubs.test.mjs]
 ---
 
 # Keep a hub private, even from another administrator
@@ -58,10 +58,5 @@ administrator decided private hubs are not allowed; nobody there can make one.
 
 ## Today
 
-* Check 1: not met — there are no private hubs; rights only add up in the authorisation model, tracked in #1089.
-* Check 2: not met — nothing hides a hub from the workspace's owners and administrators, tracked in #1089.
-* Check 3: not met — there is no per-hub overview without the name for administrators, tracked in #1089.
 * Check 4: not met — there is no emergency access, tracked in #1090.
-* Check 5: not met — backups, the export and a restore know no private hubs, tracked in #1089.
-* Check 6: not met — nothing handles the last member leaving a private hub, tracked in #1089.
 * Check 7: not met — there is no *Private hubs allowed* setting, tracked in #1090.

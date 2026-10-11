@@ -49,8 +49,8 @@ hub or the workspace, which can only be revoked where they were granted. Revokin
 ## Where it ends
 
 * Rights only add up: a grant on a hub never takes away what a role on the workspace gives. A hub
-  one adult keeps even from another administrator is a separate use case (UC-ID-16) and is not
-  built; in `D2` today, every adult who holds a workspace role reads every hub.
+  one adult keeps even from another administrator is a separate use case (UC-ID-16): a private hub
+  is the one place a workspace role reaches nothing.
 * Inviting somebody and how they sign in belong to the identity context (UC-ID-14, UC-ID-15).
 * No public or anonymous link to an entry.
 * No time-limited shares.
