@@ -5,6 +5,8 @@
 // field takes an address or a sign-in name exactly where the workspace has one, a sign-in name
 // travels as the identifier, the forgotten-password detour says there is no mail for a name, and a
 // change the sign-in still owes after a demanded setup is the next card rather than a session.
+// Where the workspace switched the password off, a sign-in name keeps a form of its own beside the
+// providers (identity.md §4.1).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,12 +38,18 @@ const MANIFEST = {
   features: { sign_in_rules: true },
 };
 
-function stub({ names, sent, answer }) {
+// The password switched off, one provider the way in for everybody else.
+const PROVIDERS_ONLY = {
+  methods: ['OIDC'],
+  providers: [{ id: 'p-family', display_name: 'Family ID', kind: 'GENERIC', scope: 'workspace' }],
+};
+
+function stub({ names, sent, answer, rules }) {
   return async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (path.endsWith('/api/v1/auth/sign-in-rules')) {
-      return route.fulfill({ json: { ...RULES, sign_in_names: names } });
+      return route.fulfill({ json: { ...RULES, ...rules, sign_in_names: names } });
     }
     if (path.endsWith('/api/v1/auth/password:check')) return route.fulfill({ json: { violations: [] } });
     if (path.endsWith('/api/v1/meta/capabilities')) return route.fulfill({ json: MANIFEST });
@@ -66,11 +74,11 @@ function stub({ names, sent, answer }) {
   };
 }
 
-async function open(names, sent, answer) {
+async function open(names, sent, answer, rules = {}) {
   const { origin, close } = await serve(DIST);
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
-  await context.route('**/api/v1/**', stub({ names, sent, answer }));
+  await context.route('**/api/v1/**', stub({ names, sent, answer, rules }));
   const page = await context.newPage();
   await page.goto(origin);
   await page.waitForSelector('text=to family.hubtask.eu');
@@ -135,6 +143,39 @@ test('a demanded setup that the password still owes a change for leads to the ch
     assert.equal(sent.confirm?.pending_token, 'enroll-1');
     // Continue leads to choosing the person's own password.
     await page.getByLabel('New password').waitFor();
+  } finally {
+    await done();
+  }
+});
+
+test('the password switched off and a managed account here: the providers, and a sign-in name form after them', async () => {
+  const sent = {};
+  const { page, done } = await open(true, sent, refused, PROVIDERS_ONLY);
+  try {
+    await page.getByRole('button', { name: 'Sign in with Family ID' }).waitFor();
+    const field = page.getByLabel('Sign-in name');
+    await field.waitFor();
+    assert.equal(await field.getAttribute('type'), 'text');
+    assert.equal(await page.getByLabel('Email address or sign-in name').count(), 0);
+    // The address detour is not beside the name: there is no mail for a name.
+    assert.equal(await page.getByRole('button', { name: 'Forgot your password?' }).count(), 0);
+    await field.fill('lena');
+    await page.locator('input[autocomplete="current-password"]').fill('wrong-start-password');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByText('Sign-in failed', { exact: false }).waitFor();
+    assert.deepEqual(sent.signIn, { identifier: 'lena', password: 'wrong-start-password' });
+  } finally {
+    await done();
+  }
+});
+
+test('the password switched off and no managed account: the providers are the whole card', async () => {
+  const sent = {};
+  const { page, done } = await open(false, sent, refused, PROVIDERS_ONLY);
+  try {
+    await page.getByRole('button', { name: 'Sign in with Family ID' }).waitFor();
+    assert.equal(await page.locator('input[autocomplete="current-password"]').count(), 0);
+    assert.equal(await page.getByLabel('Sign-in name').count(), 0);
   } finally {
     await done();
   }

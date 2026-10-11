@@ -35,6 +35,7 @@
   import { session } from '../lib/session.svelte.ts';
   import { phaseOf, remaining } from '../lib/signin/expiry.ts';
   import { ordered, readLastProvider, rememberPassword, rememberProvider } from '../lib/signin/lastMethod.ts';
+  import { passwordFormOf } from '../lib/signin/passwordForm.ts';
 
   let email = $state('');
   let password = $state('');
@@ -60,6 +61,8 @@
    * way, and one refusal whatever was typed (T-02).
    */
   const namesAccepted = $derived(signInRules.signInNames);
+  /** The password form this card draws, if any: `name` is the one beside the providers. */
+  const form = $derived(passwordFormOf(signInRules));
 
   const isBusy = $derived(session.status === 'verifying');
   const owed = $derived(session.secondFactorOwed);
@@ -400,48 +403,8 @@
 {:else}
   <SignInCard title={t('app.sign_in.title')} {notice}>
     <Stack gap="250">
-      {#if signInRules.hasPassword}
-        <form onsubmit={submit}>
-          <Stack gap="200">
-            <Input
-              label={t(namesAccepted ? 'app.sign_in.identifier_label' : 'app.sign_in.email_label')}
-              error={missingEmail
-                ? t(namesAccepted ? 'app.sign_in.identifier_required' : 'app.sign_in.email_required')
-                : undefined}
-              bind:value={email}
-              type={namesAccepted ? 'text' : 'email'}
-              autocomplete="username webauthn"
-              autocapitalize="none"
-              spellcheck={false}
-              isRequired
-            />
-            <Stack gap="050">
-              <Input
-                label={t('app.sign_in.password_label')}
-                error={missingPassword ? t('app.sign_in.password_required') : undefined}
-                bind:value={password}
-                type="password"
-                autocomplete="current-password"
-                spellcheck={false}
-                revealLabel={t('app.password.reveal')}
-                hideLabel={t('app.password.hide')}
-                isRequired
-              />
-              {#if signInRules.isServed}
-                <p class="forgot">
-                  <!-- Only where the installation serves the reset: a link to a route that answers
-                       `404` is worse than no link, and the concept says so in its own words. -->
-                  <button class="link" type="button" onclick={() => (asking = true)}>
-                    {t('app.sign_in.forgot')}
-                  </button>
-                </p>
-              {/if}
-            </Stack>
-            <Button type="submit" tone="primary" isFull {isBusy} busyLabel={t('app.sign_in.working')}>
-              {t('app.sign_in.submit')}
-            </Button>
-          </Stack>
-        </form>
+      {#if form === 'email' || form === 'identifier'}
+        {@render passwordForm()}
       {/if}
 
       <!-- Only providers the rules name (UC-ID-01 check 5): before the rules are read, or when they
@@ -477,9 +440,70 @@
           </p>
         {/if}
       {/if}
+
+      <!-- The password switched off and a managed account here: a sign-in name keeps its password,
+           because no provider can recognise an account without an address (identity.md §4.1). After
+           the providers, which are this workspace's way in for everybody else. -->
+      {#if form === 'name'}
+        {#if providers.length > 0}
+          <p class="or"><span>{t('app.sign_in.or')}</span></p>
+        {/if}
+        {@render passwordForm()}
+      {/if}
     </Stack>
   </SignInCard>
 {/if}
+
+{#snippet passwordForm()}
+  <form onsubmit={submit}>
+    <Stack gap="200">
+      <Input
+        label={t(form === 'name'
+          ? 'app.sign_in.name_label'
+          : namesAccepted ? 'app.sign_in.identifier_label' : 'app.sign_in.email_label')}
+        hint={form === 'name' ? t('app.sign_in.name_hint') : undefined}
+        error={missingEmail
+          ? t(form === 'name'
+            ? 'app.sign_in.name_required'
+            : namesAccepted ? 'app.sign_in.identifier_required' : 'app.sign_in.email_required')
+          : undefined}
+        bind:value={email}
+        type={namesAccepted ? 'text' : 'email'}
+        autocomplete="username webauthn"
+        autocapitalize="none"
+        spellcheck={false}
+        isRequired
+      />
+      <Stack gap="050">
+        <Input
+          label={t('app.sign_in.password_label')}
+          error={missingPassword ? t('app.sign_in.password_required') : undefined}
+          bind:value={password}
+          type="password"
+          autocomplete="current-password"
+          spellcheck={false}
+          revealLabel={t('app.password.reveal')}
+          hideLabel={t('app.password.hide')}
+          isRequired
+        />
+        <!-- Not beside the sign-in name's form: the detour there mails a provider's link, and the
+             sentence about names lives in it. -->
+        {#if signInRules.isServed && form !== 'name'}
+          <p class="forgot">
+            <!-- Only where the installation serves the reset: a link to a route that answers
+                 `404` is worse than no link, and the concept says so in its own words. -->
+            <button class="link" type="button" onclick={() => (asking = true)}>
+              {t('app.sign_in.forgot')}
+            </button>
+          </p>
+        {/if}
+      </Stack>
+      <Button type="submit" tone={form === 'name' ? 'secondary' : 'primary'} isFull {isBusy} busyLabel={t('app.sign_in.working')}>
+        {t('app.sign_in.submit')}
+      </Button>
+    </Stack>
+  </form>
+{/snippet}
 
 {#snippet identity()}
   <!-- 3.3.7: what this flow already has is not asked for again. Shown, because a second step with
