@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
@@ -77,7 +78,7 @@ func TestTheHoldsOfARewoundPeriodArePlacedAgain(t *testing.T) {
 		{ID: replacedHold, Outcome: HoldPlacedAgain, TargetPresent: true},
 		{ID: releasedHold, Outcome: HoldPlacedAgain, TargetPresent: false, ReleasedInPeriod: true},
 	}
-	if len(replaced) != len(want) || replaced[0] != want[0] || replaced[1] != want[1] {
+	if got := replaced.Holds; len(got) != len(want) || got[0] != want[0] || got[1] != want[1] || replaced.Archive != nil {
 		t.Fatalf("answered %+v, want %+v", replaced, want)
 	}
 	if h.holds.locked == 0 {
@@ -100,7 +101,7 @@ func TestTheHoldsOfARewoundPeriodArePlacedAgain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the second run: %v", err)
 	}
-	if len(h.holds.stored) != 2 || len(h.audit.entries) != 2 || again[0].Outcome != HoldAlreadyPresent {
+	if len(h.holds.stored) != 2 || len(h.audit.entries) != 2 || again.Holds[0].Outcome != HoldAlreadyPresent {
 		t.Errorf("the second run changed something: %+v, %d holds", again, len(h.holds.stored))
 	}
 }
@@ -192,4 +193,129 @@ func TestReplacingHoldsThroughTheRegistry(t *testing.T) {
 	if got := shared.AsError(err).DetailCode; got != domain.CodeHoldIncomplete {
 		t.Errorf("a malformed record answered %q", got)
 	}
+}
+
+// archiveDouble answers what an archive gave back, and remembers what it was asked.
+type archiveDouble struct {
+	answer ArchivedHolds
+	err    error
+	asked  []ArchiveSource
+	scopes []shared.ID
+}
+
+func (a *archiveDouble) Read(_ context.Context, scope persistence.Scope, source ArchiveSource) (ArchivedHolds, error) {
+	a.asked = append(a.asked, source)
+	a.scopes = append(a.scopes, scope.TenantID)
+	return a.answer, a.err
+}
+
+var backupTarget = shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+
+// The fallback source: the holds the workspace's archive carries are placed again like the ones a
+// request carries, and the answer says from when the archive is - where the gap begins.
+func TestTheHoldsOfAnArchiveArePlacedAgainWithTheGapReported(t *testing.T) {
+	h := newHoldsHarness()
+	taken := recoveredTo.Add(30 * time.Hour)
+	archived := &archiveDouble{answer: ArchivedHolds{
+		Holds: replaceCommand().Holds, Path: "hubtask-backup-x", SnapshotAt: taken,
+		AuditTrail: true, UnreadableEntries: 1,
+	}}
+	replacer := h.replacer()
+	replacer.Archive = archived
+	registry, err := usecase.NewRegistry(nil, replacer.Descriptor())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := registry.Invoke(context.Background(), ReplaceLegalHoldsName, operator(), usecase.Input{
+		"tenant_id": tenantID.String(), "recovery_point": recoveredTo.Format(time.RFC3339),
+		"archive": map[string]any{"target_id": backupTarget.String(), "path": "hubtask-backup-x"},
+	})
+	if err != nil {
+		t.Fatalf("invoking: %v", err)
+	}
+	if len(archived.asked) != 1 || archived.asked[0].TargetID != backupTarget || archived.scopes[0] != tenantID {
+		t.Errorf("the archive was asked %+v under %v", archived.asked, archived.scopes)
+	}
+	if rows, _ := out["holds"].([]any); len(rows) != 2 || len(h.holds.stored) != 2 {
+		t.Errorf("answered %+v, stored %d", out["holds"], len(h.holds.stored))
+	}
+	from, _ := out["archive"].(usecase.Output)
+	if from["snapshot_at"] != taken.Format(time.RFC3339Nano) || from["audit_trail"] != true ||
+		from["unreadable_entries"] != 1 {
+		t.Errorf("the archive answered as %+v", from)
+	}
+}
+
+// An archive with no hold in it is an answer, not a refusal; the gap is still the operator's.
+func TestAnArchiveWithoutHoldsPlacesNothingAndSaysFromWhen(t *testing.T) {
+	h := newHoldsHarness()
+	replacer := h.replacer()
+	replacer.Archive = &archiveDouble{answer: ArchivedHolds{Path: "p", SnapshotAt: recoveredTo}}
+	cmd := ReplaceLegalHoldsCommand{
+		TenantID: tenantID, RecoveryPoint: recoveredTo,
+		Archive: &ArchiveSource{TargetID: backupTarget, Path: "p"},
+	}
+	result, err := replacer.Execute(context.Background(), operator(), cmd)
+	if err != nil {
+		t.Fatalf("placing again: %v", err)
+	}
+	if len(result.Holds) != 0 || result.Archive == nil || !result.Archive.SnapshotAt.Equal(recoveredTo) {
+		t.Errorf("answered %+v", result)
+	}
+}
+
+// One source per call, named whole, and asked only by the operator.
+func TestTheArchiveSourceIsRefusedWholeOrNotAtAll(t *testing.T) {
+	cases := []struct {
+		name   string
+		actor  appshared.ActorContext
+		change func(*ReplaceLegalHoldsCommand)
+		code   string
+	}{
+		{"without the operator's scope", actor(), func(*ReplaceLegalHoldsCommand) {}, "access.insufficient_scope"},
+		{"holds and an archive", operator(), func(c *ReplaceLegalHoldsCommand) {
+			c.Holds = replaceCommand().Holds
+		}, codeHoldsSourceAmbiguous},
+		{"no target", operator(), func(c *ReplaceLegalHoldsCommand) { c.Archive.TargetID = "" },
+			codeHoldArchiveIncomplete},
+		{"no path", operator(), func(c *ReplaceLegalHoldsCommand) { c.Archive.Path = "" },
+			codeHoldArchiveIncomplete},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newHoldsHarness()
+			archived := &archiveDouble{}
+			replacer := h.replacer()
+			replacer.Archive = archived
+			cmd := ReplaceLegalHoldsCommand{
+				TenantID: tenantID, RecoveryPoint: recoveredTo,
+				Archive: &ArchiveSource{TargetID: backupTarget, Path: "p"},
+			}
+			c.change(&cmd)
+			_, err := replacer.Execute(context.Background(), c.actor, cmd)
+			if got := shared.AsError(err).DetailCode; got != c.code {
+				t.Errorf("refused as %q, want %q", got, c.code)
+			}
+			if len(archived.asked) != 0 || len(h.holds.stored) != 0 {
+				t.Error("a refused call read the archive or wrote something")
+			}
+		})
+	}
+
+	t.Run("an archive the backup service refuses", func(t *testing.T) {
+		h := newHoldsHarness()
+		replacer := h.replacer()
+		replacer.Archive = &archiveDouble{err: shared.ErrValidation.WithDetail("backup.restore_archive_scope_mismatch")}
+		_, err := replacer.Execute(context.Background(), operator(), ReplaceLegalHoldsCommand{
+			TenantID: tenantID, RecoveryPoint: recoveredTo,
+			Archive: &ArchiveSource{TargetID: backupTarget, Path: "another workspace's"},
+		})
+		if got := shared.AsError(err).DetailCode; got != "backup.restore_archive_scope_mismatch" {
+			t.Errorf("refused as %q", got)
+		}
+		if len(h.holds.stored) != 0 {
+			t.Error("something was written")
+		}
+	})
 }

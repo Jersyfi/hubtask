@@ -662,8 +662,10 @@ class WorkspacePasswordOpening(TypedDict, total=False):
     reason: str
 
 class LegalHoldReplaceRequest(TypedDict, total=False):
+    """The holds come with the request, read from the cluster recovered to the end of the WAL archive, or from a workspace archive the server reads where that end is unusable. Exactly one of `holds` and `archive`."""
     recovery_point: Required[str]
-    holds: Required[list["LegalHoldRecord"]]
+    holds: list["LegalHoldRecord"]
+    archive: dict[str, Any]
 
 class LegalHoldRecord(TypedDict, total=False):
     """One hold as it stood before the rewind."""
@@ -676,6 +678,7 @@ class LegalHoldRecord(TypedDict, total=False):
 
 class LegalHoldReplaceResult(TypedDict, total=False):
     holds: Required[list[dict[str, Any]]]
+    archive: dict[str, Any]
 
 class PasswordOpeningRequest(TypedDict, total=False):
     hours: int

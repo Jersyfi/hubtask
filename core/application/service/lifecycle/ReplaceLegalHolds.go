@@ -40,7 +40,41 @@ const (
 	codeRecoveryPointRequired = "lifecycle.recovery_point_required"
 	codeHoldsRequired         = "lifecycle.holds_required"
 	codeTooManyHolds          = "lifecycle.too_many_holds"
+	codeHoldsSourceAmbiguous  = "lifecycle.holds_source_ambiguous"
+	codeHoldArchiveIncomplete = "lifecycle.hold_archive_incomplete"
 )
+
+// HoldArchive reads the fallback source of a point-in-time recovery: a workspace archive at one of
+// the workspace's backup targets (backup-restore.md §8.5 step 5). The backup service answers it,
+// because it holds what opening an archive takes - the target's credential and the key derived
+// from the installation's master key.
+type HoldArchive interface {
+	// Read answers the holds the archive carries, under the workspace's scope. An archive that is
+	// not the workspace's own is refused.
+	Read(ctx context.Context, scope persistence.Scope, source ArchiveSource) (ArchivedHolds, error)
+}
+
+// ArchiveSource names one archive at one target.
+type ArchiveSource struct {
+	TargetID shared.ID
+	Path     string
+}
+
+// ArchivedHolds is what an archive gave back, and how far it reaches.
+type ArchivedHolds struct {
+	Holds []HoldRecord
+	Path  string
+	// SnapshotAt is when the archive was taken: a hold placed between it and the loss is not in
+	// it, which is the gap the operator reports per workspace.
+	SnapshotAt time.Time
+	// AuditTrail is whether the archive includes the trail, whose entries name the holds its own
+	// copy of the workspace no longer carries.
+	AuditTrail bool
+	// UnreadableEntries counts the records of a hold, in the archive's copy or its trail, that name
+	// too little to place it again. Left out rather than refused: one damaged record must not cost
+	// the other holds.
+	UnreadableEntries int
+}
 
 // Workspace is the one question the re-placement asks of the workspace itself: whether it is
 // there. The admin context's tenant store answers it.
@@ -51,15 +85,17 @@ type Workspace interface {
 // ReplaceLegalHolds places the legal holds of a rewound period again, after a point-in-time
 // recovery and before traffic is admitted (backup-restore.md §8.5 step 5, data-protection.md §5).
 //
-// The holds arrive from outside the recovered database - which source is the procedure's question,
-// not this use case's - and each is placed as it was: the same identifier, scope, reason, placer
-// and moment. One released in the rewound period is placed in force all the same, and reported so
+// The holds arrive from outside the recovered database - with the request, read by the operator
+// from the cluster recovered to the end of the WAL archive, or read here from a workspace archive
+// where that end is unusable - and each is placed as it was: the same identifier, scope, reason,
+// placer and moment. One released in the rewound period is placed in force all the same, and reported so
 // that its owner releases it again. One the workspace already has is left alone, so a second run
 // changes nothing. One whose target the recovery removed is placed anyway and reported: it protects
 // nothing until the target comes back, and refusing it would drop a hold a later restore may need.
 type ReplaceLegalHolds struct {
 	Holds      Holds
 	Workspaces Workspace
+	Archive    HoldArchive
 }
 
 // HoldRecord is one hold as it stood before the rewind.
@@ -78,7 +114,16 @@ type HoldRecord struct {
 type ReplaceLegalHoldsCommand struct {
 	TenantID      shared.ID
 	RecoveryPoint time.Time
-	Holds         []HoldRecord
+	// Holds or Archive, never both.
+	Holds   []HoldRecord
+	Archive *ArchiveSource
+}
+
+// ReplaceResult is what one run did, and - when the holds came from an archive - how far that
+// archive reaches.
+type ReplaceResult struct {
+	Holds   []Replacement
+	Archive *ArchivedHolds
 }
 
 // ReplacementOutcome says what this run did with one hold.
@@ -102,20 +147,35 @@ type Replacement struct {
 // Execute places the holds again and answers what happened to each, in the order given.
 func (h ReplaceLegalHolds) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd ReplaceLegalHoldsCommand,
-) ([]Replacement, error) {
+) (ReplaceResult, error) {
 	if err := actor.RequireScope(operatorScope); err != nil {
-		return nil, err
+		return ReplaceResult{}, err
 	}
 	if cmd.TenantID.IsZero() {
-		return nil, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
+		return ReplaceResult{}, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
 	}
-	holds, err := h.validated(cmd)
+	if cmd.RecoveryPoint.IsZero() {
+		return ReplaceResult{}, shared.ErrValidation.WithDetail(codeRecoveryPointRequired).
+			WithFields(shared.FieldError{Path: "/recovery_point", Code: codeRecoveryPointRequired})
+	}
+	scope := persistenceScope(cmd.TenantID, actor)
+
+	result := ReplaceResult{}
+	records := cmd.Holds
+	if cmd.Archive != nil {
+		archived, err := h.fromArchive(ctx, scope, cmd)
+		if err != nil {
+			return ReplaceResult{}, err
+		}
+		result.Archive, records = &archived, archived.Holds
+	} else if err := bounded(records); err != nil {
+		return ReplaceResult{}, err
+	}
+	holds, err := h.validated(records)
 	if err != nil {
-		return nil, err
+		return ReplaceResult{}, err
 	}
 
-	var replaced []Replacement
-	scope := persistenceScope(cmd.TenantID, actor)
 	err = h.Holds.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		if _, err := h.Workspaces.Find(ctx); err != nil {
 			if errors.Is(err, shared.ErrNotFound) {
@@ -128,39 +188,64 @@ func (h ReplaceLegalHolds) Execute(
 		if err := h.Holds.Holds.Lock(ctx); err != nil {
 			return err
 		}
-		replaced = make([]Replacement, 0, len(holds))
+		result.Holds = make([]Replacement, 0, len(holds))
 		for i, hold := range holds {
-			outcome, err := h.replace(ctx, actor, cmd, hold, !cmd.Holds[i].ReleasedAt.IsZero())
+			outcome, err := h.replace(ctx, actor, cmd, hold, !records[i].ReleasedAt.IsZero())
 			if err != nil {
 				return err
 			}
-			replaced = append(replaced, outcome)
+			result.Holds = append(result.Holds, outcome)
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return ReplaceResult{}, err
 	}
-	return replaced, nil
+	return result, nil
+}
+
+// fromArchive reads the holds of the archive the command names. Outside the transaction: a target
+// is somebody else's machine, and a transaction waiting on it would hold a connection the API
+// shares. An archive that carries no hold is an answer, not a refusal - the gap it reports is the
+// operator's to act on.
+func (h ReplaceLegalHolds) fromArchive(
+	ctx context.Context, scope persistence.Scope, cmd ReplaceLegalHoldsCommand,
+) (ArchivedHolds, error) {
+	switch {
+	case len(cmd.Holds) > 0:
+		return ArchivedHolds{}, shared.ErrValidation.WithDetail(codeHoldsSourceAmbiguous).
+			WithFields(shared.FieldError{Path: "/archive", Code: codeHoldsSourceAmbiguous})
+	case cmd.Archive.TargetID.IsZero():
+		return ArchivedHolds{}, shared.ErrValidation.WithDetail(codeHoldArchiveIncomplete).
+			WithFields(shared.FieldError{Path: "/archive/target_id", Code: codeHoldArchiveIncomplete})
+	case cmd.Archive.Path == "":
+		return ArchivedHolds{}, shared.ErrValidation.WithDetail(codeHoldArchiveIncomplete).
+			WithFields(shared.FieldError{Path: "/archive/path", Code: codeHoldArchiveIncomplete})
+	case h.Archive == nil:
+		return ArchivedHolds{}, shared.ErrInternal.WithDetail("lifecycle.hold_archive_not_wired")
+	}
+	return h.Archive.Read(ctx, scope, *cmd.Archive)
+}
+
+// bounded refuses an empty or oversized list of holds sent with the request.
+func bounded(records []HoldRecord) error {
+	switch {
+	case len(records) == 0:
+		return shared.ErrValidation.WithDetail(codeHoldsRequired).
+			WithFields(shared.FieldError{Path: "/holds", Code: codeHoldsRequired})
+	case len(records) > maxReplacedHolds:
+		return shared.ErrValidation.WithDetail(codeTooManyHolds).
+			WithParams(map[string]string{"maximum": strconv.Itoa(maxReplacedHolds)}).
+			WithFields(shared.FieldError{Path: "/holds", Code: codeTooManyHolds})
+	}
+	return nil
 }
 
 // validated turns the records into holds, refusing the whole call over one bad record: a partial
 // re-placement would leave the operator working out which half went in.
-func (h ReplaceLegalHolds) validated(cmd ReplaceLegalHoldsCommand) ([]domain.LegalHold, error) {
-	switch {
-	case cmd.RecoveryPoint.IsZero():
-		return nil, shared.ErrValidation.WithDetail(codeRecoveryPointRequired).
-			WithFields(shared.FieldError{Path: "/recovery_point", Code: codeRecoveryPointRequired})
-	case len(cmd.Holds) == 0:
-		return nil, shared.ErrValidation.WithDetail(codeHoldsRequired).
-			WithFields(shared.FieldError{Path: "/holds", Code: codeHoldsRequired})
-	case len(cmd.Holds) > maxReplacedHolds:
-		return nil, shared.ErrValidation.WithDetail(codeTooManyHolds).
-			WithParams(map[string]string{"maximum": strconv.Itoa(maxReplacedHolds)}).
-			WithFields(shared.FieldError{Path: "/holds", Code: codeTooManyHolds})
-	}
-	holds := make([]domain.LegalHold, 0, len(cmd.Holds))
-	for i, record := range cmd.Holds {
+func (h ReplaceLegalHolds) validated(records []HoldRecord) ([]domain.LegalHold, error) {
+	holds := make([]domain.LegalHold, 0, len(records))
+	for i, record := range records {
 		hold, err := domain.ReplacedLegalHold(domain.ReplacedHoldInput{
 			ID: record.ID, Scope: record.Scope, ScopeID: record.ScopeID, Reason: record.Reason,
 			PlacedBy: record.PlacedBy, PlacedAt: record.PlacedAt, Text: h.Holds.Text,
@@ -247,10 +332,16 @@ func (h ReplaceLegalHolds) Descriptor() usecase.Descriptor {
 				Description: "The moment the installation was recovered to, RFC 3339.",
 			},
 			{
-				Name: "holds", Kind: usecase.KindList, Required: true,
+				Name: "holds", Kind: usecase.KindList,
 				Description: "The holds as they stood before the rewind, at most 1000: each with " +
 					"id, scope (kind and id), reason, placed_by, placed_at and, if it was released " +
-					"in the rewound period, released_at.",
+					"in the rewound period, released_at. Or archive, not both.",
+			},
+			{
+				Name: "archive", Kind: usecase.KindObject,
+				Description: "Where the end of the WAL archive is unusable: a workspace archive " +
+					"(target_id and path) whose holds and whose trail's placed holds are read. The " +
+					"answer says when it was taken - a hold placed after that is not in it.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -288,19 +379,36 @@ func (h ReplaceLegalHolds) invoke(
 		}
 		cmd.Holds = append(cmd.Holds, record)
 	}
+	if source, given := in["archive"].(map[string]any); given {
+		path, _ := source["path"].(string)
+		cmd.Archive = &ArchiveSource{Path: path}
+		if raw, _ := source["target_id"].(string); raw != "" {
+			if cmd.Archive.TargetID, err = shared.ParseID(raw); err != nil {
+				return nil, shared.ErrValidation.WithDetail(codeHoldArchiveIncomplete).
+					WithFields(shared.FieldError{Path: "/archive/target_id", Code: codeHoldArchiveIncomplete})
+			}
+		}
+	}
 
-	replaced, err := h.Execute(ctx, actor, cmd)
+	result, err := h.Execute(ctx, actor, cmd)
 	if err != nil {
 		return nil, err
 	}
-	rows := make([]any, 0, len(replaced))
-	for _, r := range replaced {
+	rows := make([]any, 0, len(result.Holds))
+	for _, r := range result.Holds {
 		rows = append(rows, usecase.Output{
 			"id": r.ID.String(), "outcome": string(r.Outcome),
 			"target_present": r.TargetPresent, "released_in_period": r.ReleasedInPeriod,
 		})
 	}
-	return usecase.Output{"holds": rows}, nil
+	out := usecase.Output{"holds": rows}
+	if from := result.Archive; from != nil {
+		out["archive"] = usecase.Output{
+			"path": from.Path, "snapshot_at": from.SnapshotAt.UTC().Format(time.RFC3339Nano),
+			"audit_trail": from.AuditTrail, "unreadable_entries": from.UnreadableEntries,
+		}
+	}
+	return out, nil
 }
 
 // holdRecordOf reads one hold record as the channels deliver it: a JSON object of strings.

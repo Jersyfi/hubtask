@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	openapitypes "github.com/oapi-codegen/runtime/types"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -113,20 +114,25 @@ func recordOf(hold domain.LegalHold) (openapi.LegalHoldRecord, error) {
 	return record, nil
 }
 
-// adminTenantReplaceHolds places the holds of a rewound period again, in batches the operation
-// accepts. Each batch is idempotent on the holds' identifiers, so a run cut short is run again.
+// adminTenantReplaceHolds places the holds of a rewound period again. Holds read here go in batches
+// the operation accepts, each idempotent on the holds' identifiers, so a run cut short is run
+// again; an archive is read by the server, which holds its key, in one call.
 func adminTenantReplaceHolds(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "admin tenant replace-holds <id> --recovery-point <time> (--from-cluster <dsn> | --from <file>)"
+	const sources = "(--from-cluster <dsn> | --from-archive <path> --target <id> | --from <file>)"
+	const usage = "admin tenant replace-holds <id> --recovery-point <time> " + sources
 	tenantID, rest, err := cli.takeID(args, usage)
 	if err != nil {
 		return err
 	}
-	flags := commandFlags(cli, "admin tenant", "replace-holds",
-		"<id> --recovery-point <time> (--from-cluster <dsn> | --from <file>)")
+	flags := commandFlags(cli, "admin tenant", "replace-holds", "<id> --recovery-point <time> "+sources)
 	recoveryPoint := flags.String("recovery-point", "", "the moment the installation was recovered to, RFC 3339")
 	fromCluster := flags.String("from-cluster", "",
 		"the connection string of the temporary cluster recovered to the end of the WAL archive; "+
 			"its password belongs in PGPASSWORD or a password file, not here")
+	fromArchive := flags.String("from-archive", "",
+		"where the end of the WAL archive is unusable: the path of the workspace's newest archive "+
+			"that includes the audit trail, as `hubctl backup ls` shows it")
+	target := flags.String("target", "", "the backup target the archive lies at")
 	from := flags.String("from", "", "a file of the holds as they stood before the rewind")
 	if err := parseCommand(flags, rest); err != nil {
 		return err
@@ -139,20 +145,35 @@ func adminTenantReplaceHolds(ctx context.Context, cli *CLI, args []string) error
 		return usagef("--recovery-point is not an RFC 3339 moment: %q", *recoveryPoint)
 	}
 
-	var source holdSource
-	switch {
-	case *fromCluster != "" && *from != "":
-		return usagef("admin tenant replace-holds reads one source: --from-cluster or --from")
-	case *fromCluster != "":
-		source = clusterHoldSource{
-			dsn: *fromCluster, tenantID: shared.ID(tenantID.String()), read: recoveredHolds,
+	named := 0
+	for _, source := range []string{*fromCluster, *fromArchive, *from} {
+		if source != "" {
+			named++
 		}
-	case *from != "":
-		source = fileHoldSource{path: *from}
-	default:
-		return usagef("admin tenant replace-holds needs a source: --from-cluster or --from")
 	}
-	return replaceHolds(ctx, cli, tenantID.String(), point, source)
+	switch {
+	case named == 0:
+		return usagef("admin tenant replace-holds needs a source: %s", sources)
+	case named > 1:
+		return usagef("admin tenant replace-holds reads one source: %s", sources)
+	case *fromArchive != "":
+		if *target == "" {
+			return usagef("--from-archive needs --target, the backup target the archive lies at")
+		}
+		targetID, err := cli.parseID("--target", *target)
+		if err != nil {
+			return err
+		}
+		return replaceFromArchive(ctx, cli, tenantID.String(), point, targetID, *fromArchive)
+	case *target != "":
+		return usagef("--target belongs to --from-archive")
+	case *fromCluster != "":
+		return replaceHolds(ctx, cli, tenantID.String(), point, clusterHoldSource{
+			dsn: *fromCluster, tenantID: shared.ID(tenantID.String()), read: recoveredHolds,
+		})
+	default:
+		return replaceHolds(ctx, cli, tenantID.String(), point, fileHoldSource{path: *from})
+	}
 }
 
 func replaceHolds(
@@ -162,26 +183,63 @@ func replaceHolds(
 	if err != nil {
 		return err
 	}
+	var all openapi.LegalHoldReplaceResult
 	if len(records) == 0 {
-		return usagef("the source holds no legal hold to place again")
+		// Nothing was placed after the recovery point, or nothing at all: an answer, not a mistake.
+		printf(cli.Err, "the source holds no legal hold of workspace %s; nothing to place again\n", tenantID)
+		return cli.Emit(all, replacedTable(all))
 	}
 
 	client, err := cli.client()
 	if err != nil {
 		return err
 	}
-	var all openapi.LegalHoldReplaceResult
 	for start := 0; start < len(records); start += replaceBatch {
 		end := min(start+replaceBatch, len(records))
+		batch := records[start:end]
 		var answered openapi.LegalHoldReplaceResult
 		if err := client.Post(ctx, adminTenantsPath+"/"+tenantID+":replace-legal-holds",
-			openapi.LegalHoldReplaceRequest{RecoveryPoint: point, Holds: records[start:end]},
+			openapi.LegalHoldReplaceRequest{RecoveryPoint: point, Holds: &batch},
 			&answered); err != nil {
 			return err
 		}
 		all.Holds = append(all.Holds, answered.Holds...)
 	}
 	return cli.Emit(all, replacedTable(all))
+}
+
+// replaceFromArchive has the server read the archive and place its holds, and says where the gap
+// begins: a hold placed after the archive was taken is not in it, and the operator reports that
+// per workspace (backup-restore.md §8.5 step 5).
+func replaceFromArchive(
+	ctx context.Context, cli *CLI, tenantID string, point time.Time, targetID openapitypes.UUID, path string,
+) error {
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	request := openapi.LegalHoldReplaceRequest{RecoveryPoint: point}
+	request.Archive = &struct {
+		Path     string            `json:"path"`
+		TargetId openapitypes.UUID `json:"target_id"` //nolint:revive // the generated field's name
+	}{Path: path, TargetId: targetID}
+	var answered openapi.LegalHoldReplaceResult
+	if err := client.Post(ctx, adminTenantsPath+"/"+tenantID+":replace-legal-holds", request, &answered); err != nil {
+		return err
+	}
+	if from := answered.Archive; from != nil {
+		printf(cli.Err, "workspace %s: the archive was taken at %s; a hold placed between then and the loss "+
+			"is not in it\n", tenantID, from.SnapshotAt.UTC().Format(time.RFC3339))
+		if !from.AuditTrail {
+			printf(cli.Err, "workspace %s: the archive does not include the audit trail; only the holds "+
+				"its own copy of the workspace carried were read\n", tenantID)
+		}
+		if from.UnreadableEntries > 0 {
+			printf(cli.Err, "workspace %s: %d record(s) of a hold named too little to place it again\n",
+				tenantID, from.UnreadableEntries)
+		}
+	}
+	return cli.Emit(answered, replacedTable(answered))
 }
 
 // replacedTable says per hold what happened, and the two things the operator acts on: a hold

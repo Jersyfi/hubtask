@@ -1711,6 +1711,7 @@ func run() error {
 		// The operator's step of a point-in-time recovery (backup-restore.md §8.5 step 5).
 		lifecycle.ReplaceLegalHolds{
 			Holds: legalHolds, Workspaces: postgres.NewAdminTenantRepository(),
+			Archive: backupservice.ArchivedHolds{Restorer: backupRestorer, Keys: encryptor},
 		}.Descriptor(),
 		auditservice.ListAuditEntries{
 			Trail: auditTrail, Authorizer: authorizer, Pseudonyms: privacyStore,

@@ -6102,9 +6102,15 @@ type LegalHoldRelease struct {
 	Reason string `json:"reason"`
 }
 
-// LegalHoldReplaceRequest defines model for LegalHoldReplaceRequest.
+// LegalHoldReplaceRequest The holds come with the request, read from the cluster recovered to the end of the WAL archive, or from a workspace archive the server reads where that end is unusable. Exactly one of `holds` and `archive`.
 type LegalHoldReplaceRequest struct {
-	Holds []LegalHoldRecord `json:"holds"`
+	// Archive A workspace archive at one of the workspace's backup targets. The server reads the holds it carries and the holds its audit trail records as placed, if it includes the trail; what was placed after the archive was taken is not in it.
+	Archive *struct {
+		// Path The archive's path at the target, as the listing of the target's backups answers it.
+		Path     string             `json:"path"`
+		TargetId openapi_types.UUID `json:"target_id"`
+	} `json:"archive,omitempty"`
+	Holds *[]LegalHoldRecord `json:"holds,omitempty"`
 
 	// RecoveryPoint The moment the installation was recovered to; recorded with each hold placed.
 	RecoveryPoint time.Time `json:"recovery_point"`
@@ -6112,6 +6118,18 @@ type LegalHoldReplaceRequest struct {
 
 // LegalHoldReplaceResult defines model for LegalHoldReplaceResult.
 type LegalHoldReplaceResult struct {
+	// Archive Present when the holds were read from an archive: how far that source reaches. A hold placed between `snapshot_at` and the loss is not in it.
+	Archive *struct {
+		// AuditTrail Whether the archive includes the audit trail. Without it only the holds the archive's own copy of the workspace carries are in the answer.
+		AuditTrail bool   `json:"audit_trail"`
+		Path       string `json:"path"`
+
+		// SnapshotAt The moment the archive was taken, where the gap begins.
+		SnapshotAt time.Time `json:"snapshot_at"`
+
+		// UnreadableEntries Records of a hold, in the archive's copy or its trail, that name too little to place it again; left out.
+		UnreadableEntries int `json:"unreadable_entries"`
+	} `json:"archive,omitempty"`
 	Holds []struct {
 		Id openapi_types.UUID `json:"id"`
 

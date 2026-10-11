@@ -32,8 +32,18 @@ func (c *RestController) ReplaceLegalHolds(
 		return
 	}
 
-	holds := make([]any, 0, len(body.Holds))
-	for _, hold := range body.Holds {
+	input := usecase.Input{"tenant_id": tenantID.String()}
+	if body.Archive != nil {
+		input["archive"] = map[string]any{
+			"target_id": body.Archive.TargetId.String(), "path": body.Archive.Path,
+		}
+	}
+	var records []openapi.LegalHoldRecord
+	if body.Holds != nil {
+		records = *body.Holds
+	}
+	holds := make([]any, 0, len(records))
+	for _, hold := range records {
 		scope := map[string]any{"kind": string(hold.Scope.Kind)}
 		if hold.Scope.Id != nil {
 			scope["id"] = hold.Scope.Id.String()
@@ -48,16 +58,15 @@ func (c *RestController) ReplaceLegalHolds(
 		}
 		holds = append(holds, record)
 	}
-	recoveryPoint := ""
+	if body.Holds != nil {
+		input["holds"] = holds
+	}
+	input["recovery_point"] = ""
 	if !body.RecoveryPoint.IsZero() {
-		recoveryPoint = body.RecoveryPoint.UTC().Format(time.RFC3339Nano)
+		input["recovery_point"] = body.RecoveryPoint.UTC().Format(time.RFC3339Nano)
 	}
 
-	out, err := c.UseCases.Invoke(r.Context(), replaceLegalHoldsUseCase, actorOf(r), usecase.Input{
-		"tenant_id":      tenantID.String(),
-		"recovery_point": recoveryPoint,
-		"holds":          holds,
-	})
+	out, err := c.UseCases.Invoke(r.Context(), replaceLegalHoldsUseCase, actorOf(r), input)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return

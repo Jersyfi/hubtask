@@ -14038,9 +14038,9 @@
       },
       "LegalHoldReplaceRequest": {
         "type": "object",
+        "description": "The holds come with the request, read from the cluster recovered to the end of the WAL archive, or from a workspace archive the server reads where that end is unusable. Exactly one of `holds` and `archive`.\n",
         "required": [
-          "recovery_point",
-          "holds"
+          "recovery_point"
         ],
         "properties": {
           "recovery_point": {
@@ -14054,6 +14054,24 @@
             "maxItems": 1000,
             "items": {
               "$ref": "#/components/schemas/LegalHoldRecord"
+            }
+          },
+          "archive": {
+            "type": "object",
+            "description": "A workspace archive at one of the workspace's backup targets. The server reads the holds it carries and the holds its audit trail records as placed, if it includes the trail; what was placed after the archive was taken is not in it.\n",
+            "required": [
+              "target_id",
+              "path"
+            ],
+            "properties": {
+              "target_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "path": {
+                "type": "string",
+                "description": "The archive's path at the target, as the listing of the target's backups answers it."
+              }
             }
           }
         }
@@ -14155,6 +14173,35 @@
                   "type": "boolean",
                   "description": "Whether it had been released in the rewound period - its owner releases it again."
                 }
+              }
+            }
+          },
+          "archive": {
+            "type": "object",
+            "description": "Present when the holds were read from an archive: how far that source reaches. A hold placed between `snapshot_at` and the loss is not in it.\n",
+            "required": [
+              "path",
+              "snapshot_at",
+              "audit_trail",
+              "unreadable_entries"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "snapshot_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "The moment the archive was taken, where the gap begins."
+              },
+              "audit_trail": {
+                "type": "boolean",
+                "description": "Whether the archive includes the audit trail. Without it only the holds the archive's own copy of the workspace carries are in the answer.\n"
+              },
+              "unreadable_entries": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Records of a hold, in the archive's copy or its trail, that name too little to place it again; left out."
               }
             }
           }

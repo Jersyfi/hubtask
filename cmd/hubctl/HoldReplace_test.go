@@ -174,6 +174,51 @@ func TestReplacingHoldsReadsTheTemporaryCluster(t *testing.T) {
 	}
 }
 
+// The archive is named to the server, which reads it, and the answer's gap is said per workspace:
+// from when the archive is, and that it lacked the trail.
+func TestReplacingHoldsFromAnArchiveSaysWhereTheGapBegins(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"holds":[{"id":"`+holdID+`","outcome":"PLACED",`+
+		`"target_present":true,"released_in_period":false}],"archive":{"path":"hubtask-backup-x",`+
+		`"snapshot_at":"2026-08-15T02:00:00Z","audit_trail":false,"unreadable_entries":0}}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "tenant", "replace-holds", replaceTenantID, "--recovery-point", "2026-08-16T00:00:00Z",
+		"--from-archive", "hubtask-backup-x", "--target", collectionID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	archive, _ := sent["archive"].(map[string]any)
+	if _, holds := sent["holds"]; holds || archive["path"] != "hubtask-backup-x" || archive["target_id"] != collectionID {
+		t.Errorf("sent %v", sent)
+	}
+	if !strings.Contains(errOut, "2026-08-15T02:00:00Z") || !strings.Contains(errOut, "audit trail") {
+		t.Errorf("the gap went unsaid: %q", errOut)
+	}
+	if !strings.Contains(out, "PLACED") {
+		t.Errorf("output %q", out)
+	}
+}
+
+// An archive without its target is refused before any call.
+func TestReplacingHoldsFromAnArchiveNeedsItsTarget(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	for _, args := range [][]string{
+		{"--from-archive", "hubtask-backup-x"},
+		{"--from", "holds.json", "--target", collectionID},
+	} {
+		code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", append([]string{
+			"admin", "tenant", "replace-holds", replaceTenantID, "--recovery-point", "2026-08-16T00:00:00Z",
+		}, args...)...)
+		if code != exitUsage {
+			t.Errorf("%v: exit %d, want %d: %s", args, code, exitUsage, errOut)
+		}
+	}
+}
+
 // One source at a time: a cluster and a file together are refused before anything is read.
 func TestReplacingHoldsReadsOneSource(t *testing.T) {
 	recoveredHolds = func(context.Context, string, shared.ID, time.Duration) ([]domain.LegalHold, error) {
