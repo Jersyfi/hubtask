@@ -98,10 +98,10 @@
       value={created.startPassword}
       label={t('app.people.managed_start_password', { name: created.signInName })}
       hint={t('app.people.managed_start_password_hint')}
-      revealLabel={t('app.tokens.reveal')}
-      hideLabel={t('app.tokens.hide')}
-      copyLabel={t('app.tokens.copy')}
-      copiedLabel={t('app.tokens.copied')}
+      revealLabel={t('app.people.managed_reveal')}
+      hideLabel={t('app.people.managed_hide')}
+      copyLabel={t('app.people.managed_copy')}
+      copiedLabel={t('app.people.managed_copied')}
       acknowledgementLabel={t('app.people.managed_kept')}
       notAcknowledgedReason={t('app.people.managed_keep_first')}
       dismissLabel={t('app.tokens.done')}

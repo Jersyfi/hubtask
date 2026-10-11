@@ -288,7 +288,9 @@
   <SignInCard
     title={t('app.sign_in.must_change')}
     step={{ index: 2, total: 2 }}
-    lead={t('app.sign_in.must_change_body')}
+    lead={t(session.signingInAs && !session.signingInAs.includes('@')
+      ? 'app.sign_in.must_change_own_body'
+      : 'app.sign_in.must_change_body')}
     {notice}
   >
     <form onsubmit={setNewPassword}>
