@@ -402,55 +402,60 @@
   </SignInCard>
 {:else}
   <SignInCard title={t('app.sign_in.title')} {notice}>
-    <Stack gap="250">
-      {#if form === 'email' || form === 'identifier'}
-        {@render passwordForm()}
-      {/if}
-
-      <!-- Only providers the rules name (UC-ID-01 check 5): before the rules are read, or when they
-           cannot be, the card offers nothing it cannot back - a generic button there was a way in the
-           server might refuse, and an "or" with nothing after it. -->
-      {#if providers.length > 0}
-        {#if signInRules.hasPassword}
-          <p class="or"><span>{t('app.sign_in.or')}</span></p>
+    <!-- The ways in once the rules are settled, never before (UC-ID-20 check 4): a field drawn from
+         the default reads "Email address" where a sign-in name is welcome, and a password form
+         stands where the password is off - each changing a moment later under somebody's finger. -->
+    {#if signInRules.isSettled}
+      <Stack gap="250">
+        {#if form === 'email' || form === 'identifier'}
+          {@render passwordForm()}
         {/if}
-        <Stack gap="100">
-          {#each providers as provider (provider.id)}
-            <Button
-              tone="secondary"
-              isFull
-              isBusy={oidc.isHandingOverTo(provider.id)}
-              busyLabel={t('app.sign_in.provider_working')}
-              onclick={() => void useProvider(provider.id)}
-            >
-              {#snippet lead()}
-                <ProviderMark kind={provider.kind} name={provider.display_name} />
-              {/snippet}
-              {t('app.sign_in.provider_named', { name: provider.display_name })}
-            </Button>
-          {/each}
-        </Stack>
-        {#if !signInRules.hasPassword && signInRules.isServed}
-          <p class="forgot">
-            <!-- The way back where the password is off: a link by mail that connects the provider
-                 (ADR-0078 §1). Only where the installation serves the request, as the password's link. -->
-            <button class="link" type="button" onclick={() => (asking = true)}>
-              {t('app.sign_in.mail_link')}
-            </button>
-          </p>
-        {/if}
-      {/if}
 
-      <!-- The password switched off and a managed account here: a sign-in name keeps its password,
-           because no provider can recognise an account without an address (identity.md §4.1). After
-           the providers, which are this workspace's way in for everybody else. -->
-      {#if form === 'name'}
+        <!-- Only providers the rules name (UC-ID-01 check 5): before the rules are read, or when they
+             cannot be, the card offers nothing it cannot back - a generic button there was a way in the
+             server might refuse, and an "or" with nothing after it. -->
         {#if providers.length > 0}
-          <p class="or"><span>{t('app.sign_in.or')}</span></p>
+          {#if signInRules.hasPassword}
+            <p class="or"><span>{t('app.sign_in.or')}</span></p>
+          {/if}
+          <Stack gap="100">
+            {#each providers as provider (provider.id)}
+              <Button
+                tone="secondary"
+                isFull
+                isBusy={oidc.isHandingOverTo(provider.id)}
+                busyLabel={t('app.sign_in.provider_working')}
+                onclick={() => void useProvider(provider.id)}
+              >
+                {#snippet lead()}
+                  <ProviderMark kind={provider.kind} name={provider.display_name} />
+                {/snippet}
+                {t('app.sign_in.provider_named', { name: provider.display_name })}
+              </Button>
+            {/each}
+          </Stack>
+          {#if !signInRules.hasPassword && signInRules.isServed}
+            <p class="forgot">
+              <!-- The way back where the password is off: a link by mail that connects the provider
+                   (ADR-0078 §1). Only where the installation serves the request, as the password's link. -->
+              <button class="link" type="button" onclick={() => (asking = true)}>
+                {t('app.sign_in.mail_link')}
+              </button>
+            </p>
+          {/if}
         {/if}
-        {@render passwordForm()}
-      {/if}
-    </Stack>
+
+        <!-- The password switched off and a managed account here: a sign-in name keeps its password,
+             because no provider can recognise an account without an address (identity.md §4.1). After
+             the providers, which are this workspace's way in for everybody else. -->
+        {#if form === 'name'}
+          {#if providers.length > 0}
+            <p class="or"><span>{t('app.sign_in.or')}</span></p>
+          {/if}
+          {@render passwordForm()}
+        {/if}
+      </Stack>
+    {/if}
   </SignInCard>
 {/if}
 

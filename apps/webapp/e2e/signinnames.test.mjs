@@ -180,3 +180,61 @@ test('the password switched off and no managed account: the providers are the wh
     await done();
   }
 });
+
+// The card's first field is drawn once the rules are in hand, never before: drawn from the default,
+// it read "Email address" in a workspace with managed accounts until the answer landed, and the
+// first thing somebody saw - or a walk photographed - was the wrong field.
+async function openSlow({ names, rules, rulesStatus = 200, delay = 1200 }) {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const answer = stub({ names, sent: {}, answer: refused, rules });
+  await context.route('**/api/v1/**', async (route) => {
+    if (route.request().url().includes('/auth/sign-in-rules')) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      if (rulesStatus !== 200) return route.fulfill({ status: rulesStatus, json: { code: 'errors.internal' } });
+    }
+    return answer(route);
+  });
+  const page = await context.newPage();
+  await page.goto(origin);
+  return { page, done: async () => { await browser.close(); await close(); } };
+}
+
+test('a slow answer: the first field is drawn with the label the workspace has, not the default before it', async () => {
+  const { page, done } = await openSlow({ names: true });
+  try {
+    const field = page.locator('input[autocomplete^="username"]');
+    await field.waitFor();
+    // At the moment the field first exists - no waiting for a label to change under somebody.
+    assert.equal(await page.getByLabel('Email address or sign-in name').count(), 1);
+    assert.equal(await field.getAttribute('type'), 'text');
+  } finally {
+    await done();
+  }
+});
+
+test('a slow answer with the password off: no password form appears before the providers do', async () => {
+  const { page, done } = await openSlow({ names: false, rules: PROVIDERS_ONLY });
+  try {
+    await page.waitForSelector('text=Sign in', { state: 'visible' });
+    // While the answer is outstanding the card offers nothing it may have to take back.
+    assert.equal(await page.locator('input[autocomplete="current-password"]').count(), 0);
+    await page.getByRole('button', { name: 'Sign in with Family ID' }).waitFor();
+    assert.equal(await page.locator('input[autocomplete="current-password"]').count(), 0);
+  } finally {
+    await done();
+  }
+});
+
+test('rules that cannot be read: the card falls back to the address field and still works', async () => {
+  const { page, done } = await openSlow({ names: true, rulesStatus: 500, delay: 200 });
+  try {
+    const field = page.locator('input[autocomplete^="username"]');
+    await field.waitFor();
+    assert.equal(await field.getAttribute('type'), 'email');
+    assert.equal(await page.getByLabel('Email address or sign-in name').count(), 0);
+  } finally {
+    await done();
+  }
+});
