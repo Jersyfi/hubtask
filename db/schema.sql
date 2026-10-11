@@ -933,7 +933,9 @@ CREATE TABLE comment (
   author_id         uuid NOT NULL,
   parent_comment_id uuid,
   -- Conditional since migration 0012: a tombstone's body is empty - deletion clears the text
-  -- rather than hiding it - while a living comment carries 1 to 20000 characters.
+  -- rather than hiding it - while a living comment carries 1 to 20000 characters. A tombstone a
+  -- legal hold covers keeps its text until the retention pass clears it once no hold covers it
+  -- (data-retention.md §4); no read serves it (Comment.sql).
   body              text NOT NULL CHECK (deleted_at IS NOT NULL OR length(body) BETWEEN 1 AND 20000),
   created_at        timestamptz NOT NULL DEFAULT now(),
   edited_at         timestamptz,
@@ -952,6 +954,9 @@ CREATE UNIQUE INDEX comment_tenant_id_uq ON comment (tenant_id, id);
 ALTER TABLE comment ADD CONSTRAINT comment_parent_comment_id_fkey
     FOREIGN KEY (tenant_id, parent_comment_id) REFERENCES comment (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX comment_item_idx ON comment (tenant_id, item_id, created_at);
+-- The tombstones whose text a legal hold keeps, which the retention pass reads (migration 0122).
+CREATE INDEX comment_kept_text_idx ON comment (tenant_id, id)
+  WHERE deleted_at IS NOT NULL AND body <> '';
 
 -- Partitioned by month (multi-tenancy.md §7), constructed exactly as migration 0068
 -- leaves a converted installation: a standalone history partition carrying the old shapes, a

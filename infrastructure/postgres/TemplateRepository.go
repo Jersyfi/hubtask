@@ -214,6 +214,32 @@ func (r TemplateRepository) SetDeleted(
 	return templateConflictIfUntouched(affected, template.ID, expectedVersion)
 }
 
+// Remove deletes the template for good under the optimistic lock.
+func (r TemplateRepository) Remove(
+	ctx context.Context, template work.Template, expectedVersion int,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(template.ID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.RemoveTemplate(ctx, sqlc.RemoveTemplateParams{
+		ID: id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("removing the template %s: %w", template.ID, err))
+	}
+	return templateConflictIfUntouched(affected, template.ID, expectedVersion)
+}
+
 // insertTemplateError separates the one refusal a client can act on - the name is taken in this
 // scope - from everything else.
 func insertTemplateError(err error, template work.Template) error {
