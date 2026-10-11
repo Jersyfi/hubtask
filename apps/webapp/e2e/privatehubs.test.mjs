@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { HUB, OTHER, WORKSPACE, signedIn } from './fixture.mjs';
+import { ACCOUNT, HUB, MANIFEST, OTHER, WORKSPACE, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -112,6 +112,38 @@ test('chromium: the owner of the hub makes it private, told whom it shuts out, a
   assert.deepEqual(sent, [true, false]);
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
+});
+
+test('chromium: an owner of the hub without the right to create hubs is offered sharing only (P-05)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  let isPrivate = false;
+  // A member of the workspace, the hub's owner: MEMBER carries no STRUCTURE in the matrix.
+  await context.route('**/api/v1/meta/capabilities', (route) => route.fulfill({ json: {
+    ...MANIFEST, roles: [...MANIFEST.roles, { role: 'MEMBER', permissions: ['READ', 'WRITE_ITEMS'] }],
+  } }));
+  await context.route((url) => url.pathname.endsWith('/api/v1/memberships') && url.searchParams.get('scope_type') === 'TENANT', (route) =>
+    route.fulfill({ json: { data: [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'MEMBER' }], items: [], page: { next_cursor: null, has_more: false } } }));
+  await context.route((url) => url.pathname.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB', (route) =>
+    route.fulfill({ json: { data: [{ ...HUB, private: isPrivate }], items: [], page: { next_cursor: null, has_more: false } } }));
+  await context.route(`**/api/v1/containers/${HUB.id}`, (route) => route.fulfill({ json: { ...HUB, private: isPrivate } }));
+
+  const menuOf = async () => {
+    await page.goto(`${served.origin}/hubs/${HUB.id}`);
+    await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();
+    await page.getByRole('menu').waitFor({ timeout: 5_000 });
+    return page.getByRole('menuitem').allTextContents();
+  };
+  const shared = await menuOf();
+  assert.ok(!shared.some((each) => each.includes('Make private')), `offered ${shared}`);
+  isPrivate = true;
+  const owned = await menuOf();
+  assert.ok(owned.some((each) => each.includes('Share with the workspace')), `offered ${owned}`);
+  assert.deepEqual(failures, []);
 });
 
 test('chromium: the administration lists the private hubs - whose and how big, never a name', async (t) => {

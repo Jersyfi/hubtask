@@ -2003,7 +2003,6 @@
   "app.workspace.private_marker": "Private — only the people who hold a role in it can open it.",
   "app.workspace.make_private": "Make private",
   "app.workspace.make_shared": "Share with the workspace",
-  "app.workspace.private_owner_only": "Only an owner of this hub can change who it is open to.",
   "app.workspace.private_confirm_title": "Make {name} private?",
   "app.workspace.private_confirm_body": "Only the people who hold a role in it — on the hub, on one of its collections or on one of its entries — will open it from now on.",
   "app.workspace.private_confirm_who": "Who loses it: {names}.",

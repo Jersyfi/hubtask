@@ -65,7 +65,7 @@
   import { live } from '../lib/data/live.svelte.ts';
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
-  import { ownsHub, shutOut } from '../lib/workspace/privacy.ts';
+  import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import ItemView from './ItemView.svelte';
 
@@ -430,19 +430,26 @@
   let isTrashingNow = $state(false);
 
   /**
-   * Whether this hub is private, and whether the reader may change it (UC-ID-16).
-   *
-   * Marking and unmarking take `OWNER` held on the hub itself - a role on the workspace is exactly
-   * what a private hub stops reaching - so the control carries that reason rather than vanishing.
-   * Making one private is offered only where the workspace has somebody to keep it from
-   * (`private_hubs_offered`); sharing one again is offered wherever one is private.
+   * Which privacy control the hub's menu draws, if any (UC-ID-16): only the one the server would
+   * accept (P-05, `privacyAction`). The role on the workspace is read on its own path - along a
+   * private hub it is not in force, and it is exactly what decides the right to create hubs.
    */
   $effect(() => untrack(() => workspace.open()));
-  const isHubOwner = $derived(
-    container?.type === 'HUB' && ownsHub(people.along(containerPath), actor.account?.id, container.id),
+  const workspaceRole = $derived(
+    people
+      .along({})
+      .find((membership) => membership.account_id === actor.account?.id && membership.scope_type === 'TENANT')
+      ?.role as string | undefined,
   );
-  const isPrivacyOffered = $derived(
-    container?.type === 'HUB' && (container.private === true || workspace.workspace?.private_hubs_offered === true),
+  const privacyControl = $derived(
+    container?.type === 'HUB'
+      ? privacyAction({
+          isPrivate: container.private === true,
+          ownsHub: ownsHub(people.along(containerPath), actor.account?.id, container.id),
+          mayCreateHubs: holds(workspaceRole, 'STRUCTURE').status === 'permitted',
+          isOffered: workspace.workspace?.private_hubs_offered === true,
+        })
+      : undefined,
   );
   /** Who loses the hub when it turns private: read it through the workspace, hold nothing on it. */
   const losers = $derived(container?.type === 'HUB' ? shutOut(people.along(containerPath), container.id) : []);
@@ -594,13 +601,12 @@
                 { id: 'people', label: t('app.people.title'), icon: 'users' as const },
               ]
             : [{ id: 'people', label: t('app.people.title'), icon: 'users' as const, hasSeparatorBefore: true }]),
-          ...(isPrivacyOffered
+          ...(privacyControl
             ? [
                 {
                   id: 'privacy',
-                  label: container.private ? t('app.workspace.make_shared') : t('app.workspace.make_private'),
+                  label: privacyControl === 'make_shared' ? t('app.workspace.make_shared') : t('app.workspace.make_private'),
                   icon: 'lock' as const,
-                  disabledReason: isHubOwner ? undefined : t('app.workspace.private_owner_only'),
                 },
               ]
             : []),

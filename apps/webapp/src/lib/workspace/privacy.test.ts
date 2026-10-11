@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ownsHub, shutOut, type Held } from './privacy.ts';
+import { ownsHub, privacyAction, shutOut, type Held } from './privacy.ts';
 
 const hub = 'hub-1';
 const memberships: readonly Held[] = [
@@ -21,6 +21,16 @@ test('only an OWNER on the hub itself owns it, never a role on the workspace', (
   assert.equal(ownsHub(memberships, 'paula', hub), false, 'the workspace owner');
   assert.equal(ownsHub(memberships, 'max', hub), false, 'an owner of another hub');
   assert.equal(ownsHub(memberships, undefined, hub), false);
+});
+
+test('a privacy control is offered only where the server would accept it (P-05)', () => {
+  const base = { isPrivate: false, ownsHub: true, mayCreateHubs: true, isOffered: true };
+  assert.equal(privacyAction(base), 'make_private');
+  assert.equal(privacyAction({ ...base, mayCreateHubs: false }), undefined, 'an owner without STRUCTURE');
+  assert.equal(privacyAction({ ...base, ownsHub: false }), undefined, 'STRUCTURE without owning the hub');
+  assert.equal(privacyAction({ ...base, isOffered: false }), undefined, 'a workspace of one');
+  assert.equal(privacyAction({ ...base, isPrivate: true, mayCreateHubs: false, isOffered: false }), 'make_shared');
+  assert.equal(privacyAction({ ...base, isPrivate: true, ownsHub: false }), undefined);
 });
 
 test('who loses it is whoever reads it through the workspace and holds nothing on the hub', () => {

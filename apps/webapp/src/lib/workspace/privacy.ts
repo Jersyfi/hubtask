@@ -31,6 +31,24 @@ export function ownsHub(memberships: readonly Held[], accountId: string | undefi
 }
 
 /**
+ * Which privacy control a hub's menu offers, or none - the server's own condition, so that a
+ * control is drawn only where the server would accept it (P-05): making a hub private takes `OWNER`
+ * on the hub itself **and** the right to create hubs on the workspace (`STRUCTURE`, read from the
+ * manifest's role matrix); sharing it again takes that `OWNER` alone. Making one private is
+ * offered only where the workspace has somebody to keep it from.
+ */
+export function privacyAction(at: {
+  readonly isPrivate: boolean;
+  readonly ownsHub: boolean;
+  readonly mayCreateHubs: boolean;
+  readonly isOffered: boolean;
+}): 'make_private' | 'make_shared' | undefined {
+  if (!at.ownsHub) return undefined;
+  if (at.isPrivate) return 'make_shared';
+  return at.mayCreateHubs && at.isOffered ? 'make_private' : undefined;
+}
+
+/**
  * The people who read the hub through the workspace and hold nothing on the hub itself: who loses
  * it when it turns private.
  *

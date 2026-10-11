@@ -734,7 +734,6 @@
   "app.workspace.private_marker": "Privat – nur wer darin eine Rolle hat, kann ihn öffnen.",
   "app.workspace.make_private": "Privat machen",
   "app.workspace.make_shared": "Mit dem Arbeitsbereich teilen",
-  "app.workspace.private_owner_only": "Nur ein Eigentümer dieses Hubs kann ändern, wem er offensteht.",
   "app.workspace.private_confirm_title": "{name} privat machen?",
   "app.workspace.private_confirm_body": "Ab jetzt öffnen ihn nur noch die, die darin eine Rolle haben – am Hub, an einer seiner Sammlungen oder an einem seiner Einträge.",
   "app.workspace.private_confirm_who": "Wer ihn verliert: {names}.",
