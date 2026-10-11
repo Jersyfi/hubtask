@@ -286,3 +286,57 @@ func trackedFiles(root string) ([]string, error) {
 	}
 	return strings.Fields(out.String()), nil
 }
+
+// errataRow is a row of the errata table in docs/adr/README.md: | ADR-nnnn | cited | meant |.
+var errataRow = regexp.MustCompile(`^\|\s*\[?ADR-(\d{4})\]?(?:\([^)]*\))?\s*\|\s*([a-z0-9-]+\.md)\s*§\s*(\d+(?:\.\d+)*)\s*\|\s*([a-z0-9-]+\.md)\s*§\s*(\d+(?:\.\d+)*)\s*\|`)
+
+// linkedCitation is a section citation through a link, the way documents write it:
+// [versioning-release.md](../architecture/versioning-release.md) §2.
+var linkedCitation = regexp.MustCompile(`\[([a-z0-9-]+\.md)\]\([^)]*\)\s*§\s*(\d+(?:\.\d+)*)`)
+
+// checkADRCitations holds the section citations of the ADRs to the documents they cite. An ADR keeps
+// its text once accepted (docs/adr/README.md), so a citation that was wrong when it was written, or
+// went wrong later, is not edited: the README's errata table names the section it means, and a
+// citation it names is accepted as long as the section it means exists.
+func checkADRCitations(root string) []string {
+	files, err := trackedFiles(root)
+	if err != nil {
+		return []string{fmt.Sprintf("ADR citations: %v", err)}
+	}
+	return adrCitationProblems(files, func(file string) string { return read(root, file) }, documentSections(root, files))
+}
+
+func adrCitationProblems(files []string, content func(string) string, sections map[string]*docSections) []string {
+	errata := map[string]bool{}
+	var problems []string
+	for i, line := range strings.Split(content("docs/adr/README.md"), "\n") {
+		m := errataRow.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		errata["ADR-"+m[1]+" "+m[2]+" §"+m[3]] = true
+		if doc, ok := sections[m[4]]; !ok || !doc.has(m[5]) {
+			problems = append(problems, fmt.Sprintf("docs/adr/README.md:%d: the erratum means %s §%s, which does not exist", i+1, m[4], m[5]))
+		}
+	}
+
+	for _, file := range files {
+		name := path.Base(file)
+		if !strings.HasPrefix(file, "docs/adr/") || !adrFile.MatchString(name) {
+			continue
+		}
+		id := name[:8] // "ADR-" and its four digits
+		for i, line := range strings.Split(content(file), "\n") {
+			cited := sectionCitation.FindAllStringSubmatch(line, -1)
+			cited = append(cited, linkedCitation.FindAllStringSubmatch(line, -1)...)
+			for _, m := range cited {
+				doc, ok := sections[m[1]]
+				if m[1] == "README.md" || (ok && doc.has(m[2])) || errata[id+" "+m[1]+" §"+m[2]] {
+					continue
+				}
+				problems = append(problems, fmt.Sprintf("%s:%d: cites %s §%s, which does not exist - an accepted ADR is not edited; name the section it means in the errata table of docs/adr/README.md", file, i+1, m[1], m[2]))
+			}
+		}
+	}
+	return problems
+}
