@@ -85,6 +85,8 @@ func templateAcceptanceHarness(ctx context.Context, t *testing.T) templateAccept
 		Profiles:   postgres.NewCapabilityProfileRepository(),
 		Authorizer: authorizer, Changes: postgres.NewChangeLog(), Audit: sink,
 		UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hlc,
+		Holds: postgres.NewLifecycleRepository(), Removals: postgres.NewLifecycleRepository(),
+		TombstoneWindow: 90 * 24 * time.Hour,
 	}
 	return templateAcceptance{
 		define: work.CreateTemplate{Writer: writer},

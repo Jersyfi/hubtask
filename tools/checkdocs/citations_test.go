@@ -49,6 +49,35 @@ func TestCitations(t *testing.T) {
 	}
 }
 
+func TestADRCitations(t *testing.T) {
+	sections := map[string]*docSections{
+		"versioning-release.md": {headings: map[string]bool{"1": true, "2": true}, items: map[string]bool{}},
+	}
+	const adr = "docs/adr/ADR-0025-precondition-failures.md"
+	cases := []struct {
+		name, readme, line, want string
+	}{
+		{"a section that exists", "", "versioning-release.md §2 lists it", ""},
+		{"a section that does not exist", "", "versioning-release.md §8 lists it", "cites versioning-release.md §8"},
+		{"one through a link", "", "[versioning-release.md](../architecture/versioning-release.md) §8", "cites versioning-release.md §8"},
+		{"one the errata table names", "| ADR-0025 | versioning-release.md §8 | versioning-release.md §2 |", "versioning-release.md §8", ""},
+		{"an erratum for another ADR", "| ADR-0004 | versioning-release.md §8 | versioning-release.md §2 |", "versioning-release.md §8", "cites versioning-release.md §8"},
+		{"an erratum meaning a section that does not exist", "| ADR-0025 | versioning-release.md §8 | versioning-release.md §9 |", "versioning-release.md §8", "the erratum means versioning-release.md §9"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			content := map[string]string{"docs/adr/README.md": c.readme, adr: c.line}
+			got := strings.Join(adrCitationProblems([]string{"docs/adr/README.md", adr}, func(f string) string { return content[f] }, sections), "\n")
+			if c.want == "" && got != "" {
+				t.Fatalf("want nothing, got %s", got)
+			}
+			if c.want != "" && !strings.Contains(got, c.want) {
+				t.Fatalf("want %q, got %q", c.want, got)
+			}
+		})
+	}
+}
+
 func TestCitationScope(t *testing.T) {
 	for file, want := range map[string]bool{
 		"core/x.go":                      true,
