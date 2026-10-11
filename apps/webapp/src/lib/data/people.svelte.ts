@@ -141,6 +141,40 @@ class People {
     await this.grant({ accountId: account.id }, role, scope);
   }
 
+  /**
+   * Gives somebody without a mail address an account, and the role, in one call (ADR-0074).
+   *
+   * **One call, unlike the invitation.** The server creates the account and places it together, so
+   * a start password is never shown for somebody who then holds nothing. **No idempotency key**: the
+   * answer carries the start password, which the server keeps nowhere but as its hash - a repeat
+   * finds the name taken rather than a stored copy of the answer.
+   *
+   * The start password is handed back to the caller and kept nowhere here; the screen shows it once.
+   */
+  async createManaged(
+    signInName: string,
+    displayName: string,
+    role: MembershipRole,
+    scope: Scope,
+  ): Promise<{ readonly signInName: string; readonly startPassword: string }> {
+    const created = await stepUp.around((stepUpToken) =>
+      engine.mutate<{ account: { sign_in_name?: string | null }; start_password: string }>(
+        'POST',
+        '/accounts:create-managed',
+        {
+          display_name: displayName,
+          sign_in_name: signInName,
+          role,
+          scope_type: scope.scopeType,
+          scope_id: scope.scopeId ?? null,
+        },
+        { invalidates: TOUCHES, stepUpToken },
+      ),
+    );
+    await this.#reread(scope);
+    return { signInName: created.account.sign_in_name ?? signInName, startPassword: created.start_password };
+  }
+
   /** Revokes one grant. Only a grant made *here* can be revoked here; the row says which. */
   async revoke(membershipId: string, scope: Scope): Promise<void> {
     await stepUp.around((stepUpToken) =>

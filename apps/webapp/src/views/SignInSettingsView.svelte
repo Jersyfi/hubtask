@@ -125,6 +125,8 @@
       privacy_url: policy.legal.privacy_url.value,
       terms_url: policy.legal.terms_url.value,
       accessibility_url: policy.legal.accessibility_url.value,
+      // Absent from a server that predates it, and then not a row this form sends.
+      ...(policy.managed_accounts ? { managed_accounts: policy.managed_accounts.value } : {}),
     };
     baseline = { ...draft };
   }
@@ -517,6 +519,29 @@
               <p class="small"><a href="/administration/identity-provider">{t('app.signin_settings.configure_providers')}</a></p>
             </Stack>
           </section>
+
+          {#if policy.managed_accounts}
+            {@const managed = policy.managed_accounts}
+            <section class="panel">
+              <Stack gap="200">
+                <h2>{t('app.signin_settings.managed_title')}</h2>
+                <div data-rule>
+                  <!-- Off is the stricter value here, the other way round from the password's
+                       switches: what the level above switched off cannot be switched on. -->
+                  <Switch
+                    label={t('app.signin_settings.managed_accounts')}
+                    hint={t('app.signin_settings.managed_accounts_hint')}
+                    checked={Boolean(draft.managed_accounts)}
+                    onchange={(event) => (draft.managed_accounts = (event.currentTarget as HTMLInputElement).checked)}
+                    disabledReason={lockedBecause(managed.lock) ??
+                      (managed.installation ? undefined : t('app.signin_settings.managed_off_above'))}
+                  />
+                  {#if refusalOf('managed_accounts')}<p class="refusal" role="alert">{refusalOf('managed_accounts')}</p>{/if}
+                  {@render origin(originOf(managed, yesNo))}
+                </div>
+              </Stack>
+            </section>
+          {/if}
 
           <section class="panel">
             <Stack gap="200">

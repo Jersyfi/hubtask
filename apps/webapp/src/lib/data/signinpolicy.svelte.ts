@@ -86,6 +86,11 @@ export interface SignInPolicy {
     readonly terms_url: Setting<string>;
     readonly accessibility_url: Setting<string>;
   };
+  /**
+   * Whether owners and administrators may give somebody an account without a mail address
+   * (ADR-0074 §7). Off is the stricter value; absent from a server that predates it.
+   */
+  readonly managed_accounts?: Setting<boolean>;
   /** When everybody was last asked for a new password, or `null`. Set by the action, never typed. */
   readonly rotation_from: string | null;
 }
@@ -107,6 +112,8 @@ class SignInPolicyStore {
   #working = $state(false);
   #saved = $state(false);
   #opened = false;
+  #openers = 0;
+  #stop: (() => void) | undefined = undefined;
 
   get policy(): SignInPolicy | undefined {
     return this.#workspace?.sign_in_policy;
@@ -160,16 +167,30 @@ class SignInPolicyStore {
   }
 
   open(): () => void {
-    if (this.#opened) return () => {};
-    this.#opened = true;
-    return engine.subscribe<Workspace>({ path: TENANT }, (next) => {
-      this.#state = next;
-      if (next.status === 'failed') this.#failure = next.error;
-      if (next.status === 'ready') {
-        this.#workspace = next.data;
-        this.#failure = undefined;
-      }
-    });
+    // Counted, because two screens read the rule - the settings and *People*, for the switch on
+    // accounts without an address - and the first to close must not end the other's subscription.
+    this.#openers += 1;
+    if (!this.#opened) {
+      this.#opened = true;
+      this.#stop = engine.subscribe<Workspace>({ path: TENANT }, (next) => {
+        this.#state = next;
+        if (next.status === 'failed') this.#failure = next.error;
+        if (next.status === 'ready') {
+          this.#workspace = next.data;
+          this.#failure = undefined;
+        }
+      });
+    }
+    let closed = false;
+    return () => {
+      if (closed) return;
+      closed = true;
+      this.#openers -= 1;
+      if (this.#openers > 0) return;
+      this.#stop?.();
+      this.#stop = undefined;
+      this.#opened = false;
+    };
   }
 
   /**
