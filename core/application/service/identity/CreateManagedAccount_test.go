@@ -47,6 +47,15 @@ func (s *managedStore) InsertManaged(_ context.Context, account domain.Account, 
 	return nil
 }
 
+func (s *managedStore) HasManaged(context.Context) (bool, error) {
+	for _, account := range s.byID {
+		if account.SignInName != "" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 var _ repository.ManagedAccounts = (*managedStore)(nil)
 
 var managedID = shared.ID("01936f2a-7c1e-7000-8000-0000000000c1")

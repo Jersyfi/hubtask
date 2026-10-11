@@ -166,6 +166,10 @@ type ManagedAccounts interface {
 	// (`accounts.sign_in_name_taken`): the uniqueness is the database's, and of two administrators
 	// taking one name at once only one may win.
 	InsertManaged(ctx context.Context, account identity.Account, passwordHash string, at time.Time) error
+
+	// HasManaged answers whether the workspace has a managed account that can still sign in - what
+	// the public sign-in card's first field asks for. A boolean, never a count or a name.
+	HasManaged(ctx context.Context) (bool, error)
 }
 
 // Groups is the store of named sets of accounts.

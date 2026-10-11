@@ -135,5 +135,7 @@ func accountSummaryOutput(account domain.Account) usecase.Output {
 		"kind":         string(account.Kind),
 		"display_name": account.DisplayName,
 		"status":       string(account.Status),
+		// Whether mail reaches this person - not the address, which stays the holder's own.
+		"has_address": account.Email != "",
 	}
 }

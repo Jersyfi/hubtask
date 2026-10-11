@@ -169,6 +169,9 @@ type SignInRules struct {
 	// into the workspace works, whatever the cause (ADR-0076 §4; E2), or because an operator
 	// opened it here (ADR-0078 §3). The public card does not say which.
 	PasswordFallback bool
+	// SignInNames is whether the workspace has a managed account, so the card's first field asks
+	// for an address or a sign-in name (ADR-0074 §3) - and only there (P-10).
+	SignInNames bool
 }
 
 // PasswordRulesView is the password half, flattened to what a screen can act on.
@@ -241,6 +244,8 @@ type GetSignInRules struct {
 	Providers repository.IdentityProviders
 	// Workspaces answers which of the installation's providers this workspace took.
 	Workspaces repository.Workspaces
+	// Managed answers whether the workspace has a managed account. Nil answers no.
+	Managed repository.ManagedAccounts
 
 	UnitOfWork persistence.UnitOfWork
 	// Clock is the moment an offer is read at: an installation's provider whose withdrawal has
@@ -289,6 +294,11 @@ func (h GetSignInRules) Execute(
 		methods = append(methods, method)
 	}
 
+	names, err := h.hasSignInNames(ctx, tenantID)
+	if err != nil {
+		return SignInRules{}, err
+	}
+
 	return SignInRules{
 		WorkspaceHost:    strings.TrimSpace(cmd.Host),
 		Methods:          methods,
@@ -296,7 +306,24 @@ func (h GetSignInRules) Execute(
 		Password:         passwordRulesView(resolved, cmd.HasAccount),
 		Legal:            resolved.Legal,
 		PasswordFallback: fallback.Opens(),
+		SignInNames:      names,
 	}, nil
+}
+
+// hasSignInNames asks the workspace's own rows, under its own scope. A host without a workspace
+// answers no, which is what an undecided workspace answers (identity.md §3).
+func (h GetSignInRules) hasSignInNames(ctx context.Context, tenantID shared.ID) (bool, error) {
+	if tenantID.IsZero() || h.Managed == nil {
+		return false, nil
+	}
+	var present bool
+	err := h.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
+		func(ctx context.Context) error {
+			found, err := h.Managed.HasManaged(ctx)
+			present = found
+			return err
+		})
+	return present, err
 }
 
 // resolveTenant is SessionWriter.resolveTenant without its refusals: a host nobody answers at is
@@ -428,6 +455,7 @@ func rulesOutput(rules SignInRules) usecase.Output {
 		"legal":          legalOutput(rules.Legal),
 		// Only ever true while the password is open as ADR-0076 §4's fallback.
 		"password_fallback": rules.PasswordFallback,
+		"sign_in_names":     rules.SignInNames,
 	}
 }
 

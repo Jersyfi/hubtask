@@ -418,7 +418,17 @@ func accountSummaryResponse(out usecase.Output) openapi.AccountSummary {
 		Kind:        openapi.AccountSummaryKind(out.String("kind")),
 		DisplayName: out.String("display_name"),
 		Status:      openapi.AccountSummaryStatus(out.String("status")),
+		HasAddress:  boolPointer(out["has_address"]),
 	}
+}
+
+// boolPointer answers a projected flag, or nil where the projection did not carry it.
+func boolPointer(value any) *bool {
+	flag, held := value.(bool)
+	if !held {
+		return nil
+	}
+	return &flag
 }
 
 func accountResponse(out usecase.Output) openapi.Account {

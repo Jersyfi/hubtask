@@ -192,6 +192,21 @@ func (r AccountRepository) FindBySignInName(ctx context.Context, signInName stri
 		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
+// HasManaged answers whether the workspace has a managed account that can still sign in.
+func (r AccountRepository) HasManaged(ctx context.Context) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	present, err := queries.HasManagedAccounts(ctx)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("asking for managed accounts: %w", err))
+	}
+	return present, nil
+}
+
 // InsertManaged writes a managed account with its start password's hash and the moment it was
 // drawn, which is also the start password's mark.
 func (r AccountRepository) InsertManaged(

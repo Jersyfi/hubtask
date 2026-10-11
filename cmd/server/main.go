@@ -1338,6 +1338,8 @@ func run() error {
 			// Which of the installation's providers this workspace took: an offered one is not a
 			// button until somebody here switched it on.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			// Whether the card asks for a sign-in name too (ADR-0074 §3).
+			Managed: postgres.NewAccountRepository(),
 			// The moment an offer is read at: a withdrawn provider is not a button (ADR-0076 §2).
 			Clock:      clockadapter.System{},
 			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
