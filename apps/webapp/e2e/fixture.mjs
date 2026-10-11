@@ -76,6 +76,21 @@ export const MANIFEST = {
 export const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
 
 /**
+ * The workspace as `GET /tenant` answers it: two people, so a private hub is offered (UC-ID-16
+ * check 8). A walk about a workspace of one routes `/tenant` itself.
+ */
+export const WORKSPACE = { id: '01a0e2e0-0000-7000-8000-0000000005a1', slug: 'house', display_name: 'House', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', require_admin_totp: false, created_at: '2026-08-01T08:00:00Z', version: 1, private_hubs_offered: true };
+
+/**
+ * The private hubs as an administrator lists them: one in use, owned by the other person, and one
+ * whose last member left, in the trash. No names - the list has none to give.
+ */
+export const PRIVATE_HUBS = [
+  { id: '01a0e2e0-0000-7000-8000-0000000005b1', owners: [OTHER.id], collections: 2, entries: 14, attachment_bytes: 2_621_440, created_at: '2026-09-02T08:00:00Z', trashed_at: null, purge_on: null },
+  { id: '01a0e2e0-0000-7000-8000-0000000005b2', owners: [], collections: 1, entries: 3, attachment_bytes: 0, created_at: '2026-09-03T08:00:00Z', trashed_at: '2026-10-01T08:00:00Z', purge_on: '2026-10-31' },
+];
+
+/**
  * People's requests: one that can still be extended (the server answers its bound), one extended
  * once, one installation-wide - the operator's, which the screen offers nothing on - an erasure
  * waiting to be started, in full, and one a legal hold kept part of.
@@ -134,6 +149,11 @@ export function stub(route) {
   if (path.endsWith(`/api/v1/containers/${COLLECTION.id}`)) return route.fulfill({ json: COLLECTION });
   if (path.endsWith(`/api/v1/containers/${ARCHIVED.id}`)) return route.fulfill({ json: ARCHIVED });
   if (path.endsWith(`/api/v1/containers/${HUB.id}`)) return route.fulfill({ json: HUB });
+  if (path.endsWith(`/api/v1/containers/${HUB.id}/privacy`) && request.method() === 'PUT') {
+    return route.fulfill({ json: { ...HUB, private: request.postDataJSON().private, version: HUB.version + 1 } });
+  }
+  if (path.endsWith('/api/v1/tenant') && request.method() === 'GET') return route.fulfill({ json: WORKSPACE });
+  if (path.endsWith('/api/v1/private-hubs') && request.method() === 'GET') return route.fulfill({ json: PRIVATE_HUBS });
   if (path.endsWith('/labels')) return route.fulfill({ json: LABELS });
   if (path.endsWith('/buckets')) return route.fulfill({ json: BUCKETS });
   if (path.endsWith('/api/v1/memberships')) {
@@ -254,7 +274,7 @@ const ARRAYS = new Set([
   '/quotas', '/groups', '/retention-policies', '/oauth/clients', '/oauth/grants',
   '/auth/service-accounts', '/auth/tokens', '/auth/sessions', '/sync/devices',
   '/backup-targets', '/backup-schedules', '/backups', '/integrations/webhooks',
-  '/integrations/calendar-feeds',
+  '/integrations/calendar-feeds', '/private-hubs',
   // The provider surface, plural and read by the administration's sign-in screen. Both
   // answer a bare array, and a page envelope here is what "this.all.filter is not a function" looks
   // like from the outside.

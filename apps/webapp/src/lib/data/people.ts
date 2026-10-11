@@ -61,6 +61,16 @@ export function scopesAlong(path: Path): readonly Scope[] {
   return scopes;
 }
 
+/**
+ * The scopes whose memberships are in force along a path. A private hub is reached only through a
+ * membership on it or below it (UC-ID-16): a role on the workspace grants nothing there, so it
+ * names nobody who may be shown as a member, chosen as an assignee or listed as holding a role.
+ */
+export function scopesInForce(path: Path, isPrivate: boolean): readonly Scope[] {
+  const scopes = scopesAlong(path);
+  return isPrivate ? scopes.filter((scope) => scope.scopeType !== 'TENANT') : scopes;
+}
+
 /** The query a scope is read with. Built here so the store and its test agree on one string. */
 export function membershipsPath(scope: Scope): string {
   const query = new URLSearchParams({ scope_type: scope.scopeType });

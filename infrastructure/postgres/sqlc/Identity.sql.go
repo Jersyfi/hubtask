@@ -218,6 +218,20 @@ func (q *Queries) AdministratorsAlongPath(ctx context.Context, arg Administrator
 	return items, nil
 }
 
+const countPeople = `-- name: CountPeople :one
+SELECT count(*) FROM account
+WHERE kind = 'USER' AND status <> 'ANONYMIZED' AND deleted_at IS NULL
+`
+
+// The people of the workspace: accounts of persons that are not anonymised and not deleted. What
+// decides whether a client offers a private hub at all (UC-ID-16 check 8).
+func (q *Queries) CountPeople(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countPeople)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteGroup = `-- name: DeleteGroup :execrows
 DELETE FROM account_group WHERE id = $1
 `
@@ -517,6 +531,29 @@ func (q *Queries) GrantMembership(ctx context.Context, arg GrantMembershipParams
 	return err
 }
 
+const groupHoldsRoleUnderHub = `-- name: GroupHoldsRoleUnderHub :one
+SELECT EXISTS (
+  SELECT 1 FROM membership m
+  WHERE m.group_id IS NOT NULL
+    AND (
+      m.scope_id = $1::uuid
+      OR m.scope_id IN (SELECT c.id FROM container c WHERE c.parent_id = $1::uuid)
+      OR m.scope_id IN (
+        SELECT w.id FROM work_item w JOIN container col ON col.id = w.collection_id
+        WHERE col.parent_id = $1::uuid
+      )
+    )
+) AS held
+`
+
+// Whether a group holds a role on the hub, a collection in it, or an entry in one.
+func (q *Queries) GroupHoldsRoleUnderHub(ctx context.Context, hubID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, groupHoldsRoleUnderHub, hubID)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const groupMembers = `-- name: GroupMembers :many
 SELECT account_id FROM account_group_member WHERE group_id = $1
 `
@@ -534,6 +571,69 @@ func (q *Queries) GroupMembers(ctx context.Context, groupID pgtype.UUID) ([]pgty
 			return nil, err
 		}
 		items = append(items, account_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const holdsAnyMembership = `-- name: HoldsAnyMembership :one
+SELECT EXISTS (
+  SELECT 1 FROM membership m
+  WHERE m.account_id = $1::uuid
+     OR m.group_id IN (
+       SELECT group_id FROM account_group_member WHERE account_id = $1::uuid
+     )
+) AS held
+`
+
+// Whether the account holds a role anywhere in the tenant, directly or through a group.
+func (q *Queries) HoldsAnyMembership(ctx context.Context, accountID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAnyMembership, accountID)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const hubsOf = `-- name: HubsOf :many
+SELECT c.id AS named_id, h.id AS hub_id, h.private
+FROM container c
+JOIN container h ON h.id = CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
+WHERE c.id = ANY($1::uuid[])
+UNION ALL
+SELECT w.id AS named_id, h.id AS hub_id, h.private
+FROM work_item w
+JOIN container col ON col.id = w.collection_id
+JOIN container h ON h.id = col.parent_id
+WHERE w.id = ANY($1::uuid[])
+`
+
+type HubsOfRow struct {
+	NamedID pgtype.UUID
+	HubID   pgtype.UUID
+	Private bool
+}
+
+// The hub each named container or entry sits under, for the authoriser (domain-model.md §3.2).
+//
+// One statement for both kinds, because a path names containers and entries alike and the caller
+// should not have to know which identifier is which. Trashed and archived rows answer as they are
+// stored: a role on the hub applies to what lies in its trash as much as to the rest, and a private
+// hub's trash is as private as the hub (ADR-0073 §1).
+func (q *Queries) HubsOf(ctx context.Context, ids []pgtype.UUID) ([]HubsOfRow, error) {
+	rows, err := q.db.Query(ctx, hubsOf, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []HubsOfRow{}
+	for rows.Next() {
+		var i HubsOfRow
+		if err := rows.Scan(&i.NamedID, &i.HubID, &i.Private); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -752,6 +852,36 @@ func (q *Queries) ListMembershipsAtScope(ctx context.Context, arg ListMembership
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockHubOf = `-- name: LockHubOf :one
+SELECT h.id, h.private
+FROM container h
+WHERE h.id = (
+  SELECT CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
+  FROM container c WHERE c.id = $1::uuid
+  UNION ALL
+  SELECT col.parent_id
+  FROM work_item w JOIN container col ON col.id = w.collection_id
+  WHERE w.id = $1::uuid
+  LIMIT 1
+)
+FOR UPDATE OF h
+`
+
+type LockHubOfRow struct {
+	ID      pgtype.UUID
+	Private bool
+}
+
+// The hub a container or an entry sits under, locked for the transaction: granting a group a role
+// under a private hub and making a hub private both take this row first, so the second waits for
+// the first and sees what it wrote (ADR-0073 §1).
+func (q *Queries) LockHubOf(ctx context.Context, id pgtype.UUID) (LockHubOfRow, error) {
+	row := q.db.QueryRow(ctx, lockHubOf, id)
+	var i LockHubOfRow
+	err := row.Scan(&i.ID, &i.Private)
+	return i, err
 }
 
 const membershipsAlongPath = `-- name: MembershipsAlongPath :many

@@ -78,7 +78,7 @@ func TestARoleAtTheTenantIsFound(t *testing.T) {
 	path := []identity.Scope{identity.TenantScope(), identity.HubScope(membershipHub)}
 	memberships := membershipsAlong(ctx, t, tenantA, authorA, path)
 
-	role, found := service.EffectiveRole(memberships, path)
+	role, found := service.EffectiveRole(memberships, path, service.SharedPath)
 	if !found {
 		t.Fatalf("no role at all: %+v", memberships)
 	}
@@ -86,7 +86,7 @@ func TestARoleAtTheTenantIsFound(t *testing.T) {
 	if role != identity.RoleOwner {
 		t.Errorf("role %s, want OWNER - a right held through a group is not a lesser right", role)
 	}
-	if !service.Allows(memberships, path, service.PermissionDeleteContainer) {
+	if !service.Allows(memberships, path, service.SharedPath, service.PermissionDeleteContainer) {
 		t.Error("the owner may not delete a container")
 	}
 }
@@ -125,7 +125,7 @@ func TestMembershipsOfAnotherTenantAreInvisible(t *testing.T) {
 	}
 
 	// And the resolution then refuses, rather than falling back to some default.
-	if service.Allows(memberships, path, service.PermissionRead) {
+	if service.Allows(memberships, path, service.SharedPath, service.PermissionRead) {
 		t.Error("an account with no visible membership was allowed to read")
 	}
 }

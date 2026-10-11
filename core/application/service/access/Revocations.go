@@ -120,6 +120,18 @@ func (r Revocations) AfterContainerMoved(ctx context.Context, from, to work.Cont
 	return Loss{Accounts: accounts, Scope: identity.CollectionScope(to.ID)}, nil
 }
 
+// AfterHubMadePrivate describes who may have lost a hub by its turning private: everybody who held
+// a role on the workspace, directly or through a group - the roles a private hub no longer lets in
+// (ADR-0073 §1). Announce asks each of them again, so whoever also holds a role in the hub keeps
+// it and is told nothing.
+func (r Revocations) AfterHubMadePrivate(ctx context.Context, hub work.Container) (Loss, error) {
+	accounts, err := r.holdersAt(ctx, identity.TenantScope())
+	if err != nil {
+		return Loss{}, err
+	}
+	return Loss{Accounts: accounts, Scope: identity.HubScope(hub.ID)}, nil
+}
+
 // holdersAt is every account with a role granted at exactly the scope, through a group or not.
 func (r Revocations) holdersAt(ctx context.Context, scope identity.Scope) ([]shared.ID, error) {
 	seen := map[shared.ID]bool{}

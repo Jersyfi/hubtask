@@ -101,6 +101,34 @@ func TestCreatingAContainerSendsTheDocumentedPayload(t *testing.T) {
 	}
 }
 
+// `--private` asks for a hub of one's own (UC-ID-16 check 1); without it the field is not sent.
+func TestCreatingAPrivateHubSendsTheFlag(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":"01936f2a-7c1e-7000-8000-0000000000a1","type":"HUB",
+			"name":"Diary","version":1,"private":true}`))
+	})
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"container", "create", "--type", "HUB", "--name", "Diary", "--private")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(stub.body, `"private":true`) {
+		t.Errorf("the body %q does not ask for a private hub", stub.body)
+	}
+
+	code, _, errOut = invokeAgainst(t, stub, signedIn(stub), "",
+		"container", "create", "--type", "HUB", "--name", "Family")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if strings.Contains(stub.body, `"private"`) {
+		t.Errorf("the body %q carries a flag nobody gave", stub.body)
+	}
+}
+
 func TestCreatingAContainerNeedsATypeAndAName(t *testing.T) {
 	stub := serve(t, func(http.ResponseWriter, *http.Request) {
 		t.Error("a call was made although the invocation was incomplete")

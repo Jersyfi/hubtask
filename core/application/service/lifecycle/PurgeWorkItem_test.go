@@ -112,6 +112,7 @@ func (s *containerStore) LastOrderKey(context.Context, shared.ID) (string, error
 func (s *containerStore) Insert(context.Context, work.Container) error             { return nil }
 func (s *containerStore) SetAttributes(context.Context, work.Container, int) error { return nil }
 func (s *containerStore) SetPolicies(context.Context, work.Container, int) error   { return nil }
+func (s *containerStore) SetPrivate(context.Context, work.Container, int) error    { return nil }
 func (s *containerStore) SetArchived(context.Context, work.Container, int) error   { return nil }
 func (s *containerStore) TrashSubtree(context.Context, workrepo.ContainerTrash) (workrepo.Cascade, error) {
 	return workrepo.Cascade{}, nil

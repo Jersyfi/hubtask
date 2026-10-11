@@ -113,6 +113,10 @@ func (c *containers) SetPolicies(_ context.Context, container domain.Container, 
 	return c.write("policies", container, expected)
 }
 
+func (c *containers) SetPrivate(_ context.Context, container domain.Container, expected int) error {
+	return c.write("private", container, expected)
+}
+
 func (c *containers) SetArchived(_ context.Context, container domain.Container, expected int) error {
 	return c.write("archived", container, expected)
 }

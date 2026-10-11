@@ -112,6 +112,46 @@ type Memberships interface {
 	// name a wider audience. Which roles those are is the role matrix's answer and not a
 	// parameter: a caller that could name VIEWER would be a caller warning everybody.
 	Administrators(ctx context.Context, path []identity.Scope) ([]shared.ID, error)
+
+	// HubsOf answers the hub each named container or entry sits under: a hub answers itself, a
+	// collection its parent, an entry its collection's parent. An identifier that names nothing in
+	// the transaction's tenant is absent from the answer rather than an error.
+	//
+	// It exists so that the authoriser judges a path by storage rather than by how carefully its
+	// caller built it: a path that names a collection without its hub is completed here, and
+	// whether the path runs through a private hub is read here rather than carried by the path.
+	HubsOf(ctx context.Context, ids []shared.ID) (map[shared.ID]Hub, error)
+
+	// HoldsAny answers whether the account holds a role anywhere in the workspace, directly or
+	// through a group: what a person needs to make a private hub of their own (ADR-0073 §2).
+	HoldsAny(ctx context.Context, accountID shared.ID) (bool, error)
+}
+
+// HubLocks guards the two writes that must not interleave on a private hub: a group granted a role
+// on it or below it, and the hub being made private (ADR-0073 §1, identity.md §22). Both take the
+// hub's row first, so one of them sees the other's result.
+type HubLocks interface {
+	// LockHubOf locks the hub the named container or entry sits under - a hub itself included - for
+	// the rest of the transaction, and answers it. Found is false when the identifier names nothing
+	// in the transaction's tenant.
+	LockHubOf(ctx context.Context, id shared.ID) (hub Hub, found bool, err error)
+
+	// GroupHoldsRoleUnder answers whether any group holds a role on the hub, on a collection in it,
+	// or on an entry in one.
+	GroupHoldsRoleUnder(ctx context.Context, hubID shared.ID) (bool, error)
+}
+
+// People counts the workspace's persons that can still act: accounts of kind USER, neither
+// anonymised nor deleted.
+type People interface {
+	CountPeople(ctx context.Context) (int, error)
+}
+
+// Hub is what the authoriser needs to know about the hub a container or an entry sits under.
+type Hub struct {
+	ID shared.ID
+	// Private is the hub's own flag (ADR-0073 §1): only a membership on it or below it reaches it.
+	Private bool
 }
 
 // Accounts is the store of people and service accounts.

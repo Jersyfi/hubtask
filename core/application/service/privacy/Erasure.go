@@ -75,6 +75,17 @@ type Eraser struct {
 	// TombstoneWindow is how long a removal's marker has to outlive it: the maximum offline
 	// window, after which a device has to resynchronise from scratch anyway.
 	TombstoneWindow time.Duration
+	// LastMember trashes a private hub the erased person was the last member of (ADR-0073 §5).
+	// Optional: wired without it, the retention pass finds the hub instead.
+	LastMember LastMember
+}
+
+// LastMember is the work context's answer to a person leaving: which private hubs they are a member
+// of, asked before their memberships go, and the trash for those nobody is left in, in the
+// erasure's transaction.
+type LastMember interface {
+	HeldBy(ctx context.Context, accountID shared.ID) ([]shared.ID, error)
+	AfterMemberLeft(ctx context.Context, tenantID shared.ID, named []shared.ID) (int, error)
 }
 
 // Erased is what one erasure did, location by location. It is what the audit entry carries and
@@ -201,8 +212,21 @@ func (e Eraser) erase(
 			return err
 		}
 
+		// Asked before the account goes: a deletion takes its memberships with it by cascade, and
+		// afterwards nothing says which hubs they were on.
+		var held []shared.ID
+		if e.LastMember != nil {
+			if held, err = e.LastMember.HeldBy(ctx, subject); err != nil {
+				return err
+			}
+		}
 		if err := e.finishAccount(ctx, subject, plan.Account, now, &erased); err != nil {
 			return err
+		}
+		if e.LastMember != nil && (erased.AccountAnonymised || erased.AccountRemoved) {
+			if _, err := e.LastMember.AfterMemberLeft(ctx, actor.TenantID, held); err != nil {
+				return err
+			}
 		}
 		return e.Kept.RecordKept(ctx, request.ID, plan.Kept, now)
 	})

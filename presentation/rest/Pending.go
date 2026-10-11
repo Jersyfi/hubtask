@@ -586,6 +586,10 @@ func (pending) UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, _
 	notAvailable(w, r)
 }
 
+func (pending) SetHubPrivacy(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.SetHubPrivacyParams) {
+	notAvailable(w, r)
+}
+
 func (pending) MoveContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.MoveContainerParams) {
 	notAvailable(w, r)
 }
@@ -1227,3 +1231,5 @@ func (pending) CancelInstanceIdentityProviderWithdrawal(
 ) {
 	notAvailable(w, r)
 }
+
+func (pending) ListPrivateHubs(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

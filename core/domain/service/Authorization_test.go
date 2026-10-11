@@ -148,7 +148,7 @@ func TestEffectiveRoleTakesTheHighestAlongThePath(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			role, found := service.EffectiveRole(c.memberships, c.path)
+			role, found := service.EffectiveRole(c.memberships, c.path, service.SharedPath)
 			if found != c.wantFound {
 				t.Fatalf("found = %v, want %v (role %q)", found, c.wantFound, role)
 			}
@@ -164,13 +164,13 @@ func TestAllows(t *testing.T) {
 	admin := []identity.Membership{grant(identity.TenantScope(), identity.RoleAdmin)}
 	member := []identity.Membership{grant(identity.HubScope(hub), identity.RoleMember)}
 
-	if !service.Allows(admin, hubPath, service.PermissionStructure) {
+	if !service.Allows(admin, hubPath, service.SharedPath, service.PermissionStructure) {
 		t.Error("an administrator may not create a container")
 	}
-	if service.Allows(member, hubPath, service.PermissionStructure) {
+	if service.Allows(member, hubPath, service.SharedPath, service.PermissionStructure) {
 		t.Error("a member may create a container")
 	}
-	if service.Allows(nil, hubPath, service.PermissionRead) {
+	if service.Allows(nil, hubPath, service.SharedPath, service.PermissionRead) {
 		t.Error("an account with no membership at all may read")
 	}
 }
@@ -253,4 +253,75 @@ func contains(permissions []service.Permission, wanted service.Permission) bool 
 		}
 	}
 	return false
+}
+
+// ADR-0073 §1 as a table: every role, held at every level of the path to an entry, on a shared and
+// on a private hub. On a private hub the workspace's roles grant nothing; a role on the hub itself
+// or below it - a collection in it, one entry in it - grants what it always granted.
+func TestAPrivateHubIsReachedOnlyFromTheHubDownwards(t *testing.T) {
+	item := shared.MustParseID("0192f000-0000-7000-8000-0000000000f1")
+	path := []identity.Scope{
+		identity.TenantScope(), identity.HubScope(hub),
+		identity.CollectionScope(collectionID), identity.ItemScope(item),
+	}
+	levels := map[string]identity.Scope{
+		"workspace":  identity.TenantScope(),
+		"hub":        identity.HubScope(hub),
+		"collection": identity.CollectionScope(collectionID),
+		"entry":      identity.ItemScope(item),
+	}
+	roles := []identity.Role{
+		identity.RoleOwner, identity.RoleAdmin, identity.RoleMember, identity.RoleContributor,
+		identity.RoleViewer, identity.RoleGuest, identity.RoleAuditor,
+	}
+
+	for level, scope := range levels {
+		for _, role := range roles {
+			for _, privacy := range []service.Privacy{service.SharedPath, service.PrivatePath} {
+				held := []identity.Membership{grant(scope, role)}
+				wantFound := privacy == service.SharedPath || level != "workspace"
+
+				name := level + "/" + string(role)
+				if privacy == service.PrivatePath {
+					name += "/private"
+				}
+				t.Run(name, func(t *testing.T) {
+					got, found := service.EffectiveRole(held, path, privacy)
+					if found != wantFound {
+						t.Fatalf("found = %v, want %v", found, wantFound)
+					}
+					if found && got != role {
+						t.Errorf("role %s, want %s", got, role)
+					}
+					// Allows reads the same memberships: whatever the role carries, and nothing on a
+					// private hub from the workspace.
+					for _, permission := range service.PermissionsOf(role) {
+						if service.Allows(held, path, privacy, permission) != wantFound {
+							t.Errorf("Allows(%s) = %v, want %v", permission, !wantFound, wantFound)
+						}
+					}
+				})
+			}
+		}
+	}
+}
+
+// A workspace role beside a role on the hub: on a private hub only the hub's counts, even when the
+// workspace's is higher - the owner of the workspace reads a private hub as what they hold in it.
+func TestOnAPrivateHubTheHubsRoleCountsAndTheWorkspacesDoesNot(t *testing.T) {
+	held := []identity.Membership{
+		grant(identity.TenantScope(), identity.RoleOwner),
+		grant(identity.HubScope(hub), identity.RoleViewer),
+	}
+
+	role, found := service.EffectiveRole(held, collectionPth, service.PrivatePath)
+	if !found || role != identity.RoleViewer {
+		t.Fatalf("role %q (found %v), want VIEWER", role, found)
+	}
+	if service.Allows(held, collectionPth, service.PrivatePath, service.PermissionWriteItems) {
+		t.Error("the workspace's ownership wrote into a private hub")
+	}
+	if !service.Allows(held, collectionPth, service.SharedPath, service.PermissionDeleteContainer) {
+		t.Error("on a shared hub the workspace's ownership stopped counting")
+	}
 }
