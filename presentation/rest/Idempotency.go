@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
 	usecase "github.com/Jersyfi/hubtask/core/application/service/idempotency"
@@ -199,11 +200,28 @@ func (c *capturedResponse) statusCode() int {
 	return c.status
 }
 
+// stored is the body kept for a replay. An answer marked `no-store` keeps none, whichever route
+// wrote it: what must not be kept by a cache must not be kept here either, and such an answer is
+// the one a credential shown once travels in - a start password, a token. The key is still
+// completed with the status, so a repeat runs nothing twice and answers the status alone. A problem
+// document is kept as before, marked or not: it carries a code and never a credential, and the guard
+// decides over its code.
 func (c *capturedResponse) stored() []byte {
-	if c.overflow {
+	secret := c.statusCode() < http.StatusBadRequest && noStore(c.Header().Get("Cache-Control"))
+	if c.overflow || secret {
 		return nil
 	}
 	return c.buffer.Bytes()
+}
+
+// noStore reads the directive from a Cache-Control value, among any others and in any case.
+func noStore(cacheControl string) bool {
+	for _, directive := range strings.Split(cacheControl, ",") {
+		if strings.EqualFold(strings.TrimSpace(directive), "no-store") {
+			return true
+		}
+	}
+	return false
 }
 
 // answer is what the guard decides over: the status, the body, and - where the body is a problem
