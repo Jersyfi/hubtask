@@ -76,6 +76,8 @@ export interface SignInRules {
    * provider the installation withdrew (ADR-0076 §4) - which the administrators' screen says.
    */
   readonly password_fallback?: boolean;
+  /** True while the workspace has a managed account: the first field takes a sign-in name too. */
+  readonly sign_in_names?: boolean;
 }
 
 /** Who is setting the password, for the rules that are about them rather than about the string. */

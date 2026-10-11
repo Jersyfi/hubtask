@@ -124,6 +124,14 @@ class SignInRulesStore {
     return this.#rules?.workspace_host;
   }
 
+  /**
+   * Whether this workspace has a managed account, so the first field asks for an address or a
+   * sign-in name (ADR-0074 §3). False until the rules are read, and false everywhere else (P-10).
+   */
+  get signInNames(): boolean {
+    return this.#rules?.sign_in_names ?? false;
+  }
+
   get isChecking(): boolean {
     return this.#checking !== undefined;
   }

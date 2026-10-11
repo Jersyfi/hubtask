@@ -1,0 +1,141 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+// The sign-in card in a workspace with managed accounts (UC-ID-20 checks 3, 4 and 6): the first
+// field takes an address or a sign-in name exactly where the workspace has one, a sign-in name
+// travels as the identifier, the forgotten-password detour says there is no mail for a name, and a
+// change the sign-in still owes after a demanded setup is the next card rather than a session.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+
+import { chromium } from 'playwright';
+
+import { serve } from './serve.mjs';
+import { ENROLLMENT, walkSetup } from './secondfactor.mjs';
+
+const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+
+const RULES = {
+  workspace_host: 'family.hubtask.eu',
+  methods: ['PASSWORD'],
+  providers: [],
+  password: {
+    min_length: 12, min_lowercase: 0, min_uppercase: 0, min_digits: 0, min_symbols: 0,
+    min_classes: 0, max_repeat: null, common_passwords: true, context_words: true,
+    breach_check: false, history_count: 0, not_current: false,
+  },
+  legal: {},
+};
+
+const MANIFEST = {
+  product_version: 'e2e', api_version: 'v1', tenancy_mode: 'multi', item_types: [], view_layouts: [],
+  supported_locales: [{ locale: 'en', direction: 'ltr' }], roles: [], limits: {},
+  features: { sign_in_rules: true },
+};
+
+function stub({ names, sent, answer }) {
+  return async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/sign-in-rules')) {
+      return route.fulfill({ json: { ...RULES, sign_in_names: names } });
+    }
+    if (path.endsWith('/api/v1/auth/password:check')) return route.fulfill({ json: { violations: [] } });
+    if (path.endsWith('/api/v1/meta/capabilities')) return route.fulfill({ json: MANIFEST });
+    if (path.endsWith('/api/v1/auth/mfa/totp:enroll')) return route.fulfill({ json: ENROLLMENT });
+    if (path.endsWith('/api/v1/auth/mfa/totp:confirm')) {
+      sent.confirm = request.postDataJSON();
+      return route.fulfill({
+        json: {
+          armed: true,
+          challenge: {
+            pending_token: 'change-1', methods: ['PASSWORD_CHANGE'],
+            expires_at: new Date(Date.now() + 300_000).toISOString(), password_rules: RULES.password,
+          },
+        },
+      });
+    }
+    if (path.endsWith('/api/v1/auth/sessions') && request.method() === 'POST') {
+      sent.signIn = request.postDataJSON();
+      return route.fulfill(answer());
+    }
+    return route.fulfill({ status: 404, json: { code: 'errors.not_found' } });
+  };
+}
+
+async function open(names, sent, answer) {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.route('**/api/v1/**', stub({ names, sent, answer }));
+  const page = await context.newPage();
+  await page.goto(origin);
+  await page.waitForSelector('text=to family.hubtask.eu');
+  return { page, done: async () => { await browser.close(); await close(); } };
+}
+
+const refused = () => ({
+  status: 401,
+  json: { code: 'errors.unauthenticated', detail_code: 'auth.sign_in_failed', status: 401, request_id: 'req_e2e' },
+});
+
+test('where the workspace has a managed account, the first field takes a sign-in name and sends it as the identifier', async () => {
+  const sent = {};
+  const { page, done } = await open(true, sent, refused);
+  try {
+    const field = page.getByLabel('Email address or sign-in name');
+    await field.waitFor();
+    assert.equal(await field.getAttribute('type'), 'text', 'an address field would refuse a name');
+    await field.fill('lena');
+    await page.locator('input[autocomplete="current-password"]').fill('wrong-start-password');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByText('Sign-in failed', { exact: false }).waitFor();
+    assert.deepEqual(sent.signIn, { identifier: 'lena', password: 'wrong-start-password' });
+
+    // The detour says once, for everybody, that a sign-in name has no mail.
+    await page.getByRole('button', { name: 'Forgot your password?' }).click();
+    await page.getByText('Signing in with a sign-in name?', { exact: false }).waitFor();
+  } finally {
+    await done();
+  }
+});
+
+test('elsewhere the card is unchanged: an address field and no sentence about names', async () => {
+  const sent = {};
+  const { page, done } = await open(false, sent, refused);
+  try {
+    const field = page.locator('input[autocomplete^="username"]');
+    await field.waitFor();
+    assert.equal(await field.getAttribute('type'), 'email');
+    assert.equal(await page.getByLabel('Email address or sign-in name').count(), 0);
+    assert.equal(await page.getByText('sign-in name', { exact: false }).count(), 0);
+    await page.getByRole('button', { name: 'Forgot your password?' }).click();
+    await page.getByRole('heading', { name: 'Reset your password' }).waitFor();
+    assert.equal(await page.getByText('Signing in with a sign-in name?', { exact: false }).count(), 0);
+  } finally {
+    await done();
+  }
+});
+
+test('a demanded setup that the password still owes a change for leads to the change, not to a session', async () => {
+  const sent = {};
+  const { page, done } = await open(true, sent, () => ({
+    status: 202,
+    json: { pending_token: 'enroll-1', methods: ['ENROLL'], expires_at: new Date(Date.now() + 300_000).toISOString() },
+  }));
+  try {
+    await page.getByLabel('Email address or sign-in name').fill('lena');
+    await page.locator('input[autocomplete="current-password"]').fill('the-start-password');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+    await walkSetup(page, sent);
+    assert.equal(sent.confirm?.pending_token, 'enroll-1');
+    // Continue leads to choosing the person's own password.
+    await page.getByLabel('New password').waitFor();
+  } finally {
+    await done();
+  }
+});

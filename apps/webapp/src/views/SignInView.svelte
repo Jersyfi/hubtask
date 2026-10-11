@@ -54,6 +54,12 @@
    * API.
    */
   const mailsALink = $derived(!signInRules.hasPassword);
+  /**
+   * Where the workspace has a managed account, the first field takes an address or a sign-in name
+   * (ADR-0074 §3) - and only there: elsewhere it stays an address field (P-10). One field either
+   * way, and one refusal whatever was typed (T-02).
+   */
+  const namesAccepted = $derived(signInRules.signInNames);
 
   const isBusy = $derived(session.status === 'verifying');
   const owed = $derived(session.secondFactorOwed);
@@ -149,7 +155,8 @@
   async function useProvider(providerId?: string): Promise<void> {
     // Remembered before the hand-over, because nothing after it runs: the browser leaves.
     if (providerId) rememberProvider(providerId);
-    const url = await oidc.begin(email, providerId);
+    // A sign-in name is no hint a provider could use: only an address travels.
+    const url = await oidc.begin(email.includes('@') ? email : '', providerId);
     // Leaving this origin entirely, so nothing after this line runs. `assign` rather than
     // `replace`: Back should return to the sign-in screen, which is where somebody who changed
     // their mind at the provider wants to be.
@@ -225,6 +232,11 @@
   >
     <form onsubmit={askForLink}>
       <Stack gap="200">
+        {#if namesAccepted}
+          <!-- One sentence for everybody, never an answer per name: whether a name exists is what
+               this card must not tell (T-02). -->
+          <p class="quiet">{t('app.password.no_mail_for_names')}</p>
+        {/if}
         <Input
           label={t('app.sign_in.email_label')}
           bind:value={email}
@@ -259,7 +271,16 @@
       {@render identity()}
       <TotpEnrollment
         pendingToken={session.pendingCredential}
-        onarmed={(pair) => pair && session.hold(pair)}
+        onarmed={(pair, owedChange) => {
+          if (pair) session.hold(pair);
+          // The factor came first; the password the sign-in began with is replaced next.
+          else if (owedChange) {
+            session.owe(owedChange.pending_token, owedChange.methods, {
+              expiresAt: owedChange.expires_at,
+              passwordRules: owedChange.password_rules,
+            });
+          }
+        }}
       />
     </Stack>
   </SignInCard>
@@ -381,11 +402,14 @@
         <form onsubmit={submit}>
           <Stack gap="200">
             <Input
-              label={t('app.sign_in.email_label')}
-              error={missingEmail ? t('app.sign_in.email_required') : undefined}
+              label={t(namesAccepted ? 'app.sign_in.identifier_label' : 'app.sign_in.email_label')}
+              error={missingEmail
+                ? t(namesAccepted ? 'app.sign_in.identifier_required' : 'app.sign_in.email_required')
+                : undefined}
               bind:value={email}
-              type="email"
+              type={namesAccepted ? 'text' : 'email'}
               autocomplete="username webauthn"
+              autocapitalize="none"
               spellcheck={false}
               isRequired
             />
@@ -498,6 +522,8 @@
   }
 
   .forgot { margin: 0; text-align: end; }
+
+  .quiet { margin: 0; color: var(--text-secondary); }
 
   .link {
     padding: 0;
