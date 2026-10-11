@@ -65,7 +65,7 @@ password opens anyway, is §17.
 
 | Rule | Detail |
 |---|---|
-| The password switch is honoured everywhere | Where the resolved methods leave the password out, every password door refuses — sign-in, the reset's request and completion, pending steps ending in a session through a password — alike for every address, stored passwords kept. The fallback of §17 is the one exception. |
+| The password switch is honoured everywhere | Where the resolved methods leave the password out, every password door refuses — sign-in, the reset's request and completion, pending steps ending in a session through a password — alike for every address, stored passwords kept. The fallback of §17 is one exception; the other is a sign-in name (an identifier without `@`, UC-ID-20): its sign-in, its `PASSWORD_CHANGE` step and its step-up stay open under the workspace's password and factor rules, while an address is refused before any lookup and an account found by name that also holds an address is refused once the password has been proved. |
 | Before the password is switched off | The switch shows how many people never signed in through a provider (`GET /tenant/accounts-without-provider`; connected, invited and service accounts not counted). |
 | The last way in cannot be switched off | Refused with `identity_provider.last_way_in`. |
 | The client follows the rules | `GET /auth/sign-in-rules` (§5.4) names the methods and providers; the card offers exactly those. |
@@ -518,6 +518,8 @@ switching off the last two ways at once.
 * Every sign-in through it is recorded in the workspace's trail with its cause (`NO_WAY_IN` or
   `OPERATOR`); the sign-in settings show it until a way in is switched on.
 * It is read wherever the ways in are resolved; no job runs.
+* A managed account (a sign-in name and no address) needs no fallback: no provider can reach it,
+  so its password door stays open whatever the workspace's methods say (§4.1).
 
 ### 17.2 The operator opens the password for one workspace
 

@@ -325,12 +325,15 @@ can carry out the procedure.**
 4. **Check what came back before admitting traffic**, with the drill's checks (`cmd/restore-drill`
    against a target time): the markers, the schema version, index and constraint validity, row
    level security forced on every tenant table, the application role still unable to bypass it.
-5. **Re-place the legal holds, then re-apply the erasures the rewind undid**: read from the audit
-   export at the backup target — outside the rewound database — the holds placed after the recovery
-   point (`lifecycle.hold_placed`, with scope and reason) and place them again, then the erasures
-   completed after it and re-run them, both before traffic is admitted (§7). The holds go first, so
-   no re-run erasure removes what one of them keeps. A hold released after the recovery point stays
-   in force — the safe side — and its owner is told to release it again
+5. **Re-place the legal holds, then re-apply the erasures the rewind undid**: recover a second,
+   temporary cluster to the end of the archive — the moment of the loss, as `cmd/restore-drill` does
+   for RT-9 — and place again every `legal_hold` row the recovered database lacks, with its original
+   id, scope, reason and placer, each recorded as `lifecycle.hold_replaced`. Where the end of the
+   archive is unusable, the source is the newest workspace archive that includes the audit trail,
+   read for `lifecycle.hold_placed`, and the gap is reported per workspace. Then the erasures
+   completed after the recovery point are re-run, both before traffic is admitted (§7). The holds go
+   first, so no re-run erasure removes what one of them keeps. A hold released after the recovery
+   point stays in force — the safe side — and its owner is told to release it again
    ([data-protection.md](./data-protection.md) §5).
 6. **Point the application at the recovered cluster** and scale back up; forward-only migrations
    take the recovered schema the rest of the way.
