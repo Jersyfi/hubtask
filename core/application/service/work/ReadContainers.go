@@ -69,7 +69,9 @@ func (h GetContainer) Execute(
 	// passes.
 	var container domain.Container
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		found, err := h.Containers.Find(ctx, query.ContainerID)
+		// findContainer's answer for a missing one, which is the authoriser's for a private hub the
+		// actor holds nothing in: the two must not be told apart (T-04).
+		found, err := findContainer(ctx, h.Containers, query.ContainerID)
 		if err != nil {
 			return err
 		}

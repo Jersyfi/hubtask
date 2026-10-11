@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -52,6 +53,20 @@ type memberships struct {
 	path   []identity.Scope
 	err    error
 	shares []shared.ID
+	// hubs is what storage says each container or entry sits under; asked records the questions.
+	hubs  map[shared.ID]identityrepository.Hub
+	asked [][]shared.ID
+	// holdsNothing makes HoldsAny answer no.
+	holdsNothing bool
+}
+
+func (m *memberships) HoldsAny(context.Context, shared.ID) (bool, error) {
+	return !m.holdsNothing, m.err
+}
+
+func (m *memberships) HubsOf(_ context.Context, ids []shared.ID) (map[shared.ID]identityrepository.Hub, error) {
+	m.asked = append(m.asked, ids)
+	return m.hubs, m.err
 }
 
 func (m *memberships) SharedItemsIn(_ context.Context, _, _ shared.ID) ([]shared.ID, error) {

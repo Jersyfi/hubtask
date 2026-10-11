@@ -28,6 +28,7 @@ func (double) LastOrderKey(context.Context, shared.ID) (string, error)  { return
 func (double) Insert(context.Context, work.Container) error             { return nil }
 func (double) SetAttributes(context.Context, work.Container, int) error { return nil }
 func (double) SetPolicies(context.Context, work.Container, int) error   { return nil }
+func (double) SetPrivate(context.Context, work.Container, int) error    { return nil }
 func (double) SetArchived(context.Context, work.Container, int) error   { return nil }
 func (double) SetPlacement(context.Context, work.Container, int) error  { return nil }
 func (double) SetRank(context.Context, work.Container, int) error       { return nil }

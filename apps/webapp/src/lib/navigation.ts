@@ -197,6 +197,9 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_holds',
     rows: [
       { id: 'quotas', icon: 'gauge', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
+      // Drawn only where a private hub exists (`administration` below): a workspace without one
+      // has nothing to show there, and a row that always opened an empty list would be noise.
+      { id: 'private-hubs', icon: 'lock', code: 'app.admin.private_hubs', path: '/administration/private-hubs', routes: ['private-hubs'] },
       { id: 'backup', icon: 'cloud-upload', code: 'app.admin.backup', path: '/administration/backup', routes: ['backup'] },
       { id: 'retention', icon: 'clock', code: 'app.admin.retention', path: '/administration/retention', routes: ['retention'] },
       { id: 'restore', icon: 'rotate-ccw', code: 'app.admin.restore', path: '/administration/restore', routes: ['restore'] },
@@ -220,6 +223,15 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     ],
   },
 ];
+
+/**
+ * The administration's navigation as this reader is shown it: the *Private hubs* row only where
+ * the server answered at least one (UC-ID-16 check 3) - none, or a refusal, and the row is absent.
+ */
+export function administration(options: { readonly hasPrivateHubs: boolean }): readonly SectionGroup[] {
+  if (options.hasPrivateHubs) return ADMINISTRATION;
+  return ADMINISTRATION.map((group) => ({ ...group, rows: group.rows.filter((row) => row.id !== 'private-hubs') }));
+}
 
 /**
  * Your settings, as a section of its own (ADR-0065 decision 3).

@@ -102,6 +102,11 @@ use, integrations, data protection cases and security-relevant administration. P
 (milestone PH): a private hub opened through the emergency access, a managed account's start
 password issued, a data subject request's deadline extended.
 
+**A private hub keeps no act out of the trail.** Whoever reads the trail sees acts in a private hub
+as every other act — actor, action, the target's identifier — and, as everywhere, never a name or
+content. The trail is the workspace's evidence (§5); a hub made private, shared again or trashed by
+the system after its last member left is an entry like any other.
+
 **Never** in the audit trail: the content of tasks, notes, comments or attachments; passwords,
 tokens or secrets in any form; full IP addresses (truncated: IPv4 /24, IPv6 /48); AI prompts and
 responses in clear text (metadata only: provider, model, purpose, scope).

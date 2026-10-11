@@ -910,6 +910,11 @@ export class HubtaskClient {
     return this.call("PATCH", "/tenant", {  }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
+  /** The workspace's private hubs, without their names */
+  listPrivateHubs(options: CallOptions = {}): Promise<operations["listPrivateHubs"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/private-hubs", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** How many people here no provider switched on here signs in */
   countAccountsWithoutProvider(options: CallOptions = {}): Promise<operations["countAccountsWithoutProvider"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/tenant/accounts-without-provider", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -1169,6 +1174,11 @@ export class HubtaskClient {
   /** PUT /containers/{containerId}/policies */
   updateContainerPolicies(containerId: string, body: NonNullable<operations["updateContainerPolicies"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateContainerPolicies"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/containers/{containerId}/policies", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** PUT /containers/{containerId}/privacy */
+  setHubPrivacy(containerId: string, body: NonNullable<operations["setHubPrivacy"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setHubPrivacy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/containers/{containerId}/privacy", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
   /** POST /containers/{containerId}:move */

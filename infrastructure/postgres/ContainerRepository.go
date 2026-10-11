@@ -188,6 +188,7 @@ func (r ContainerRepository) Insert(ctx context.Context, container work.Containe
 		OrderKey:    container.OrderKey,
 		CreatedBy:   createdBy,
 		CreatedAt:   timestampOf(container.CreatedAt),
+		Private:     container.Private,
 	})
 	if err == nil {
 		return nil
@@ -251,6 +252,28 @@ func (r ContainerRepository) SetPolicies(
 	})
 	if err != nil {
 		return containerWriteError(err, container, "writing the policies")
+	}
+	return containerConflict(affected, container, expectedVersion)
+}
+
+// SetPrivate writes whether a hub is private.
+func (r ContainerRepository) SetPrivate(
+	ctx context.Context, container work.Container, expectedVersion int,
+) error {
+	queries, id, err := containerWrite(ctx, container.ID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetContainerPrivate(ctx, sqlc.SetContainerPrivateParams{
+		Private:   container.Private,
+		UpdatedAt: timestampOf(container.UpdatedAt),
+		ID:        id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return containerWriteError(err, container, "writing the privacy")
 	}
 	return containerConflict(affected, container, expectedVersion)
 }
@@ -476,6 +499,7 @@ func containerFrom(row sqlc.FindContainerRow) (work.Container, error) {
 		CreatedAt:        timeFrom(row.CreatedAt),
 		UpdatedAt:        timeFrom(row.UpdatedAt),
 		Version:          int(row.Version),
+		Private:          row.Private,
 	}, nil
 }
 

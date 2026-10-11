@@ -442,6 +442,52 @@ func TestAnAnonymisationKeepsTheContributionsAndTheAccountRow(t *testing.T) {
 	}
 }
 
+type hubsLeft struct {
+	held  []shared.ID
+	steps *[]string
+	named [][]shared.ID
+}
+
+func (l *hubsLeft) HeldBy(context.Context, shared.ID) ([]shared.ID, error) {
+	*l.steps = append(*l.steps, "held by")
+	return l.held, nil
+}
+
+func (l *hubsLeft) AfterMemberLeft(_ context.Context, _ shared.ID, named []shared.ID) (int, error) {
+	*l.steps = append(*l.steps, "after member left")
+	l.named = append(l.named, named)
+	return len(named), nil
+}
+
+// UC-ID-16 check 6: the private hubs the person was a member of are read before the account goes -
+// a deletion takes the memberships with it - and asked about after it, in both modes.
+func TestAnErasureAsksAfterThePrivateHubsThePersonLeft(t *testing.T) {
+	hub := shared.MustParseID("0192f000-0000-7000-8000-0000000000a9")
+	for _, mode := range []domain.ErasureMode{domain.ModeFullDelete, domain.ModeAnonymize} {
+		t.Run(string(mode), func(t *testing.T) {
+			h := newErasureHarness()
+			last := &hubsLeft{held: []shared.ID{hub}, steps: &h.storage.order}
+			eraser := h.eraser()
+			eraser.LastMember = last
+
+			if _, err := eraser.Erase(context.Background(), actor(), erasureCase(mode)); err != nil {
+				t.Fatalf("erasing: %v", err)
+			}
+			if len(last.named) != 1 || !slices.Equal(last.named[0], []shared.ID{hub}) {
+				t.Fatalf("asked about %v, want the hub the person held", last.named)
+			}
+			held := slices.Index(h.storage.order, "held by")
+			after := slices.Index(h.storage.order, "after member left")
+			account := slices.IndexFunc(h.storage.order, func(step string) bool {
+				return step == "delete" || step == "anonymise"
+			})
+			if held < 0 || account < 0 || held > account || after < account {
+				t.Errorf("the steps ran %v, want the hubs read before the account and asked after", h.storage.order)
+			}
+		})
+	}
+}
+
 // The trail is exempt from erasure and pseudonymises instead (audit.md §6). The mapping is written
 // in the same transaction, because one written afterwards is a window in which the trail still
 // answers a name.

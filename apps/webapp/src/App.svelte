@@ -51,6 +51,7 @@ import ContainerView from './views/ContainerView.svelte';
   import PermissionsView from './views/PermissionsView.svelte';
   import ServiceAccountsView from './views/ServiceAccountsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
+  import PrivateHubsView from './views/PrivateHubsView.svelte';
   import BackupView from './views/BackupView.svelte';
   import RetentionView from './views/RetentionView.svelte';
   import RestoreView from './views/RestoreView.svelte';
@@ -283,6 +284,8 @@ import ContainerView from './views/ContainerView.svelte';
     <WebhooksView />
   {:else if route.name === 'quotas'}
     <QuotasView />
+  {:else if route.name === 'private-hubs'}
+    <PrivateHubsView />
   {:else if route.name === 'backup'}
     <BackupView />
   {:else if route.name === 'retention'}

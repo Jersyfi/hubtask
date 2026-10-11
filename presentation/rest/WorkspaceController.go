@@ -145,6 +145,9 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 		CreatedAt:        timeValue(out["created_at"]),
 		Version:          out.Int("version"),
 	}
+	if offered, held := out["private_hubs_offered"].(bool); held {
+		answer.PrivateHubsOffered = &offered
+	}
 	if updated, held := out["updated_at"].(time.Time); held && !updated.IsZero() {
 		answer.UpdatedAt = &updated
 	}

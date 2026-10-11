@@ -163,6 +163,8 @@ export type Account = components['schemas']['Account'];
 
 /** An account as another member of the same tenant may see it: a name and a kind, and no more. */
 export type AccountSummary = components['schemas']['AccountSummary'];
+/** A private hub as an administrator sees it: whose and how big, never its name (ADR-0073 §3). */
+export type PrivateHubSummary = components['schemas']['PrivateHubSummary'];
 /** What the installation says about itself. The frame configures from it and hard-codes nothing. */
 export type Capabilities = components['schemas']['Capabilities'];
 /**
