@@ -232,7 +232,10 @@ expected to keep sign-ins working. The export is handed outwards.
   `NEW_TENANT` (backup-restore.md §8) — the provider-migration path. The new installation's
   operator runs it, and it is accepted because no workspace there bears the manifest's identifier;
   the operator's listing at the target shows the export (backup-restore.md §8.1). The people sign in
-  again and make new tokens: an export carries no credential (§9).
+  again and make new tokens: an export carries no credential (§9). A managed account
+  ([identity.md](./identity.md) §13) arrives with its sign-in name and without a password, and has
+  no mailbox to set one through: its way in is a new start password from an owner or
+  administrator of the new workspace (identity.md §13; decided, not built).
 * **Into anything else**: apply the data files in §6's order; treat `id` as the row identity and
   the references as foreign keys; fetch media by digest. An importer that only wants the content
   can stop after `work_items`, `comments` and `media/`.

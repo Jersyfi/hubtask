@@ -93,8 +93,8 @@ the step owed; the client draws exactly the step the server names.
 
 * **One refusal.** "Wrong password" and "no such account" are the same answer byte for byte
   (`auth.sign_in_failed`); the client adds no hint.
-* **The attempt ledger** counts per account (the address as presented) **and** per IP class,
-  whether or not the account exists, storing only hashes. Three failures are free, then the delay
+* **The attempt ledger** counts per account (the address or sign-in name as presented, folded)
+  **and** per IP class, whether or not the account exists, storing only hashes. Three failures are free, then the delay
   doubles from one second to fifteen minutes; the delay is the lockout.
 * **Every door counts** — the second step, the enrolment's confirmation, a step-up, `LINK`, the
   authenticator replacement — each failure recorded in its own transaction **after** the refusing
@@ -356,21 +356,31 @@ safeguard belongs to connecting, not to the provider kind.
 
 ## 13. Managed accounts
 
-*Decided ([ADR-0074](../adr/ADR-0074-managed-accounts.md)), not built
-([UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md)).*
+*Decided ([ADR-0074](../adr/ADR-0074-managed-accounts.md));
+[UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md). The new start
+password and an address added later are decided, not built.*
 
-* An owner or administrator creates a `USER` account with a **sign-in name** instead of an address:
-  unique in the workspace, 3 to 32 characters, no `@`, compared case-insensitively after
-  normalisation.
-* Hubtask draws the start password and shows it once; the first sign-in meets `PASSWORD_CHANGE`.
-  The first field reads "Email address or sign-in name"; §4.3 and the second factor rule apply.
+* An owner or administrator creates a `USER` account with a **sign-in name** instead of an address
+  (`POST /accounts:create-managed`), and places it at a scope in the same step, through the grant's
+  own checks: unique in the workspace, 3 to 32 characters after folding (compatibility form, lower
+  case), no `@`, no whitespace or control character. An automation rule's act is refused
+  (`accounts.managed_needs_a_person`): nobody would receive the start password.
+* Hubtask draws the start password (80 bits, four groups of four in Crockford's alphabet) and
+  answers it once, marked `no-store` so no idempotency record keeps it; only its hash is stored,
+  with `start_password_at`. The first sign-in meets `PASSWORD_CHANGE`, after any factor step (§4.2);
+  every door that sets a password clears the mark, and the new password may not carry the name.
+* Sign-in takes `identifier`: with `@` an address, without a sign-in name, one lookup, one refusal
+  and the same kind of ledger subject (§4.3). The first field reads "Email address or sign-in name"
+  where the workspace has a managed account (`sign_in_names` on the sign-in rules), elsewhere
+  "Email address".
 * **The one exception to "an administrator does not recover an account":** an owner or
   administrator may issue a new start password — step-up, recorded, every session ended, next
   sign-in into `PASSWORD_CHANGE`, an armed factor still demanded.
 * What needs a mailbox says "not possible without a mailbox"; a confirmed address makes it an
   ordinary account, the sign-in name kept.
-* *Managed accounts allowed* is a workspace setting, default on, with an installation default and
-  lock (§18).
+* *Managed accounts allowed* is the sign-in switch `managed_accounts`, default on, off the stricter
+  value, with the installation's and the plan's default and lock (§18). Off stops new ones; the
+  managed accounts already there keep signing in.
 
 ---
 
