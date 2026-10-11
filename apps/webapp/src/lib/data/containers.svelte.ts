@@ -215,6 +215,8 @@ class Containers {
       description?: string | null;
       icon?: string | null;
       color_token?: string | null;
+      /** A hub only: reached by its members alone, not by the workspace's roles (UC-ID-16). */
+      private?: boolean;
     },
     idempotencyKey: string,
   ): Promise<Container> {
@@ -250,6 +252,20 @@ class Containers {
     return engine.mutate<Container>('PUT', `/containers/${id}/policies`, policies, {
       ifMatch: etagFor(version),
       invalidates: TOUCHES,
+    });
+  }
+
+  /**
+   * Makes a hub private, or shares it with the workspace again (UC-ID-16).
+   *
+   * Its own `PUT` rather than a key on the rename, because it is a different act: it takes the hub
+   * away from people, and every device that loses it is told. Read again everywhere afterwards -
+   * a hub made private disappears from the workspace's roles' lists.
+   */
+  async setPrivacy(id: string, isPrivate: boolean, version: number): Promise<Container> {
+    return engine.mutate<Container>('PUT', `/containers/${id}/privacy`, { private: isPrivate }, {
+      ifMatch: etagFor(version),
+      invalidates: [...TOUCHES, '/memberships'],
     });
   }
 

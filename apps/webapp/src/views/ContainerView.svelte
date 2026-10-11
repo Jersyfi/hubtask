@@ -20,6 +20,7 @@
     Drawer,
     EmptyState,
     focusFirst,
+    Icon,
     IconButton,
     Inline,
     Input,
@@ -64,6 +65,8 @@
   import { live } from '../lib/data/live.svelte.ts';
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import { ownsHub, shutOut } from '../lib/workspace/privacy.ts';
+  import { workspace } from '../lib/data/workspace.svelte.ts';
   import ItemView from './ItemView.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -426,6 +429,47 @@
   let isTrashing = $state(false);
   let isTrashingNow = $state(false);
 
+  /**
+   * Whether this hub is private, and whether the reader may change it (UC-ID-16).
+   *
+   * Marking and unmarking take `OWNER` held on the hub itself - a role on the workspace is exactly
+   * what a private hub stops reaching - so the control carries that reason rather than vanishing.
+   * Making one private is offered only where the workspace has somebody to keep it from
+   * (`private_hubs_offered`); sharing one again is offered wherever one is private.
+   */
+  $effect(() => untrack(() => workspace.open()));
+  const isHubOwner = $derived(
+    container?.type === 'HUB' && ownsHub(people.along(containerPath), actor.account?.id, container.id),
+  );
+  const isPrivacyOffered = $derived(
+    container?.type === 'HUB' && (container.private === true || workspace.workspace?.private_hubs_offered === true),
+  );
+  /** Who loses the hub when it turns private: read it through the workspace, hold nothing on it. */
+  const losers = $derived(container?.type === 'HUB' ? shutOut(people.along(containerPath), container.id) : []);
+  $effect(() => {
+    accounts.resolve(losers);
+  });
+  let isChangingPrivacy = $state(false);
+  let isChangingPrivacyNow = $state(false);
+
+  async function changePrivacy() {
+    if (!container) return;
+    const name = container.name;
+    const next = !container.private;
+    isChangingPrivacyNow = true;
+    failure = undefined;
+    try {
+      await containers.setPrivacy(container.id, next, container.version);
+      isChangingPrivacy = false;
+      announcer.say(t(next ? 'app.workspace.private_announced' : 'app.workspace.shared_announced', { name }));
+    } catch (error) {
+      isChangingPrivacy = false;
+      failure = renderProblem(error as TransportError, messages);
+    } finally {
+      isChangingPrivacyNow = false;
+    }
+  }
+
   async function moveToTrash() {
     if (!container) return;
     const name = container.name;
@@ -550,6 +594,16 @@
                 { id: 'people', label: t('app.people.title'), icon: 'users' as const },
               ]
             : [{ id: 'people', label: t('app.people.title'), icon: 'users' as const, hasSeparatorBefore: true }]),
+          ...(isPrivacyOffered
+            ? [
+                {
+                  id: 'privacy',
+                  label: container.private ? t('app.workspace.make_shared') : t('app.workspace.make_private'),
+                  icon: 'lock' as const,
+                  disabledReason: isHubOwner ? undefined : t('app.workspace.private_owner_only'),
+                },
+              ]
+            : []),
           {
             id: 'trash',
             label: t('app.workspace.trash'),
@@ -574,6 +628,7 @@
     else if (id === 'templates') isUsingTemplates = true;
     else if (id === 'policies') isManagingPolicies = true;
     else if (id === 'people') isManagingMembers = true;
+    else if (id === 'privacy') isChangingPrivacy = true;
     else if (id === 'trash') isTrashing = true;
   }
 
@@ -686,6 +741,9 @@
       {#snippet notices()}
         <!-- The two archive states say different things and offer different controls, which is the
              whole reason `archivalOf` distinguishes them. -->
+        {#if container.type === 'HUB' && container.private}
+          <p class="notice private"><Icon name="lock" size="sm" />{t('app.workspace.private_marker')}</p>
+        {/if}
         {#if archival === 'archived'}
           <p class="notice">{t('app.workspace.archived')}</p>
         {:else if archival === 'inherited'}
@@ -966,6 +1024,43 @@
   </Dialog>
 {/if}
 
+{#if isChangingPrivacy && container}
+  <!-- Making a hub private takes it away from people who read it today, so the confirmation names
+       them; sharing it again takes nothing from anybody and says who gets it back. -->
+  <Dialog
+    bind:isOpen={isChangingPrivacy}
+    title={container.private
+      ? t('app.workspace.shared_confirm_title', { name: container.name })
+      : t('app.workspace.private_confirm_title', { name: container.name })}
+    dismissLabel={t('app.workspace.cancel')}
+  >
+    {#if container.private}
+      <p class="notice">{t('app.workspace.shared_confirm_body')}</p>
+    {:else}
+      <p class="notice">{t('app.workspace.private_confirm_body')}</p>
+      <p class="notice">
+        {losers.length > 0
+          ? t('app.workspace.private_confirm_who', {
+              names: losers.map((each) => accounts.nameOf(each) ?? t('app.people.unnamed')).join(', '),
+            })
+          : t('app.workspace.private_confirm_anyone')}
+      </p>
+    {/if}
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isChangingPrivacy = false)}>
+        {t('app.workspace.cancel')}
+      </Button>
+      <Button
+        isBusy={isChangingPrivacyNow}
+        busyLabel={container.private ? t('app.workspace.sharing') : t('app.workspace.making_private')}
+        onclick={changePrivacy}
+      >
+        {container.private ? t('app.workspace.make_shared') : t('app.workspace.make_private')}
+      </Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
 {#if isMovingHub && container}
   <MoveDialog
     bind:isOpen={isMovingHub}
@@ -1023,6 +1118,8 @@
   }
 
   .notice { margin: 0; color: var(--text-warning); font-size: var(--fs-075); max-width: 64ch; }
+  /* Private is a fact about the hub, not a warning: said quietly, with the lock the tree shows. */
+  .notice.private { display: flex; align-items: center; gap: var(--sp-050); color: var(--text-secondary); }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 

@@ -97,7 +97,8 @@
       .map((hub) => ({
       id: hub.id,
       label: hub.name,
-      icon: 'hub' as const,
+      // A private hub wears the lock its own page explains (UC-ID-16).
+      icon: hub.private ? ('lock' as const) : ('hub' as const),
       // A hub is a branch until its level says otherwise. Whether it has collections is not known
       // before it is opened, and a hub with no twist is a hub nobody can open to find out - so it
       // carries one, and **loses it once the level has been read and is empty**: a

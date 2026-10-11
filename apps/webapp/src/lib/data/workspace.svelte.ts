@@ -36,6 +36,11 @@ export interface Workspace {
   readonly created_at: string;
   readonly updated_at?: string | null;
   readonly version: number;
+  /**
+   * Whether to offer a private hub at all: true where the workspace has more than one person.
+   * A workspace of one has nobody to keep a hub from (UC-ID-16 check 8).
+   */
+  readonly private_hubs_offered?: boolean;
 }
 
 /** What may move. Every key optional, which is what merge-patch means. */
