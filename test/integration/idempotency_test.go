@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -244,5 +245,64 @@ func TestAReleaseDoesNotFreeAnotherTenantsClaim(t *testing.T) {
 
 	if _, claimed := reserveAs(ctx, t, tenantA, key, []byte("hash-a")); claimed {
 		t.Error("tenant B's release freed tenant A's claim")
+	}
+}
+
+// The IDEMPOTENCY_KEY kind's sweep (data-retention.md §3) and its cross-tenant negative (SG-3):
+// one tenant's keys older than the cutoff go, its young ones and every other tenant's stay. Both
+// queries match on age alone, so row level security is the whole of the boundary.
+func TestTheSweepRemovesOnlyThisTenantsExpiredKeys(t *testing.T) {
+	ctx := context.Background()
+	store := postgres.NewIdempotencyStore()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	admin := adminPool(ctx, t)
+	suffix := freshID(t).String()
+
+	oldA, youngA, oldB := keyFor("sweep-old-a-"+suffix), keyFor("sweep-young-a-"+suffix), keyFor("sweep-old-b-"+suffix)
+	reserveAs(ctx, t, tenantA, oldA, []byte("hash"))
+	completeAs(ctx, t, tenantA, oldA, 201, []byte(`{"id":"1"}`))
+	reserveAs(ctx, t, tenantA, youngA, []byte("hash"))
+	reserveAs(ctx, t, tenantB, oldB, []byte("hash"))
+	// Aged by the owner, as no request can: a row is written at the database's own now.
+	if _, err := admin.Exec(ctx,
+		`UPDATE idempotency_key SET created_at = now() - interval '2 days' WHERE key = ANY($1)`,
+		[]string{oldA.Key, oldB.Key}); err != nil {
+		t.Fatalf("ageing the keys: %v", err)
+	}
+
+	cutoff := time.Now().Add(-24 * time.Hour)
+	var due, removed int
+	if err := uow.Within(ctx, persistence.Scope{TenantID: tenantA}, func(ctx context.Context) error {
+		var err error
+		if due, err = store.CountExpired(ctx, cutoff, 1000); err != nil {
+			return err
+		}
+		removed, err = store.DeleteExpired(ctx, cutoff, 1000)
+		return err
+	}); err != nil {
+		t.Fatalf("sweeping as A: %v", err)
+	}
+	if due < 1 || removed < 1 {
+		t.Errorf("A's sweep counted %d and removed %d, want at least its one old key", due, removed)
+	}
+
+	present := func(key repository.Key) bool {
+		t.Helper()
+		var found bool
+		if err := admin.QueryRow(ctx,
+			`SELECT EXISTS (SELECT 1 FROM idempotency_key WHERE key = $1 AND endpoint = $2)`,
+			key.Key, key.Endpoint).Scan(&found); err != nil {
+			t.Fatalf("reading %s: %v", key.Key, err)
+		}
+		return found
+	}
+	if present(oldA) {
+		t.Error("A's expired key survived A's sweep")
+	}
+	if !present(youngA) {
+		t.Error("A's young key was swept")
+	}
+	if !present(oldB) {
+		t.Error("A's sweep reached B's expired key")
 	}
 }

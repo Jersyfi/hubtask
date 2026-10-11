@@ -7,6 +7,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -116,4 +119,41 @@ func (s IdempotencyStore) Release(ctx context.Context, key repository.Key) error
 			WithCause(fmt.Errorf("releasing the idempotency key: %w", err))
 	}
 	return nil
+}
+
+// DeleteExpired removes one batch of keys older than the cutoff (the IDEMPOTENCY_KEY data kind,
+// data-retention.md §3). The tenant is the transaction's, through row level security.
+func (s IdempotencyStore) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	removed, err := queries.DeleteExpiredIdempotencyKeys(ctx, sqlc.DeleteExpiredIdempotencyKeysParams{
+		Cutoff: pgtype.Timestamptz{Time: cutoff, Valid: true},
+		Batch:  int32(batch), //nolint:gosec // G115: the batch size is a small configuration value
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the idempotency keys: %w", err))
+	}
+	return int(removed), nil
+}
+
+// CountExpired answers how many keys are due, up to the ceiling.
+func (s IdempotencyStore) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	due, err := queries.CountExpiredIdempotencyKeys(ctx, sqlc.CountExpiredIdempotencyKeysParams{
+		Cutoff:  pgtype.Timestamptz{Time: cutoff, Valid: true},
+		Ceiling: int32(ceiling), //nolint:gosec // G115: the ceiling is a batch size plus one
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the idempotency keys: %w", err))
+	}
+	return int(due), nil
 }
