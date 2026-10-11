@@ -91,6 +91,14 @@ func seedOrphanWorld(ctx context.Context, t *testing.T) orphanWorld {
 			t.Fatalf("seeding the workspace: %v\n%s", err, statement.sql)
 		}
 	}
+	// The mails, the dispatch and the retention a deletion queues are due at once, and a due job
+	// left behind joins every later claim in the shared database - the queue's fairness test
+	// counts them (known-traps.md, "the integration tests share one database").
+	t.Cleanup(func() {
+		if _, err := adminPool(ctx, t).Exec(ctx, `DELETE FROM job WHERE tenant_id = $1`, w.tenant.String()); err != nil {
+			t.Errorf("removing the workspace's jobs: %v", err)
+		}
+	})
 	return w
 }
 
