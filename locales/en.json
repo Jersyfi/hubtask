@@ -190,6 +190,7 @@
   "auth.password_rule.min_classes": "Characters from at least {count} of these four kinds: lowercase, uppercase, digits, other",
   "auth.password_rule.max_repeat": "{count, plural, one {No character twice in a row} other {No more than # of the same character in a row}}",
   "auth.password_rule.context_words": "Not containing your email address, your name or the workspace name",
+  "auth.password_rule.context_words_name": "Not containing your sign-in name, your name or the workspace name",
   "auth.password_rule.common": "Not a commonly used password",
   "auth.password_rule.breach": "Not found in a known breach",
   "auth.password_rule.history": "{count, plural, one {Not your previous password} other {None of your last # passwords}}",

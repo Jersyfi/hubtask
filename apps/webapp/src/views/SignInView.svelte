@@ -302,7 +302,9 @@
         <PasswordField
           bind:value={newPassword}
           label={t('app.password.new_label')}
-          context={{ email: session.signingInAs, workspaceHost: signInRules.workspaceHost }}
+          context={session.signingInAs?.includes('@') ?? true
+            ? { email: session.signingInAs, workspaceHost: signInRules.workspaceHost }
+            : { signInName: session.signingInAs, workspaceHost: signInRules.workspaceHost }}
           proof={{ kind: 'pending', token: session.pendingCredential ?? '' }}
           hint={t('app.redeem.password_hint')}
         />

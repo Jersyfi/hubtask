@@ -121,6 +121,7 @@
   "auth.password_rule.min_classes": "Zeichen aus mindestens {count} dieser vier Arten: Kleinbuchstaben, Großbuchstaben, Ziffern, andere",
   "auth.password_rule.max_repeat": "{count, plural, one {Kein Zeichen zweimal hintereinander} other {Höchstens # gleiche Zeichen hintereinander}}",
   "auth.password_rule.context_words": "Enthält nicht deine E-Mail-Adresse, deinen Namen oder den Namen des Arbeitsbereichs",
+  "auth.password_rule.context_words_name": "Enthält nicht deinen Anmeldenamen, deinen Namen oder den Namen des Arbeitsbereichs",
   "auth.password_rule.common": "Kein häufig verwendetes Passwort",
   "auth.password_rule.breach": "Nicht in einem bekannten Datenleck gefunden",
   "auth.password_rule.history": "{count, plural, one {Nicht dein vorheriges Passwort} other {Keines deiner letzten # Passwörter}}",

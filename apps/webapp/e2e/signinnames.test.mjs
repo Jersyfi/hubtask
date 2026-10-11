@@ -238,3 +238,32 @@ test('rules that cannot be read: the card falls back to the address field and st
     await done();
   }
 });
+
+// The change step's line about context words names what is compared: a sign-in name for a person
+// who signed in with one - they have no address - and the address for everybody else.
+const owesChange = () => ({
+  status: 202,
+  json: {
+    pending_token: 'change-2', methods: ['PASSWORD_CHANGE'],
+    expires_at: new Date(Date.now() + 300_000).toISOString(), password_rules: RULES.password,
+  },
+});
+
+for (const [who, typed, shown, hidden] of [
+  ['a sign-in name', 'LENA', 'Not containing your sign-in name', 'Not containing your email address'],
+  ['an address', 'anna@contoso.example', 'Not containing your email address', 'Not containing your sign-in name'],
+]) {
+  test(`the change step after ${who} names what the password is compared with`, async () => {
+    const { page, done } = await open(true, {}, owesChange);
+    try {
+      await page.getByLabel('Email address or sign-in name').fill(typed);
+      await page.locator('input[autocomplete="current-password"]').fill('the-start-password');
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await page.getByLabel('New password').waitFor();
+      await page.getByText(shown, { exact: false }).waitFor();
+      assert.equal(await page.getByText(hidden, { exact: false }).count(), 0);
+    } finally {
+      await done();
+    }
+  });
+}
