@@ -220,6 +220,7 @@ func (templateDouble) ListInScopes(
 func (templateDouble) Insert(context.Context, work.Template) error          { return nil }
 func (templateDouble) Update(context.Context, work.Template, int) error     { return nil }
 func (templateDouble) SetDeleted(context.Context, work.Template, int) error { return nil }
+func (templateDouble) Remove(context.Context, work.Template, int) error     { return nil }
 
 var _ Templates = templateDouble{}
 
