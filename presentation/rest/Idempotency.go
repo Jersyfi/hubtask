@@ -11,7 +11,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
 	usecase "github.com/Jersyfi/hubtask/core/application/service/idempotency"
@@ -22,6 +21,11 @@ import (
 
 // IdempotencyKeyHeader is the client's handle on a repeated write (api-guidelines.md §5).
 const IdempotencyKeyHeader = "Idempotency-Key"
+
+// ShownOnceHeader is how a handler marks an answer that carries a credential shown once - a start
+// password, a token: the replay record keeps its status and no body. Internal: the middleware takes
+// it off the answer before it leaves.
+const ShownOnceHeader = "X-Hubtask-Shown-Once"
 
 // ReplayedHeader tells a client that it is looking at a stored answer rather than a fresh one.
 // Not in the contract as a promise, and deliberately so: a client must behave identically either
@@ -166,11 +170,18 @@ type capturedResponse struct {
 	buffer   bytes.Buffer
 	limit    int
 	overflow bool
+	// shownOnce is the handler's mark that the answer carries a credential shown once.
+	shownOnce bool
 }
 
 func (c *capturedResponse) WriteHeader(status int) {
 	if c.written {
 		return
+	}
+	// The mark is this layer's and never the client's: read, then taken off the answer.
+	if c.Header().Get(ShownOnceHeader) != "" {
+		c.shownOnce = true
+		c.Header().Del(ShownOnceHeader)
 	}
 	c.status, c.written = status, true
 	c.ResponseWriter.WriteHeader(status)
@@ -200,28 +211,18 @@ func (c *capturedResponse) statusCode() int {
 	return c.status
 }
 
-// stored is the body kept for a replay. An answer marked `no-store` keeps none, whichever route
-// wrote it: what must not be kept by a cache must not be kept here either, and such an answer is
-// the one a credential shown once travels in - a start password, a token. The key is still
-// completed with the status, so a repeat runs nothing twice and answers the status alone. A problem
-// document is kept as before, marked or not: it carries a code and never a credential, and the guard
-// decides over its code.
+// stored is the body kept for a replay. An answer marked as shown once (ShownOnceHeader) keeps none,
+// whichever route wrote it: it is the answer a credential travels in - a start password, a token -
+// and a replay record is a copy of it in clear. The key is still completed with the status, so a
+// repeat runs nothing twice and answers the status alone.
+//
+// Not `Cache-Control: no-store`: every JSON answer carries that (writeJSON), so reading it would
+// keep no body for any replay at all.
 func (c *capturedResponse) stored() []byte {
-	secret := c.statusCode() < http.StatusBadRequest && noStore(c.Header().Get("Cache-Control"))
-	if c.overflow || secret {
+	if c.overflow || c.shownOnce {
 		return nil
 	}
 	return c.buffer.Bytes()
-}
-
-// noStore reads the directive from a Cache-Control value, among any others and in any case.
-func noStore(cacheControl string) bool {
-	for _, directive := range strings.Split(cacheControl, ",") {
-		if strings.EqualFold(strings.TrimSpace(directive), "no-store") {
-			return true
-		}
-	}
-	return false
 }
 
 // answer is what the guard decides over: the status, the body, and - where the body is a problem

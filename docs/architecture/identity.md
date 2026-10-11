@@ -366,7 +366,7 @@ password and an address added later are decided, not built.*
   case), no `@`, no whitespace or control character. An automation rule's act is refused
   (`accounts.managed_needs_a_person`): nobody would receive the start password.
 * Hubtask draws the start password (80 bits, four groups of four in Crockford's alphabet) and
-  answers it once, marked `no-store` so no idempotency record keeps it; only its hash is stored,
+  answers it once, marked as shown once so no idempotency record keeps it; only its hash is stored,
   with `start_password_at`. The first sign-in meets `PASSWORD_CHANGE`, after any factor step (§4.2);
   every door that sets a password clears the mark, and the new password may not carry the name.
 * Sign-in takes `identifier`: with `@` an address, without a sign-in name, one lookup, one refusal

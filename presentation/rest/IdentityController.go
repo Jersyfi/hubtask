@@ -57,8 +57,8 @@ func (c *RestController) InviteAccount(w http.ResponseWriter, r *http.Request, _
 
 // CreateManagedAccount answers POST /accounts:create-managed.
 //
-// The answer carries the start password, once: it is marked `no-store`, so neither a cache nor the
-// idempotency record keeps it.
+// The answer carries the start password, once: it is marked `no-store` for a cache and as shown once
+// for the idempotency record, so neither keeps it.
 func (c *RestController) CreateManagedAccount(
 	w http.ResponseWriter, r *http.Request, params openapi.CreateManagedAccountParams,
 ) {
@@ -84,6 +84,7 @@ func (c *RestController) CreateManagedAccount(
 			StartPassword: out.String("start_password"),
 		}
 		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set(ShownOnceHeader, "start_password")
 		w.Header().Set("Location", APIBasePath+"/accounts/"+created.Account.Id.String())
 		writeJSON(w, r, http.StatusCreated, created)
 	})
