@@ -80,7 +80,9 @@ func (h RenewInvitation) Execute(
 		if invited.Status != domain.AccountInvited {
 			return notInvited()
 		}
-		link, err := deliver(ctx, h.Links, h.Notifier, invited.TenantID, invited.ID, actor)
+		// The actor's workspace, not the row's: the account repository's read does not carry the
+		// tenant, and the row was found inside this workspace's transaction anyway.
+		link, err := deliver(ctx, h.Links, h.Notifier, actor.TenantID, invited.ID, actor)
 		if err != nil {
 			return err
 		}
@@ -103,7 +105,7 @@ func (h RenewInvitation) recordAudit(
 	ctx context.Context, invited domain.Account, actor appshared.ActorContext,
 ) error {
 	return h.Audit.Append(ctx, audit.Entry{
-		TenantID:   invited.TenantID,
+		TenantID:   actor.TenantID,
 		OccurredAt: h.Clock.Now(),
 		Action:     InvitationRenewedAction,
 		Outcome:    audit.OutcomeSuccess,
