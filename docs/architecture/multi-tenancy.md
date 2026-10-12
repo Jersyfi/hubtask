@@ -182,13 +182,19 @@ ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is aler
 | Bulk operations per request | 500 | 500 |
 | Automation causality depth | 5 | 5 |
 | Concurrent export jobs | 2 | 5 |
-| AI tokens per day | 200,000 | Unlimited |
+| AI tokens per day, offered models | 200,000 | Unlimited |
+| AI tokens per day, the workspace's own model | Unlimited (the workspace's own setting) | Unlimited (the workspace's own setting) |
 
-**The AI budget** is counted in provider-reported tokens over a UTC calendar day, from the billing
-ledger. A workspace over it **stops getting suggestions and keeps working** (`ai.unavailable`).
-`ai_tokens_per_day` limits the models the installation **offers**; a workspace's own model only by
-its optional `ai_own_tokens_per_day`, off by default
-([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) §4).
+**The AI budget** is counted per source in provider-reported tokens over the workspace's calendar
+day — midnight in `tenant.default_time_zone`, which is when it renews (UC-AI-07 check 2) — from the
+billing ledger, whose two AI rows are dated by that day while every other metric keeps the UTC day.
+A zone changed mid-day takes effect from the next call. A workspace over a budget **stops getting
+answers from that source and keeps working** (`ai.unavailable`). `ai_tokens_per_day` limits the
+models the installation **offers**, with the installation's default and the operator's exception per
+workspace; a workspace's own model only by its optional `ai_own_tokens_per_day`, off by default,
+which the workspace's administrator sets (`PUT /ai-budget`) and no installation value reaches
+([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) §4). It is stored beside the quotas key
+in `tenant.settings`, not in it, because the operator's quota write replaces that key whole.
 
 **Fairness:** the job queue claims per tenant round-robin, so one tenant cannot monopolise the
 workers; `statement_timeout` per role; a query DSL request whose estimated cost is over the cap is
