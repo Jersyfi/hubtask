@@ -133,14 +133,17 @@ func (r AiRules) Resolve(ctx context.Context, tenantID shared.ID) (AiState, erro
 		state.OptOutContact = workspace.Settings.AiOptOutContact
 		state.OptOutSince = workspace.Settings.AiOptOutSince
 	}
-	if r.Consents != nil {
-		standing, err := r.Consents.Standing(ctx, privacydomain.PurposeAi)
-		if err != nil {
-			return AiState{}, err
-		}
-		state.KeepingOut = len(standing)
-	}
 	return state, nil
+}
+
+// keepingOut counts the people whose newest ai_processing record is a withdrawal. Only the two
+// reads that show it ask, not every AI call that resolves the rule.
+func (r AiRules) keepingOut(ctx context.Context) (int, error) {
+	if r.Consents == nil {
+		return 0, nil
+	}
+	standing, err := r.Consents.Standing(ctx, privacydomain.PurposeAi)
+	return len(standing), err
 }
 
 // AiSourceWriter is what the two use cases share.
@@ -214,6 +217,9 @@ func (h ReadAiSource) Execute(ctx context.Context, actor appshared.ActorContext)
 	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		if state, err = w.Rules.Resolve(ctx, actor.TenantID); err != nil {
+			return err
+		}
+		if state.KeepingOut, err = w.Rules.keepingOut(ctx); err != nil {
 			return err
 		}
 		state.SearchRebuilding, err = w.rebuilding(ctx, actor.TenantID)

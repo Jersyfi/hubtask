@@ -6064,6 +6064,70 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /privacy/consents:give:
+    post:
+      tags: [privacy]
+      operationId: giveConsent
+      summary: Agree to an optional processing purpose
+      description: |
+        The caller's own agreement - for `ai_processing`, letting the content they authored back
+        into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+        refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+        The withdrawal before it stays on record for the period it covered.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConsentGrant" }
+      responses:
+        "200":
+          description: The consent record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConsentRecord" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /privacy/ai-objection:
+    get:
+      tags: [privacy]
+      operationId: readOwnAiPosition
+      summary: The caller's own view of keeping their content out of AI
+      description: |
+        Whether there is anything to choose here (`shown`: AI answers this workspace and more than
+        one person works in it), the workspace's position - with the legal basis and whom to ask
+        where AI is part of everybody's work - the caller's own choice, whether it takes effect,
+        and whether they still have to be told that it stopped taking effect.
+
+        The caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back
+        in with `POST /privacy/consents:give`, both with the purpose `ai_processing`.
+      responses:
+        "200":
+          description: The caller's view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OwnAiPosition" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /privacy/ai-objection:noticed:
+    post:
+      tags: [privacy]
+      operationId: acknowledgeAiPosition
+      summary: Acknowledge that keeping one's content out stopped taking effect
+      description: |
+        Records that the caller read the notice: the workspace made AI part of everybody's work,
+        so their choice to keep their content out no longer takes effect. Acknowledging twice is
+        acknowledging once.
+      responses:
+        "200":
+          description: The caller's view afterwards
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OwnAiPosition" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /memberships:
     get:
       tags: [identity]
@@ -14510,6 +14574,51 @@ components:
         granted_at: { type: string, format: date-time }
         revoked_at: { type: [string, "null"], format: date-time }
         source: { type: [string, "null"], enum: [user, tenant_admin, config, null] }
+
+    ConsentGrant:
+      type: object
+      required: [purpose]
+      properties:
+        purpose: { $ref: "#/components/schemas/ConsentPurpose" }
+        account_id:
+          type: string
+          format: uuid
+          description: Whose consent - only ever the caller's own.
+
+    OwnAiPosition:
+      type: object
+      required: [shown, person_opt_out, keeping_out, in_effect, notice_pending]
+      properties:
+        shown:
+          type: boolean
+          description: >
+            Whether there is anything here at all: AI answers this workspace and more than one
+            person works in it. Alone, the workspace's decision is the person's own.
+        person_opt_out:
+          $ref: "#/components/schemas/AiPersonOptOut"
+        basis:
+          $ref: "#/components/schemas/AiOptOutBasis"
+        contact:
+          type: string
+          description: Whom to ask about the basis. Absent for an administrator of this workspace.
+        since:
+          type: string
+          format: date-time
+          description: Since when AI is part of everybody's work. Absent with `OFFERED`.
+        keeping_out:
+          type: boolean
+          description: The caller's own choice - their newest `ai_processing` record is a withdrawal.
+        keeping_out_since:
+          type: string
+          format: date-time
+        in_effect:
+          type: boolean
+          description: Whether the caller's content is kept out now.
+        notice_pending:
+          type: boolean
+          description: >
+            True once, until acknowledged: the workspace made AI part of everybody's work, so the
+            caller's choice stopped taking effect.
 
     ConsentWithdrawal:
       type: object

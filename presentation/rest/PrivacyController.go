@@ -26,6 +26,9 @@ const (
 	previewErasureUseCase           = "PreviewErasure"
 	restrictProcessingUseCase       = "RestrictProcessing"
 	withdrawConsentUseCase          = "WithdrawConsent"
+	giveConsentUseCase              = "GiveConsent"
+	readOwnAiPositionUseCase        = "ReadOwnAiPosition"
+	acknowledgeAiPositionUseCase    = "AcknowledgeAiPosition"
 )
 
 // ListDataSubjectRequests answers GET /privacy/requests.
@@ -335,7 +338,66 @@ func (c *RestController) WithdrawConsent(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
+	writeJSON(w, r, http.StatusOK, consentRecordOf(out))
+}
 
+// GiveConsent answers POST /privacy/consents:give.
+func (c *RestController) GiveConsent(w http.ResponseWriter, r *http.Request) {
+	var body openapi.ConsentGrant
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+	in := usecase.Input{"purpose": body.Purpose}
+	if body.AccountId != nil {
+		in["account_id"] = body.AccountId.String()
+	}
+	out, ok := c.read(w, r, giveConsentUseCase, in)
+	if !ok {
+		return
+	}
+	writeJSON(w, r, http.StatusOK, consentRecordOf(out))
+}
+
+// ReadOwnAiPosition answers GET /privacy/ai-objection.
+func (c *RestController) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
+	out, ok := c.read(w, r, readOwnAiPositionUseCase, usecase.Input{})
+	if !ok {
+		return
+	}
+	writeJSON(w, r, http.StatusOK, ownAiPositionOf(out))
+}
+
+// AcknowledgeAiPosition answers POST /privacy/ai-objection:noticed.
+func (c *RestController) AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request) {
+	out, ok := c.read(w, r, acknowledgeAiPositionUseCase, usecase.Input{})
+	if !ok {
+		return
+	}
+	writeJSON(w, r, http.StatusOK, ownAiPositionOf(out))
+}
+
+func ownAiPositionOf(out usecase.Output) openapi.OwnAiPosition {
+	answer := openapi.OwnAiPosition{
+		Shown:         boolAt(out, "shown"),
+		PersonOptOut:  openapi.AiPersonOptOut(out.String("person_opt_out")),
+		KeepingOut:    boolAt(out, "keeping_out"),
+		InEffect:      boolAt(out, "in_effect"),
+		NoticePending: boolAt(out, "notice_pending"),
+	}
+	if basis := out.String("basis"); basis != "" {
+		value := openapi.AiOptOutBasis(basis)
+		answer.Basis = &value
+	}
+	if contact := out.String("contact"); contact != "" {
+		answer.Contact = &contact
+	}
+	answer.Since = timePointer(out["since"])
+	answer.KeepingOutSince = timePointer(out["keeping_out_since"])
+	return answer
+}
+
+func consentRecordOf(out usecase.Output) openapi.ConsentRecord {
 	record := openapi.ConsentRecord{
 		Id:        uuidValue(out.String("id")),
 		Purpose:   out.String("purpose"),
@@ -350,7 +412,7 @@ func (c *RestController) WithdrawConsent(w http.ResponseWriter, r *http.Request)
 		value := openapi.ConsentRecordSource(source)
 		record.Source = &value
 	}
-	writeJSON(w, r, http.StatusOK, record)
+	return record
 }
 
 // timePointer is timeValue for a field the generated type carries as a pointer.

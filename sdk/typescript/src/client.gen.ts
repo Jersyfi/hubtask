@@ -1162,6 +1162,21 @@ export class HubtaskClient {
     return this.call("POST", "/privacy/consents:withdraw", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Agree to an optional processing purpose */
+  giveConsent(body: NonNullable<operations["giveConsent"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["giveConsent"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/privacy/consents:give", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The caller's own view of keeping their content out of AI */
+  readOwnAiPosition(options: CallOptions = {}): Promise<operations["readOwnAiPosition"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/privacy/ai-objection", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Acknowledge that keeping one's content out stopped taking effect */
+  acknowledgeAiPosition(options: CallOptions = {}): Promise<operations["acknowledgeAiPosition"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/privacy/ai-objection:noticed", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Who holds a role at a scope */
   listMemberships(options: CallOptions & { readonly query?: NonNullable<operations["listMemberships"]['parameters']['query']> } = {}): Promise<operations["listMemberships"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/memberships", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

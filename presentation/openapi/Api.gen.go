@@ -5243,6 +5243,15 @@ type Completion struct {
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
 
+// ConsentGrant defines model for ConsentGrant.
+type ConsentGrant struct {
+	// AccountId Whose consent - only ever the caller's own.
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// Purpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
+	Purpose ConsentPurpose `json:"purpose"`
+}
+
 // ConsentPurpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
 type ConsentPurpose = string
 
@@ -7015,6 +7024,34 @@ type OperatorAdd struct {
 
 	// Workspace The workspace's address, with `email`.
 	Workspace *string `json:"workspace,omitempty"`
+}
+
+// OwnAiPosition defines model for OwnAiPosition.
+type OwnAiPosition struct {
+	// Basis The legal basis a workspace names for making AI part of everybody's work.
+	Basis *AiOptOutBasis `json:"basis,omitempty"`
+
+	// Contact Whom to ask about the basis. Absent for an administrator of this workspace.
+	Contact *string `json:"contact,omitempty"`
+
+	// InEffect Whether the caller's content is kept out now.
+	InEffect bool `json:"in_effect"`
+
+	// KeepingOut The caller's own choice - their newest `ai_processing` record is a withdrawal.
+	KeepingOut      bool       `json:"keeping_out"`
+	KeepingOutSince *time.Time `json:"keeping_out_since,omitempty"`
+
+	// NoticePending True once, until acknowledged: the workspace made AI part of everybody's work, so the caller's choice stopped taking effect.
+	NoticePending bool `json:"notice_pending"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+
+	// Shown Whether there is anything here at all: AI answers this workspace and more than one person works in it. Alone, the workspace's decision is the person's own.
+	Shown bool `json:"shown"`
+
+	// Since Since when AI is part of everybody's work. Absent with `OFFERED`.
+	Since *time.Time `json:"since,omitempty"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -10675,6 +10712,9 @@ type RegisterOauthClientJSONRequestBody = OauthClientCreate
 // ExchangeOauthCodeJSONRequestBody defines body for ExchangeOauthCode for application/json ContentType.
 type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
 
+// GiveConsentJSONRequestBody defines body for GiveConsent for application/json ContentType.
+type GiveConsentJSONRequestBody = ConsentGrant
+
 // WithdrawConsentJSONRequestBody defines body for WithdrawConsent for application/json ContentType.
 type WithdrawConsentJSONRequestBody = ConsentWithdrawal
 
@@ -11481,6 +11521,15 @@ type ServerInterface interface {
 	// ExchangeOauthCode Exchange the code for the pair
 	// (POST /oauth/token)
 	ExchangeOauthCode(w http.ResponseWriter, r *http.Request)
+	// ReadOwnAiPosition The caller's own view of keeping their content out of AI
+	// (GET /privacy/ai-objection)
+	ReadOwnAiPosition(w http.ResponseWriter, r *http.Request)
+	// AcknowledgeAiPosition Acknowledge that keeping one's content out stopped taking effect
+	// (POST /privacy/ai-objection:noticed)
+	AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request)
+	// GiveConsent Agree to an optional processing purpose
+	// (POST /privacy/consents:give)
+	GiveConsent(w http.ResponseWriter, r *http.Request)
 	// WithdrawConsent Withdraw consent for an optional processing purpose (Art. 21)
 	// (POST /privacy/consents:withdraw)
 	WithdrawConsent(w http.ResponseWriter, r *http.Request)
@@ -20402,6 +20451,48 @@ func (siw *ServerInterfaceWrapper) ExchangeOauthCode(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ReadOwnAiPosition operation middleware
+func (siw *ServerInterfaceWrapper) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadOwnAiPosition(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AcknowledgeAiPosition operation middleware
+func (siw *ServerInterfaceWrapper) AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AcknowledgeAiPosition(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GiveConsent operation middleware
+func (siw *ServerInterfaceWrapper) GiveConsent(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GiveConsent(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // WithdrawConsent operation middleware
 func (siw *ServerInterfaceWrapper) WithdrawConsent(w http.ResponseWriter, r *http.Request) {
 
@@ -22328,6 +22419,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/requests/{requestId}/erasure-preview", wrapper.PreviewErasure)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:restrict", wrapper.RestrictProcessing)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:withdraw", wrapper.WithdrawConsent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:give", wrapper.GiveConsent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/ai-objection", wrapper.ReadOwnAiPosition)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/ai-objection:noticed", wrapper.AcknowledgeAiPosition)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/memberships", wrapper.ListMemberships)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/memberships", wrapper.GrantMembership)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/memberships/{membershipId}", wrapper.RevokeMembership)

@@ -527,6 +527,13 @@ func (pending) RestrictProcessing(w http.ResponseWriter, r *http.Request, _ open
 }
 
 func (pending) WithdrawConsent(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) GiveConsent(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
+func (pending) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
 
 // The three target operations. Overridden by RestController; they stay here because the
 // compile-time assertion is on `pending` itself.

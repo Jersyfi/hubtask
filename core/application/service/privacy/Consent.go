@@ -28,7 +28,19 @@ const (
 	// ConsentWithdrawnAction is Art. 21 as this system can carry it out: the optional processing
 	// stops and the core features keep working.
 	ConsentWithdrawnAction audit.Action = "dsr.consent_withdrawn"
+
+	GiveConsentName = "GiveConsent"
+
+	// ConsentGivenAction is a person agreeing again - for AI, letting their own content back in.
+	ConsentGivenAction audit.Action = "dsr.consent_given"
 )
+
+// Reindexer seeds the embedding pass of the transaction's workspace. A person's AI objection
+// moves whose entries may be embedded, so the write that moved it seeds the pass. Nil seeds
+// nothing.
+type Reindexer interface {
+	Reseed(ctx context.Context, tenantID shared.ID) error
+}
 
 // WithdrawConsent takes back an agreement to an optional processing purpose.
 //
@@ -43,6 +55,7 @@ type WithdrawConsent struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	Reindex    Reindexer
 }
 
 // WithdrawCommand is the input, typed.
@@ -95,6 +108,9 @@ func (h WithdrawConsent) Execute(
 			return err
 		}
 		if err := h.Consents.Record(ctx, withdrawal); err != nil {
+			return err
+		}
+		if err := reseedForAi(ctx, h.Reindex, actor.TenantID, withdrawal.Purpose); err != nil {
 			return err
 		}
 
@@ -189,4 +205,117 @@ func ConsentOutput(consent domain.Consent) usecase.Output {
 		out["source"] = consent.Source
 	}
 	return out
+}
+
+func reseedForAi(ctx context.Context, reindex Reindexer, tenantID shared.ID, purpose string) error {
+	if reindex == nil || purpose != domain.PurposeAi {
+		return nil
+	}
+	return reindex.Reseed(ctx, tenantID)
+}
+
+// GiveConsent records a person agreeing to an optional processing purpose - for AI, letting the
+// content they authored back into prompts after they kept it out.
+//
+// The person's own act only. An administrator records a withdrawal on somebody's behalf, because
+// a person may object by mail; nobody agrees in another's place (P-14), so a consent for somebody
+// else is refused, and a withdrawal recorded by mistake is undone by the person.
+type GiveConsent struct {
+	Consents   repository.Consents
+	Audit      audit.Sink
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
+	IDs        clock.IDGenerator
+	Reindex    Reindexer
+}
+
+// GiveCommand is the input, typed.
+type GiveCommand struct {
+	AccountID shared.ID
+	Purpose   string
+}
+
+// Execute records the consent.
+func (h GiveConsent) Execute(
+	ctx context.Context, actor appshared.ActorContext, cmd GiveCommand,
+) (domain.Consent, error) {
+	if !actor.IsAuthenticated() || actor.AccountID.IsZero() {
+		return domain.Consent{}, shared.ErrUnauthenticated.WithDetail("access.credential_required")
+	}
+	if err := actor.RequireScope(privacyManage); err != nil {
+		return domain.Consent{}, err
+	}
+	if !cmd.AccountID.IsZero() && cmd.AccountID != actor.AccountID {
+		return domain.Consent{}, shared.ErrForbidden.WithDetail(domain.CodeConsentOwnOnly)
+	}
+	given, err := domain.NewGrant(h.IDs.NewID(), actor.AccountID, cmd.Purpose, h.Clock.Now())
+	if err != nil {
+		return domain.Consent{}, err
+	}
+	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := h.Consents.Record(ctx, given); err != nil {
+			return err
+		}
+		if err := reseedForAi(ctx, h.Reindex, actor.TenantID, given.Purpose); err != nil {
+			return err
+		}
+		return h.Audit.Append(ctx, audit.Entry{
+			TenantID: actor.TenantID, OccurredAt: h.Clock.Now(),
+			Action: ConsentGivenAction, Outcome: audit.OutcomeSuccess,
+			Severity:  audit.SeverityNotice,
+			ActorKind: actor.Kind, ActorID: actor.AccountID, ActorLabel: actor.AccountName,
+			TargetType: consentTarget, TargetID: actor.AccountID,
+			Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+			Changes: audit.Changes(
+				audit.Change{Field: "purpose", Classification: audit.Open, To: given.Purpose},
+			),
+		})
+	})
+	if err != nil {
+		return domain.Consent{}, err
+	}
+	return given, nil
+}
+
+// Descriptor registers giving consent in every channel.
+func (h GiveConsent) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: GiveConsentName,
+		Summary: "Records the caller agreeing to an optional processing purpose - for " +
+			"`ai_processing`, letting the content they authored back into AI after they kept it " +
+			"out. The caller's own act only: nobody agrees in another's place.",
+		SideEffects: "Records the consent and writes an audit entry; for `ai_processing`, queues " +
+			"rebuilding search by meaning. An earlier withdrawal stays on record for the period " +
+			"it covered.",
+		TokenScope: privacyManage,
+		Input: []usecase.Field{
+			{
+				Name: "purpose", Kind: usecase.KindString, Required: true,
+				Description: "What the consent is about, e.g. `ai_processing`.",
+			},
+			{
+				Name: "account_id", Kind: usecase.KindID,
+				Description: "Whose consent - only ever the caller's own. Anybody else's is refused.",
+			},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: ConsentGivenAction, TargetType: consentTarget,
+			Severity: audit.SeverityNotice, Required: true,
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h GiveConsent) invoke(
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	accountID, err := in.ID("account_id")
+	if err != nil {
+		return nil, err
+	}
+	consent, err := h.Execute(ctx, actor, GiveCommand{AccountID: accountID, Purpose: in.String("purpose")})
+	if err != nil {
+		return nil, err
+	}
+	return ConsentOutput(consent), nil
 }

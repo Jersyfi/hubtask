@@ -82,6 +82,9 @@ func (h SetAiPersonOptOut) Execute(
 		if state, err = w.Rules.Resolve(ctx, actor.TenantID); err != nil {
 			return err
 		}
+		if state.KeepingOut, err = w.Rules.keepingOut(ctx); err != nil {
+			return err
+		}
 		// Whose entries may be embedded moves with the position, so the pass is seeded by the
 		// write that moved it (ADR-0072 §6's discipline).
 		if before.Rule.PersonOptOut != state.Rule.PersonOptOut && w.Reindex != nil {

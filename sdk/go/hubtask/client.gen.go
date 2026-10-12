@@ -5249,6 +5249,15 @@ type Completion struct {
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
 
+// ConsentGrant defines model for ConsentGrant.
+type ConsentGrant struct {
+	// AccountId Whose consent - only ever the caller's own.
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// Purpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
+	Purpose ConsentPurpose `json:"purpose"`
+}
+
 // ConsentPurpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
 type ConsentPurpose = string
 
@@ -7021,6 +7030,34 @@ type OperatorAdd struct {
 
 	// Workspace The workspace's address, with `email`.
 	Workspace *string `json:"workspace,omitempty"`
+}
+
+// OwnAiPosition defines model for OwnAiPosition.
+type OwnAiPosition struct {
+	// Basis The legal basis a workspace names for making AI part of everybody's work.
+	Basis *AiOptOutBasis `json:"basis,omitempty"`
+
+	// Contact Whom to ask about the basis. Absent for an administrator of this workspace.
+	Contact *string `json:"contact,omitempty"`
+
+	// InEffect Whether the caller's content is kept out now.
+	InEffect bool `json:"in_effect"`
+
+	// KeepingOut The caller's own choice - their newest `ai_processing` record is a withdrawal.
+	KeepingOut      bool       `json:"keeping_out"`
+	KeepingOutSince *time.Time `json:"keeping_out_since,omitempty"`
+
+	// NoticePending True once, until acknowledged: the workspace made AI part of everybody's work, so the caller's choice stopped taking effect.
+	NoticePending bool `json:"notice_pending"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+
+	// Shown Whether there is anything here at all: AI answers this workspace and more than one person works in it. Alone, the workspace's decision is the person's own.
+	Shown bool `json:"shown"`
+
+	// Since Since when AI is part of everybody's work. Absent with `OFFERED`.
+	Since *time.Time `json:"since,omitempty"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -10681,6 +10718,9 @@ type RegisterOauthClientJSONRequestBody = OauthClientCreate
 // ExchangeOauthCodeJSONRequestBody defines body for ExchangeOauthCode for application/json ContentType.
 type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
 
+// GiveConsentJSONRequestBody defines body for GiveConsent for application/json ContentType.
+type GiveConsentJSONRequestBody = ConsentGrant
+
 // WithdrawConsentJSONRequestBody defines body for WithdrawConsent for application/json ContentType.
 type WithdrawConsentJSONRequestBody = ConsentWithdrawal
 
@@ -13966,6 +14006,52 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadOwnAiPosition The caller's own view of keeping their content out of AI
+	//
+	// Whether there is anything to choose here (`shown`: AI answers this workspace and more than
+	// one person works in it), the workspace's position - with the legal basis and whom to ask
+	// where AI is part of everybody's work - the caller's own choice, whether it takes effect,
+	// and whether they still have to be told that it stopped taking effect.
+	//
+	// The caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back
+	// in with `POST /privacy/consents:give`, both with the purpose `ai_processing`.
+	//
+	// Corresponds with GET /privacy/ai-objection (the `ReadOwnAiPosition` operationId).
+	ReadOwnAiPosition(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AcknowledgeAiPosition Acknowledge that keeping one's content out stopped taking effect
+	//
+	// Records that the caller read the notice: the workspace made AI part of everybody's work,
+	// so their choice to keep their content out no longer takes effect. Acknowledging twice is
+	// acknowledging once.
+	//
+	// Corresponds with POST /privacy/ai-objection:noticed (the `AcknowledgeAiPosition` operationId).
+	AcknowledgeAiPosition(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GiveConsentWithBody Agree to an optional processing purpose
+	//
+	// The caller's own agreement - for `ai_processing`, letting the content they authored back
+	// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+	// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+	// The withdrawal before it stays on record for the period it covered.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+	GiveConsentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GiveConsent Agree to an optional processing purpose
+	//
+	// The caller's own agreement - for `ai_processing`, letting the content they authored back
+	// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+	// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+	// The withdrawal before it stays on record for the period it covered.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+	GiveConsent(ctx context.Context, body GiveConsentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// WithdrawConsentWithBody Withdraw consent for an optional processing purpose (Art. 21)
 	//
@@ -21458,6 +21544,92 @@ func (c *Client) ExchangeOauthCodeWithBody(ctx context.Context, contentType stri
 // Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 func (c *Client) ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExchangeOauthCodeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadOwnAiPosition The caller's own view of keeping their content out of AI
+//
+// Whether there is anything to choose here (`shown`: AI answers this workspace and more than
+// one person works in it), the workspace's position - with the legal basis and whom to ask
+// where AI is part of everybody's work - the caller's own choice, whether it takes effect,
+// and whether they still have to be told that it stopped taking effect.
+//
+// The caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back
+// in with `POST /privacy/consents:give`, both with the purpose `ai_processing`.
+//
+// Corresponds with GET /privacy/ai-objection (the `ReadOwnAiPosition` operationId).
+func (c *Client) ReadOwnAiPosition(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadOwnAiPositionRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AcknowledgeAiPosition Acknowledge that keeping one's content out stopped taking effect
+//
+// Records that the caller read the notice: the workspace made AI part of everybody's work,
+// so their choice to keep their content out no longer takes effect. Acknowledging twice is
+// acknowledging once.
+//
+// Corresponds with POST /privacy/ai-objection:noticed (the `AcknowledgeAiPosition` operationId).
+func (c *Client) AcknowledgeAiPosition(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAcknowledgeAiPositionRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GiveConsentWithBody Agree to an optional processing purpose
+//
+// The caller's own agreement - for `ai_processing`, letting the content they authored back
+// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+// The withdrawal before it stays on record for the period it covered.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+func (c *Client) GiveConsentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGiveConsentRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GiveConsent Agree to an optional processing purpose
+//
+// The caller's own agreement - for `ai_processing`, letting the content they authored back
+// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+// The withdrawal before it stays on record for the period it covered.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+func (c *Client) GiveConsent(ctx context.Context, body GiveConsentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGiveConsentRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -34708,6 +34880,100 @@ func NewExchangeOauthCodeRequestWithBody(server string, contentType string, body
 	return req, nil
 }
 
+// NewReadOwnAiPositionRequest constructs an http.Request for the ReadOwnAiPosition method
+func NewReadOwnAiPositionRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/privacy/ai-objection")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAcknowledgeAiPositionRequest constructs an http.Request for the AcknowledgeAiPosition method
+func NewAcknowledgeAiPositionRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/privacy/ai-objection:noticed")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGiveConsentRequest calls the generic GiveConsent builder with application/json body
+func NewGiveConsentRequest(server string, body GiveConsentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewGiveConsentRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewGiveConsentRequestWithBody constructs an http.Request for the GiveConsent method, with any body, and a specified content type
+func NewGiveConsentRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/privacy/consents:give")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewWithdrawConsentRequest calls the generic WithdrawConsent builder with application/json body
 func NewWithdrawConsentRequest(server string, body WithdrawConsentJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -40452,6 +40718,56 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCodeWithResponse(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*ExchangeOauthCodeResult, error)
+
+	// ReadOwnAiPositionWithResponse The caller's own view of keeping their content out of AI
+	//
+	// Whether there is anything to choose here (`shown`: AI answers this workspace and more than
+	// one person works in it), the workspace's position - with the legal basis and whom to ask
+	// where AI is part of everybody's work - the caller's own choice, whether it takes effect,
+	// and whether they still have to be told that it stopped taking effect.
+	//
+	// The caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back
+	// in with `POST /privacy/consents:give`, both with the purpose `ai_processing`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /privacy/ai-objection (the `ReadOwnAiPosition` operationId).
+	ReadOwnAiPositionWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadOwnAiPositionResult, error)
+
+	// AcknowledgeAiPositionWithResponse Acknowledge that keeping one's content out stopped taking effect
+	//
+	// Records that the caller read the notice: the workspace made AI part of everybody's work,
+	// so their choice to keep their content out no longer takes effect. Acknowledging twice is
+	// acknowledging once.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /privacy/ai-objection:noticed (the `AcknowledgeAiPosition` operationId).
+	AcknowledgeAiPositionWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AcknowledgeAiPositionResult, error)
+
+	// GiveConsentWithBodyWithResponse Agree to an optional processing purpose
+	//
+	// The caller's own agreement - for `ai_processing`, letting the content they authored back
+	// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+	// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+	// The withdrawal before it stays on record for the period it covered.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+	GiveConsentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GiveConsentResult, error)
+
+	// GiveConsentWithResponse Agree to an optional processing purpose
+	//
+	// The caller's own agreement - for `ai_processing`, letting the content they authored back
+	// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+	// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+	// The withdrawal before it stays on record for the period it covered.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+	GiveConsentWithResponse(ctx context.Context, body GiveConsentJSONRequestBody, reqEditors ...RequestEditorFn) (*GiveConsentResult, error)
 
 	// WithdrawConsentWithBodyWithResponse Withdraw consent for an optional processing purpose (Art. 21)
 	//
@@ -53426,6 +53742,150 @@ func (r ExchangeOauthCodeResult) ContentType() string {
 	return ""
 }
 
+type ReadOwnAiPositionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OwnAiPosition
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadOwnAiPositionResult) GetJSON200() *OwnAiPosition {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadOwnAiPositionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadOwnAiPositionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadOwnAiPositionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadOwnAiPositionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadOwnAiPositionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AcknowledgeAiPositionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OwnAiPosition
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AcknowledgeAiPositionResult) GetJSON200() *OwnAiPosition {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AcknowledgeAiPositionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AcknowledgeAiPositionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AcknowledgeAiPositionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AcknowledgeAiPositionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AcknowledgeAiPositionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GiveConsentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConsentRecord
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GiveConsentResult) GetJSON200() *ConsentRecord {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GiveConsentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GiveConsentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GiveConsentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GiveConsentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GiveConsentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type WithdrawConsentResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -61285,6 +61745,80 @@ func (c *ClientWithResponses) ExchangeOauthCodeWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseExchangeOauthCodeResult(rsp)
+}
+
+// ReadOwnAiPositionWithResponse The caller's own view of keeping their content out of AI
+//
+// Whether there is anything to choose here (`shown`: AI answers this workspace and more than
+// one person works in it), the workspace's position - with the legal basis and whom to ask
+// where AI is part of everybody's work - the caller's own choice, whether it takes effect,
+// and whether they still have to be told that it stopped taking effect.
+//
+// The caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back
+// in with `POST /privacy/consents:give`, both with the purpose `ai_processing`.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /privacy/ai-objection (the `ReadOwnAiPosition` operationId).
+func (c *ClientWithResponses) ReadOwnAiPositionWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadOwnAiPositionResult, error) {
+	rsp, err := c.ReadOwnAiPosition(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadOwnAiPositionResult(rsp)
+}
+
+// AcknowledgeAiPositionWithResponse Acknowledge that keeping one's content out stopped taking effect
+//
+// Records that the caller read the notice: the workspace made AI part of everybody's work,
+// so their choice to keep their content out no longer takes effect. Acknowledging twice is
+// acknowledging once.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /privacy/ai-objection:noticed (the `AcknowledgeAiPosition` operationId).
+func (c *ClientWithResponses) AcknowledgeAiPositionWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AcknowledgeAiPositionResult, error) {
+	rsp, err := c.AcknowledgeAiPosition(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAcknowledgeAiPositionResult(rsp)
+}
+
+// GiveConsentWithBodyWithResponse Agree to an optional processing purpose
+//
+// The caller's own agreement - for `ai_processing`, letting the content they authored back
+// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+// The withdrawal before it stays on record for the period it covered.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+func (c *ClientWithResponses) GiveConsentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GiveConsentResult, error) {
+	rsp, err := c.GiveConsentWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGiveConsentResult(rsp)
+}
+
+// GiveConsentWithResponse Agree to an optional processing purpose
+//
+// The caller's own agreement - for `ai_processing`, letting the content they authored back
+// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+// The withdrawal before it stays on record for the period it covered.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+func (c *ClientWithResponses) GiveConsentWithResponse(ctx context.Context, body GiveConsentJSONRequestBody, reqEditors ...RequestEditorFn) (*GiveConsentResult, error) {
+	rsp, err := c.GiveConsent(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGiveConsentResult(rsp)
 }
 
 // WithdrawConsentWithBodyWithResponse Withdraw consent for an optional processing purpose (Art. 21)
@@ -71294,6 +71828,105 @@ func ParseExchangeOauthCodeResult(rsp *http.Response) (*ExchangeOauthCodeResult,
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadOwnAiPositionResult parses an HTTP response from a ReadOwnAiPositionWithResponse call
+func ParseReadOwnAiPositionResult(rsp *http.Response) (*ReadOwnAiPositionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadOwnAiPositionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OwnAiPosition
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAcknowledgeAiPositionResult parses an HTTP response from a AcknowledgeAiPositionWithResponse call
+func ParseAcknowledgeAiPositionResult(rsp *http.Response) (*AcknowledgeAiPositionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AcknowledgeAiPositionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OwnAiPosition
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGiveConsentResult parses an HTTP response from a GiveConsentWithResponse call
+func ParseGiveConsentResult(rsp *http.Response) (*GiveConsentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GiveConsentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConsentRecord
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

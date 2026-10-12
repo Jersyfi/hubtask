@@ -861,6 +861,7 @@
   "privacy.request_closed": "That request has been answered and cannot be changed.",
   "privacy.purpose_required": "Name the processing the consent is about.",
   "privacy.consent_not_found": "There is no consent recorded for that purpose.",
+  "privacy.consent_own_only": "Only you can agree for yourself. A consent for somebody else is theirs to give.",
   "privacy.subject_not_found": "There is no account here for the person that request is about.",
   "privacy.due_at_malformed": "That deadline is not a date and time this installation understands.",
   "privacy.due_on_malformed": "That new deadline is not a day written as YYYY-MM-DD.",

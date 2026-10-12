@@ -1927,6 +1927,21 @@ class ConsentRecord(TypedDict, total=False):
     revoked_at: str | None
     source: Literal["user", "tenant_admin", "config"] | None
 
+class ConsentGrant(TypedDict, total=False):
+    purpose: Required["ConsentPurpose"]
+    account_id: str
+
+class OwnAiPosition(TypedDict, total=False):
+    shown: Required[bool]
+    person_opt_out: Required["AiPersonOptOut"]
+    basis: "AiOptOutBasis"
+    contact: str
+    since: str
+    keeping_out: Required[bool]
+    keeping_out_since: str
+    in_effect: Required[bool]
+    notice_pending: Required[bool]
+
 class ConsentWithdrawal(TypedDict, total=False):
     purpose: Required["ConsentPurpose"]
     account_id: str

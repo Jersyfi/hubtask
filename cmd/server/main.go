@@ -1045,6 +1045,12 @@ func run() error {
 		Jobs: jobs, Delay: 30 * time.Second, Clock: clockadapter.System{},
 	}
 	aiProviderWriter.Reindex = embeddingSeeder
+	// A person's own view of keeping their content out of AI, over the same rule every AI call
+	// resolves (data-protection.md §4.1).
+	aiObjectionReader := integrationservice.AiObjectionReader{
+		Rules: &aiRules, People: postgres.NewPrivateHubRepository(), Consents: privacyStore,
+		Notices: privacyStore, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
 	aiSourceWriter := integrationservice.AiSourceWriter{
 		Rules: aiRules, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, Reindex: embeddingSeeder,
@@ -1856,8 +1862,14 @@ func run() error {
 		}.Descriptor(),
 		privacyservice.WithdrawConsent{
 			Consents: privacyStore, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Reindex: embeddingSeeder,
 		}.Descriptor(),
+		privacyservice.GiveConsent{
+			Consents: privacyStore, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Reindex: embeddingSeeder,
+		}.Descriptor(),
+		integrationservice.ReadOwnAiPosition{Reader: aiObjectionReader}.Descriptor(),
+		integrationservice.AcknowledgeAiPosition{Reader: aiObjectionReader}.Descriptor(),
 		auditservice.ExportAuditTrail{
 			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,

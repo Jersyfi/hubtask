@@ -927,6 +927,18 @@ class Client:
         """Withdraw consent for an optional processing purpose (Art. 21)"""
         return self._call("POST", "/privacy/consents:withdraw", {}, None, {}, body, "json", "application/json", "json")
 
+    def give_consent(self, body: "ConsentGrant") -> "ConsentRecord":
+        """Agree to an optional processing purpose"""
+        return self._call("POST", "/privacy/consents:give", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_own_ai_position(self) -> "OwnAiPosition":
+        """The caller's own view of keeping their content out of AI"""
+        return self._call("GET", "/privacy/ai-objection", {}, None, {}, None, "none", None, "json")
+
+    def acknowledge_ai_position(self) -> "OwnAiPosition":
+        """Acknowledge that keeping one's content out stopped taking effect"""
+        return self._call("POST", "/privacy/ai-objection:noticed", {}, None, {}, None, "none", None, "json")
+
     def list_memberships(self, *, query: dict[str, Any] | None = None) -> "MembershipPage":
         """Who holds a role at a scope"""
         return self._call("GET", "/memberships", {}, query, {}, None, "none", None, "json")
