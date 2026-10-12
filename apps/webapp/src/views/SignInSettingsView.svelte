@@ -183,7 +183,15 @@
    * Shown with its reason rather than hidden, because the rule is in force here all the same.
    */
   function requiredAbove(setting: Setting<boolean>): string | undefined {
-    return lockedBecause(setting.lock) ?? (setting.installation ? t('app.signin_settings.required_above') : undefined);
+    const locked = lockedBecause(setting.lock);
+    if (locked) return locked;
+    if (!setting.installation) return undefined;
+    // The level above is the installation over Hubtask's default: where the installation decided
+    // nothing, it is Hubtask's default that the workspace may not go below, and saying "the
+    // installation" there would contradict the origin line beside it.
+    return setting.installation_source === 'DEFAULT'
+      ? t('app.signin_settings.required_default')
+      : t('app.signin_settings.required_above');
   }
 
   /** Where a rule's value came from, said in a sentence; the installation's value beside it where it decided one. */

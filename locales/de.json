@@ -414,6 +414,7 @@
   "app.signin_settings.source_plan": "Von deinem Tarif festgelegt.",
   "app.signin_settings.source_default": "Voreinstellung von Hubtask.",
   "app.signin_settings.required_above": "Die Installation verlangt das, deshalb bleibt es hier an.",
+  "app.signin_settings.required_default": "Hubtask verlangt das von jedem Arbeitsbereich, deshalb bleibt es hier an.",
   "app.signin_settings.on": "an",
   "app.signin_settings.off": "aus",
   "app.signin_settings.link_inherited": "Hier leer, daher gilt der der Installation: {value}.",
