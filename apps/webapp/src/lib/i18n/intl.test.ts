@@ -56,6 +56,8 @@ test('1,5 under de is 1.5 to the contract, and a grouping separator is not guess
 test('the week starts where the account says, then the manifest, then the locale, then Monday', () => {
   const supported = [{ locale: 'en-US', direction: 'ltr' as const, week_start: 'SUNDAY' as const }];
   assert.equal(firstWeekdayOf('SATURDAY', 'en-US', supported), 6, 'the account wins');
+  assert.equal(firstWeekdayOf('SATURDAY', 'en-US', supported, 'MONDAY'), 6, 'the account before the workspace');
+  assert.equal(firstWeekdayOf(null, 'en-US', supported, 'MONDAY'), 1, "the workspace's or the installation's day next");
   assert.equal(firstWeekdayOf(null, 'en-US', supported), 0, 'the manifest next');
   assert.equal(firstWeekdayOf(null, 'de', []), 1, 'the locale: Germany starts on Monday');
   // en-US by the locale alone, where the engine knows its week info.

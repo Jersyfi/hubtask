@@ -38,6 +38,7 @@
 
   import { announcer } from '../announce.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
+  import { workspace } from '../data/workspace.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { addDays, dueInputFor, shift, type Window } from '../data/due.ts';
   import { items, type ItemsQuery } from '../data/items.svelte.ts';
@@ -60,7 +61,9 @@
   const zone = $derived(actor.zone);
   const today = $derived(todayIn(zone));
   // The account's day, else the manifest's for the locale, else the locale's own.
-  const weekStart = $derived(firstWeekdayOf(actor.weekStart, messages.locale, manifest.supportedLocales));
+  // The workspace's day and the installation's default are the week start's link above the account.
+  $effect(() => untrack(() => workspace.open()));
+  const weekStart = $derived(firstWeekdayOf(actor.weekStart, messages.locale, manifest.supportedLocales, workspace.weekStartAbove));
 
   let scale = $state<Scale>('week');
   /** The window drawn, once the reader has moved it. `shown`, because `window` is the global and a
