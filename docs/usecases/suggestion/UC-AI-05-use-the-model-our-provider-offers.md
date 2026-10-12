@@ -5,9 +5,9 @@ context: suggestion
 actors: [PE-person, PE-owner, PE-admin]
 deployments: [D5, D6]
 serves: [P-10, P-12, P-14]
-state: built
+state: verified
 tasks: [SC-11]
-checked_by: [core/application/service/integration/AiSource_test.go, test/integration/offered_ai_resolver_test.go, test/integration/offered_ai_test.go, apps/webapp/e2e/aisettings.test.mjs]
+checked_by: [core/application/service/integration/AiSource_test.go, test/integration/offered_ai_resolver_test.go, test/integration/offered_ai_test.go, apps/webapp/e2e/aisettings.test.mjs, cmd/hubctl/AiOffered_test.go, docs/evidence/SC-15-D5-2026-10-13.md]
 ---
 
 # Use the AI model our provider offers, without setting anything up

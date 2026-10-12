@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-09, P-10, P-12]
 state: partial
 tasks: [H-01, B-02, SC-13]
-checked_by: [core/application/service/identity/InviteAccount_test.go, core/application/service/identity/InvitationLink_test.go, core/application/service/identity/RenewInvitation_test.go, presentation/rest/InvitationController_test.go, test/integration/invitation_link_test.go, apps/webapp/e2e/invitationlink.test.mjs, docs/evidence/SC-13-2026-10-12.md]
+checked_by: [core/application/service/identity/InviteAccount_test.go, core/application/service/identity/InvitationLink_test.go, core/application/service/identity/RenewInvitation_test.go, presentation/rest/InvitationController_test.go, test/integration/invitation_link_test.go, apps/webapp/e2e/invitationlink.test.mjs, docs/evidence/SC-13-2026-10-12.md, docs/evidence/SC-15-D2-2026-10-13.md]
 ---
 
 # Invite people and give them a role

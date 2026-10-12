@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11]
-state: built
+state: partial
 tasks: [SI-08, SI-15, SC-09, SC-19, SC-23]
-checked_by: [test/integration/session_test.go, presentation/rest/SessionProjection_test.go, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/SessionListBounds_test.go, core/application/service/identity/SessionsElsewhere_test.go, test/integration/session_elsewhere_test.go]
+checked_by: [test/integration/session_test.go, presentation/rest/SessionProjection_test.go, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/SessionListBounds_test.go, core/application/service/identity/SessionsElsewhere_test.go, test/integration/session_elsewhere_test.go, docs/evidence/SC-15-D1-account-2026-10-13.md, docs/evidence/SC-15-D2-2026-10-13.md, docs/evidence/SC-15-D4-2026-10-13.md]
 ---
 
 # See where I am signed in and end a session
@@ -38,3 +38,7 @@ marked. *End* ends one; *Sign out everywhere else* ends all others.
 * Administrators do not see or end other people's sessions here; removing a person is the
   administrator's tool.
 * No location lookup beyond the IP class the session already stores.
+
+## Today
+
+* Check 2: not met in one case - a session that proved its code and then set a password the rules required reads "Password" rather than "Password and second factor", tracked in #1326.

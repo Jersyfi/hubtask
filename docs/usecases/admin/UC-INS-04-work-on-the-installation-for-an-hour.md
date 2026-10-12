@@ -7,7 +7,7 @@ deployments: [D1, D4, D5, D6, D7]
 serves: [P-02, P-05, P-10, P-11]
 state: verified
 tasks: [SI-06, SI-17, SC-05]
-checked_by: [core/application/service/identity/AuthenticateToken_test.go, core/application/service/identity/Elevate_test.go, test/integration/session_elevation_test.go, apps/webapp/src/lib/platform/tokenStore.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/e2e/instancehour.test.mjs, apps/webapp/e2e/instanceplace.test.mjs, cmd/hubctl/AdminElevate_test.go, docs/evidence/SC-05-2026-10-12.md]
+checked_by: [core/application/service/identity/AuthenticateToken_test.go, core/application/service/identity/Elevate_test.go, test/integration/session_elevation_test.go, apps/webapp/src/lib/platform/tokenStore.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/e2e/instancehour.test.mjs, apps/webapp/e2e/instanceplace.test.mjs, cmd/hubctl/AdminElevate_test.go, docs/evidence/SC-05-2026-10-12.md, test/integration/operator_roster_test.go, docs/evidence/SC-15-D1-2026-10-13.md]
 ---
 
 # Work on the installation for an hour after proving it is me

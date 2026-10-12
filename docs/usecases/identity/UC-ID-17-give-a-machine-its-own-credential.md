@@ -7,7 +7,7 @@ deployments: [D1, D3, D4, D5, D6, D7]
 serves: [P-02, P-08]
 state: built
 tasks: [H-03, H-05, SC-05]
-checked_by: [core/application/service/identity/AccessToken_test.go, cmd/hubctl/AdminElevate_test.go]
+checked_by: [core/application/service/identity/AccessToken_test.go, cmd/hubctl/AdminElevate_test.go, apps/webapp/e2e/admintoken.test.mjs, docs/evidence/SC-15-D1-account-2026-10-13.md]
 ---
 
 # Give a script, an app or a platform its own credential

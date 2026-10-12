@@ -7,7 +7,7 @@ deployments: [D1, D3, D4, D6]
 serves: [P-06, P-09, P-14]
 state: built
 tasks: [J-01, J-02, SC-11]
-checked_by: [core/application/service/integration/AiProviderConfig_test.go, core/application/service/integration/AiSource_test.go, apps/webapp/e2e/aisettings.test.mjs]
+checked_by: [core/application/service/integration/AiProviderConfig_test.go, core/application/service/integration/AiSource_test.go, apps/webapp/e2e/aisettings.test.mjs, docs/evidence/SC-15-D1-2026-10-13.md]
 ---
 
 # Connect our workspace's own AI model

@@ -7,7 +7,7 @@ deployments: [D4, D5, D6, D7]
 serves: [P-04, P-05, P-08, P-12]
 state: verified
 tasks: [SI-05, SI-17, SC-05]
-checked_by: [core/application/service/admin/Instance_test.go, test/integration/operator_roster_test.go, apps/webapp/e2e/instanceoperators.test.mjs, cmd/hubctl/AdminInstance_test.go, cmd/hubctl/AdminElevate_test.go, docs/evidence/SC-05-2026-10-12.md]
+checked_by: [core/application/service/admin/Instance_test.go, test/integration/operator_roster_test.go, apps/webapp/e2e/instanceoperators.test.mjs, cmd/hubctl/AdminInstance_test.go, cmd/hubctl/AdminElevate_test.go, docs/evidence/SC-05-2026-10-12.md, docs/evidence/SC-15-D5-2026-10-13.md]
 ---
 
 # Appoint and remove the people who run the installation
