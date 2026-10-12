@@ -1006,6 +1006,11 @@ jobs:
       - api-client-drift
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The guard below reads main's runs and the pull request's title and description.
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     steps:
       - name: Every job that ran must have passed
         run: |
@@ -1021,3 +1026,18 @@ jobs:
             esac
           done
           echo "every job either passed or had nothing to do"
+      # Pull requests merge without catching up (ADR-0083): while main's newest run is red, a pull
+      # request that is not the fix waits. Last, because auto-merge acts seconds after this check
+      # turns green. Never on the push to main itself, or main could never turn green again. The
+      # script is run directly: this job has no Go, and make reads go.mod (`make gate-main-green`
+      # runs the same locally).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+        with:
+          sparse-checkout: scripts/ci
+      - name: Main is green, or this is its fix
+        if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: scripts/ci/main-green.sh

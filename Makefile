@@ -877,6 +877,14 @@ gate-docs:
 gate-numbers:
 	$(GO) run ./tools/numbers $(if $(BASE),-base $(BASE),) $(if $(PR),-pr $(PR),) $(if $(filter 0,$(OPEN)),-open=false,)
 
+## gate-main-green: main's newest run is green, or this pull request is its fix (needs gh; PR=<n>)
+# The last step of `CI required` (ADR-0083), which runs the script directly; this target is the
+# same check from a laptop.
+.PHONY: gate-main-green
+gate-main-green:
+	@GITHUB_REPOSITORY="$${GITHUB_REPOSITORY:-$$(gh repo view --json nameWithOwner --jq .nameWithOwner)}" \
+		PR="$${PR:-$$(gh pr view --json number --jq .number)}" scripts/ci/main-green.sh
+
 ## gate-action-pins: Every action pin resolves, and its comment names the right tag (needs network)
 .PHONY: gate-action-pins
 gate-action-pins:

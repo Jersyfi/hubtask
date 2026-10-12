@@ -5,6 +5,7 @@ package architecture
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -19,6 +20,45 @@ type concurrencyFile struct {
 		Group            string `yaml:"group"`
 		CancelInProgress string `yaml:"cancel-in-progress"`
 	} `yaml:"concurrency"`
+}
+
+// The guard is the last step of `CI required`, so that auto-merge reads it as late as possible, and
+// it runs only on a pull request: on the push to main it would read main's own red run and keep
+// every later commit red, the revert included.
+func TestTheGuardIsTheLastStepOfCIRequiredAndOnlyOnAPullRequest(t *testing.T) {
+	raw, err := os.ReadFile("../../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatalf("ci.yml is not readable: %v", err)
+	}
+	var ci struct {
+		Jobs map[string]struct {
+			Permissions map[string]string `yaml:"permissions"`
+			Steps       []struct {
+				If  string `yaml:"if"`
+				Run string `yaml:"run"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal(raw, &ci); err != nil {
+		t.Fatalf("ci.yml does not parse: %v", err)
+	}
+	job, ok := ci.Jobs["ci-required"]
+	if !ok || len(job.Steps) == 0 {
+		t.Fatal("ci.yml has no job `ci-required` with steps")
+	}
+	last := job.Steps[len(job.Steps)-1]
+	if strings.TrimSpace(last.Run) != "scripts/ci/main-green.sh" {
+		t.Fatalf("the last step of `CI required` runs %q; it must be the guard, scripts/ci/main-green.sh (ADR-0083)", last.Run)
+	}
+	if !strings.Contains(last.If, "github.event_name == 'pull_request'") || !strings.Contains(last.If, draftCondition) {
+		t.Errorf("the guard's step runs `if: %s`; it must run only on a ready pull request - on the push to "+
+			"main it would keep main red for ever", last.If)
+	}
+	for _, scope := range []string{"actions", "pull-requests"} {
+		if job.Permissions[scope] != "read" {
+			t.Errorf("`ci-required` must have %s: read for the guard, it has %q", scope, job.Permissions[scope])
+		}
+	}
 }
 
 func TestEveryCommitOnMainGetsItsOwnRun(t *testing.T) {
