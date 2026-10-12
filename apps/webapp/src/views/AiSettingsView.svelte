@@ -29,6 +29,7 @@
   import type { AiJurisdiction, AiProviderKind, AiSourceChoice, AiSourceKind, AiSources } from '@hubtask/sync-engine';
 
   import { aiProvider } from '../lib/data/aiprovider.svelte.ts';
+  import PersonOptOutSection from '../lib/workspace/PersonOptOutSection.svelte';
   import { quotas } from '../lib/data/quotas.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -384,6 +385,12 @@
         />
       {:else if source?.sources_lock && offered.length > 0}
         <p class="quiet">{t('app.ai.sources_locked', { by: setBy(source.sources_lock) })}</p>
+      {/if}
+
+      {#if source}
+        <!-- Whether each person may keep their own content out of AI, or AI is part of
+             everybody's work on a basis named here (data-protection.md §4.1). -->
+        <PersonOptOutSection {source} />
       {/if}
 
       <Stack gap="100">
