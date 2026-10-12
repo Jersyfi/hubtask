@@ -18,6 +18,7 @@ import (
 const (
 	completeSignInUseCase = "CompleteSignIn"
 	completeLinkUseCase   = "CompleteLink"
+	agreeToTermsUseCase   = "AgreeToTerms"
 	enrollTotpUseCase     = "EnrollTotp"
 	confirmTotpUseCase    = "ConfirmTotp"
 	disableTotpUseCase    = "DisableTotp"
@@ -82,6 +83,34 @@ func (c *RestController) CompleteLink(w http.ResponseWriter, r *http.Request) {
 	}
 	if required, _ := out["mfa_required"].(bool); required {
 		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
+		return
+	}
+	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
+}
+
+// AgreeToTerms answers POST /auth/sessions:agree-terms: the TERMS step (UC-ID-19). Public, for
+// SignIn's reason: the pending credential in the body is what authenticates the call.
+func (c *RestController) AgreeToTerms(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.TermsAgreement
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), agreeToTermsUseCase, actorOf(r), usecase.Input{
+		"pending_token": body.PendingToken,
+		"terms_url":     body.TermsUrl,
+		"terms_version": optionalStringField(body.TermsVersion),
+		"tenant_header": r.Header.Get(TenantHeader),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
@@ -224,6 +253,17 @@ func mfaChallengeResponse(out usecase.Output) openapi.MfaChallenge {
 	}
 	if name := out.String("provider_name"); name != "" {
 		challenge.ProviderName = &name
+	}
+	// The terms to agree to, with TERMS (UC-ID-19).
+	if terms, held := out["terms"].(usecase.Output); held {
+		answered := openapi.TermsInForce{
+			Url:   terms.String("url"),
+			SetBy: openapi.TermsInForceSetBy(terms.String("set_by")),
+		}
+		if version := terms.String("version"); version != "" {
+			answered.Version = &version
+		}
+		challenge.Terms = &answered
 	}
 	return challenge
 }

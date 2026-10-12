@@ -59,10 +59,12 @@ var PublicRoutes = map[string]bool{
 	// The second step and the enrolment routes are public for the same reason: the
 	// pending credential in the body is the whole of what authenticates an enforcement flow,
 	// and a signed-in caller's bearer is verified exactly as on any public route.
-	http.MethodPost + " " + APIBasePath + "/auth/sessions:verify":  true,
-	http.MethodPost + " " + APIBasePath + "/auth/sessions:link":    true,
-	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":  true,
-	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:confirm": true,
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:verify": true,
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:link":   true,
+	// The terms step (UC-ID-19) likewise: the pending credential is the call's whole proof.
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:agree-terms": true,
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":      true,
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:confirm":     true,
 	// The relying-party flow is public for the same reason again: a person signing in
 	// through their company's provider has no credential here yet, and the flow's own handle -
 	// the single-use `state`, minted by :start and spent at :callback - is the whole of what

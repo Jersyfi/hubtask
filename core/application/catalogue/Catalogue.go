@@ -267,6 +267,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.StartOidcSignIn{}.Descriptor(),
 		identity.CompleteOidcSignIn{}.Descriptor(),
 		identity.CompleteLink{}.Descriptor(),
+		identity.AgreeToTerms{}.Descriptor(),
 		identity.CreateAccessToken{}.Descriptor(),
 		identity.ListAccessTokens{}.Descriptor(),
 		identity.RevokeAccessToken{}.Descriptor(),

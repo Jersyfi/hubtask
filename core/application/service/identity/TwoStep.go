@@ -586,6 +586,13 @@ func challengeOutput(challenge SignInChallenge) usecase.Output {
 	if challenge.ProviderName != "" {
 		out["provider_name"] = challenge.ProviderName
 	}
+	if terms := challenge.Terms; terms != nil {
+		answer := usecase.Output{"url": terms.URL, "set_by": string(terms.SetBy)}
+		if terms.Version != "" {
+			answer["version"] = terms.Version
+		}
+		out["terms"] = answer
+	}
 	return out
 }
 
