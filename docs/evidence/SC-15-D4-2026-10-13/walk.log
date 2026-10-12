@@ -1,0 +1,283 @@
+# SC-15 D4 walk log, 2026-10-13, commit 00be810b. Written by the probe scripts as they ran, in order.
+# A heading that appears twice is a script that stopped part-way (the reason is noted beside it) and was run again; nothing was removed except one line a stopped run wrote twice.
+# Passwords, tokens and link tokens are never written here.
+
+# Part A - Microsoft, up to the provider (native binary, no private networks)
+focus before the press: body; pressing "Add a provider" (click)
+focus before choosing: body; choosing "Microsoft" in "Which provider"
+[Microsoft form] selects: [{"label":"Which provider","value":"MICROSOFT","options":["Google","Microsoft","Another provider"]},{"label":"Who may sign in through it?","value":"DOMAINS","options":["Only people invited here","Anyone from these organisations","Anyone this provider knows"]},{"label":"New people get","value":"","options":["No access until an administrator gives it","The role Administrator on the whole workspace","The role Member on the whole workspace","The role Contributor on the whole workspace","The role Viewer on the whole workspace","The role Guest on the whole workspace","The role Auditor on the whole workspace"]}]
+[Microsoft form] fields: ["Which provider","Issuer","Name on the button","Client id","Client secret","Who may sign in through it?","Microsoft directories that may sign in","New people get"]
+[Microsoft form] contract values on screen: []
+[Microsoft form] the list under "Anyone from these organisations": label "Microsoft directories that may sign in"; hint "One directory id per line. This is the value Microsoft calls the tenant id, and it is what decides who gets in - the email address is not, because Microsoft says its own email claim must never be used for that. Use 9188040d-6c67-4c5b-b112-36a304b66dad for personal Microsoft accounts. An empty list lets nobody in."
+[Microsoft form] instructions: ["In Entra ID, register an application, add the redirect address below as a web redirect URI, and create a client secret. The issuer is the one your directory's OpenID configuration names. Register the application in your own directory and use that directory's issuer address, not the shared one."]
+[Microsoft form] redirect address drawn: "http://localhost:18530/auth/callback" scrollWidth=435 clientWidth=435 (nothing cut off: true)
+focus before the press: body; pressing "Copy the address" (click)
+[Microsoft form] clipboard after Copy: "http://localhost:18530/auth/callback"; button now reads "Copy the address"
+[Microsoft form] "New people get" before anything chosen: "No access until an administrator gives it"
+[Microsoft form] "Only people invited here": fields ["Which provider","Issuer","Name on the button","Client id","Client secret","Who may sign in through it?","Microsoft directories that may sign in"]
+[Microsoft form] "Anyone this provider knows": fields ["Which provider","Issuer","Name on the button","Client id","Client secret","Who may sign in through it?","New people get"]
+[Microsoft form] "Anyone from these organisations": fields ["Which provider","Issuer","Name on the button","Client id","Client secret","Who may sign in through it?","Microsoft directories that may sign in","New people get"]
+[Google form] selects: [{"label":"Which provider","value":"GOOGLE","options":["Google","Microsoft","Another provider"]},{"label":"Who may sign in through it?","value":"DOMAINS","options":["Only people invited here","Anyone from these organisations"]},{"label":"New people get","value":"","options":["No access until an administrator gives it","The role Administrator on the whole workspace","The role Member on the whole workspace","The role Contributor on the whole workspace","The role Viewer on the whole workspace","The role Guest on the whole workspace","The role Auditor on the whole workspace"]}]
+[Google form] fields: ["Which provider","Issuer","Name on the button","Client id","Client secret","Who may sign in through it?","Google Workspace domains that may sign in","New people get"]
+[Google form] particular: ["In the Google Cloud console, create an OAuth client of type \"Web application\" and add the redirect address below as an authorised redirect URI. Copy the client id and secret here. One issuer serves every Google account there is, private ones included. Hubtask therefore never lets in everybody with a Google account: only people invited here, or people from the Google Workspace domains you list. A personal Google account belongs to no domain and comes in only by invitation.","One domain per line, as Google reports it. Google is explicit that the email address's domain is not enough to tell whether an organisation runs that account - this is the value that is, and it is what decides who gets in. An empty list lets nobody in, and a personal Google account belongs to no domain at all."]
+[Other provider form] selects: [{"label":"Which provider","value":"GENERIC","options":["Google","Microsoft","Another provider"]},{"label":"Who may sign in through it?","value":"DOMAINS","options":["Only people invited here","Anyone from these organisations","Anyone this provider knows"]},{"label":"New people get","value":"","options":["No access until an administrator gives it","The role Administrator on the whole workspace","The role Member on the whole workspace","The role Contributor on the whole workspace","The role Viewer on the whole workspace","The role Guest on the whole workspace","The role Auditor on the whole workspace"]}]
+[Other provider form] fields: ["Which provider","Issuer","Name on the button","Client id","Client secret","Who may sign in through it?","Email domains this provider admits","New people get"]
+[Other provider form] the list under "Anyone from these organisations": "Email domains this provider admits", hint: "One per line. Nobody outside them gets in through this provider, and somebody inside them who has no account here yet is given one. An empty list admits nobody, because the list is the setting."
+filled: issuer https://login.microsoftonline.com/organizations/v2.0 (the shared endpoint), name "Acme Microsoft", a placeholder client id and secret, "Anyone from these organisations" with an EMPTY directory list, "New people get: The role Member"
+focus before the press: input[type=password] "Client secret*"; pressing "Save the provider" (click)
+  empty directory list: dialog came: true; requests so far: ["POST /api/v1/identity-providers"]
+  the dialog reads: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer. / Your password* / Not now / Prove it"
+  focus in the dialog: button[type=button] "Not now"
+  focus before typing: input[type=password] "Your password*"; typing the password, then pressing Enter
+  after the proof: requests ["POST /api/v1/identity-providers","POST /api/v1/auth/step-up","POST /api/v1/identity-providers"]
+  the screen says: ["https://login.microsoftonline.com/organizations/v2.0 is a shared address that stands for every organisation at this provider. Name the ones that may sign in before saving it - without a list it is all of them. / Reference b5af18ba89cc76df04a72dcbbcbaafae","No provider is configured. Add one and people can sign in through it.","What to do at the provider / In Entra ID, register an application, add the redirect address below as a web redirect URI, and create a client secret. The issuer is the one your directory's OpenID configuration names. Register the application in your own directory and use that directory's issuer address, not the shared one.","Copied.","This provider also has shared addresses - common for every directory and every personal account, organizations for work accounts, consumers for personal ones. Use one and a single registration serves everybody you name below; use one directory's own address and it serves that one."]
+filled one directory id (a made-up tenant id; nobody signs in, only the discovery document is fetched)
+focus before the press: textarea[type=textarea] "Microsoft directories that may sign in"; pressing "Save the provider" (click)
+  one directory listed: dialog came: true; requests so far: ["POST /api/v1/identity-providers"]
+  the dialog reads: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer. / Your password* / Not now / Prove it"
+  focus in the dialog: input[type=password] "Your password*"
+  focus before typing: input[type=password] "Your password*"; typing the password, then pressing Enter
+  after the proof: requests ["POST /api/v1/identity-providers","POST /api/v1/auth/step-up","POST /api/v1/identity-providers"]
+  the screen says: ["Saved. The provider answered its metadata."]
+[provider list] ["A provider is switched on or off for this workspace under Sign-in, in the list of ways to sign in. A new one is saved off.","Acme Microsoft","https://login.microsoftonline.com/organizations/v2.0","Anyone from these organisations","Switched off"]
+page errors: []
+
+[trail, GET /audit?action=identity.] 200
+  {"action":"identity.provider_configured","outcome":"SUCCESS","actor":"it-admin@d4.example","target":{"id":"01a1323b-7b9e-73f8-bba8-fb61b9596e17","type":"identity_provider"},"changes":[{"field":"allowed_directories","to":"1"},{"field":"allowed_email_domains","to":"0"},{"field":"client_id","to":"00000000-0000-4000-8000-00000000d4d4"},{"field":"enabled","to":"false"},{"field":"issuer","to":"https://login.microsoftonline.com/organizations/v2.0"},{"field":"kind","to":"MICROSOFT"},{"field":"newcomer_group_id"},{"field":"newcomer_role","to":"MEMBER"},{"field":"provisioning","to":"DOMAINS"}]}
+  the placeholder secret "walk-d4-placeholder-not-a-secret" in the answer: false; any field named client_secret: false
+[audit screen] first lines: ["Administration","The trail","The trail","Every action this workspace records about itself. What it holds is who, what and when — never what anybody wrote.","Look for","From","To","What was done","The start of an action name is enough — “auth.” finds every sign-in event.","Who did it","An account's identifier. Without the right to the whole trail, only your own events are answered.","What kind of thing","For example container, or legal_hold.","Which one","How it ended","Any way","Done","Refused","Failed","Look","Reading the trail is not itself recorded — a trail that grew by being read would bury what it is for. A refusal is recorded, and so is an export.","Done","Worth noticing","auth.signed_in","in the chain: 28","by it-admin@d4.example · Oct 13, 2026, 12:29 AM","about the session 01a1323c-49b0-7255-b80b-77b0def670c5","account_id became 01a13237-557c-7845-8481-6a4be3b1d8c0","Done","Worth noticing"]
+[ways to sign in] switches: ["Refuse commonly used passwords=true (disabled)","Refuse the address, the name and the workspace name inside a password=true (disabled)","Check against known breaches=false","Password=true (disabled)","Acme Microsoft=false","Accounts without a mail address allowed=true"]
+[ways to sign in] the section reads: ["Ways to sign in","Each way in, with its own switch. A switch here takes effect at once.","Password","The only way in left. Switch another one on first.","The address and a password, checked by this installation.","Hubtask's default.","Acme Microsoft"]
+focus before the key press: input[type=checkbox] "Acme Microsoft"; pressing Space
+  a dialog: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer. / Your password* / Not now / Prove it"
+[ways to sign in] after: ["Refuse commonly used passwords=true (disabled)","Refuse the address, the name and the workspace name inside a password=true (disabled)","Check against known breaches=false","Password=true","Acme Microsoft=true","Accounts without a mail address allowed=true"]
+[ways to sign in] the section reads: ["Passwords","Password","Acme Microsoft","Owners and administrators may give somebody an account with a sign-in name instead of an address. Switching this off stops new ones; the ones already here keep signing in."]
+
+[card 1280] the provider button: {"text":"Sign in with Acme Microsoft","svg":true,"img":null,"fills":["#f25022","#00a4ef","#7fba00","#ffb900"]}
+[card 1280] requests to a third-party origin while drawing the card: []
+focus before the key press: button[type=button] "Sign in with Acme Microsoft"; pressing Enter
+[press] requests: ["POST http://localhost:18530/api/v1/auth/oidc:start","GET http://localhost:18530/api/v1/meta/capabilities","GET http://localhost:18530/api/v1/auth/sign-in-rules","GET https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"]
+[press] the browser is sent to https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize (the request was stopped in the browser, nothing reached Microsoft)
+[press] parameters: {"client_id":"(redacted, 36 characters)","redirect_uri":"http://localhost:18530/auth/callback","response_type":"code","scope":"openid profile email","prompt":"(none)","max_age":"(none)","login_hint":"(none)","code_challenge":"present (43 characters)","code_challenge_method":"S256","state":"present","nonce":"present","other":[]}
+
+[card 375] the provider button: {"text":"Sign in with Acme Microsoft","svg":true,"img":null,"fills":["#f25022","#00a4ef","#7fba00","#ffb900"]}
+[card 375] requests to a third-party origin while drawing the card: []
+page errors (admin): []
+
+[audit screen, "What was done" = identity.] ["identity.provider_sign_in_started","in the chain: 31","by Hubtask itself · Oct 13, 2026, 12:29 AM","about the identity_provider 01a13237-557c-79f1-b05c-64a45d384cd3","issuer became https://login.microsoftonline.com/organizations/v2.0","Done","Worth noticing","identity.provider_offered","in the chain: 30","by it-admin@d4.example · Oct 13, 2026, 12:29 AM","about the identity_provider 01a1323b-7b9e-73f8-bba8-fb61b9596e17","offered_here became true","scope became workspace","Done","Worth noticing","identity.provider_configured","in the chain: 24","by it-admin@d4.example · Oct 13, 2026, 12:28 AM","about the identity_provider 01a1323b-7b9e-73f8-bba8-fb61b9596e17","allowed_directories became 1","allowed_email_domains became 0","client_id became 00000000-0000-4000-8000-00000000d4d4","enabled became false","issuer became https://login.microsoftonline.com/organizations/v2.0","kind became MICROSOFT","newcomer_group_id became","newcomer_role became MEMBER","provisioning became DOMAINS","Does the record still hold?","Every entry is chained to the one before it. Checking the chain over a period says whether anything has been altered or removed since.","From","To","Check the chain","Name a period first.","Anchoring outside this database","Once a day, the chain's end — the last entry's number and its hash — is written as a small file to a backup target of this workspace. That copy is what says something against somebody who could rewrite the whole database.","Not anchored. The chain proves tampering inside the database only.","Choose a target with object lock and a retention no shorter than the audit period: an anchor that expires before the entries it seals is a seal nobody can check. The files are a few hundred bytes each, so the lock can be long.","Anchor to","Choose a target"]
+page errors: []
+
+# Part B - a local fake OpenID Connect issuer, configured as "Another provider" (container build, private networks allowed)
+filled: Another provider, issuer https://host.docker.internal:18533 (the fake), name "Acme Directory", "Anyone this provider knows", New people get: role:MEMBER
+focus before the press: input[type=password] "Client secret*"; pressing "Save the provider" (click)
+  save: the fresh-proof dialog came; focus input[type=password] "Your password*"; typing the password, Enter
+  the screen says: ["Saved. The provider answered its metadata."]
+focus before the key press: input[type=checkbox] "Acme Directory"; pressing Space
+  switch on: the fresh-proof dialog came; focus input[type=password] "Your password*"; typing the password, Enter
+  switches now: ["Refuse commonly used passwords=true","Refuse the address, the name and the workspace name inside a password=true","Check against known breaches=false","Password=true","Acme Microsoft=true","Acme Directory=true","Accounts without a mail address allowed=true"]
+page errors: []
+
+[arrival nora.newcomer@acme.example, 1280] focus before the key press: button[type=button] "A
+Sign in with Acme Directory"; pressing Enter (the fake issuer signs "Nora Newcomer" in at once)
+  went: ["POST http://localhost:18530/api/v1/auth/oidc:start","GET http://localhost:18534/authorize","GET http://localhost:18530/auth/callback","POST http://localhost:18530/api/v1/auth/oidc:callback"]
+  landed: in the workspace; address now http://localhost:18530/
+  the screen: ["Overview","Create hub","What is on you","Nothing assigned to you has a date on it.","In the jumble","Nothing is waiting in the jumble.","What you had open","What you open is listed here, on this device only."]
+  the account: none; memberships: []
+  read by the owner afterwards: account null; workspace roles []
+  read by the owner afterwards (Nora, matched by her name): account {"id":"01a1323f-cca3-7742-8b46-916e3c87ec14","status":"ACTIVE","display_name":"Nora Newcomer"}; workspace roles ["MEMBER"]
+
+[owner] editing "Acme Directory": New people get -> 
+
+[arrival otto.other@acme.example, 1280] focus before the key press: button[type=button] "A
+Sign in with Acme Directory"; pressing Enter (the fake issuer signs "Otto Other" in at once)
+  went: ["POST http://localhost:18530/api/v1/auth/oidc:start","GET http://localhost:18534/authorize","GET http://localhost:18530/auth/callback","POST http://localhost:18530/api/v1/auth/oidc:callback"]
+  landed: in the workspace; address now http://localhost:18530/
+  the screen: ["Overview","Create hub","What is on you","Nothing assigned to you has a date on it.","In the jumble","Nothing is waiting in the jumble.","What you had open","What you open is listed here, on this device only."]
+  read by the owner afterwards: account {"id":"01a13241-1684-7aad-90d3-9a408b326efa","status":"ACTIVE","display_name":"Otto Other"}; workspace roles ["MEMBER"] (an account with no role holds no membership)
+  (note: the script's edit before Otto failed on a wrong button name - the button reads "Change" - so Otto arrived while the provider still gave Member; a second instance of the first half of UC-ID-08 check 2. The edit is repeated below.)
+
+[owner] editing "Acme Directory": New people get -> 
+  "New people get" now: "No access until an administrator gives it"; focus before the press: button[type=button] "Change"; pressing "Save the provider" (click)
+  save: the fresh-proof dialog came; focus input[type=password] "Your password*"; typing the password, Enter
+  the screen says: ["Saved. The provider answered its metadata."]
+page errors: []
+
+[arrival paul.plain@acme.example, 1280] focus before the key press: button[type=button] "A
+Sign in with Acme Directory"; pressing Enter (the fake issuer signs "Paul Plain" in at once)
+  went: ["POST http://localhost:18530/api/v1/auth/oidc:start","GET http://localhost:18534/authorize","GET http://localhost:18530/auth/callback","POST http://localhost:18530/api/v1/auth/oidc:callback"]
+  landed: in the workspace; address now http://localhost:18530/
+  the screen: ["Overview","An administrator of this workspace still has to give you access.","You are signed in, and nothing here is yours to see yet. Once you have been given a role or added to a group, it appears here."]
+  read by the owner afterwards: account null; workspace roles [] (an account with no role holds no membership)
+  database (as the owner role, read-only): account / status / memberships: Nora Newcomer|ACTIVE|1;Otto Other|ACTIVE|1;Paul Plain|ACTIVE|0;
+
+# UC-ID-10 - the fake issuer vouches for erika.mustermann@acme.example, whose account holds a password and a second factor. 375 px, keyboard only.
+identities connected to Erika's account before: 0
+  focus: body -> pressing Tab
+  focus: input[type=email] "Email address*" -> pressing Tab
+  focus: input[type=password] "Password*" -> pressing Tab
+  focus: button[type=button] "Show password" -> pressing Tab
+  focus: button[type=button] "Forgot your password?" -> pressing Tab
+  focus: button[type=submit] "Sign in" -> pressing Tab
+  focus: button[type=button] "Sign in with Acme Microsoft" -> pressing Tab
+  focus: button[type=button] "A
+Sign in with Acme Directory" -> pressing Enter
+[link step] the card: ["Hubtask","to localhost:18530","STEP 2 OF 2","Confirm it is your account","An account for this address already exists here. Enter its password once, and Acme Directory will sign you in from now on.","Signing in as","erika.mustermann@acme.example","Not you?","Password*","Show password","This sign-in waits 4:58","Confirm and connect"]
+[link step] page width 375 at a 375 px viewport (sideways scroll: false)
+  focus: body -> pressing Tab
+  focus: button[type=button] "Not you?" -> pressing Tab
+  focus: input[type=password] "Password*" -> typing a WRONG password
+  focus: input[type=password] "Password*" -> pressing Enter
+[wrong password] the alert: ["Sign-in failed. Check the email address and the password.\n\nccf39748aad8795ee96e4e8760719820"]
+[wrong password] the card: ["Hubtask","to localhost:18530","Sign-in failed. Check the email address and the password.","ccf39748aad8795ee96e4e8760719820","STEP 2 OF 2","Confirm it is your account","An account for this address already exists here. Enter its password once, and Acme Directory will sign you in from now on.","Signing in as","erika.mustermann@acme.example","Not you?","Password*","Show password","This sign-in waits 4:57","Confirm and connect"]
+identities connected to Erika's account after the wrong password: 0
+  focus: input[type=password] "Password*" -> selecting what is in the field and typing Erika's password
+  focus: input[type=password] "Password*" -> pressing Enter
+[second factor] the card: ["Hubtask","to localhost:18530","STEP 2 OF 2","Second factor","Your password was right. This account also asks for a code from your authenticator.","Signing in as","erika.mustermann@acme.example","Not you?","Code from your authenticator* ","Six digits, the one showing now.","This sign-in waits 4:58","Sign in","I do not have my authenticator"]
+identities connected to Erika's account with only the password proven: 0
+  focus: input[type=text] "Code from your authenticator*" -> typing the current code from Erika's authenticator
+  focus: input[type=text] "Code from your authenticator*" -> pressing Enter
+[connected] signed in; address http://localhost:18530/; identities connected to Erika's account now: 1
+[sessions, 375] ["Your settings","Where you are signed in","Every session your account holds. Ending one takes effect on its next request.","Client","\t","Signed in","\t","Signed in with","\t","Last active","\t","Network","\t","End","Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36","This device\tOct 13, 2026, 12:36 AM\tPassword and second factor\tOct 13, 2026, 12:36 AM\t—\t","End this session","node","\tOct 13, 2026, 12:24 AM\tInvitation\tOct 13, 2026, 12:24 AM\t127.0.0.0/24\t","End","This ends every other session of your account, on every other device and browser. You stay signed in here.","Sign out everywhere else"]
+  [trail] identity.provider_sign_in_started SUCCESS actor=SYSTEM target=identity_provider:01a13237-557c-79f1-b05c-64a45d384cd3 changes=[{"field":"issuer","to":"https://host.docker.internal:18533"}]
+  [trail] identity.provider_linked SUCCESS actor=Erika Mustermann target=account:01a13237-58e1-7286-bf80-1e423da26c97 changes=[{"field":"email_verified","to":"true"},{"field":"issuer","to":"https://host.docker.internal:18533"},{"field":"proof","to":"PASSWORD"}]
+  [trail] auth.signed_in SUCCESS actor=Erika Mustermann target=session:01a13242-31ba-70d5-b1f7-522b26a7e8e6 changes=[{"field":"account_id","to":"01a13237-58e1-7286-bf80-1e423da26c97"}]
+  [trail] auth.signed_in SUCCESS actor=it-admin@d4.example target=session:01a13242-3e7c-7451-8693-465f7e315a77 changes=[{"field":"account_id","to":"01a13237-557c-7845-8481-6a4be3b1d8c0"}]
+  Erika's address in the link entry: false; the provider's id in it: true
+
+# UC-ID-06 check 2 - Erika, now connected, signs in through Acme Directory (1280)
+  focus: button[type=button] "A
+Sign in with Acme Directory" -> pressing Enter
+  after the provider: signed in
+[sessions, 1280] rows: ["Client Signed in Signed in with Last active Network End","Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36 This device Oct 13, 2026, 12:36 AM Acme Directory Oct 13, 2026, 12:36 AM 172.24.0.0/24 End this session","Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36 Oct 13, 2026, 12:36 AM Password and second factor Oct 13, 2026, 12:36 AM — End","node Oct 13, 2026, 12:24 AM Invitation Oct 13, 2026, 12:24 AM 127.0.0.0/24 End"]
+
+# UC-ID-12 check 6 / SC-33 - switching the password off with two providers on
+
+# UC-ID-12 check 6 / SC-33 - switching the password off with two providers on
+[375] the ways section: ["Ways to sign in","Each way in, with its own switch. A switch here takes effect at once.","Password","The address and a password, checked by this installation.","2 people here have no provider switched on here to sign in with. With the password off, each of them can connect one through “Get a sign-in link by mail” on the sign-in page - or with their password, the first time they use the provider - if the provider knows them under the same address.","Hubtask's default.","Acme Microsoft","This workspace's own provider.","A","Acme Directory","This workspace's own provider.","Add or change a provider"]; page width 375 at 375
+[1280] before: ["Ways to sign in","Each way in, with its own switch. A switch here takes effect at once.","Password","The address and a password, checked by this installation.","2 people here have no provider switched on here to sign in with. With the password off, each of them can connect one through “Get a sign-in link by mail” on the sign-in page - or with their password, the first time they use the provider - if the provider knows them under the same address.","Hubtask's default.","Acme Microsoft","This workspace's own provider.","A","Acme Directory","This workspace's own provider.","Add or change a provider"]
+focus before the key press: input[type=checkbox] "Password"; pressing Space
+  password off: the fresh-proof dialog came; focus input[type=password] "Your password*"; typing the password, Enter
+[1280] after: ["Ways to sign in","Each way in, with its own switch. A switch here takes effect at once.","Password","The address and a password, checked by this installation.","Set here.","Acme Microsoft","This workspace's own provider.","A","Acme Directory","This workspace's own provider.","Add or change a provider"]
+  alerts: ["The sign-in rules were saved."]
+[card, password off] ["Hubtask","to localhost:18530","Sign in","Sign in with Acme Microsoft","A","Sign in with Acme Directory","Get a sign-in link by mail"]
+focus before the key press: input[type=checkbox] "Password"; pressing Space (the password back on for the rest of the walk)
+  (the script stopped here: the fresh-proof dialog that came had no password field to type into, and the script waited for one; the owner's browser closed with it. What the owner did next follows.)
+
+
+# The owner's own way back with the password off (SC-33): the script's browser had closed, and the password sign-in now answers auth.password_not_offered
+[card] after "Get a sign-in link by mail": ["Hubtask","to localhost:18530","Get a sign-in link by mail","Enter the address you sign in with. If an account exists for it, a mail is on its way. Where the account is not connected to this workspace's provider yet, the mail holds a link that connects it - it works once, for thirty minutes.","Email address*","Send the link","Back to sign in"]
+[card] after sending: ["Hubtask","to localhost:18530","If an account exists for that address, the link is on its way. Check the mailbox.","Get a sign-in link by mail","Enter the address you sign in with. If an account exists for it, a mail is on its way. Where the account is not connected to this workspace's provider yet, the mail holds a link that connects it - it works once, for thirty minutes.","Email address*","Send the link","Back to sign in"]
+[mail] subject "Connect your Hubtask sign-in"; text: "Somebody asked to reset the password for this address. Your workspace no longer signs in with a password, and this account is not connected to its provider yet. Connect it here: http://localhost:18530/reset#connect=<redacted>\r\n\r\nThe link works once and for thirty minutes. Sign in at the provider with this address; if the account has a second factor, it is asked for as usual. If it was not you, you can ignore this message - nothing has changed."
+[mail] a link to http://localhost:18530/reset (token not recorded)
+[link opened] ["Hubtask","to localhost:18530","Connect your sign-in","This workspace signs in through its provider, not with a password. Sign in there with the address this link was sent to, and the provider is connected to your account - from then on it signs you in. If your account has a second factor, it is asked next.","Sign in with Acme Microsoft","A","Sign in with Acme Directory"]
+  focus: button[type=button] "A
+Sign in with Acme Directory" -> pressing Enter
+  (the script waited only for the workspace and stopped; run again with a fresh link below)
+
+# The owner's own way back with the password off (SC-33): the script's browser had closed, and the password sign-in now answers auth.password_not_offered
+[card] after "Get a sign-in link by mail": ["Hubtask","to localhost:18530","Get a sign-in link by mail","Enter the address you sign in with. If an account exists for it, a mail is on its way. Where the account is not connected to this workspace's provider yet, the mail holds a link that connects it - it works once, for thirty minutes.","Email address*","Send the link","Back to sign in"]
+[card] after sending: ["Hubtask","to localhost:18530","If an account exists for that address, the link is on its way. Check the mailbox.","Get a sign-in link by mail","Enter the address you sign in with. If an account exists for it, a mail is on its way. Where the account is not connected to this workspace's provider yet, the mail holds a link that connects it - it works once, for thirty minutes.","Email address*","Send the link","Back to sign in"]
+[mail] subject "Connect your Hubtask sign-in"; text: "Somebody asked to reset the password for this address. Your workspace no longer signs in with a password, and this account is not connected to its provider yet. Connect it here: http://localhost:18530/reset#connect=<redacted>\r\n\r\nThe link works once and for thirty minutes. Sign in at the provider with this address; if the account has a second factor, it is asked for as usual. If it was not you, you can ignore this message - nothing has changed."
+[mail] a link to http://localhost:18530/reset (token not recorded)
+[link opened] ["Hubtask","to localhost:18530","Connect your sign-in","This workspace signs in through its provider, not with a password. Sign in there with the address this link was sent to, and the provider is connected to your account - from then on it signs you in. If your account has a second factor, it is asked next.","Sign in with Acme Microsoft","A","Sign in with Acme Directory"]
+  focus: button[type=button] "A
+Sign in with Acme Directory" -> pressing Enter
+[after the provider] a refusal; http://localhost:18530/auth/callback; ["Hubtask","to localhost:18530","Internal","Not signed in","Back to sign-in"]
+  [server log] 2026-10-12T22:39:32.381703926Z use_case=CompleteOidcSignIn error=INTERNAL: internal (audit.entry_incomplete) request_id=540bfecbe49fb9732af2142116949dc4
+  [server log] 2026-10-12T22:40:16.421788044Z use_case=CompleteOidcSignIn error=INTERNAL: internal (audit.entry_incomplete) request_id=5490f936265c31e21b94a6a083bbf432
+  identities connected to the owner after both attempts: 0
+
+# The owner's other way back: "Sign in with Acme Directory", then the LINK step with the password (the password is still a proof there)
+  focus: button[type=button] "A
+Sign in with Acme Directory" -> pressing Enter
+[link step] ["Hubtask","to localhost:18530","STEP 2 OF 2","Confirm it is your account","An account for this address already exists here. Enter its password once, and Acme Directory will sign you in from now on.","Signing in as","it-admin@d4.example","Not you?","Password*","Show password","This sign-in waits 4:59","Confirm and connect"]
+  focus: input[type=password] "Password*" -> typing the owner's password, Enter
+  signed in and connected
+focus before the key press: input[type=checkbox] "Password"; pressing Space (the password back on)
+  the fresh-proof dialog: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer. / You sign in at Acme Directory once more, and come back here. / Not now / Confirm with Acme Directory"
+  focus: button[type=button] "Confirm with Acme Directory" -> pressing Enter (a fresh sign-in at the fake issuer)
+  back at http://localhost:18530/administration/sign-in; the screen says: ["Connected","Confirmed with Acme Directory. Do what you were about to do again - it goes through now."]
+focus before the key press: input[type=checkbox] "Password"; pressing Space again, as the confirmation asks
+[1280] restored: password switch on: true ["Ways to sign in","Each way in, with its own switch. A switch here takes effect at once.","Password","The address and a password, checked by this installation.","1 person here has no provider switched on here to sign in with. With the password off, each of them can connect one through “Get a sign-in link by mail” on the sign-in page - or with their password, the first time they use the provider - if the provider knows them under the same address.","Set here."]
+
+# UC-AUD-01 - Audrey holds the AUDITOR role on the whole workspace (given by the owner at the seed, POST /memberships)
+[owner] a hub "Payroll 2027": 201
+[owner] a collection "Salaries" 201 and an entry "Raise for the night shift" 422 {"type":"https://docs.hubtask.dev/errors/validation_failed","title":"validation_failed","status":422,"code":"validation_failed","detail_code":"usecase.input_invalid","field_errors":[{"path":"/type","code":"usecase.field_required"}],"request_id":"f7718a240fcebc53405be9e34ce59f2c","docs":"https://docs.hubtask.dev/errors/validation_failed"}
+[API as Audrey] the trail (GET /audit?limit=5): 200, 5 rows; holds "Payroll" or "night shift": false
+[API as Audrey] the trail, filtered to the provider configuration (GET /audit?action=identity.provider_configured): 200, 3 rows; holds "Payroll" or "night shift": false
+[API as Audrey] the sign-in rules (GET /auth/sign-in-rules): 200, 601 bytes ; holds "Payroll" or "night shift": false
+[API as Audrey] the identity providers (GET /identity-providers): 200, 927 bytes ; holds "Payroll" or "night shift": false
+[API as Audrey] the hubs (GET /containers): 200, 56 bytes rows; holds "Payroll" or "night shift": false
+[API as Audrey] the hub "Payroll 2027" (GET /containers/{id}): 403 access.not_permitted; holds "Payroll" or "night shift": false
+[API as Audrey] the entry (GET /items/undefined): 400 undefined; holds "Payroll" or "night shift": false
+[API as Audrey] the collection's entries (GET /items?collection_id={id}): 403 access.not_permitted; holds "Payroll" or "night shift": false
+[API as Audrey] the snapshot (POST /sync:snapshot): 422; holds "Payroll" or "night shift": false
+[Audrey, 1280] the navigation: ["Overview","Search","Jumble"]
+[Audrey, 1280] the first screen: ["Overview","Create hub","No hubs yet. A hub holds the collections you work in.","Create hub"]
+[Audrey, the trail] ["identity.provider_configured","in the chain: 60","by it-admin@d4.example · Oct 13, 2026, 12:35 AM","about the identity_provider 01a1323f-65a5-7c76-903e-579eac9750a7","allowed_directories became 0","allowed_email_domains became 0","client_id became hubtask-d4-walk","enabled became true","issuer became https://host.docker.internal:18533","kind became GENERIC","newcomer_group_id became","newcomer_role became"]
+[Audrey, sign-in rules] reads: ["Administration","Sign-in","Sign-in","How people in this workspace prove who they are. What the installation has already decided is shown beside each rule, and a lock means it decided for every workspace.","Passwords","Minimum length","Hubtask's default.","At least this many of each kind","Length protects more than kinds do. A script without upper and lower case can never meet the first two.","Lowercase","Hubtask's default.","Uppercase"]
+[Audrey, sign-in rules] controls not disabled: ["Minimum length","Lowercase","Uppercase","Digits","Other","At least this many of the four kinds","Most of the same character in a row","Check against known breaches","Expires after, in days","Remember previous passwords","Earliest change after, in hours","Required of","Password","Acme Microsoft","Acme Directory","Accounts without a mail address allowed","End a session after, in days","End an idle session after, in minutes","Imprint","Privacy","Terms","Accessibility","Save","Require a new password from everyone","Dismiss","Dismiss","Require a new password from everyone"]
+[Audrey, providers] reads: ["Administration","Sign-in providers","Sign-in providers","Your organisation's own providers can sign people in here. Password sign-in keeps working alongside them, which is what keeps this workspace reachable when a provider is not.","A provider is switched on or off for this workspace under Sign-in, in the list of ways to sign in. A new one is saved off.","Ways to sign in","This workspace's providers","Acme Microsoft","https://login.microsoftonline.com/organizations/v2.0","Anyone from these organisations","Change","Remove"]
+[Audrey, providers] controls not disabled: ["Change","Remove","Change","Remove","Add a provider"]
+[Audrey, the hub's own address] ["This hub or collection could not be found in this workspace."]; "Payroll" anywhere on the page: false
+  (the entry was refused because the script left out its type, and the snapshot's 422 is the script's own malformed request; both repeated below)
+[owner] the entry "Raise for the night shift" in "Salaries": 201
+[API as Audrey] the entry (GET /items/{id}): 403 access.not_permitted; holds "night shift": false
+[API as Audrey] the collection's entries (GET /items?collection_id={id}): 403 access.not_permitted; holds "night shift": false
+[API as Audrey] POST /sync:pull with an empty body: 422 sync.id_not_uuidv7; holds "Payroll" or "night shift": false
+[Audrey, account menu] ["Your settings","Workspace administration","Take the tour again","About Hubtask","Sign out"]
+[Audrey, /administration] lands on http://localhost:18530/administration/workspace; the section's navigation: ["Administration","Workspace"]
+[Audrey, sign-in rules] focus before the key press: button[type=submit] "Save"; pressing Enter (nothing changed)
+  the screen says: []
+[Audrey, the trail, 375] page width 375 at 375
+  [trail, denied, Audrey] private_hubs.read DENIED target=tenant changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"MANAGE_MEMBERS"}]
+  [trail, denied, Audrey] jumble.entry_read DENIED target=jumble_entry changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"READ"}]
+  [trail, denied, Audrey] private_hubs.read DENIED target=tenant changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"MANAGE_MEMBERS"}]
+  [trail, denied, Audrey] private_hubs.read DENIED target=tenant changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"MANAGE_MEMBERS"}]
+  [trail, denied, Audrey] jumble.entry_read DENIED target=jumble_entry changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"READ"}]
+  [trail, denied, Audrey] item.read DENIED target=container changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"READ"}]
+  [trail, denied, Audrey] item.read DENIED target=item changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"READ"}]
+  [trail, denied, Audrey] container.read DENIED target=container changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"READ"}]
+  [trail, denied, Audrey] private_hubs.read DENIED target=tenant changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"MANAGE_MEMBERS"}]
+  [trail, denied, Audrey] private_hubs.read DENIED target=tenant changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"MANAGE_MEMBERS"}]
+  [trail, denied, Audrey] private_hubs.read DENIED target=tenant changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"MANAGE_MEMBERS"}]
+  [trail, denied, Audrey] jumble.entry_read DENIED target=jumble_entry changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"READ"}]
+  [trail, denied, Audrey] item.read DENIED target=container changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"READ"}]
+  [trail, denied, Audrey] container.read DENIED target=container changes=[{"field":"denied_by","to":"permission"},{"field":"permission","to":"READ"}]
+[Audrey (auditor)] "Workspace administration" lands on http://localhost:18530/administration/workspace; administration links: ["Administration -> /administration"]
+[Audrey (auditor)] the screen: ["Administration","Workspace","Workspace","Name*","What this workspace is called, wherever it is named.","Address","acme-gmbh","Fixed. Changing it would break every link anybody has saved or pasted, so it is set when the workspace is created and not afterwards.","Fallback language","en"]
+[the owner] "Workspace administration" lands on http://localhost:18530/administration/workspace; administration links: ["Administration -> /administration"]
+  (note: the "section's navigation" above read the breadcrumb, not the section's side navigation; screenshot 31 shows the auditor's full administration navigation, The trail included)
+
+# UC-ID-17 check 3 / UC-INS-06 check 2 - a service account's administrative token
+[service accounts] ["Administration","Service accounts","Service accounts","An account that is nobody: no address, no sign-in, tokens as its only credential. It is what an integration or an automation rule should run as, so that neither stops working when the person who set it up leaves.","No service accounts yet.","New service account","Name*","Name it after what it does — “the nightly export”, not “svc1”. It is what a reader of the audit trail sees.","Create it","A new service account holds nothing. Give it a role under People, then mint it a token here."]
+[created] ["Administration","Service accounts","Service accounts","An account that is nobody: no address, no sign-in, tokens as its only credential. It is what an integration or an automation rule should run as, so that neither stops working when the person who set it up leaves.","Nightly HR import","Its tokens","This account holds no role, so its tokens will be accepted and then refused by everything. Give it a role under People.","New service account","Name*","Name it after what it does — “the nightly export”, not “svc1”. It is what a reader of the audit trail sees.","Create it","A new service account holds nothing. Give it a role under People, then mint it a token here."]
+
+# UC-ID-17 check 3 / UC-INS-06 check 2 - a service account's administrative token
+[service accounts] ["Administration","Service accounts","Service accounts","An account that is nobody: no address, no sign-in, tokens as its only credential. It is what an integration or an automation rule should run as, so that neither stops working when the person who set it up leaves.","Nightly HR import","Its tokens","This account holds no role, so its tokens will be accepted and then refused by everything. Give it a role under People.","New service account","Name*","Name it after what it does — “the nightly export”, not “svc1”. It is what a reader of the audit trail sees.","Create it","A new service account holds nothing. Give it a role under People, then mint it a token here."]
+[role] ADMIN on the workspace for the service account, POST /memberships: 201
+[its tokens] ["Administration","Service accounts","Service accounts","An account that is nobody: no address, no sign-in, tokens as its only credential. It is what an integration or an automation rule should run as, so that neither stops working when the person who set it up leaves.","Nightly HR import","Hide its tokens","Administrator","this workspace","You have no tokens.","New token","What it is for*","What you will read in a year when deciding whether it is still needed.","Expires*","Required, and at most a year away. There is no default on purpose: a short one gets worked around, a long one is the forever-credential this rule exists to prevent.","Scopes","Tick only what this token needs. Each one is a door you are opening; an unticked scope is a door that stays shut whatever the token is used for.","accounts:read","accounts:write","admin:tenants","agent:destructive","ai:manage","audit:export","audit:read","automation:manage","backup:manage","backup:read","comments:write","containers:read","containers:write","identity_provider:manage","items:read","items:write","jobs:cancel","jobs:read","media:read","media:write","members:read","members:write","oauth:manage","ops:read","privacy:manage","privacy:read","quotas:read","recurrence:write","reminders:write","retention:manage","retention:read","templates:read","templates:write","trash:read","workspace:manage","workspace:read","Create the token","Tick at least one scope. A token with none can do nothing.","New service account","Name*","Name it after what it does — “the nightly export”, not “svc1”. It is what a reader of the audit trail sees.","Create it","A new service account holds nothing. Give it a role under People, then mint it a token here."]
+[its tokens] scopes offered: ["accounts:read","accounts:write","admin:tenants","agent:destructive","ai:manage","audit:export","audit:read","automation:manage","backup:manage","backup:read","comments:write","containers:read","containers:write","identity_provider:manage","items:read","items:write","jobs:cancel","jobs:read","media:read","media:write","members:read","members:write","oauth:manage","ops:read","privacy:manage","privacy:read","quotas:read","recurrence:write","reminders:write","retention:manage","retention:read","templates:read","templates:write","trash:read","workspace:manage","workspace:read"]
+
+# UC-ID-17 check 3 / UC-INS-06 check 2 - a service account's administrative token
+[service accounts] ["Administration","Service accounts","Service accounts","An account that is nobody: no address, no sign-in, tokens as its only credential. It is what an integration or an automation rule should run as, so that neither stops working when the person who set it up leaves.","Nightly HR import","Its tokens","Administrator","this workspace","New service account","Name*","Name it after what it does — “the nightly export”, not “svc1”. It is what a reader of the audit trail sees.","Create it","A new service account holds nothing. Give it a role under People, then mint it a token here."]
+[its tokens] ["Administration","Service accounts","Service accounts","An account that is nobody: no address, no sign-in, tokens as its only credential. It is what an integration or an automation rule should run as, so that neither stops working when the person who set it up leaves.","Nightly HR import","Hide its tokens","Administrator","this workspace","You have no tokens.","New token","What it is for*","What you will read in a year when deciding whether it is still needed.","Expires*","Required, and at most a year away. There is no default on purpose: a short one gets worked around, a long one is the forever-credential this rule exists to prevent.","Scopes","Tick only what this token needs. Each one is a door you are opening; an unticked scope is a door that stays shut whatever the token is used for.","accounts:read","accounts:write","admin:tenants","agent:destructive","ai:manage","audit:export","audit:read","automation:manage","backup:manage","backup:read","comments:write","containers:read","containers:write","identity_provider:manage","items:read","items:write","jobs:cancel","jobs:read","media:read","media:write","members:read","members:write","oauth:manage","ops:read","privacy:manage","privacy:read","quotas:read","recurrence:write","reminders:write","retention:manage","retention:read","templates:read","templates:write","trash:read","workspace:manage","workspace:read","Create the token","Tick at least one scope. A token with none can do nothing.","New service account","Name*","Name it after what it does — “the nightly export”, not “svc1”. It is what a reader of the audit trail sees.","Create it","A new service account holds nothing. Give it a role under People, then mint it a token here."]
+[its tokens] scopes offered: ["accounts:read","accounts:write","admin:tenants","agent:destructive","ai:manage","audit:export","audit:read","automation:manage","backup:manage","backup:read","comments:write","containers:read","containers:write","identity_provider:manage","items:read","items:write","jobs:cancel","jobs:read","media:read","media:write","members:read","members:write","oauth:manage","ops:read","privacy:manage","privacy:read","quotas:read","recurrence:write","reminders:write","retention:manage","retention:read","templates:read","templates:write","trash:read","workspace:manage","workspace:read"]
+[mint] the expiry field is of type date
+[mint] filled: "HR system imports people every night", expires 2026-12-31, scopes admin:tenants and members:write
+focus before the key press: button[type=submit] "Create the token"; pressing Enter
+  the fresh-proof dialog came: true; requests: ["POST /api/v1/auth/tokens"]
+  the dialog: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer. / Your password* / Confirm with Acme Directory / Not now / Prove it"
+  focus: input[type=password] "Your password*" -> typing the owner's password, Enter
+[minted?] ["An account that is nobody: no address, no sign-in, tokens as its only credential. It is what an integration or an automation rule should run as, so that neither stops working when the person who set it up leaves.","Hide its tokens","Your new token","Shown once. Nothing can show it again — what is kept is a hash, and no calculation turns that back into this. If you lose it, withdraw it and make another.","Show the token","Copy","I have saved the token","Save the token first. It cannot be shown again.","New token","Tick only what this token needs. Each one is a door you are opening; an unticked scope is a door that stays shut whatever the token is used for.","Create the token","Tick at least one scope. A token with none can do nothing.","A new service account holds nothing. Give it a role under People, then mint it a token here."]
+  a token (hbt_...) in the page markup before "Show the token": false
+  after "Show the token": a token is shown, starting hbt_pat_01a1...
+  "Done" disabled before "I have saved the token": true
+  after "Done": a token in the page markup: false; the list: ["HR system imports people every night\tadmin:tenants, members:write\tJan 1, 2027, 12:59 AM\tNever\t","Working","admin:tenants"]
+  [trail] auth.step_up SUCCESS actor=it-admin@d4.example target=session changes=[{"field":"method","to":"PASSWORD"}]
+  [trail] access.token_created SUCCESS actor=it-admin@d4.example target=access_token changes=[{"field":"account_id","to":"01a1324d-296f-7a12-9998-b4b1a24c6169"},{"field":"expires_at","to":"2026-12-31T23:59:59Z"},{"field":"scopes","to":"admin:tenants members:write"}]; holds a token value: false
+
+[Microsoft form, 375] redirect address "http://localhost:18530/auth/callback" scrollWidth=307 clientWidth=307; page width 375 at 375; copy button: true
+
+
+[Microsoft form, 375] redirect address "http://localhost:18530/auth/callback" scrollWidth=307 clientWidth=307; page width 375 at 375; copy button: true
