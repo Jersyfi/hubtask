@@ -439,3 +439,20 @@ func TestVerifyOpenAsksEveryComparisonTheNextRequestMakes(t *testing.T) {
 		})
 	}
 }
+
+// One composition for the mailed link and the handed-over one: the token in the fragment, the
+// base's trailing slash folded, and nothing at all where there is no base or no token.
+func TestTheInvitationLink(t *testing.T) {
+	cases := []struct{ base, token, want string }{
+		{"https://home.example", "hbt_inv_a", "https://home.example/redeem#token=hbt_inv_a"},
+		{"https://home.example/", "hbt_inv_a", "https://home.example/redeem#token=hbt_inv_a"},
+		{"https://home.example", "hbt_inv_a/b c", "https://home.example/redeem#token=hbt_inv_a%2Fb%20c"},
+		{"", "hbt_inv_a", ""},
+		{"https://home.example", "", ""},
+	}
+	for _, c := range cases {
+		if got := InvitationLink(c.base, c.token); got != c.want {
+			t.Errorf("InvitationLink(%q, %q) = %q, want %q", c.base, c.token, got, c.want)
+		}
+	}
+}
