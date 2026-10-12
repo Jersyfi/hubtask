@@ -22,6 +22,7 @@ GitHub-specific; the pipeline may.
 |---|---|---|
 | `ci.yml` | A pull request once it is ready (opened ready, leaving draft, or pushed to while ready); a push to `main` | The pull request gates (§3) |
 | `codeql.yml` | A ready pull request, a push to `main`, weekly | Static security analysis. Not part of `CI required`; a red CodeQL is a finding to fix, not to suppress |
+| `after-ci.yml` | A `ci.yml` run ends; every 15 minutes; manual dispatch | A failed run is re-run once; a red `main` opens the issue "CI: main is red" and holds the green pull requests; a green `main` closes it and re-runs the pull requests that waited (§3.5) |
 | `pr-description-rerun.yml` | A pull request's description or title is edited | If the head commit's latest `ci.yml` run failed, re-runs its description job and `CI required` (§3.1) |
 | `nightly.yml` | Schedule (overnight) | Long runs (§9): `deep` (fuzzing, load, resilience), the `matrix-*` cells, the PITR drill (`make gate-pitr`), the image scan, the action pins; the arm64 cell also runs `make gate-privacy-full` and `make gate-selftest`. A failure files an issue |
 | `release.yml` | Tag `v*` | After the `production` environment's approval: the gates again, image, SBOM, signature, provenance, chart, GitHub release ([deployment.md](./deployment.md) §7) |
