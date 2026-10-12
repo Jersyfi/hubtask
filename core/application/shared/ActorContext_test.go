@@ -170,3 +170,39 @@ func TestAContextCarriesTheDeviceAndTheReadingsAPushMarkedItWith(t *testing.T) {
 		t.Errorf("a zero reading counted as one")
 	}
 }
+
+// A scope the operator register took away is refused naming the register, and a register that
+// could not be read is said to be unavailable, not a refusal (UC-INS-03 check 5).
+func TestAWithheldScopeNamesTheRegister(t *testing.T) {
+	cases := []struct {
+		name     string
+		withheld WithheldScopes
+		want     error
+		detail   string
+	}{
+		{name: "outside the register", withheld: WithheldScopes{Scopes: []string{"admin:tenants"}},
+			want: domain.ErrForbidden, detail: "access.operator_register_required"},
+		{name: "the register unreadable", withheld: WithheldScopes{Scopes: []string{"admin:tenants"}, Unreadable: true},
+			want: domain.ErrUnavailable, detail: "access.operator_register_unreadable"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actor := ActorContext{
+				Kind: ActorUser, TenantID: tenant, Scopes: []string{"items:read"}, Withheld: tc.withheld,
+			}
+			err := actor.RequireScope("admin:tenants")
+			var domainErr *domain.Error
+			if !errors.Is(err, tc.want) || !errors.As(err, &domainErr) || domainErr.DetailCode != tc.detail {
+				t.Fatalf("error = %v, want %s", err, tc.detail)
+			}
+			if domainErr.Params["scope"] != "admin:tenants" {
+				t.Errorf("params = %v", domainErr.Params)
+			}
+			// A scope the register did not take is the ordinary refusal.
+			if err := actor.RequireScope("items:write"); !errors.As(err, &domainErr) ||
+				domainErr.DetailCode != "access.insufficient_scope" {
+				t.Errorf("an unrelated scope answered %v", err)
+			}
+		})
+	}
+}

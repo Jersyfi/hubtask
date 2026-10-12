@@ -350,6 +350,14 @@ safeguard belongs to connecting, not to the provider kind.
 
 * `POST /accounts:invite` creates an `INVITED` account and queues the mail. The token (`hbt_inv_…`)
   is hashed under a purpose label, shown once, lives fourteen days, redeemed once.
+* **Without mail** (`features.mail` false, no `HUBTASK_SMTP_HOST`) nothing is queued: the token is
+  minted in the invitation's transaction and the answer carries `invitation_link`, the link the
+  mail would carry, shown once (no-store, no idempotency replay body). Never both: the mail's
+  delivery mints a token of its own on every attempt and would kill a handed-over link. A rule's run
+  is refused there (`accounts.invitation_needs_a_person`).
+* `POST /accounts/{id}:renew-invitation` gives an invitation not yet accepted a new way to arrive -
+  the mail again, or a new link shown once; the earlier link dies. An address already invited is
+  `accounts.already_invited`, one already here `accounts.email_taken`.
 * The mail links `<base>/redeem#token=…`, the token in the **fragment** (§14.4);
   `POST /auth/invitations:redeem` sets the first password through `SetPassword` (§6) and activates
   the account.
@@ -358,7 +366,7 @@ safeguard belongs to connecting, not to the provider kind.
   flow on the server, single use, expiring, not spent by a failed arrival; under `INVITED_ONLY` that
   link admits even a non-authoritative provider, for that account and the invited address only.
 * Unknown, expired, accepted and foreign invitations are one refusal.
-* Not built: §21 I-5.
+* Not built: §21 I-5 (terms at the invitation).
 
 ---
 
@@ -387,6 +395,9 @@ password and an address added later are decided, not built.*
   sign-in into `PASSWORD_CHANGE`, an armed factor still demanded.
 * What needs a mailbox says "not possible without a mailbox"; a confirmed address makes it an
   ordinary account, the sign-in name kept.
+* An address is added only where the password is a way in: where the workspace's methods leave the
+  password out, the account would lose its one way in once it held an address (§4.1), so the action
+  is not offered there and the server refuses it (the owner, 2026-10-12, #1282).
 * *Managed accounts allowed* is the sign-in switch `managed_accounts`, default on, off the stricter
   value, with the installation's and the plan's default and lock (§18). Off stops new ones; the
   managed accounts already there keep signing in.
@@ -600,12 +611,18 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 * Writing the workspace's rule takes a step-up (§16.3) and is audited with before and after.
 * Locking the installation's methods with the password among them opens the password in **every**
   workspace while locked; for one workspace the lever is §17.2.
-* Locking the installation's methods to providers turns on, in **every** workspace, each offered
-  provider admitted as *Only people invited here*: it creates no accounts, only another way in for
-  people already there, and connecting it asks the account's own proof (§4.1). A provider admitted
-  by domain or to anyone stays each workspace's switch — the installation would otherwise admit
-  people into a workspace that did not decide it (P-07). The installation's screen says which
-  applies. Decided, not built: I-9.
+* Locking the installation's methods with providers among them — `[OIDC]` or `[PASSWORD, OIDC]` —
+  turns on, in **every** workspace, each offered provider admitted as *Only people invited here*:
+  it creates no accounts, only another way in for people already there, and connecting it asks the
+  account's own proof (§4.1). A provider admitted by domain or to anyone stays each workspace's
+  switch — the installation would otherwise admit people into a workspace that did not decide it
+  (P-07). Each row says which applies (`installation_lock`), on the installation's screen and the
+  workspace's, where the mandated provider's switch is shown on and cannot be turned off
+  (`identity_provider.mandated`). The mandate is read, never written into a workspace's switches:
+  lifting the lock returns every workspace to its own choice at once, and where that leaves no way
+  in the fallback opens (§17.1). While the mandated provider's offer stands it is a way in, so the
+  fallback stays shut; the operator's opening (§17.2) still overrides it. The installation's count
+  of a mandated provider is every live workspace, so its removal waits for the withdrawal.
 * **Never a switch:** exporting, deleting or asking about one's own data, language, time zone,
   accessibility. Rate limits, the lockout curve, the key ring, and a workspace's name, colour and
   start page have no installation level; language and time zone may be defaulted there, never locked.
@@ -621,6 +638,10 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 | The register | `operator` lists the accounts (people or service accounts) running this installation, checked when `admin:tenants` is minted **and** exercised. |
 | Four functions | `is_operator`, `operator_register`, `add_operator`, `drop_operator`, narrow `SECURITY DEFINER`s; the table has no row policy and no grant to the application role. |
 | The empty register | Answers *yes* only for an active `OWNER` on an installation with **exactly one** workspace. |
+| The first start | An installation with no workspace and an empty register prints a one-time setup code on each API process's standard error at start - thirty minutes, single use, only its hash stored (`instance_setup_code`). `POST /auth/installation:set-up` spends it on the first workspace, its owner with a password, and the owner's register entry, in one transaction, journalled as `instance.set_up`; a second setup is refused `setup.already_done` (409), a wrong code `setup.code_wrong`, an expired one `setup.code_expired` (403). `features.setup_open` says whether it is offered. |
+| The environment | `HUBTASK_OPERATORS` (`workspace:address`, a bare address in single mode) adds the named accounts at start and on the scheduler's first tick of every minute, journalled under the variable's name; it never removes anybody. The health report names the entries still waiting for their account. |
+| The way back | `hubtask operator add --workspace <short name> --email <address>`, run where the server runs with its configuration, adds the account and journals it as the machine's. No route reaches it. The health report names it when an installation with more than one workspace has an empty register (`config.operator_register_empty`). |
+| The bound on a token | A token carrying `admin:tenants` whose holder the register does not name keeps its other scopes; an administrative route refuses it with `access.operator_register_required` (403). A register that cannot be read withholds the scope too (`access.operator_register_unreadable`, 503). |
 | The last operator | Cannot be removed: `drop_operator` deletes only while more than one remains. |
 | Elevation | An operator raises **their own session** to `admin:tenants` with a step-up (`POST /auth/sessions:elevate`): one hour, never sliding or renewed, the register read on every request, both ends in the installation's journal. A machine holds a personal access token with `admin:tenants`. |
 | The `/instance` area | **Absent**, not disabled, for anybody but an operator (`instance.reachable` in `/meta/capabilities`); it shows what [multi-tenancy.md](./multi-tenancy.md) §4.1 allows, the key ring shown, never turned there, and offers what the API serves and the configuration permits. |
@@ -648,8 +669,7 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 | I-1 | Telling a person by mail when a way into their account changes ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6); only the operator's opening is told today. |
 | I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
 | I-4 | The first start and the locked installation: a setup code, `HUBTASK_OPERATORS`, a server command ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md), [UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)). Not built. |
-| I-5 | Invitations without mail, providers on the invitation card, terms of use with a `TERMS` step ([UC-ID-14](../usecases/identity/UC-ID-14-invite-people-with-a-role.md), [UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
-| I-9 | An installation lock turning an invite-only offered provider on everywhere (§18; [UC-INS-11](../usecases/admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) check 4). Decided, not built. |
+| I-5 | Terms of use with a `TERMS` step ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-9 | The installation's provider secret is not re-sealed by a key rotation ([security.md](./security.md) §16, S-6). |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |

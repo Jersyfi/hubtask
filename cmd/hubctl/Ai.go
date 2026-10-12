@@ -44,6 +44,12 @@ func aiGroup() group {
 				summary: "set it whole; the key comes from " + aiKeyVariable + ", never a flag",
 				run:     aiConfigSet,
 			},
+			{
+				name:    "source",
+				usage:   "[show] | set --source OWN|OFFERED|NONE [--model <name or id>] [--sources …]",
+				summary: "which AI answers this workspace: its own model, one the installation offers, or none",
+				run:     aiSource,
+			},
 		},
 	}
 }

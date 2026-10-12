@@ -286,6 +286,22 @@ export type AiTranslateRequest = components['schemas']['AiTranslateRequest'];
 export type AiProviderConfiguration = components['schemas']['AiProviderConfiguration'];
 export type AiProviderKind = components['schemas']['AiProviderKind'];
 export type AiJurisdiction = components['schemas']['AiJurisdiction'];
+/**
+ * An AI model the installation offers every workspace, as the operator reads it: never the key,
+ * only whether one is held (ADR-0072 §1).
+ */
+export type OfferedAiModel = components['schemas']['OfferedAiModel'];
+export type OfferedAiModelConfiguration = components['schemas']['OfferedAiModelConfiguration'];
+/**
+ * Which AI answers a workspace: its own model, an offered one or none, with what the installation
+ * allows and who set it. An offered model is named with its processor and jurisdiction only.
+ */
+export type AiSource = components['schemas']['AiSource'];
+export type AiSourceChoice = components['schemas']['AiSourceChoice'];
+export type AiSourceKind = components['schemas']['AiSourceKind'];
+export type AiSources = components['schemas']['AiSources'];
+export type AiMinJurisdiction = components['schemas']['AiMinJurisdiction'];
+export type OfferedAiModelSummary = components['schemas']['OfferedAiModelSummary'];
 
 /**
  * A minted credential as it is listed afterwards. The token itself is not a member of it: it
@@ -490,6 +506,8 @@ export type ImportRun = components['schemas']['ImportRun'];
  * of the `tenant` row rather than of anything inside it.
  */
 export type InstanceOverview = components['schemas']['InstanceOverview'];
+/** What the first start's setup card sends (UC-INS-01). */
+export type InstallationSetUp = components['schemas']['InstallationSetUp'];
 export type InstanceJournalEntry = components['schemas']['InstanceJournalEntry'];
 export type InstanceJournalPage = components['schemas']['InstanceJournalPage'];
 /** The control plane's view of a workspace: its standing and its lifecycle, never its contents. */

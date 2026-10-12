@@ -678,3 +678,50 @@ func TestAModelKnownToBeTooWideOffersNoMeaning(t *testing.T) {
 		})
 	}
 }
+
+// setupState answers whether the installation is still empty, and counts the reads.
+type setupState struct {
+	unset bool
+	reads int
+}
+
+func (s *setupState) Unset(context.Context) (bool, error) {
+	s.reads++
+	return s.unset, nil
+}
+
+// `setup_open` is the full condition of the first start's setup (P-05): true for an anonymous
+// caller while nothing exists, false once something does, and false without a read for anybody
+// signed in - a credential means a workspace exists.
+func TestTheSetupIsOpenOnlyOnAnEmptyInstallation(t *testing.T) {
+	cases := []struct {
+		name  string
+		actor appshared.ActorContext
+		unset bool
+		want  bool
+		reads int
+	}{
+		{name: "empty, anonymous", actor: appshared.Anonymous("en", "UTC"), unset: true, want: true, reads: 1},
+		{name: "set up, anonymous", actor: appshared.Anonymous("en", "UTC"), unset: false, want: false, reads: 1},
+		{
+			name:  "signed in",
+			actor: appshared.ActorContext{Kind: appshared.ActorUser, TenantID: tenant},
+			unset: true, want: false, reads: 0,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := &setupState{unset: tc.unset}
+			h := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+			h.Setup = state
+			capabilities, err := h.Execute(t.Context(), tc.actor)
+			if err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+			if capabilities.Features["setup_open"] != tc.want || state.reads != tc.reads {
+				t.Errorf("setup_open = %v after %d reads, want %v after %d",
+					capabilities.Features["setup_open"], state.reads, tc.want, tc.reads)
+			}
+		})
+	}
+}

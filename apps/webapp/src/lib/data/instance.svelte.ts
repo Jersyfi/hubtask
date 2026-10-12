@@ -28,6 +28,8 @@ import type {
   InstanceJournalEntry,
   InstanceOverview,
   InstanceSettings,
+  OfferedAiModel,
+  OfferedAiModelConfiguration,
   Operator,
   PasswordOpeningRequest,
   ProvisionedTenant,
@@ -50,9 +52,10 @@ const OPERATORS = '/admin/operators';
 const JOURNAL = '/admin/journal';
 const PROVIDERS = '/admin/identity-providers';
 const ENCRYPTION = '/admin/encryption';
+const AI_PROVIDERS = '/admin/ai-providers';
 
 /** Everything a write at this level can make stale. One list, so no caller forgets half of it. */
-const EVERYTHING = [OVERVIEW, TENANTS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION];
+const EVERYTHING = [OVERVIEW, TENANTS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION, AI_PROVIDERS];
 
 /** How often the remaining time is recomputed. A second: it is a clock somebody is reading. */
 const TICK_MS = 1_000;
@@ -72,6 +75,7 @@ class Instance {
   #journal = $state<ResourceState<{ readonly data: readonly InstanceJournalEntry[] }>>({ status: 'idle' });
   #providers = $state<ResourceState<readonly IdentityProvider[]>>({ status: 'idle' });
   #encryption = $state<ResourceState<EncryptionStatus>>({ status: 'idle' });
+  #offeredAi = $state<ResourceState<readonly OfferedAiModel[]>>({ status: 'idle' });
   // The presets are neither the installation's nor a workspace's: they are what Hubtask knows about
   // three issuers, and the same list answers at both levels. Read through the path the workspace's
   // own store already names, so one route has one constant.
@@ -133,6 +137,14 @@ class Instance {
     return this.#encryption;
   }
 
+  get offeredAi(): readonly OfferedAiModel[] {
+    return this.#offeredAi.status === 'ready' ? this.#offeredAi.data : [];
+  }
+
+  get offeredAiState(): ResourceState<readonly OfferedAiModel[]> {
+    return this.#offeredAi;
+  }
+
   /**
    * Raises this session for an hour.
    *
@@ -160,6 +172,7 @@ class Instance {
     this.#journal = { status: 'idle' };
     this.#providers = { status: 'idle' };
     this.#encryption = { status: 'idle' };
+    this.#offeredAi = { status: 'idle' };
   }
 
   async elevate(): Promise<void> {
@@ -254,6 +267,13 @@ class Instance {
     return this.#presets.status === 'ready' ? this.#presets.data : [];
   }
 
+  /** The AI models the installation offers every workspace (ADR-0072 §1). */
+  openOfferedAi(): () => void {
+    return engine.subscribe<readonly OfferedAiModel[]>({ path: AI_PROVIDERS }, (next) => {
+      this.#offeredAi = next;
+    });
+  }
+
   openEncryption(): () => void {
     return engine.subscribe<EncryptionStatus>({ path: ENCRYPTION }, (next) => {
       this.#encryption = next;
@@ -303,8 +323,11 @@ class Instance {
     );
   }
 
-  /** Suspends a workspace or resumes one. Both are audited and journalled. */
-  async shift(tenantId: string, action: 'suspend' | 'resume'): Promise<void> {
+  /**
+   * Suspends a workspace, resumes one, or calls off its pending deletion. Each is audited and
+   * journalled.
+   */
+  async shift(tenantId: string, action: 'suspend' | 'resume' | 'cancel-deletion'): Promise<void> {
     await stepUp.around((stepUpToken) =>
       engine.mutate('POST', `${TENANTS}/${tenantId}:${action}`, undefined, {
         stepUpToken,
@@ -448,6 +471,21 @@ class Instance {
   }
 
   /**
+   * Offers an AI model to every workspace, or changes one. No step-up beyond the raised hour:
+   * offering sends nothing anywhere - each workspace switches a model on itself.
+   */
+  async configureOfferedAi(body: OfferedAiModelConfiguration, id?: string): Promise<OfferedAiModel> {
+    return id === undefined
+      ? engine.mutate<OfferedAiModel>('POST', AI_PROVIDERS, body, { invalidates: [AI_PROVIDERS, JOURNAL] })
+      : engine.mutate<OfferedAiModel>('PUT', `${AI_PROVIDERS}/${id}`, body, { invalidates: [AI_PROVIDERS, JOURNAL] });
+  }
+
+  /** Withdraws an offered model. Every workspace that chose it gets no AI answer until it chooses again. */
+  async removeOfferedAi(id: string): Promise<void> {
+    await engine.mutate('DELETE', `${AI_PROVIDERS}/${id}`, undefined, { invalidates: [AI_PROVIDERS, JOURNAL] });
+  }
+
+  /**
    * Removes one from every workspace at once: the row, not only the offer. A workspace left with no
    * way in falls back to the password for the accounts that hold one (ADR-0076 §4).
    */
@@ -463,6 +501,7 @@ class Instance {
 
 export const instance = new Instance();
 export {
+  AI_PROVIDERS as instanceAiProvidersPath,
   ENCRYPTION as instanceEncryptionPath,
   PROVIDERS as instanceProvidersPath,
   ELEVATE as instanceElevatePath,

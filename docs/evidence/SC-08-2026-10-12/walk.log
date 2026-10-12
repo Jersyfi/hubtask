@@ -1,0 +1,10 @@
+multi desktop: rows 5, own mark 1, cancel deletion 1, suspend 3, new workspace 1, page overflow false
+suspend own desktop: Suspend House? Cancel Its people can no longer work in it from their next step on, and are told it is paused. Nothing in it is lost, its export still works, and Resume brings it back as it was. This is your own workspace. Your session ends at once, and only an operator from another workspace can resume it. Keep it running Suspend it 
+suspend customer desktop: Suspend Household? Cancel Its people can no longer work in it from their next step on, and are told it is paused. Nothing in it is lost, its export still works, and Resume brings it back as it was. Keep it running Suspend it 
+delete own desktop: Delete this workspace Cancel The workspace stops answering at once and everything in it is removed for good when the grace period ends. Until then it can be called off, and after it nothing can. This is your own workspace. Your session ends at once, and only an operator from another workspace can cancel the deletion. Type House to confirm* Exactly as it is written above. Keep it Delete it 
+errors desktop: none
+multi 375: rows 5, own mark 1, cancel deletion 1, suspend 3, new workspace 1, page overflow false
+suspend own 375: Suspend House? Cancel Its people can no longer work in it from their next step on, and are told it is paused. Nothing in it is lost, its export still works, and Resume brings it back as it was. This is your own workspace. Your session ends at once, and only an operator from another workspace can resume it. Keep it running Suspend it 
+errors 375: none
+single desktop: new workspace 0, suspend 0, delete 0, cancel deletion 1, page overflow false, errors none
+single 375: new workspace 0, suspend 0, delete 0, cancel deletion 1, page overflow false, errors none

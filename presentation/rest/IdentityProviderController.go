@@ -402,6 +402,10 @@ func identityProviderResponse(out usecase.Output) openapi.IdentityProvider {
 	if offered, held := out["offered_here"].(bool); held {
 		answer.OfferedHere = &offered
 	}
+	if lock, held := out["installation_lock"].(string); held {
+		value := openapi.IdentityProviderInstallationLock(lock)
+		answer.InstallationLock = &value
+	}
 	if created, held := out["created_at"].(time.Time); held {
 		answer.CreatedAt = created
 	}

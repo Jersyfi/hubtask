@@ -76,6 +76,10 @@ type Config struct {
 	// between, because a save the next restart undoes is worse than a refusal.
 	InstanceFileMode string
 
+	// Operators is HUBTASK_OPERATORS: the accounts put into the operator register at start and as
+	// they come to exist (UC-INS-02 check 4). The environment adds; it never removes.
+	Operators []OperatorEntry
+
 	// StepUpWindow is how long a fresh re-authentication covers the one privileged action it is
 	// presented to (identity.md §16.2, security.md §5). Minutes, deliberately: long enough to type
 	// the typed tenant name after proving oneself, short enough that a walked-away terminal is not
@@ -366,6 +370,11 @@ type MailConfig struct {
 	Timeout  time.Duration
 }
 
+// Configured reports whether this installation sends mail at all. The one reading of it: the
+// manifest's `features.mail` and the invitation's choice between a mail and a link both ask here,
+// so a screen that says "no mail goes out" and a server that hands out a link cannot disagree.
+func (m MailConfig) Configured() bool { return m.Host != "" }
+
 // AIConfig is the installation's own say over the AI surface.
 //
 // What it deliberately does *not* carry is a provider: which provider a workspace uses, under which
@@ -564,4 +573,20 @@ type Warning struct {
 	Code     string
 	Severity string // info | warn | critical
 	Params   map[string]string
+}
+
+// OperatorEntry is one entry of HUBTASK_OPERATORS: an address in a workspace named by its short
+// name. In single mode the workspace may be left out - the installation's one workspace, whose
+// short name the person setting it up never chose.
+type OperatorEntry struct {
+	Workspace string
+	Email     string
+}
+
+// String is the entry as it was written, for the health report.
+func (e OperatorEntry) String() string {
+	if e.Workspace == "" {
+		return e.Email
+	}
+	return e.Workspace + ":" + e.Email
 }

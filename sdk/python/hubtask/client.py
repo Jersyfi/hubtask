@@ -471,9 +471,13 @@ class Client:
         """Forget one of your devices"""
         return self._call("DELETE", "/sync/devices/{deviceId}", {"deviceId": device_id}, None, {}, None, "none", None, "void")
 
-    def invite_account(self, body: "AccountInvite", *, idempotency_key: str | None = None) -> "Account":
+    def invite_account(self, body: "AccountInvite", *, idempotency_key: str | None = None) -> "InvitedAccount":
         """Invite a person into this workspace"""
         return self._call("POST", "/accounts:invite", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def renew_invitation(self, account_id: str, *, idempotency_key: str | None = None) -> "InvitedAccount":
+        """Give an invitation not yet accepted a new link"""
+        return self._call("POST", "/accounts/{accountId}:renew-invitation", {"accountId": account_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
 
     def create_managed_account(self, body: "ManagedAccountCreate", *, step_up: str | None = None) -> "ManagedAccountCreated":
         """Give somebody an account without a mail address"""
@@ -526,6 +530,10 @@ class Client:
     def redeem_invitation(self, body: "InvitationRedemption") -> "SessionTokens":
         """Redeem an invitation and set the first password"""
         return self._call("POST", "/auth/invitations:redeem", {}, None, {}, body, "json", "application/json", "json")
+
+    def set_up_installation(self, body: "InstallationSetUp") -> "SessionTokens":
+        """Set up a fresh installation with the code its first start printed"""
+        return self._call("POST", "/auth/installation:set-up", {}, None, {}, body, "json", "application/json", "json")
 
     def complete_sign_in(self, body: "SignInCompletion") -> "SessionTokens":
         """Present the second factor and receive the pair"""
@@ -639,6 +647,10 @@ class Client:
         """Reactivate a workspace"""
         return self._call("POST", "/admin/tenants/{tenantId}:resume", {"tenantId": tenant_id}, None, {}, None, "none", None, "void")
 
+    def cancel_tenant_deletion(self, tenant_id: str) -> None:
+        """Call off a workspace's pending deletion"""
+        return self._call("POST", "/admin/tenants/{tenantId}:cancel-deletion", {"tenantId": tenant_id}, None, {}, None, "none", None, "void")
+
     def request_tenant_deletion(self, tenant_id: str, body: "TenantDeletionRequest", *, step_up: str | None = None) -> "TenantDeletionScheduled":
         """Request a workspace's deletion"""
         return self._call("POST", "/admin/tenants/{tenantId}:delete", {"tenantId": tenant_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
@@ -686,6 +698,22 @@ class Client:
     def list_instance_journal(self, *, query: dict[str, Any] | None = None) -> "InstanceJournalPage":
         """The installation's own record"""
         return self._call("GET", "/admin/journal", {}, query, {}, None, "none", None, "json")
+
+    def list_instance_ai_providers(self) -> dict[str, Any]:
+        """The AI models this installation offers every workspace"""
+        return self._call("GET", "/admin/ai-providers", {}, None, {}, None, "none", None, "json")
+
+    def create_instance_ai_provider(self, body: "OfferedAiModelConfiguration") -> "OfferedAiModel":
+        """Offer an AI model to every workspace"""
+        return self._call("POST", "/admin/ai-providers", {}, None, {}, body, "json", "application/json", "json")
+
+    def configure_instance_ai_provider(self, provider_id: str, body: "OfferedAiModelConfiguration") -> "OfferedAiModel":
+        """Change an offered AI model"""
+        return self._call("PUT", "/admin/ai-providers/{providerId}", {"providerId": provider_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_instance_ai_provider(self, provider_id: str) -> None:
+        """Withdraw an offered AI model"""
+        return self._call("DELETE", "/admin/ai-providers/{providerId}", {"providerId": provider_id}, None, {}, None, "none", None, "void")
 
     def list_instance_identity_providers(self) -> dict[str, Any]:
         """The providers this installation offers every workspace"""
@@ -830,6 +858,14 @@ class Client:
     def remove_ai_provider(self) -> None:
         """Remove the workspace's AI provider"""
         return self._call("DELETE", "/ai-provider", {}, None, {}, None, "none", None, "void")
+
+    def read_ai_source(self) -> "AiSource":
+        """Which AI answers this workspace, and what it may use"""
+        return self._call("GET", "/ai-source", {}, None, {}, None, "none", None, "json")
+
+    def choose_ai_source(self, body: "AiSourceChoice") -> "AiSource":
+        """Choose which AI answers this workspace"""
+        return self._call("PUT", "/ai-source", {}, None, {}, body, "json", "application/json", "json")
 
     def list_oauth_clients(self) -> dict[str, Any]:
         """The workspace's registered third-party apps"""

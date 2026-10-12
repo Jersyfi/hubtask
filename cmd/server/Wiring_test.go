@@ -306,3 +306,83 @@ func TestEveryStepUpVerifierIsTakenAfterTheRule(t *testing.T) {
 		t.Fatal("main.go builds no step-up verifier at all - the pattern no longer matches")
 	}
 }
+
+// The AI rules select the workspace's own model only through the own store they carry; rules built
+// without it answer "AI unavailable" for every workspace that uses its own model - which gate-e2e
+// met as a panic before the guard, and would meet silently after it.
+func TestTheAiRulesCarryTheOwnStore(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "main.go", nil, 0)
+	if err != nil {
+		t.Fatalf("reading main.go: %v", err)
+	}
+	found, carries := false, false
+	ast.Inspect(file, func(node ast.Node) bool {
+		literal, ok := node.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		selector, ok := literal.Type.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "AiRules" {
+			return true
+		}
+		found = true
+		for _, element := range literal.Elts {
+			if pair, ok := element.(*ast.KeyValueExpr); ok {
+				if key, ok := pair.Key.(*ast.Ident); ok && key.Name == "Own" {
+					carries = true
+				}
+			}
+		}
+		return true
+	})
+	if !found {
+		t.Fatal("main.go builds no integration.AiRules")
+	}
+	if !carries {
+		t.Error("main.go builds the AI rules without the own store: no workspace's own model is ever called")
+	}
+}
+
+// The installation's lock on the ways in turns its invite-only rows on in every workspace
+// (identity.md §18), and every reader of "is this a way in here" learns the lock from the store it
+// was built with. A literal without it reads no lock: the list would show the provider off, the card
+// would draw no button and the password fallback would open under the very lock that mandates the
+// provider - while every service test, which wires its own fixtures, passed.
+func TestEveryReaderOfTheWaysInCarriesTheInstallationsLevel(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "main.go", nil, 0)
+	if err != nil {
+		t.Fatalf("reading main.go: %v", err)
+	}
+	readers := map[string]int{"ProviderStepUps": 0, "OidcWriter": 0, "IdentityProviderWriter": 0, "WaysIn": 0}
+	carrying := map[string]int{}
+	ast.Inspect(file, func(node ast.Node) bool {
+		literal, ok := node.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		selector, ok := literal.Type.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		if _, reader := readers[selector.Sel.Name]; !reader {
+			return true
+		}
+		readers[selector.Sel.Name]++
+		for _, element := range literal.Elts {
+			if pair, ok := element.(*ast.KeyValueExpr); ok {
+				if key, ok := pair.Key.(*ast.Ident); ok && key.Name == "Instance" {
+					carrying[selector.Sel.Name]++
+				}
+			}
+		}
+		return true
+	})
+	for name, built := range readers {
+		if built == 0 {
+			t.Errorf("main.go builds no identity.%s", name)
+		}
+		if carrying[name] != built {
+			t.Errorf("main.go builds identity.%s without Instance: it reads no installation lock", name)
+		}
+	}
+}

@@ -84,13 +84,14 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
   // does not belong to this area however convenient it would be. The list is written out so that
   // adding one is a decision somebody made against that sentence rather than a file that appeared.
   //
-  // Seven, among them the two the control plane would otherwise have only at a terminal — the
-  // providers it offers every workspace, and the keyring's census — here by the parity rule
-  // (ADR-0070 §5). Neither reads into a workspace: one is the installation's own rows, the other is
-  // a count per key that names no workspace at all.
+  // Eight, among them the three the control plane would otherwise have only at a terminal — the
+  // providers and the AI models it offers every workspace (ADR-0072 §1), and the keyring's census —
+  // here by the parity rule (ADR-0070 §5). None reads into a workspace: two are the installation's
+  // own rows, the other a count per key that names no workspace at all.
   const built = ROUTES.filter((route) => route.area === 'instance').map((route) => route.name).sort();
   assert.deepEqual(built, [
     'instance',
+    'instance-ai',
     'instance-encryption',
     'instance-journal',
     'instance-operators',

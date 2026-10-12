@@ -36,7 +36,13 @@ type TenantRecord struct {
 	// LegalHold says a legal hold is in force in the workspace, so it is not deleted
 	// (data-protection.md §5). A state only: which hold, on what and why stay the workspace's.
 	LegalHold bool
-	Version   int
+	// StatusBeforeDeletion is where the workspace stood when its deletion was requested, and where
+	// a cancel returns it. Empty on a row requested before the column existed.
+	StatusBeforeDeletion identity.TenantStatus
+	// PurgeStartedAt is when the grace job began removing the workspace. Zero until then; from then
+	// on a cancel is refused, because the bytes are already going.
+	PurgeStartedAt time.Time
+	Version        int
 }
 
 // Tenants is the lifecycle of the tenant row.
@@ -64,6 +70,11 @@ type Tenants interface {
 	// deadline - the one edge with two origins (§5). False means the workspace was already
 	// leaving, or gone.
 	RequestDeletion(ctx context.Context, purgeAfter, now time.Time) (bool, error)
+
+	// CancelDeletion moves a pending workspace back to the status it was requested from, or to
+	// SUSPENDED where none was kept, and clears the deadline. It answers the status written; false
+	// means the workspace was not pending, or its purge had begun - the statement guards both.
+	CancelDeletion(ctx context.Context, now time.Time) (identity.TenantStatus, bool, error)
 
 	// OpenPassword writes an operator's opening of the password on the transaction's own tenant,
 	// replacing one that stands (ADR-0078 §3). False means the workspace is not active - suspended,
@@ -130,6 +141,9 @@ type Census struct {
 	WorkspacesPendingDeletion int64
 	AccountsActive            int64
 	AccountsTotal             int64
+	// WorkspacesServiceOnly are workspaces holding no person, only service accounts: not customers,
+	// so the three workspace counts above leave them out (UC-INS-12 check 5).
+	WorkspacesServiceOnly int64
 }
 
 // Installation answers the census.
@@ -185,4 +199,9 @@ type Purge interface {
 	// The guard re-reads the two facts the grace could have changed - false means the state
 	// moved, and the caller rolls the whole act back.
 	HardDelete(ctx context.Context, now time.Time) (bool, error)
+
+	// MarkStarted writes the purge's mark in the tenant row before the first byte goes, so that a
+	// cancel can no longer land. False means the workspace is not pending or its deadline lies
+	// ahead - a cancel came first, and nothing may be removed.
+	MarkStarted(ctx context.Context, now time.Time) (bool, error)
 }

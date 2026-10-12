@@ -68,3 +68,9 @@ func (r AiProviderResealer) Reseal(
 func AiKeyPurpose(tenantID shared.ID) crypto.Purpose {
 	return crypto.Purpose("ai_provider.api_key:" + tenantID.String())
 }
+
+// OfferedAiKeyPurpose binds an offered model's sealed key to that model, so a ciphertext lifted
+// into another row - a workspace's own, or another offered one - does not open.
+func OfferedAiKeyPurpose(providerID shared.ID) crypto.Purpose {
+	return crypto.Purpose("ai_provider.api_key:offered:" + providerID.String())
+}

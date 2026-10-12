@@ -35,8 +35,10 @@ a real server, because the fixture agrees with whatever the client sends.
    `deploy/docker/compose.yaml` (`make gate-compose` builds it). `make run` is `go run`: stopping
    the parent leaves the server on its port, so a walk driven by a process manager runs a built
    binary (`go build -o`).
-2. A workspace somebody can sign in to: `scripts/dev-workspace.sh --bootstrap`, then
-   `scripts/dev-workspace.sh` — through the product's own operations, password included.
+2. A workspace somebody can sign in to: the server prints a setup code on its console at a fresh
+   start; `HUBTASK_SETUP_CODE=… scripts/dev-workspace.sh --bootstrap` spends it (or the *Set up
+   Hubtask* card does), then `scripts/dev-workspace.sh` provisions more — through the product's own
+   operations, password included.
 3. Raise `HUBTASK_RATE_LIMIT_BURST` for the walk (600 is enough): a cold entry page is a burst of
    two dozen requests, and a scripted walk is many cold pages. `compose.yaml` does not forward it;
    pass it through an override file.

@@ -14,6 +14,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
@@ -66,6 +67,9 @@ const (
 	localisationArea = "localisation"
 	// quotaArea holds one ceiling per quota, keyed by the quota's own name.
 	quotaArea = "quota"
+	// aiArea holds which AI sources a workspace may use and the least its own model must declare
+	// (ADR-0072 §2), one row per key of integration.AiSwitches.
+	aiArea = "ai"
 )
 
 // The keys, as one list rather than as literals in a read and a write that could disagree.
@@ -136,6 +140,7 @@ func (r InstanceSettingRepository) Read(ctx context.Context) (repository.Instanc
 		Quotas: identity.QuotaDefaults{
 			Limits: map[string]int64{}, Locks: map[string]bool{},
 		},
+		Ai:                 integration.AiLayer{Locks: map[integration.AiSwitch]bool{}},
 		Source:             r.source,
 		IsEnforcedFromFile: r.enforced,
 	}
@@ -233,6 +238,20 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 		var start *int
 		if start, err = number(); err == nil {
 			level.Localisation.WeekStart = *start
+		}
+	case aiArea + "." + string(integration.AiSwitchSources):
+		var value string
+		if value, err = word(); err == nil {
+			sources := integration.AiSources(value)
+			level.Ai.Sources = &sources
+			level.Ai.Locks[integration.AiSwitchSources] = locked
+		}
+	case aiArea + "." + string(integration.AiSwitchMinJurisdiction):
+		var value string
+		if value, err = word(); err == nil {
+			floor := integration.AiMinJurisdiction(value)
+			level.Ai.MinJurisdiction = &floor
+			level.Ai.Locks[integration.AiSwitchMinJurisdiction] = locked
 		}
 	default:
 		if name, isQuota := strings.CutPrefix(key, quotaArea+"."); isQuota {
@@ -333,7 +352,7 @@ func (r InstanceSettingRepository) Write(
 	}
 
 	if err := queries.DeleteInstanceSettingsExcept(ctx, sqlc.DeleteInstanceSettingsExceptParams{
-		Areas: []string{signInArea, legalArea, localisationArea, quotaArea},
+		Areas: []string{signInArea, legalArea, localisationArea, quotaArea, aiArea},
 		Kept:  kept,
 	}); err != nil {
 		return shared.ErrUnavailable.
@@ -491,6 +510,34 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 			key:   quotaArea + "." + name,
 			value: encoded,
 			lock:  lockOf(level.Quotas.Locks[name], identity.LockInstance),
+		})
+	}
+
+	// The AI area. A lock without a value locks the product's default, so the default is written
+	// out: a row carries a value or is not there.
+	aiValues := map[integration.AiSwitch]string{}
+	if level.Ai.Sources != nil {
+		aiValues[integration.AiSwitchSources] = string(*level.Ai.Sources)
+	} else if level.Ai.Locks[integration.AiSwitchSources] {
+		aiValues[integration.AiSwitchSources] = string(integration.AiSourcesOwn)
+	}
+	if level.Ai.MinJurisdiction != nil {
+		aiValues[integration.AiSwitchMinJurisdiction] = string(*level.Ai.MinJurisdiction)
+	} else if level.Ai.Locks[integration.AiSwitchMinJurisdiction] {
+		aiValues[integration.AiSwitchMinJurisdiction] = string(integration.AiMinAny)
+	}
+	for _, name := range integration.AiSwitches() {
+		value, decided := aiValues[name]
+		if !decided {
+			continue
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return nil, shared.Internalf("postgres: encoding the instance setting ai.%s: %w", name, err)
+		}
+		rows = append(rows, settingRow{
+			key: aiArea + "." + string(name), value: encoded,
+			lock: lockOf(level.Ai.Locks[name], identity.LockInstance),
 		})
 	}
 

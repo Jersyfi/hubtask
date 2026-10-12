@@ -20,6 +20,8 @@ import (
 type operatorRegister struct {
 	accounts map[shared.ID]bool
 	empty    bool
+	// unreadable is the register's read failing, which a check has to survive closed.
+	unreadable error
 }
 
 func (r *operatorRegister) Resolve(context.Context, string, string) (shared.ID, error) {
@@ -28,6 +30,9 @@ func (r *operatorRegister) Resolve(context.Context, string, string) (shared.ID, 
 }
 
 func (r *operatorRegister) Holds(_ context.Context, accountID shared.ID) (bool, error) {
+	if r.unreadable != nil {
+		return false, r.unreadable
+	}
 	if r.empty {
 		return true, nil
 	}

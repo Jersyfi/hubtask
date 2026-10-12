@@ -76,9 +76,10 @@ new type such as `MILESTONE` is a profile entry and its child types, no schema o
 | `defaultTimeZone` | IANA | e.g. `Europe/Berlin` |
 | `settings` | JSONB | Retention, feature toggles, sign-in rule, automation quotas. A write merges the keys it models and leaves every other key alone |
 
-In single mode exactly one tenant exists, created by `scripts/dev-workspace.sh --bootstrap` or the
-admin API; the browser setup at first start is
-[UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md), not yet built.
+In single mode exactly one tenant exists, created by the first start's setup
+([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)): the *Set up Hubtask* card,
+or `scripts/dev-workspace.sh --bootstrap`, which uses the same route. Provisioning through the admin
+API exists in multi mode only.
 
 ### 3.2 `Account`, `Membership`, `Group`
 

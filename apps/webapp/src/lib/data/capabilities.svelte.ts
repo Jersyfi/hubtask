@@ -40,6 +40,13 @@ const PATH = '/meta/capabilities';
 class Manifest {
   #state = $state<ResourceState<Capabilities>>({ status: 'idle' });
   #failure = $state<TransportError | undefined>(undefined);
+  /**
+   * Whether the last manifest that arrived offered the setup. Kept across a reload of the
+   * manifest: a refused setup resets the engine, which reads the manifest again, and the card -
+   * with everything typed into it - must not give way to the sign-in card for the moment that
+   * takes.
+   */
+  #setupOpen = $state(false);
   /** The listener registered with the engine, so that a second `start` replaces the first. */
   #stop: (() => void) | undefined;
 
@@ -80,6 +87,25 @@ class Manifest {
    * is not in the operator register was never going to have it, and `CapabilityGate` is for a
    * refusal somebody might otherwise have expected.
    */
+  /**
+   * Whether this installation is still waiting for its first start's setup (UC-INS-01): no
+   * workspace, nobody in the operator register. Not yet known is not "yes" - the sign-in card is
+   * drawn until the manifest says otherwise.
+   */
+  get isSetupOpen(): boolean {
+    return this.#setupOpen;
+  }
+
+  /**
+   * Whether this installation runs more than one workspace: they are told apart by their short
+   * name, which the setup then asks for, and only then are workspaces created, suspended and
+   * deleted from the installation level - in single mode the one workspace is the installation,
+   * and the server refuses all three. `false` until the manifest says `multi`.
+   */
+  get isMultiTenant(): boolean {
+    return this.value?.tenancy_mode === 'multi';
+  }
+
   get isInstanceReachable(): boolean {
     return this.value?.instance?.reachable === true;
   }
@@ -120,7 +146,10 @@ class Manifest {
     const stop = engine.subscribe<Capabilities>({ path: PATH }, (next) => {
       this.#state = next;
       if (next.status === 'failed') this.#failure = next.error;
-      else if (next.status === 'ready') this.#failure = undefined;
+      else if (next.status === 'ready') {
+        this.#failure = undefined;
+        this.#setupOpen = next.data.features?.['setup_open'] === true;
+      }
     });
     this.#stop = stop;
     return () => {

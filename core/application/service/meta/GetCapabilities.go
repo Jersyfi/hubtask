@@ -195,6 +195,12 @@ type OperatorRegister interface {
 	Holds(ctx context.Context, accountID shared.ID) (bool, error)
 }
 
+// SetupState answers whether the installation is still empty - no workspace, nobody in the operator
+// register - which is the whole condition under which the first start's setup is offered (UC-INS-01).
+type SetupState interface {
+	Unset(ctx context.Context) (bool, error)
+}
+
 // AiProviders answers which provider the caller's workspace uses. An interface here rather
 // than the adapter, because the application layer may not import one (ADR-0001) - the same
 // declaration work.AiProviders and suggestion.Providers make, for the same reason.
@@ -233,7 +239,10 @@ type GetCapabilities struct {
 	// Operators answers whether the caller may reach the level above the workspaces.
 	// Optional: a build wired without it answers false, which draws no way in - the safe direction,
 	// because a control that is not drawn is one nobody is refused at.
-	Operators  OperatorRegister
+	Operators OperatorRegister
+	// Setup answers `features.setup_open`. Optional: a build wired without it answers false, which
+	// draws the sign-in card - the safe direction.
+	Setup      SetupState
 	UnitOfWork persistence.UnitOfWork
 	Config     env.Config
 	// Actions is every automation action kind that is a use case, handed in from the catalogue at
@@ -264,6 +273,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		languages []string
 		semantic  bool
 		ordering  bool
+		setupOpen bool
 	)
 	err := g.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
 		var err error
@@ -278,6 +288,13 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		}
 		if g.Ordering != nil {
 			if ordering, err = g.Ordering.Available(ctx); err != nil {
+				return err
+			}
+		}
+		// Asked of an anonymous caller only: a credential means a workspace exists, and then the
+		// answer is false without a read.
+		if g.Setup != nil && !actor.IsAuthenticated() {
+			if setupOpen, err = g.Setup.Unset(ctx); err != nil {
 				return err
 			}
 		}
@@ -394,7 +411,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// What is configured, not what is implemented. A client uses this to decide whether
 			// to offer an action at all - offering "send by email" on an installation with no
 			// SMTP server is a dead end the manifest can prevent.
-			"mail":    g.Config.Mail.Host != "",
+			"mail":    g.Config.Mail.Configured(),
 			"storage": g.Config.Storage.Kind != "",
 			"tracing": g.Config.Tracing.Enabled,
 			// Whether this installation serves the web interface at "/" (ADR-0028). A client
@@ -454,6 +471,10 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// sign_in_rules' reason: a client that also talks to an older server, which does not
 			// answer the key, offers no filter there instead of probing for one.
 			"search_filter": true,
+			// Whether the first start's setup is offered (UC-INS-01): true exactly while the
+			// installation has no workspace and nobody in its register, so a client draws the
+			// setup card in place of the sign-in card and never offers a setup the server refuses.
+			"setup_open": setupOpen,
 		},
 		Legal:             legal,
 		InstanceReachable: instanceReachable,

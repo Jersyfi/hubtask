@@ -7,7 +7,10 @@
   // something they may take; it is a way into none of them until an owner switches it on. That is
   // the concept's own sentence — "für alle Arbeitsbereiche angeboten, nirgends an" — and the reason
   // this screen has no per-workspace control: the taking is theirs, and a screen that could switch
-  // it for them would be the installation reading over their shoulder.
+  // it for them would be the installation reading over their shoulder. The one exception is the
+  // installation's lock on the ways to sign in (identity.md §18): locked with providers among them,
+  // it turns every offer admitted as "Only people invited here" on everywhere, and each row says
+  // which applies to it, from the server's `installation_lock`.
   //
   // **A provider whose addresses are not verified cannot be offered.** The blast radius is what
   // decides it: this row reaches every workspace, and one that can only be `DOMAINS` or `ANY`
@@ -152,6 +155,23 @@
   /** How many workspaces use it, as the operator's projection answers it. */
   const usedBy = (provider: IdentityProvider | undefined): number => provider?.offered_workspaces ?? 0;
 
+  /**
+   * What the installation's lock on the ways to sign in does to this row (UC-INS-11 check 4), as the
+   * server says it: on everywhere, or each workspace's switch. Without the lock, an invite-only offer
+   * says what a lock would do to it, so the operator learns the lever where the provider is.
+   */
+  function lockSays(provider: IdentityProvider): string | undefined {
+    switch (provider.installation_lock) {
+      case 'TURNS_ON': return t('app.instance.provider_lock_turns_on');
+      case 'LEAVES_TO_WORKSPACE': return t('app.instance.provider_lock_leaves_to_workspace');
+      case 'NONE':
+        return provider.provisioning === 'INVITED_ONLY' && withdrawalPhase(provider) !== 'withdrawn'
+          ? t('app.instance.provider_lock_would_turn_on')
+          : undefined;
+      default: return undefined;
+    }
+  }
+
   const when = (at: string | null | undefined): string => (at ? formatDateTime(at, messages.locale) : '');
 
   /** Why *Remove* waits, as a sentence, or nothing where it may act. */
@@ -294,6 +314,7 @@
                     <Badge tone="neutral">{t('app.instance.provider_withdrawn')}</Badge>
                   {/if}
                   <span class="slug">{t('app.instance.provider_in_use', { count: String(usedBy(provider)) })}</span>
+                  {#if lockSays(provider)}<span class="slug" data-lock>{lockSays(provider)}</span>{/if}
                 </td>
                 <td>
                   <div class="row">

@@ -43,8 +43,9 @@ her account is an ordinary one.
    the account has is still demanded. For an account with an address the action does not exist.
 6. Screens that need a mailbox — mail reminders, reset by mail — say "not possible without a
    mailbox" for this account instead of failing.
-7. Adding an address sends a confirmation to it; once confirmed, the account is an ordinary one and
-   the sign-in name still works.
+7. Where the password is a way in, adding an address sends a confirmation to it; once confirmed,
+   the account is an ordinary one and the sign-in name still works. Where the workspace's methods
+   leave the password out, adding an address is not offered and says why.
 8. *Managed accounts allowed* is a workspace setting, default on, with the installation's and the
    plan's default and lock shown beside it.
 

@@ -47,10 +47,11 @@ switched off.
 
 **The operator may also offer models** ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)). A model the installation offers is a row with no workspace; a workspace sees its name, its
 processor and its jurisdiction, never its address or key, and switching it on is the workspace's
-consent act — the same `processing_allowed`, which no installation or plan value writes. Two
-instance values bound what a workspace may use, each with a default and a lock: `ai.sources`
-(`NONE`, `OFFERED`, `OWN`, `EITHER`), and `ai.min_jurisdiction` for a workspace's own model. A lock
-can hold a workspace out of a source, never in one.
+consent act — its choice of source, in the workspace's trail as `ai.source_chosen`, which no
+installation or plan value writes. The operator's third-country confirmation applies to an offered
+model as to a workspace's own. Two instance values bound what a workspace may use, each with a
+default and a lock: `ai.sources` (`NONE`, `OFFERED`, `OWN`, `EITHER`), and `ai.min_jurisdiction` for a
+workspace's own model. A lock can hold a workspace out of a source, never in one.
 
 **And a third person will have a say: the one whose content it is** (decided, not yet built).
 Inside a workspace with AI on, each
