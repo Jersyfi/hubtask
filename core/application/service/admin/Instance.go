@@ -9,6 +9,7 @@ import (
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/quota"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	identity "github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -218,6 +219,19 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 		if before.Legal.Links.Of(link) != after.Legal.Links.Of(link) ||
 			before.Legal.Locks[link] != after.Legal.Locks[link] {
 			moved = append(moved, string(link))
+		}
+	}
+	for _, name := range identity.LocalisationKeys() {
+		if localisationValueOf(before.Localisation, name) != localisationValueOf(after.Localisation, name) {
+			moved = append(moved, "localisation."+name)
+		}
+	}
+	for _, name := range quota.Names() {
+		earlierCeiling, earlierSet := before.Quotas.Of(name)
+		laterCeiling, laterSet := after.Quotas.Of(name)
+		if earlierCeiling != laterCeiling || earlierSet != laterSet ||
+			before.Quotas.Locked(name) != after.Quotas.Locked(name) {
+			moved = append(moved, "quotas."+name)
 		}
 	}
 	for _, name := range integration.AiSwitches() {
