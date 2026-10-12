@@ -400,3 +400,22 @@ func TestATrailWithNoErasuresIsAnsweredAsItIs(t *testing.T) {
 		t.Errorf("the label came back as %q", page.Records[0].Entry.ActorLabel)
 	}
 }
+
+// UC-AUD-01 check 7 at the door: through the registry, which every door meets first, an unknown
+// outcome is answered `audit.outcome_invalid` - not the registry's generic refusal of a value
+// outside a declared set, which used to answer before the use case could.
+func TestAnUnknownOutcomeIsRefusedByItsOwnCodeThroughTheRegistry(t *testing.T) {
+	list, trail, _, _ := newListHarness(true)
+	registry, err := usecase.NewRegistry(nil, list.Descriptor())
+	if err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	_, err = registry.Invoke(context.Background(), ListAuditEntriesName, actor(), usecase.Input{"outcome": "MAYBE"})
+	assertRefusedWith(t, err, "audit.outcome_invalid", "/outcome")
+	if len(trail.asked) != 0 {
+		t.Errorf("the trail was read %d times for an unknown outcome", len(trail.asked))
+	}
+	if _, err := registry.Invoke(context.Background(), ListAuditEntriesName, actor(), usecase.Input{"outcome": "DENIED"}); err != nil {
+		t.Errorf("a known outcome was refused: %v", err)
+	}
+}
