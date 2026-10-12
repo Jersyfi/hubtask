@@ -1267,6 +1267,24 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
+	// Provisioning, and the seeding the first start's setup shares with it: one workspace however it
+	// began (UC-INS-01).
+	provisioning := adminservice.ProvisionTenant{
+		Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
+		Accounts: accounts, Redemption: signInStore, Grants: grants,
+		Containers: containers, Buckets: buckets, Labels: labels,
+		Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
+		Domains: domains, Text: forms,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
+		// The one host the new workspace answers at. The installation's own host comes
+		// from the configured base URL and never from a request.
+		Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
+		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
+	}
+	// The first start's codes, hashed under their own purpose label (security.md, T-24).
+	setupCodes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(cfg.SecretKey))
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -1355,6 +1373,12 @@ func run() error {
 		syncservice.ListSyncDevices{Writer: deviceWriter}.Descriptor(),
 		syncservice.ForgetSyncDevice{Writer: deviceWriter}.Descriptor(),
 		identity.RedeemInvitation{Writer: sessionWriter, Passwords: &passwordWriter}.Descriptor(),
+		identity.SetUpInstallation{
+			Writer: sessionWriter, Passwords: &passwordWriter, Codes: setupCodes,
+			Seeder: provisioning, Owners: signInStore, Operators: operators,
+			Journal: postgres.NewInstanceJournal(cursors),
+			Domains: domains, Text: forms, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
 		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),
 		identity.ConfirmTotp{Writer: sessionWriter}.Descriptor(),
@@ -1917,19 +1941,7 @@ func run() error {
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
 		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose
 		// credential it may be, and either alone is a hole.
-		adminservice.ProvisionTenant{
-			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
-			Accounts: accounts, Redemption: signInStore, Grants: grants,
-			Containers: containers, Buckets: buckets, Labels: labels,
-			Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
-			Domains: domains, Text: forms,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
-			// The one host the new workspace answers at. The installation's own host comes
-			// from the configured base URL and never from a request.
-			Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
-			Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
-		}.Descriptor(),
+		provisioning.Descriptor(),
 		adminservice.ListTenants{
 			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{},
@@ -2146,7 +2158,10 @@ func run() error {
 			Legal: signInPolicyResolver,
 			// Whether the caller operates this installation. The same register the
 			// control plane checks, so the menu cannot offer what the route refuses.
-			Operators:  operators,
+			Operators: operators,
+			// Whether the first start's setup is offered: the same function the setup's claim
+			// reads, so the card is drawn exactly where the route would accept it.
+			Setup:      setupCodes,
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 			// The same catalogue the mint validates against, so the manifest cannot offer a scope

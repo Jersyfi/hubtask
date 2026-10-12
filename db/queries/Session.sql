@@ -240,6 +240,21 @@ WHERE id = sqlc.arg('id')
   AND redemption_token_hash IS NOT NULL
   AND deleted_at IS NULL;
 
+-- name: ActivateFirstOwner :execrows
+-- The first start's setup (UC-INS-01): the owner it wrote a moment ago in the same transaction gets
+-- the password and becomes ACTIVE. No redemption token - the setup code was the proof - so it matches
+-- only an invited account that was never sent one.
+UPDATE account SET
+  password_hash   = sqlc.arg('password_hash'),
+  password_set_at = sqlc.arg('now'),
+  status          = 'ACTIVE',
+  updated_at      = sqlc.arg('now'),
+  version         = version + 1
+WHERE id = sqlc.arg('id')
+  AND status = 'INVITED'
+  AND redemption_token_hash IS NULL
+  AND deleted_at IS NULL;
+
 -- ========================= The retention sweep =========================
 
 -- name: DeleteExpiredSessions :execrows

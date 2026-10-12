@@ -11,6 +11,19 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
+	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	"github.com/Jersyfi/hubtask/infrastructure/i18n"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 // The first start's functions (migration 0128), as the application role, in a database of their
@@ -208,5 +221,109 @@ func TestTheCensusDoesNotCountAServiceOnlyWorkspace(t *testing.T) {
 	}
 	if workspaces != 2 || operators != 1 {
 		t.Errorf("register state = %d workspaces, %d operators; want 2, 1", workspaces, operators)
+	}
+}
+
+// UC-INS-01 checks 3, 4 and 6 against the real stores: one setup writes the workspace, its active
+// owner with a password that verifies, the owner's register entry and the journal entry, spends the
+// code, and answers a session that works; a second setup is refused.
+func TestTheSetupMakesTheFirstWorkspaceAndItsOperatorInOneStep(t *testing.T) {
+	ctx := context.Background()
+	admin, app := emptyInstallation(ctx, t, "hubtask_first_start_setup")
+	uow := postgres.NewUnitOfWork(app)
+
+	writer, signIn, _ := realWriter(ctx, t)
+	writer.UnitOfWork = uow
+	writer.Multi = false
+	ids := clockadapter.NewUUIDv7(clockadapter.System{})
+	hybrid, err := clockadapter.NewHybridClock(clockadapter.System{}, "server-integration")
+	if err != nil {
+		t.Fatalf("building the clock: %v", err)
+	}
+	renderer, err := i18n.NewRenderer()
+	if err != nil {
+		t.Fatalf("building the renderer: %v", err)
+	}
+	codes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(secret.New(installationSecret)))
+	setup := identityservice.SetUpInstallation{
+		Writer: writer, Codes: codes, Owners: signIn, Operators: postgres.NewOperatorRepository(),
+		Journal: postgres.NewInstanceJournal(pageCursors()), Text: text.Composing{},
+		Tenancy: env.TenancySingle,
+		Seeder: adminservice.ProvisionTenant{
+			Tenants: postgres.NewAdminTenantRepository(), Accounts: postgres.NewAccountRepository(),
+			Grants: postgres.NewMembershipGrantRepository(pageCursors()), Containers: containerRepo(),
+			Buckets: postgres.NewBucketRepository(), Labels: postgres.NewLabelRepository(),
+			Events: postgres.NewOutbox(jobQueue(t)), Changes: postgres.NewChangeLog(),
+			Audit: postgres.NewAuditSink(ids), Renderer: renderer, Text: text.Composing{},
+			UnitOfWork: uow, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+			Entropy: clockadapter.CryptoRandom{}, Tenancy: env.TenancySingle,
+		},
+	}
+
+	code, err := identity.NewSetupCode([]byte{9, 8, 7, 6, 5, 4, 3, 2})
+	if err != nil {
+		t.Fatalf("minting a code: %v", err)
+	}
+	now := time.Now().UTC()
+	if err := uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		_, err := codes.Issue(ctx, ids.NewID(), code, now, now.Add(identity.SetupCodeLifetime))
+		return err
+	}); err != nil {
+		t.Fatalf("issuing: %v", err)
+	}
+
+	command := identityservice.SetUpInstallationCommand{
+		Code: code.Display(), DisplayName: "Family Winkel", OwnerEmail: "jerome@example.eu",
+		OwnerDisplayName: "Jérôme", Password: secret.New("seven blue lanterns above the harbour"),
+	}
+	if _, err := setup.Execute(ctx, identityservice.SetUpInstallationCommand{
+		Code: "AAAA-BBBB-CCCC", DisplayName: command.DisplayName, OwnerEmail: command.OwnerEmail,
+		Password: command.Password,
+	}); shared.AsError(err).DetailCode != "setup.code_wrong" {
+		t.Fatalf("a wrong code answered %v", err)
+	}
+
+	pair, err := setup.Execute(ctx, command)
+	if err != nil {
+		t.Fatalf("the setup was refused: %v", err)
+	}
+	if pair.AccessToken.Reveal() == "" {
+		t.Error("the setup answered no access token")
+	}
+
+	var (
+		slug, status, kind string
+		passwordHash       *string
+		operators, events  int
+		codesLeft          int
+	)
+	if err := admin.QueryRow(ctx, `
+		SELECT t.slug, a.status::text, a.kind::text, a.password_hash,
+		       (SELECT count(*) FROM operator o WHERE o.account_id = a.id AND o.added_by IS NULL),
+		       (SELECT count(*) FROM instance_event e WHERE e.action = 'instance.set_up' AND e.tenant_id = t.id),
+		       (SELECT count(*) FROM instance_setup_code)
+		FROM tenant t JOIN account a ON a.tenant_id = t.id`).Scan(
+		&slug, &status, &kind, &passwordHash, &operators, &events, &codesLeft); err != nil {
+		t.Fatalf("reading what the setup wrote: %v", err)
+	}
+	if slug != "family-winkel" || status != "ACTIVE" || kind != "USER" {
+		t.Errorf("workspace %q, owner %s %s", slug, status, kind)
+	}
+	if passwordHash == nil {
+		t.Fatal("the owner has no password")
+	}
+	if same, err := writer.Passwords.Verify(*passwordHash, secret.New("seven blue lanterns above the harbour")); err != nil || !same {
+		t.Errorf("the stored password does not verify: %v", err)
+	}
+	if operators != 1 || events != 1 || codesLeft != 0 {
+		t.Errorf("register entries %d, journal entries %d, codes left %d; want 1, 1, 0", operators, events, codesLeft)
+	}
+	var hubs int
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM container WHERE type = 'HUB'`).Scan(&hubs); err != nil || hubs != 1 {
+		t.Errorf("the seeded hub: %d, %v", hubs, err)
+	}
+
+	if _, err := setup.Execute(ctx, command); shared.AsError(err).DetailCode != "setup.already_done" {
+		t.Errorf("a second setup answered %v", err)
 	}
 }
