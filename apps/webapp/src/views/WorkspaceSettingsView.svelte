@@ -9,6 +9,10 @@
   // who has set nothing falls back to. Somebody who reads them as "everybody's language" changes
   // them and is surprised that most people see nothing different.
   //
+  // **The installation's default is said beside each of them** (UC-INS-09 check 5): what a new
+  // workspace started with, and for the week start what applies while this workspace decides
+  // none. Only where the installation decided one - a private installation is not a column here.
+  //
   // **The slug is shown and not editable, with the reason.** It is the subdomain the workspace is
   // reached by; changing it would break every link anybody has bookmarked or pasted, and the
   // contract does not offer it. Showing it without the reason would look like an oversight.
@@ -20,7 +24,7 @@
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
-  import { localesOf, zoneOptions } from '../lib/data/preferences.ts';
+  import { WEEK_STARTS, localesOf, zoneOptions } from '../lib/data/preferences.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -29,6 +33,7 @@
   let displayName = $state('');
   let locale = $state('');
   let zone = $state('');
+  let weekStart = $state('');
   let isWorking = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let saved = $state(false);
@@ -55,7 +60,16 @@
     displayName = held.display_name;
     locale = held.default_locale;
     zone = held.default_time_zone;
+    weekStart = held.default_week_start ?? '';
   });
+
+  const above = $derived(current?.installation_defaults ?? {});
+  /** The day the week starts on while this workspace decides none, in words. */
+  const weekStartAbove = $derived(
+    above.week_start
+      ? t('app.workspace.week_start_installation', { day: t(`app.profile.week_${above.week_start}`) })
+      : t('app.workspace.week_start_language'),
+  );
 
   /** Only what moved. Merge-patch means an absent key changes nothing, so absence is the default. */
   function movement() {
@@ -65,6 +79,7 @@
       ...(displayName.trim() !== held.display_name ? { display_name: displayName.trim() } : {}),
       ...(locale !== held.default_locale ? { default_locale: locale } : {}),
       ...(zone !== held.default_time_zone ? { default_time_zone: zone } : {}),
+      ...(weekStart !== (held.default_week_start ?? '') ? { default_week_start: weekStart } : {}),
     };
   }
 
@@ -152,7 +167,9 @@
           {#if locales.length > 0}
             <Select
               label={t('app.workspace.locale')}
-              hint={t('app.workspace.locale_hint')}
+              hint={above.locale
+                ? `${t('app.workspace.locale_hint')} ${t('app.workspace.installation_default', { value: above.locale })}`
+                : t('app.workspace.locale_hint')}
               bind:value={locale}
               options={locales.map((each) => ({ value: each.locale, label: each.locale }))}
             />
@@ -170,7 +187,9 @@
           {#if zones.length > 0}
             <Select
               label={t('app.workspace.zone')}
-              hint={t('app.workspace.zone_hint')}
+              hint={above.time_zone
+                ? `${t('app.workspace.zone_hint')} ${t('app.workspace.installation_default', { value: above.time_zone })}`
+                : t('app.workspace.zone_hint')}
               bind:value={zone}
               options={zones.map((each) => ({ value: each, label: each }))}
             />
@@ -182,6 +201,17 @@
               error={failure?.fields.get('default_time_zone')}
             />
           {/if}
+
+          <Select
+            label={t('app.workspace.week_start')}
+            hint={t('app.workspace.week_start_hint')}
+            bind:value={weekStart}
+            options={[
+              { value: '', label: weekStartAbove },
+              ...WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) })),
+            ]}
+            error={failure?.fields.get('/default_week_start')}
+          />
 
           <!-- No second-factor switch here: who needs one is the sign-in rule's, set on the sign-in
                screen with its step-up, its lock and its direction. A switch here was a second place

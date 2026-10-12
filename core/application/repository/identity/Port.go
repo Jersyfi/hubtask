@@ -28,6 +28,9 @@ type Credential struct {
 	// (i18n-l10n.md §2). Never empty: the columns have defaults.
 	TenantLocale   string
 	TenantTimeZone string
+	// WeekStartAbove is the week start's link above the account (i18n-l10n.md §4): the workspace's
+	// own day, otherwise the installation's default, otherwise empty - the locale's day then.
+	WeekStartAbove identity.WeekStart
 	// TenantSlug and TenantStatus ride with every credential read: the middleware
 	// compares the slug against multi-tenancy.md §3's weaker sources, and a suspension flips
 	// authentication itself rather than each use case separately.

@@ -40,6 +40,33 @@ func (e Exclusion) Read(ctx context.Context, tenantID shared.ID) (domain.KeptOut
 	return domain.NewKeptOut(people), nil
 }
 
+// RestrictionSource keeps out the people whose processing is restricted (Art. 18,
+// data-protection.md §4 and §4.1): no gate - unlike an objection it holds whatever the workspace's
+// position, alone or not, because it is the controller's duty rather than a choice the workspace
+// can take away. Placed first in the list, so that somebody both restricted and objecting reads as
+// restricted and is kept out as far as a restriction reaches.
+type RestrictionSource struct {
+	Restrictions privacyrepo.Restrictions
+}
+
+// KeptOut answers the restricted people.
+func (s RestrictionSource) KeptOut(ctx context.Context, _ shared.ID) ([]domain.KeptPerson, error) {
+	if s.Restrictions == nil {
+		return nil, nil
+	}
+	restricted, err := s.Restrictions.RestrictedPeople(ctx)
+	if err != nil {
+		return nil, err
+	}
+	people := make([]domain.KeptPerson, 0, len(restricted))
+	for _, person := range restricted {
+		people = append(people, domain.KeptPerson{
+			AccountID: person.AccountID, Reason: domain.KeptOutRestricted, Names: person.Names(),
+		})
+	}
+	return people, nil
+}
+
 // ObjectionSource keeps out the people who objected, where their objection takes effect: the
 // workspace offers keeping one's content out, and more than one person works here - alone, the
 // workspace's decision is the person's own, and there is no switch to undo it (UC-PRV-05 check 8).

@@ -151,7 +151,7 @@ func (a AuthenticateToken) Execute(
 			TimeZone: firstNonEmpty(
 				credential.Account.TimeZone, credential.TenantTimeZone, cmd.FallbackTimeZone),
 		}
-		actor.WeekStart = a.weekStart(credential.Account.WeekStart, actor.Locale)
+		actor.WeekStart = a.weekStart(credential.Account.WeekStart, credential.WeekStartAbove, actor.Locale)
 		return nil
 	})
 	if err != nil {
@@ -243,7 +243,7 @@ func (a AuthenticateToken) executeSession(
 			TimeZone: firstNonEmpty(
 				credential.Account.TimeZone, credential.TenantTimeZone, cmd.FallbackTimeZone),
 		}
-		actor.WeekStart = a.weekStart(credential.Account.WeekStart, actor.Locale)
+		actor.WeekStart = a.weekStart(credential.Account.WeekStart, credential.WeekStartAbove, actor.Locale)
 		return nil
 	})
 	if err != nil {
@@ -365,11 +365,15 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-// weekStart is i18n-l10n.md §4's rule: the account's own preference, otherwise the locale's day,
-// otherwise Monday - the last of the three being what a build without the port answers.
-func (a AuthenticateToken) weekStart(preference, locale string) string {
+// weekStart is i18n-l10n.md §4's rule: the account's own preference, otherwise the workspace's
+// day or the installation's, otherwise the locale's day, otherwise Monday - the last being what a
+// build without the port answers.
+func (a AuthenticateToken) weekStart(preference string, above identity.WeekStart, locale string) string {
 	if preference != "" {
 		return preference
+	}
+	if above.Valid() {
+		return string(above)
 	}
 	if a.WeekStarts != nil {
 		if day := a.WeekStarts.WeekStartOf(locale); day != "" {

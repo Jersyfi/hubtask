@@ -53,7 +53,7 @@ model as to a workspace's own. Two instance values bound what a workspace may us
 default and a lock: `ai.sources` (`NONE`, `OFFERED`, `OWN`, `EITHER`), and `ai.min_jurisdiction` for a
 workspace's own model. A lock can hold a workspace out of a source, never in one.
 
-**And a third person will have a say: the one whose content it is** (decided, not yet built).
+**And a third person will have a say: the one whose content it is.**
 Inside a workspace with AI on, each
 person may keep what they authored out of every prompt — unless the workspace has made AI part of
 everybody's work and named the legal basis for it, in which case people see that basis instead of

@@ -61,6 +61,9 @@ type AssignmentWriter struct {
 	Profiles   metarepo.CapabilityProfiles
 	Authorizer Authorizer
 	Visibility Visibility
+	// Accounts answers whether a rule is about to put a restricted person on the entry: no rule
+	// does (data-protection.md §4). Nil restricts nobody.
+	Accounts   RestrictedAccounts
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
@@ -206,6 +209,15 @@ func (w AssignmentWriter) change(
 		}
 		if err := item.EnsureAssignable(profile); err != nil {
 			return err
+		}
+		if want == assigning {
+			restricted, err := restrictedUnderRule(ctx, w.Accounts, actor, cmd.AccountID)
+			if err != nil {
+				return err
+			}
+			if restricted {
+				return assigneeRestricted(cmd.AccountID)
+			}
 		}
 
 		wanted := item.Assigned(cmd.AccountID, now)

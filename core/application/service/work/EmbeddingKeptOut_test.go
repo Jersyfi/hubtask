@@ -51,6 +51,32 @@ func TestThePassSkipsAndForgetsWhatAKeptOutPersonCreated(t *testing.T) {
 	}
 }
 
+// UC-PRV-04 check 5 for search by meaning: a restricted person's entries are skipped and forgotten
+// as an objector's are, and so are the entries they are on; an objector's assigned entries are not.
+func TestThePassAlsoSkipsAndForgetsWhatARestrictedPersonIsOn(t *testing.T) {
+	restricted := shared.MustParseID("0192f000-0000-7000-8000-0000000000b4")
+	world := &embeddingWorld{
+		available: true, embedding: true, model: "embed-3",
+		owed:    []repository.OwedEmbedding{owedFixture(taskID, "Quarterly report", "")},
+		vectors: [][]float32{{0.1, 0.2, 0.3}},
+	}
+	pass := embeddingHarness(world)
+	pass.Kept = keptReader{integration.NewKeptOut([]integration.KeptPerson{
+		{AccountID: restricted, Reason: integration.KeptOutRestricted},
+		{AccountID: keptCreator, Reason: integration.KeptOutObjected},
+	})}
+	if _, err := pass.Execute(t.Context(), embeddingActor()); err != nil {
+		t.Fatalf("the pass failed: %v", err)
+	}
+	if len(world.skipped) != 2 || len(world.forgotten) != 2 {
+		t.Errorf("creators skipped %v, forgotten %v", world.skipped, world.forgotten)
+	}
+	if len(world.skippedAssigned) != 1 || world.skippedAssigned[0] != restricted ||
+		len(world.forgottenAssigned) != 1 || world.forgottenAssigned[0] != restricted {
+		t.Errorf("assignees skipped %v, forgotten %v", world.skippedAssigned, world.forgottenAssigned)
+	}
+}
+
 // A person who keeps their own content out searches by words: their query is theirs, and nothing
 // is sent (UC-PRV-05 check 7).
 func TestAKeptOutPersonSearchesByWords(t *testing.T) {
