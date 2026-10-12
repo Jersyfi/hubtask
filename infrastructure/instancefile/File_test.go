@@ -112,3 +112,34 @@ func TestAKnownFileBecomesTheRequestBody(t *testing.T) {
 		t.Errorf("the switch reads %v", minLength)
 	}
 }
+
+// The file names its offered AI models with the key's variable, never the key.
+func TestTheFilesAiModelsTakeTheirKeyFromTheEnvironment(t *testing.T) {
+	document := map[string]any{"ai_models": []any{
+		map[string]any{"display_name": "Large (EU)", "processor": "A processor", "kind": "OPENAI_COMPATIBLE",
+			"base_url": "https://offered.example/v1", "jurisdiction": "EEA", "api_key_env": "OFFERED_KEY"},
+		map[string]any{"display_name": "Local", "processor": "Us", "kind": "OLLAMA",
+			"base_url": "http://ollama:11434", "jurisdiction": "SELF_HOSTED"},
+	}}
+	lookup := func(name string) (string, bool) {
+		if name == "OFFERED_KEY" {
+			return "the-key", true
+		}
+		return "", false
+	}
+	models, present, err := AiModels(document, lookup, "instance.json")
+	if err != nil || !present || len(models) != 2 {
+		t.Fatalf("read %v %v %v", models, present, err)
+	}
+	if models[0].APIKey != "the-key" || !models[0].HasKey || models[1].HasKey {
+		t.Errorf("keys %+v", models)
+	}
+
+	_, _, err = AiModels(document, func(string) (string, bool) { return "", false }, "instance.json")
+	if got := shared.AsError(err); got == nil || got.DetailCode != "config.instance_file_ai_key_missing" {
+		t.Errorf("a missing variable answered %v", err)
+	}
+	if _, present, _ := AiModels(map[string]any{}, lookup, "instance.json"); present {
+		t.Error("a file without the key claims to name models")
+	}
+}

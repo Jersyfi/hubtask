@@ -99,11 +99,78 @@ func Read(path string) (map[string]any, bool, error) {
 	}
 
 	for name := range document {
-		if !areas[name] && name != "blocklist_file" {
+		if !areas[name] && name != "blocklist_file" && name != aiModelsKey {
 			return nil, false, shared.ErrValidation.
 				WithDetail("config.instance_file_area_unknown").
 				WithParams(map[string]string{"source": path, "area": name})
 		}
 	}
 	return document, true, nil
+}
+
+// aiModelsKey is the list of AI models the installation offers (ADR-0072 §1). Not an area of the
+// level: the models are rows of their own, written through their own use case.
+const aiModelsKey = "ai_models"
+
+// AiModel is one offered model as the file names it. The key is never in the file - a secret in a
+// configuration file is a key in clear - but in the environment variable APIKeyEnv names.
+type AiModel struct {
+	DisplayName     string
+	Processor       string
+	Kind            string
+	BaseURL         string
+	CompletionModel string
+	EmbeddingModel  string
+	Jurisdiction    string
+	// APIKey is the key read from the named variable, and HasKey whether the file named one.
+	APIKey string
+	HasKey bool
+}
+
+// AiModels reads the file's offered models. Present is false where the file says nothing about
+// them, which is not the same as an empty list: an enforcing file with `"ai_models": []` withdraws
+// every offered model, and one without the key leaves them to the other doors.
+func AiModels(
+	document map[string]any, lookup func(string) (string, bool), source string,
+) (models []AiModel, present bool, err error) {
+	raw, present := document[aiModelsKey]
+	if !present {
+		return nil, false, nil
+	}
+	list, isList := raw.([]any)
+	if !isList {
+		return nil, true, malformedModels(source)
+	}
+	for _, entry := range list {
+		fields, isObject := entry.(map[string]any)
+		if !isObject {
+			return nil, true, malformedModels(source)
+		}
+		text := func(name string) string {
+			value, _ := fields[name].(string)
+			return value
+		}
+		model := AiModel{
+			DisplayName: text("display_name"), Processor: text("processor"), Kind: text("kind"),
+			BaseURL: text("base_url"), CompletionModel: text("completion_model"),
+			EmbeddingModel: text("embedding_model"), Jurisdiction: text("jurisdiction"),
+		}
+		if variable := text("api_key_env"); variable != "" {
+			key, set := lookup(variable)
+			if !set || key == "" {
+				return nil, true, shared.ErrValidation.
+					WithDetail("config.instance_file_ai_key_missing").
+					WithParams(map[string]string{"source": source, "variable": variable})
+			}
+			model.APIKey, model.HasKey = key, true
+		}
+		models = append(models, model)
+	}
+	return models, true, nil
+}
+
+func malformedModels(source string) error {
+	return shared.ErrValidation.
+		WithDetail("config.instance_file_malformed").
+		WithParams(map[string]string{"source": source})
 }

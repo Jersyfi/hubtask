@@ -107,7 +107,36 @@ func (h ConfigureInstanceAiProvider) Execute(
 	if err := w.Instance.authorize(ctx, actor); err != nil {
 		return integration.AiProvider{}, err
 	}
+	if err := w.notEnforced(ctx); err != nil {
+		return integration.AiProvider{}, err
+	}
+	return w.configure(ctx, actor.AccountName, cmd)
+}
 
+// notEnforced refuses a write through the screen or hubctl while a file in `enforce` mode is the
+// source: the next start would undo it (ADR-0070 §5), the reason WriteInstanceSettings refuses.
+func (w InstanceAiWriter) notEnforced(ctx context.Context) error {
+	if w.Instance.Settings == nil {
+		return nil
+	}
+	return w.Instance.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		level, err := w.Instance.Settings.Read(ctx)
+		if err != nil {
+			return err
+		}
+		if level.IsEnforcedFromFile {
+			return shared.ErrConflict.WithDetail("admin.instance_enforced_from_file").
+				WithParams(map[string]string{"source": level.Source})
+		}
+		return nil
+	})
+}
+
+// configure is the write, after whoever asked was allowed to: an operator through the API, or the
+// instance file at start.
+func (w InstanceAiWriter) configure(
+	ctx context.Context, label string, cmd ConfigureInstanceAiCommand,
+) (integration.AiProvider, error) {
 	adding := cmd.ID.IsZero()
 	id := cmd.ID
 	if adding {
@@ -153,7 +182,7 @@ func (h ConfigureInstanceAiProvider) Execute(
 		}
 		return w.Instance.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: w.Instance.IDs.NewID(), OccurredAt: now, Action: string(instanceAiConfiguredAction),
-			ActorLabel: actor.AccountName,
+			ActorLabel: label,
 			// Configuration, never the key: the name, where it processes and which models.
 			Details: map[string]any{
 				"provider_id": stored.ID.String(), "jurisdiction": string(stored.Jurisdiction),
@@ -178,6 +207,13 @@ func (h RemoveInstanceAiProvider) Execute(ctx context.Context, actor appshared.A
 	if err := w.Instance.authorize(ctx, actor); err != nil {
 		return err
 	}
+	if err := w.notEnforced(ctx); err != nil {
+		return err
+	}
+	return w.remove(ctx, actor.AccountName, id)
+}
+
+func (w InstanceAiWriter) remove(ctx context.Context, label string, id shared.ID) error {
 	return w.Instance.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
 		removed, err := w.Offered.Delete(ctx, id)
 		if err != nil || !removed {
@@ -185,10 +221,55 @@ func (h RemoveInstanceAiProvider) Execute(ctx context.Context, actor appshared.A
 		}
 		return w.Instance.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: w.Instance.IDs.NewID(), OccurredAt: w.Instance.Clock.Now(),
-			Action: string(instanceAiRemovedAction), ActorLabel: actor.AccountName,
+			Action: string(instanceAiRemovedAction), ActorLabel: label,
 			Details: map[string]any{"provider_id": id.String()},
 		})
 	})
+}
+
+// ApplyFile is the instance file's door (ADR-0070 §5, D9 of the readiness record): the models the
+// file names, matched to offered ones by name. `seed` offers them only where nothing is offered
+// yet; `enforce` makes the file the list - named models are offered or changed, and every other
+// offered model is withdrawn. A model whose key the file names by variable gets it; one whose key
+// it does not name keeps the sealed one. The journal names the file.
+func (w InstanceAiWriter) ApplyFile(
+	ctx context.Context, models []ConfigureInstanceAiCommand, enforce bool, source string,
+) error {
+	var offered []integration.AiProvider
+	if err := w.Instance.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		read, err := w.Offered.List(ctx)
+		offered = read
+		return err
+	}); err != nil {
+		return err
+	}
+	if !enforce && len(offered) > 0 {
+		return nil
+	}
+	byName := map[string]shared.ID{}
+	for _, model := range offered {
+		byName[model.DisplayName] = model.ID
+	}
+	named := map[shared.ID]bool{}
+	for _, cmd := range models {
+		cmd.ID = byName[cmd.DisplayName]
+		stored, err := w.configure(ctx, source, cmd)
+		if err != nil {
+			return err
+		}
+		named[stored.ID] = true
+	}
+	if !enforce {
+		return nil
+	}
+	for _, model := range offered {
+		if !named[model.ID] {
+			if err := w.remove(ctx, source, model.ID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // OfferedAiOutput is what an operator reads of an offered model: everything but the key.

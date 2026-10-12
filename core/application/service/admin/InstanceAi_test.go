@@ -202,3 +202,59 @@ func TestAnOfferedModelIsHeldToTheWorkspacesRules(t *testing.T) {
 		t.Errorf("a confirmed installation was refused a third country: %v", err)
 	}
 }
+
+func fileWriter(t *testing.T) (InstanceAiWriter, *offeredStore, *instanceStore) {
+	t.Helper()
+	instance, settings, _ := newInstanceWriter(newRegister(operatorID))
+	store := newOfferedStore()
+	return InstanceAiWriter{Instance: instance, Offered: store, Encryptor: &plainEnvelope{}}, store, settings
+}
+
+func fileModel(name string) ConfigureInstanceAiCommand {
+	return ConfigureInstanceAiCommand{
+		DisplayName: name, Processor: "A processor", Kind: integration.AiOpenAiCompatible,
+		BaseURL: "https://offered.example/v1", CompletionModel: "large", Jurisdiction: integration.AiEEA,
+	}
+}
+
+// D9: `seed` offers the file's models only where nothing is offered; `enforce` makes the file the
+// list, and the screen and the terminal are refused while it does.
+func TestTheInstanceFileOffersModelsBySeedOrEnforce(t *testing.T) {
+	writer, store, settings := fileWriter(t)
+
+	if err := writer.ApplyFile(t.Context(), []ConfigureInstanceAiCommand{fileModel("Large (EU)")}, false, "/etc/hubtask/instance.json"); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+	if len(store.rows) != 1 {
+		t.Fatalf("seeded %d models", len(store.rows))
+	}
+	if err := writer.ApplyFile(t.Context(), []ConfigureInstanceAiCommand{fileModel("Other")}, false, "/etc/hubtask/instance.json"); err != nil {
+		t.Fatalf("seeding again: %v", err)
+	}
+	if len(store.rows) != 1 {
+		t.Error("a second seed offered a model although one was offered")
+	}
+
+	// Enforce: the named one changes in place, the unnamed one is withdrawn.
+	if err := writer.ApplyFile(t.Context(), []ConfigureInstanceAiCommand{fileModel("Small (EU)")}, true, "/etc/hubtask/instance.json"); err != nil {
+		t.Fatalf("enforcing: %v", err)
+	}
+	if len(store.rows) != 1 {
+		t.Fatalf("after enforcing %d models are offered", len(store.rows))
+	}
+	for _, row := range store.rows {
+		if row.DisplayName != "Small (EU)" {
+			t.Errorf("enforcing left %q", row.DisplayName)
+		}
+	}
+
+	settings.level.IsEnforcedFromFile = true
+	registry, err := usecase.NewRegistry(nil, ConfigureInstanceAiProvider{Writer: writer}.Descriptor(), RemoveInstanceAiProvider{Writer: writer}.Descriptor())
+	if err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	if _, err := registry.Invoke(t.Context(), ConfigureInstanceAiProviderName, operator(), offeredInput()); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != "admin.instance_enforced_from_file" {
+		t.Errorf("a write under an enforcing file answered %v", err)
+	}
+}

@@ -25,6 +25,7 @@
   "config.instance_file_malformed": "{source} is not a readable instance file. It has to be JSON with the same shape the API answers.",
   "config.instance_file_area_unknown": "{source} names {area}, which this version of Hubtask does not know. A file is read by every future start, so a name nobody reads is refused rather than ignored.",
   "config.instance_file_value_invalid": "{setting} in the instance file is not a value that setting takes.",
+  "config.instance_file_ai_key_missing": "{source} names the environment variable {variable} for an AI model's key, and it is not set. Set it, or leave the key out of the file.",
   "config.encryption_key_id_duplicate": "{variable} names the key {key_id} twice.",
   "config.encryption_key_missing": "{variable} is not set, although the key {key_id} is named in HUBTASK_ENCRYPTION_KEYS.",
   "config.encryption_key_too_short": "{variable} must be at least {minimum} characters long.",
