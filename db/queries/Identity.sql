@@ -171,7 +171,7 @@ WHERE m.scope_type = 'ITEM'
 -- rather than forbidden (ADR-0010, multi-tenancy.md §2).
 
 -- name: FindAccount :one
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
@@ -179,7 +179,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- name: FindAccountByEmail :one
 -- Compared lower case, the way the uniqueness index does - two spellings of one address are two
 -- accounts for one person otherwise (account_email_uq).
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE lower(email) = lower(sqlc.arg('email')) AND deleted_at IS NULL;
@@ -198,7 +198,7 @@ WHERE id = sqlc.arg('id') AND status = 'INVITED' AND deleted_at IS NULL
 
 -- name: FindAccountBySignInName :one
 -- Compared folded, the form it is stored in (account_sign_in_name_uq); the caller folds it.
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE sign_in_name = sqlc.arg('sign_in_name') AND deleted_at IS NULL;
@@ -381,7 +381,7 @@ WHERE id = sqlc.arg('id') AND revoked_at IS NULL;
 --
 -- Bounded by the kind rather than by a page: an installation has a handful of integrations, and a
 -- cursor over a handful is machinery nobody reads.
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE kind = sqlc.arg('kind') AND deleted_at IS NULL

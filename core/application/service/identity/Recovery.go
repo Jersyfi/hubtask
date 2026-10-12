@@ -73,10 +73,6 @@ func (h RegenerateRecoveryCodes) Execute(
 	if err != nil {
 		return RegeneratedCodes{}, err
 	}
-	// The account repository's rows do not carry their workspace, and the trail entry below is
-	// refused without one - which rolled the whole replacement back. The caller's workspace is the
-	// account's: row level security answered the read only inside it (as resolveMfaCaller does).
-	account.TenantID = actor.TenantID
 
 	material, err := w.Entropy.Bytes(domain.RecoveryCodeCount * domain.RecoveryCodeBytes)
 	if err != nil {

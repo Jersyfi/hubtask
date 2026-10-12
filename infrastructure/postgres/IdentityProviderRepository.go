@@ -579,7 +579,7 @@ func (ExternalAccountRepository) FindBySubject(
 			// The subject stays out of the message: it identifies a person at their provider.
 			WithCause(fmt.Errorf("reading an account by its provider subject: %w", err))
 	}
-	return accountFrom(row.ID, row.Kind, row.Email, nil, row.DisplayName, row.Status,
+	return accountFrom(row.ID, row.TenantID, row.Kind, row.Email, nil, row.DisplayName, row.Status,
 		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
