@@ -82,12 +82,19 @@ func adminAiWrite(ctx context.Context, cli *CLI, args []string, changing bool) e
 	completion := flags.String("completion-model", "", "the model that answers in words")
 	embedding := flags.String("embedding-model", "", "the model that answers in vectors")
 	jurisdiction := flags.String("jurisdiction", "", "SELF_HOSTED, EEA, ADEQUACY or THIRD_COUNTRY")
-	if err := parseCommand(flags, args); err != nil {
-		return err
+	// The identifier comes first, as the usage line says and as every other `<id>` command takes
+	// it: the flag parser stops at the first argument that is not a flag, so an identifier in
+	// front of the flags was read as the end of them.
+	var id string
+	if changing {
+		parsed, rest, err := cli.takeID(args, "admin ai set "+usage)
+		if err != nil {
+			return err
+		}
+		id, args = parsed.String(), rest
 	}
-	rest := flags.Args()
-	if changing && len(rest) == 0 {
-		return usagef("admin ai set needs a model - `admin ai ls` prints them")
+	if err := parseOnlyFlags(flags, args, "admin ai "+verb+" "+usage); err != nil {
+		return err
 	}
 	if *name == "" || *processor == "" || *kind == "" || *baseURL == "" || *jurisdiction == "" {
 		return usagef("admin ai %s needs --name, --processor, --kind, --base-url and --jurisdiction", verb)
@@ -108,7 +115,7 @@ func adminAiWrite(ctx context.Context, cli *CLI, args []string, changing bool) e
 	}
 	var written openapi.OfferedAiModel
 	if changing {
-		err = client.Put(ctx, adminAiProvidersPath+"/"+rest[0], body, &written)
+		err = client.Put(ctx, adminAiProvidersPath+"/"+id, body, &written)
 	} else {
 		err = client.Post(ctx, adminAiProvidersPath, body, &written)
 	}

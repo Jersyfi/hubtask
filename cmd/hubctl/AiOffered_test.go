@@ -108,10 +108,9 @@ func TestAnOperatorChangesAnOfferedModelWithTheKeyFromTheEnvironment(t *testing.
 	env := signedIn(stub)
 	env[aiKeyVariable] = "the-changed-key"
 
-	code, out, errOut := invokeAgainst(t, stub, env, "", "admin", "ai", "set",
+	code, out, errOut := invokeAgainst(t, stub, env, "", "admin", "ai", "set", "0192f000-0000-7000-8000-0000000000e1",
 		"--name", "Large (EU)", "--processor", "Another processor", "--kind", "OPENAI_COMPATIBLE",
-		"--base-url", "https://offered.example/v2", "--completion-model", "larger", "--jurisdiction", "EEA",
-		"0192f000-0000-7000-8000-0000000000e1")
+		"--base-url", "https://offered.example/v2", "--completion-model", "larger", "--jurisdiction", "EEA")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -131,10 +130,9 @@ func TestAnOperatorChangesAnOfferedModelWithTheKeyFromTheEnvironment(t *testing.
 	}
 
 	// Without the variable the change sends no key, and the server keeps the sealed one.
-	code, _, errOut = invokeAgainst(t, stub, signedIn(stub), "", "admin", "ai", "set",
+	code, _, errOut = invokeAgainst(t, stub, signedIn(stub), "", "admin", "ai", "set", "0192f000-0000-7000-8000-0000000000e1",
 		"--name", "Large (EU)", "--processor", "A processor", "--kind", "OPENAI_COMPATIBLE",
-		"--base-url", "https://offered.example/v1", "--jurisdiction", "EEA",
-		"0192f000-0000-7000-8000-0000000000e1")
+		"--base-url", "https://offered.example/v1", "--jurisdiction", "EEA")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
