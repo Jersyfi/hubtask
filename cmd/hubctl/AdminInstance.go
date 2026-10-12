@@ -159,7 +159,7 @@ func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool
 
 	target := areaOf(&settings, area)
 	if target == nil {
-		return usagef("%q is not an area of the instance level: sign_in, legal, localisation, quotas", area)
+		return usagef("%q is not an area of the instance level: sign_in, legal, localisation, quotas, ai", area)
 	}
 	if setting {
 		(*target)[name] = openapi.InstanceSetting{
@@ -176,7 +176,7 @@ func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool
 	return cli.Emit(written, settingsTable(written))
 }
 
-// areaOf answers the map one of the four areas keeps its entries in, creating it where the read
+// areaOf answers the map one of the five areas keeps its entries in, creating it where the read
 // answered none.
 func areaOf(settings *openapi.InstanceSettings, area string) *map[string]openapi.InstanceSetting {
 	switch area {
@@ -188,6 +188,8 @@ func areaOf(settings *openapi.InstanceSettings, area string) *map[string]openapi
 		return ensureArea(&settings.Localisation)
 	case "quotas":
 		return ensureArea(&settings.Quotas)
+	case "ai":
+		return ensureArea(&settings.Ai)
 	default:
 		return nil
 	}
@@ -255,6 +257,7 @@ func settingsTable(settings openapi.InstanceSettings) Table {
 	add("legal", settings.Legal)
 	add("localisation", settings.Localisation)
 	add("quotas", settings.Quotas)
+	add("ai", settings.Ai)
 	return Table{Columns: []string{"key", "value", "workspace"}, Rows: rows}
 }
 
@@ -453,12 +456,18 @@ func adminProviderList(ctx context.Context, cli *CLI, args []string) error {
 		if admits == "" {
 			admits = strings.Join(provider.AllowedEmailDomains, ", ")
 		}
+		// What the installation's lock on the ways in does to the row (identity.md §18): on in every
+		// workspace, or each workspace's own switch.
+		lock := ""
+		if provider.InstallationLock != nil {
+			lock = string(*provider.InstallationLock)
+		}
 		rows = append(rows, []string{
-			provider.Id.String(), provider.DisplayName, string(provider.Provisioning), admits,
+			provider.Id.String(), provider.DisplayName, string(provider.Provisioning), admits, lock,
 		})
 	}
 	return cli.Emit(providers, Table{
-		Columns: []string{"id", "name", "admits", "listed"}, Rows: rows,
+		Columns: []string{"id", "name", "admits", "listed", "lock"}, Rows: rows,
 	})
 }
 

@@ -5,9 +5,9 @@ context: suggestion
 actors: [PE-person, PE-owner, PE-admin]
 deployments: [D5, D6]
 serves: [P-10, P-12, P-14]
-state: specified
+state: built
 tasks: [SC-11]
-checked_by: []
+checked_by: [core/application/service/integration/AiSource_test.go, test/integration/offered_ai_resolver_test.go, test/integration/offered_ai_test.go, apps/webapp/e2e/aisettings.test.mjs]
 ---
 
 # Use the AI model our provider offers, without setting anything up
@@ -47,13 +47,3 @@ its own (UC-AI-02).
 * No per-person AI choice inside a workspace.
 * Changing the model used for search by meaning re-indexes the workspace in the background; the
   screen says so and search by words keeps working meanwhile.
-
-## Today
-
-* Check 1: not met — an AI provider exists only per workspace; the installation offers no model, tracked in #1067.
-* Check 2: not met — there is no offered model to switch on, tracked in #1067.
-* Check 3: not met — there is no offered model whose configuration could be withheld, tracked in #1067.
-* Check 4: not met — no AI feature runs with an offered model, tracked in #1067.
-* Check 5: not met — no offered model's use is counted, tracked in #1067.
-* Check 6: not met — the installation cannot offer several models, tracked in #1067.
-* Check 7: not met — there is no offered model to switch to, tracked in #1067.

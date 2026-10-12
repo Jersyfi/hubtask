@@ -5635,6 +5635,123 @@
         }
       }
     },
+    "/admin/ai-providers": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "listInstanceAiProviders",
+        "summary": "The AI models this installation offers every workspace",
+        "description": "A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.\n",
+        "responses": {
+          "200": {
+            "description": "The offered models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OfferedAiModel"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "createInstanceAiProvider",
+        "summary": "Offer an AI model to every workspace",
+        "description": "The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferedAiModelConfiguration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Offered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferedAiModel"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/ai-providers/{providerId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ProviderId"
+        }
+      ],
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "configureInstanceAiProvider",
+        "summary": "Change an offered AI model",
+        "description": "Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferedAiModelConfiguration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferedAiModel"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "removeInstanceAiProvider",
+        "summary": "Withdraw an offered AI model",
+        "description": "Removes the model and its sealed key. Every workspace that chose it gets no AI answer until it chooses again; nothing a workspace configured itself is touched. Journalled.\n",
+        "responses": {
+          "204": {
+            "description": "Withdrawn"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/admin/identity-providers": {
       "get": {
         "tags": [
@@ -6299,7 +6416,7 @@
           }
         ],
         "summary": "Switch a provider on or off as a way in here",
-        "description": "One verb for two stores, because it is one question: **is this a way into this workspace**.\nFor the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.\n**An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.\nThe last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.\n",
+        "description": "One verb for two stores, because it is one question: **is this a way into this workspace**.\nFor the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.\n**An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.\nThe last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.\n**A provider the installation's lock turns on cannot be switched off here.** Where the installation locked the ways to sign in with providers among them, every provider it offers as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its parameters. Switching it on is accepted and kept as this workspace's own choice, which applies again once the lock is lifted.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -6837,6 +6954,64 @@
         "responses": {
           "204": {
             "description": "Removed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/ai-source": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "readAiSource",
+        "summary": "Which AI answers this workspace, and what it may use",
+        "description": "The workspace's own model, a model the installation offers, or none - with what the installation allows, whether that is locked and by whom, and the least a workspace's own model must declare. An offered model is answered by its name, its processor and its jurisdiction only. With nothing offered and nothing decided, `sources` is `OWN` and `offered` is empty: the workspace's own model, as always.\n",
+        "responses": {
+          "200": {
+            "description": "The workspace's AI source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSource"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "chooseAiSource",
+        "summary": "Choose which AI answers this workspace",
+        "description": "Choosing an offered model is this workspace's consent to send its content to it, and choosing its own model or none withdraws that consent. `NONE` is always allowed; a source the installation does not allow is refused with `403`, `ai.source_not_allowed`. A narrowing wider than the installation allows is refused with `auth.policy_loosens`, one under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own always. Auditable.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSourceChoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chosen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSource"
+                }
+              }
+            }
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -12606,6 +12781,273 @@
           }
         }
       },
+      "OfferedAiModel": {
+        "type": "object",
+        "description": "An AI model the installation offers every workspace, as the operator reads it. A workspace is answered only its name, processor and jurisdiction (`AiSource.offered`).\n",
+        "required": [
+          "id",
+          "display_name",
+          "processor",
+          "kind",
+          "jurisdiction",
+          "has_api_key",
+          "created_at",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "processor": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AiProviderKind"
+          },
+          "base_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "completion_model": {
+            "type": "string"
+          },
+          "embedding_model": {
+            "type": "string"
+          },
+          "has_api_key": {
+            "type": "boolean",
+            "description": "Whether a key is stored. The key itself is answered by nothing."
+          },
+          "jurisdiction": {
+            "$ref": "#/components/schemas/AiJurisdiction"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "OfferedAiModelConfiguration": {
+        "type": "object",
+        "description": "An offered model, set whole. Consent is not here: switching an offered model on is each workspace's own act.\n",
+        "required": [
+          "display_name",
+          "processor",
+          "kind",
+          "base_url",
+          "jurisdiction"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "The name workspaces choose it by. Unique among offered models."
+          },
+          "processor": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Who processes what is sent to it, as the operator declares it."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AiProviderKind"
+          },
+          "base_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "completion_model": {
+            "type": "string"
+          },
+          "embedding_model": {
+            "type": "string"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "Sealed on the way in and answered by nothing afterwards. Omit it on a change to keep the key already stored; send an empty string to clear it.\n"
+          },
+          "jurisdiction": {
+            "$ref": "#/components/schemas/AiJurisdiction"
+          }
+        }
+      },
+      "AiSources": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "OFFERED",
+          "OWN",
+          "EITHER"
+        ],
+        "description": "Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.\n"
+      },
+      "AiSourceKind": {
+        "type": "string",
+        "enum": [
+          "OWN",
+          "OFFERED",
+          "NONE"
+        ],
+        "description": "Which source answers a workspace."
+      },
+      "AiMinJurisdiction": {
+        "type": "string",
+        "enum": [
+          "ANY",
+          "ADEQUACY",
+          "EEA",
+          "SELF_HOSTED"
+        ],
+        "description": "The least a workspace's own model must declare about where it processes content, further right being stricter.\n"
+      },
+      "AiSource": {
+        "type": "object",
+        "required": [
+          "source",
+          "sources",
+          "installation_sources",
+          "sources_origin",
+          "min_jurisdiction",
+          "min_jurisdiction_origin",
+          "offered",
+          "version"
+        ],
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/AiSourceKind"
+          },
+          "offered_model_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The offered model chosen. Absent with any other source - and absent while the source is `OFFERED` once the installation withdrew the model chosen: then nothing answers until the workspace chooses again.\n"
+          },
+          "sources": {
+            "$ref": "#/components/schemas/AiSources"
+          },
+          "installation_sources": {
+            "$ref": "#/components/schemas/AiSources"
+          },
+          "narrowing": {
+            "$ref": "#/components/schemas/AiSources"
+          },
+          "sources_origin": {
+            "type": "string",
+            "enum": [
+              "DEFAULT",
+              "INSTANCE",
+              "PLAN",
+              "WORKSPACE"
+            ]
+          },
+          "sources_lock": {
+            "type": "string",
+            "enum": [
+              "INSTANCE",
+              "PLAN"
+            ],
+            "description": "Present where a level above locked what the workspace may use."
+          },
+          "min_jurisdiction": {
+            "$ref": "#/components/schemas/AiMinJurisdiction"
+          },
+          "min_jurisdiction_origin": {
+            "type": "string",
+            "enum": [
+              "DEFAULT",
+              "INSTANCE",
+              "PLAN",
+              "WORKSPACE"
+            ]
+          },
+          "min_jurisdiction_lock": {
+            "type": "string",
+            "enum": [
+              "INSTANCE",
+              "PLAN"
+            ]
+          },
+          "offered": {
+            "type": "array",
+            "description": "The models the installation offers, where it allows them at all: name, processor and jurisdiction, never an address, a model name or a key.\n",
+            "items": {
+              "$ref": "#/components/schemas/OfferedAiModelSummary"
+            }
+          },
+          "search_rebuilding": {
+            "type": "boolean",
+            "description": "True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.\n"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "OfferedAiModelSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "processor",
+          "jurisdiction"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "processor": {
+            "type": "string"
+          },
+          "jurisdiction": {
+            "$ref": "#/components/schemas/AiJurisdiction"
+          }
+        }
+      },
+      "AiSourceChoice": {
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/AiSourceKind"
+          },
+          "offered_model_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The offered model, with `OFFERED` only."
+          },
+          "sources": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "OFFERED",
+              "OWN",
+              "EITHER",
+              "INHERIT"
+            ],
+            "description": "This workspace's own narrowing of what it may use: a value narrows, `INHERIT` takes what the installation allows, absent keeps it.\n"
+          }
+        }
+      },
       "AiProviderKind": {
         "type": "string",
         "enum": [
@@ -13299,7 +13741,17 @@
           "offered_here": {
             "type": "boolean",
             "readOnly": true,
-            "description": "Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect.\n"
+            "description": "Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect. True, whatever the workspace's own switch, where `installation_lock` is `TURNS_ON`.\n"
+          },
+          "installation_lock": {
+            "type": "string",
+            "enum": [
+              "TURNS_ON",
+              "LEAVES_TO_WORKSPACE",
+              "NONE"
+            ],
+            "readOnly": true,
+            "description": "For a row the installation offers: what the installation's lock on the ways to sign in does to it. `TURNS_ON` - the ways in are locked with providers among them and the row admits *Only people invited here*, so it is on in every workspace and no workspace can switch it off. `LEAVES_TO_WORKSPACE` - the ways in are locked so, but the row admits people by domain or anyone the provider knows, so it stays each workspace's own switch. `NONE` - no such lock stands, or the offer has ended. Absent from a workspace's own rows.\n"
           },
           "withdraw_at": {
             "type": [
@@ -13317,7 +13769,7 @@
             ],
             "minimum": 0,
             "readOnly": true,
-            "description": "For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read. Absent from a workspace's listing.\n"
+            "description": "For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read, and every live workspace where `installation_lock` is `TURNS_ON`. Absent from a workspace's listing.\n"
           },
           "allowed_email_domains": {
             "type": "array",
@@ -13815,7 +14267,7 @@
       },
       "InstanceSettings": {
         "type": "object",
-        "description": "The installation's own level: the sign-in switches, the legal links, the localisation defaults and the quota ceilings.\n**Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.\n",
+        "description": "The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.\n**Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.\n",
         "properties": {
           "sign_in": {
             "type": "object",
@@ -13844,6 +14296,13 @@
               "$ref": "#/components/schemas/InstanceSetting"
             },
             "description": "One ceiling per quota, by the quota's own name — the middle level of `Effective(product, instance, plan, workspace)`. A workspace that sets none of its own gets these; one that does still wins, unless the ceiling is locked.\nUnlike the other areas a lock here is meaningful, which is what \"Tarif, Ausnahme je Bereich\" will mean once there are plans. `0` is unlimited and is a decision; absent is \"the installation decides nothing\", and the product's own default applies.\n"
+          },
+          "ai": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/InstanceSetting"
+            },
+            "description": "Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content.\nA workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.\n"
           },
           "blocklist_file": {
             "type": "string",

@@ -339,8 +339,9 @@ export const SETTINGS: readonly SectionGroup[] = [
  * makes it different is who it is for - an administrator runs a workspace, an operator runs the
  * installation - and the area tag is where that difference lives.
  *
- * Five rows and no more. What an operator needs to run an installation is counts, states and limits;
- * a sixth row showing anything inside a workspace would be the thing ADR-0070 §5 forbids.
+ * No row showing anything inside a workspace. What an operator needs to run an installation is
+ * counts, states, limits and what it offers every workspace; a row reaching into one would be the
+ * thing ADR-0070 §5 forbids.
  */
 export const INSTANCE: readonly SectionGroup[] = [
   // The way back, first and alone, exactly as the other two sections' is: a section a reader cannot
@@ -359,6 +360,7 @@ export const INSTANCE: readonly SectionGroup[] = [
       { id: 'workspaces', icon: 'workspace', code: 'app.instance.workspaces', path: '/instance/workspaces', routes: ['instance-workspaces'] },
       { id: 'settings', icon: 'settings', code: 'app.instance.settings', path: '/instance/settings', routes: ['instance-settings'] },
       { id: 'providers', icon: 'key', code: 'app.instance.providers', path: '/instance/providers', routes: ['instance-providers'] },
+      { id: 'ai', icon: 'sparkles', code: 'app.instance.ai', path: '/instance/ai', routes: ['instance-ai'] },
       { id: 'encryption', icon: 'lock', code: 'app.instance.encryption', path: '/instance/encryption', routes: ['instance-encryption'] },
     ],
   },

@@ -40,7 +40,11 @@ import (
 // The fourth is also the only case that opens the sealed key, so an unconsenting workspace's
 // credential is not decrypted on the way to deciding not to use it.
 type Resolver struct {
-	Providers  repository.AiProviders
+	Providers repository.AiProviders
+	// Sources decides which source answers (ADR-0072 §2): the workspace's own model, an offered
+	// one, or none. Nil is an installation built before offered models, where the own model is the
+	// only source - the behaviour every test that predates them asserts.
+	Sources    port.SourceSelector
 	UnitOfWork persistence.UnitOfWork
 	Encryptor  cryptoport.Encryptor
 	Client     httpport.Port
@@ -59,6 +63,9 @@ type Resolver struct {
 // the caller's answer to all three is the same one - carry on without the suggestion. What differs
 // is the log line, which is the adapter's business.
 func (r Resolver) For(ctx context.Context, actor appshared.ActorContext) (port.Provider, error) {
+	if r.Sources != nil {
+		return r.forSource(ctx, actor)
+	}
 	var (
 		configured domain.AiProvider
 		sealed     *cryptoport.Sealed
@@ -92,6 +99,42 @@ func (r Resolver) For(ctx context.Context, actor appshared.ActorContext) (port.P
 		key = opened
 	}
 
+	return r.adapterFor(configured, key), nil
+}
+
+// forSource is For under the installation's rule: the application decides which configuration may
+// be called, and this builds the adapter for it.
+func (r Resolver) forSource(ctx context.Context, actor appshared.ActorContext) (port.Provider, error) {
+	var selection port.Selection
+	err := r.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		selection, err = r.Sources.Select(ctx, actor.TenantID)
+		return err
+	})
+	if err != nil {
+		return Noop{}, err
+	}
+	if selection.Refusal != "" {
+		return Refused{Detail: selection.Refusal}, nil
+	}
+
+	var key secret.Secret
+	if selection.Sealed != nil {
+		opened, err := r.Encryptor.Open(ctx, *selection.Sealed, selection.Purpose)
+		if err != nil {
+			return Noop{}, nil
+		}
+		key = opened
+	}
+	adapter := r.adapterFor(selection.Provider, key)
+	if selection.EmbeddingSpace != selection.Provider.EmbeddingModel {
+		return Spaced{Provider: adapter, Space: selection.EmbeddingSpace}, nil
+	}
+	return adapter, nil
+}
+
+// adapterFor builds the adapter for one configuration and its opened key.
+func (r Resolver) adapterFor(configured domain.AiProvider, key secret.Secret) port.Provider {
 	var breaker Breaker
 	if r.Breakers != nil {
 		breaker = r.Breakers.For(configured.BaseURL)
@@ -109,7 +152,7 @@ func (r Resolver) For(ctx context.Context, actor appshared.ActorContext) (port.P
 			CompletionModel: configured.CompletionModel,
 			EmbeddingModel:  configured.EmbeddingModel,
 			Widths:          r.Widths,
-		}, nil
+		}
 	case domain.AiOllama:
 		// No key: a local endpoint is reached over the installation's own network and Ollama has
 		// no credential of its own. One is not silently passed on to it either - an operator who
@@ -121,11 +164,11 @@ func (r Resolver) For(ctx context.Context, actor appshared.ActorContext) (port.P
 			CompletionModel: configured.CompletionModel,
 			EmbeddingModel:  configured.EmbeddingModel,
 			Widths:          r.Widths,
-		}, nil
+		}
 	default:
 		// A kind the domain accepted and this build has no adapter for. Unreachable while the
 		// closed set and the switch agree, and a refusal rather than a panic if they ever do not.
-		return Noop{}, nil
+		return Noop{}
 	}
 }
 

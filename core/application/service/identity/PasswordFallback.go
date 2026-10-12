@@ -62,18 +62,20 @@ func (c FallbackCause) Opens() bool { return c != "" }
 // in here now. The operator's opening comes first, because it is the one that holds while a provider
 // is switched on: what it answers is a provider that is on and broken. Nothing asks why the methods
 // left no way in (E2) - a cause the predicate had to recognise is a cause it could miss, and
-// every miss is a lockout.
+// every miss is a lockout. A provider the installation's lock turns on here is a way in like one
+// the workspace switched on (identity.md §18), so under that lock the fallback stays shut while the
+// mandated provider's offer stands.
 func fallbackOpens(
-	methods []string, inForce []domain.IdentityProvider, workspace domain.Workspace, now time.Time,
+	methods []string, inForce []domain.IdentityProvider, here waysHere, now time.Time,
 ) FallbackCause {
 	if slices.Contains(methods, domain.MethodDirect) {
 		return ""
 	}
-	if workspace.PasswordOpening.InForce(now) {
+	if here.workspace.PasswordOpening.InForce(now) {
 		return FallbackCauseOperator
 	}
 	for _, configured := range inForce {
-		if configured.Issuer != "" && offeredHere(configured, workspace.Settings, now) {
+		if configured.Issuer != "" && offeredHere(configured, here, now) {
 			return ""
 		}
 	}
@@ -86,6 +88,9 @@ func fallbackOpens(
 type WaysIn struct {
 	Providers  repository.IdentityProviders
 	Workspaces repository.Workspaces
+	// Instance is the installation's level, for its lock on the ways in (identity.md §18). Nil
+	// reads no lock.
+	Instance   repository.InstanceSettings
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 }
@@ -105,11 +110,11 @@ func (w WaysIn) PasswordFallback(
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
 				return err
 			}
-			workspace, err := w.Workspaces.Find(ctx)
-			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			here, err := readWaysHere(ctx, w.Workspaces, w.Instance)
+			if err != nil {
 				return err
 			}
-			opens = fallbackOpens(methods, inForce, workspace, w.Clock.Now())
+			opens = fallbackOpens(methods, inForce, here, w.Clock.Now())
 			return nil
 		})
 	return opens, err

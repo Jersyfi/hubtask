@@ -695,6 +695,22 @@ class Client:
         """The installation's own record"""
         return self._call("GET", "/admin/journal", {}, query, {}, None, "none", None, "json")
 
+    def list_instance_ai_providers(self) -> dict[str, Any]:
+        """The AI models this installation offers every workspace"""
+        return self._call("GET", "/admin/ai-providers", {}, None, {}, None, "none", None, "json")
+
+    def create_instance_ai_provider(self, body: "OfferedAiModelConfiguration") -> "OfferedAiModel":
+        """Offer an AI model to every workspace"""
+        return self._call("POST", "/admin/ai-providers", {}, None, {}, body, "json", "application/json", "json")
+
+    def configure_instance_ai_provider(self, provider_id: str, body: "OfferedAiModelConfiguration") -> "OfferedAiModel":
+        """Change an offered AI model"""
+        return self._call("PUT", "/admin/ai-providers/{providerId}", {"providerId": provider_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_instance_ai_provider(self, provider_id: str) -> None:
+        """Withdraw an offered AI model"""
+        return self._call("DELETE", "/admin/ai-providers/{providerId}", {"providerId": provider_id}, None, {}, None, "none", None, "void")
+
     def list_instance_identity_providers(self) -> dict[str, Any]:
         """The providers this installation offers every workspace"""
         return self._call("GET", "/admin/identity-providers", {}, None, {}, None, "none", None, "json")
@@ -838,6 +854,14 @@ class Client:
     def remove_ai_provider(self) -> None:
         """Remove the workspace's AI provider"""
         return self._call("DELETE", "/ai-provider", {}, None, {}, None, "none", None, "void")
+
+    def read_ai_source(self) -> "AiSource":
+        """Which AI answers this workspace, and what it may use"""
+        return self._call("GET", "/ai-source", {}, None, {}, None, "none", None, "json")
+
+    def choose_ai_source(self, body: "AiSourceChoice") -> "AiSource":
+        """Choose which AI answers this workspace"""
+        return self._call("PUT", "/ai-source", {}, None, {}, body, "json", "application/json", "json")
 
     def list_oauth_clients(self) -> dict[str, Any]:
         """The workspace's registered third-party apps"""

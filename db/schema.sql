@@ -591,7 +591,9 @@ ALTER TABLE auth_pending ADD CONSTRAINT auth_pending_link_provider_id_fkey
 -- workspace. The API key is sealed under the envelope encryption (security.md §8), never hashed - the adapter needs the
 -- plaintext to sign a request - and the two envelope columns are all-or-nothing.
 CREATE TABLE ai_provider (
-  tenant_id        uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- NULL is a model the installation offers to every workspace (ADR-0072, migration 0129).
+  tenant_id        uuid REFERENCES tenant(id) ON DELETE CASCADE,
   kind             text NOT NULL CHECK (kind IN ('NOOP', 'OPENAI_COMPATIBLE', 'OLLAMA')),
   base_url         text NOT NULL DEFAULT '' CHECK (length(base_url) <= 2000),
   completion_model text NOT NULL DEFAULT '' CHECK (length(completion_model) <= 200),
@@ -607,10 +609,33 @@ CREATE TABLE ai_provider (
   created_at       timestamptz NOT NULL,
   updated_at       timestamptz,
   version          integer NOT NULL DEFAULT 1,
+  -- What a workspace is shown of an offered model, as the operator declares it.
+  display_name     text NOT NULL DEFAULT '' CHECK (length(display_name) <= 200),
+  processor        text NOT NULL DEFAULT '' CHECK (length(processor) <= 200),
   CONSTRAINT ai_provider_key_envelope CHECK (
     (api_key_enc IS NULL AND api_key_key_id IS NULL) OR
     (api_key_enc IS NOT NULL AND api_key_key_id IS NOT NULL)
+  ),
+  -- An offered row is named, says who processes, calls something, and never carries consent.
+  CONSTRAINT ai_provider_offered_shape CHECK (
+    tenant_id IS NOT NULL OR (
+      display_name <> '' AND processor <> '' AND kind <> 'NOOP' AND NOT processing_allowed
+    )
   )
+);
+-- One own row per workspace; NULLs are distinct, so any number of offered rows.
+CREATE UNIQUE INDEX ai_provider_tenant_uq ON ai_provider (tenant_id);
+CREATE UNIQUE INDEX ai_provider_offered_name_uq ON ai_provider (display_name) WHERE tenant_id IS NULL;
+
+-- The workspace's choice of AI source (ADR-0072 §2, §3). Choosing an offered model is the
+-- workspace's consent to it; a withdrawn model leaves the choice pointing at nothing.
+CREATE TABLE ai_source (
+  tenant_id           uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  source              text NOT NULL CHECK (source IN ('OWN', 'OFFERED', 'NONE')),
+  offered_provider_id uuid REFERENCES ai_provider(id) ON DELETE SET NULL,
+  updated_at          timestamptz NOT NULL,
+  version             integer NOT NULL DEFAULT 1,
+  CONSTRAINT ai_source_offered_only CHECK (source = 'OFFERED' OR offered_provider_id IS NULL)
 );
 
 CREATE TABLE oidc_flow (
@@ -2263,7 +2288,8 @@ CREATE TABLE item_embedding (
   item_id    uuid NOT NULL,
   -- Vectors are only comparable within one model's space, so a row that does not name its model is
   -- one nothing can decide about after a reconfiguration.
-  model      text NOT NULL CHECK (length(model) BETWEEN 1 AND 200),
+  -- An offered model's vectors are named `offered:<id>/<model>` (migration 0129), hence 300.
+  model      text NOT NULL CHECK (length(model) BETWEEN 1 AND 300),
   embedding  vector(1536) NOT NULL,
   source_digest bytea NOT NULL,
   updated_at timestamptz NOT NULL,
@@ -2303,7 +2329,7 @@ BEGIN
     'session','session_refresh_token','auth_attempt',
     'account_mfa','account_recovery_code','account_password_history','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
-    'account_identity','tenant_host','oidc_flow','ai_provider','ai_suggestion','ai_request',
+    'account_identity','tenant_host','oidc_flow','ai_source','ai_suggestion','ai_request',
     'item_embedding',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
@@ -2359,6 +2385,19 @@ CREATE POLICY tenant_write ON identity_provider FOR ALL
   USING (tenant_id = current_tenant_id())
   WITH CHECK (tenant_id = current_tenant_id());
 CREATE POLICY installation_write ON identity_provider FOR ALL
+  USING (tenant_id IS NULL AND current_tenant_id() IS NULL)
+  WITH CHECK (tenant_id IS NULL AND current_tenant_id() IS NULL);
+
+-- ai_provider follows identity_provider (migration 0129): a NULL row is a model the installation
+-- offers. Every workspace that chose one reads it for the call; only the installation writes it.
+ALTER TABLE ai_provider ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_provider FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_read ON ai_provider FOR SELECT
+  USING (tenant_id = current_tenant_id() OR tenant_id IS NULL);
+CREATE POLICY tenant_write ON ai_provider FOR ALL
+  USING (tenant_id = current_tenant_id())
+  WITH CHECK (tenant_id = current_tenant_id());
+CREATE POLICY installation_write ON ai_provider FOR ALL
   USING (tenant_id IS NULL AND current_tenant_id() IS NULL)
   WITH CHECK (tenant_id IS NULL AND current_tenant_id() IS NULL);
 
@@ -2965,13 +3004,28 @@ GRANT EXECUTE ON FUNCTION move_provider_offer(uuid, integer) TO hubtask_app;
 
 -- Counted where it is read, since 0115 (ADR-0077 §1): how many live workspaces name the provider among
 -- their own switches - a number, never which, and only outside a workspace. The column and the
--- function above stay for one release.
+-- function above stay for one release. Since 0133 an invite-only offer the installation's lock on the
+-- ways in turns on (identity.md §18) counts every live workspace, whatever their own switches say.
 CREATE OR REPLACE FUNCTION count_provider_offers(provider uuid) RETURNS integer
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT count(*)::integer FROM tenant
   WHERE current_tenant_id() IS NULL
     AND deleted_at IS NULL
-    AND coalesce(settings -> 'offered_providers', '[]'::jsonb) ? provider::text
+    AND (
+      coalesce(settings -> 'offered_providers', '[]'::jsonb) ? provider::text
+      OR EXISTS (
+        SELECT 1 FROM identity_provider p
+        JOIN instance_setting s ON s.key = 'sign_in.methods'
+        WHERE p.id = provider
+          AND p.tenant_id IS NULL
+          AND p.provisioning = 'INVITED_ONLY'
+          AND p.enabled
+          AND (p.withdraw_at IS NULL OR p.withdraw_at > now())
+          AND s.lock_origin <> 'OPEN'
+          AND jsonb_typeof(s.value) = 'array'
+          AND (s.value ? 'OIDC' OR NOT s.value ?| ARRAY['PASSWORD', 'OIDC'])
+      )
+    )
 $$;
 
 REVOKE ALL ON FUNCTION count_provider_offers(uuid) FROM PUBLIC;

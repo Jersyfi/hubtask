@@ -225,7 +225,9 @@ the reason and who set it — never hidden. The effective value is resolved on r
 `product minimum → instance → plan → workspace`, so a change applies at once.
 
 **How it is reached.** One API with three doors: a file (`seed` or `enforce`), `hubctl admin`, and
-the web app's `/instance` area.
+the web app's `/instance` area. The areas are the sign-in rule, the legal links, localisation
+defaults, quota ceilings and `ai` — which AI sources a workspace may use and the least its own model
+must declare ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)).
 
 **What it never shows** is a workspace's contents: counts, states and limits (`instance_census()`),
 never rows — the boundary is a database policy, not a role.
