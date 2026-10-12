@@ -205,50 +205,17 @@ func (h ProvisionTenant) Execute(
 	// the tenant_self policy's WITH CHECK is what lets the row land (migration 0067).
 	scope := persistence.Scope{TenantID: tenant.ID, ActorID: actor.AccountID}
 	err = h.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		if err := h.Tenants.Insert(ctx, adminrepo.TenantRecord{
-			ID: tenant.ID, Slug: tenant.Slug, DisplayName: tenant.DisplayName,
-			Status: tenant.Status, DefaultLocale: tenant.DefaultLocale,
-			DefaultTimeZone: tenant.DefaultTimeZone, CreatedAt: tenant.CreatedAt,
-		}); err != nil {
-			return err
-		}
-
-		if err := h.Accounts.Insert(ctx, owner); err != nil {
-			return err
-		}
-		if _, err := h.Redemption.SetRedemptionToken(
-			ctx, owner.ID, redemption, now.Add(domain.RedemptionLifetime).UTC(), now,
-		); err != nil {
-			return err
-		}
-
-		grant, err := domain.NewGrant(
-			h.IDs.NewID(), tenant.ID, owner.ID, shared.ID(""), domain.TenantScope(), domain.RoleOwner)
-		if err != nil {
-			return err
-		}
-		if err := h.Grants.Grant(ctx, grant); err != nil {
-			return err
-		}
-
-		if err := h.seedHost(ctx, tenant, now); err != nil {
-			return err
-		}
-
-		hubID, collectionID, err := h.seedStructure(ctx, tenant, owner, actor, now)
+		hubID, collectionID, err := h.SeedWorkspace(ctx, actor, tenant, owner, now)
 		if err != nil {
 			return err
 		}
 		result.DefaultHubID = hubID
 		result.ExampleCollectionID = collectionID
 
-		if err := h.recordAudit(ctx, tenant, owner, actor, now); err != nil {
+		if _, err := h.Redemption.SetRedemptionToken(
+			ctx, owner.ID, redemption, now.Add(domain.RedemptionLifetime).UTC(), now,
+		); err != nil {
 			return err
-		}
-		if h.Jobs != nil {
-			if _, err := h.Jobs.Enqueue(ctx, queue.RetentionSweep(tenant.ID, now.Add(h.RetentionInterval))); err != nil {
-				return err
-			}
 		}
 		return h.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: h.IDs.NewID(), OccurredAt: now, Action: journalProvisioned,
@@ -263,6 +230,58 @@ func (h ProvisionTenant) Execute(
 		return ProvisionedTenant{}, err
 	}
 	return result, nil
+}
+
+// SeedWorkspace writes a new workspace as multi-tenancy.md §5 draws it, inside the caller's
+// transaction, which must run in the new tenant's own scope: the tenant row, the owner account as
+// given, the OWNER membership, the canonical host, the default hub and example collection with their
+// buckets and labels, the provisioning in the new trail and the first retention sweep. It answers
+// the default hub and the example collection.
+//
+// Provisioning and the first start's setup both call it, so a workspace is the same however it
+// began; what differs - the owner's way in and the journal's entry - stays with each caller.
+func (h ProvisionTenant) SeedWorkspace(
+	ctx context.Context, actor appshared.ActorContext, tenant domain.Tenant, owner domain.Account,
+	now time.Time,
+) (shared.ID, shared.ID, error) {
+	if err := h.Tenants.Insert(ctx, adminrepo.TenantRecord{
+		ID: tenant.ID, Slug: tenant.Slug, DisplayName: tenant.DisplayName,
+		Status: tenant.Status, DefaultLocale: tenant.DefaultLocale,
+		DefaultTimeZone: tenant.DefaultTimeZone, CreatedAt: tenant.CreatedAt,
+	}); err != nil {
+		return "", "", err
+	}
+	if err := h.Accounts.Insert(ctx, owner); err != nil {
+		return "", "", err
+	}
+
+	grant, err := domain.NewGrant(
+		h.IDs.NewID(), tenant.ID, owner.ID, shared.ID(""), domain.TenantScope(), domain.RoleOwner)
+	if err != nil {
+		return "", "", err
+	}
+	if err := h.Grants.Grant(ctx, grant); err != nil {
+		return "", "", err
+	}
+
+	if err := h.seedHost(ctx, tenant, now); err != nil {
+		return "", "", err
+	}
+
+	hubID, collectionID, err := h.seedStructure(ctx, tenant, owner, actor, now)
+	if err != nil {
+		return "", "", err
+	}
+
+	if err := h.recordAudit(ctx, tenant, owner, actor, now); err != nil {
+		return "", "", err
+	}
+	if h.Jobs != nil {
+		if _, err := h.Jobs.Enqueue(ctx, queue.RetentionSweep(tenant.ID, now.Add(h.RetentionInterval))); err != nil {
+			return "", "", err
+		}
+	}
+	return hubID, collectionID, nil
 }
 
 // seedStructure writes the §5 defaults: a hub, a collection inside it, three buckets, four
