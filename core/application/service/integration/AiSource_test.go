@@ -325,3 +325,49 @@ func TestChoosingTheSameSourceAgainSeedsNothing(t *testing.T) {
 		t.Errorf("an unchanged source seeded %d re-embeddings", world.reseeded)
 	}
 }
+
+// UC-AI-02 check 5 and UC-AI-06 check 4: the own model is not configured where the installation
+// does not allow it, and not below the minimum - named, with who set it. Switching AI off is always
+// allowed.
+func TestTheOwnModelIsConfiguredOnlyWhereTheRuleAllowsIt(t *testing.T) {
+	floor := domain.AiMinEEA
+	for _, testCase := range []struct {
+		name  string
+		level identityrepo.InstanceLevel
+		amend func(*ConfigureAiProviderCommand)
+		code  string
+	}{
+		{"only the offered model", instanceSays(domain.AiSourcesOffered, true), func(*ConfigureAiProviderCommand) {}, "ai.source_not_allowed"},
+		{"below the minimum", identityrepo.InstanceLevel{Ai: domain.AiLayer{MinJurisdiction: &floor}},
+			func(c *ConfigureAiProviderCommand) { c.Jurisdiction = domain.AiAdequacy }, "ai.jurisdiction_below_minimum"},
+		{"at the minimum", identityrepo.InstanceLevel{Ai: domain.AiLayer{MinJurisdiction: &floor}},
+			func(*ConfigureAiProviderCommand) {}, ""},
+		{"switching off where the own model is not allowed", instanceSays(domain.AiSourcesOffered, true),
+			func(c *ConfigureAiProviderCommand) {
+				*c = ConfigureAiProviderCommand{Kind: domain.AiNoop, Jurisdiction: domain.AiSelfHosted}
+			}, ""},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			world := &sourceWorld{level: testCase.level}
+			writer, store := providerWriter()
+			writer.Rules = &AiRules{
+				Instance: world, Workspaces: sourceWorkspaces{world},
+				Offered: sourceOffered{world}, Choices: sourceChoices{world},
+			}
+			command := providerCommand()
+			testCase.amend(&command)
+			_, err := ConfigureAiProvider{Writer: writer}.Execute(t.Context(), providerActor(), command)
+			got := shared.AsError(err)
+			if (got == nil) != (testCase.code == "") || (got != nil && got.DetailCode != testCase.code) {
+				t.Fatalf("got %v, want %q", err, testCase.code)
+			}
+			if testCase.code != "" && (store.stored != nil || store.sealed != nil) {
+				t.Error("a refused configuration was stored or sealed")
+			}
+			if testCase.code == "ai.jurisdiction_below_minimum" &&
+				(got.Params["minimum"] != "EEA" || got.Params["origin"] != "INSTANCE") {
+				t.Errorf("the refusal names %v", got.Params)
+			}
+		})
+	}
+}

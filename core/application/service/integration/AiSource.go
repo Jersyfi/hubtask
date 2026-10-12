@@ -53,6 +53,8 @@ type AiRules struct {
 	Workspaces identityrepo.Workspaces
 	Offered    repository.OfferedAiProviders
 	Choices    repository.AiChoices
+	// Own is the workspace's own configuration, read by Select where the choice is the own model.
+	Own repository.AiProviders
 }
 
 // AiState is a workspace's AI at one moment.

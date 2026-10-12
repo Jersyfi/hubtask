@@ -1029,6 +1029,9 @@ func run() error {
 		Instance: postgres.NewInstanceSettingRepository(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Offered: postgres.NewOfferedAiRepository(), Choices: postgres.NewAiChoiceRepository(),
 	}
+	// The own model's configuration asks the same rule: a source the installation does not allow
+	// is not configured, and an own model below the minimum is refused naming it.
+	aiProviderWriter.Rules = &aiRules
 	aiSourceWriter := integrationservice.AiSourceWriter{
 		Rules: aiRules, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{},
@@ -1065,6 +1068,7 @@ func run() error {
 		Providers: postgres.NewAiProviderRepository(), UnitOfWork: unitOfWork,
 		Encryptor: encryptor, Client: outboundClient, Clock: clockadapter.System{},
 		Meter: metrics, Breakers: aiBreakers, Widths: aiWidths,
+		Sources: aiRules,
 	}
 	registry.Register(aiadapter.NewProbe(aiBreakers, aiWidths, workrepo.EmbeddingWidth, clockadapter.System{}))
 	// The per-tenant budget ai-first.md §2 asks for, around the resolver rather than inside

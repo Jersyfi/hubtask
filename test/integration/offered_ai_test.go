@@ -61,9 +61,9 @@ func offeredModel(t *testing.T, name string, now time.Time) domain.AiProvider {
 	return offered
 }
 
-func inSystem(t *testing.T, uow persistence.UnitOfWork, fn func(context.Context) error) {
+func inSystem(ctx context.Context, t *testing.T, uow persistence.UnitOfWork, fn func(context.Context) error) {
 	t.Helper()
-	if err := uow.Within(context.Background(), persistence.SystemScope(), fn); err != nil {
+	if err := uow.Within(ctx, persistence.SystemScope(), fn); err != nil {
 		t.Fatalf("installation transaction: %v", err)
 	}
 }
@@ -91,7 +91,7 @@ func TestTheInstallationOffersAModelEveryWorkspaceReadsAndNoneWrites(t *testing.
 	now := time.Now().UTC()
 	sealed := cryptoport.Sealed{KeyID: "k1", Ciphertext: []byte("offered sealed key")}
 
-	inSystem(t, uow, func(ctx context.Context) error {
+	inSystem(ctx, t, uow, func(ctx context.Context) error {
 		stored, err := offered.Insert(ctx, offeredModel(t, "Repository model", now), &sealed, now)
 		if err != nil {
 			t.Fatalf("offering: %v", err)
@@ -137,7 +137,7 @@ func TestTheInstallationOffersAModelEveryWorkspaceReadsAndNoneWrites(t *testing.
 		}
 	})
 
-	inSystem(t, uow, func(ctx context.Context) error {
+	inSystem(ctx, t, uow, func(ctx context.Context) error {
 		found, err := offered.Find(ctx, offeredRepoModel)
 		if err != nil || found.DisplayName != "Repository model, renamed" || found.Version != 2 {
 			t.Errorf("the model came back as %+v (%v)", found, err)
@@ -154,7 +154,7 @@ func TestAWorkspacesChoiceIsItsOwnAndOutlivesAWithdrawnModelAsNothing(t *testing
 	uow := postgres.NewUnitOfWork(appPool(ctx, t))
 	now := time.Now().UTC()
 
-	inSystem(t, uow, func(ctx context.Context) error {
+	inSystem(ctx, t, uow, func(ctx context.Context) error {
 		_, err := offered.Insert(ctx, offeredModel(t, "Choice model", now), nil, now)
 		return err
 	})
@@ -180,7 +180,7 @@ func TestAWorkspacesChoiceIsItsOwnAndOutlivesAWithdrawnModelAsNothing(t *testing
 		return nil
 	})
 
-	inSystem(t, uow, func(ctx context.Context) error {
+	inSystem(ctx, t, uow, func(ctx context.Context) error {
 		removed, err := offered.Delete(ctx, offeredRepoModel)
 		if err != nil || !removed {
 			t.Fatalf("withdrawing: %v %v", removed, err)
@@ -221,7 +221,7 @@ func TestTheAiAreaRoundTripsThroughTheInstanceLevel(t *testing.T) {
 		return level
 	}
 	write := func(level identityrepo.InstanceLevel) {
-		inSystem(t, uow, func(ctx context.Context) error {
+		inSystem(ctx, t, uow, func(ctx context.Context) error {
 			return instance.Write(ctx, level, "", time.Now().UTC())
 		})
 	}
