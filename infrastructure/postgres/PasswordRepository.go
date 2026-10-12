@@ -93,7 +93,7 @@ func passwordAccountFrom(
 	passwordHash *string, passwordSetAt, startPasswordAt pgtype.Timestamptz,
 ) (repository.PasswordAccount, error) {
 	account, err := accountFrom(
-		id, kind, email, signInName, displayName, status, locale, timeZone, weekStart, nil,
+		id, tenantID, kind, email, signInName, displayName, status, locale, timeZone, weekStart, nil,
 		pgtype.Timestamptz{})
 	if err != nil {
 		return repository.PasswordAccount{}, err

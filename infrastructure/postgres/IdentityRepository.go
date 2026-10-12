@@ -58,7 +58,7 @@ func (r AccountRepository) Find(ctx context.Context, accountID shared.ID) (ident
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading account %s: %w", accountID, err))
 	}
-	return accountFrom(row.ID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
+	return accountFrom(row.ID, row.TenantID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
 		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
@@ -79,7 +79,7 @@ func (r AccountRepository) FindByEmail(ctx context.Context, email string) (ident
 			// into logs (rule 10).
 			WithCause(fmt.Errorf("reading an account by address: %w", err))
 	}
-	return accountFrom(row.ID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
+	return accountFrom(row.ID, row.TenantID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
 		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
@@ -126,7 +126,7 @@ func (r AccountRepository) ListOfKind(
 
 	accounts := make([]identity.Account, 0, len(rows))
 	for _, row := range rows {
-		account, err := accountFrom(row.ID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
+		account, err := accountFrom(row.ID, row.TenantID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
 			row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 		if err != nil {
 			return nil, err
@@ -190,7 +190,7 @@ func (r AccountRepository) FindBySignInName(ctx context.Context, signInName stri
 			// The name stays out of the message, as an address does (rule 10).
 			WithCause(fmt.Errorf("reading an account by sign-in name: %w", err))
 	}
-	return accountFrom(row.ID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
+	return accountFrom(row.ID, row.TenantID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
 		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
@@ -370,7 +370,7 @@ func (r AccountRepository) UpdatePreferences(
 // accountFrom rebuilds an account from its columns. Shared by both lookups, so the two cannot
 // disagree about what a row means.
 func accountFrom(
-	id pgtype.UUID, kind sqlc.AccountKind, email, signInName *string, displayName string,
+	id, tenant pgtype.UUID, kind sqlc.AccountKind, email, signInName *string, displayName string,
 	status sqlc.AccountStatus, locale, timeZone, weekStart *string,
 	celebrations *bool, onboardingCompletedAt pgtype.Timestamptz,
 ) (identity.Account, error) {
@@ -378,8 +378,15 @@ func accountFrom(
 	if err != nil {
 		return identity.Account{}, err
 	}
+	// The workspace travels with the row: an account rebuilt without it is an account whose trail
+	// entries are refused (audit.entry_incomplete), which rolled back every write that recorded one.
+	tenantID, err := idFrom(tenant)
+	if err != nil {
+		return identity.Account{}, err
+	}
 	account := identity.Account{
 		ID:           accountID,
+		TenantID:     tenantID,
 		Kind:         identity.AccountKind(kind),
 		Email:        stringFrom(email),
 		SignInName:   stringFrom(signInName),
