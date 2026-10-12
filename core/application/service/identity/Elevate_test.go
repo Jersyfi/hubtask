@@ -136,6 +136,40 @@ func TestRaisingASessionDemandsAFreshProof(t *testing.T) {
 	}
 }
 
+// A running hour is neither replaced nor extended (UC-INS-04 check 4). Raising a session that is
+// raised already is refused before any proof is asked, and the refusal names the running end - a
+// client that lost its copy of the hour learns it rather than starting a second one.
+func TestARunningHourIsNotReplaced(t *testing.T) {
+	fixture, register := newElevationFixture(t)
+	running := now.Add(20 * time.Minute)
+	fixture.sessions.elevatedUntil = running
+
+	_, err := ElevateSession{
+		Writer: fixture.writer, Operators: register,
+		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: &idSequence{},
+	}.Execute(t.Context(), recoveryActor(), "")
+
+	refusal := shared.AsError(err)
+	if !errors.Is(err, shared.ErrConflict) || refusal.DetailCode != "auth.session_already_elevated" {
+		t.Fatalf("raising a raised session answered %v", err)
+	}
+	if refusal.Params["until"] != running.UTC().Format(time.RFC3339) {
+		t.Errorf("the refusal names %q, want the running end", refusal.Params["until"])
+	}
+	if len(fixture.sessions.elevated) != 0 || len(fixture.audit.entries) != 0 {
+		t.Error("a running hour was written over")
+	}
+
+	// Once it has run out, a second hour takes a second proof, as before.
+	fixture.sessions.elevatedUntil = now.Add(-time.Second)
+	if _, err := (ElevateSession{
+		Writer: fixture.writer, Operators: register,
+		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: &idSequence{},
+	}).Execute(t.Context(), recoveryActor(), fixture.proof); err != nil {
+		t.Errorf("a new hour after the first ended was refused: %v", err)
+	}
+}
+
 // The elevation is a window on the session and nothing else, so it ends by the clock rather than by
 // anything having to remember to end it.
 func TestAnElevationEndsByTheClock(t *testing.T) {

@@ -144,6 +144,7 @@
   "auth.step_up_provider_mismatch": "Das war ein anderes Konto beim Anbieter als das, das hier verbunden ist. Melde dich dort als du selbst an und versuche es erneut.",
   "auth.step_up_provider_not_fresh": "Der Anbieter hat nicht bestätigt, dass du dich gerade eben angemeldet hast, deshalb zählt das nicht als Nachweis. Versuche es erneut oder bestätige auf einem anderen Weg.",
   "auth.step_up_session_required": "Ein Step-up ist die Handlung einer Sitzung. Melde dich zuerst mit deinem Passwort an; ein persönliches Zugriffstoken kann eine Person nicht erneut nachweisen.",
+  "auth.session_already_elevated": "Diese Sitzung arbeitet bereits an der Installation. Die laufende Stunde lässt sich weder verlängern noch neu beginnen; eine neue kann beginnen, sobald sie abgelaufen ist.",
   "access.credential_required": "Für diese Operation musst du angemeldet sein.",
   "access.insufficient_scope": "Das verwendete Token darf das nicht. Es bräuchte den Scope {scope}.",
   "access.operator_register_required": "Dieses Token trägt den Scope {scope}, aber sein Konto steht nicht im Betreiberverzeichnis dieser Installation, daher gilt der Scope nicht. Ein Betreiber trägt das Konto unter Installation → Betreiber ein.",
