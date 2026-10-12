@@ -320,5 +320,10 @@ func (c *RestController) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Req
 		WriteProblem(w, err, requestID)
 		return
 	}
+	if required, _ := out["mfa_required"].(bool); required {
+		// Set; the terms of use in force are still to be agreed to (UC-ID-19).
+		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
+		return
+	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
 }

@@ -821,15 +821,15 @@ type SetPasswordAndSignIn struct{ Writer PasswordWriter }
 // Execute sets the password and opens the session the sign-in was going to open.
 func (h SetPasswordAndSignIn) Execute(
 	ctx context.Context, cmd SetPasswordAndSignInCommand,
-) (SessionPair, error) {
+) (SignInResult, error) {
 	w := h.Writer
 
 	token, err := domain.ParsePendingToken(cmd.PendingToken.Reveal())
 	if err != nil {
-		return SessionPair{}, challengeRefused()
+		return SignInResult{}, challengeRefused()
 	}
 	if cmd.TenantHeader != "" && cmd.TenantHeader != token.TenantID().String() {
-		return SessionPair{}, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
+		return SignInResult{}, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
 
 	tenantID := token.TenantID()
@@ -838,7 +838,7 @@ func (h SetPasswordAndSignIn) Execute(
 	// nothing - unless only the password reaches the account (identity.md §4.1), asked once it is read.
 	open, _, err := w.PasswordOpen(ctx, tenantID)
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
 	var lookup repository.PendingLookup
@@ -849,34 +849,34 @@ func (h SetPasswordAndSignIn) Execute(
 	})
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
-			return SessionPair{}, challengeRefused()
+			return SignInResult{}, challengeRefused()
 		}
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
 	now := w.Clock.Now()
 	if lookup.Credential.Purpose != domain.PendingPassword || lookup.Credential.Verify(now) != nil {
 		// A credential of another purpose completes nothing here, CompleteSignIn's discipline: an
 		// enrolment token that could set a password would be a password set by a factor nobody proved.
-		return SessionPair{}, challengeRefused()
+		return SignInResult{}, challengeRefused()
 	}
 	if err := lookup.Account.Verify(); err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 	if err := lookup.TenantStatus.Verify(); err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
 	held, err := w.AccountFor(ctx, tenantID, lookup.Account.ID)
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 	if !open && !held.Account.OnlyThePasswordReaches() {
-		return SessionPair{}, passwordNotOffered()
+		return SignInResult{}, passwordNotOffered()
 	}
 	rules, err := w.ResolveFor(ctx, tenantID)
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 	candidate := PasswordCandidate{
 		TenantID: tenantID, Account: held, Password: cmd.Password, Rules: rules,
@@ -885,7 +885,7 @@ func (h SetPasswordAndSignIn) Execute(
 		IsReset: true,
 	}
 	if err := w.Judge(ctx, candidate); err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
 	var spent bool
@@ -895,22 +895,25 @@ func (h SetPasswordAndSignIn) Execute(
 		return err
 	})
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 	if !spent {
 		// Somebody completed this sign-in between our read and our write.
-		return SessionPair{}, challengeRefused()
+		return SignInResult{}, challengeRefused()
 	}
 
 	// Every session of the account: the rule refused the password that opened them, and a session
 	// that outlived the password it was opened with is the hole `rotation_from` exists to close.
 	if err := w.Write(ctx, candidate, "", true); err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
-	return w.Session.openSessionWithHint(ctx, scope, tenantID, lookup.Account,
-		lookup.Credential.UserAgent, lookup.Credential.IPClass, SignedInAction,
-		rules.Effective.Policy.Sessions, domain.SignedInWithPassword, "")
+	// The change was the last proof; the terms of use in force, where not yet agreed, are the step
+	// after it (identity.md §4.2).
+	return w.Session.openOrAgree(ctx, scope, lookup.Account, SessionHint{
+		UserAgent: lookup.Credential.UserAgent, IPClass: lookup.Credential.IPClass,
+		Method: domain.SignedInWithPassword,
+	}, rules.Effective.Policy.Sessions)
 }
 
 // Descriptor is the catalogue entry.
@@ -954,7 +957,7 @@ func (h SetPasswordAndSignIn) Descriptor() usecase.Descriptor {
 func (h SetPasswordAndSignIn) invoke(
 	ctx context.Context, _ appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	pair, err := h.Execute(ctx, SetPasswordAndSignInCommand{
+	result, err := h.Execute(ctx, SetPasswordAndSignInCommand{
 		PendingToken: secret.New(in.String("pending_token")),
 		Password:     secret.New(in.String("password")),
 		TenantHeader: in.String("tenant_header"),
@@ -962,5 +965,8 @@ func (h SetPasswordAndSignIn) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return pairOutput(pair), nil
+	if result.Challenge != nil {
+		return challengeOutput(*result.Challenge), nil
+	}
+	return pairOutput(*result.Pair), nil
 }

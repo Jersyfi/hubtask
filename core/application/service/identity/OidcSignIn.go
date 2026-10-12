@@ -420,13 +420,12 @@ func (h CompleteOidcSignIn) Execute(
 	if err != nil {
 		return SignInResult{}, err
 	}
-	pair, err := w.Session.openSessionVia(ctx, scope, state.TenantID(), account,
-		cmd.UserAgent, cmd.RemoteAddr, OidcSignedInAction, nil,
-		bounds, domain.SignedInWithOidc, configured.ID)
-	if err != nil {
-		return SignInResult{}, err
-	}
-	return SignInResult{Pair: &pair}, nil
+	// The terms of use in force, where not yet agreed, are the step after the provider's word
+	// (UC-ID-19 check 6).
+	return w.Session.openOrAgree(ctx, scope, account, SessionHint{
+		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
+		Method: domain.SignedInWithOidc, Via: configured.ID,
+	}, bounds)
 }
 
 // settleAccount finds the person the subject names, links them, or makes them.
@@ -741,13 +740,10 @@ func (w OidcWriter) connectByMail(
 	if err != nil {
 		return SignInResult{}, err
 	}
-	pair, err := s.openSessionVia(ctx, scope, scope.TenantID, account,
-		cmd.UserAgent, cmd.RemoteAddr, OidcSignedInAction, nil,
-		bounds, domain.SignedInWithOidc, configured.ID)
-	if err != nil {
-		return SignInResult{}, err
-	}
-	return SignInResult{Pair: &pair}, nil
+	return s.openOrAgree(ctx, scope, account, SessionHint{
+		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
+		Method: domain.SignedInWithOidc, Via: configured.ID,
+	}, bounds)
 }
 
 // turnedAwayError marks an arrival the provider vouched for and this workspace turned away, so that

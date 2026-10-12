@@ -191,7 +191,7 @@ func TestTheChangeStepSetsThePasswordAndFinishesTheSignIn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the change step was refused: %v", err)
 	}
-	if pair.Session.ID.IsZero() {
+	if pair.Pair == nil || pair.Pair.Session.ID.IsZero() {
 		t.Error("no session was opened")
 	}
 	if len(fixture.passwords.accounts.writes) != 1 {

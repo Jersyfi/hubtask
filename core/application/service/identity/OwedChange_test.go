@@ -71,7 +71,7 @@ func TestAnOwedChangeSurvivesTheDemandedEnrolment(t *testing.T) {
 			PendingToken: confirmed.Challenge.Token,
 			Password:     secret.New("seven blue lanterns above the quiet harbour"),
 		})
-	if err != nil || pair.Session.ID.IsZero() {
+	if err != nil || pair.Pair == nil || pair.Pair.Session.ID.IsZero() {
 		t.Fatalf("the change step did not finish the sign-in: %v", err)
 	}
 }

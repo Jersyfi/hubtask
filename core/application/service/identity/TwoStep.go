@@ -390,18 +390,19 @@ func (h CompleteSignIn) Execute(
 	if remaining >= 0 {
 		method = domain.SignedInWithPasswordRecovery
 	}
-	action, via := SignedInAction, shared.ID("")
+	via := shared.ID("")
 	// A connection the mailbox proved began at the provider and holds no password: the session is
 	// the provider's, as the connection without a factor opens it (ADR-0078 §1).
 	if link := hint.Link; link != nil && link.Proof == domain.LinkProofMailbox {
-		action, method, via = OidcSignedInAction, domain.SignedInWithOidc, link.ProviderID
+		method, via = domain.SignedInWithOidc, link.ProviderID
 	}
-	pair, err := w.openSessionWithHint(ctx, scope, token.TenantID(), account,
-		hint.UserAgent, hint.IPClass, action, bounds, method, via)
+	result, err := w.openOrAgree(ctx, scope, account, SessionHint{
+		UserAgent: hint.UserAgent, IPClass: hint.IPClass, Method: method, Via: via,
+	}, bounds)
 	if err != nil {
 		return SignInResult{}, -1, err
 	}
-	return SignInResult{Pair: &pair}, remaining, nil
+	return result, remaining, nil
 }
 
 // owedChange answers the change step a factor's step still owes (identity.md §4.2): a new

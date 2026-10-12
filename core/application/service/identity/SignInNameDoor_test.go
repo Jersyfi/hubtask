@@ -86,7 +86,7 @@ func TestASignInNameKeepsItsPasswordWhereThePasswordIsOff(t *testing.T) {
 				SetPasswordAndSignInCommand{
 					PendingToken: secret.New(out.String("pending_token")), Password: secret.New(managedNewPassword),
 				})
-			if err != nil || pair.Session.ID.IsZero() {
+			if err != nil || pair.Pair == nil || pair.Pair.Session.ID.IsZero() {
 				t.Fatalf("the change step did not sign in: %v", err)
 			}
 		})
