@@ -14,9 +14,13 @@ on:
 permissions:
   contents: read
 
+# On a pull request a newer push makes the older run worthless, so it is cancelled. On `main` every
+# commit gets its own complete run: pull requests merge without catching up (ADR-0083), and a run
+# cancelled by the next merge would leave unknown which commit turned `main` red. A group shared by
+# all of `main` would not do even without cancelling - it cancels a pending run when a third arrives.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   GO_VERSION: "1.27.2"
