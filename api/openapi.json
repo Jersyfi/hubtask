@@ -13224,6 +13224,25 @@
             },
             "description": "The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.\n**This is what `DOMAINS` reads where the preset has a directory claim**, and `allowed_email_domains` is then not consulted at all. Both providers say why in their own documentation: an address is a name the provider reports, a directory is a fact it vouches for. Empty admits nobody, exactly as an empty domains list does.\nUnder `INVITED_ONLY` a list narrows the mode: somebody from a directory not listed is not signed in on the provider's word. There an empty list narrows nothing.\n"
           },
+          "newcomer_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MembershipRole"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What somebody this provider brings in **new** gets: this role on the whole workspace. Null, with `newcomer_group_id` null too, is nothing - no access until an administrator gives it, which is the default and what a newcomer is told. Only under `DOMAINS` and `ANY`, the two modes that create accounts, and only on a workspace's own provider.\n"
+          },
+          "newcomer_group_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "What somebody this provider brings in new gets instead of a role: membership of this group of the workspace, and with it whatever the group holds. Null when a role or nothing is set; set to null when the group is deleted.\n"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
@@ -13342,6 +13361,25 @@
             },
             "default": [],
             "description": "The organisations this provider admits under `DOMAINS`, in its own identifiers: Microsoft tenant ids (`9188040d-6c67-4c5b-b112-36a304b66dad` is personal Microsoft accounts), Google Workspace domains. Refused for a preset that has no such claim, because a list nothing consults is worse than no list.\n**Required for a multi-directory issuer.** `login.microsoftonline.com/common/v2.0` with no directories named is every organisation in the world, and that is a decision rather than a default.\n"
+          },
+          "newcomer_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MembershipRole"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What somebody this provider brings in new gets: this role on the whole workspace, granted in the same transaction that creates the account. Absent or null, with no group, is nothing - no access until an administrator gives it. One of a role or a group, never both (`identity_provider.newcomers_one`). Refused under `INVITED_ONLY`, which creates nobody (`identity_provider.newcomers_not_created`), on the installation's providers (`identity_provider.newcomers_installation`), and for `OWNER`, which is given to one person with a fresh proof of its own (`identity_provider.newcomers_owner`).\n"
+          },
+          "newcomer_group_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "What somebody this provider brings in new gets instead of a role: membership of this group of the workspace. The same refusals as `newcomer_role`, and a group that holds `OWNER` anywhere is refused like the role (`identity_provider.newcomers_owner`); a group this workspace does not have answers `groups.not_found`.\n"
           }
         }
       },

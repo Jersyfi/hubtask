@@ -106,6 +106,18 @@ type IdentityProvider struct {
 	// reads it, so every write to them leaves it true, and zero wherever a workspace reads it
 	// (ADR-0077 §1). Answered to the operator only.
 	OfferedWorkspaces int
+	// NewcomerRole and NewcomerGroupID are what somebody this provider brings in new gets
+	// (UC-ID-11 check 5): a role on the whole workspace, or membership of one of its groups, or -
+	// both empty - nothing until an administrator gives it. At most one is set, only on a
+	// workspace's own row, and only under a mode that creates accounts.
+	NewcomerRole    Role
+	NewcomerGroupID shared.ID
+}
+
+// GivesNewcomers reports whether somebody this provider creates an account for gets anything with
+// it. False is the default, and what such a person is told.
+func (p IdentityProvider) GivesNewcomers() bool {
+	return p.NewcomerRole != "" || !p.NewcomerGroupID.IsZero()
 }
 
 // WithdrawalNotice is how far ahead a withdrawal is announced where the operator names no date
@@ -176,6 +188,9 @@ type NewIdentityProviderInput struct {
 	AllowedDirectories []string
 	Enabled            bool
 	Now                time.Time
+	// NewcomerRole and NewcomerGroupID are what a newcomer gets; empty is nothing.
+	NewcomerRole    string
+	NewcomerGroupID shared.ID
 }
 
 // NewIdentityProvider validates a configuration and normalises what has a normal form.
@@ -247,12 +262,67 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 		return IdentityProvider{}, err
 	}
 
+	newcomerRole, err := newcomers(in, provisioning)
+	if err != nil {
+		return IdentityProvider{}, err
+	}
+
 	return IdentityProvider{
 		ID: in.ID, TenantID: in.TenantID, Issuer: issuer, ClientID: clientID,
 		DisplayName: displayName, Kind: kind, Provisioning: provisioning, Position: in.Position,
 		AllowedEmailDomains: domains, AllowedDirectories: directories, Enabled: in.Enabled,
 		CreatedAt: in.Now.UTC(), Version: 1,
+		NewcomerRole: newcomerRole, NewcomerGroupID: in.NewcomerGroupID,
 	}, nil
+}
+
+// newcomers holds what a newcomer gets to where it means something.
+//
+// Refused rather than dropped wherever nothing would read it - under INVITED_ONLY, which creates
+// nobody, and on the installation's own row, where a group is no workspace's and an operator does
+// not decide a workspace's access - for the reason a directory list on a preset that cannot read
+// one is refused: a setting nothing consults is worse than none, because somebody set it believing
+// it did something. OWNER is never a newcomer's: it is handed to one named person with a fresh
+// proof of its own (identity.md §16.3), not to whoever a provider brings in.
+func newcomers(in NewIdentityProviderInput, provisioning Provisioning) (Role, error) {
+	stated := strings.ToUpper(strings.TrimSpace(in.NewcomerRole))
+	if stated == "" && in.NewcomerGroupID.IsZero() {
+		return "", nil
+	}
+	if stated != "" && !in.NewcomerGroupID.IsZero() {
+		return "", newcomersRefused("identity_provider.newcomers_one")
+	}
+	if in.TenantID.IsZero() {
+		return "", newcomersRefused("identity_provider.newcomers_installation")
+	}
+	if provisioning == ProvisionInvitedOnly {
+		return "", newcomersRefused("identity_provider.newcomers_not_created")
+	}
+	if stated == "" {
+		return "", nil
+	}
+	role := Role(stated)
+	if !role.Valid() {
+		return "", shared.ErrValidation.
+			WithDetail("identity_provider.newcomer_role_invalid").
+			WithParams(map[string]string{"role": strings.TrimSpace(in.NewcomerRole)}).
+			WithFields(shared.FieldError{Path: "/newcomer_role", Code: "identity_provider.newcomer_role_invalid"})
+	}
+	if role == RoleOwner {
+		return "", NewcomersOwnerRefused()
+	}
+	return role, nil
+}
+
+// NewcomersOwnerRefused is the refusal of OWNER for newcomers, directly or through a group that
+// holds it - the second is asked where the group's grants can be read.
+func NewcomersOwnerRefused() error {
+	return newcomersRefused("identity_provider.newcomers_owner")
+}
+
+func newcomersRefused(code string) error {
+	return shared.ErrValidation.WithDetail(code).
+		WithFields(shared.FieldError{Path: "/newcomer_role", Code: code})
 }
 
 // MaxProviderDisplayName bounds the name on the button.

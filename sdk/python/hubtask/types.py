@@ -448,6 +448,8 @@ class IdentityProvider(TypedDict, total=False):
     offered_workspaces: int | None
     allowed_email_domains: Required[list[str]]
     allowed_directories: Required[list[str]]
+    newcomer_role: "MembershipRole" | Any
+    newcomer_group_id: str | None
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
@@ -471,6 +473,8 @@ class IdentityProviderConfiguration(TypedDict, total=False):
     enabled: bool
     allowed_email_domains: list[str]
     allowed_directories: list[str]
+    newcomer_role: "MembershipRole" | Any
+    newcomer_group_id: str | None
 
 class ProviderWithdrawal(TypedDict, total=False):
     """When an offered provider is withdrawn, and for *Withdraw now* the count confirmed."""

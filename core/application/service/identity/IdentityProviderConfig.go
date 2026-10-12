@@ -81,6 +81,11 @@ type IdentityProviderWriter struct {
 	// without the proof an administrator's stolen session could point a provider it controls at
 	// every account here. Nil demands nothing, on a build wired without it.
 	StepUp stepupport.Verifier
+	// Groups and Grants answer whether a newcomer group named on the form is this workspace's and
+	// holds OWNER anywhere (UC-ID-11 check 5). Nil refuses a newcomer group rather than storing
+	// one nothing checked.
+	Groups repository.Groups
+	Grants repository.MembershipGrants
 }
 
 // ProviderStepUpField is the input every write to a way in declares - both levels share it, so the
@@ -196,6 +201,11 @@ type ConfigureIdentityProviderCommand struct {
 	Enabled *bool
 	// StepUpToken is the fresh proof the change carries (the X-Hubtask-Step-Up header).
 	StepUpToken string
+	// NewcomerRole and NewcomerGroupID are what somebody the provider brings in new gets
+	// (UC-ID-11 check 5). Both empty is nothing; the configuration is set whole, so leaving them
+	// out of a replace clears them.
+	NewcomerRole    string
+	NewcomerGroupID shared.ID
 
 	// switchInList marks a workspace's own door: the form configures and never switches, because
 	// the list of ways to sign in is the one place a way in is turned on or off (UC-ID-11 check 8).
@@ -333,6 +343,7 @@ func (w IdentityProviderWriter) ConfigureAt(
 		Position: cmd.Position, AllowedEmailDomains: cmd.AllowedEmailDomains,
 		AllowedDirectories: cmd.AllowedDirectories,
 		Enabled:            enabled, Now: w.Session.Clock.Now(),
+		NewcomerRole: cmd.NewcomerRole, NewcomerGroupID: cmd.NewcomerGroupID,
 	})
 	if err != nil {
 		return domain.IdentityProvider{}, err
@@ -356,6 +367,9 @@ func (w IdentityProviderWriter) ConfigureAt(
 
 	var stored domain.IdentityProvider
 	err = w.Session.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		if err := w.newcomerGroupHolds(ctx, configured); err != nil {
+			return err
+		}
 		if creating {
 			counted, err := w.Providers.Count(ctx)
 			if err != nil {
@@ -396,6 +410,40 @@ func (w IdentityProviderWriter) ConfigureAt(
 		return domain.IdentityProvider{}, err
 	}
 	return stored, nil
+}
+
+// newcomerGroupHolds checks a newcomer group inside the write's transaction: it has to be this
+// workspace's - row level security hides another's, so that one is not found - and it may hold
+// OWNER nowhere, the refusal the role itself meets (identity.md §16.3). The arrival asks the second
+// again, because a group's grants change after this.
+func (w IdentityProviderWriter) newcomerGroupHolds(
+	ctx context.Context, configured domain.IdentityProvider,
+) error {
+	if configured.NewcomerGroupID.IsZero() {
+		return nil
+	}
+	if w.Groups == nil || w.Grants == nil {
+		return shared.ErrInternal.WithDetail("identity_provider.newcomers_unwired")
+	}
+	if _, err := w.Groups.Find(ctx, configured.NewcomerGroupID); err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return shared.ErrNotFound.
+				WithDetail("groups.not_found").
+				WithParams(map[string]string{"group_id": configured.NewcomerGroupID.String()}).
+				WithFields(shared.FieldError{Path: "/newcomer_group_id", Code: "groups.not_found"})
+		}
+		return err
+	}
+	held, err := w.Grants.OfGroup(ctx, configured.NewcomerGroupID)
+	if err != nil {
+		return err
+	}
+	for _, grant := range held {
+		if grant.Role == domain.RoleOwner {
+			return domain.NewcomersOwnerRefused()
+		}
+	}
+	return nil
 }
 
 // holdSwitch settles a replaced row's switch inside the write's transaction: it reads the row and
@@ -520,7 +568,13 @@ func (w IdentityProviderWriter) record(
 			audit.Change{Field: "allowed_directories", Classification: audit.Open,
 				To: strconv.Itoa(len(configured.AllowedDirectories))},
 			audit.Change{Field: "enabled", Classification: audit.Open,
-				To: strconv.FormatBool(configured.Enabled)})
+				To: strconv.FormatBool(configured.Enabled)},
+			// A role code and a group's identifier: what a review needs, and no user content - the
+			// group's name stays out (rule 10).
+			audit.Change{Field: "newcomer_role", Classification: audit.Open,
+				To: newcomerRoleValue(configured)},
+			audit.Change{Field: "newcomer_group_id", Classification: audit.Open,
+				To: newcomerGroupValue(configured)})
 	}
 	return w.Session.Audit.Append(ctx, audit.Entry{
 		TenantID:   tenantID,
@@ -538,6 +592,22 @@ func (w IdentityProviderWriter) record(
 		Context:  audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		Changes:  audit.Changes(changes...),
 	})
+}
+
+// newcomerRoleValue and newcomerGroupValue answer the two fields as the contract carries them:
+// null where nothing is set.
+func newcomerRoleValue(configured domain.IdentityProvider) any {
+	if configured.NewcomerRole == "" {
+		return nil
+	}
+	return string(configured.NewcomerRole)
+}
+
+func newcomerGroupValue(configured domain.IdentityProvider) any {
+	if configured.NewcomerGroupID.IsZero() {
+		return nil
+	}
+	return configured.NewcomerGroupID.String()
 }
 
 // ProviderOutput is the read shape, and the secret is not in it - here as much as in the REST
@@ -563,7 +633,9 @@ func ProviderOutput(configured domain.IdentityProvider) usecase.Output {
 		"version":               configured.Version,
 		// When the installation's offer ends, for every workspace that reads it (ADR-0076 §2).
 		// The count beside it is the operator's alone and is not in this projection.
-		"withdraw_at": nil,
+		"withdraw_at":       nil,
+		"newcomer_role":     newcomerRoleValue(configured),
+		"newcomer_group_id": newcomerGroupValue(configured),
 	}
 	if !configured.WithdrawAt.IsZero() {
 		out["withdraw_at"] = configured.WithdrawAt.UTC()
@@ -724,6 +796,8 @@ func (h ConfigureIdentityProvider) Descriptor() usecase.Descriptor {
 			{Name: "allowed_directories", Kind: usecase.KindList,
 				Description: "The organisations this provider admits under DOMAINS, in its own identifiers: Microsoft tenant ids, Google Workspace domains. Read instead of the domains where the preset has one."},
 			EnabledFieldOfAWorkspace,
+			NewcomerRoleField,
+			NewcomerGroupField,
 			ProviderStepUpField,
 		},
 		StepUp: providerStepUp,
@@ -786,8 +860,32 @@ func ConfigureCommandOf(in usecase.Input) (ConfigureIdentityProviderCommand, err
 		return ConfigureIdentityProviderCommand{}, err
 	}
 	cmd.ID = id
+	cmd.NewcomerRole = in.String("newcomer_role")
+	group, err := in.ID("newcomer_group_id")
+	if err != nil {
+		return ConfigureIdentityProviderCommand{}, err
+	}
+	cmd.NewcomerGroupID = group
 	return cmd, nil
 }
+
+// NewcomerRoleField and NewcomerGroupField are what newcomers get, declared at both levels so that
+// the installation's door answers its own refusal rather than an unknown field.
+var (
+	NewcomerRoleField = usecase.Field{
+		Name: "newcomer_role", Kind: usecase.KindString,
+		Description: "What somebody this provider brings in new gets: this role on the whole " +
+			"workspace, granted with the account. Absent, with no group, is nothing - no access " +
+			"until an administrator gives it. Only under DOMAINS and ANY, only on a workspace's " +
+			"own provider, never OWNER, and never beside a group.",
+	}
+	NewcomerGroupField = usecase.Field{
+		Name: "newcomer_group_id", Kind: usecase.KindString,
+		Description: "What somebody this provider brings in new gets instead of a role: " +
+			"membership of this group of the workspace. The same bounds as newcomer_role; a " +
+			"group that holds OWNER anywhere is refused.",
+	}
+)
 
 // EnabledFieldOfAWorkspace is the deprecated switch as a workspace's own doors declare it - the
 // collection and the singular route, one text for both (ADR-0076 §5).

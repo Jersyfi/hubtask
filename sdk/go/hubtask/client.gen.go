@@ -5532,6 +5532,12 @@ type IdentityProvider struct {
 	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
 
+	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace, and with it whatever the group holds. Null when a role or nothing is set; set to null when the group is deleted.
+	NewcomerGroupId *openapi_types.UUID `json:"newcomer_group_id,omitempty"`
+
+	// NewcomerRole What somebody this provider brings in **new** gets: this role on the whole workspace. Null, with `newcomer_group_id` null too, is nothing - no access until an administrator gives it, which is the default and what a newcomer is told. Only under `DOMAINS` and `ANY`, the two modes that create accounts, and only on a workspace's own provider.
+	NewcomerRole *MembershipRole `json:"newcomer_role,omitempty"`
+
 	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect.
 	OfferedHere *bool `json:"offered_here,omitempty"`
 
@@ -5582,8 +5588,14 @@ type IdentityProviderConfiguration struct {
 	Issuer  string `json:"issuer"`
 
 	// Kind Absent is read from the issuer.
-	Kind     *IdentityProviderKind `json:"kind,omitempty"`
-	Position *int                  `json:"position,omitempty"`
+	Kind *IdentityProviderKind `json:"kind,omitempty"`
+
+	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace. The same refusals as `newcomer_role`, and a group that holds `OWNER` anywhere is refused like the role (`identity_provider.newcomers_owner`); a group this workspace does not have answers `groups.not_found`.
+	NewcomerGroupId *openapi_types.UUID `json:"newcomer_group_id,omitempty"`
+
+	// NewcomerRole What somebody this provider brings in new gets: this role on the whole workspace, granted in the same transaction that creates the account. Absent or null, with no group, is nothing - no access until an administrator gives it. One of a role or a group, never both (`identity_provider.newcomers_one`). Refused under `INVITED_ONLY`, which creates nobody (`identity_provider.newcomers_not_created`), on the installation's providers (`identity_provider.newcomers_installation`), and for `OWNER`, which is given to one person with a fresh proof of its own (`identity_provider.newcomers_owner`).
+	NewcomerRole *MembershipRole `json:"newcomer_role,omitempty"`
+	Position     *int            `json:"position,omitempty"`
 
 	// Provisioning Absent is the safe value rather than the permissive one: `INVITED_ONLY` for a public provider, `DOMAINS` for everything else.
 	Provisioning *IdentityProviderProvisioning `json:"provisioning,omitempty"`

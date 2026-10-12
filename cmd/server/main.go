@@ -1133,6 +1133,9 @@ func run() error {
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries.
 		RedirectURL: oidcRedirectURL,
+		// What a newcomer gets names a group of this workspace, checked at configuration.
+		Groups: groups,
+		Grants: grants,
 		// A change to a way in asks for a fresh proof, at both levels (ADR-0071's addendum, E2) -
 		// handed in once the rule is taught (stepUpVerifier, below).
 	}
