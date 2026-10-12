@@ -5,9 +5,9 @@ context: identity
 actors: [PE-member, PE-child, PE-owner, PE-admin]
 deployments: [D2, D3, D4, D5, D6]
 serves: [P-01, P-04, P-05, P-06, P-10]
-state: partial
+state: built
 tasks: [PH-04, PH-05]
-checked_by: [core/domain/service/Authorization_test.go, core/application/service/work/CreatePrivateHub_test.go, core/application/service/work/SetHubPrivacy_test.go, core/application/service/work/LastMember_test.go, test/integration/private_hub_access_test.go, test/integration/private_hub_readers_test.go, test/integration/private_hub_list_test.go, test/integration/private_hub_storage_test.go, test/integration/private_hub_orphan_test.go, test/integration/private_hub_automation_test.go, apps/webapp/e2e/privatehubs.test.mjs]
+checked_by: [core/domain/service/Authorization_test.go, core/application/service/work/CreatePrivateHub_test.go, core/application/service/work/SetHubPrivacy_test.go, core/application/service/work/LastMember_test.go, test/integration/private_hub_access_test.go, test/integration/private_hub_readers_test.go, test/integration/private_hub_list_test.go, test/integration/private_hub_storage_test.go, test/integration/private_hub_orphan_test.go, test/integration/private_hub_automation_test.go, test/integration/private_hub_emergency_test.go, test/integration/private_hubs_switch_test.go, core/application/service/work/OpenPrivateHub_test.go, core/application/service/work/EmergencyAccesses_test.go, core/application/service/work/PrivateHubsSwitch_test.go, core/application/service/access/EmergencyAccess_test.go, core/application/service/notification/RecordEmergencyAccess_test.go, core/domain/model/identity/PrivateHubsSwitch_test.go, apps/webapp/e2e/privatehubs.test.mjs, docs/evidence/PH-05-2026-10-12.md]
 ---
 
 # Keep a hub private, even from another administrator
@@ -55,8 +55,3 @@ administrator decided private hubs are not allowed; nobody there can make one.
   ([NG-e2e-encryption](../../vision/non-goals.md)).
 * No secret access: the emergency access always notifies; there is no silent variant for anyone.
 * No private collections or entries inside a shared hub; privacy is per hub.
-
-## Today
-
-* Check 4: not met — there is no emergency access, tracked in #1090.
-* Check 7: not met — there is no *Private hubs allowed* setting, tracked in #1090.
