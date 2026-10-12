@@ -1891,6 +1891,8 @@
   "app.instance.encryption_rotation": "A new key goes into the environment first and the values are re-sealed by an operation run against the installation. A button here could start a rotation for a key no process is holding, which is how a ring ends up with values nothing can open.",
   "app.instance.encryption_stranded_title": "A key is missing and values still name it",
   "app.instance.encryption_stranded": "Nothing can open what {keys} sealed until the key is back in the ring. Every read of those values answers a refusal until then.",
+  "app.instance.encryption_stranded_kind": "Still sealed under {key}: {count, plural, one {# {store, select, account_mfa {second factor} identity_provider {sign-in provider secret} webhook_subscription {webhook signing secret} backup_target {backup target credential} ai_provider {AI provider key} automation_rule {rule header secret} other {stored secret}}} other {# {store, select, account_mfa {second factors} identity_provider {sign-in provider secrets} webhook_subscription {webhook signing secrets} backup_target {backup target credentials} ai_provider {AI provider keys} automation_rule {rule header secrets} other {stored secrets}}}}.",
+  "app.instance.column_kinds": "Which kinds",
   "app.instance.key_active": "New values use it",
   "app.instance.key_held": "Still in use",
   "app.instance.key_removable": "Nothing names it",
