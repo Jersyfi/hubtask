@@ -937,3 +937,69 @@ WHERE a.kind = 'USER' AND a.status <> 'ANONYMIZED' AND a.deleted_at IS NULL
     )
   )
 ORDER BY a.id;
+
+-- name: InsertPrivateHubAccess :exec
+-- The workspace owner's emergency access to a private hub (ADR-0073 §4): who, why, and the hour.
+INSERT INTO private_hub_access (id, tenant_id, hub_id, opened_by, reason, opened_at, ends_at)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('opened_by'),
+  sqlc.arg('reason'), sqlc.arg('opened_at'), sqlc.arg('ends_at')
+);
+
+-- name: RunningPrivateHubAccess :many
+-- The access this person opened on this hub that has not ended. At most one: a second is refused
+-- while the first runs, under the hub's row (LockHubOf).
+SELECT id, hub_id, opened_by, reason, opened_at, ends_at
+FROM private_hub_access
+WHERE hub_id = sqlc.arg('hub_id')::uuid
+  AND opened_by = sqlc.arg('opened_by')::uuid
+  AND ends_at > sqlc.arg('now')::timestamptz
+ORDER BY opened_at DESC
+LIMIT 1;
+
+-- name: HubsOpenedFor :many
+-- Of the named hubs, those the account holds a running emergency access to: what the authoriser
+-- asks once a private hub is on a path (identity.md §22).
+SELECT DISTINCT hub_id
+FROM private_hub_access
+WHERE opened_by = sqlc.arg('account_id')::uuid
+  AND hub_id = ANY(sqlc.arg('hub_ids')::uuid[])
+  AND ends_at > sqlc.arg('now')::timestamptz;
+
+-- name: ListPrivateHubAccesses :many
+-- Every emergency access to one hub, newest first: the members' record of who opened it and why.
+SELECT id, hub_id, opened_by, reason, opened_at, ends_at
+FROM private_hub_access
+WHERE hub_id = sqlc.arg('hub_id')::uuid
+ORDER BY opened_at DESC, id DESC
+LIMIT sqlc.arg('page_size');
+
+-- name: PrivateHubMembers :many
+-- The members of a private hub as ADR-0073 §5 counts them: accounts, neither anonymised nor
+-- deleted, holding a role on the hub, on a collection in it, or on an entry in one. Groups are not
+-- asked - none may hold a role there (identity.md §22).
+SELECT DISTINCT a.id
+FROM membership m
+JOIN account a ON a.id = m.account_id
+WHERE a.status <> 'ANONYMIZED' AND a.deleted_at IS NULL
+  AND (
+    (m.scope_type = 'HUB' AND m.scope_id = sqlc.arg('hub_id')::uuid)
+    OR (m.scope_type = 'COLLECTION'
+        AND m.scope_id IN (SELECT c.id FROM container c WHERE c.parent_id = sqlc.arg('hub_id')::uuid))
+    OR (m.scope_type = 'ITEM'
+        AND m.scope_id IN (
+          SELECT w.id FROM work_item w JOIN container c ON c.id = w.collection_id
+          WHERE c.parent_id = sqlc.arg('hub_id')::uuid))
+  )
+ORDER BY a.id;
+
+-- name: EmergencyNoticesFor :many
+-- The emergency accesses a person was told of since a moment, from their own notification
+-- records, whatever the mail did: what the web app shows a person without a mailbox (ADR-0073 §4).
+SELECT x.id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at
+FROM notification n
+JOIN private_hub_access x ON x.id = n.private_hub_access_id
+WHERE n.recipient_id = sqlc.arg('recipient_id')::uuid
+  AND n.category = 'EMERGENCY_ACCESS'
+  AND x.opened_at >= sqlc.arg('since')::timestamptz
+ORDER BY x.opened_at DESC, x.id DESC;

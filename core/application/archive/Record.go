@@ -462,6 +462,15 @@ var entities = []Entity{
 		References: []Reference{{Field: "account_id", Table: "account"}},
 	},
 	{Name: "legal_holds", Table: "legal_hold", Whole: true, Keys: []string{"id"}},
+	// The members' record of who opened their private hub and why (ADR-0073 §4). Not duplicable:
+	// an access describes the hub it was made to, and a copy of the hub was never opened.
+	{
+		Name: "private_hub_accesses", Table: "private_hub_access", Whole: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "opened_by", Table: "account"},
+		},
+	},
 	{
 		Name: "set_elements", Table: "set_element", Whole: true, Duplicable: true,
 		Keys:       []string{"item_id", "set_name", "element_id"},
