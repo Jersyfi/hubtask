@@ -15,7 +15,7 @@ What deliberately is **not** in this milestone:
 
 * **A private hub no administrator can open** ([UC-ID-16](../usecases/identity/UC-ID-16-keep-a-hub-private.md))
   and **accounts without a mail address** ([UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md))
-  — [milestone PH](./milestone-PH.md).
+  — [milestone PH](../archive/backlog/milestone-PH.md).
 * **Passkeys, plans, platform events and usage, own domains** — their own milestones, in that order.
 
 **Delivers:** UC-AI-02 (5), UC-AI-05 (1–7), UC-AI-06 (1–8), UC-AI-07 (2), UC-AUD-01 (1–8), UC-ID-01 (5), UC-ID-02 (2, 4–7), UC-ID-03 (1, 2, 4–7), UC-ID-04 (1–8), UC-ID-05 (1–5), UC-ID-06 (2, 4, 5), UC-ID-07 (4, 5), UC-ID-08 (2, 4, 5), UC-ID-09 (4), UC-ID-10 (1–7), UC-ID-11 (1–8), UC-ID-12 (1–9), UC-ID-14 (5, 6), UC-ID-17 (3), UC-ID-18 (3–5), UC-ID-19 (1–6), UC-INS-01 (1–7), UC-INS-02 (4, 5), UC-INS-03 (1–5), UC-INS-04 (1, 3, 6), UC-INS-05 (1–7), UC-INS-06 (1, 2, 5), UC-INS-07 (4), UC-INS-08 (1, 5), UC-INS-09 (1–7), UC-INS-11 (1–6), UC-INS-12 (2, 5), UC-INS-16 (1–4)
