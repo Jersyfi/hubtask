@@ -80,6 +80,24 @@
     { value: 'THIRD_COUNTRY', label: t('app.ai.jurisdiction_third_country') },
   ];
 
+  /** The host the content would be sent to, as the address field holds it; empty while it is not an address. */
+  function hostOf(address: string): string {
+    try {
+      return new URL(address.trim()).host;
+    } catch {
+      return '';
+    }
+  }
+
+  // UC-AI-03 check 2: the consent names who receives the content and where, in words, from what the
+  // form holds now - the sentence changes with the address and the jurisdiction it is about.
+  const consentLabel = $derived.by(() => {
+    const host = hostOf(baseUrl);
+    return host && jurisdiction
+      ? t('app.ai.consent_label_named', { host, where: jurisdiction })
+      : t('app.ai.consent_label');
+  });
+
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     if (!kind || !jurisdiction) return;
@@ -203,8 +221,8 @@
             spellcheck={false}
           />
           <Select label={t('app.ai.jurisdiction_label')} hint={t('app.ai.jurisdiction_hint')} bind:value={jurisdiction} placeholder={t('app.ai.jurisdiction_choose')} options={jurisdictions} />
-          <!-- The consent, as its own switch, with what it means in words beside it. -->
-          <Switch label={t('app.ai.consent_label')} hint={t('app.ai.consent_hint')} bind:checked={processingAllowed} />
+          <!-- The consent, as its own switch, naming who receives the content and where. -->
+          <Switch label={consentLabel} hint={t('app.ai.consent_hint')} bind:checked={processingAllowed} />
           <div>
             <Button
               type="submit"

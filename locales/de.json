@@ -660,6 +660,7 @@
   "app.ai.jurisdiction_adequacy": "In einem Land mit Angemessenheitsbeschluss",
   "app.ai.jurisdiction_third_country": "In einem Drittland",
   "app.ai.consent_label": "Den Inhalt dieses Arbeitsbereichs an den Anbieter schicken",
+  "app.ai.consent_label_named": "Den Inhalt dieses Arbeitsbereichs an {host} schicken, {where, select, SELF_HOSTED {auf der eigenen Infrastruktur dieser Installation} EEA {im EWR} ADEQUACY {in ein Land mit Angemessenheitsbeschluss} other {in ein Drittland}}",
   "app.ai.consent_hint": "Ist das an, werden Titel und Notizen eines Eintrags, die Kommentare dazu, Betreff und Text eines Eingangs sowie die Namen der Labels und Spalten einer Sammlung an den oben genannten Anbieter geschickt, wann immer jemand einen Vorschlag, eine Zusammenfassung oder eine Suche nach Bedeutung anfragt. Solange es aus ist, wird nichts geschickt, und ohne dass jemand fragt, wird nie etwas geschickt.",
   "app.ai.saving": "Wird gespeichert…",
   "app.ai.save": "Speichern",
