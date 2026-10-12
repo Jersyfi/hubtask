@@ -67,6 +67,7 @@ var privateHubExemptions = map[string]string{
 	"PollTriggerEvents":            filteredPoll,
 	"ReadAiProvider":               noHub,
 	"ReadAiSource":                 noHub,
+	"ReadOwnAiPosition":            noHub,
 	"CheckPassword":                noHub,
 	"CountAccountsWithoutProvider": noHub,
 	"GetAccount":                   noHub,

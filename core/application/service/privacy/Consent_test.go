@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -165,4 +166,26 @@ func TestTheHandlerRecordsTheWithdrawal(t *testing.T) {
 	if _, revoked := out["revoked_at"]; !revoked {
 		t.Errorf("the record does not say when the processing stopped: %v", out)
 	}
+}
+
+// Standing is the newest record per account, kept where it is a withdrawal.
+func (c *consentStore) Standing(_ context.Context, purpose string) ([]repository.Objector, error) {
+	newest := map[shared.ID]domain.Consent{}
+	order := []shared.ID{}
+	for _, consent := range c.stored {
+		if consent.Purpose != purpose || consent.AccountID.IsZero() {
+			continue
+		}
+		if _, seen := newest[consent.AccountID]; !seen {
+			order = append(order, consent.AccountID)
+		}
+		newest[consent.AccountID] = consent
+	}
+	var standing []repository.Objector
+	for _, id := range order {
+		if consent := newest[id]; !consent.Granted {
+			standing = append(standing, repository.Objector{AccountID: id, Since: consent.GrantedAt, Source: consent.Source})
+		}
+	}
+	return standing, nil
 }

@@ -1875,6 +1875,17 @@ CREATE TABLE consent_record (
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 
+-- A person told once that their objection to AI stopped taking effect (migration 0137): the
+-- notice is pending while noticed_at is older than the workspace's position.
+CREATE TABLE ai_objection_notice (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  noticed_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id),
+  CONSTRAINT ai_objection_notice_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+
 -- Documented data breaches (Art. 33/34) - evidence, not automated notification.
 CREATE TABLE privacy_incident (
   id             uuid PRIMARY KEY,
@@ -2386,6 +2397,7 @@ BEGIN
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference','private_hub_access',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
+    'ai_objection_notice',
     'erasure_kept',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule',

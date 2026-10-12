@@ -633,6 +633,11 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// narrowing of the sources it may use is not here but in the archived workspace settings,
 	// because a restore must never widen what an administrator restricted.
 	"ai_source": "§8.4 - the choice is the consent to an offered model; a restore must not resume sending under a consent nobody gave again",
+	// A read receipt: that a person saw the notice that their objection to AI stopped taking
+	// effect. The objection itself and the workspace's position are archived; a restore without
+	// the receipt tells the person again, which harms nobody, while one with it could hide a notice
+	// about a position taken after the archive was made.
+	"ai_objection_notice": "a read receipt of a notice; without it a restored workspace tells a person once more, which harms nobody",
 	// A working note rather than a record. What an accepted suggestion did is in the
 	// entry's own history, which the archive carries; what a proposal was about is a state of an
 	// entry that a restore months later has anyway replaced. Restoring one would offer somebody a

@@ -426,6 +426,12 @@ type ActivityEntry struct {
 	CausationID   pgtype.UUID
 }
 
+type AiObjectionNotice struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	NoticedAt pgtype.Timestamptz
+}
+
 type AiProvider struct {
 	TenantID          pgtype.UUID
 	Kind              string

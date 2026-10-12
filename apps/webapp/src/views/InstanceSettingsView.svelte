@@ -94,6 +94,9 @@
       { value: 'EEA', label: t('app.instance.ai_min_eea') },
       { value: 'SELF_HOSTED', label: t('app.instance.ai_min_self_hosted') },
     ],
+    // One value: an installation holds a workspace at letting each person keep their own content
+    // out, or leaves it alone - it cannot name the legal basis AI for everybody needs.
+    person_opt_out: [{ value: 'OFFERED', label: t('app.instance.ai_opt_out_offered') }],
   });
 
   /** A row's name: the AI area's keys in words, the others as the contract spells them. */

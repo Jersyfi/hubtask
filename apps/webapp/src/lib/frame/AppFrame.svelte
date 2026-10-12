@@ -22,7 +22,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
@@ -51,6 +51,7 @@
   import { DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, primary } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
+  import { aiObjection } from '../data/aiobjection.svelte.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -99,6 +100,23 @@
     if (!session.isSignedIn) return;
     return untrack(() => quotas.open());
   });
+
+  // A person's own choice about AI, read while signed in: when the workspace made AI part of
+  // everybody's work after they kept their content out, they are told so once, here, on whichever
+  // screen they come back to (data-protection.md §4.1).
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return untrack(() => aiObjection.open());
+  });
+  let isAcknowledging = $state(false);
+  async function acknowledgeAiNotice() {
+    isAcknowledging = true;
+    try {
+      await aiObjection.acknowledge();
+    } finally {
+      isAcknowledging = false;
+    }
+  }
 
   // The private hubs, read while the administration is open: whether its row is drawn is this
   // answer (`navigation.ts`, `administration`).
@@ -422,6 +440,22 @@
         {/if}
         <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
         <EmergencyNotices onnavigate={go} />
+        {#if aiObjection.noticePending && aiObjection.position}
+          <!-- Told once: acknowledged on the server, so it does not come back on another device. -->
+          <div class="confirmed" data-ai-notice>
+            <Banner tone="info">
+              {t('app.profile.ai_notice', {
+                basis: aiObjection.position.basis ? t(`app.profile.ai_basis_${aiObjection.position.basis}`) : '',
+                contact: aiObjection.position.contact || t('app.profile.ai_ask_admin'),
+              })}
+              {#snippet action()}
+                <Button size="sm" isBusy={isAcknowledging} busyLabel={t('app.workspace.saving')} onclick={() => void acknowledgeAiNotice()}>
+                  {t('app.profile.ai_notice_understood')}
+                </Button>
+              {/snippet}
+            </Banner>
+          </div>
+        {/if}
         {#if stepUp.confirmed}
           <!-- The return from a step-up at the provider (ADR-0075 §2): the confirmation holds, and
                the action the person left to confirm goes through when they take it again. Gone

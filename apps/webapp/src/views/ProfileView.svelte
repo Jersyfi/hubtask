@@ -13,6 +13,9 @@
   // **Clearing is not setting to nothing.** An empty value means the workspace's own applies again,
   // and the field says that rather than going blank and leaving somebody to guess.
   //
+  // **One more thing is the person's own here**: keeping their content out of AI, beside how the
+  // product speaks to them, because it is a choice about themselves rather than about a device.
+  //
   // **Nothing else is under it.** The second factor, the sessions, the devices, the theme, the
   // notifications, the apps and the tokens are each a row of the section's column with an address
   // of its own.
@@ -22,6 +25,7 @@
   import { Button, EmptyState, Input, Select, Stack } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import AiObjectionSection from '../lib/profile/AiObjectionSection.svelte';
   import AddressForm from '../lib/people/AddressForm.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -151,6 +155,9 @@
       </Stack>
     </form>
 
+    <!-- Keeping one's own content out of AI: the person's own choice, so on the profile; absent
+         where there is nothing to choose (UC-PRV-05 check 8). -->
+    <AiObjectionSection />
     {#if account.sign_in_name && !account.email && signInRules.isSettled}
       <!-- A person without a mail address may add one (UC-ID-20 check 7): drawn exactly where the
            server would take it - a sign-in name and no address, in a workspace whose password is a
