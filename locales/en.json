@@ -973,6 +973,7 @@
   "ai.third_country_not_confirmed": "This provider processes outside the EEA, and this installation has not confirmed third-country transfers. The operator sets HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER once the transfer has been assessed.",
   "ai.display_name_required": "Give the model a name workspaces will recognise it by.",
   "ai.display_name_too_long": "That name is longer than Hubtask stores.",
+  "ai.display_name_taken": "Another offered model already has that name. Workspaces choose by name, so each one needs its own.",
   "ai.processor_required": "Say who processes what is sent to this model, so that every workspace can see it before it agrees.",
   "ai.processor_too_long": "That processor name is longer than Hubtask stores.",
   "ai.offered_needs_a_model": "Offering no model offers nothing. Choose a kind of provider that calls one.",
