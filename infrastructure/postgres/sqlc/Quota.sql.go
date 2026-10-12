@@ -70,6 +70,33 @@ func (q *Queries) CountWebhookTargets(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const setTenantOwnAiBudget = `-- name: SetTenantOwnAiBudget :execrows
+UPDATE tenant
+SET settings = CASE
+      WHEN $1::bigint IS NULL THEN settings - 'ai_own_tokens_per_day'
+      ELSE jsonb_set(settings, '{ai_own_tokens_per_day}', to_jsonb($1::bigint), true)
+    END,
+    updated_at = $2, version = version + 1
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+`
+
+type SetTenantOwnAiBudgetParams struct {
+	Tokens *int64
+	Now    pgtype.Timestamptz
+}
+
+// The workspace's own budget for its own AI model, beside the quotas key rather than in it: the
+// operator's write replaces that key whole, and this budget is not the operator's. NULL removes it.
+// Last write wins, as for every setting a workspace's administrators share; the version moves so
+// an operator's write guarded on the old one sees it.
+func (q *Queries) SetTenantOwnAiBudget(ctx context.Context, arg SetTenantOwnAiBudgetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setTenantOwnAiBudget, arg.Tokens, arg.Now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setTenantQuotas = `-- name: SetTenantQuotas :execrows
 UPDATE tenant
 SET settings = jsonb_set(settings, '{quotas}', $1::jsonb, true),

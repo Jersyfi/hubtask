@@ -863,6 +863,10 @@ class Client:
         """Choose which AI answers this workspace"""
         return self._call("PUT", "/ai-source", {}, None, {}, body, "json", "application/json", "json")
 
+    def set_own_ai_budget(self, body: "OwnAiBudget") -> dict[str, Any]:
+        """Set the daily budget of this workspace's own AI model"""
+        return self._call("PUT", "/ai-budget", {}, None, {}, body, "json", "application/json", "json")
+
     def list_oauth_clients(self) -> dict[str, Any]:
         """The workspace's registered third-party apps"""
         return self._call("GET", "/oauth/clients", {}, None, {}, None, "none", None, "json")

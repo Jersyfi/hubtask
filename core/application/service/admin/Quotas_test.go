@@ -39,6 +39,8 @@ func (s *quotaStoreFake) Overrides(context.Context) (quotarepo.Overrides, error)
 
 func (s *quotaStoreFake) TimeZone(context.Context) (string, error) { return "", nil }
 
+func (s *quotaStoreFake) SetOwnAiBudget(context.Context, *int64, time.Time) error { return nil }
+
 func (s *quotaStoreFake) SetOverrides(
 	_ context.Context, overrides quotarepo.Overrides, expectedVersion int, _ time.Time,
 ) (bool, error) {

@@ -129,6 +129,26 @@ func (QuotaRepository) Overrides(ctx context.Context) (repository.Overrides, err
 	return overrides, nil
 }
 
+// SetOwnAiBudget writes the workspace's own AI budget beside the quotas key; nil removes it.
+func (QuotaRepository) SetOwnAiBudget(ctx context.Context, tokens *int64, now time.Time) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	written, err := queries.SetTenantOwnAiBudget(ctx, sqlc.SetTenantOwnAiBudgetParams{
+		Tokens: tokens, Now: pgtype.Timestamptz{Time: now, Valid: true},
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the own AI budget: %w", err))
+	}
+	if written == 0 {
+		return shared.ErrNotFound.WithDetail("admin.tenant_not_found")
+	}
+	return nil
+}
+
 // TimeZone answers the workspace's zone, the one its AI budget's day ends in.
 func (QuotaRepository) TimeZone(ctx context.Context) (string, error) {
 	queries, err := queriesFrom(ctx)

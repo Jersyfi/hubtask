@@ -24,6 +24,19 @@ SET settings = jsonb_set(settings, '{quotas}', sqlc.arg('quotas')::jsonb, true),
 WHERE id = current_tenant_id() AND deleted_at IS NULL
   AND version = sqlc.arg('expected_version');
 
+-- name: SetTenantOwnAiBudget :execrows
+-- The workspace's own budget for its own AI model, beside the quotas key rather than in it: the
+-- operator's write replaces that key whole, and this budget is not the operator's. NULL removes it.
+-- Last write wins, as for every setting a workspace's administrators share; the version moves so
+-- an operator's write guarded on the old one sees it.
+UPDATE tenant
+SET settings = CASE
+      WHEN sqlc.narg('tokens')::bigint IS NULL THEN settings - 'ai_own_tokens_per_day'
+      ELSE jsonb_set(settings, '{ai_own_tokens_per_day}', to_jsonb(sqlc.narg('tokens')::bigint), true)
+    END,
+    updated_at = sqlc.arg('now'), version = version + 1
+WHERE id = current_tenant_id() AND deleted_at IS NULL;
+
 -- name: CountTenantItems :one
 -- Trash included: a row occupies its place until the retention machinery lets it go, and a
 -- quota that emptied by trashing would be no wall at all.

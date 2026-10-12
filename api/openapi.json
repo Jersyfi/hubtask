@@ -7019,6 +7019,44 @@
         }
       }
     },
+    "/ai-budget": {
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "setOwnAiBudget",
+        "summary": "Set the daily budget of this workspace's own AI model",
+        "description": "How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnAiBudget"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The two AI standings after the write",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QuotaStanding"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/oauth/clients": {
       "get": {
         "tags": [
@@ -13018,6 +13056,23 @@
           },
           "jurisdiction": {
             "$ref": "#/components/schemas/AiJurisdiction"
+          }
+        }
+      },
+      "OwnAiBudget": {
+        "type": "object",
+        "required": [
+          "own_tokens_per_day"
+        ],
+        "properties": {
+          "own_tokens_per_day": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 1,
+            "description": "Tokens a day for the workspace's own model; null for no budget."
           }
         }
       },

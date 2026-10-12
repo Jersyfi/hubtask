@@ -1014,6 +1014,7 @@
   "ai.offered_model_without_offered_source": "A model is chosen only together with the provider's offered AI.",
   "ai.source_unknown": "{value} is not a source of AI a workspace can choose.",
   "ai.source_not_allowed": "This installation does not let this workspace use that AI. Nothing was sent, and the workspace's own settings are kept.",
+  "ai.budget_invalid": "A daily budget is a number of tokens of at least 1. To let the workspace's own model spend without a budget, leave it empty.",
   "ai.jurisdiction_below_minimum": "This installation requires a workspace's own model to process content {minimum, select, ADEQUACY {in the EEA or a country with an adequacy decision} EEA {in the EEA} SELF_HOSTED {on this installation's own machine} other {where its rules allow}}, {origin, select, PLAN {set by your plan} other {set by the operator for every workspace}}. Choose a provider that does.",
   "dependency.timeout": "{dependency} did not answer in time. Please try again in a moment.",
   "dependency.circuit_open": "{dependency} is unreachable at the moment. Hubtask has stopped calling it and will try again shortly.",

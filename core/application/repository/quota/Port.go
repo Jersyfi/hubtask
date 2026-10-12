@@ -54,6 +54,9 @@ type Store interface {
 	// it is not the operator's.
 	SetOverrides(ctx context.Context, overrides Overrides, expectedVersion int, now time.Time) (bool, error)
 
+	// SetOwnAiBudget writes the workspace's own budget for its own AI model; nil removes it.
+	SetOwnAiBudget(ctx context.Context, tokens *int64, now time.Time) error
+
 	// TimeZone answers the workspace's time zone, the one its AI budget's day ends in. An empty
 	// answer is UTC.
 	TimeZone(ctx context.Context) (string, error)

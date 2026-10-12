@@ -2066,6 +2066,13 @@ func run() error {
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
+		// The workspace's own budget for its own AI model (UC-AI-06 check 6): the workspace's to
+		// set, never the operator's.
+		quotaservice.SetOwnAiBudget{
+			Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
 		adminservice.UpdateTenantQuotas{
 			Tenants: postgres.NewAdminTenantRepository(),
 			Store:   postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),

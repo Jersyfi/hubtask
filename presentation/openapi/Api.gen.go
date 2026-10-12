@@ -6940,6 +6940,12 @@ type OperatorAdd struct {
 	Workspace *string `json:"workspace,omitempty"`
 }
 
+// OwnAiBudget defines model for OwnAiBudget.
+type OwnAiBudget struct {
+	// OwnTokensPerDay Tokens a day for the workspace's own model; null for no budget.
+	OwnTokensPerDay *int64 `json:"own_tokens_per_day"`
+}
+
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
 	HasMore bool `json:"has_more"`
@@ -10321,6 +10327,9 @@ type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
+// SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
+type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
+
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
@@ -10776,6 +10785,9 @@ type ServerInterface interface {
 	// SuspendTenant Suspend a workspace
 	// (POST /admin/tenants/{tenantId}:suspend)
 	SuspendTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
+	// (PUT /ai-budget)
+	SetOwnAiBudget(w http.ResponseWriter, r *http.Request)
 	// RemoveAiProvider Remove the workspace's AI provider
 	// (DELETE /ai-provider)
 	RemoveAiProvider(w http.ResponseWriter, r *http.Request)
@@ -12623,6 +12635,20 @@ func (siw *ServerInterfaceWrapper) SuspendTenant(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SuspendTenant(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetOwnAiBudget operation middleware
+func (siw *ServerInterfaceWrapper) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetOwnAiBudget(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -22217,6 +22243,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-provider", wrapper.ConfigureAiProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-source", wrapper.ReadAiSource)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-source", wrapper.ChooseAiSource)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-budget", wrapper.SetOwnAiBudget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)

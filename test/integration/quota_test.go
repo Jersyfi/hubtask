@@ -232,3 +232,77 @@ func TestOneWorkspacesAiSpendingIsNotAnothers(t *testing.T) {
 		return nil
 	})
 }
+
+// Gate SG-3: Store.SetOwnAiBudget and Store.TimeZone. The workspace's own AI budget is its own:
+// written in A, read nowhere else; and the operator's quota write, which replaces the quotas key
+// whole, leaves it standing.
+func TestTheOwnAiBudgetIsTheWorkspacesAndOutlivesTheOperatorsWrite(t *testing.T) {
+	ctx := context.Background()
+	seedQuotaTenants(ctx, t)
+	store := postgres.NewQuotaRepository()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	admin := adminPool(ctx, t)
+	now := time.Now().UTC()
+	t.Cleanup(func() {
+		_, _ = admin.Exec(context.WithoutCancel(ctx),
+			`UPDATE tenant SET settings = settings - 'ai_own_tokens_per_day', default_time_zone = 'UTC'
+			 WHERE id IN ($1, $2)`, quotaTenantA.String(), quotaTenantB.String())
+	})
+	if _, err := admin.Exec(ctx, `UPDATE tenant SET default_time_zone = 'Europe/Berlin' WHERE id = $1`,
+		quotaTenantA.String()); err != nil {
+		t.Fatal(err)
+	}
+
+	budget := int64(7_000)
+	inTenant(t, uow, quotaTenantA, func(ctx context.Context) error {
+		return store.SetOwnAiBudget(ctx, &budget, now)
+	})
+	inTenant(t, uow, quotaTenantB, func(ctx context.Context) error {
+		overrides, err := store.Overrides(ctx)
+		if err != nil {
+			return err
+		}
+		if overrides.AiOwnTokensPerDay != nil {
+			t.Errorf("B reads A's own AI budget: %d", *overrides.AiOwnTokensPerDay)
+		}
+		zone, err := store.TimeZone(ctx)
+		if err != nil || zone != "UTC" {
+			t.Errorf("B's zone reads %q (%v)", zone, err)
+		}
+		return nil
+	})
+
+	// The operator moves another wall of A's: the quotas key is replaced, the own budget is not in it.
+	ceiling := int64(42)
+	inTenant(t, uow, quotaTenantA, func(ctx context.Context) error {
+		record, err := postgres.NewAdminTenantRepository().Find(ctx)
+		if err != nil {
+			return err
+		}
+		_, err = store.SetOverrides(ctx, quotarepo.Overrides{Items: &ceiling}, record.Version, now)
+		return err
+	})
+	inTenant(t, uow, quotaTenantA, func(ctx context.Context) error {
+		overrides, err := store.Overrides(ctx)
+		if err != nil {
+			return err
+		}
+		if overrides.AiOwnTokensPerDay == nil || *overrides.AiOwnTokensPerDay != budget {
+			t.Errorf("the operator's write dropped the own AI budget: %v", overrides.AiOwnTokensPerDay)
+		}
+		if zone, err := store.TimeZone(ctx); err != nil || zone != "Europe/Berlin" {
+			t.Errorf("A's zone reads %q (%v)", zone, err)
+		}
+		return store.SetOwnAiBudget(ctx, nil, now)
+	})
+	inTenant(t, uow, quotaTenantA, func(ctx context.Context) error {
+		overrides, err := store.Overrides(ctx)
+		if err != nil {
+			return err
+		}
+		if overrides.AiOwnTokensPerDay != nil || overrides.Items == nil {
+			t.Errorf("after clearing: %+v", overrides)
+		}
+		return nil
+	})
+}

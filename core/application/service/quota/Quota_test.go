@@ -100,6 +100,11 @@ func (s *storeFake) InstanceOverrides(context.Context) (repository.Overrides, er
 
 func (s *storeFake) TimeZone(context.Context) (string, error) { return s.zone, nil }
 
+func (s *storeFake) SetOwnAiBudget(_ context.Context, tokens *int64, _ time.Time) error {
+	s.overrides.AiOwnTokensPerDay = tokens
+	return nil
+}
+
 func (s *storeFake) SetOverrides(
 	_ context.Context, overrides repository.Overrides, _ int, _ time.Time,
 ) (bool, error) {

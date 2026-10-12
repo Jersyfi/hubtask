@@ -347,6 +347,9 @@ class OfferedAiModelSummary(TypedDict, total=False):
     processor: Required[str]
     jurisdiction: Required["AiJurisdiction"]
 
+class OwnAiBudget(TypedDict, total=False):
+    own_tokens_per_day: Required[int | None]
+
 class AiSourceChoice(TypedDict, total=False):
     source: Required["AiSourceKind"]
     offered_model_id: str

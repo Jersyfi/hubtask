@@ -6946,6 +6946,12 @@ type OperatorAdd struct {
 	Workspace *string `json:"workspace,omitempty"`
 }
 
+// OwnAiBudget defines model for OwnAiBudget.
+type OwnAiBudget struct {
+	// OwnTokensPerDay Tokens a day for the workspace's own model; null for no budget.
+	OwnTokensPerDay *int64 `json:"own_tokens_per_day"`
+}
+
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
 	HasMore bool `json:"has_more"`
@@ -10327,6 +10333,9 @@ type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
+// SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
+type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
+
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
@@ -11322,6 +11331,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveAiProvider Remove the workspace's AI provider
 	//
@@ -15776,6 +15803,44 @@ func (c *Client) ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEd
 // Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 func (c *Client) SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSuspendTenantRequest(c.Server, tenantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *Client) SetOwnAiBudgetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOwnAiBudgetRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetOwnAiBudget Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *Client) SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOwnAiBudgetRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -24371,6 +24436,46 @@ func NewSuspendTenantRequest(server string, tenantId AdminTenantId) (*http.Reque
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewSetOwnAiBudgetRequest calls the generic SetOwnAiBudget builder with application/json body
+func NewSetOwnAiBudgetRequest(server string, body SetOwnAiBudgetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetOwnAiBudgetRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetOwnAiBudgetRequestWithBody constructs an http.Request for the SetOwnAiBudget method, with any body, and a specified content type
+func NewSetOwnAiBudgetRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ai-budget")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -37421,6 +37526,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenantWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*SuspendTenantResult, error)
 
+	// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error)
+
+	// SetOwnAiBudgetWithResponse Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithResponse(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error)
+
 	// RemoveAiProviderWithResponse Remove the workspace's AI provider
 	//
 	// The configuration and its sealed key go, and the workspace is back to the installation's default, which calls nothing. Nothing else is affected: no suggestion already accepted is undone, because accepting one was a person's own write. Auditable.
@@ -42864,6 +42987,54 @@ func (r SuspendTenantResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SuspendTenantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetOwnAiBudgetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]QuotaStanding
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetOwnAiBudgetResult) GetJSON200() *[]QuotaStanding {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetOwnAiBudgetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetOwnAiBudgetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetOwnAiBudgetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetOwnAiBudgetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetOwnAiBudgetResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -56377,6 +56548,36 @@ func (c *ClientWithResponses) SuspendTenantWithResponse(ctx context.Context, ten
 	return ParseSuspendTenantResult(rsp)
 }
 
+// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *ClientWithResponses) SetOwnAiBudgetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error) {
+	rsp, err := c.SetOwnAiBudgetWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOwnAiBudgetResult(rsp)
+}
+
+// SetOwnAiBudgetWithResponse Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *ClientWithResponses) SetOwnAiBudgetWithResponse(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error) {
+	rsp, err := c.SetOwnAiBudget(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOwnAiBudgetResult(rsp)
+}
+
 // RemoveAiProviderWithResponse Remove the workspace's AI provider
 //
 // The configuration and its sealed key go, and the workspace is back to the installation's default, which calls nothing. Nothing else is affected: no suggestion already accepted is undone, because accepting one was a person's own write. Auditable.
@@ -63459,6 +63660,39 @@ func ParseSuspendTenantResult(rsp *http.Response) (*SuspendTenantResult, error) 
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetOwnAiBudgetResult parses an HTTP response from a SetOwnAiBudgetWithResponse call
+func ParseSetOwnAiBudgetResult(rsp *http.Response) (*SetOwnAiBudgetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetOwnAiBudgetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []QuotaStanding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
