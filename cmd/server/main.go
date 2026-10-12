@@ -1184,6 +1184,14 @@ func run() error {
 	registry.AddWarningSource(adminservice.RegisterWarnings{
 		State: operators, Environment: operatorsFromEnvironment, UnitOfWork: unitOfWork,
 	}.Warnings)
+	// A key the ring lacks while values still name it, by kind (UC-INS-16 check 3): the census
+	// is taken in the background, at start and hourly, and served from the last one.
+	keyHealth := &sealingservice.KeyHealth{
+		Tenants: postgres.NewAdminTenantRepository(), Census: postgres.NewSealingRepository(),
+		Encryptor: encryptor, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
+	keyHealth.Refresh(ctx)
+	registry.AddWarningSource(keyHealth.Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses
@@ -2074,7 +2082,7 @@ func run() error {
 		// transaction of its own.
 		sealingservice.ReadEncryptionStatus{
 			Tenants: postgres.NewAdminTenantRepository(), Census: postgres.NewSealingRepository(),
-			Encryptor: encryptor, UnitOfWork: unitOfWork,
+			Encryptor: encryptor, UnitOfWork: unitOfWork, Observer: keyHealth,
 		}.Descriptor(),
 		sealingservice.ResealSecrets{
 			Tenants: postgres.NewAdminTenantRepository(), Jobs: jobs, Encryptor: encryptor,

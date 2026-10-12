@@ -52,6 +52,14 @@ type ReadEncryptionStatus struct {
 	Census     sealingrepo.Census
 	Encryptor  cryptoport.Encryptor
 	UnitOfWork persistence.UnitOfWork
+	// Observer is told every census this read takes - the health report's, so it is never older
+	// than what the operator just saw. Nil tells nobody.
+	Observer CensusObserver
+}
+
+// CensusObserver takes a census counted elsewhere.
+type CensusObserver interface {
+	Observe(counts sealingrepo.Counts)
 }
 
 // Execute reads the ring and counts across every workspace.
@@ -76,6 +84,9 @@ func (h ReadEncryptionStatus) Execute(
 	counts, err := Count(ctx, h.UnitOfWork, h.Census, tenants)
 	if err != nil {
 		return Status{}, err
+	}
+	if h.Observer != nil {
+		h.Observer.Observe(counts)
 	}
 
 	status := Status{ActiveKeyID: h.Encryptor.ActiveKeyID()}

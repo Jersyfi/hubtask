@@ -18,6 +18,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	"github.com/Jersyfi/hubtask/infrastructure/crypto"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -31,6 +34,18 @@ var (
 	censusSharedProvider = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fe63")
 	censusOfferedModel   = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fe64")
 )
+
+// mustKeyring is a ring holding one key nothing in this test names.
+func mustKeyring(t *testing.T) crypto.Keyring {
+	t.Helper()
+	keyring, err := crypto.NewKeyring([]crypto.KeyMaterial{
+		{ID: "census_ring_only", Material: secret.New(drillKeyOne)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return keyring
+}
 
 func TestTheInstallationsCensusCountsEachSecretOnceAndByKind(t *testing.T) {
 	ctx := context.Background()
@@ -123,5 +138,28 @@ func TestTheInstallationsCensusCountsEachSecretOnceAndByKind(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatalf("the workspace census in the installation's scope: %v", err)
+	}
+
+	// UC-INS-16 check 3: the ring does not hold the key, so the operator's health report names
+	// the kinds still sealed under it, counted over every workspace and the installation.
+	keys := &sealing.KeyHealth{
+		Tenants: postgres.NewAdminTenantRepository(), Census: census,
+		Encryptor:  crypto.NewEnvelope(mustKeyring(t), clockadapter.CryptoRandom{}),
+		UnitOfWork: uow, Clock: clockadapter.System{},
+	}
+	keys.Refresh(ctx)
+	deadline := time.Now().Add(30 * time.Second)
+	var named map[string]string
+	for named == nil && time.Now().Before(deadline) {
+		for _, warning := range keys.Warnings(ctx) {
+			if warning.Code == sealing.KeyMissingCode && warning.Params["key"] == keyID &&
+				warning.Params["store"] == sealingrepo.StoreIdentityProvider {
+				named = warning.Params
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if named == nil || named["count"] != "3" || named["counted_at"] == "" {
+		t.Errorf("the health report does not name the missing key's sign-in provider secrets: %v", named)
 	}
 }

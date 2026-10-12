@@ -1344,6 +1344,8 @@
   "crypto.password_hash_unreadable": "The stored password hash could not be read. This is a defect in the installation, not in the request.",
   "crypto.no_encryption_key": "This installation has no encryption key configured, so it cannot store that securely. Set HUBTASK_ENCRYPTION_KEYS.",
   "crypto.unknown_key": "This installation no longer holds the key {key_id} that value was encrypted with.",
+  "crypto.key_missing": "The key {key} is no longer in HUBTASK_ENCRYPTION_KEYS, and {count, plural, one {# stored value} other {# stored values}} of this kind still need it: {store, select, account_mfa {second factors} identity_provider {sign-in provider secrets} webhook_subscription {webhook signing secrets} backup_target {backup target credentials} ai_provider {AI provider keys} automation_rule {rule header secrets} other {stored secrets}}. They cannot be opened until the key is put back and re-sealed. Counted at {counted_at}.",
+  "crypto.key_census_unchecked": "Which keys the stored secrets still need has not been counted yet, or the last count failed. {counted_at, select, none {} other {The last count was taken at {counted_at}.}}",
   "crypto.not_authentic": "That value could not be decrypted. Either the key is not the one it was encrypted with, or the value has been altered.",
   "crypto.value_too_large": "That value is too large to be stored securely (the limit is {limit_bytes} bytes).",
   "crypto.ciphertext_malformed": "That value is not in a form this installation can read.",
