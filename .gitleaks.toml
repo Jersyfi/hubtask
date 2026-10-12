@@ -43,4 +43,9 @@ regexes = [
   # random-looking literal until the fixture was changed to one that reads as a placeholder; the
   # scan reads the history, so the entry stays for as long as the commit does.
   '''kq7m-xr2p-4wna-c9ht''',
+  # Two emergency accesses' row identifiers (UUIDv7) the PH-05 walk logged in
+  # docs/evidence/PH-05-2026-10-12/walk.log after the word "access": walk ids, not secrets. The
+  # log now says "row stored"; the scan reads the history, so the entries stay with the commit.
+  '''01a13153-c36a-74c0-851e-52cb66bcc153''',
+  '''01a13153-d822-73a9-a355-8b7e3002d69c''',
 ]

@@ -89,7 +89,8 @@ func DeclarationOfSwitch(name PolicySwitch) (ValueDeclaration, bool) {
 		return count(0, ceiling(CeilingMinAgeHours)), true
 	case SwitchSessionMaxDays:
 		return count(1, ceiling(CeilingSessionMaxDays)), true
-	case SwitchCommonPasswords, SwitchContextWords, SwitchBreachCheck, SwitchManagedAccounts:
+	case SwitchCommonPasswords, SwitchContextWords, SwitchBreachCheck, SwitchManagedAccounts,
+		SwitchPrivateHubs:
 		return ValueDeclaration{Kind: KindFlag, May: MayTighten}, true
 	case SwitchMfaRequiredFor:
 		return ValueDeclaration{

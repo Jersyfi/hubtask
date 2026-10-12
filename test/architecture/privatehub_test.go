@@ -60,6 +60,8 @@ var privateHubExemptions = map[string]string{
 	"ListWebhookDeliveries":        ownSubscriptions,
 	"ListWebhookSubscriptions":     ownSubscriptions,
 	"ListPrivateHubs":              "ADR-0073 §3's list: owners and sizes, never a name or content",
+	"ListPrivateHubAccesses":       asksOnItsPath,
+	"ListEmergencyNotices":         "the caller's own notices of an emergency access: a hub's identifier and the words written to them, never its content",
 	"PollTriggerEvents":            filteredPoll,
 	"ReadAiProvider":               noHub,
 	"ReadAiSource":                 noHub,

@@ -40,6 +40,11 @@ export interface Workspace {
    * A workspace of one has nobody to keep a hub from (UC-ID-16 check 8).
    */
   readonly private_hubs_offered?: boolean;
+  /**
+   * Whether more than one person can act here: where private hubs, and the switch that allows
+   * them, mean anything at all (UC-ID-16 checks 7, 8).
+   */
+  readonly several_people?: boolean;
   /** The day this workspace's weeks start on for a member who chose none; absent where it decided none. */
   readonly default_week_start?: string | null;
   /** What the installation set as the default language, zone and week start - only what it decided. */

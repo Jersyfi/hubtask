@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, HUB, MANIFEST, OTHER, WORKSPACE, signedIn } from './fixture.mjs';
+import { ACCOUNT, EMERGENCY_ACCESS, HUB, MANIFEST, OTHER, PRIVATE_HUBS, WORKSPACE, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -168,12 +168,13 @@ test('chromium: the administration lists the private hubs - whose and how big, n
   assert.deepEqual(unstubbed(), []);
 });
 
-test('chromium: no private hub, or no right to the list, and the row is absent', async (t) => {
+test('chromium: no private hub in a workspace of one, or no right to the list, and the row is absent', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   for (const answer of [{ json: [] }, { status: 403, json: { code: 'access.not_permitted' } }]) {
     const { page, failures, context } = await signedIn(browser, 1280, 900);
     await context.route('**/api/v1/private-hubs', (route) => route.fulfill(answer));
+    await context.route('**/api/v1/tenant', (route) => route.fulfill({ json: { ...WORKSPACE, several_people: false, private_hubs_offered: false } }));
     await page.goto(`${served.origin}/administration/workspace`);
     const nav = page.getByRole('navigation', { name: 'Administration', exact: true });
     await nav.getByRole('treeitem', { name: 'Limits', exact: true }).waitFor({ timeout: 10_000 });
@@ -182,4 +183,105 @@ test('chromium: no private hub, or no right to the list, and the row is absent',
     assert.deepEqual(failures, []);
     await context.close();
   }
+});
+
+/** The rule as `/tenant` answers it, with *Private hubs allowed* as a level above left it. */
+function withSwitch(setting) {
+  return { ...WORKSPACE, sign_in_policy: { private_hubs: { value: true, installation: true, lock: null, source: 'DEFAULT', installation_source: 'DEFAULT', ...setting } } };
+}
+
+test('chromium: with several people and no private hub the page stays, with *Private hubs allowed* on it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  await context.route('**/api/v1/private-hubs', (route) => route.fulfill({ json: [] }));
+  let patched;
+  await context.route('**/api/v1/tenant', (route) => {
+    // The server answers what it stored, on the write and on every read after it.
+    if (route.request().method() === 'PATCH') patched = route.request().postDataJSON();
+    return route.fulfill({ json: withSwitch(patched ? { value: false, source: 'WORKSPACE' } : {}) });
+  });
+
+  await page.goto(`${served.origin}/administration/workspace`);
+  const nav = page.getByRole('navigation', { name: 'Administration', exact: true });
+  await nav.getByRole('treeitem', { name: 'Private hubs', exact: true }).click();
+  const toggle = page.getByRole('switch', { name: 'People here may make private hubs' });
+  await toggle.waitFor({ timeout: 10_000 });
+  assert.equal(await toggle.isChecked(), true);
+  await page.getByText("Hubtask's default.").waitFor();
+  await toggle.uncheck();
+  await page.getByText('Set here.').waitFor({ timeout: 10_000 });
+  assert.deepEqual(patched, { sign_in_policy: { private_hubs: false } });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: an installation lock shows the switch with who set it, and offers nothing', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  await context.route('**/api/v1/tenant', (route) => route.fulfill({ json: withSwitch({ value: false, installation: false, lock: 'INSTANCE', source: 'INSTANCE', installation_source: 'INSTANCE' }) }));
+
+  await page.goto(`${served.origin}/administration/private-hubs`);
+  const toggle = page.getByRole('switch', { name: 'People here may make private hubs' });
+  await toggle.waitFor({ timeout: 10_000 });
+  assert.equal(await toggle.isChecked(), false);
+  assert.equal(await toggle.isDisabled(), true);
+  assert.ok((await page.textContent('[data-private-hubs-allowed]')).includes('Set by the installation for every workspace.'));
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the owner opens a private hub in an emergency - the reason, then the hub', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  let sent;
+  await context.route(`**/api/v1/private-hubs/${PRIVATE_HUBS[0].id}/accesses`, (route) => {
+    if (route.request().method() === 'POST') {
+      sent = route.request().postDataJSON();
+      return route.fulfill({ status: 201, json: { ...EMERGENCY_ACCESS, reason: sent.reason } });
+    }
+    return route.fulfill({ json: [EMERGENCY_ACCESS] });
+  });
+
+  await page.goto(`${served.origin}/administration/private-hubs`);
+  const table = page.getByRole('table', { name: 'Private hubs' });
+  await table.waitFor({ timeout: 10_000 });
+  await table.getByRole('button', { name: 'Open in an emergency' }).first().click();
+  const dialog = page.locator('dialog[open]');
+  await dialog.waitFor({ timeout: 10_000 });
+  assert.ok((await dialog.textContent()).includes('Every member of the hub is told at once'));
+  await dialog.getByRole('textbox', { name: 'Reason' }).fill(EMERGENCY_ACCESS.reason);
+  await dialog.getByRole('button', { name: 'Open for one hour' }).click();
+  await page.waitForURL(`**/hubs/${PRIVATE_HUBS[0].id}`, { timeout: 10_000 });
+  assert.deepEqual(sent, { reason: EMERGENCY_ACCESS.reason });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: a member is told in the frame and on the hub, whatever their mail did', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  const access = { ...EMERGENCY_ACCESS, hub_id: HUB.id, opened_by: OTHER.id, opened_at: new Date(Date.now() - 3_600_000).toISOString(), ends_at: new Date(Date.now() - 60_000).toISOString() };
+  await context.route('**/api/v1/accounts/me/emergency-notices', (route) => route.fulfill({ json: [access] }));
+  await context.route(`**/api/v1/private-hubs/${HUB.id}/accesses`, (route) => route.fulfill({ json: [access] }));
+  await context.route(`**/api/v1/containers/${HUB.id}`, (route) => route.fulfill({ json: { ...HUB, private: true } }));
+  await context.route('**/api/v1/containers?*', (route) => {
+    const url = new URL(route.request().url());
+    return url.searchParams.get('type') === 'HUB' ? route.fulfill({ json: { data: [{ ...HUB, private: true }], page: { next_cursor: null, has_more: false } } }) : route.fallback();
+  });
+
+  await page.goto(`${served.origin}/`);
+  const frame = page.locator('[data-emergency-notice="frame"]');
+  await frame.waitFor({ timeout: 10_000 });
+  assert.ok((await frame.textContent()).includes(access.reason));
+  await frame.getByRole('link', { name: 'Open the hub' }).click();
+  await page.waitForURL(`**/hubs/${HUB.id}`, { timeout: 10_000 });
+  const onHub = page.locator('[data-emergency-notice="member"]');
+  await onHub.waitFor({ timeout: 10_000 });
+  assert.ok((await onHub.textContent()).includes(OTHER.display_name));
+  assert.deepEqual(failures, []);
 });

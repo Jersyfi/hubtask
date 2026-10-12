@@ -70,14 +70,14 @@ type WorkspaceWriter struct {
 	// (ADR-0078 §3): the configuration readers - administrators, owners, the auditor - and nobody
 	// else. Nil withholds both from everybody, which is the safe direction.
 	Permits Permitter
-	// People decides private_hubs_offered: a workspace of one person has nobody to keep a hub
-	// from (UC-ID-16 check 8). Nil offers nothing.
+	// People decides several_people, and with the switch private_hubs_offered: a workspace of one
+	// person has nobody to keep a hub from (UC-ID-16 check 8). Nil offers nothing.
 	People repository.People
 }
 
-// privateHubsOffered is whether a client offers to make a hub private: private hubs are allowed -
-// always, until the workspace's setting exists - and more than one person can act here.
-func (w WorkspaceWriter) privateHubsOffered(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+// severalPeople is whether more than one person can act here: where private hubs, and the switch
+// that allows them, mean anything at all (UC-ID-16 check 8).
+func (w WorkspaceWriter) severalPeople(ctx context.Context, actor appshared.ActorContext) (bool, error) {
 	if w.People == nil {
 		return false, nil
 	}
@@ -90,16 +90,27 @@ func (w WorkspaceWriter) privateHubsOffered(ctx context.Context, actor appshared
 	return people > 1, err
 }
 
+// privateHubsAllowed is the switch in force (ADR-0073 §6). Without an instance layer to resolve
+// against, the product's default - on - is what holds.
+func privateHubsAllowed(resolved *ResolvedPolicy) bool {
+	if resolved == nil {
+		return domain.DefaultSignInPolicy().PrivateHubs
+	}
+	return resolved.Effective.Policy.PrivateHubs
+}
+
 // answer is the output both workspace use cases give.
 func (w WorkspaceWriter) answer(
 	ctx context.Context, actor appshared.ActorContext, standing domain.Workspace, hosts []domain.TenantHost,
 ) (usecase.Output, error) {
-	out := workspaceOutput(standing, w.resolvedPolicy(ctx, actor.TenantID), hosts)
-	offered, err := w.privateHubsOffered(ctx, actor)
+	resolved := w.resolvedPolicy(ctx, actor.TenantID)
+	out := workspaceOutput(standing, resolved, hosts)
+	several, err := w.severalPeople(ctx, actor)
 	if err != nil {
 		return nil, err
 	}
-	out["private_hubs_offered"] = offered
+	out["several_people"] = several
+	out["private_hubs_offered"] = several && privateHubsAllowed(resolved)
 	return out, nil
 }
 

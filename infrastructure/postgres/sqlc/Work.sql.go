@@ -257,6 +257,51 @@ func (q *Queries) CountOpenItemsByAssignee(ctx context.Context, accountIds []pgt
 	return items, nil
 }
 
+const emergencyNoticesFor = `-- name: EmergencyNoticesFor :many
+SELECT x.id, x.tenant_id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at
+FROM notification n
+JOIN private_hub_access x ON x.id = n.private_hub_access_id
+WHERE n.recipient_id = $1::uuid
+  AND n.category = 'EMERGENCY_ACCESS'
+  AND x.opened_at >= $2::timestamptz
+ORDER BY x.opened_at DESC, x.id DESC
+`
+
+type EmergencyNoticesForParams struct {
+	RecipientID pgtype.UUID
+	Since       pgtype.Timestamptz
+}
+
+// The emergency accesses a person was told of since a moment, from their own notification
+// records, whatever the mail did: what the web app shows a person without a mailbox (ADR-0073 §4).
+func (q *Queries) EmergencyNoticesFor(ctx context.Context, arg EmergencyNoticesForParams) ([]PrivateHubAccess, error) {
+	rows, err := q.db.Query(ctx, emergencyNoticesFor, arg.RecipientID, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PrivateHubAccess{}
+	for rows.Next() {
+		var i PrivateHubAccess
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.HubID,
+			&i.OpenedBy,
+			&i.Reason,
+			&i.OpenedAt,
+			&i.EndsAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findContainer = `-- name: FindContainer :one
 
 SELECT
@@ -351,6 +396,41 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 		&i.UpdatedAt,
 		&i.Version,
 		&i.Private,
+	)
+	return i, err
+}
+
+const findPrivateHubAccess = `-- name: FindPrivateHubAccess :one
+SELECT x.id, x.tenant_id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at, h.name AS hub_name
+FROM private_hub_access x
+JOIN container h ON h.id = x.hub_id
+WHERE x.id = $1::uuid
+`
+
+type FindPrivateHubAccessRow struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	HubID    pgtype.UUID
+	OpenedBy pgtype.UUID
+	Reason   string
+	OpenedAt pgtype.Timestamptz
+	EndsAt   pgtype.Timestamptz
+	HubName  string
+}
+
+// One emergency access with its hub's name: what the members' mail says at delivery.
+func (q *Queries) FindPrivateHubAccess(ctx context.Context, id pgtype.UUID) (FindPrivateHubAccessRow, error) {
+	row := q.db.QueryRow(ctx, findPrivateHubAccess, id)
+	var i FindPrivateHubAccessRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.HubID,
+		&i.OpenedBy,
+		&i.Reason,
+		&i.OpenedAt,
+		&i.EndsAt,
+		&i.HubName,
 	)
 	return i, err
 }
@@ -597,6 +677,42 @@ func (q *Queries) FindWorkItemByCalendarUID(ctx context.Context, calendarUid str
 	return i, err
 }
 
+const hubsOpenedFor = `-- name: HubsOpenedFor :many
+SELECT DISTINCT hub_id
+FROM private_hub_access
+WHERE opened_by = $1::uuid
+  AND hub_id = ANY($2::uuid[])
+  AND ends_at > $3::timestamptz
+`
+
+type HubsOpenedForParams struct {
+	AccountID pgtype.UUID
+	HubIds    []pgtype.UUID
+	Now       pgtype.Timestamptz
+}
+
+// Of the named hubs, those the account holds a running emergency access to: what the authoriser
+// asks once a private hub is on a path (identity.md §22).
+func (q *Queries) HubsOpenedFor(ctx context.Context, arg HubsOpenedForParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, hubsOpenedFor, arg.AccountID, arg.HubIds, arg.Now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var hub_id pgtype.UUID
+		if err := rows.Scan(&hub_id); err != nil {
+			return nil, err
+		}
+		items = append(items, hub_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertContainer = `-- name: InsertContainer :exec
 INSERT INTO container (
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
@@ -643,6 +759,36 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 		arg.CreatedBy,
 		arg.CreatedAt,
 		arg.Private,
+	)
+	return err
+}
+
+const insertPrivateHubAccess = `-- name: InsertPrivateHubAccess :exec
+INSERT INTO private_hub_access (id, tenant_id, hub_id, opened_by, reason, opened_at, ends_at)
+VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5, $6
+)
+`
+
+type InsertPrivateHubAccessParams struct {
+	ID       pgtype.UUID
+	HubID    pgtype.UUID
+	OpenedBy pgtype.UUID
+	Reason   string
+	OpenedAt pgtype.Timestamptz
+	EndsAt   pgtype.Timestamptz
+}
+
+// The workspace owner's emergency access to a private hub (ADR-0073 §4): who, why, and the hour.
+func (q *Queries) InsertPrivateHubAccess(ctx context.Context, arg InsertPrivateHubAccessParams) error {
+	_, err := q.db.Exec(ctx, insertPrivateHubAccess,
+		arg.ID,
+		arg.HubID,
+		arg.OpenedBy,
+		arg.Reason,
+		arg.OpenedAt,
+		arg.EndsAt,
 	)
 	return err
 }
@@ -1003,6 +1149,48 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Private,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPrivateHubAccesses = `-- name: ListPrivateHubAccesses :many
+SELECT id, tenant_id, hub_id, opened_by, reason, opened_at, ends_at
+FROM private_hub_access
+WHERE hub_id = $1::uuid
+ORDER BY opened_at DESC, id DESC
+LIMIT $2
+`
+
+type ListPrivateHubAccessesParams struct {
+	HubID    pgtype.UUID
+	PageSize int32
+}
+
+// Every emergency access to one hub, newest first: the members' record of who opened it and why.
+func (q *Queries) ListPrivateHubAccesses(ctx context.Context, arg ListPrivateHubAccessesParams) ([]PrivateHubAccess, error) {
+	rows, err := q.db.Query(ctx, listPrivateHubAccesses, arg.HubID, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PrivateHubAccess{}
+	for rows.Next() {
+		var i PrivateHubAccess
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.HubID,
+			&i.OpenedBy,
+			&i.Reason,
+			&i.OpenedAt,
+			&i.EndsAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1464,6 +1652,46 @@ func (q *Queries) OrphanedPrivateHubs(ctx context.Context, named []pgtype.UUID) 
 	return items, nil
 }
 
+const privateHubMembers = `-- name: PrivateHubMembers :many
+SELECT DISTINCT a.id
+FROM membership m
+JOIN account a ON a.id = m.account_id
+WHERE a.status <> 'ANONYMIZED' AND a.deleted_at IS NULL
+  AND (
+    (m.scope_type = 'HUB' AND m.scope_id = $1::uuid)
+    OR (m.scope_type = 'COLLECTION'
+        AND m.scope_id IN (SELECT c.id FROM container c WHERE c.parent_id = $1::uuid))
+    OR (m.scope_type = 'ITEM'
+        AND m.scope_id IN (
+          SELECT w.id FROM work_item w JOIN container c ON c.id = w.collection_id
+          WHERE c.parent_id = $1::uuid))
+  )
+ORDER BY a.id
+`
+
+// The members of a private hub as ADR-0073 §5 counts them: accounts, neither anonymised nor
+// deleted, holding a role on the hub, on a collection in it, or on an entry in one. Groups are not
+// asked - none may hold a role there (identity.md §22).
+func (q *Queries) PrivateHubMembers(ctx context.Context, hubID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, privateHubMembers, hubID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const privateHubsHeldBy = `-- name: PrivateHubsHeldBy :many
 SELECT DISTINCT h.id
 FROM membership m
@@ -1496,6 +1724,52 @@ func (q *Queries) PrivateHubsHeldBy(ctx context.Context, accountID pgtype.UUID) 
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const runningPrivateHubAccess = `-- name: RunningPrivateHubAccess :many
+SELECT id, tenant_id, hub_id, opened_by, reason, opened_at, ends_at
+FROM private_hub_access
+WHERE hub_id = $1::uuid
+  AND opened_by = $2::uuid
+  AND ends_at > $3::timestamptz
+ORDER BY opened_at DESC
+LIMIT 1
+`
+
+type RunningPrivateHubAccessParams struct {
+	HubID    pgtype.UUID
+	OpenedBy pgtype.UUID
+	Now      pgtype.Timestamptz
+}
+
+// The access this person opened on this hub that has not ended. At most one: a second is refused
+// while the first runs, under the hub's row (LockHubOf).
+func (q *Queries) RunningPrivateHubAccess(ctx context.Context, arg RunningPrivateHubAccessParams) ([]PrivateHubAccess, error) {
+	rows, err := q.db.Query(ctx, runningPrivateHubAccess, arg.HubID, arg.OpenedBy, arg.Now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PrivateHubAccess{}
+	for rows.Next() {
+		var i PrivateHubAccess
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.HubID,
+			&i.OpenedBy,
+			&i.Reason,
+			&i.OpenedAt,
+			&i.EndsAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

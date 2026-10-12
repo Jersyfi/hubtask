@@ -6,6 +6,8 @@ package work
 import (
 	"context"
 	"errors"
+	"slices"
+	"time"
 
 	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -17,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -41,6 +44,13 @@ type ListPrivateHubs struct {
 	Policies   lifecyclerepo.Policies
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
+	// Accesses, Owners and Clock answer each row's emergency access for the caller (ADR-0073
+	// §4): whether they may open the hub now, and until when theirs runs. Without them every row
+	// says it is not offered - the safe answer for a control that must not be drawn where the
+	// server would refuse it (P-05).
+	Accesses repository.EmergencyAccesses
+	Owners   Permitting
+	Clock    clock.Clock
 }
 
 // PrivateHubRow is one row of the answer.
@@ -48,6 +58,12 @@ type PrivateHubRow struct {
 	repository.PrivateHubSummary
 	// PurgeOn is the day a trashed hub goes for good, by the workspace's trash period.
 	PurgeOn string
+	// EmergencyOffered is whether the caller may open the hub through the emergency access now:
+	// the workspace's owner, a person, holding nothing in it, with no access of theirs running -
+	// the full condition OpenPrivateHub asks, so the control is absent wherever it would refuse.
+	EmergencyOffered bool
+	// OpenUntil is the end of the caller's running access, nil where none runs.
+	OpenUntil *time.Time
 }
 
 // Execute lists them.
@@ -63,14 +79,24 @@ func (h ListPrivateHubs) Execute(ctx context.Context, actor appshared.ActorConte
 		return nil, err
 	}
 
+	owner, err := h.callerOwns(ctx, actor)
+	if err != nil {
+		return nil, err
+	}
 	var (
-		hubs  []repository.PrivateHubSummary
-		grace = trashDays(lifecycle.Policy{})
+		hubs      []repository.PrivateHubSummary
+		grace     = trashDays(lifecycle.Policy{})
+		emergency = map[shared.ID]PrivateHubRow{}
 	)
-	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		if hubs, err = h.Hubs.ListPrivateHubs(ctx); err != nil {
 			return err
+		}
+		if owner {
+			if emergency, err = h.emergencyOf(ctx, actor, hubs); err != nil {
+				return err
+			}
 		}
 		policy, err := h.Policies.Find(ctx, lifecycle.KindTrash)
 		switch {
@@ -89,12 +115,52 @@ func (h ListPrivateHubs) Execute(ctx context.Context, actor appshared.ActorConte
 	rows := make([]PrivateHubRow, 0, len(hubs))
 	for _, hub := range hubs {
 		row := PrivateHubRow{PrivateHubSummary: hub}
+		row.EmergencyOffered = emergency[hub.ID].EmergencyOffered
+		row.OpenUntil = emergency[hub.ID].OpenUntil
 		if hub.TrashedAt != nil {
 			row.PurgeOn = hub.TrashedAt.UTC().AddDate(0, 0, grace).Format("2006-01-02")
 		}
 		rows = append(rows, row)
 	}
 	return rows, nil
+}
+
+// callerOwns is whether the caller is the workspace's owner, as a person - the one who may open a
+// private hub. Asked without a trail entry: nobody tried anything.
+func (h ListPrivateHubs) callerOwns(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	if h.Owners == nil || h.Accesses == nil || h.Clock == nil || actor.Kind != appshared.ActorUser {
+		return false, nil
+	}
+	return h.Owners.Permits(ctx, actor, access.Request{
+		Permission: service.PermissionDeleteContainer,
+		Path:       []identity.Scope{identity.TenantScope()},
+		TokenScope: containersWrite,
+	})
+}
+
+// emergencyOf answers, per hub, whether the owner may open it now and until when theirs runs.
+func (h ListPrivateHubs) emergencyOf(
+	ctx context.Context, actor appshared.ActorContext, hubs []repository.PrivateHubSummary,
+) (map[shared.ID]PrivateHubRow, error) {
+	now := h.Clock.Now()
+	out := make(map[shared.ID]PrivateHubRow, len(hubs))
+	for _, hub := range hubs {
+		members, err := h.Accesses.Members(ctx, hub.ID)
+		if err != nil {
+			return nil, err
+		}
+		running, open, err := h.Accesses.Running(ctx, hub.ID, actor.AccountID, now)
+		if err != nil {
+			return nil, err
+		}
+		row := PrivateHubRow{EmergencyOffered: !open && !slices.Contains(members, actor.AccountID)}
+		if open {
+			ends := running.EndsAt
+			row.OpenUntil = &ends
+		}
+		out[hub.ID] = row
+	}
+	return out, nil
 }
 
 // trashDays is the trash's period: the workspace's own, or the default it starts with
@@ -150,6 +216,9 @@ func (h ListPrivateHubs) invoke(
 			"created_at":       row.CreatedAt,
 			"trashed_at":       timeOrNil(row.TrashedAt),
 			"purge_on":         nil,
+			"emergency_access": usecase.Output{
+				"offered": row.EmergencyOffered, "open_until": timeOrNil(row.OpenUntil),
+			},
 		}
 		if row.PurgeOn != "" {
 			out["purge_on"] = row.PurgeOn

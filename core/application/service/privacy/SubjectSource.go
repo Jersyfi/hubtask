@@ -49,6 +49,8 @@ var subjectColumns = map[string][]string{
 	"jumble_entry":    {"created_by"},
 	"automation_rule": {"created_by", "run_as"},
 	"legal_hold":      {"placed_by", "released_by"},
+	// The emergency accesses they opened, with the reason they wrote (ADR-0073 §4).
+	"private_hub_access": {"opened_by"},
 	// The trail's own entries about them. An access request that left these out would be
 	// incomplete: they are personal data, and they are the record of what was done with the
 	// person's data.

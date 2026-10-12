@@ -129,7 +129,8 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 		}
 	}
 
-	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.scopePath())
+	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.scopePath(),
+		opensFor(actor, actor.AccountID))
 	if err != nil {
 		// Not a refusal: nobody was denied anything, the question could not be answered. Reporting
 		// it as forbidden would send a client off to fix a permission that is not the problem.
@@ -179,7 +180,8 @@ func (s Service) Permits(
 		return false, nil
 	}
 
-	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.scopePath())
+	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.scopePath(),
+		opensFor(actor, actor.AccountID))
 	if err != nil {
 		// Not "may not": nobody was refused anything, the question could not be answered. A caller
 		// that read this as a refusal would silently shorten a stream on a database blip.
@@ -225,7 +227,8 @@ func (s Service) ReachInto(
 		}
 	}
 
-	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.Path)
+	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.Path,
+		opensFor(actor, actor.AccountID))
 	if err != nil {
 		return Reach{}, err
 	}
@@ -362,7 +365,7 @@ func (s Service) Permitted(
 		return nil, nil
 	}
 
-	memberships, answers, err := s.held(ctx, actor.PersistenceScope(), actor.AccountID, paths)
+	memberships, answers, err := s.held(ctx, actor.PersistenceScope(), actor.AccountID, paths, opensFor(actor, actor.AccountID))
 	if err != nil {
 		// Not a refusal: nobody was denied anything, the question could not be answered.
 		return nil, err
@@ -404,7 +407,7 @@ func (s Service) CanSee(
 		return false, nil
 	}
 
-	memberships, completed, err := s.heldAlong(ctx, actor.PersistenceScope(), accountID, path)
+	memberships, completed, err := s.heldAlong(ctx, actor.PersistenceScope(), accountID, path, opensFor(actor, accountID))
 	if err != nil {
 		// Not an answer of "no": the question could not be asked. Reporting it as a refusal would
 		// send a client off to grant a permission that is not the problem.
@@ -442,7 +445,7 @@ func (s Service) RoleOf(
 	if accountID.IsZero() {
 		return "", false, nil
 	}
-	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), accountID, path)
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), accountID, path, opensFor(actor, accountID))
 	if err != nil {
 		return "", false, err
 	}

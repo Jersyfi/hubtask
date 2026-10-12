@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -22,6 +23,11 @@ import (
 type privateRoles struct {
 	heldRoles
 	private map[shared.ID]bool
+}
+
+// HubsOpenedFor: no emergency access is running here.
+func (m *privateRoles) HubsOpenedFor(context.Context, shared.ID, []shared.ID, time.Time) ([]shared.ID, error) {
+	return nil, nil
 }
 
 func (m *privateRoles) HubsOf(_ context.Context, ids []shared.ID) (map[shared.ID]identityrepository.Hub, error) {
@@ -64,11 +70,13 @@ type privacyHarness struct {
 	registry *usecase.Registry
 	locks    *lockedHubs
 	revoker  *privacyRevoker
+	rule     *privateHubsSwitch
 }
 
 func newPrivacyHarness(private bool, held ...identity.Membership) *privacyHarness {
 	h := &privacyHarness{
 		containerHarness: newContainerHarness(), locks: &lockedHubs{}, revoker: &privacyRevoker{},
+		rule: &privateHubsSwitch{},
 	}
 	hub := h.withHub(hubID, "Presents")
 	hub.Private = private
@@ -80,7 +88,7 @@ func newPrivacyHarness(private bool, held ...identity.Membership) *privacyHarnes
 		Memberships: roles, UnitOfWork: h.uow, Audit: h.audit, Clock: clock.Fixed(now),
 	}
 	registry, err := usecase.NewRegistry(nil, SetHubPrivacy{
-		Writer: h.writer, Hubs: h.locks, Revocations: h.revoker,
+		Writer: h.writer, Hubs: h.locks, Revocations: h.revoker, PrivateHubs: h.rule,
 	}.Descriptor())
 	if err != nil {
 		panic(err)

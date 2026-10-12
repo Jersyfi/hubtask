@@ -43,6 +43,7 @@ func privacyRegistry(ctx context.Context, t *testing.T) *usecase.Registry {
 		},
 		Hubs:        postgres.NewHubLockRepository(),
 		Revocations: revocationsFor(t, authoriser),
+		PrivateHubs: privateHubsRule(unitOfWork),
 	}.Descriptor())
 	if err != nil {
 		t.Fatalf("building the catalogue: %v", err)
