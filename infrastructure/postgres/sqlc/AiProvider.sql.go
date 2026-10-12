@@ -42,6 +42,7 @@ SELECT kind, base_url, completion_model, embedding_model,
        (api_key_enc IS NOT NULL)::boolean AS has_api_key,
        jurisdiction, processing_allowed, created_at, updated_at, version
 FROM ai_provider
+WHERE tenant_id = current_tenant_id()
 `
 
 type FindAiProviderRow struct {

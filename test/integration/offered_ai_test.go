@@ -299,3 +299,28 @@ func TestARestoreKeepsTheNarrowingAndNotTheChoice(t *testing.T) {
 		return nil
 	})
 }
+
+// Found by the walk: a workspace with no model of its own read the installation's offered model as
+// its own - address, models and all. Every read of a workspace's own provider names its workspace
+// (UC-AI-05 check 3).
+func TestAWorkspaceWithoutItsOwnModelReadsNoneWhileOneIsOffered(t *testing.T) {
+	ctx := context.Background()
+	seedOfferedRepoTenants(ctx, t)
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	now := time.Now().UTC()
+	inSystem(ctx, t, uow, func(ctx context.Context) error {
+		_, err := postgres.NewOfferedAiRepository().Insert(ctx, offeredModel(t, "Read-path model", now), nil, now)
+		return err
+	})
+
+	inTenant(t, uow, offeredRepoTenantB, func(ctx context.Context) error {
+		providers := postgres.NewAiProviderRepository()
+		if found, err := providers.Find(ctx); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the workspace read %+v (%v) as its own provider", found, err)
+		}
+		if found, _, err := providers.FindWithKey(ctx); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the adapter read %+v (%v) as the workspace's own provider", found, err)
+		}
+		return nil
+	})
+}

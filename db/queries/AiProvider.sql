@@ -67,7 +67,8 @@ RETURNING kind, base_url, completion_model, embedding_model,
 SELECT kind, base_url, completion_model, embedding_model,
        (api_key_enc IS NOT NULL)::boolean AS has_api_key,
        jurisdiction, processing_allowed, created_at, updated_at, version
-FROM ai_provider;
+FROM ai_provider
+WHERE tenant_id = current_tenant_id();
 
 -- name: FindAiProviderKey :one
 -- The adapter's own read, separate from the one above so that opening the envelope is a
