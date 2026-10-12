@@ -22,32 +22,13 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-const STATUS = {
-  active_key_id: 'k2',
-  keys: [
-    { key_id: 'k2', active: true, in_ring: true, sealed_values: 12, stores: [
-      { store: 'webhook_subscription', sealed_values: 10 }, { store: 'ai_provider', sealed_values: 2 },
-    ] },
-    { key_id: 'k1', active: false, in_ring: true, sealed_values: 0, stores: [] },
-    { key_id: 'gone', active: false, in_ring: false, sealed_values: 3, stores: [
-      { store: 'identity_provider', sealed_values: 1 }, { store: 'webhook_subscription', sealed_values: 2 },
-    ] },
-  ],
-};
-
 test('chromium: a key the ring lost names the kinds it would leave unreadable', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
-  await context.route('**/api/v1/**', async (route) => {
-    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
-    if (path === '/auth/sessions:elevate') {
-      return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
-    }
-    if (path === '/admin/encryption') return route.fulfill({ json: STATUS });
-    return stub(route);
-  });
+  // The fixture's keyring: k0 is out of the ring while three values still name it.
+  await context.route('**/api/v1/**', (route) => stub(route));
   await context.addInitScript(() => {
     sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
@@ -58,8 +39,8 @@ test('chromium: a key the ring lost names the kinds it would leave unreadable', 
   const banner = page.getByText('A key is missing and values still name it');
   await banner.waitFor({ timeout: 15_000 });
   const body = await page.locator('main').textContent() ?? '';
-  assert.match(body, /Still sealed under gone: 1 sign-in provider secret\./);
-  assert.match(body, /Still sealed under gone: 2 webhook signing secrets\./);
+  assert.match(body, /Still sealed under k0: 1 sign-in provider secret\./);
+  assert.match(body, /Still sealed under k0: 2 webhook signing secrets\./);
   // A key the ring holds is not a stranded one, and the contract's store names never show.
   assert.doesNotMatch(body, /Still sealed under k2/);
   assert.doesNotMatch(body, /identity_provider|webhook_subscription/);

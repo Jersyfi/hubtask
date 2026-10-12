@@ -1,0 +1,39 @@
+## 1. Ring k1, two workspaces, an offered model with a key, the company's own model with a key
+KEY   STATE    SEALED VALUES   BY KIND
+k1    active   2               ai_provider=2
+
+## 2. The new key in front: HUBTASK_ENCRYPTION_KEYS=k2,k1, restart
+up with ring k2,k1
+KEY   STATE         SEALED VALUES   BY KIND
+k2    active        0               
+k1    predecessor   2               ai_provider=2
+
+## 3. hubctl admin encryption reseal
+re-sealing queued for 2 workspace(s) under key k2; watch `hubctl admin encryption show` until every other key counts zero
+ACTIVE KEY   QUEUED WORKSPACES
+k2           2
+
+## 4. The census after the rounds ran
+KEY   STATE         SEALED VALUES   BY KIND
+k2    active        2               ai_provider=2
+k1    predecessor   0               
+
+journal: instance.secrets_resealed {"skipped": 0, "rewrapped": 1, "active_key_id": "k2"}
+job: 01a130c4-8c29-7410-95f2-26db571be2a2 SUCCEEDED
+job: 01a130cb-f406-7ce4-a583-945bbac39cea SUCCEEDED
+job: installation SUCCEEDED
+
+## 5. The current key removed while values still name it: HUBTASK_ENCRYPTION_KEYS=k1, restart
+up with ring k1
+KEY   STATE         SEALED VALUES   BY KIND
+k1    active        0               
+k2    NOT IN RING   2               ai_provider=2
+
+## 6. The operator's health report, its warnings
+crypto.key_missing warn {"count": "2", "counted_at": "2026-10-12T15:49:21Z", "key": "k2", "store": "ai_provider"}
+
+## 7. The ring put back: HUBTASK_ENCRYPTION_KEYS=k2,k1
+up with ring k2,k1
+KEY   STATE         SEALED VALUES   BY KIND
+k2    active        2               ai_provider=2
+k1    predecessor   0               

@@ -134,6 +134,24 @@ export const OFFERED_AI = [
  */
 export const AI_SOURCE = { source: 'OWN', sources: 'OWN', installation_sources: 'OWN', sources_origin: 'DEFAULT', min_jurisdiction: 'ANY', min_jurisdiction_origin: 'DEFAULT', offered: [], search_rebuilding: false, version: 0 };
 
+/**
+ * The keyring mid-rotation, as the operator reads it: the current key, a predecessor nothing names
+ * any more, and a key the ring no longer holds that a sign-in provider's secret and two webhook
+ * secrets still name - the census by kind, never by workspace.
+ */
+export const ENCRYPTION_STATUS = {
+  active_key_id: 'k2',
+  keys: [
+    { key_id: 'k2', active: true, in_ring: true, sealed_values: 12, stores: [
+      { store: 'ai_provider', sealed_values: 2 }, { store: 'webhook_subscription', sealed_values: 10 },
+    ] },
+    { key_id: 'k1', active: false, in_ring: true, sealed_values: 0, stores: [] },
+    { key_id: 'k0', active: false, in_ring: false, sealed_values: 3, stores: [
+      { store: 'identity_provider', sealed_values: 1 }, { store: 'webhook_subscription', sealed_values: 2 },
+    ] },
+  ],
+};
+
 export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
@@ -212,6 +230,7 @@ export function stub(route) {
   if (path.endsWith('/api/v1/admin/tenants') && request.method() === 'GET') return route.fulfill({ json: WORKSPACES });
   if (path.endsWith('/api/v1/admin/ai-providers') && request.method() === 'GET') return route.fulfill({ json: OFFERED_AI });
   if (path.endsWith('/api/v1/ai-source') && request.method() === 'GET') return route.fulfill({ json: AI_SOURCE });
+  if (path.endsWith('/api/v1/admin/encryption') && request.method() === 'GET') return route.fulfill({ json: ENCRYPTION_STATUS });
   // The operator's hour at the installation level, granted: a walk of those screens looks at them,
   // not at the door (ADR-0070 §4).
   if (path.endsWith('/api/v1/auth/sessions:elevate')) {
