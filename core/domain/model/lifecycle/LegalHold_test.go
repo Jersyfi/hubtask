@@ -308,8 +308,11 @@ func TestLiftingRecordsWhoAndWhyAndHappensOnce(t *testing.T) {
 		t.Fatalf("the second lifting was refused with %s", code)
 	}
 
+	// Lifting needs a reason as much as placing does, and is refused with the same code.
 	if _, err := hold.Release(otherAccountID, "  ", nil, releasedAt); err == nil {
 		t.Fatal("a hold was lifted with no reason")
+	} else if code := holdCode(t, err); code != lifecycle.CodeHoldReasonRequired {
+		t.Fatalf("a lifting without a reason was refused with %s", code)
 	}
 }
 

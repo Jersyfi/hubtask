@@ -399,6 +399,37 @@ func TestReadingHoldsIsTheAdministratorsLine(t *testing.T) {
 	if request.TokenScope != retentionRead {
 		t.Errorf("the listing asked for the scope %q", request.TokenScope)
 	}
+	// An auditor reads the list by the configuration right, without the structure one.
+	if request.Alternative != domainservice.PermissionReadConfiguration {
+		t.Errorf("the listing's alternative is %q", request.Alternative)
+	}
+}
+
+// Lifting a hold asks for the same right as placing one: the owner's, which no administrator and
+// no auditor holds.
+func TestLiftingAHoldAsksForTheOwnersRight(t *testing.T) {
+	h := newHoldsHarness()
+	service := h.service()
+
+	hold, err := (PlaceLegalHold{Holds: service}).
+		Execute(context.Background(), actor(), placeCommand(func(*PlaceLegalHoldCommand) {}))
+	if err != nil {
+		t.Fatalf("placing: %v", err)
+	}
+	if _, err := (ReleaseLegalHold{Holds: service}).
+		Execute(context.Background(), actor(), hold.ID, "The proceedings ended"); err != nil {
+		t.Fatalf("lifting: %v", err)
+	}
+	request := h.authorizer.requests[len(h.authorizer.requests)-1]
+	if request.Permission != domainservice.PermissionDeleteContainer {
+		t.Errorf("lifting asked for %q", request.Permission)
+	}
+	if request.Alternative != "" {
+		t.Errorf("lifting accepts %q instead", request.Alternative)
+	}
+	if request.Action != HoldReleasedAction {
+		t.Errorf("lifting is recorded as %q", request.Action)
+	}
 }
 
 // The registry refuses an input key none of the descriptors declares, one layer above every test

@@ -228,7 +228,7 @@ func (h ListLegalHolds) Execute(
 	if err := h.Holds.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionStructure,
 		// What is frozen and why is configuration, and reading it is an auditor's question -
-		// placing and lifting stay behind STRUCTURE alone (A-4).
+		// placing and lifting stay behind DELETE_CONTAINER, the owner's (A-4).
 		Alternative: service.PermissionReadConfiguration,
 		Path:        []identity.Scope{identity.TenantScope()},
 		Action:      HoldPlacedAction,
