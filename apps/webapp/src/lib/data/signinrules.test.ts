@@ -120,3 +120,14 @@ test('the count the live region announces is the number of lines still open', ()
   const lines = evaluate(rules(), 'a-long-enough-one', nobody, { violations: ['common'], isAnswered: true });
   assert.equal(unmetCount(lines), 1);
 });
+
+test('with no proof to check with, the server’s lines wait for the form to be sent', () => {
+  // The first start's setup: nothing exists that a check could present, so a line that said
+  // "checking" would wait forever.
+  const lines = evaluate(rules({ common_passwords: true }), 'seven blue lanterns above the harbour', nobody, {
+    isDeferred: true,
+  });
+  const remote = lines.filter((line) => line.isServerSide);
+  assert.ok(remote.length > 0, 'the rule has a server-side line');
+  assert.ok(remote.every((line) => line.state === 'server'), 'a deferred line reads as checked on sending');
+});

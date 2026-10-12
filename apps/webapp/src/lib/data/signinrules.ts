@@ -200,6 +200,8 @@ export function evaluate(
     readonly isAnswered?: boolean;
     readonly isChecking?: boolean;
     readonly isUnreachable?: boolean;
+    /** Whether the server's rules are judged only when the form is sent, with nothing asked before. */
+    readonly isDeferred?: boolean;
   } = {},
 ): RuleLine[] {
   const typed = normalise(password);
@@ -223,6 +225,7 @@ export function evaluate(
   const stateOfServerRule = (id: string): RuleState => {
     if (server.violations?.includes(id)) return 'failed';
     if (server.isUnreachable) return 'unchecked';
+    if (server.isDeferred) return 'server';
     if (server.isChecking) return 'checking';
     if (server.isAnswered) return 'met';
     return localHolds && typed !== '' ? 'checking' : 'server';

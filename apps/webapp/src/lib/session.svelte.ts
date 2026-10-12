@@ -29,7 +29,7 @@
  * every entry screen draws as though no type carried anything.
  */
 
-import { TransportError } from '@hubtask/sync-engine';
+import { TransportError, type InstallationSetUp } from '@hubtask/sync-engine';
 
 import { manifest } from './data/capabilities.svelte.ts';
 import { instance } from './data/instance.svelte.ts';
@@ -46,11 +46,13 @@ import { stepUp } from './data/stepup.svelte.ts';
 const SESSIONS = '/auth/sessions';
 const VERIFY = '/auth/sessions:verify';
 const REDEEM = '/auth/invitations:redeem';
+const SET_UP = '/auth/installation:set-up';
 /** The step a rotated or tightened policy routes a right password into (`PASSWORD_CHANGE`). */
 const SET_PASSWORD = '/auth/sessions:set-password';
 const LINK = '/auth/sessions:link';
 
 export type SessionStatus = 'signed-out' | 'verifying' | 'signed-in';
+
 
 /** The pair, as `SessionTokens` answers it. Narrowed to what this module uses. */
 interface SessionTokens {
@@ -339,6 +341,14 @@ class Session {
    */
   async redeem(token: string, password: string): Promise<boolean> {
     return this.#open(() => engine.mutate<SessionTokens>('POST', REDEEM, { token, password }));
+  }
+
+  /**
+   * Sets a fresh installation up with the code its first start printed (UC-INS-01), and keeps the
+   * pair the answer carries: the owner is signed in, as after a redemption.
+   */
+  async setUp(setup: InstallationSetUp): Promise<boolean> {
+    return this.#open(() => engine.mutate<SessionTokens>('POST', SET_UP, setup));
   }
 
   /**

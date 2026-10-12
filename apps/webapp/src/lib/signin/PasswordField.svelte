@@ -56,6 +56,7 @@
       isAnswered: signInRules.isAnswered(value),
       isChecking: signInRules.isChecking,
       isUnreachable: signInRules.isUnreachable,
+      isDeferred: proof.kind === 'none',
     }),
   );
 
