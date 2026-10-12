@@ -12,6 +12,7 @@ import (
 	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 )
@@ -455,5 +456,28 @@ func TestAStandbyEnsuresNoStreamPartitions(t *testing.T) {
 
 	if len(partitions.asked) != 0 {
 		t.Errorf("a standby ensured %v", partitions.asked)
+	}
+}
+
+type environmentOperators struct{ passes int }
+
+func (e *environmentOperators) Apply(context.Context) ([]env.OperatorEntry, error) {
+	e.passes++
+	return nil, nil
+}
+
+// HUBTASK_OPERATORS is applied again on the first tick of each minute, and on no other (UC-INS-02
+// check 4): the pace needs no state, so a new leader keeps it.
+func TestTheEnvironmentsOperatorsAreAppliedOncePerMinute(t *testing.T) {
+	operators := &environmentOperators{}
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())
+	leader.Operators = operators
+
+	minute := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
+	for _, due := range []time.Duration{3, 13, 23, 33, 43, 53, 63, 73} {
+		leader.tick(t.Context(), true, minute.Add(due*time.Second))
+	}
+	if operators.passes != 2 {
+		t.Errorf("%d passes over two minutes of ticks, want 2", operators.passes)
 	}
 }

@@ -201,6 +201,12 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		},
 	}
 
+	operators, err := parseOperators(get("HUBTASK_OPERATORS", ""), cfg.Tenancy)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.Operators = operators
+
 	roles, err := parseRoles(get("HUBTASK_ROLES", "api,worker,scheduler,automation"))
 	if err != nil {
 		return cfg, err
@@ -871,4 +877,38 @@ func getSecret(key string) (secret.Secret, error) {
 		return secret.New(strings.TrimSpace(string(b))), nil
 	}
 	return secret.New(os.Getenv(key)), nil
+}
+
+// parseOperators reads HUBTASK_OPERATORS: `workspace:address` entries separated by commas, the
+// short name first because it holds no colon and an address holds an @ of its own. In single mode
+// a bare address is accepted too and names the installation's one workspace. A malformed entry
+// stops the start: an operator the environment silently failed to name is an installation nobody
+// may be able to run.
+func parseOperators(raw string, tenancy env.TenancyMode) ([]env.OperatorEntry, error) {
+	var entries []env.OperatorEntry
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		workspace, email, named := strings.Cut(part, ":")
+		if !named {
+			workspace, email = "", part
+		}
+		workspace, email = strings.ToLower(strings.TrimSpace(workspace)), strings.TrimSpace(email)
+		valid := looksLikeAddress(email) && (named && workspace != "" || !named && tenancy != env.TenancyMulti)
+		if !valid {
+			return nil, configError("config.operators_invalid", "HUBTASK_OPERATORS").
+				WithParams(map[string]string{"variable": "HUBTASK_OPERATORS", "value": part})
+		}
+		entries = append(entries, env.OperatorEntry{Workspace: workspace, Email: email})
+	}
+	return entries, nil
+}
+
+// looksLikeAddress is the shape only - something before and after one @. The account it names is
+// found by the register's own door, which is where a wrong address shows.
+func looksLikeAddress(value string) bool {
+	local, domain, found := strings.Cut(value, "@")
+	return found && local != "" && domain != "" && !strings.ContainsAny(domain, "@ ")
 }

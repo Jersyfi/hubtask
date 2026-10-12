@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 )
 
@@ -72,4 +73,25 @@ func writeSetupBanner(
 	rule := strings.Repeat("=", 72)
 	_, _ = fmt.Fprintf(out, "\n%s\n\n  %s\n\n      %s\n\n  %s\n\n%s\n\n",
 		rule, sentence, issued.Code.Display(), render("setup.console_banner_renew", nil), rule)
+}
+
+// applyOperatorsFromEnvironment puts HUBTASK_OPERATORS into the register at start, under the
+// start's deadline. A failure does not stop the start: the scheduler applies the list again, and
+// the health report names what is still waiting.
+func applyOperatorsFromEnvironment(ctx context.Context, applying adminservice.OperatorsFromEnvironment) {
+	if len(applying.Entries) == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, firstStartTimeout)
+	defer cancel()
+	waiting, err := applying.Apply(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "the operators named in the environment could not be applied",
+			slog.String("error", err.Error()))
+		return
+	}
+	if len(waiting) > 0 {
+		slog.InfoContext(ctx, "operators named in the environment wait for their account",
+			slog.Int("count", len(waiting)))
+	}
 }

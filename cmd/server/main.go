@@ -1141,6 +1141,19 @@ func run() error {
 	// mint and the exercise - and both of those are wired above.
 	operators := postgres.NewOperatorRepository()
 
+	// HUBTASK_OPERATORS (UC-INS-02): applied below at start and again on the scheduler's ticks,
+	// and read by the health report for the entries still waiting for their account.
+	operatorsFromEnvironment := adminservice.OperatorsFromEnvironment{
+		Entries: cfg.Operators, Operators: operators, Single: operators,
+		Journal:    postgres.NewInstanceJournal(cursors),
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+	// Who runs the installation, in the health report, read live for each report (UC-INS-03
+	// check 4).
+	registry.AddWarningSource(adminservice.RegisterWarnings{
+		State: operators, Environment: operatorsFromEnvironment, UnitOfWork: unitOfWork,
+	}.Warnings)
+
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses
 	// while a file enforces them. The seeding write below uses the plain one deliberately — the
@@ -3076,6 +3089,13 @@ func run() error {
 		// The leader holds one connection of the background pool for as long as it leads, which is
 		// why that pool is never sized at one.
 		scheduler := worker.Scheduler{
+			// HUBTASK_OPERATORS again on the first tick of every minute, for the entries whose
+			// account has come to exist since (UC-INS-02 check 4).
+			Operators: func() adminservice.OperatorsFromEnvironment {
+				onBackground := operatorsFromEnvironment
+				onBackground.UnitOfWork = backgroundWork
+				return onBackground
+			}(),
 			Leadership:   postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
 			Queue:        jobs,
 			Backlog:      jobs,
@@ -3124,6 +3144,11 @@ func run() error {
 	}); err != nil {
 		return err
 	}
+
+	// The operators the environment names (UC-INS-02 check 4), before the first request: an
+	// installation brought up from a file has them from its first minute. A failure is logged and
+	// the scheduler tries again.
+	applyOperatorsFromEnvironment(ctx, operatorsFromEnvironment)
 
 	// The first start (UC-INS-01): a process that serves the API, on an installation with no
 	// workspace and nobody in its register, prints a one-time setup code. After the instance file,

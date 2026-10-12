@@ -327,3 +327,89 @@ func TestTheSetupMakesTheFirstWorkspaceAndItsOperatorInOneStep(t *testing.T) {
 		t.Errorf("a second setup answered %v", err)
 	}
 }
+
+// UC-INS-02 checks 4 and 5 and UC-INS-03 check 4 against the register's real doors: an entry whose
+// account exists is added and journalled, one whose account does not waits and is named in the
+// health report, a bare address finds the one workspace's account, the environment removes nobody,
+// and two workspaces with an empty register are reported with the command.
+func TestTheEnvironmentsOperatorsReachTheRealRegister(t *testing.T) {
+	ctx := context.Background()
+	admin, app := emptyInstallation(ctx, t, "hubtask_first_start_operators")
+	uow := postgres.NewUnitOfWork(app)
+	operators := postgres.NewOperatorRepository()
+	for _, statement := range []string{
+		`INSERT INTO tenant (id, slug, display_name) VALUES ('019364de-0000-7000-8000-00000005e761', 'acme', 'Acme')`,
+		`INSERT INTO account (id, tenant_id, kind, email, display_name, status) VALUES
+		   ('019364de-0000-7000-8000-00000005e771', '019364de-0000-7000-8000-00000005e761', 'USER', 'ada@acme.example', 'Ada', 'ACTIVE')`,
+	} {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+	ids := clockadapter.NewUUIDv7(clockadapter.System{})
+	applying := adminservice.OperatorsFromEnvironment{
+		Entries: []env.OperatorEntry{
+			{Workspace: "acme", Email: "ADA@acme.example"},
+			{Workspace: "acme", Email: "bob@acme.example"},
+		},
+		Operators: operators, Single: operators, Journal: postgres.NewInstanceJournal(pageCursors()),
+		UnitOfWork: uow, Clock: clockadapter.System{}, IDs: ids,
+	}
+
+	waiting, err := applying.Apply(ctx)
+	if err != nil {
+		t.Fatalf("applying: %v", err)
+	}
+	if len(waiting) != 1 || waiting[0].Email != "bob@acme.example" {
+		t.Errorf("waiting = %+v, want Bob", waiting)
+	}
+	var registered, journalled int
+	if err := admin.QueryRow(ctx, `SELECT
+		(SELECT count(*) FROM operator WHERE account_id = '019364de-0000-7000-8000-00000005e771'),
+		(SELECT count(*) FROM instance_event WHERE action = 'instance.operator_added' AND actor_label = 'HUBTASK_OPERATORS')`).
+		Scan(&registered, &journalled); err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if registered != 1 || journalled != 1 {
+		t.Errorf("registered %d, journalled %d; want 1, 1", registered, journalled)
+	}
+
+	// A bare address finds the one workspace's account.
+	var found shared.ID
+	if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		var err error
+		found, err = operators.ResolveSingle(ctx, "ada@acme.example")
+		return err
+	}); err != nil || found.String() != "019364de-0000-7000-8000-00000005e771" {
+		t.Errorf("a bare address found %q, %v", found, err)
+	}
+
+	// The health report names Bob; with a second workspace and the register emptied, it names the
+	// command too.
+	warnings := adminservice.RegisterWarnings{State: operators, Environment: applying, UnitOfWork: uow}
+	codes := map[string]string{}
+	for _, warning := range warnings.Warnings(ctx) {
+		codes[warning.Code] = warning.Params["entry"] + warning.Params["command"]
+	}
+	if codes["config.operator_pending"] != "acme:bob@acme.example" {
+		t.Errorf("warnings = %v", codes)
+	}
+	if _, named := codes["config.operator_register_empty"]; named {
+		t.Error("a register with an operator was reported empty")
+	}
+	for _, statement := range []string{
+		`DELETE FROM operator`,
+		`INSERT INTO tenant (id, slug, display_name) VALUES ('019364de-0000-7000-8000-00000005e762', 'bravo', 'Bravo')`,
+	} {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+	codes = map[string]string{}
+	for _, warning := range warnings.Warnings(ctx) {
+		codes[warning.Code] = warning.Params["command"]
+	}
+	if codes["config.operator_register_empty"] != adminservice.RestoreCommand {
+		t.Errorf("two workspaces and an empty register: %v", codes)
+	}
+}
