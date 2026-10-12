@@ -276,3 +276,27 @@ func TestTheAiAreaIsSetFromTheTerminal(t *testing.T) {
 		t.Errorf("ai.sources was sent as %v", sources)
 	}
 }
+
+// `ai.person_opt_out` is set the same way: an installation holds every workspace at "each person
+// may keep their content out" with `--locked` (UC-PRV-05 check 11).
+func TestThePersonOptOutIsLockedFromTheTerminal(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, wholeLevel)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "settings", "set", "--locked", "ai.person_opt_out", "OFFERED")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	ai, _ := sent["ai"].(map[string]any)
+	position, _ := ai["person_opt_out"].(map[string]any)
+	if position["value"] != "OFFERED" || position["locked"] != true {
+		t.Errorf("ai.person_opt_out was sent as %v", position)
+	}
+	if sources, _ := ai["sources"].(map[string]any); sources["value"] != "EITHER" {
+		t.Errorf("the rest of the area was not sent back: %v", ai)
+	}
+}

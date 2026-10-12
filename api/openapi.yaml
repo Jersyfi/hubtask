@@ -10673,7 +10673,11 @@ components:
             Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this
             installation offers), `OWN` (only the workspace's own, the default) or `EITHER`;
             `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a
-            workspace's own model must declare about where it processes content.
+            workspace's own model must declare about where it processes content;
+            `person_opt_out` is `OFFERED` only - each person may keep their own content out of
+            AI - and with `locked` it holds every workspace there. `NOT_OFFERED` is refused here
+            with `ai.opt_out_workspace_only`: only a workspace can make AI part of everybody's
+            work, because only it can name the legal basis.
 
             A workspace may narrow `sources` where it is not locked, and may always choose no AI:
             a lock holds a workspace out of a source, never in one. No value here switches

@@ -244,6 +244,10 @@ func aiValueOf(layer integration.AiLayer, name integration.AiSwitch) string {
 		if layer.MinJurisdiction != nil {
 			return string(*layer.MinJurisdiction)
 		}
+	case integration.AiSwitchPersonOptOut:
+		if layer.PersonOptOut != nil {
+			return string(*layer.PersonOptOut)
+		}
 	}
 	return ""
 }
@@ -296,6 +300,16 @@ func applyAiArea(level *identityrepo.InstanceLevel, raw any) error {
 					return refusedAiValue(name)
 				}
 				level.Ai.MinJurisdiction = &floor
+			}
+		case integration.AiSwitchPersonOptOut:
+			if isText {
+				// OFFERED or nothing: the installation cannot name the legal basis NOT_OFFERED
+				// needs, so it can hold a workspace at the opt-out and never take it away.
+				position := integration.AiPersonOptOut(text)
+				if err := position.SettableAbove(); err != nil {
+					return err
+				}
+				level.Ai.PersonOptOut = &position
 			}
 		default:
 			continue
