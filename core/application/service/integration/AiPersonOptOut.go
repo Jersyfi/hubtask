@@ -10,6 +10,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
+	privacydomain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -89,6 +90,13 @@ func (h SetAiPersonOptOut) Execute(
 		// write that moved it (ADR-0072 §6's discipline).
 		if before.Rule.PersonOptOut != state.Rule.PersonOptOut && w.Reindex != nil {
 			if err := w.Reindex.Reseed(ctx, actor.TenantID); err != nil {
+				return err
+			}
+		}
+		// Back to letting each person keep their content out: the standing objections take effect
+		// again in this transaction, their vectors with them.
+		if !before.Rule.OptOutOffered() && state.Rule.OptOutOffered() {
+			if err := h.forgetStanding(ctx); err != nil {
 				return err
 			}
 		}
@@ -174,4 +182,21 @@ func (h SetAiPersonOptOut) invoke(ctx context.Context, actor appshared.ActorCont
 		return nil, err
 	}
 	return AiSourceOutput(state), nil
+}
+
+func (h SetAiPersonOptOut) forgetStanding(ctx context.Context) error {
+	w := h.Writer
+	if w.Embeddings == nil || w.Rules.Consents == nil {
+		return nil
+	}
+	standing, err := w.Rules.Consents.Standing(ctx, privacydomain.PurposeAi)
+	if err != nil || len(standing) == 0 {
+		return err
+	}
+	creators := make([]shared.ID, 0, len(standing))
+	for _, objector := range standing {
+		creators = append(creators, objector.AccountID)
+	}
+	_, err = w.Embeddings.Forget(ctx, creators)
+	return err
 }

@@ -91,6 +91,15 @@ func (k KeptOut) ReasonOf(accountID shared.ID) KeptOutReason {
 	return k.people[accountID].Reason
 }
 
+// Accounts answers everybody kept out, in no particular order.
+func (k KeptOut) Accounts() []shared.ID {
+	accounts := make([]shared.ID, 0, len(k.people))
+	for id := range k.people {
+		accounts = append(accounts, id)
+	}
+	return accounts
+}
+
 // Empty reports that nobody is kept out.
 func (k KeptOut) Empty() bool { return len(k.people) == 0 }
 

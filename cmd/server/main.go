@@ -1068,7 +1068,7 @@ func run() error {
 	aiSourceWriter := integrationservice.AiSourceWriter{
 		Rules: aiRules, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, Reindex: embeddingSeeder,
-		Spaces: postgres.NewEmbeddingRepository(),
+		Spaces: postgres.NewEmbeddingRepository(), Embeddings: postgres.NewEmbeddingRepository(),
 	}
 
 	// The AI provider's resolver. A provider is per tenant (ai-first.md §2), so there is
@@ -1801,7 +1801,7 @@ func run() error {
 			// search rather than a failure.
 			Meaning: work.SearchMeaning{
 				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
-				UnitOfWork: unitOfWork,
+				UnitOfWork: unitOfWork, Kept: keptOut,
 			},
 		}.Descriptor(),
 		// The index brought current at an administrator's request: what the row's
@@ -1877,6 +1877,7 @@ func run() error {
 		privacyservice.WithdrawConsent{
 			Consents: privacyStore, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Reindex: embeddingSeeder,
+			Embeddings: postgres.NewEmbeddingRepository(),
 		}.Descriptor(),
 		privacyservice.ListConsents{
 			Consents: privacyStore, Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -3011,7 +3012,7 @@ func run() error {
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,
 				Semantic: postgres.NewSemanticSearchRepository(), UnitOfWork: unitOfWork,
-				Clock: clockadapter.System{},
+				Clock: clockadapter.System{}, Kept: keptOut,
 			},
 			// A quiet workspace pays one pass an hour for having the machinery; a busy one comes
 			// straight back while there is known work left. The retention sweep's two numbers, for

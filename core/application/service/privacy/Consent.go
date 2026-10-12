@@ -42,6 +42,13 @@ type Reindexer interface {
 	Reseed(ctx context.Context, tenantID shared.ID) error
 }
 
+// EmbeddingForgetter removes the vectors of what some people created: a person who keeps their
+// content out of AI has it out of search by meaning in the transaction that records it, not at the
+// next pass. Nil forgets nothing; the pass does it then.
+type EmbeddingForgetter interface {
+	Forget(ctx context.Context, creators []shared.ID) (int, error)
+}
+
 // WithdrawConsent takes back an agreement to an optional processing purpose.
 //
 // Self-service for one's own consent, and an administrator's act for somebody else's - which is
@@ -56,6 +63,7 @@ type WithdrawConsent struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Reindex    Reindexer
+	Embeddings EmbeddingForgetter
 }
 
 // WithdrawCommand is the input, typed.
@@ -112,6 +120,11 @@ func (h WithdrawConsent) Execute(
 		}
 		if err := reseedForAi(ctx, h.Reindex, actor.TenantID, withdrawal.Purpose); err != nil {
 			return err
+		}
+		if h.Embeddings != nil && withdrawal.Purpose == domain.PurposeAi {
+			if _, err := h.Embeddings.Forget(ctx, []shared.ID{subject}); err != nil {
+				return err
+			}
 		}
 
 		return h.Audit.Append(ctx, audit.Entry{

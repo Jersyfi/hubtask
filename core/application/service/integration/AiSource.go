@@ -158,6 +158,14 @@ type AiSourceWriter struct {
 	Reindex EmbeddingReseeder
 	// Spaces answers whether search by meaning is being rebuilt. Nil answers never.
 	Spaces workrepo.EmbeddingSpaces
+	// Embeddings forgets the vectors of the people whose objection takes effect again when the
+	// workspace goes back to letting each person keep their content out. Nil leaves it to the pass.
+	Embeddings EmbeddingForgetter
+}
+
+// EmbeddingForgetter removes the vectors of what some people created.
+type EmbeddingForgetter interface {
+	Forget(ctx context.Context, creators []shared.ID) (int, error)
 }
 
 // EmbeddingReseeder queues a re-embedding pass in the transaction's workspace.
