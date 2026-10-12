@@ -286,6 +286,22 @@ export type AiTranslateRequest = components['schemas']['AiTranslateRequest'];
 export type AiProviderConfiguration = components['schemas']['AiProviderConfiguration'];
 export type AiProviderKind = components['schemas']['AiProviderKind'];
 export type AiJurisdiction = components['schemas']['AiJurisdiction'];
+/**
+ * An AI model the installation offers every workspace, as the operator reads it: never the key,
+ * only whether one is held (ADR-0072 §1).
+ */
+export type OfferedAiModel = components['schemas']['OfferedAiModel'];
+export type OfferedAiModelConfiguration = components['schemas']['OfferedAiModelConfiguration'];
+/**
+ * Which AI answers a workspace: its own model, an offered one or none, with what the installation
+ * allows and who set it. An offered model is named with its processor and jurisdiction only.
+ */
+export type AiSource = components['schemas']['AiSource'];
+export type AiSourceChoice = components['schemas']['AiSourceChoice'];
+export type AiSourceKind = components['schemas']['AiSourceKind'];
+export type AiSources = components['schemas']['AiSources'];
+export type AiMinJurisdiction = components['schemas']['AiMinJurisdiction'];
+export type OfferedAiModelSummary = components['schemas']['OfferedAiModelSummary'];
 
 /**
  * A minted credential as it is listed afterwards. The token itself is not a member of it: it

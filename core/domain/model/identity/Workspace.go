@@ -55,6 +55,14 @@ type WorkspaceSettings struct {
 	// the installation's, taking it is the workspace's. A list of refusals would mean a provider
 	// the installation adds tomorrow is on everywhere tonight.
 	OfferedProviders []shared.ID
+	// AiSources is this workspace's own narrowing of which AI sources it may use (ADR-0072 §2),
+	// one of `ai.sources`' values, or empty where it narrowed nothing. A string rather than the
+	// integration package's type, which already depends on this one; the value is checked where
+	// it is written.
+	//
+	// Here, in the archived settings, and not beside the choice of source: a narrowing is an
+	// administrator's restriction, and a restore must never widen what the workspace allows.
+	AiSources string
 }
 
 // Offers reports whether this workspace switched on a provider the installation offers.

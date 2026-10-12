@@ -51,6 +51,10 @@ type settingsDocument struct {
 	// must not be on everywhere tonight. Omitted while empty, which is what a workspace that has
 	// taken none means.
 	OfferedProviders []string `json:"offered_providers,omitempty"`
+	// AiSources is the workspace's own narrowing of `ai.sources`, empty where it narrowed nothing.
+	// Written empty rather than omitted, `audit_anchor_target_id`'s reason: the write merges keys,
+	// and an omitted key would leave a cleared narrowing standing.
+	AiSources string `json:"ai_sources"`
 }
 
 // policyDocument is the stored patch, flat - the same shape the contract patches, so that the wire
@@ -202,6 +206,7 @@ func (WorkspaceSettingsRepository) Find(ctx context.Context) (identity.Workspace
 			RequireAdminTotp:    settings.RequireAdminTotp,
 			AuditAnchorTargetID: shared.ID(settings.AuditAnchorTargetID),
 			OfferedProviders:    offeredProvidersOf(settings.OfferedProviders),
+			AiSources:           settings.AiSources,
 			SignIn:              patch,
 			Legal:               links,
 		},
@@ -235,6 +240,7 @@ func (WorkspaceSettingsRepository) Update(
 		AuditAnchorTargetID: changed.Settings.AuditAnchorTargetID.String(),
 		SignInPolicy:        signInDocumentOf(changed.Settings.SignIn, changed.Settings.Legal),
 		OfferedProviders:    offered,
+		AiSources:           changed.Settings.AiSources,
 	})
 	if err != nil {
 		return false, shared.Internalf("postgres: encoding the workspace settings: %w", err)

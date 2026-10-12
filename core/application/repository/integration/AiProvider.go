@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
 )
 
@@ -48,4 +49,47 @@ type AiProviders interface {
 	// answers whether a row moved. The version deliberately does not rise: an operator rotating
 	// the installation's keys has not changed anybody's provider (ADR-0045).
 	RewrapKey(ctx context.Context, sealed crypto.Sealed, expectedKeyID string) (bool, error)
+}
+
+// OfferedAiProviders is the models the installation offers to every workspace (ADR-0072 §1).
+//
+// The reads run in any scope: the read policy admits these rows to every workspace, because the
+// adapter of a workspace that chose one needs it for the call. The writes succeed only in the
+// installation's own scope, where the installation_write policy admits them. What a workspace is
+// *answered* of an offered model is narrowed by the use case, never by this port.
+type OfferedAiProviders interface {
+	// List answers every offered model, without its key, ordered by name.
+	List(ctx context.Context) ([]integration.AiProvider, error)
+
+	// Find answers one, or an error wrapping shared.ErrNotFound with `ai.offered_model_unknown`.
+	Find(ctx context.Context, id shared.ID) (integration.AiProvider, error)
+
+	// FindWithKey answers one with its sealed key, for the adapter that makes the call.
+	FindWithKey(ctx context.Context, id shared.ID) (integration.AiProvider, *crypto.Sealed, error)
+
+	// Insert offers a new model. A nil `sealed` stores no key.
+	Insert(ctx context.Context, offered integration.AiProvider, sealed *crypto.Sealed, now time.Time) (integration.AiProvider, error)
+
+	// Update sets an offered model whole, replacing its key (nil clears it). Not found when there
+	// is no such offered model.
+	Update(ctx context.Context, offered integration.AiProvider, sealed *crypto.Sealed, now time.Time) (integration.AiProvider, error)
+
+	// UpdateKeepingKey is the same with the stored envelope left where it is.
+	UpdateKeepingKey(ctx context.Context, offered integration.AiProvider, now time.Time) (integration.AiProvider, error)
+
+	// Delete withdraws an offered model. Every workspace's choice of it then points at nothing.
+	// False is "there was none".
+	Delete(ctx context.Context, id shared.ID) (bool, error)
+}
+
+// AiChoices is the workspace's choice of AI source. No method takes a tenant: the workspace is the
+// row's key, under row level security.
+type AiChoices interface {
+	// Find answers the stored choice, or the default (the workspace's own model, version 0) where
+	// none was ever made - never not found, because "never chose" is a choice with a meaning. The
+	// default carries no workspace; the caller knows whose transaction it asked in.
+	Find(ctx context.Context) (integration.AiChoice, error)
+
+	// Save stores the choice whole and answers it as stored, with its version risen.
+	Save(ctx context.Context, choice integration.AiChoice) (integration.AiChoice, error)
 }

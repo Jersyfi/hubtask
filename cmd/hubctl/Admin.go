@@ -65,6 +65,12 @@ func adminGroup() group {
 				run:     adminProvider,
 			},
 			{
+				name:    "ai",
+				usage:   "ls|add|set|rm …",
+				summary: "the AI models this installation offers every workspace",
+				run:     adminAi,
+			},
+			{
 				name:    "encryption",
 				usage:   "show|reseal",
 				summary: "the master keyring's census, and the re-seal that lets a key retire",

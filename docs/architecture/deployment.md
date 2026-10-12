@@ -247,7 +247,7 @@ The variables whose default or behaviour a rule depends on:
 | Variable | Default | Rule |
 |---|---|---|
 | `HUBTASK_ROLES`, `HUBTASK_TENANCY_MODE` | all four roles, `single` | §2; `multi` is provider operation ([multi-tenancy.md](./multi-tenancy.md)) |
-| `HUBTASK_INSTANCE_FILE`, `_MODE` | — / `seed` | A file of installation settings ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)). `seed` writes it once, at first start; `enforce` writes it at every start, and the routes that would change those settings refuse. One source per mode, never two |
+| `HUBTASK_INSTANCE_FILE`, `_MODE` | — / `seed` | A file of installation settings ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)). `seed` writes it once, at first start; `enforce` writes it at every start, and the routes that would change those settings refuse. One source per mode, never two. Its `ai_models` list offers AI models to every workspace ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)), each key named by an environment variable (`api_key_env`) and never written in the file; `seed` offers them where none is offered, `enforce` makes the file the list |
 | `HUBTASK_BASE_URL` | — | Absolute URL of the installation; without it links in mails and feeds are wrong (warning) |
 | `HUBTASK_UI_ENABLED` | `true` | `false` answers `/` with 404 and leaves the API untouched; the `web_ui` feature in `/meta/capabilities` ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
 | `HUBTASK_METRICS_TENANT_LABEL`, `HUBTASK_TRACING_*` | `false`; tracing off, ratio `0.05` | [observability-reliability.md](./observability-reliability.md) §3.2, §3.3; an endpoint is required when tracing is on |

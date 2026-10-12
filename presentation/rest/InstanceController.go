@@ -75,6 +75,9 @@ func (c *RestController) WriteInstanceSettings(w http.ResponseWriter, r *http.Re
 	if body.Quotas != nil {
 		in["quotas"] = instanceSettingMap(*body.Quotas)
 	}
+	if body.Ai != nil {
+		in["ai"] = instanceSettingMap(*body.Ai)
+	}
 	if body.BlocklistFile != nil {
 		in["blocklist_file"] = *body.BlocklistFile
 	}
@@ -193,6 +196,9 @@ func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {
 	}
 	if quotas := instanceSettingsOf(out["quotas"]); quotas != nil {
 		answer.Quotas = &quotas
+	}
+	if ai := instanceSettingsOf(out["ai"]); ai != nil {
+		answer.Ai = &ai
 	}
 	if file := out.String("blocklist_file"); file != "" {
 		answer.BlocklistFile = &file
