@@ -49,6 +49,7 @@
   import { t } from '../i18n/i18n.svelte.ts';
   import { DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, primary } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
+  import { workspace } from '../data/workspace.svelte.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -105,6 +106,12 @@
     if (!session.isSignedIn || !isInAdministration) return;
     return untrack(() => privateHubs.open());
   });
+  // And the workspace, for whether it holds more than one person: there the row stays drawn with
+  // no private hub in it, because it is where *Private hubs allowed* is set (ADR-0073 §6).
+  $effect(() => {
+    if (!session.isSignedIn || !isInAdministration) return;
+    return untrack(() => workspace.open());
+  });
 
   // Whose list of recently opened entries this device is holding. The account's id is the key, so
   // it is adopted when the account arrives and dropped when it changes — two people sharing a
@@ -138,7 +145,8 @@
       ? {
           label: t('app.admin.nav'),
           groups: administration({
-            hasPrivateHubs: privateHubs.hasAny,
+            hasPrivateHubs: privateHubs.isReadable &&
+              (privateHubs.hasAny || workspace.workspace?.several_people === true),
             withInstallation: installationPlace({
               isInstanceReachable: manifest.isInstanceReachable,
               isAdministrationReachable: quotas.isReachable === true,

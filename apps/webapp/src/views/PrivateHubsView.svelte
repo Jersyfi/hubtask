@@ -15,6 +15,7 @@
 
   import { Banner, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
+  import PrivateHubsAllowed from '../lib/workspace/PrivateHubsAllowed.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { privateHubs } from '../lib/data/privatehubs.svelte.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
@@ -68,6 +69,8 @@
       expandLabel: t('app.admin.expand_trail'),
     }}
   />
+
+  <PrivateHubsAllowed />
 
   <Stack gap="300">
     <p class="quiet">{t('app.private_hubs.intro')}</p>

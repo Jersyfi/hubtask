@@ -28,9 +28,14 @@ class PrivateHubs {
     return this.#state.status === 'ready' ? this.#state.data : [];
   }
 
-  /** Whether the administration draws the row: read, and at least one there. */
+  /** Whether there is at least one. */
   get hasAny(): boolean {
     return this.hubs.length > 0;
+  }
+
+  /** Whether the reader may read the list at all: the server answered it rather than refused. */
+  get isReadable(): boolean {
+    return this.#state.status === 'ready';
   }
 
   /** Starts the read. **From `untrack`**, for the reason every other store records. */
