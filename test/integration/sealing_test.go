@@ -20,6 +20,7 @@ import (
 	identity "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -386,5 +387,52 @@ func TestTheCensusCountsOneTenantsValuesOnly(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// An installation provider's secret belongs to no workspace, and the read policy shows it to every
+// one of them. A workspace's census that counted it would count it once per workspace - an
+// installation of a hundred workspaces would report a hundred values under a key that seals one.
+func TestAWorkspacesCensusLeavesTheInstallationsProviderOut(t *testing.T) {
+	ctx := context.Background()
+	seedIdentityProviderTenants(ctx, t)
+	providers := postgres.NewIdentityProviderRepository()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	census := postgres.NewSealingRepository()
+	now := time.Now().UTC()
+	row := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fe5c")
+	const keyID = "census-installation-only"
+
+	offered, err := identity.NewIdentityProvider(identity.NewIdentityProviderInput{
+		ID: row, Issuer: "https://id.census.example", ClientID: "hubtask-census",
+		Provisioning: string(identity.ProvisionInvitedOnly), Enabled: true, Now: now,
+	})
+	if err != nil {
+		t.Fatalf("building the installation's provider: %v", err)
+	}
+	if err := uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		_, err := providers.Insert(ctx, offered, cryptoport.Sealed{KeyID: keyID, Ciphertext: []byte("x")})
+		return err
+	}); err != nil {
+		t.Fatalf("writing the installation's provider: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = uow.Within(context.Background(), persistence.SystemScope(), func(ctx context.Context) error {
+			_, err := providers.Delete(ctx, row, now)
+			return err
+		})
+	})
+
+	for _, tenant := range []shared.ID{idpTenantA, idpTenantB} {
+		inTenant(t, uow, tenant, func(ctx context.Context) error {
+			counts, err := census.CountByKey(ctx)
+			if err != nil {
+				t.Fatalf("%s's census: %v", tenant, err)
+			}
+			if counts[keyID] != 0 {
+				t.Errorf("%s counted the installation's provider secret as its own: %d", tenant, counts[keyID])
+			}
+			return nil
+		})
 	}
 }

@@ -17,7 +17,7 @@ FROM (
   UNION ALL
   SELECT replacement_secret_key_id FROM account_mfa WHERE replacement_secret_key_id IS NOT NULL
   UNION ALL
-  SELECT client_secret_key_id FROM identity_provider
+  SELECT client_secret_key_id FROM identity_provider WHERE tenant_id = current_tenant_id()
   UNION ALL
   SELECT secret_key_id FROM webhook_subscription WHERE secret_key_id IS NOT NULL
   UNION ALL
@@ -51,6 +51,9 @@ type CountSealedValuesByKeyRow struct {
 //
 // Per tenant, like everything else: row level security bounds every branch of the union to the
 // transaction's workspace, and the control plane sums the answers over the tenants it may see.
+// The two stores whose read policy also admits the installation's rows name the workspace
+// explicitly: those rows are visible to every workspace and belong to none, so counting them here
+// would count each once per workspace.
 func (q *Queries) CountSealedValuesByKey(ctx context.Context) ([]CountSealedValuesByKeyRow, error) {
 	rows, err := q.db.Query(ctx, countSealedValuesByKey)
 	if err != nil {
