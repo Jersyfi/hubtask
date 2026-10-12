@@ -16157,7 +16157,8 @@ components:
             learns about one feature. Both are answered for the caller's workspace rather than for
             the installation, because an AI provider is configured per workspace; an anonymous
             caller, who can neither search nor ask, reads `false`
-            for both. `semantic_search` needs the store *and* a provider that embeds: a database
+            for both, and so does a person who keeps their own content out of AI - no AI action
+            is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database
             carrying pgvector with nobody to produce vectors searches lexically, which is complete
             but is not the feature.
 

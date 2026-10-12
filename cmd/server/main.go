@@ -2264,6 +2264,8 @@ func run() error {
 			// honest one: a workspace that has spent the day's tokens is a workspace whose next
 			// suggestion will be refused.
 			Providers: budgetedAi,
+			// And per caller: a person who keeps their own content out is offered no AI action.
+			Kept: keptOut,
 			// The four links the installation is obliged to show, through the one resolver that
 			// knows the levels. The same object `/auth/sign-in-rules` reads, so a footer
 			// inside the application and the signed-out card cannot disagree.
