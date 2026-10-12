@@ -67,6 +67,18 @@ func (q *Queries) DeleteInstanceSettingsExcept(ctx context.Context, arg DeleteIn
 	return err
 }
 
+const dismissOperator = `-- name: DismissOperator :one
+SELECT dismiss_operator($1)::text
+`
+
+// Removes one, never the last. Answers REMOVED, LAST or ABSENT.
+func (q *Queries) DismissOperator(ctx context.Context, accountID pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, dismissOperator, accountID)
+	var column_1 string
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const dropOperator = `-- name: DropOperator :one
 SELECT drop_operator($1)
 `
@@ -77,6 +89,24 @@ func (q *Queries) DropOperator(ctx context.Context, accountID pgtype.UUID) (bool
 	var drop_operator bool
 	err := row.Scan(&drop_operator)
 	return drop_operator, err
+}
+
+const enlistOperator = `-- name: EnlistOperator :one
+SELECT enlist_operator($1, $2)::text
+`
+
+type EnlistOperatorParams struct {
+	AccountID pgtype.UUID
+	AddedBy   pgtype.UUID
+}
+
+// Adds an active account, and the caller too where the register was empty - the caller was an
+// operator only because it was. Answers ADDED, ADDED_WITH_CALLER, PRESENT, NOT_ACTIVE or UNKNOWN.
+func (q *Queries) EnlistOperator(ctx context.Context, arg EnlistOperatorParams) (string, error) {
+	row := q.db.QueryRow(ctx, enlistOperator, arg.AccountID, arg.AddedBy)
+	var column_1 string
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const installationUnset = `-- name: InstallationUnset :one
@@ -247,6 +277,67 @@ func (q *Queries) OperatorRegisterState(ctx context.Context) (OperatorRegisterSt
 	var i OperatorRegisterStateRow
 	err := row.Scan(&i.Workspaces, &i.Operators)
 	return i, err
+}
+
+const operatorRoster = `-- name: OperatorRoster :many
+SELECT tenant_id::uuid AS tenant_id, account_id::uuid AS account_id,
+       added_at::timestamptz AS added_at, added_by::uuid AS added_by,
+       display_name::text AS display_name,
+       coalesce(email, '')::text AS email, coalesce(sign_in_name, '')::text AS sign_in_name,
+       kind::text AS kind, workspace_slug::text AS workspace_slug,
+       workspace_name::text AS workspace_name, coalesce(added_by_name, '')::text AS added_by_name
+FROM operator_roster($1)
+`
+
+type OperatorRosterRow struct {
+	TenantID      pgtype.UUID
+	AccountID     pgtype.UUID
+	AddedAt       pgtype.Timestamptz
+	AddedBy       pgtype.UUID
+	DisplayName   string
+	Email         string
+	SignInName    string
+	Kind          string
+	WorkspaceSlug string
+	WorkspaceName string
+	AddedByName   string
+}
+
+// The register with names, for the control plane's own screen (migration 0135): the account's name,
+// address or sign-in name and kind, its workspace, and who added it. No row unless the caller is an
+// operator, and never an account the register does not hold.
+// The casts are for the generator: it cannot see into the function's OUT table; empty rather than
+// NULL for the text columns that may be absent (`AdminTenants`' own note).
+func (q *Queries) OperatorRoster(ctx context.Context, caller pgtype.UUID) ([]OperatorRosterRow, error) {
+	rows, err := q.db.Query(ctx, operatorRoster, caller)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []OperatorRosterRow{}
+	for rows.Next() {
+		var i OperatorRosterRow
+		if err := rows.Scan(
+			&i.TenantID,
+			&i.AccountID,
+			&i.AddedAt,
+			&i.AddedBy,
+			&i.DisplayName,
+			&i.Email,
+			&i.SignInName,
+			&i.Kind,
+			&i.WorkspaceSlug,
+			&i.WorkspaceName,
+			&i.AddedByName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const putInstanceSetting = `-- name: PutInstanceSetting :exec

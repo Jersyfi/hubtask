@@ -58,6 +58,29 @@ SELECT add_operator(sqlc.arg('account_id'), sqlc.narg('added_by'));
 -- False where the register would have been emptied: the last operator cannot remove themselves.
 SELECT drop_operator(sqlc.arg('account_id'));
 
+-- name: OperatorRoster :many
+-- The register with names, for the control plane's own screen (migration 0135): the account's name,
+-- address or sign-in name and kind, its workspace, and who added it. No row unless the caller is an
+-- operator, and never an account the register does not hold.
+-- The casts are for the generator: it cannot see into the function's OUT table; empty rather than
+-- NULL for the text columns that may be absent (`AdminTenants`' own note).
+SELECT tenant_id::uuid AS tenant_id, account_id::uuid AS account_id,
+       added_at::timestamptz AS added_at, added_by::uuid AS added_by,
+       display_name::text AS display_name,
+       coalesce(email, '')::text AS email, coalesce(sign_in_name, '')::text AS sign_in_name,
+       kind::text AS kind, workspace_slug::text AS workspace_slug,
+       workspace_name::text AS workspace_name, coalesce(added_by_name, '')::text AS added_by_name
+FROM operator_roster(sqlc.arg('caller'));
+
+-- name: EnlistOperator :one
+-- Adds an active account, and the caller too where the register was empty - the caller was an
+-- operator only because it was. Answers ADDED, ADDED_WITH_CALLER, PRESENT, NOT_ACTIVE or UNKNOWN.
+SELECT enlist_operator(sqlc.arg('account_id'), sqlc.narg('added_by'))::text;
+
+-- name: DismissOperator :one
+-- Removes one, never the last. Answers REMOVED, LAST or ABSENT.
+SELECT dismiss_operator(sqlc.arg('account_id'))::text;
+
 -- name: InstanceCensus :one
 -- The installation at a glance: counts, states and limits, never rows. Through the function
 -- rather than against the tables: `account` is behind row level security and FORCE, so the
