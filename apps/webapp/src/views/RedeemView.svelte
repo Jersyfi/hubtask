@@ -273,7 +273,16 @@
   }
   .invited .address { color: var(--text-primary); font-weight: var(--fw-medium); }
   .agreement { display: grid; gap: var(--sp-100); }
-  .terms { justify-self: start; }
+  .terms {
+    justify-self: start;
+    color: var(--text-brand);
+    font-weight: var(--fw-medium);
+    text-decoration: underline;
+  }
+  .terms:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
+  }
   .missing { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   .missing:empty { display: none; }
 </style>

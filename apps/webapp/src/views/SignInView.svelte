@@ -605,7 +605,17 @@
 
   .forgot { margin: 0; text-align: end; }
 
-  .terms { justify-self: start; }
+  .terms {
+    justify-self: start;
+    color: var(--text-brand);
+    font-weight: var(--fw-medium);
+    text-decoration: underline;
+  }
+
+  .terms:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
+  }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 
