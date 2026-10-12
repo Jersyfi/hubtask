@@ -220,6 +220,7 @@
   "accounts.email_too_long": "Eine E-Mail-Adresse darf höchstens {maximum} Zeichen lang sein.",
   "accounts.email_taken": "Jemand mit dieser Adresse ist bereits in diesem Workspace.",
   "accounts.already_invited": "Diese Adresse wurde schon eingeladen und hat noch nicht angenommen. Erneuere die Einladung stattdessen in der Liste der Leute.",
+  "accounts.not_invited": "Diese Person wartet auf keine Einladung: Sie hat sie schon angenommen oder wurde nie eingeladen.",
   "accounts.invitation_needs_a_person": "Wo keine E-Mail verschickt wird, ist eine Einladung ein Link, der der einladenden Person einmal gezeigt wird. Eine Automatisierungsregel kann das nicht.",
   "accounts.invitation_link_unavailable": "Diese Installation hat keine eigene Adresse für einen Einladungslink. Ihr Betreiber setzt HUBTASK_BASE_URL.",
   "accounts.display_name_empty": "Diese Person braucht einen Namen, der neben ihren Aktionen steht.",

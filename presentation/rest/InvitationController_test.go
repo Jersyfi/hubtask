@@ -108,6 +108,31 @@ func TestAMailedInvitationIsKeptForAReplay(t *testing.T) {
 	}
 }
 
+// The renewal passes the account from the path and answers like the invitation: 200, the link only
+// where it is handed over, marked no-store.
+func TestTheRenewalAnswersLikeTheInvitation(t *testing.T) {
+	registry := &catalogue{out: invitedOut("https://home.example/redeem#token=hbt_inv_y")}
+
+	recorder := identityRequest(t, registry, http.MethodPost, "/accounts/"+invitedAccountID+":renew-invitation")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != renewInvitationUseCase || registry.in["account_id"] != invitedAccountID {
+		t.Errorf("invoked %q with %v", registry.name, registry.in)
+	}
+	var body openapi.InvitedAccount
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if body.InvitationLink == nil || *body.InvitationLink != "https://home.example/redeem#token=hbt_inv_y" {
+		t.Errorf("link %v, want the new one", body.InvitationLink)
+	}
+	if recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Errorf("Cache-Control %q, want no-store", recorder.Header().Get("Cache-Control"))
+	}
+}
+
 // inviteRoute hands a request to the controller's own route for the invitation, whatever path the
 // idempotency harness gave it.
 func inviteRoute(controller *RestController) http.HandlerFunc {

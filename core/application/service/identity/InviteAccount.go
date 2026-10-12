@@ -211,10 +211,15 @@ func deliver(
 	if err != nil {
 		return secret.Secret{}, err
 	}
+	if token.IsEmpty() {
+		// The minter stores a token only on an account still invited: this one was accepted
+		// between the read and the write.
+		return secret.Secret{}, notInvited()
+	}
 	link := domain.InvitationLink(links.BaseURL, token.Reveal())
 	if link == "" {
-		// A token minted and no link to carry it is an invitation nobody can accept: the account
-		// left waiting, or the installation's base address missing - which is its operator's to fix.
+		// A token and no link to carry it is an invitation nobody can accept: the installation's
+		// base address is missing, which is its operator's to fix.
 		return secret.Secret{}, shared.ErrInternal.WithDetail("accounts.invitation_link_unavailable")
 	}
 	return secret.New(link), nil

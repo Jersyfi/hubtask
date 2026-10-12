@@ -26,6 +26,14 @@ func (m *linkMinter) MintRedemptionToken(_ context.Context, _, accountID shared.
 	return secret.New("hbt_inv_" + accountID.String()), nil
 }
 
+// acceptedMeanwhile is the minter meeting an account that stopped being invited: it stores nothing
+// and answers the empty secret, as MintRedemptionToken does.
+type acceptedMeanwhile struct{}
+
+func (acceptedMeanwhile) MintRedemptionToken(context.Context, shared.ID, shared.ID) (secret.Secret, error) {
+	return secret.Secret{}, nil
+}
+
 const homeBase = "https://home.example/"
 
 func withoutMail(h InviteAccount, minter *linkMinter) InviteAccount {

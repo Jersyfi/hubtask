@@ -1275,6 +1275,11 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
 			Text: forms, Links: invitationLinks(cfg, signInStore, unitOfWork),
 		}.Descriptor(),
+		identity.RenewInvitation{
+			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Links: invitationLinks(cfg, signInStore, unitOfWork),
+		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
 			Factor:   sessionWriter,

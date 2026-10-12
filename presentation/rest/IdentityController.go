@@ -22,6 +22,7 @@ import (
 const (
 	inviteAccountUseCase               = "InviteAccount"
 	createManagedAccountUseCase        = "CreateManagedAccount"
+	renewInvitationUseCase             = "RenewInvitation"
 	getOwnAccountUseCase               = "GetOwnAccount"
 	getAccountUseCase                  = "GetAccount"
 	updateAccountPreferencesUseCase    = "UpdateAccountPreferences"
@@ -53,6 +54,22 @@ func (c *RestController) InviteAccount(w http.ResponseWriter, r *http.Request, _
 		markShownOnce(w, invited)
 		w.Header().Set("Location", APIBasePath+"/accounts/"+invited.Id.String())
 		writeJSON(w, r, http.StatusCreated, invited)
+	})
+}
+
+// RenewInvitation answers POST /accounts/{accountId}:renew-invitation, with the invitation's answer
+// and its marks.
+func (c *RestController) RenewInvitation(
+	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId, _ openapi.RenewInvitationParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), renewInvitationUseCase, actor, usecase.Input{
+			"account_id": accountID.String(),
+		})
+	}, func(out usecase.Output) {
+		invited := invitedAccountResponse(out)
+		markShownOnce(w, invited)
+		writeJSON(w, r, http.StatusOK, invited)
 	})
 }
 
