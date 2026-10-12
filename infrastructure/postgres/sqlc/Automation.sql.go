@@ -909,6 +909,89 @@ func (q *Queries) ListAutomationRules(ctx context.Context, arg ListAutomationRul
 	return items, nil
 }
 
+const listPausedAutomationRules = `-- name: ListPausedAutomationRules :many
+
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at, findings, checked_at
+FROM automation_rule
+WHERE deleted_at IS NULL AND paused_for_deletion = true
+ORDER BY created_at, id
+`
+
+type ListPausedAutomationRulesRow struct {
+	ID               pgtype.UUID
+	TenantID         pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
+	Findings         []byte
+	CheckedAt        pgtype.Timestamptz
+}
+
+// The rules a workspace's deletion request switched off (multi-tenancy.md §5), which a cancel
+// switches back on.
+// This tenant's rules the deletion request switched off, oldest first. Unbounded on purpose: a
+// workspace's rules are a handful, and a cancel that came back for a second page could return a
+// workspace half restored.
+func (q *Queries) ListPausedAutomationRules(ctx context.Context) ([]ListPausedAutomationRulesRow, error) {
+	rows, err := q.db.Query(ctx, listPausedAutomationRules)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPausedAutomationRulesRow{}
+	for rows.Next() {
+		var i ListPausedAutomationRulesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.Name,
+			&i.Enabled,
+			&i.RunAs,
+			&i.Trigger,
+			&i.Conditions,
+			&i.Actions,
+			&i.Throttle,
+			&i.OnError,
+			&i.FailureCount,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.Version,
+			&i.NextRunAt,
+			&i.InboundRotatedAt,
+			&i.Findings,
+			&i.CheckedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRuleRuns = `-- name: ListRuleRuns :many
 SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
        condition_results, action_results, occasion, error_code, started_at, finished_at,
@@ -1045,6 +1128,30 @@ type RecordAutomationRuleCheckParams struct {
 func (q *Queries) RecordAutomationRuleCheck(ctx context.Context, arg RecordAutomationRuleCheckParams) error {
 	_, err := q.db.Exec(ctx, recordAutomationRuleCheck, arg.Findings, arg.At, arg.ID)
 	return err
+}
+
+const resumePausedAutomationRule = `-- name: ResumePausedAutomationRule :execrows
+UPDATE automation_rule
+SET enabled = true, paused_for_deletion = false, next_run_at = $1,
+    updated_at = $2, version = version + 1
+WHERE id = $3 AND deleted_at IS NULL AND paused_for_deletion = true
+`
+
+type ResumePausedAutomationRuleParams struct {
+	NextRunAt pgtype.Timestamptz
+	At        pgtype.Timestamptz
+	ID        pgtype.UUID
+}
+
+// Switches one of them back on with its next moment, and takes the mark off. The failure count is
+// left as it was: the rule was on with that count when the request switched it off, and nobody has
+// looked at it since.
+func (q *Queries) ResumePausedAutomationRule(ctx context.Context, arg ResumePausedAutomationRuleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, resumePausedAutomationRule, arg.NextRunAt, arg.At, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const rewrapAutomationRuleActions = `-- name: RewrapAutomationRuleActions :execrows

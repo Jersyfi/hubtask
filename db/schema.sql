@@ -150,6 +150,11 @@ CREATE TABLE tenant (
   password_opened_until     timestamptz,
   password_opened_requester text CHECK (length(password_opened_requester) BETWEEN 1 AND 200),
   password_opened_reason    text CHECK (length(password_opened_reason) BETWEEN 1 AND 500),
+  -- A pending deletion can be called off (0130, multi-tenancy.md §5): where the workspace stood
+  -- when it was requested, to return it there, and the grace job's mark, written before the first
+  -- byte goes, after which no cancel lands.
+  status_before_deletion    tenant_status,
+  purge_started_at          timestamptz,
   CONSTRAINT tenant_password_opening_whole_check
     CHECK (num_nulls(password_opened_until, password_opened_requester, password_opened_reason) IN (0, 3))
 );
@@ -1227,6 +1232,9 @@ CREATE TABLE automation_rule (
   -- rule with nothing wrong and for one never checked, and the moment that tells the two apart.
   findings   jsonb NOT NULL DEFAULT '[]'::jsonb,
   checked_at timestamptz,
+  -- Switched off by the workspace's deletion request (0130), so that a cancel switches exactly
+  -- these back on.
+  paused_for_deletion boolean NOT NULL DEFAULT false,
   CONSTRAINT automation_rule_run_as_fkey
     FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT
 );
@@ -2762,20 +2770,22 @@ GRANT EXECUTE ON FUNCTION count_provider_offers(uuid) TO hubtask_app;
 -- resolve_tenant's reason; what bounds it is the application - the use case behind it demands
 -- the admin:tenants scope, which no session carries.
 -- It answers an operator's opening of the password beside the lifecycle (migration 0118), and
--- whether a legal hold is in force - a state, never which hold (migration 0121).
+-- whether a legal hold is in force - a state, never which hold (migration 0121), and when the grace
+-- job began the purge, after which no cancel lands (migration 0130).
 CREATE OR REPLACE FUNCTION admin_tenants()
 RETURNS TABLE (
   id uuid, slug text, display_name text, status text,
   default_locale text, default_time_zone text,
   created_at timestamptz, purge_after timestamptz,
   password_opened_until timestamptz, password_opened_requester text, password_opened_reason text,
-  legal_hold boolean
+  legal_hold boolean, purge_started_at timestamptz
 )
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT t.id, t.slug, t.display_name, t.status::text,
          t.default_locale, t.default_time_zone, t.created_at, t.purge_after,
          t.password_opened_until, t.password_opened_requester, t.password_opened_reason,
-         EXISTS (SELECT 1 FROM legal_hold h WHERE h.tenant_id = t.id AND h.released_at IS NULL)
+         EXISTS (SELECT 1 FROM legal_hold h WHERE h.tenant_id = t.id AND h.released_at IS NULL),
+         t.purge_started_at
   FROM tenant t
   WHERE t.deleted_at IS NULL
   ORDER BY t.created_at, t.id

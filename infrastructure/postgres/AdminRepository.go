@@ -58,7 +58,8 @@ func (AdminTenantRepository) List(ctx context.Context) ([]repository.TenantRecor
 				Until:     timeFrom(row.PasswordOpenedUntil),
 				Requester: row.PasswordOpenedRequester, Reason: row.PasswordOpenedReason,
 			},
-			LegalHold: row.LegalHold,
+			LegalHold:      row.LegalHold,
+			PurgeStartedAt: timeFrom(row.PurgeStartedAt),
 		})
 	}
 	return records, nil
@@ -122,8 +123,18 @@ func (AdminTenantRepository) Find(ctx context.Context) (repository.TenantRecord,
 			Requester: stringFrom(row.PasswordOpenedRequester),
 			Reason:    stringFrom(row.PasswordOpenedReason),
 		},
-		Version: int(row.Version),
+		StatusBeforeDeletion: statusFrom(row.StatusBeforeDeletion),
+		PurgeStartedAt:       timeFrom(row.PurgeStartedAt),
+		Version:              int(row.Version),
 	}, nil
+}
+
+// statusFrom reads a nullable status; NULL is the empty status.
+func statusFrom(status *sqlc.TenantStatus) identity.TenantStatus {
+	if status == nil {
+		return ""
+	}
+	return identity.TenantStatus(*status)
 }
 
 // SetStatus moves one guarded edge on the transaction's own tenant.
@@ -228,6 +239,27 @@ func (AdminTenantRepository) RequestDeletion(
 			WithCause(fmt.Errorf("requesting the tenant deletion: %w", err))
 	}
 	return changed > 0, nil
+}
+
+// CancelDeletion moves a pending tenant back, guarded on the purge's mark in the statement.
+func (AdminTenantRepository) CancelDeletion(
+	ctx context.Context, now time.Time,
+) (identity.TenantStatus, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", false, err
+	}
+
+	status, err := queries.CancelTenantDeletion(ctx, pgtype.Timestamptz{Time: now, Valid: true})
+	if err != nil {
+		if IsNoRows(err) {
+			return "", false, nil
+		}
+		return "", false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("cancelling the tenant deletion: %w", err))
+	}
+	return identity.TenantStatus(status), true, nil
 }
 
 // OpenPassword writes an operator's opening on the transaction's own tenant (ADR-0078 §3).
@@ -450,6 +482,22 @@ func (TenantPurge) HardDelete(ctx context.Context, now time.Time) (bool, error) 
 			WithCause(fmt.Errorf("deleting the tenant row: %w", err))
 	}
 	return removed > 0, nil
+}
+
+// MarkStarted writes the purge's mark on the tenant row before the first byte goes.
+func (TenantPurge) MarkStarted(ctx context.Context, now time.Time) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	marked, err := queries.MarkTenantPurgeStarted(ctx, pgtype.Timestamptz{Time: now, Valid: true})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("marking the purge as started: %w", err))
+	}
+	return marked > 0, nil
 }
 
 // Page walks the journal backwards, newest first.

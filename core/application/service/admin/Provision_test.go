@@ -68,6 +68,10 @@ type tenantsStore struct {
 	closes   []time.Time
 	// racing is an opening another transaction commits just before a close's statement runs.
 	racing *domain.PasswordOpening
+	// cancels counts the cancel's statement; purgeRacing is the grace job's mark landing just
+	// before it runs.
+	cancels     int
+	purgeRacing bool
 }
 
 func (s *tenantsStore) List(context.Context) ([]adminrepo.TenantRecord, error) {
@@ -91,6 +95,24 @@ func (s *tenantsStore) RequestDeletion(
 ) (bool, error) {
 	s.deletions = append(s.deletions, purgeAfter)
 	return s.deleteOK, nil
+}
+
+// CancelDeletion moves the one row back, as the guarded statement does: only a pending row
+// without the purge's mark.
+func (s *tenantsStore) CancelDeletion(context.Context, time.Time) (domain.TenantStatus, bool, error) {
+	s.cancels++
+	if s.purgeRacing {
+		s.record.PurgeStartedAt = now
+	}
+	if s.record.Status != domain.TenantPendingDeletion || !s.record.PurgeStartedAt.IsZero() {
+		return "", false, nil
+	}
+	back := s.record.StatusBeforeDeletion
+	if back == "" {
+		back = domain.TenantSuspended
+	}
+	s.record.Status, s.record.StatusBeforeDeletion, s.record.PurgeAfter = back, "", time.Time{}
+	return back, true, nil
 }
 
 // OpenPassword writes the opening onto the one row, as the statement does where the workspace is

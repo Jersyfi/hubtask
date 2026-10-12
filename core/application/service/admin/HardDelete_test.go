@@ -30,6 +30,13 @@ type purgeFake struct {
 	deleteOK     bool
 	deleteCalls  int
 	sequence     []string
+	// markRefused is a cancel that came first: the mark's statement finds the row not pending.
+	markRefused bool
+}
+
+func (p *purgeFake) MarkStarted(context.Context, time.Time) (bool, error) {
+	p.sequence = append(p.sequence, "mark")
+	return !p.markRefused, nil
 }
 
 func (p *purgeFake) Footprint(context.Context) (adminrepo.Footprint, error) {
