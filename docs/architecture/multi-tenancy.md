@@ -9,8 +9,8 @@ serves thousands of workspaces. Decision: [ADR-0010](../adr/ADR-0010-multi-tenan
 
 | Mode | `HUBTASK_TENANCY_MODE` | Behaviour |
 |---|---|---|
-| Single | `single` (default) | Exactly one tenant, created by `scripts/dev-workspace.sh --bootstrap` or the admin API. A first-start setup in the web app ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)) is planned and not built. No tenant selection in the API; registration optionally open |
-| Multi | `multi` | Tenants are provisioned through the control plane (§4.1); resolved as §3 says; self-service signup optional |
+| Single | `single` (default) | Exactly one tenant, created by the first start's setup ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)): a one-time code printed on the console, spent in the web app's *Set up Hubtask* card. No tenant selection in the API; registration optionally open |
+| Multi | `multi` | The first tenant is created by the same setup, with its short name; every further one is provisioned through the control plane (§4.1); resolved as §3 says; self-service signup optional |
 
 The code **always** knows about a tenant; single mode is one row in `tenant`. There is no second
 code path and no special case in a repository.
@@ -208,7 +208,15 @@ Automation uses a personal access token minted for the purpose.
 
 **Who an operator is.** A register (`operator`), checked when `admin:tenants` is minted and when it
 is exercised. An empty register counts only for an active `OWNER` on an installation with exactly
-one workspace ([identity.md](./identity.md) §19). A service account may be an operator.
+one workspace ([identity.md](./identity.md) §19). A service account may be an operator. Three ways
+put somebody in besides the control plane itself: the first start's setup (its owner), the
+environment (`HUBTASK_OPERATORS`), and the machine (`hubtask operator add`) when nobody is left
+([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md),
+[UC-INS-02](../usecases/admin/UC-INS-02-bring-an-installation-up-from-a-file.md),
+[UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)).
+
+**What the census counts.** A workspace that holds no person - only service accounts - is not a
+customer: the overview's workspace counts leave it out and name how many there are.
 
 **What an instance setting is.** A row in `instance_setting` with a value **and a lock**. Open, a
 workspace may tighten it; closed, it applies and the workspace's control is shown switched off with

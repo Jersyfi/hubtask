@@ -4,32 +4,29 @@
 #
 # Makes a workspace somebody can sign in to — locally, or on the integration environment.
 #
-# It exists because there was no way to reach that state. A fresh installation has no workspace and
-# no password, and the two ways in are not obvious: a workspace is provisioned through the control
-# plane, which answers the owner's redemption token *once*, and that token is what turns into a
-# password. Neither step involves mail, which is what makes this scriptable at all.
-#
-# Everything here goes through the product's own operations, with one exception marked below.
+# Everything here goes through the product's own operations. A fresh installation prints a one-time
+# setup code when it starts (UC-INS-01); --bootstrap spends it on the first workspace, its owner and
+# the owner's place in the operator register, exactly as the *Set up Hubtask* card in the browser
+# does. On a multi-workspace installation it then mints the owner a personal access token carrying
+# `admin:tenants` - through a step-up with the owner's password, as any operator would - so that
+# further workspaces can be provisioned with the second form.
 #
 # Usage:
-#   scripts/dev-workspace.sh --bootstrap                 # once per installation, needs the database
-#   scripts/dev-workspace.sh                             # provision a workspace and set its password
+#   scripts/dev-workspace.sh --bootstrap                 # once per installation: the setup
+#   scripts/dev-workspace.sh                             # provision another workspace and set its password
 #   scripts/dev-workspace.sh --api https://api.integration.hubtask.eu --slug demo
 #
 # Environment:
-#   HUBTASK_ADMIN_TOKEN     a personal access token carrying `admin:tenants`. Written by
-#                           --bootstrap, or taken from wherever you keep it (for the integration
-#                           environment: the GitHub environment `integration`).
+#   HUBTASK_SETUP_CODE      only for --bootstrap: the code the server printed on its console at
+#                           start ("Set up Hubtask: … enter the setup code …"). Locally:
+#                             docker compose logs app | grep -A3 'Set up Hubtask'
+#                           or the server's own terminal. Valid thirty minutes; restarting the
+#                           server prints a new one while nothing is set up.
 #   HUBTASK_DEMO_PASSWORD   the owner's password. At least twelve characters (security.md §5).
-#   HUBTASK_PSQL            only for --bootstrap: how to reach the database, as a command that
-#                           takes SQL on stdin. It differs per environment and there is no way to
-#                           guess it, so it is named rather than assumed:
-#                             local compose   docker exec -i hubtask-dev-postgres-1 psql -U hubtask -d hubtask
-#                             a local psql    psql postgres://hubtask:…@localhost:5432/hubtask
-#                             integration     ssh <host> kubectl -n hubtask exec -i hubtask-db-0 -- psql -U hubtask -d hubtask
-#   HUBTASK_SECRET_KEY      only for --bootstrap: the installation secret the token hash is
-#                           peppered with. It must be the one the server runs with, or the token
-#                           it writes will not verify.
+#   HUBTASK_ADMIN_TOKEN     without --bootstrap: a personal access token carrying `admin:tenants`.
+#                           Printed by --bootstrap on a multi-workspace installation, or taken from
+#                           wherever you keep it (for the integration environment: the GitHub
+#                           environment `integration`).
 
 set -euo pipefail
 
@@ -41,12 +38,6 @@ NAME="Demo"
 EMAIL="owner@example.org"
 BOOTSTRAP=false
 
-# Fixed identifiers, so that running this twice changes nothing. The operator workspace is not a
-# workspace anybody works in: it exists to hold the account the bootstrap credential belongs to.
-OPERATOR_TENANT="019364de-0000-7000-8000-00000000b001"
-OPERATOR_ACCOUNT="019364de-0000-7000-8000-00000000b002"
-OPERATOR_TOKEN_ID="019364de-0000-7000-8000-00000000b003"
-
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--api) API="$2"; shift 2 ;;
@@ -55,7 +46,7 @@ while [ $# -gt 0 ]; do
 		--email) EMAIL="$2"; shift 2 ;;
 		--password) HUBTASK_DEMO_PASSWORD="$2"; shift 2 ;;
 		--bootstrap) BOOTSTRAP=true; shift ;;
-		-h|--help) sed -n '5,30p' "$0"; exit 0 ;;
+		-h|--help) sed -n '5,28p' "$0"; exit 0 ;;
 		*) echo "unknown argument: $1" >&2; exit 2 ;;
 	esac
 done
@@ -68,46 +59,49 @@ field() { python3 -c "import json,sys; print(json.load(sys.stdin).get('$1',''))"
 # it is derived from the name rather than drawn, and running this again is the same request.
 idempotency_key() { python3 -c "import uuid,sys; print(uuid.uuid5(uuid.NAMESPACE_URL, 'hubtask/dev-workspace/'+sys.argv[1]))" "$1"; }
 
-# ------------------------------------------------------------------ the bootstrap credential
+# ------------------------------------------------------------------ the first start
 #
-# The one step that is not one of the product's operations, and it cannot be: provisioning needs a
-# credential carrying `admin:tenants`, and no operation issues the first one. Exactly what
-# scripts/compose-smoke.sh performs in CI, and the reason it is separated behind a flag: it is run
-# once per installation, by somebody who can reach the database.
+# The setup card's own operation, spent on the first workspace. Then, where there will be more
+# workspaces, the owner - who is now an operator - mints the control plane's credential through the
+# API, behind a step-up, which is the only way anybody gets one.
 if [ "$BOOTSTRAP" = true ]; then
-	[ -n "${HUBTASK_PSQL:-}" ] || die "--bootstrap needs HUBTASK_PSQL — see the header for the three forms"
-	[ -n "${HUBTASK_SECRET_KEY:-}" ] || die "--bootstrap needs HUBTASK_SECRET_KEY, and it must be the server's"
+	[ -n "${HUBTASK_SETUP_CODE:-}" ] || die "--bootstrap needs HUBTASK_SETUP_CODE - the code the server printed when it started"
+	PASSWORD="${HUBTASK_DEMO_PASSWORD:-}"
+	[ -n "$PASSWORD" ] || die "HUBTASK_DEMO_PASSWORD is not set"
 
-	read -r TOKEN HASH < <(go run ./test/e2e/mint --tenant "$OPERATOR_TENANT")
+	tenancy="$(curl -sS "$API/api/v1/meta/capabilities" | field tenancy_mode)"
+	slug_field=""
+	[ "$tenancy" = "multi" ] && slug_field=",\"slug\":\"$SLUG\""
 
-	$HUBTASK_PSQL -v ON_ERROR_STOP=1 -q <<-SQL
-		BEGIN;
-		INSERT INTO tenant (id, slug, display_name)
-		  VALUES ('$OPERATOR_TENANT', 'operator', 'Operator')
-		  ON CONFLICT (id) DO NOTHING;
-		INSERT INTO account (id, tenant_id, kind, display_name, status)
-		  VALUES ('$OPERATOR_ACCOUNT', '$OPERATOR_TENANT', 'SERVICE_ACCOUNT', 'Bootstrap', 'ACTIVE')
-		  ON CONFLICT (id) DO NOTHING;
-		DELETE FROM access_token WHERE id = '$OPERATOR_TOKEN_ID';
-		INSERT INTO access_token (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
-		  VALUES ('$OPERATOR_TOKEN_ID', '$OPERATOR_TENANT', '$OPERATOR_ACCOUNT',
-		          'the control plane bootstrap', decode('$HASH', 'hex'), 'hbt_pat_',
-		          ARRAY['admin:tenants'], now() + interval '365 days');
-		-- And into the register (ADR-0070 §1). The scope is checked again where it is exercised,
-		-- and the empty-register fallback is the *single-workspace* installation's — which a
-		-- development machine stops being the moment it provisions a second. A service account may
-		-- be an operator, which is exactly what §6.2 asks for: a platform that provisions
-		-- workspaces needs a credential that does not belong to a person who may leave.
-		INSERT INTO operator (tenant_id, account_id)
-		  VALUES ('$OPERATOR_TENANT', '$OPERATOR_ACCOUNT')
-		  ON CONFLICT (tenant_id, account_id) DO NOTHING;
-		COMMIT;
-	SQL
+	say "Setting up the installation at $API …"
+	setup="$(curl -sS -X POST "$API/api/v1/auth/installation:set-up" \
+		-H 'Content-Type: application/json' \
+		-d "{\"code\":\"$HUBTASK_SETUP_CODE\",\"display_name\":\"$NAME\"$slug_field,\"owner_email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")"
+	access="$(printf '%s' "$setup" | field access_token)"
+	[ -n "$access" ] || die "the setup was refused: $setup"
+
+	if [ "$tenancy" != "multi" ]; then
+		say ""
+		say "Done. Sign in as $EMAIL at $API/"
+		exit 0
+	fi
+
+	proof="$(curl -sS -X POST "$API/api/v1/auth/step-up" \
+		-H "Authorization: Bearer $access" -H 'Content-Type: application/json' \
+		-d "{\"password\":\"$PASSWORD\"}" | field step_up_token)"
+	[ -n "$proof" ] || die "the step-up for the control plane's token was refused"
+	expires="$(python3 -c "import datetime; print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(days=365)).strftime('%Y-%m-%dT%H:%M:%SZ'))")"
+	token="$(curl -sS -X POST "$API/api/v1/auth/tokens" \
+		-H "Authorization: Bearer $access" -H "X-Hubtask-Step-Up: $proof" \
+		-H 'Content-Type: application/json' \
+		-d "{\"name\":\"the control plane\",\"scopes\":[\"admin:tenants\"],\"expires_at\":\"$expires\"}" | field token)"
+	[ -n "$token" ] || die "minting the control plane's token was refused"
 
 	say ""
-	say "The bootstrap credential, shown once:"
+	say "Set up: '$SLUG', owned by $EMAIL, who is the installation's operator."
+	say "The control plane's credential, shown once:"
 	say ""
-	say "  export HUBTASK_ADMIN_TOKEN=$TOKEN"
+	say "  export HUBTASK_ADMIN_TOKEN=$token"
 	say ""
 	say "Locally: keep it in your shell. For the integration environment: put it in the GitHub"
 	say "environment 'integration' beside KUBE_CONFIG. It is not stored anywhere else."
@@ -115,7 +109,7 @@ if [ "$BOOTSTRAP" = true ]; then
 fi
 
 # ------------------------------------------------------------------ the workspace
-[ -n "${HUBTASK_ADMIN_TOKEN:-}" ] || die "HUBTASK_ADMIN_TOKEN is not set — run --bootstrap first, or take it from where you kept it"
+[ -n "${HUBTASK_ADMIN_TOKEN:-}" ] || die "HUBTASK_ADMIN_TOKEN is not set — run --bootstrap first on a fresh installation, or take it from where you kept it"
 PASSWORD="${HUBTASK_DEMO_PASSWORD:-}"
 [ -n "$PASSWORD" ] || die "HUBTASK_DEMO_PASSWORD is not set"
 [ "${#PASSWORD}" -ge 12 ] || die "the password is shorter than the twelve characters the server demands"
@@ -129,19 +123,14 @@ provisioned="$(curl -sS -X POST "$API/api/v1/admin/tenants" \
 
 redemption="$(printf '%s' "$provisioned" | field owner_redemption_token)"
 if [ -z "$redemption" ]; then
-	# The one refusal worth explaining, because it was met twice on the integration environment
-	# and both times the token row was there: the credential is well-formed and names the right
-	# workspace, but its hash is not the stored one. Either --bootstrap ran under a
-	# HUBTASK_SECRET_KEY that was not the server's, or this shell still holds the token an
-	# earlier --bootstrap printed. --bootstrap is idempotent and replaces the row.
+	# The one refusal worth explaining: a token the server does not know, which is a shell still
+	# holding the token of an earlier installation of the same environment.
 	if [ "$(printf '%s' "$provisioned" | field detail_code)" = "access.token_unknown" ]; then
 		die "provisioning refused the token: $provisioned
 
-The server knows no token with this hash. Two causes, both seen:
-  - --bootstrap ran with a HUBTASK_SECRET_KEY that is not the one the server runs with
-    (on the integration environment: the decoded 'secret-key' of the 'hubtask-secrets' secret);
-  - HUBTASK_ADMIN_TOKEN in this shell is the token of an earlier --bootstrap, not the last one.
-Run --bootstrap again with the server's key, then export the token it prints."
+The server knows no token with this hash: HUBTASK_ADMIN_TOKEN in this shell belongs to an earlier
+installation. On an installation that is set up, an operator mints a new one (Profile -> Access
+tokens, or POST /auth/tokens behind a step-up); on a rebuilt one, run --bootstrap."
 	fi
 	die "provisioning answered no redemption token: $provisioned"
 fi

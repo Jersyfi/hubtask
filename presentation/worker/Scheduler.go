@@ -11,6 +11,7 @@ import (
 	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 
@@ -49,6 +50,11 @@ type InstanceBackups interface {
 // BackupFreshness answers when each target last had a backup that worked.
 type BackupFreshness interface {
 	LastSuccessPerTarget(ctx context.Context) (map[shared.ID]time.Time, error)
+}
+
+// EnvironmentOperators is the operator list the installation's environment names.
+type EnvironmentOperators interface {
+	Apply(ctx context.Context) ([]env.OperatorEntry, error)
 }
 
 // AuditPartitions keeps the audit trail's partitions conforming (audit.md §3).
@@ -105,6 +111,10 @@ type Scheduler struct {
 	// holds every tenant's rows, so the evidence is the instance journal's (audit.md §6). Nil
 	// records nothing.
 	StreamEvidence StreamEvidence
+
+	// Operators applies HUBTASK_OPERATORS, on the first tick of every minute: an entry whose account
+	// did not exist at start is put into the register once it does (UC-INS-02 check 4). Nil skips.
+	Operators EnvironmentOperators
 
 	// TickInterval is how often the leader looks at the clock. It is also how quickly a standby
 	// notices that the leader is gone, because a standby tries the lock on every tick of its own.
@@ -186,7 +196,26 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.ensureAuditPartitions(ctx)
 	s.ensureStreamPartitions(ctx)
 	s.dropAgedStreamPartitions(ctx)
+	s.applyOperators(ctx, due)
 	return true
+}
+
+// applyOperators is HUBTASK_OPERATORS again, on the first tick of each minute - stateless, so a new
+// leader keeps the pace: the list is short and a pass adds nothing that is already there, but a pass
+// every ten seconds would still be a pass nobody needs.
+func (s Scheduler) applyOperators(ctx context.Context, due time.Time) {
+	if s.Operators == nil {
+		return
+	}
+	if due.Truncate(time.Minute).Equal(due.Add(-s.TickInterval).Truncate(time.Minute)) {
+		return
+	}
+	passCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	if _, err := s.Operators.Apply(passCtx); err != nil && ctx.Err() == nil {
+		slog.WarnContext(ctx, "the operators named in the environment could not be applied",
+			slog.String("error", shared.AsError(err).Code))
+	}
 }
 
 // fireInstanceBackups is the leader's one duty beyond measurement.

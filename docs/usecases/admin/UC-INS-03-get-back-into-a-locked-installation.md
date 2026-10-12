@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-selfhoster]
 deployments: [D1, D4, D5, D6, D7]
 serves: [P-08, P-09, P-11]
-state: specified
+state: verified
 tasks: [SC-04]
-checked_by: []
+checked_by: [cmd/server/Operator_test.go, core/application/service/admin/RestoreOperator_test.go, core/application/service/admin/OperatorsFromEnvironment_test.go, core/application/service/identity/AuthenticateRegister_test.go, test/integration/first_start_test.go, docs/evidence/SC-04-2026-10-12.md]
 ---
 
 # Get back into an installation nobody can run
@@ -39,11 +39,3 @@ as done from the machine, and says so. The person signs in, opens *Installation*
 
 * No web route for this: whoever can reach the machine can run it; nobody else should be able to.
 * Not a replacement for UC-INS-01 or UC-INS-02 — it is the way back when those were skipped.
-
-## Today
-
-* Check 1: not met — the server binary has no command that restores an operator; the only way back is SQL, tracked in #1060.
-* Check 2: not met — no command adds the account to the register, tracked in #1060.
-* Check 3: not met — no such command exists to refuse an address, tracked in #1060.
-* Check 4: not met — the health report does not name an empty register, tracked in #1060.
-* Check 5: not met — the administrative scope is silently dropped and the route answers the generic scope refusal, tracked in #1060.
