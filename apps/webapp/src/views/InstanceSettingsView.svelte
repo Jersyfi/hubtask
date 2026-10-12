@@ -68,10 +68,13 @@
 
   const rows = $derived(rowsOf(settings));
   /** The areas the server answered keys for, each with its rows, in the screen's order. */
+  // A private installation offers no model of its own to its one workspace, so the AI area - which
+  // is about the offered model - is not drawn there (UC-AI-06 check 8). Its values are kept as
+  // they are and sent back unchanged.
   const groups = $derived(
-    AREAS.map((area) => ({ area, rows: rows.filter((row) => row.area === area) })).filter(
-      (group) => group.rows.length > 0,
-    ),
+    AREAS.filter((area) => !(area === 'ai' && manifest.isSingleTenant))
+      .map((area) => ({ area, rows: rows.filter((row) => row.area === area) }))
+      .filter((group) => group.rows.length > 0),
   );
 
   const locales = $derived(localesOf(manifest.value).map((each) => each.locale));

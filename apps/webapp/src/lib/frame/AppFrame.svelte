@@ -48,7 +48,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, primary } from '../navigation.ts';
+  import { DESTINATIONS, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, instanceSection, primary } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
@@ -174,7 +174,7 @@
           }),
         }
       : route.area === 'instance'
-        ? { label: t('app.instance.nav'), groups: INSTANCE }
+        ? { label: t('app.instance.nav'), groups: instanceSection({ isSingleWorkspace: manifest.isSingleTenant }) }
         : route.area === 'profile'
           ? { label: t('app.nav.profile'), groups: SETTINGS }
           : undefined,
