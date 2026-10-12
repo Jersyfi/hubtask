@@ -248,6 +248,8 @@ expected to keep sign-ins working. The export is handed outwards.
 * `format_version` is currently **1**, shared with the backup archive
   ([versioning-release.md](./versioning-release.md)): additive fields do not bump it, a change a
   version-1 reader would misread does.
+* A file version 1 gained later (§6: `private_hub_accesses`) is additive too: every archive written
+  since carries it, and one written before reads as holding none of its rows.
 * Readers refuse a `format_version` above what they know, and accept everything from the minimum
   readable version (currently 1) up.
 * This document is versioned with the repository; the manifest's `product_version` and
