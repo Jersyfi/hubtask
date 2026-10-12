@@ -43,3 +43,4 @@ screen says it can be removed.
 
 * Check 1: not met — the census counts per workspace only, so the installation's provider secrets are counted once for every workspace and the installation's own level is not counted on its own, tracked in #1068.
 * Check 2: not met — the re-seal runs per workspace; the installation's provider secrets are never moved, tracked in #1068.
+* Check 3: not met — nothing refuses removing a key that still seals something, and neither the health report nor the key screen names which kind would become unreadable, tracked in #1068.

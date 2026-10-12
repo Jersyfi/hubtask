@@ -40,3 +40,4 @@ use and the cap on its limits screen.
 ## Today
 
 * Check 2: not met in part — use is counted per workspace and day, without telling an offered model from an own one, tracked in #1068.
+* Check 3: not met — a spent budget answers like an absent provider, naming neither the budget nor when it renews, tracked in #1294.
