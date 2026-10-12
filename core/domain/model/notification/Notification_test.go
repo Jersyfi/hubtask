@@ -206,3 +206,41 @@ func TestARecordNamesOneSubject(t *testing.T) {
 		t.Errorf("two subjects were accepted: %v", err)
 	}
 }
+
+// The emergency access is the second message nobody switches off (UC-ID-16, *Where it ends*): a
+// member who could would have made the owner's opening of their hub a secret one. The title stays
+// theirs to withhold.
+func TestTheEmergencyAccessCannotBeSwitchedOff(t *testing.T) {
+	if notification.CategoryEmergencyAccess.Suppressible() {
+		t.Fatal("the emergency access can be switched off - that is a silent variant")
+	}
+	written, err := notification.New(notification.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-000000000001"), TenantID: tenant, RecipientID: recipient,
+		Category: notification.CategoryEmergencyAccess, Channel: notification.ChannelEmail,
+		PrivateHubAccessID: shared.ID("01936f2a-7c1e-7000-8000-000000000009"),
+	})
+	if err != nil {
+		t.Fatalf("writing the notice: %v", err)
+	}
+	off := notification.DefaultPreference(tenant, recipient, notification.CategoryEmergencyAccess, notification.ChannelEmail)
+	off.Enabled, off.IncludeTitle = false, false
+	decision := notification.Decide(written, notification.Recipient{AccountID: recipient, HasAddress: true}, off)
+	if !decision.Send || decision.IncludeTitle {
+		t.Errorf("decision %+v, want sent without the title", decision)
+	}
+	if written.PrivateHubTrashed() {
+		t.Error("the notice reads as the trashed hub's message")
+	}
+}
+
+// An access is a subject like an entry: naming it beside another is refused.
+func TestAnAccessIsOneSubject(t *testing.T) {
+	two := notification.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-000000000001"), TenantID: tenant, RecipientID: recipient,
+		Category: notification.CategoryEmergencyAccess, Channel: notification.ChannelEmail,
+		PrivateHubAccessID: shared.ID("01936f2a-7c1e-7000-8000-000000000009"), ItemID: item,
+	}
+	if _, err := notification.New(two); err == nil || !strings.Contains(err.Error(), "notifications.subject_ambiguous") {
+		t.Errorf("an access beside an entry was accepted: %v", err)
+	}
+}
