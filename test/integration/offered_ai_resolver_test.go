@@ -7,19 +7,25 @@ package integration
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	metaservice "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	portai "github.com/Jersyfi/hubtask/core/port/ai"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/infrastructure/ai"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	"github.com/Jersyfi/hubtask/infrastructure/instancefile"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -241,5 +247,158 @@ func TestTheManifestOffersAiWithTheOfferedModel(t *testing.T) {
 	}
 	if capabilities.Features["ai_suggestions"] || capabilities.Features["semantic_search"] {
 		t.Errorf("a workspace that chose no AI is offered it: %v", capabilities.Features)
+	}
+}
+
+// UC-AI-05 check 2: a workspace that never chose a source has no ai_source row, and under every
+// rule that allows the offered model the resolver answers no model at all - nothing is sent before
+// the workspace switches it on.
+func TestAWorkspaceThatNeverChoseCallsNoModel(t *testing.T) {
+	ctx := context.Background()
+	world := newResolverWorld(t)
+	admin := adminPool(ctx, t)
+	// Neither a choice nor an own model: only what the installation offers.
+	for _, statement := range []string{
+		`DELETE FROM ai_source WHERE tenant_id = $1`,
+		`DELETE FROM ai_provider WHERE tenant_id = $1`,
+	} {
+		if _, err := admin.Exec(ctx, statement, resolverTenant.String()); err != nil {
+			t.Fatalf("clearing the workspace: %v", err)
+		}
+	}
+
+	for _, sources := range []domain.AiSources{domain.AiSourcesOffered, domain.AiSourcesEither} {
+		t.Run(string(sources), func(t *testing.T) {
+			world.rule(t, sources, domain.AiMinAny)
+			provider, source, err := world.resolver.Sourced(ctx,
+				appshared.ActorContext{Kind: appshared.ActorUser, TenantID: resolverTenant})
+			if err != nil {
+				t.Fatalf("resolving: %v", err)
+			}
+			if _, refused := provider.(ai.Refused); !refused || source != portai.SourceNone {
+				t.Errorf("a workspace that never chose is answered by %T (source %q)", provider, source)
+			}
+		})
+	}
+
+	var rows int
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM ai_source WHERE tenant_id = $1`,
+		resolverTenant.String()).Scan(&rows); err != nil || rows != 0 {
+		t.Errorf("resolving wrote a choice: %d rows (%v)", rows, err)
+	}
+}
+
+// UC-AI-06 check 7: a model the instance file offers - by `seed`, then by `enforce` - switches
+// nobody's AI on, even where the file tries to: a consent key in its `ai` area and on the model
+// are read as nothing. The workspace stays without a model until it chooses one itself.
+func TestTheInstanceFileOffersAModelAndSwitchesNobodysAiOn(t *testing.T) {
+	ctx := context.Background()
+	world := newResolverWorld(t)
+	admin := adminPool(ctx, t)
+	for _, statement := range []string{
+		`DELETE FROM ai_source WHERE tenant_id = $1`,
+		`DELETE FROM ai_provider WHERE tenant_id = $1`,
+	} {
+		if _, err := admin.Exec(ctx, statement, resolverTenant.String()); err != nil {
+			t.Fatalf("clearing the workspace: %v", err)
+		}
+	}
+	// Seed writes only where nothing is offered.
+	if _, err := admin.Exec(ctx, `DELETE FROM ai_provider WHERE tenant_id IS NULL`); err != nil {
+		t.Fatalf("clearing the offered models: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = admin.Exec(context.WithoutCancel(ctx), `DELETE FROM ai_provider WHERE tenant_id IS NULL`)
+	})
+	var choicesBefore int
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM ai_source`).Scan(&choicesBefore); err != nil {
+		t.Fatalf("counting the choices: %v", err)
+	}
+
+	instance := adminservice.InstanceWriter{
+		Settings: postgres.NewInstanceSettingRepository(), Journal: postgres.NewInstanceJournal(pageCursors()),
+		UnitOfWork: world.uow, Clock: clockadapter.System{}, IDs: clockadapter.NewUUIDv7(clockadapter.System{}),
+	}
+	writer := adminservice.InstanceAiWriter{Instance: instance, Offered: postgres.NewOfferedAiRepository()}
+	apply := func(t *testing.T, name string, enforce bool) {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "instance.json")
+		document := `{
+		  "ai": {"sources": {"value": "OFFERED", "locked": true},
+		         "consent": {"value": "ON"}, "processing_allowed": {"value": "true"}},
+		  "ai_models": [{"display_name": "` + name + `", "processor": "A processor",
+		    "kind": "OPENAI_COMPATIBLE", "base_url": "https://offered.example/v1",
+		    "completion_model": "large", "embedding_model": "embed", "jurisdiction": "EEA",
+		    "processing_allowed": true, "consent": true}]
+		}`
+		if err := os.WriteFile(path, []byte(document), 0o600); err != nil {
+			t.Fatalf("writing the file: %v", err)
+		}
+		read, _, err := instancefile.Read(path)
+		if err != nil {
+			t.Fatalf("reading the file: %v", err)
+		}
+		models, _, err := instancefile.AiModels(read, func(string) (string, bool) { return "", false }, path)
+		if err != nil {
+			t.Fatalf("reading the models: %v", err)
+		}
+		commands := make([]adminservice.ConfigureInstanceAiCommand, 0, len(models))
+		for _, model := range models {
+			commands = append(commands, adminservice.ConfigureInstanceAiCommand{
+				DisplayName: model.DisplayName, Processor: model.Processor,
+				Kind: domain.AiProviderKind(model.Kind), BaseURL: model.BaseURL,
+				CompletionModel: model.CompletionModel, EmbeddingModel: model.EmbeddingModel,
+				Jurisdiction: domain.AiJurisdiction(model.Jurisdiction),
+			})
+		}
+		if err := writer.ApplyFile(ctx, commands, enforce, path); err != nil {
+			t.Fatalf("applying the models: %v", err)
+		}
+		level, err := adminservice.InstanceLevelOf(read)
+		if err != nil {
+			t.Fatalf("reading the level: %v", err)
+		}
+		if _, err := (adminservice.WriteInstanceSettings{Writer: instance}).ExecuteAsFile(ctx, level, path); err != nil {
+			t.Fatalf("writing the level: %v", err)
+		}
+	}
+
+	var offeredID shared.ID
+	for _, step := range []struct {
+		mode    string
+		name    string
+		enforce bool
+	}{{"seed", "File model (seed)", false}, {"enforce", "File model (enforce)", true}} {
+		t.Run(step.mode, func(t *testing.T) {
+			apply(t, step.name, step.enforce)
+
+			inSystem(ctx, t, world.uow, func(ctx context.Context) error {
+				offered, err := postgres.NewOfferedAiRepository().List(ctx)
+				if err != nil {
+					return err
+				}
+				if len(offered) != 1 || offered[0].DisplayName != step.name {
+					t.Fatalf("the file offered %+v", offered)
+				}
+				if offered[0].ProcessingAllowed {
+					t.Error("the offered model was stored as consented")
+				}
+				offeredID = offered[0].ID
+				return nil
+			})
+			if got := world.answering(t); !strings.HasPrefix(got, "refused") {
+				t.Errorf("after the file a workspace that never chose answers %q", got)
+			}
+			var choices int
+			if err := admin.QueryRow(ctx, `SELECT count(*) FROM ai_source`).Scan(&choices); err != nil || choices != choicesBefore {
+				t.Errorf("the file wrote a choice: %d rows, %d before (%v)", choices, choicesBefore, err)
+			}
+		})
+	}
+
+	// The model the file offered is usable: the workspace's own choice is what switches it on.
+	world.choose(t, domain.AiSourceOffered, offeredID)
+	if got := world.answering(t); got != "offered" {
+		t.Errorf("the workspace's own choice answers %q", got)
 	}
 }
