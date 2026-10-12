@@ -548,6 +548,9 @@ gate-resilience:
 ## gate-licenses: Refuse a copyleft dependency, and keep the third-party list current
 .PHONY: gate-licenses
 gate-licenses:
+	@# First, because it needs no tool: every brand mark the sign-in buttons draw has its row and
+	@# its preset, and every row its mark (ADR-0069 §2, §3).
+	@scripts/check-brand-marks.sh
 	$(call require_tool,go-licenses)
 	@# forbidden is AGPL and friends, restricted is the GPL/LGPL family. Either one would change the
 	@# terms on which the Apache-2.0 binary may be passed on (ADR-0080), which is why this is a gate
@@ -869,6 +872,21 @@ locales:
 .PHONY: gate-docs
 gate-docs:
 	$(GO) run ./tools/checkdocs
+
+## gate-numbers: One file per migration and ADR number, none another open pull request adds (needs gh)
+# Not in `make verify`: it asks GitHub for the open pull requests, and the local gates run offline.
+# verify-pr runs it, and CI. BASE is where the branch left main; OPEN=0 holds only the tree (main).
+.PHONY: gate-numbers
+gate-numbers:
+	$(GO) run ./tools/numbers $(if $(BASE),-base $(BASE),) $(if $(PR),-pr $(PR),) $(if $(filter 0,$(OPEN)),-open=false,)
+
+## gate-main-green: main's newest run is green, or this pull request is its fix (needs gh; PR=<n>)
+# The last step of `CI required` (ADR-0083), which runs the script directly; this target is the
+# same check from a laptop.
+.PHONY: gate-main-green
+gate-main-green:
+	@GITHUB_REPOSITORY="$${GITHUB_REPOSITORY:-$$(gh repo view --json nameWithOwner --jq .nameWithOwner)}" \
+		PR="$${PR:-$$(gh pr view --json number --jq .number)}" scripts/ci/main-green.sh
 
 ## gate-action-pins: Every action pin resolves, and its comment names the right tag (needs network)
 .PHONY: gate-action-pins

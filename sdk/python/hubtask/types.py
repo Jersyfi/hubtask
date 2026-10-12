@@ -372,8 +372,24 @@ class AiSource(TypedDict, total=False):
     min_jurisdiction_lock: Literal["INSTANCE", "PLAN"]
     offered: Required[list["OfferedAiModelSummary"]]
     search_rebuilding: bool
+    person_opt_out: Required["AiPersonOptOut"]
+    person_opt_out_origin: Required[Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]]
+    person_opt_out_lock: Literal["INSTANCE", "PLAN"]
+    person_opt_out_basis: "AiOptOutBasis"
+    person_opt_out_contact: str
+    person_opt_out_since: str
+    keeping_out_count: Required[int]
     updated_at: str
     version: Required[int]
+
+AiPersonOptOut = Literal["OFFERED", "NOT_OFFERED"]
+
+AiOptOutBasis = Literal["EMPLOYMENT_CONTRACT", "WORKS_AGREEMENT", "LEGAL_OBLIGATION"]
+
+class AiPersonOptOutChoice(TypedDict, total=False):
+    person_opt_out: Required["AiPersonOptOut"]
+    basis: "AiOptOutBasis"
+    contact: str
 
 class OfferedAiModelSummary(TypedDict, total=False):
     id: Required[str]
@@ -1964,6 +1980,27 @@ class ConsentRecord(TypedDict, total=False):
     granted_at: str
     revoked_at: str | None
     source: Literal["user", "tenant_admin", "config"] | None
+
+class ConsentRegisterEntry(TypedDict, total=False):
+    account_id: Required[str]
+    display_name: Required[str]
+    since: Required[str]
+    source: Literal["user", "tenant_admin", "config"]
+
+class ConsentGrant(TypedDict, total=False):
+    purpose: Required["ConsentPurpose"]
+    account_id: str
+
+class OwnAiPosition(TypedDict, total=False):
+    shown: Required[bool]
+    person_opt_out: Required["AiPersonOptOut"]
+    basis: "AiOptOutBasis"
+    contact: str
+    since: str
+    keeping_out: Required[bool]
+    keeping_out_since: str
+    in_effect: Required[bool]
+    notice_pending: Required[bool]
 
 class ConsentWithdrawal(TypedDict, total=False):
     purpose: Required["ConsentPurpose"]

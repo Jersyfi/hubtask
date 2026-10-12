@@ -32,6 +32,11 @@ type Consent struct {
 	Source string
 }
 
+// PurposeAi is the purpose a person's objection to AI is recorded under: their withdrawal keeps
+// what they authored out of every prompt where the workspace offers that (data-protection.md
+// §4.1).
+const PurposeAi = "ai_processing"
+
 // The sources the schema allows.
 const (
 	SourceUser        = "user"
@@ -65,6 +70,20 @@ func NewWithdrawal(id, accountID shared.ID, purpose, source string, now time.Tim
 	return Consent{
 		ID: id, AccountID: accountID, Purpose: cleaned,
 		Granted: false, GrantedAt: now, RevokedAt: now, Source: source,
+	}, nil
+}
+
+// NewGrant records a consent being given - by the person themselves, always: nobody consents in
+// another's place (P-14). Given after a withdrawal, it is what ends an objection, and the
+// withdrawal stays on record for the period it covered.
+func NewGrant(id, accountID shared.ID, purpose string, now time.Time) (Consent, error) {
+	cleaned := strings.TrimSpace(purpose)
+	if cleaned == "" || len([]rune(cleaned)) > maxPurpose {
+		return Consent{}, invalid(CodePurposeRequired, "/purpose")
+	}
+	return Consent{
+		ID: id, AccountID: accountID, Purpose: cleaned,
+		Granted: true, GrantedAt: now, Source: SourceUser,
 	}, nil
 }
 

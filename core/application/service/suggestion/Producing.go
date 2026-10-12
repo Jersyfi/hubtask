@@ -14,6 +14,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -60,6 +61,9 @@ type Material struct {
 	// options and validated on the way back an answer is a choice from what it was shown. They
 	// travel as content, never as instruction - a column's name is something somebody typed.
 	Choices []Choices
+	// Kept is whose content stayed out of this material, read in its transaction: what the
+	// producer applies to anything it appends, and how it learns the asker keeps their own out.
+	Kept integration.KeptOut
 }
 
 // Declared is one custom field definition, with the entry's own value beside it.
@@ -477,12 +481,17 @@ func (h Produce) ask(
 				if err != nil {
 					return err
 				}
-				read.Content += "\n\nWhat the template should be for, in the person's words:\n" + asked.Text
+				read.Content += "\n\nWhat the template should be for, in the person's words:\n" + read.Kept.Scrub(asked.Text)
 			}
 			material = read
 			return nil
 		}); err != nil {
 		return Outcome{}, err
+	}
+	if material.Kept.Has(actor.AccountID) {
+		// The asker keeps their own content out of AI, decided between the asking and the running:
+		// no AI action is theirs any more (UC-PRV-05 check 7), and nothing is sent.
+		return Outcome{}, nil
 	}
 	if strings.TrimSpace(material.Content) == "" {
 		// Nothing to describe. Not an error and not a suggestion: an empty entry produces an

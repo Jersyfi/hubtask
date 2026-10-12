@@ -30,9 +30,18 @@ import (
 // conversions exported to it.
 type AuditSink struct {
 	IDs clock.IDGenerator
+	// Fingerprints keys the fingerprints of sensitive values (audit.md §4). A sink without one
+	// records such a field as "changed" alone; the server always builds it with one (Keyed).
+	Fingerprints port.Fingerprinter
 }
 
 func NewAuditSink(ids clock.IDGenerator) AuditSink { return AuditSink{IDs: ids} }
+
+// Keyed is the sink with the fingerprinter it keys sensitive values with.
+func (s AuditSink) Keyed(fingerprints port.Fingerprinter) AuditSink {
+	s.Fingerprints = fingerprints
+	return s
+}
 
 var _ port.Sink = AuditSink{}
 
@@ -92,7 +101,9 @@ func (s AuditSink) Append(ctx context.Context, entry port.Entry) error {
 	// back, and the trail would report tampering that never happened.
 	//
 	// One round trip through the same encoder the reader uses settles it: what is hashed is what
-	// any reader will see, whatever the caller built it from.
+	// any reader will see, whatever the caller built it from. The sensitive values are keyed
+	// first, so the round trip - and the chain after it - covers the fingerprints as stored.
+	entry = port.KeyFingerprints(entry, s.Fingerprints)
 	changes, err := storedShape(entry.Changes)
 	if err != nil {
 		return err

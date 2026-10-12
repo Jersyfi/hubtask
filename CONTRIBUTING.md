@@ -117,8 +117,9 @@ Everything else — the rules, the loop, the Definition of Done — is in [`AGEN
 
 ## Merging a stack of pull requests (maintainers)
 
-A squash merge rewrites the base of every pull request stacked on it. Merge in order, and after each
-merge bring the next one up to date on the server — `gh api repos/Jersyfi/hubtask/merges -f
+A pull request merges without being brought up to date with `main` ([ci-cd.md](docs/architecture/ci-cd.md) §3.5); only a conflict, or a base that was squash-merged,
+needs `main` merged in. A squash merge rewrites the base of every pull request stacked on it. Merge
+in order, and after each merge bring the next one up to date on the server — `gh api repos/Jersyfi/hubtask/merges -f
 base=<branch> -f head=main` — rather than rebasing locally. Two workers merging at once race on the
 same `main`: merge from one place at a time. A `BEHIND` or `DIRTY` read right after a push is stale;
 read it again half a minute later.

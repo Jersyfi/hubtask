@@ -238,9 +238,11 @@ application only once it is added to `compose.yaml` too.
 
 Required, with no default: `HUBTASK_DB_DSN` (the connection as `hubtask_app`) and
 `HUBTASK_SECRET_KEY` — the installation secret, at least 32 characters. It peppers stored
-credential hashes, signs cursors and mints media and feed tokens, every purpose derived through its
-own label ([security.md](./security.md) §5); it is **not** the key backups and stored credentials
-are encrypted with, which is the keyring below.
+credential hashes, signs cursors, mints media and feed tokens and keys the audit trail's
+fingerprints of sensitive values, every purpose derived through its own label
+([security.md](./security.md) §5, §8); it is **not** the key backups and stored credentials are
+encrypted with, which is the keyring below. Changing it ends every session and token, and the audit
+fingerprints written before and after the change no longer compare ([audit.md](./audit.md) §4).
 
 The variables whose default or behaviour a rule depends on:
 

@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const aiNoticedAt = `-- name: AiNoticedAt :one
+SELECT noticed_at FROM ai_objection_notice
+WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// When a person last acknowledged that their objection to AI stopped taking effect.
+func (q *Queries) AiNoticedAt(ctx context.Context, accountID pgtype.UUID) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, aiNoticedAt, accountID)
+	var noticed_at pgtype.Timestamptz
+	err := row.Scan(&noticed_at)
+	return noticed_at, err
+}
+
 const anonymiseAccount = `-- name: AnonymiseAccount :execrows
 
 UPDATE account SET
@@ -918,6 +931,25 @@ func (q *Queries) PendingErasureKept(ctx context.Context, holdID pgtype.UUID) ([
 	return items, nil
 }
 
+const recordAiNotice = `-- name: RecordAiNotice :exec
+INSERT INTO ai_objection_notice (tenant_id, account_id, noticed_at)
+VALUES (current_tenant_id(), $1, $2)
+ON CONFLICT (tenant_id, account_id)
+DO UPDATE SET noticed_at = GREATEST(ai_objection_notice.noticed_at, EXCLUDED.noticed_at)
+`
+
+type RecordAiNoticeParams struct {
+	AccountID pgtype.UUID
+	NoticedAt pgtype.Timestamptz
+}
+
+// The acknowledgement moves only forwards: a late, retried request must not make an earlier
+// notice pending again.
+func (q *Queries) RecordAiNotice(ctx context.Context, arg RecordAiNoticeParams) error {
+	_, err := q.db.Exec(ctx, recordAiNotice, arg.AccountID, arg.NoticedAt)
+	return err
+}
+
 const releaseIntakeOf = `-- name: ReleaseIntakeOf :execrows
 UPDATE jumble_entry SET sender = NULL
 WHERE tenant_id = current_tenant_id()
@@ -980,6 +1012,63 @@ func (q *Queries) SetAccountStatus(ctx context.Context, arg SetAccountStatusPara
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const standingWithdrawals = `-- name: StandingWithdrawals :many
+SELECT a.id AS account_id, a.display_name, a.email, a.sign_in_name,
+       latest.granted_at AS since, latest.source
+FROM (
+  SELECT DISTINCT ON (c.account_id) c.account_id, c.granted, c.granted_at, c.source
+  FROM consent_record c
+  WHERE c.tenant_id = current_tenant_id()
+    AND c.purpose = $1
+    AND c.account_id IS NOT NULL
+  ORDER BY c.account_id, c.granted_at DESC, c.id DESC
+) latest
+JOIN account a ON a.tenant_id = current_tenant_id() AND a.id = latest.account_id
+WHERE NOT latest.granted
+  AND a.deleted_at IS NULL
+ORDER BY lower(a.display_name) COLLATE hubtask_name, a.id
+`
+
+type StandingWithdrawalsRow struct {
+	AccountID   pgtype.UUID
+	DisplayName string
+	Email       *string
+	SignInName  *string
+	Since       pgtype.Timestamptz
+	Source      *string
+}
+
+// The people whose newest record for one purpose is a withdrawal: who keeps their content out of
+// AI, for the consent register and for the prompt builder alike. The newest record decides, so a
+// consent given again after a withdrawal ends it. The names and addresses are what the prompt
+// builder replaces in what remains; the register answers only the name.
+func (q *Queries) StandingWithdrawals(ctx context.Context, purpose string) ([]StandingWithdrawalsRow, error) {
+	rows, err := q.db.Query(ctx, standingWithdrawals, purpose)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []StandingWithdrawalsRow{}
+	for rows.Next() {
+		var i StandingWithdrawalsRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.DisplayName,
+			&i.Email,
+			&i.SignInName,
+			&i.Since,
+			&i.Source,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const subjectTenants = `-- name: SubjectTenants :many

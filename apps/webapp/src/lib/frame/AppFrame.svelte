@@ -22,7 +22,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
@@ -49,6 +49,7 @@
   import { t } from '../i18n/i18n.svelte.ts';
   import { DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, primary } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
+  import { aiObjection } from '../data/aiobjection.svelte.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -97,6 +98,23 @@
     if (!session.isSignedIn) return;
     return untrack(() => quotas.open());
   });
+
+  // A person's own choice about AI, read while signed in: when the workspace made AI part of
+  // everybody's work after they kept their content out, they are told so once, here, on whichever
+  // screen they come back to (data-protection.md §4.1).
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return untrack(() => aiObjection.open());
+  });
+  let isAcknowledging = $state(false);
+  async function acknowledgeAiNotice() {
+    isAcknowledging = true;
+    try {
+      await aiObjection.acknowledge();
+    } finally {
+      isAcknowledging = false;
+    }
+  }
 
   // The private hubs, read while the administration is open: whether its row is drawn is this
   // answer (`navigation.ts`, `administration`).
@@ -407,6 +425,22 @@
                 >
                   {t('app.recovery_note.replace')}
                 </a>
+              {/snippet}
+            </Banner>
+          </div>
+        {/if}
+        {#if aiObjection.noticePending && aiObjection.position}
+          <!-- Told once: acknowledged on the server, so it does not come back on another device. -->
+          <div class="confirmed" data-ai-notice>
+            <Banner tone="info">
+              {t('app.profile.ai_notice', {
+                basis: aiObjection.position.basis ? t(`app.profile.ai_basis_${aiObjection.position.basis}`) : '',
+                contact: aiObjection.position.contact || t('app.profile.ai_ask_admin'),
+              })}
+              {#snippet action()}
+                <Button size="sm" isBusy={isAcknowledging} busyLabel={t('app.workspace.saving')} onclick={() => void acknowledgeAiNotice()}>
+                  {t('app.profile.ai_notice_understood')}
+                </Button>
               {/snippet}
             </Banner>
           </div>

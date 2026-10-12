@@ -4,7 +4,9 @@
 package audit
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -47,16 +49,95 @@ func TestChangesMaskPerClassification(t *testing.T) {
 	if name["to_hash"] == name["from_hash"] {
 		t.Error("two different values produced the same fingerprint")
 	}
-	for _, field := range []string{"to_hash", "from_hash"} {
-		if digest, _ := name[field].(string); len(digest) != 64 {
-			t.Errorf("%s is not a SHA-256 fingerprint: %v", field, name[field])
-		}
-	}
 
 	// The point of the fingerprint: comparing two entries without reading either value.
-	again := Changes(Change{Field: "name", Classification: Sensitive, To: "Shopping"})
-	if again["name"].(map[string]any)["to_hash"] != name["to_hash"] {
+	keyed := KeyFingerprints(Entry{TenantID: tenantID, Changes: masked}, tagging{}).Changes
+	again := KeyFingerprints(Entry{TenantID: tenantID,
+		Changes: Changes(Change{Field: "name", Classification: Sensitive, To: "Shopping"})}, tagging{}).Changes
+	if again["name"].(map[string]any)["to_hash"] != keyed["name"].(map[string]any)["to_hash"] {
 		t.Error("the same value produced two different fingerprints")
+	}
+}
+
+// tagging is a fingerprinter whose answer shows what it was given, so a test can see that the
+// keyed step received the workspace and the canonical value.
+type tagging struct{}
+
+func (tagging) Fingerprint(tenant shared.ID, value string) string {
+	return "keyed:" + tenant.String() + ":" + value
+}
+
+// The sink keys every sensitive value with the entry's workspace, and touches nothing else - not
+// an open value, and not the map the caller built.
+func TestKeyFingerprintsKeysEverySensitiveValueAndNothingElse(t *testing.T) {
+	built := Changes(
+		Change{Field: "type", Classification: Open, From: "OPEN", To: "DONE"},
+		Change{Field: "name", Classification: Sensitive, From: "Groceries", To: 42},
+	)
+	keyed := KeyFingerprints(Entry{TenantID: tenantID, Changes: built}, tagging{}).Changes
+
+	name := keyed["name"].(map[string]any)
+	if name["to_hash"] != "keyed:"+tenantID.String()+":42" || name["from_hash"] != "keyed:"+tenantID.String()+":Groceries" {
+		t.Errorf("the sensitive values were not keyed with the workspace and the canonical value: %v", name)
+	}
+	if name["changed"] != true {
+		t.Errorf("the keyed field lost its marker: %v", name)
+	}
+	if open := keyed["type"].(map[string]any); open["to"] != "DONE" || open["from"] != "OPEN" {
+		t.Errorf("an open value changed on its way through: %v", open)
+	}
+	if _, stillPending := built["name"].(map[string]any)["to_hash"].(unkeyed); !stillPending {
+		t.Error("keying changed the caller's map")
+	}
+	if _, err := json.Marshal(keyed); err != nil {
+		t.Errorf("a keyed entry does not serialise: %v", err)
+	}
+}
+
+// A sink without a fingerprinter records that the field changed, and no fingerprint at all - never
+// an unkeyed one, and never the value.
+func TestWithoutAFingerprinterNoFingerprintIsRecorded(t *testing.T) {
+	built := Changes(Change{Field: "name", Classification: Sensitive, From: "Groceries", To: "Shopping"})
+	keyed := KeyFingerprints(Entry{TenantID: tenantID, Changes: built}, nil).Changes
+
+	name := keyed["name"].(map[string]any)
+	if len(name) != 1 || name["changed"] != true {
+		t.Errorf("an unkeyed sink recorded more than that the field changed: %v", name)
+	}
+	stored, err := json.Marshal(keyed)
+	if err != nil {
+		t.Fatalf("serialising: %v", err)
+	}
+	if strings.Contains(string(stored), "Groceries") || strings.Contains(string(stored), "Shopping") ||
+		strings.Contains(string(stored), "_hash") {
+		t.Errorf("an unkeyed sink stored a value or a fingerprint: %s", stored)
+	}
+}
+
+// Until the sink keys it, a sensitive value cannot be read anywhere it might be printed (rule 10),
+// and cannot be serialised - a path that skipped the sink fails rather than storing something.
+func TestAValueAwaitingItsFingerprintCannotBeRead(t *testing.T) {
+	masked := Changes(Change{Field: "name", Classification: Sensitive, To: "Lena Beispiel"})
+	pending := masked["name"].(map[string]any)["to_hash"]
+
+	for _, verb := range []string{"%v", "%+v", "%#v", "%s", "%q", "%x", "%X", "%d", "%T %v"} {
+		for _, printed := range []string{fmt.Sprintf(verb, pending), fmt.Sprintf(verb, masked)} {
+			if strings.Contains(printed, "Lena") || strings.Contains(printed, "4c656e61") ||
+				strings.Contains(printed, "4C656E61") {
+				t.Errorf("%s printed the value: %s", verb, printed)
+			}
+		}
+		if printed := fmt.Sprintf(verb, pending); verb != "%T %v" && printed != Redacted {
+			t.Errorf("%s printed %q, want %q", verb, printed, Redacted)
+		}
+	}
+	if fmt.Sprint(pending) != Redacted || fmt.Sprintln(masked) == "" {
+		t.Error("the value is not shown as redacted")
+	}
+
+	_, err := json.Marshal(masked)
+	if err == nil || !strings.Contains(err.Error(), "audit.fingerprint_unkeyed") {
+		t.Errorf("an unkeyed value serialised: %v", err)
 	}
 }
 

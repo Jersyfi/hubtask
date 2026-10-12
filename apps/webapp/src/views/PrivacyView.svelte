@@ -29,6 +29,7 @@
   import { Badge, Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import ConsentRegister from '../lib/workspace/ConsentRegister.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holds } from '../lib/data/capability.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
@@ -594,6 +595,9 @@
         </div>
       </Stack>
     </form>
+
+    <!-- Who keeps their own content out of AI: the register, here and nowhere else. -->
+    <ConsentRegister />
 
     <Stack gap="150">
       <h2 class="section">{t('app.privacy.articles_title')}</h2>

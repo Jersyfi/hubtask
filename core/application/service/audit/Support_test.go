@@ -146,7 +146,8 @@ func record(id string, seq int64, change func(*repository.Record)) repository.Re
 	stored := repository.Record{
 		ID:  shared.MustParseID(id),
 		Seq: seq,
-		Entry: port.Entry{
+		// Keyed, as the sink stores it: a stored entry never holds a value awaiting its fingerprint.
+		Entry: port.KeyFingerprints(port.Entry{
 			TenantID: tenantID, OccurredAt: now, Action: "container.created",
 			Outcome: port.OutcomeSuccess, Severity: port.SeverityInfo,
 			ActorKind: shared.ActorKind(appshared.ActorUser), ActorID: accountID,
@@ -158,11 +159,18 @@ func record(id string, seq int64, change func(*repository.Record)) repository.Re
 				port.Change{Field: "title", Classification: port.Sensitive, To: "Weekly shop"},
 				port.Change{Field: "token", Classification: port.Secret, To: "hbt_pat_secret"},
 			),
-		},
+		}, storedFingerprints{}),
 		Hash: []byte{0xab, 0xcd},
 	}
 	change(&stored)
 	return stored
+}
+
+// storedFingerprints stands in for the sink's keyed fingerprint: what is stored is a string.
+type storedFingerprints struct{}
+
+func (storedFingerprints) Fingerprint(shared.ID, string) string {
+	return "hmac-sha256:0f0f"
 }
 
 // wholeTrailRequest is what the use cases ask for when the whole trail is meant.

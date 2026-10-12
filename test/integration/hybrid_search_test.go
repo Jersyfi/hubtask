@@ -402,7 +402,7 @@ func owedIn(ctx context.Context, t *testing.T, model string) []repository.OwedEm
 	var owed []repository.OwedEmbedding
 	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
 		var err error
-		owed, err = postgres.NewEmbeddingRepository().Owed(ctx, model, 200)
+		owed, err = postgres.NewEmbeddingRepository().Owed(ctx, model, 200, nil)
 		return err
 	}); err != nil {
 		t.Fatalf("reading what is owed: %v", err)
