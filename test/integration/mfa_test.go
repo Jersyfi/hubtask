@@ -156,6 +156,8 @@ func TestAPendingCredentialIsBoundToItsTenantAndDiesOnce(t *testing.T) {
 		IPClass:   "203.0.113.0/24",
 		CreatedAt: now,
 		ExpiresAt: now.Add(identity.PendingLifetime),
+		// How the steps before a change step were proven travels with the row (UC-ID-06 check 2).
+		SignedInWith: identity.SignedInWithPasswordRecovery,
 	}
 	inTenant(t, uow, tenantA, func(ctx context.Context) error {
 		return mfa.Insert(ctx, credential, presented)
@@ -186,6 +188,9 @@ func TestAPendingCredentialIsBoundToItsTenantAndDiesOnce(t *testing.T) {
 		}
 		if lookup.Credential.UserAgent != "hubctl/1.0" || lookup.Credential.IPClass != "203.0.113.0/24" {
 			t.Errorf("the client hint did not travel: %+v", lookup.Credential)
+		}
+		if lookup.Credential.SignedInWith != identity.SignedInWithPasswordRecovery {
+			t.Errorf("the sign-in method did not travel: %q", lookup.Credential.SignedInWith)
 		}
 		consumed, err := mfa.Consume(ctx, credential.ID, now)
 		if err != nil || !consumed {

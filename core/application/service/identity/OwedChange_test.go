@@ -104,6 +104,21 @@ func TestAnOwedChangeSurvivesTheFactorsCode(t *testing.T) {
 	if result.Challenge == nil || result.Challenge.Methods[0] != methodPasswordChange {
 		t.Fatalf("the code's step owes %+v, want the change step", result.Challenge)
 	}
+
+	// UC-ID-06 check 2: the session the change then opens says how it was opened - with the
+	// password and the second factor, which is what was proven - not as a password alone.
+	changer := fixture.passwords.writer
+	changer.Session.Clock = clock.Fixed(later)
+	pair, err := SetPasswordAndSignIn{Writer: changer}.Execute(t.Context(), SetPasswordAndSignInCommand{
+		PendingToken: result.Challenge.Token,
+		Password:     secret.New("seven blue lanterns above the quiet harbour"),
+	})
+	if err != nil {
+		t.Fatalf("the change step did not finish the sign-in: %v", err)
+	}
+	if pair.Session.SignedInWith != domain.SignedInWithPasswordTotp {
+		t.Errorf("the session records %q, want %q", pair.Session.SignedInWith, domain.SignedInWithPasswordTotp)
+	}
 }
 
 // A password the rule accepts goes through the factor's step to the session, as before.

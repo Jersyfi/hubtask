@@ -594,6 +594,7 @@ type AuthPending struct {
 	LinkProof          *string
 	PasswordChangeOwed bool
 	Address            *string
+	SignedInWith       *string
 }
 
 type AutoAssignPolicy struct {
