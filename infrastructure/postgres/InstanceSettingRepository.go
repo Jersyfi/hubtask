@@ -237,7 +237,9 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 	case localisationArea + ".week_start":
 		var start *int
 		if start, err = number(); err == nil {
-			level.Localisation.WeekStart = *start
+			// A day none of the three - written before the vocabulary was one - is undecided
+			// rather than a level nobody can read.
+			level.Localisation.WeekStart, _ = identity.WeekStartOfISO(*start)
 		}
 	case aiArea + "." + string(integration.AiSwitchSources):
 		var value string
@@ -489,8 +491,10 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 		}
 		rows = append(rows, settingRow{key: key, value: encoded, lock: "OPEN"})
 	}
-	if level.Localisation.WeekStart != 0 {
-		encoded, err := json.Marshal(level.Localisation.WeekStart)
+	// The week start as its ISO number, the form this row has always held: a server one release
+	// older reads the level whole and refuses it over a value of the wrong kind.
+	if day := level.Localisation.WeekStart.ISO(); day != 0 {
+		encoded, err := json.Marshal(day)
 		if err != nil {
 			return nil, shared.Internalf("postgres: encoding the week start: %w", err)
 		}

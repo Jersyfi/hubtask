@@ -6272,7 +6272,7 @@ type InstanceSetting struct {
 	// Maximum For `COUNT`, the most the product applies. Absent where there is no bound.
 	Maximum *int `json:"maximum,omitempty"`
 
-	// Minimum For `COUNT`, the least value the product applies. Where `0` is also accepted it means off or unlimited, and `minimum` is then the least value that is not off.
+	// Minimum For `COUNT`, the least value the product applies. A value past either bound is held at it, at every level. Where the least is `0`, it means off or unlimited for the keys that say so.
 	Minimum *int `json:"minimum,omitempty"`
 
 	// Options For `CHOICE` and `CHOICES`, the closed set of values, from the loosest to the strictest. Absent for the other kinds.

@@ -187,12 +187,8 @@ func (c *RestController) RemoveOperator(
 func instanceSettingMap(sent map[string]openapi.InstanceSetting) map[string]any {
 	settings := make(map[string]any, len(sent))
 	for name, setting := range sent {
-		// A switch a client sent back without a value is one it is clearing, which is what the
-		// write means by "the installation stops deciding it" - so `set` travels no further than
-		// the read that carried it.
-		if setting.Value == nil {
-			continue
-		}
+		// As it arrived, value or none: what an entry without a value means is the use case's to
+		// decide, and the file reaches the same reading without passing through here.
 		settings[name] = map[string]any{"value": setting.Value, "locked": setting.Locked}
 	}
 	return settings
@@ -240,7 +236,25 @@ func instanceSettingsOf(value any) map[string]openapi.InstanceSetting {
 		}
 		locked, _ := entry["locked"].(bool)
 		set, _ := entry["set"].(bool)
-		settings[name] = openapi.InstanceSetting{Set: set, Value: entry["value"], Locked: locked}
+		setting := openapi.InstanceSetting{Set: set, Value: entry["value"], Locked: locked}
+		if kind := entry.String("kind"); kind != "" {
+			declared := openapi.InstanceSettingKind(kind)
+			setting.Kind = &declared
+		}
+		if options, held := entry["options"].([]any); held {
+			setting.Options = &options
+		}
+		if minimum, held := entry["minimum"].(int); held {
+			setting.Minimum = &minimum
+		}
+		if maximum, held := entry["maximum"].(int); held {
+			setting.Maximum = &maximum
+		}
+		if may := entry.String("workspace_may"); may != "" {
+			declared := openapi.InstanceSettingWorkspaceMay(may)
+			setting.WorkspaceMay = &declared
+		}
+		settings[name] = setting
 	}
 	return settings
 }

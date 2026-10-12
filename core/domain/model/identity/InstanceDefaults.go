@@ -24,17 +24,64 @@ import "strings"
 type LocalisationDefaults struct {
 	Locale   string
 	TimeZone string
-	// WeekStart is the ISO weekday a calendar opens on, 1 being Monday. Zero is undecided.
-	WeekStart int
+	// WeekStart is the day a calendar opens on. Empty is undecided.
+	WeekStart WeekStart
 }
 
 // IsZero reports whether the installation decided none of the three.
 func (d LocalisationDefaults) IsZero() bool {
-	return strings.TrimSpace(d.Locale) == "" && strings.TrimSpace(d.TimeZone) == "" && d.WeekStart == 0
+	return strings.TrimSpace(d.Locale) == "" && strings.TrimSpace(d.TimeZone) == "" && d.WeekStart == ""
 }
 
-// MaxWeekStart is Sunday in the ISO numbering the rest of this product uses.
-const MaxWeekStart = 7
+// WeekStart is the day a week starts on, in the vocabulary every level shares - the account's own
+// preference, a workspace's, the installation's and a locale's (i18n-l10n.md §4). Three days,
+// because those are the ones a locale starts its week on; a day no level below could show would
+// be a default nobody could see applied.
+type WeekStart string
+
+const (
+	WeekStartMonday   WeekStart = "MONDAY"
+	WeekStartSaturday WeekStart = "SATURDAY"
+	WeekStartSunday   WeekStart = "SUNDAY"
+)
+
+// WeekStartDays is the three, in the order a screen offers them.
+func WeekStartDays() []string {
+	return []string{string(WeekStartMonday), string(WeekStartSaturday), string(WeekStartSunday)}
+}
+
+// Valid reports whether the day is one of the three.
+func (w WeekStart) Valid() bool {
+	return w == WeekStartMonday || w == WeekStartSaturday || w == WeekStartSunday
+}
+
+// ISO is the ISO weekday number, 1 being Monday, or zero for an undecided day. It is the form the
+// installation's row stores, which a server one release older reads.
+func (w WeekStart) ISO() int {
+	switch w {
+	case WeekStartMonday:
+		return 1
+	case WeekStartSaturday:
+		return 6
+	case WeekStartSunday:
+		return 7
+	}
+	return 0
+}
+
+// WeekStartOfISO reads an ISO weekday number. A day between Tuesday and Friday is none of the
+// three and answers false.
+func WeekStartOfISO(day int) (WeekStart, bool) {
+	switch day {
+	case 1:
+		return WeekStartMonday, true
+	case 6:
+		return WeekStartSaturday, true
+	case 7:
+		return WeekStartSunday, true
+	}
+	return "", false
+}
 
 // QuotaDefaults is the ceiling the installation sets for each quota, by the quota's own name.
 //

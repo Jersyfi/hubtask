@@ -10756,8 +10756,9 @@ components:
           type: integer
           readOnly: true
           description: >
-            For `COUNT`, the least value the product applies. Where `0` is also accepted it means
-            off or unlimited, and `minimum` is then the least value that is not off.
+            For `COUNT`, the least value the product applies. A value past either bound is held
+            at it, at every level. Where the least is `0`, it means off or unlimited for the keys
+            that say so.
         maximum:
           type: integer
           readOnly: true

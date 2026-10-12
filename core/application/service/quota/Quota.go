@@ -14,6 +14,7 @@ import (
 	"strconv"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/quota"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
@@ -42,6 +43,13 @@ func Names() []string {
 		APIRequestsPerMinute, Items, MediaBytes, AutomationRunsPerHour, WebhookTargets, ExportJobs,
 		AiTokensPerDay,
 	}
+}
+
+// Declaration is every quota's as the installation's level answers it: a whole number, 0 being
+// unlimited, which a workspace may raise with a ceiling of its own while it is open.
+func Declaration() identity.ValueDeclaration {
+	least := 0
+	return identity.ValueDeclaration{Kind: identity.KindCount, Minimum: &least, May: identity.MayRaise}
 }
 
 // Unlimited is the ceiling that never engages. It is a documented value, not an absence: a

@@ -54,15 +54,16 @@ func TestALocalisationDefaultCannotBeLocked(t *testing.T) {
 	if level.Localisation.Locale != "de" || level.Localisation.TimeZone != "Europe/Berlin" {
 		t.Errorf("the defaults read %+v", level.Localisation)
 	}
-	if level.Localisation.WeekStart != 1 {
-		t.Errorf("the week start reads %d", level.Localisation.WeekStart)
+	// The ISO number this key took before it shared the account's words still reads as its day.
+	if level.Localisation.WeekStart != identity.WeekStartMonday {
+		t.Errorf("the week start reads %q", level.Localisation.WeekStart)
 	}
 }
 
-// A week start outside the seven days is refused rather than stored: the calendar would open on a
-// day that does not exist, and nothing downstream would say why.
-func TestAWeekStartOutsideTheWeekIsRefused(t *testing.T) {
-	for _, value := range []float64{0, 8, -1} {
+// A week start no level below could show is refused rather than stored: a day outside the week, and
+// a weekday no locale starts its week on, which neither an account nor a workspace can name.
+func TestAWeekStartOutsideTheThreeDaysIsRefused(t *testing.T) {
+	for _, value := range []any{float64(0), float64(8), float64(-1), float64(3), "TUESDAY", "monday"} {
 		_, err := InstanceLevelOf(map[string]any{
 			"localisation": map[string]any{"week_start": map[string]any{"value": value}},
 		})
