@@ -301,7 +301,12 @@ An unverified address comes in nowhere. Then:
   empty list does not narrow.
 * The mode and lists decide who comes in **new**; a member bringing their own proof (§11) or an
   invitation's link (§12) is not new.
-* An account created on arrival holds no role.
+* **What newcomers get** is the provider's: nothing (the default), one role on the workspace, or one
+  group of it — given in the transaction that creates the account, recorded as a grant. Only a
+  workspace's own provider under `DOMAINS` or `ANY` names it; never `OWNER`, directly or through a
+  group, which is checked when it is saved and again on arrival (a group gone or holding `OWNER` by
+  then gives nothing). A person holding no membership anywhere is told an administrator still has
+  to give access.
 * A mode a build does not know admits nobody.
 * Microsoft's personal-account directory is `9188040d-6c67-4c5b-b112-36a304b66dad`; a company's is
   its tenant GUID. Google directories are Workspace domains as `hd` answers them.
@@ -642,7 +647,6 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 |---|---|
 | I-1 | Telling a person by mail when a way into their account changes ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6); only the operator's opening is told today. |
 | I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
-| I-3 | A role for newcomers under `DOMAINS` and `ANY` ([UC-ID-11](../usecases/identity/UC-ID-11-set-up-a-sign-in-provider-for-the-workspace.md)). Not built. |
 | I-4 | The first start and the locked installation: a setup code, `HUBTASK_OPERATORS`, a server command ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md), [UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)). Not built. |
 | I-5 | Invitations without mail, providers on the invitation card, terms of use with a `TERMS` step ([UC-ID-14](../usecases/identity/UC-ID-14-invite-people-with-a-role.md), [UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
 | I-9 | An installation lock turning an invite-only offered provider on everywhere (§18; [UC-INS-11](../usecases/admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) check 4). Decided, not built. |

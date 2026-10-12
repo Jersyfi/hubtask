@@ -1008,6 +1008,9 @@ func run() error {
 		Accounts:    accounts,
 		Relying:     relyingParty,
 		RedirectURL: oidcRedirectURL,
+		// What a provider names for newcomers is given in the arrival's own transaction.
+		Grants: grants,
+		Groups: groups,
 	}
 
 	// The AI provider's configuration. The third-country confirmation is the
