@@ -100,8 +100,8 @@ practice. Rules:
 [`UC-PRV-01`](../usecases/privacy/UC-PRV-01-answer-a-data-subject-request-in-time.md),
 [`UC-PRV-03`](../usecases/privacy/UC-PRV-03-erase-a-person-on-request.md),
 [`UC-PRV-05`](../usecases/privacy/UC-PRV-05-withdraw-consent-to-optional-processing.md)); the
-extension, the legal hold's reach and the AI position are built; what a restriction keeps the kept
-data out of (below) not yet.
+extension, the legal hold's reach, what a restriction keeps the kept data out of and the AI position
+are built.
 
 * **A deadline is extended once (Art. 12(3)).** An open case before its original deadline may be
   extended once, to at most three months after receipt, naming the reason (`COMPLEXITY` or
@@ -155,8 +155,14 @@ data out of (below) not yet.
     retention pass seeds every remainder nothing seeded - a release by an older binary, a restore
     that changed the holds. A kept entry moved out of its hold's reach goes with the next run of the
     rest, not at the move.
-  * **Not yet built:** keeping what a hold keeps out of automation and AI (#1227) - for AI, as a
-    second source of the exclusion the objection already uses ([ai-first.md](./ai-first.md) §2).
+  * **Out of automation and AI.** What a hold keeps is restricted, and so is its person: the account
+    kept `RESTRICTED`, or - under a narrower hold - the anonymised account whose case still has a
+    part not erased, with all of that former user's contributions until the last kept part is
+    erased. No rule runs as or about such a person and none puts them on an entry
+    ([automation.md](./automation.md) §2.0); the AI exclusion keeps out what they wrote and what is
+    assigned to them, whatever the workspace's AI position and however many work there
+    ([ai-first.md](./ai-first.md) §2). Backups, the workspace export and the person's own copy keep
+    it - no export is filtered.
 * **AI: the workspace decides whether a person may keep their own content out.** Consent to AI
   processing stays the workspace's ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md));
   beside it the workspace takes one of two positions:
@@ -312,7 +318,7 @@ tenants, data categories and period within 72 hours
 | Setting | Default |
 |---|---|
 | AI processing | Off |
-| A person's objection to AI for their own content | Offered; a workspace may withdraw the offer only on a named legal basis (§4.1, not yet built) |
+| A person's objection to AI for their own content | Offered; a workspace may withdraw the offer only on a named legal basis (§4.1) |
 | External search index | Off (PostgreSQL full text is data-local) |
 | Telemetry / usage statistics sent to the project | Does not exist |
 | Metering (usage figures for billing) | Off; when enabled, aggregates only, no content |
