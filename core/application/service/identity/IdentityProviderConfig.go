@@ -553,6 +553,12 @@ func (w IdentityProviderWriter) record(
 	ctx context.Context, actor appshared.ActorContext, tenantID shared.ID,
 	action audit.Action, configured domain.IdentityProvider,
 ) error {
+	if tenantID.IsZero() {
+		// The installation's own provider belongs to no workspace's trail, and the trail refuses
+		// an entry without one - which rolled every installation-level write back. Its evidence is
+		// the installation's journal, which the operator's use case writes beside this call.
+		return nil
+	}
 	changes := []audit.Change{}
 	if configured.Issuer != "" {
 		changes = append(changes,
