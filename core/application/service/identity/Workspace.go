@@ -400,8 +400,12 @@ func workspaceOutput(
 	if !workspace.Settings.AuditAnchorTargetID.IsZero() {
 		out["audit_anchor_target_id"] = workspace.Settings.AuditAnchorTargetID.String()
 	}
+	if workspace.Settings.WeekStart != "" {
+		out["default_week_start"] = string(workspace.Settings.WeekStart)
+	}
 	if resolved != nil {
 		out["sign_in_policy"] = signInPolicyOutput(*resolved)
+		out["installation_defaults"] = installationDefaultsOutput(resolved.InstallationLocalisation)
 	}
 	// The installation operator's opening of the password, while it stands (ADR-0078 §3): until
 	// when for everybody, and for whom and why where the reader may read the configuration
@@ -499,6 +503,10 @@ func (h UpdateWorkspace) Descriptor() usecase.Descriptor {
 				Description: "A BCP-47 tag. The fallback for a member who has set none."},
 			{Name: "default_time_zone", Kind: usecase.KindString,
 				Description: "An IANA zone, for the same position in the same chain."},
+			{Name: "default_week_start", Kind: usecase.KindString,
+				Description: "MONDAY, SATURDAY or SUNDAY: the day a member's week starts on when " +
+					"they chose none. The empty string clears it, and the installation's day, then " +
+					"the language's, applies again."},
 			{Name: "require_admin_totp", Kind: usecase.KindBool,
 				Description: "The old name for `sign_in_policy.mfa_required_for`: true asks for " +
 					"`ADMINS` where the rule demands less, false for `NONE`. Not stored as itself - " +
@@ -533,6 +541,8 @@ func (h UpdateWorkspace) invoke(
 		DisplayName:     in.OptionalString("display_name"),
 		DefaultLocale:   in.OptionalString("default_locale"),
 		DefaultTimeZone: in.OptionalString("default_time_zone"),
+
+		DefaultWeekStart: in.OptionalString("default_week_start"),
 	}
 	var adminFlag *bool
 	if in.Present("require_admin_totp") {
@@ -576,4 +586,21 @@ func (w WorkspaceWriter) resolvedPolicy(ctx context.Context, tenantID shared.ID)
 		return nil
 	}
 	return &resolved
+}
+
+// installationDefaultsOutput is what the installation set as the default language, time zone and
+// week start, only what it decided: a workspace's screen shows it beside its own fields (UC-INS-09
+// check 5), and a private installation that decided nothing shows nothing (P-10).
+func installationDefaultsOutput(defaults domain.LocalisationDefaults) usecase.Output {
+	out := usecase.Output{}
+	if defaults.Locale != "" {
+		out["locale"] = defaults.Locale
+	}
+	if defaults.TimeZone != "" {
+		out["time_zone"] = defaults.TimeZone
+	}
+	if defaults.WeekStart != "" {
+		out["week_start"] = string(defaults.WeekStart)
+	}
+	return out
 }

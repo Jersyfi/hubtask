@@ -5,9 +5,9 @@ context: identity
 actors: [PE-operator, PE-owner, PE-admin, PE-person]
 deployments: [D1, D4, D5, D6]
 serves: [P-06, P-07, P-10, P-12]
-state: partial
-tasks: [SI-12, SI-14, SI-16, SC-09]
-checked_by: [core/domain/model/identity/LegalLinks_test.go, apps/webapp/e2e/signin.test.mjs]
+state: built
+tasks: [SI-12, SI-14, SI-16, SC-09, SC-07]
+checked_by: [core/domain/model/identity/LegalLinks_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/signinsettings.test.mjs, core/application/service/admin/AccessibilityWarning_test.go]
 ---
 
 # Show the legal information people are owed before they sign in
@@ -42,7 +42,3 @@ the footer is empty.
 
 * Hubtask does not write any of these texts, and ships no default pointing at hubtask.eu.
 * Agreeing to terms is UC-ID-19.
-
-## Today
-
-* Check 3: not met — the workspace screen shows only the lock, not the inherited link beside its own field, tracked in #1063.

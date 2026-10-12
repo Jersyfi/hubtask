@@ -1974,6 +1974,81 @@ func (e ImportRunStatus) Valid() bool {
 	}
 }
 
+// Defines values for InstallationDefaultsWeekStart.
+const (
+	InstallationDefaultsWeekStartMONDAY   InstallationDefaultsWeekStart = "MONDAY"
+	InstallationDefaultsWeekStartSATURDAY InstallationDefaultsWeekStart = "SATURDAY"
+	InstallationDefaultsWeekStartSUNDAY   InstallationDefaultsWeekStart = "SUNDAY"
+)
+
+// Valid indicates whether the value is a known member of the InstallationDefaultsWeekStart enum.
+func (e InstallationDefaultsWeekStart) Valid() bool {
+	switch e {
+	case InstallationDefaultsWeekStartMONDAY:
+		return true
+	case InstallationDefaultsWeekStartSATURDAY:
+		return true
+	case InstallationDefaultsWeekStartSUNDAY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InstanceSettingKind.
+const (
+	InstanceSettingKindCHOICE   InstanceSettingKind = "CHOICE"
+	InstanceSettingKindCHOICES  InstanceSettingKind = "CHOICES"
+	InstanceSettingKindCOUNT    InstanceSettingKind = "COUNT"
+	InstanceSettingKindFLAG     InstanceSettingKind = "FLAG"
+	InstanceSettingKindLINK     InstanceSettingKind = "LINK"
+	InstanceSettingKindLOCALE   InstanceSettingKind = "LOCALE"
+	InstanceSettingKindTIMEZONE InstanceSettingKind = "TIME_ZONE"
+)
+
+// Valid indicates whether the value is a known member of the InstanceSettingKind enum.
+func (e InstanceSettingKind) Valid() bool {
+	switch e {
+	case InstanceSettingKindCHOICE:
+		return true
+	case InstanceSettingKindCHOICES:
+		return true
+	case InstanceSettingKindCOUNT:
+		return true
+	case InstanceSettingKindFLAG:
+		return true
+	case InstanceSettingKindLINK:
+		return true
+	case InstanceSettingKindLOCALE:
+		return true
+	case InstanceSettingKindTIMEZONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InstanceSettingWorkspaceMay.
+const (
+	RAISE   InstanceSettingWorkspaceMay = "RAISE"
+	REPLACE InstanceSettingWorkspaceMay = "REPLACE"
+	TIGHTEN InstanceSettingWorkspaceMay = "TIGHTEN"
+)
+
+// Valid indicates whether the value is a known member of the InstanceSettingWorkspaceMay enum.
+func (e InstanceSettingWorkspaceMay) Valid() bool {
+	switch e {
+	case RAISE:
+		return true
+	case REPLACE:
+		return true
+	case TIGHTEN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InvitedAccountKind.
 const (
 	InvitedAccountKindSERVICEACCOUNT InvitedAccountKind = "SERVICE_ACCOUNT"
@@ -3951,6 +4026,30 @@ func (e WebhookSubscriptionUpdateState) Valid() bool {
 	case WebhookSubscriptionUpdateStateLessThannil:
 		return true
 	case WebhookSubscriptionUpdateStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkspaceDefaultWeekStart.
+const (
+	WorkspaceDefaultWeekStartLessThannil WorkspaceDefaultWeekStart = "<nil>"
+	WorkspaceDefaultWeekStartMONDAY      WorkspaceDefaultWeekStart = "MONDAY"
+	WorkspaceDefaultWeekStartSATURDAY    WorkspaceDefaultWeekStart = "SATURDAY"
+	WorkspaceDefaultWeekStartSUNDAY      WorkspaceDefaultWeekStart = "SUNDAY"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceDefaultWeekStart enum.
+func (e WorkspaceDefaultWeekStart) Valid() bool {
+	switch e {
+	case WorkspaceDefaultWeekStartLessThannil:
+		return true
+	case WorkspaceDefaultWeekStartMONDAY:
+		return true
+	case WorkspaceDefaultWeekStartSATURDAY:
+		return true
+	case WorkspaceDefaultWeekStartSUNDAY:
 		return true
 	default:
 		return false
@@ -6304,6 +6403,16 @@ type InboundTriggerToken struct {
 	Token string `json:"token"`
 }
 
+// InstallationDefaults What the installation set as the default language, time zone and week start, so a workspace's screen can show it beside the workspace's own. Only what the installation decided: a key it left open is absent, and an installation that decided nothing answers an empty object. The language and time zone are what a new workspace starts with; the week start applies wherever a workspace decided none.
+type InstallationDefaults struct {
+	Locale    *string                        `json:"locale,omitempty"`
+	TimeZone  *string                        `json:"time_zone,omitempty"`
+	WeekStart *InstallationDefaultsWeekStart `json:"week_start,omitempty"`
+}
+
+// InstallationDefaultsWeekStart defines model for InstallationDefaults.WeekStart.
+type InstallationDefaultsWeekStart string
+
 // InstallationSetUp defines model for InstallationSetUp.
 type InstallationSetUp struct {
 	// Code The setup code the server printed at start. Case and the dashes between its groups do not matter.
@@ -6380,15 +6489,39 @@ type InstanceReach struct {
 // InstanceSetting One switch of the installation's level: whether it decided anything, what it set, and whether a workspace may tighten it.
 // **Every switch is answered, decided or not.** A reader has to be able to see that a switch exists and that this installation has left it to each workspace — which is a different fact from the switch not existing, and the only way a screen can draw the whole level without keeping a list of its own that would be wrong the day one is added.
 type InstanceSetting struct {
+	// Kind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
+	Kind *InstanceSettingKind `json:"kind,omitempty"`
+
 	// Locked Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.
 	Locked bool `json:"locked"`
+
+	// Maximum For `COUNT`, the most the product applies. Absent where there is no bound.
+	Maximum *int `json:"maximum,omitempty"`
+
+	// Minimum For `COUNT`, the least value the product applies. A value past either bound is held at it, at every level. Where the least is `0`, it means off or unlimited for the keys that say so.
+	Minimum *int `json:"minimum,omitempty"`
+
+	// Options For `CHOICE` and `CHOICES`, the closed set of values, from the loosest to the strictest. Absent for the other kinds.
+	Options *[]interface{} `json:"options,omitempty"`
+
+	// Position The key's place within its area, from 0: the order a screen draws the keys in, which an object's own key order does not carry.
+	Position *int `json:"position,omitempty"`
 
 	// Set Whether the installation decided this one. False means each workspace decides it, and `value` is then absent — not zero, not empty, absent, because a zero is a decision.
 	Set bool `json:"set"`
 
 	// Value The value, of whatever kind the switch is - a number, a flag, a word or a list of words. Absent where `set` is false.
 	Value interface{} `json:"value,omitempty"`
+
+	// WorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.
+	WorkspaceMay *InstanceSettingWorkspaceMay `json:"workspace_may,omitempty"`
 }
+
+// InstanceSettingKind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
+type InstanceSettingKind string
+
+// InstanceSettingWorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.
+type InstanceSettingWorkspaceMay string
 
 // InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.
 // **Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.
@@ -6406,7 +6539,7 @@ type InstanceSettings struct {
 	// Legal The four links, by name.
 	Legal *map[string]InstanceSetting `json:"legal,omitempty"`
 
-	// Localisation `locale`, `time_zone` and `week_start`: what a workspace that has set none of its own inherits.
+	// Localisation `locale`, `time_zone` and `week_start`: what a new workspace starts with, and, for the week start, what a workspace that set none of its own inherits. `week_start` is `MONDAY`, `SATURDAY` or `SUNDAY`, the vocabulary of the account's own; the ISO numbers 1, 6 and 7 are accepted for those days.
 	// **A default, never a lock.** `locked` is always false here and a write that sets one is refused rather than partly obeyed — "eine Instanz gibt einen Standard, nie ein Schloss: ein Unternehmen, das nicht auf Deutsch arbeiten darf, weil der Betreiber es so eingestellt hat, ist ein Produktfehler".
 	Localisation *map[string]InstanceSetting `json:"localisation,omitempty"`
 
@@ -9499,12 +9632,18 @@ type Workspace struct {
 
 	// DefaultTimeZone An IANA zone, for the same position in the same chain.
 	DefaultTimeZone string `json:"default_time_zone"`
-	DisplayName     string `json:"display_name"`
+
+	// DefaultWeekStart The day a member's week starts on when they chose none of their own, or null where this workspace decided nothing and the installation's day, then the language's, applies.
+	DefaultWeekStart *WorkspaceDefaultWeekStart `json:"default_week_start,omitempty"`
+	DisplayName      string                     `json:"display_name"`
 
 	// Hosts The hosts this workspace answers at. **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.
 	// Absent where there are none, which is every workspace provisioned before the table existed. An empty array would read as "this workspace is reachable nowhere".
 	Hosts *[]WorkspaceHost   `json:"hosts,omitempty"`
 	Id    openapi_types.UUID `json:"id"`
+
+	// InstallationDefaults What the installation set as the default language, time zone and week start, so a workspace's screen can show it beside the workspace's own. Only what the installation decided: a key it left open is absent, and an installation that decided nothing answers an empty object. The language and time zone are what a new workspace starts with; the week start applies wherever a workspace decided none.
+	InstallationDefaults *InstallationDefaults `json:"installation_defaults,omitempty"`
 
 	// PasswordOpening The installation operator's opening of the password for this workspace, while it is in force: the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.
 	PasswordOpening *WorkspacePasswordOpening `json:"password_opening,omitempty"`
@@ -9531,6 +9670,9 @@ type Workspace struct {
 	// Version The optimistic lock, as everywhere else.
 	Version int `json:"version"`
 }
+
+// WorkspaceDefaultWeekStart The day a member's week starts on when they chose none of their own, or null where this workspace decided nothing and the installation's day, then the language's, applies.
+type WorkspaceDefaultWeekStart string
 
 // WorkspaceStatus The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 type WorkspaceStatus string
@@ -9566,14 +9708,17 @@ type WorkspacePasswordOpening struct {
 	Until time.Time `json:"until"`
 }
 
-// WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here.
+// WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it". The one field with an absent state, `default_week_start`, is cleared with the empty string instead; the others have none - a workspace always has a name, a locale, a zone and an answer to the enforcement question.
 type WorkspaceUpdate struct {
 	// DefaultLocale A BCP-47 tag. One this installation cannot resolve is a field error.
 	DefaultLocale *string `json:"default_locale,omitempty"`
 
 	// DefaultTimeZone An IANA zone. One that does not load is a field error.
 	DefaultTimeZone *string `json:"default_time_zone,omitempty"`
-	DisplayName     *string `json:"display_name,omitempty"`
+
+	// DefaultWeekStart `MONDAY`, `SATURDAY` or `SUNDAY`: the day a member's week starts on when they chose none of their own; another day is a field error. The empty string clears it, and the installation's day, then the language's, applies again - an explicit `null` reads as an absent key here, as everywhere in this body.
+	DefaultWeekStart *string `json:"default_week_start,omitempty"`
+	DisplayName      *string `json:"display_name,omitempty"`
 
 	// RequireAdminTotp The old name of `sign_in_policy.mfa_required_for`: true asks for `ADMINS` where the rule demands less, false for `NONE`. A change to the rule, so it demands the step-up whenever it moves anything - see the operation.
 	RequireAdminTotp *bool `json:"require_admin_totp,omitempty"`

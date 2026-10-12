@@ -468,25 +468,30 @@ type weekByLocale map[string]string
 
 func (w weekByLocale) WeekStartOf(locale string) string { return w[locale] }
 
-// i18n-l10n.md §4's rule for the week: the account's own preference, then the locale's day, then
-// Monday - the last being what a build without the port answers.
-func TestTheWeekStartsWhereTheAccountOrItsLocaleSays(t *testing.T) {
+// i18n-l10n.md §4's rule for the week: the account's own preference, then the workspace's day or
+// the installation's (resolved into one link by the credential's read), then the locale's day,
+// then Monday - the last being what a build without the port answers.
+func TestTheWeekStartsWhereTheAccountTheWorkspaceOrItsLocaleSays(t *testing.T) {
 	raw, credential := mintCredential(t)
 
 	for _, tc := range []struct {
 		name       string
 		preference string
+		above      identity.WeekStart
 		locale     string
 		table      i18n.WeekStarts
 		want       string
 	}{
-		{"the account's own preference", "SATURDAY", "en", weekByLocale{"en": "SUNDAY"}, "SATURDAY"},
-		{"then the locale's day", "", "en", weekByLocale{"en": "SUNDAY"}, "SUNDAY"},
-		{"a locale the table does not know", "", "cy", weekByLocale{"en": "SUNDAY"}, "MONDAY"},
-		{"no port wired", "", "en", nil, "MONDAY"},
+		{"the account's own preference", "SATURDAY", identity.WeekStartMonday, "en", weekByLocale{"en": "SUNDAY"}, "SATURDAY"},
+		{"then the workspace's or the installation's day", "", identity.WeekStartSaturday, "en", weekByLocale{"en": "SUNDAY"}, "SATURDAY"},
+		{"then the locale's day", "", "", "en", weekByLocale{"en": "SUNDAY"}, "SUNDAY"},
+		{"a day above that is none of the three", "", "WEDNESDAY", "en", weekByLocale{"en": "SUNDAY"}, "SUNDAY"},
+		{"a locale the table does not know", "", "", "cy", weekByLocale{"en": "SUNDAY"}, "MONDAY"},
+		{"no port wired", "", "", "en", nil, "MONDAY"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			credential.Account.WeekStart = tc.preference
+			credential.WeekStartAbove = tc.above
 			credential.Account.Locale = tc.locale
 			handler := handlerFor(&tokens{credential: credential}, &unitOfWork{})
 			handler.WeekStarts = tc.table

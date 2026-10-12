@@ -90,13 +90,19 @@ type Embeddings interface {
 	// what is stored and what the caller would store now.
 	//
 	// `skip` are the creators whose entries are not embedded at all: the people whose content is
-	// kept out of AI (data-protection.md §4.1).
-	Owed(ctx context.Context, model string, batch int, skip []shared.ID) ([]OwedEmbedding, error)
+	// kept out of AI (data-protection.md §4.1). `skipAssigned` are the people whose processing is
+	// restricted, whose assigned entries are not embedded either (§4).
+	Owed(ctx context.Context, model string, batch int, skip, skipAssigned []shared.ID) ([]OwedEmbedding, error)
 
 	// Forget removes the vectors of every entry the named people created, and answers how many.
 	// Their content is kept out of AI, and a vector is their content in another form. Answers zero
 	// where the installation has no store, rather than an error: there is nothing to forget.
 	Forget(ctx context.Context, creators []shared.ID) (int, error)
+
+	// ForgetAssigned removes the vectors of every entry assigned to the named people, and answers
+	// how many: an entry a restricted person is on is about them (data-protection.md §4). Zero where
+	// the installation has no store.
+	ForgetAssigned(ctx context.Context, assignees []shared.ID) (int, error)
 
 	// CountMissing reports how many entries have no vector at all, counted no higher than the
 	// ceiling. For the pass's own log rather than for a decision.

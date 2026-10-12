@@ -25,8 +25,8 @@ test.after(() => served.close());
 const LEVEL = {
   sign_in: {}, legal: {}, localisation: {}, quotas: {},
   ai: {
-    sources: { set: true, value: 'OFFERED', locked: true },
-    min_jurisdiction: { set: true, value: 'EEA', locked: false },
+    sources: { set: true, value: 'OFFERED', locked: true, kind: 'CHOICE', options: ['EITHER', 'OFFERED', 'OWN', 'NONE'], workspace_may: 'TIGHTEN' },
+    min_jurisdiction: { set: true, value: 'EEA', locked: false, kind: 'CHOICE', options: ['ANY', 'ADEQUACY', 'EEA', 'SELF_HOSTED'], workspace_may: 'TIGHTEN' },
   },
   source: 'database', is_enforced_from_file: false,
 };

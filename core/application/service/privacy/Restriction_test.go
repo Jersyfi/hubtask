@@ -99,6 +99,38 @@ func TestLiftingARestrictionIsItsOwnAction(t *testing.T) {
 	}
 }
 
+type forgetter struct{ creators, assignees []shared.ID }
+
+func (f *forgetter) Forget(_ context.Context, creators []shared.ID) (int, error) {
+	f.creators = append(f.creators, creators...)
+	return len(creators), nil
+}
+
+func (f *forgetter) ForgetAssigned(_ context.Context, assignees []shared.ID) (int, error) {
+	f.assignees = append(f.assignees, assignees...)
+	return len(assignees), nil
+}
+
+// UC-PRV-04 check 5: restricting forgets the vectors of what the person created and of what they
+// are on, in the restricting transaction; lifting forgets nothing - the next pass embeds again.
+func TestARestrictionForgetsThePersonsVectors(t *testing.T) {
+	for _, restricted := range []bool{true, false} {
+		vectors := &forgetter{}
+		restriction := newRestriction(newSubjectStore(), &authorizerDouble{}, &auditSink{})
+		restriction.Embeddings = vectors
+		if err := restriction.Execute(context.Background(), actor(), RestrictCommand{
+			AccountID: subjectID, Restricted: restricted,
+		}); err != nil {
+			t.Fatalf("restricted=%v: %v", restricted, err)
+		}
+		forgot := len(vectors.creators) == 1 && vectors.creators[0] == subjectID &&
+			len(vectors.assignees) == 1 && vectors.assignees[0] == subjectID
+		if restricted != forgot {
+			t.Errorf("restricted=%v: forgot creators %v, assignees %v", restricted, vectors.creators, vectors.assignees)
+		}
+	}
+}
+
 // A restriction is not a lockout: the person keeps working, and what stops is the processing.
 func TestARestrictedAccountMayStillAct(t *testing.T) {
 	restricted := identity.Account{Status: identity.AccountRestricted}

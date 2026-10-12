@@ -121,7 +121,7 @@ func adminSettingsShow(ctx context.Context, cli *CLI, args []string) error {
 
 // adminSettingsSet changes one key, or clears it.
 //
-// The key is `area.name` — `sign_in.min_length`, `legal.imprint`, `quotas.export_jobs`,
+// The key is `area.name` — `sign_in.min_length`, `legal.imprint_url`, `quotas.export_jobs`,
 // `localisation.locale` — which is exactly how the keys are stored and exactly what `show` prints,
 // so somebody can copy one out of the table and into the command.
 func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool) error {
@@ -161,9 +161,15 @@ func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool
 	if target == nil {
 		return usagef("%q is not an area of the instance level: sign_in, legal, localisation, quotas, ai", area)
 	}
+	held, known := (*target)[name]
+	if !known {
+		// The read answers every key of every area, decided or not, so a key it did not answer is a
+		// typo - and the server would skip it as a newer client's key, saving nothing.
+		return usagef("%q is not a key of the instance level - try `admin settings show`", rest[0])
+	}
 	if setting {
 		(*target)[name] = openapi.InstanceSetting{
-			Set: true, Value: settingValue(rest[1]), Locked: *locked,
+			Set: true, Value: settingValue(held.Kind, rest[1]), Locked: *locked,
 		}
 	} else {
 		delete(*target, name)
@@ -203,25 +209,33 @@ func ensureArea(held **map[string]openapi.InstanceSetting) *map[string]openapi.I
 	return *held
 }
 
-// settingValue reads a typed value out of one word of a command line.
+// settingValue reads a typed value out of one word of a command line, by the kind the level
+// declares for the key.
 //
-// `true`, `12` and `en` are three different kinds and a terminal has only strings, so the shape is
-// guessed in the order that cannot surprise: a flag, then a whole number, then the word itself. A
-// comma-separated list is a list, which is what `sign_in.methods` takes.
-func settingValue(raw string) any {
-	if strings.Contains(raw, ",") {
+// A terminal has only strings. A word that does not read as the declared kind is sent as the word,
+// so the server refuses it exactly as it refuses the same word from the instance file - the
+// terminal decides nothing the other doors do not.
+func settingValue(kind *openapi.InstanceSettingKind, raw string) any {
+	declared := openapi.InstanceSettingKind("")
+	if kind != nil {
+		declared = *kind
+	}
+	switch declared {
+	case openapi.InstanceSettingKindCOUNT:
+		if number, err := strconv.Atoi(raw); err == nil {
+			return number
+		}
+	case openapi.InstanceSettingKindFLAG:
+		if raw == "true" || raw == "false" {
+			return raw == "true"
+		}
+	case openapi.InstanceSettingKindCHOICES:
 		parts := strings.Split(raw, ",")
 		list := make([]any, 0, len(parts))
 		for _, part := range parts {
 			list = append(list, strings.TrimSpace(part))
 		}
 		return list
-	}
-	if flag, err := strconv.ParseBool(raw); err == nil && (raw == "true" || raw == "false") {
-		return flag
-	}
-	if number, err := strconv.Atoi(raw); err == nil {
-		return number
 	}
 	return raw
 }

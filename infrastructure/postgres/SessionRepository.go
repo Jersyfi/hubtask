@@ -161,6 +161,7 @@ func (r SessionRepository) FindForAuth(
 		},
 		TenantLocale:       row.DefaultLocale,
 		TenantTimeZone:     row.DefaultTimeZone,
+		WeekStartAbove:     weekStartAbove(row.TenantWeekStart, row.InstallationWeekStart),
 		TenantSlug:         row.TenantSlug,
 		TenantStatus:       identity.TenantStatus(row.TenantStatus),
 		TokenRatePerMinute: rateOf(row.TokenRateOverride),

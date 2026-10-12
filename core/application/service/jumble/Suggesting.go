@@ -121,8 +121,8 @@ func (h SuggestFromJumbleEntry) Execute(
 			if err != nil {
 				return err
 			}
-			if kept.Has(actor.AccountID) {
-				return integration.KeptOutOfAi()
+			if refused := kept.Refusal(actor.AccountID); refused != nil {
+				return refused
 			}
 			// What a kept-out person mailed in, and an entry with nothing in it, get one answer.
 			if kept.HasAddress(entry.Sender) ||

@@ -49,8 +49,11 @@ type InstantiateTemplate struct {
 	// The same question an assignment asks, asked here because a template written last year
 	// may name somebody who has left.
 	Visibility Visibility
-	Events     outbox.Events
-	Activity   ActivityJournal
+	// Restrictions answers whether a rule is instantiating for a node's restricted assignee: the
+	// entry is made unassigned and the drop reported (data-protection.md §4). Nil restricts nobody.
+	Restrictions RestrictedAccounts
+	Events       outbox.Events
+	Activity     ActivityJournal
 }
 
 // InstantiateTemplateCommand is the input, typed.
@@ -363,6 +366,15 @@ func (h InstantiateTemplate) assigneeFor(
 	if !permitted {
 		stamp.dropped = append(stamp.dropped, domain.DroppedAssignee(item.ID, node.AssigneeID))
 		return noID, nil
+	}
+	if restricted, err := restrictedUnderRule(ctx, h.Restrictions, actor, node.AssigneeID); err != nil || restricted {
+		if restricted {
+			stamp.dropped = append(stamp.dropped, domain.DroppedReference{
+				ItemID: item.ID, Kind: domain.ReferenceAssignee, ID: node.AssigneeID.String(),
+				Code: AssigneeRestrictedCode,
+			})
+		}
+		return noID, err
 	}
 	return node.AssigneeID, nil
 }

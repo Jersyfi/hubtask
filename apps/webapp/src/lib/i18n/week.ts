@@ -4,11 +4,12 @@
 /**
  * Which day a week starts on (i18n-l10n.md §6 line 5).
  *
- * Three answers, in order: the account's own `week_start`, which the person chose; the
- * installation's word for the locale, `supported_locales[].week_start`; and the locale's
- * own week information from `Intl.Locale`, which is what a browser knows about `en-US` starting
- * on Sunday without anybody saying so. Monday only when none of the three answers - which is a
- * fallback, not a decision the client made for the reader.
+ * Four answers, in order: the account's own `week_start`, which the person chose; the workspace's
+ * day, or else the installation's default (i18n-l10n.md §4), which the caller passes as `above`;
+ * the installation's word for the locale, `supported_locales[].week_start`; and the locale's own
+ * week information from `Intl.Locale`, which is what a browser knows about `en-US` starting on
+ * Sunday without anybody saying so. Monday only when none of them answers - which is a fallback,
+ * not a decision the client made for the reader.
  */
 
 import type { SupportedLocale } from './locale.ts';
@@ -39,8 +40,10 @@ export function firstWeekdayOf(
   accountWeekStart: string | null | undefined,
   locale: string,
   supported: readonly SupportedLocale[] = [],
+  above: string | null | undefined = undefined,
 ): Weekday {
   if (accountWeekStart && accountWeekStart in BY_NAME) return BY_NAME[accountWeekStart]!;
+  if (above && above in BY_NAME) return BY_NAME[above]!;
   const declared = supported.find((entry) => entry.locale === locale)?.week_start;
   if (declared && declared in BY_NAME) return BY_NAME[declared]!;
   return localeFirstDay(locale) ?? 1;
@@ -51,7 +54,8 @@ export function weekStartKeyOf(
   accountWeekStart: string | null | undefined,
   locale: string,
   supported: readonly SupportedLocale[] = [],
+  above: string | null | undefined = undefined,
 ): 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU' {
   const keys = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
-  return keys[firstWeekdayOf(accountWeekStart, locale, supported)];
+  return keys[firstWeekdayOf(accountWeekStart, locale, supported, above)];
 }

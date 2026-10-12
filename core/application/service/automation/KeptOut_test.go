@@ -15,7 +15,7 @@ import (
 // of AI - is skipped, not failed: a rule must not stop at, or switch itself off over, somebody's
 // objection (UC-PRV-05 check 7).
 func TestAnAiActionWithNothingToWorkWithIsSkippedNotFailed(t *testing.T) {
-	for _, code := range []string{"ai.nothing_to_work_with", "ai.kept_out"} {
+	for _, code := range []string{"ai.nothing_to_work_with", "ai.kept_out", "ai.processing_restricted", "items.assignee_restricted"} {
 		t.Run(code, func(t *testing.T) {
 			rule := enabledRule()
 			rule.OnError = domain.OnErrorStop

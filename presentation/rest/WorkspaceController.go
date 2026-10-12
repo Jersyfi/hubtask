@@ -55,6 +55,10 @@ func (c *RestController) UpdateWorkspace(
 			"default_locale":    optionalStringField(body.DefaultLocale),
 			"default_time_zone": optionalStringField(body.DefaultTimeZone),
 		}
+		if body.DefaultWeekStart != nil {
+			// The empty string is the clearing, which an explicit null cannot say here.
+			in["default_week_start"] = string(*body.DefaultWeekStart)
+		}
 		if body.RequireAdminTotp != nil {
 			// Set only when the caller sent one: absent has to reach the catalogue as absent,
 			// because false is a value this field legitimately holds.
@@ -161,6 +165,21 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 	}
 	if policy, held := out["sign_in_policy"].(usecase.Output); held {
 		answer.SignInPolicy = signInPolicyResponse(policy)
+	}
+	if day := out.String("default_week_start"); day != "" {
+		weekStart := openapi.WorkspaceDefaultWeekStart(day)
+		answer.DefaultWeekStart = &weekStart
+	}
+	if defaults, held := out["installation_defaults"].(usecase.Output); held {
+		installation := openapi.InstallationDefaults{
+			Locale:   optionalStringOutput(defaults, "locale"),
+			TimeZone: optionalStringOutput(defaults, "time_zone"),
+		}
+		if day := defaults.String("week_start"); day != "" {
+			weekStart := openapi.InstallationDefaultsWeekStart(day)
+			installation.WeekStart = &weekStart
+		}
+		answer.InstallationDefaults = &installation
 	}
 	if opening, held := out["password_opening"].(usecase.Output); held {
 		// Who asked and why travel only where the use case answered them (READ_CONFIGURATION).

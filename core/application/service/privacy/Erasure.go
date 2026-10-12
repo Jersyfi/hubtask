@@ -75,6 +75,9 @@ type Eraser struct {
 	// TombstoneWindow is how long a removal's marker has to outlive it: the maximum offline
 	// window, after which a device has to resynchronise from scratch anyway.
 	TombstoneWindow time.Duration
+	// Embeddings forgets, in the erasure's transaction, the vectors of a person a hold keeps
+	// something of: what is kept is restricted, out of AI (data-protection.md §4.1). Optional.
+	Embeddings RestrictedForgetter
 	// LastMember trashes a private hub the erased person was the last member of (ADR-0073 §5).
 	// Optional: wired without it, the retention pass finds the hub instead.
 	LastMember LastMember
@@ -225,6 +228,11 @@ func (e Eraser) erase(
 		}
 		if e.LastMember != nil && (erased.AccountAnonymised || erased.AccountRemoved) {
 			if _, err := e.LastMember.AfterMemberLeft(ctx, actor.TenantID, held); err != nil {
+				return err
+			}
+		}
+		if len(plan.Kept) > 0 {
+			if err := forgetRestricted(ctx, e.Embeddings, subject); err != nil {
 				return err
 			}
 		}

@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -89,6 +90,7 @@ func (r AccessTokenRepository) FindByToken(
 		},
 		TenantLocale:       row.DefaultLocale,
 		TenantTimeZone:     row.DefaultTimeZone,
+		WeekStartAbove:     weekStartAbove(row.TenantWeekStart, row.InstallationWeekStart),
 		TenantSlug:         row.TenantSlug,
 		TenantStatus:       identity.TenantStatus(row.TenantStatus),
 		TokenRatePerMinute: rateOf(row.TokenRateOverride),
@@ -330,4 +332,20 @@ func rateOf(value any) int64 {
 		return rate
 	}
 	return 0
+}
+
+// weekStartAbove reads the week start's link above the account: the workspace's own day where it
+// set a valid one, otherwise the installation's, whose row holds the ISO number. Anything else is
+// nothing rather than a refusal - a request does not fail over a calendar's first day.
+func weekStartAbove(workspace string, installation []byte) identity.WeekStart {
+	if day := identity.WeekStart(workspace); day.Valid() {
+		return day
+	}
+	var number int
+	if len(installation) > 0 && json.Unmarshal(installation, &number) == nil {
+		if day, held := identity.WeekStartOfISO(number); held {
+			return day
+		}
+	}
+	return ""
 }

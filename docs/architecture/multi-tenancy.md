@@ -233,7 +233,13 @@ the reason and who set it — never hidden. The effective value is resolved on r
 **How it is reached.** One API with three doors: a file (`seed` or `enforce`), `hubctl admin`, and
 the web app's `/instance` area. The areas are the sign-in rule, the legal links, localisation
 defaults, quota ceilings and `ai` — which AI sources a workspace may use and the least its own model
-must declare ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)).
+must declare ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)). Every key answers its
+kind (a count with the product's bounds, a flag, a choice or a list of choices from a closed set, a
+link, a language, a zone), its position in its area and what an open key leaves a workspace free to
+do (tighten it, go higher, use its own; nothing for a language, a zone or a week start), declared in
+the domain beside the switch, so a screen draws every key with the control of its kind and keeps no
+list of its own. The three doors read a document through one mapping in the use case and refuse
+the same values ([UC-INS-09](../usecases/admin/UC-INS-09-set-defaults-and-locks-for-every-workspace.md)).
 
 **What it never shows** is a workspace's contents: counts, states and limits (`instance_census()`),
 never rows — the boundary is a database policy, not a role.
