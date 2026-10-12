@@ -5,9 +5,9 @@ context: suggestion
 actors: [PE-operator, PE-platform]
 deployments: [D4, D5, D6, D7]
 serves: [P-06, P-07, P-08, P-14, P-15]
-state: partial
+state: built
 tasks: [SC-11, SC-12]
-checked_by: [core/domain/model/integration/AiSource_test.go, core/application/service/admin/InstanceAi_test.go, core/application/service/integration/AiSource_test.go, test/integration/offered_ai_resolver_test.go, apps/webapp/e2e/instanceai.test.mjs]
+checked_by: [core/domain/model/integration/AiSource_test.go, core/application/service/admin/InstanceAi_test.go, core/application/service/integration/AiSource_test.go, test/integration/offered_ai_resolver_test.go, apps/webapp/e2e/instanceai.test.mjs, test/integration/installation_rotation_test.go, test/integration/ai_budget_source_test.go, core/application/service/quota/OwnAiBudget_test.go]
 ---
 
 # Decide as a provider which AI our workspaces may use
@@ -54,8 +54,3 @@ it. A B2B provider offers the same model, chooses "either" and requires "in the 
 * No per-model price or routing by cost.
 * Third-country transfer stays the operator's environment decision
   (`HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER`).
-
-## Today
-
-* Check 1: not met in part — offered models are offered, changed and withdrawn from every door and sealed, and not yet re-sealed with the installation's keys, tracked in #1068.
-* Check 6: not met — use is not yet counted per source, and there is no own optional budget, tracked in #1068.

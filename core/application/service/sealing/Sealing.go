@@ -6,12 +6,14 @@
 // Adding a master key to the ring has always been safe: new values seal under it and every
 // predecessor stays readable. Retiring one never was, because nothing rewrapped a value sealed
 // under an older key. This package is that rewrap - the operator asks once, one job per workspace
-// moves what the workspace holds, and a census over every store says when the older key names
-// nothing any more and may leave the ring.
+// moves what the workspace holds and one more what the installation itself holds, and a census over
+// every store and both levels says when the older key names nothing any more and may leave the
+// ring.
 //
-// The values themselves stay where they are and with whom they are. Five application services
+// The values themselves stay where they are and with whom they are. Six application services
 // own a sealed value each - the second factor, the identity provider's client secret, a webhook's
-// signing secrets, a backup target's credential, a rule's HTTP header secret - and each is bound
+// signing secrets, a backup target's credential, an AI provider's key, a rule's HTTP header
+// secret - and each is bound
 // to a purpose only its owner can name. So each owner re-seals its own rows behind Resealer, and
 // this package composes them without learning a single purpose.
 package sealing
@@ -20,6 +22,7 @@ import (
 	"context"
 	"errors"
 
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -42,6 +45,9 @@ const (
 	// its members are entitled to know the system rewrapped their credentials, even though not
 	// one of them changed.
 	ResealedAction audit.Action = "encryption.resealed"
+
+	// InstallationResealedAction is the installation's own round, in the instance journal.
+	InstallationResealedAction = "instance.secrets_resealed"
 
 	outcomeRewrapped = "rewrapped"
 	outcomeSkipped   = "skipped"
@@ -106,17 +112,9 @@ func (r RunReseal) Execute(ctx context.Context, actor appshared.ActorContext) (O
 		return Outcome{}, shared.ErrUnavailable.WithDetail(cryptoport.CodeNoEncryptionKey)
 	}
 
-	var total Outcome
-	for _, resealer := range r.Resealers {
-		outcome, err := resealer.Reseal(ctx, actor.TenantID)
-		if err != nil {
-			return total, err
-		}
-		if r.Signals != nil {
-			r.Signals.SecretResealed(ctx, resealer.Store(), outcomeRewrapped, outcome.Rewrapped)
-			r.Signals.SecretResealed(ctx, resealer.Store(), outcomeSkipped, outcome.Skipped)
-		}
-		total = total.add(outcome)
+	total, err := runResealers(ctx, r.Resealers, actor.TenantID, r.Signals)
+	if err != nil {
+		return total, err
 	}
 
 	if total.Rewrapped == 0 {
@@ -136,6 +134,58 @@ func (r RunReseal) Execute(ctx context.Context, actor appshared.ActorContext) (O
 			audit.Change{Field: "rewrapped", Classification: audit.Open, To: itoa(total.Rewrapped)},
 			audit.Change{Field: "skipped", Classification: audit.Open, To: itoa(total.Skipped)},
 		),
+	})
+}
+
+// runResealers runs every resealer of one level in turn and reports each store's outcome.
+func runResealers(
+	ctx context.Context, resealers []Resealer, tenantID shared.ID, signals Signals,
+) (Outcome, error) {
+	var total Outcome
+	for _, resealer := range resealers {
+		outcome, err := resealer.Reseal(ctx, tenantID)
+		if err != nil {
+			return total, err
+		}
+		if signals != nil {
+			signals.SecretResealed(ctx, resealer.Store(), outcomeRewrapped, outcome.Rewrapped)
+			signals.SecretResealed(ctx, resealer.Store(), outcomeSkipped, outcome.Skipped)
+		}
+		total = total.add(outcome)
+	}
+	return total, nil
+}
+
+// RunInstallationReseal is the installation's own round: the secrets that belong to no workspace -
+// the sign-in providers and the AI models it offers (UC-INS-16 check 2, UC-INS-11 check 6). It runs
+// inside the transaction the queue opened with no tenant, the only scope whose writes the
+// installation_write policies admit, and records what moved in the installation's own journal,
+// because no workspace's trail is the place for a value that is none of theirs.
+type RunInstallationReseal struct {
+	Resealers []Resealer
+	Encryptor cryptoport.Encryptor
+	Journal   adminrepo.Journal
+	Clock     clock.Clock
+	IDs       clock.IDGenerator
+	Signals   Signals
+}
+
+// Execute runs the round and answers the totals.
+func (r RunInstallationReseal) Execute(ctx context.Context) (Outcome, error) {
+	active := r.Encryptor.ActiveKeyID()
+	if active == "" {
+		return Outcome{}, shared.ErrUnavailable.WithDetail(cryptoport.CodeNoEncryptionKey)
+	}
+	total, err := runResealers(ctx, r.Resealers, shared.ID(""), r.Signals)
+	if err != nil || total.Rewrapped == 0 {
+		return total, err
+	}
+	return total, r.Journal.Record(ctx, adminrepo.InstanceEvent{
+		ID: r.IDs.NewID(), OccurredAt: r.Clock.Now(), Action: InstallationResealedAction,
+		// Counts and the key's name only - never which value, never a byte of one.
+		Details: map[string]any{
+			"active_key_id": active, "rewrapped": total.Rewrapped, "skipped": total.Skipped,
+		},
 	})
 }
 

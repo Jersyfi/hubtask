@@ -15,11 +15,13 @@ import (
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	integrationrepo "github.com/Jersyfi/hubtask/core/application/repository/integration"
+	sealingrepo "github.com/Jersyfi/hubtask/core/application/repository/sealing"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	automation "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	identity "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -355,7 +357,7 @@ func TestARuleIsReSealedOnlyFromItsOwnTenant(t *testing.T) {
 	}
 }
 
-// Gate SG-3: Census.CountByKey - the census is the transaction's tenant's and nobody else's.
+// Gate SG-3: Census.Count - the census is the transaction's tenant's and nobody else's.
 func TestTheCensusCountsOneTenantsValuesOnly(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -364,7 +366,7 @@ func TestTheCensusCountsOneTenantsValuesOnly(t *testing.T) {
 	census := postgres.NewSealingRepository()
 
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		counts, err := census.CountByKey(ctx)
+		counts, err := byKey(census.Count(ctx))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -376,7 +378,7 @@ func TestTheCensusCountsOneTenantsValuesOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		counts, err := census.CountByKey(ctx)
+		counts, err := byKey(census.Count(ctx))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -387,4 +389,56 @@ func TestTheCensusCountsOneTenantsValuesOnly(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// An installation provider's secret belongs to no workspace, and the read policy shows it to every
+// one of them. A workspace's census that counted it would count it once per workspace - an
+// installation of a hundred workspaces would report a hundred values under a key that seals one.
+func TestAWorkspacesCensusLeavesTheInstallationsProviderOut(t *testing.T) {
+	ctx := context.Background()
+	seedIdentityProviderTenants(ctx, t)
+	providers := postgres.NewIdentityProviderRepository()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	census := postgres.NewSealingRepository()
+	now := time.Now().UTC()
+	row := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fe5c")
+	const keyID = "census-installation-only"
+
+	offered, err := identity.NewIdentityProvider(identity.NewIdentityProviderInput{
+		ID: row, Issuer: "https://id.census.example", ClientID: "hubtask-census",
+		Provisioning: string(identity.ProvisionInvitedOnly), Enabled: true, Now: now,
+	})
+	if err != nil {
+		t.Fatalf("building the installation's provider: %v", err)
+	}
+	if err := uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		_, err := providers.Insert(ctx, offered, cryptoport.Sealed{KeyID: keyID, Ciphertext: []byte("x")})
+		return err
+	}); err != nil {
+		t.Fatalf("writing the installation's provider: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = uow.Within(context.Background(), persistence.SystemScope(), func(ctx context.Context) error {
+			_, err := providers.Delete(ctx, row, now)
+			return err
+		})
+	})
+
+	for _, tenant := range []shared.ID{idpTenantA, idpTenantB} {
+		inTenant(t, uow, tenant, func(ctx context.Context) error {
+			counts, err := byKey(census.Count(ctx))
+			if err != nil {
+				t.Fatalf("%s's census: %v", tenant, err)
+			}
+			if counts[keyID] != 0 {
+				t.Errorf("%s counted the installation's provider secret as its own: %d", tenant, counts[keyID])
+			}
+			return nil
+		})
+	}
+}
+
+// byKey is a census's totals per key, for the tests that ask only about one key.
+func byKey(counted sealingrepo.Counts, err error) (map[string]int64, error) {
+	return counted.ByKey(), err
 }

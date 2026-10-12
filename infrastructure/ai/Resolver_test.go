@@ -51,12 +51,16 @@ func TestOnlyAConfiguredAndConsentingWorkspaceGetsAProvider(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			resolver := resolverFor(testCase.store)
 
-			provider, err := resolver.For(context.Background(), resolverActor())
+			provider, source, err := resolver.Sourced(context.Background(), resolverActor())
 			if err != nil {
 				t.Fatalf("resolving: %v", err)
 			}
 			if _, isNoop := provider.(ai.Noop); isNoop != testCase.wantNoop {
 				t.Errorf("got %T, want a noop = %v", provider, testCase.wantNoop)
+			}
+			// The source the budget counts against: the own model, or none where nothing is called.
+			if want := map[bool]port.Source{true: port.SourceNone, false: port.SourceOwn}[testCase.wantNoop]; source != want {
+				t.Errorf("source %q, want %q", source, want)
 			}
 			if testCase.store.opens != testCase.wantOpens {
 				t.Errorf("the key was opened %d times, want %d",

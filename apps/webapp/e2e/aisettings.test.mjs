@@ -78,7 +78,10 @@ function sourceRoutes(answer) {
       }
       return route.fulfill({ json: current });
     },
-    '/quotas': (route) => route.fulfill({ json: [{ quota: 'ai_tokens_per_day', limit: 200000, used: 1234 }] }),
+    '/quotas': (route) => route.fulfill({ json: [
+      { quota: 'ai_tokens_per_day', limit: 200000, used: 1234 },
+      { quota: 'ai_own_tokens_per_day', limit: 0, used: 56 },
+    ] }),
   };
 }
 
@@ -110,7 +113,10 @@ test('chromium: a consumer switches on the offered model with one control', asyn
   assert.match(await page.locator('main').textContent() ?? '', /sent to Example AI SAS in the EEA when somebody asks/);
   assert.equal(await page.getByLabel(/^Provider/).count(), 0, 'an own model is offered where only the provider’s may be used');
   assert.equal(await page.getByLabel('This workspace may use').count(), 0, 'a locked rule is offered for narrowing');
-  assert.match(await page.locator('main').textContent() ?? '', /Today 1,234 tokens of 200,000 tokens used/);
+  assert.match(await page.locator('main').textContent() ?? '', /The offered model: today 1,234 tokens of 200,000 tokens used/);
+  // Only the offered model may be used: its budget, and no word of an own one (P-05).
+  assert.doesNotMatch(await page.locator('main').textContent() ?? '', /Our own model:/);
+  assert.equal(await page.getByLabel(/^Daily budget of our own model/).count(), 0);
 
   await use.check();
   for (let i = 0; i < 50 && sent.length === 0; i++) await page.waitForTimeout(100);
@@ -142,4 +148,40 @@ test('chromium: a company chooses between the offered model and its own', async 
   await page.getByRole('switch', { name: 'Use Large (EU)' }).check();
   for (let i = 0; i < 50 && sent.length === 0; i++) await page.waitForTimeout(100);
   assert.deepEqual(sent[0], { source: 'OFFERED', offered_model_id: LARGE.id });
+});
+
+// UC-AI-07 checks 2 and 4, UC-AI-06 check 6: either source allowed - each source's use and cap side
+// by side, and the workspace sets its own model's budget here, an empty field being no budget.
+test('chromium: each source shows its own budget, and the workspace sets its own', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const budgets = [];
+  const routes = sourceRoutes(sourceUnder('EITHER'));
+  routes['/ai-budget'] = (route, request) => {
+    budgets.push(request.postDataJSON());
+    return route.fulfill({ json: [
+      { quota: 'ai_tokens_per_day', limit: 200000, used: 1234 },
+      { quota: 'ai_own_tokens_per_day', limit: 5000, used: 56, configured: true },
+    ] });
+  };
+  const { page, close } = await open(browser, routes);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/ai`);
+  await page.getByRole('switch', { name: 'Use Large (EU)' }).waitFor({ timeout: 15_000 });
+  const text = await page.locator('main').textContent() ?? '';
+  assert.match(text, /The offered model: today 1,234 tokens of 200,000 tokens used/);
+  assert.match(text, /Our own model: today 56 tokens used, with no budget/);
+  assert.match(text, /in this workspace's time zone/);
+
+  const field = page.getByLabel(/^Daily budget of our own model/);
+  await field.fill('5000');
+  await page.getByRole('button', { name: 'Save the budget' }).click();
+  for (let i = 0; i < 50 && budgets.length === 0; i++) await page.waitForTimeout(100);
+  assert.deepEqual(budgets[0], { own_tokens_per_day: 5000 });
+
+  await field.fill('');
+  await page.getByRole('button', { name: 'Save the budget' }).click();
+  for (let i = 0; i < 50 && budgets.length < 2; i++) await page.waitForTimeout(100);
+  assert.deepEqual(budgets[1], { own_tokens_per_day: null });
 });
