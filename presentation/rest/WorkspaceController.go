@@ -106,6 +106,7 @@ func signInPolicyChange(sent openapi.SignInPolicyChange) map[string]any {
 	for name, value := range map[string]*bool{
 		"common_passwords": sent.CommonPasswords, "context_words": sent.ContextWords,
 		"breach_check": sent.BreachCheck, "managed_accounts": sent.ManagedAccounts,
+		"private_hubs": sent.PrivateHubs,
 	} {
 		if value != nil {
 			change[name] = *value
@@ -148,6 +149,9 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 		RequireAdminTotp: enforced,
 		CreatedAt:        timeValue(out["created_at"]),
 		Version:          out.Int("version"),
+	}
+	if several, held := out["several_people"].(bool); held {
+		answer.SeveralPeople = &several
 	}
 	if offered, held := out["private_hubs_offered"].(bool); held {
 		answer.PrivateHubsOffered = &offered
@@ -288,6 +292,10 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 	if _, held := out["managed_accounts"].(usecase.Output); held {
 		managed := flag(out, "managed_accounts")
 		answer.ManagedAccounts = &managed
+	}
+	if _, held := out["private_hubs"].(usecase.Output); held {
+		allowed := flag(out, "private_hubs")
+		answer.PrivateHubs = &allowed
 	}
 	if moment, held := out["rotation_from"].(time.Time); held && !moment.IsZero() {
 		answer.RotationFrom = &moment

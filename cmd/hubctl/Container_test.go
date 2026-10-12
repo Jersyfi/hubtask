@@ -174,3 +174,37 @@ func TestAnIdentifierThatIsNotOneIsRefusedBeforeTheCall(t *testing.T) {
 		t.Errorf("the message %q does not name the flag that was wrong", errOut)
 	}
 }
+
+// The emergency access (ADR-0073 §4): the reason in the body, the proof in the header the act takes
+// it in, and the hour's end printed.
+func TestTheEmergencyAccessCarriesTheReasonAndTheProof(t *testing.T) {
+	const hub = "01936f2a-7c1e-7000-8000-0000000000a1"
+	var path, carried string
+	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		path, carried = r.URL.Path, r.Header.Get(stepUpHeader)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":"01936f2a-7c1e-7000-8000-0000000000b1","hub_id":"` + hub + `",
+			"opened_by":null,"reason":"Maria is in hospital",
+			"opened_at":"2026-10-12T14:30:00Z","ends_at":"2026-10-12T15:30:00Z"}`))
+	})
+
+	env := signedIn(stub)
+	env[envStepUp] = stepUpToken
+	code, out, errOut := invokeAgainst(t, stub, env, "",
+		"container", "emergency-access", hub, "--reason", "Maria is in hospital")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if path != APIPath+"/private-hubs/"+hub+"/accesses" || carried != stepUpToken {
+		t.Errorf("called %s carrying %q", path, carried)
+	}
+	if !strings.Contains(stub.body, `"reason":"Maria is in hospital"`) || !strings.Contains(out, hub) {
+		t.Errorf("body %q, output %q", stub.body, out)
+	}
+
+	code, _, _ = invokeAgainst(t, stub, signedIn(stub), "", "container", "emergency-access", hub)
+	if code != exitUsage {
+		t.Errorf("without a reason: exit %d, want %d", code, exitUsage)
+	}
+}

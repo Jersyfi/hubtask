@@ -92,6 +92,8 @@ type policyDocument struct {
 
 	// ManagedAccounts is the workspace's own say on accounts without an address (ADR-0074 §7).
 	ManagedAccounts *bool `json:"managed_accounts,omitempty"`
+	// PrivateHubs is the workspace's own say on private hubs (ADR-0073 §6).
+	PrivateHubs *bool `json:"private_hubs,omitempty"`
 
 	// RotationFrom is the moment "require a new password from everyone" was pressed. A moment
 	// rather than a flag: the flag would have to be cleared by something, and a moment is compared.
@@ -119,7 +121,8 @@ func signInPolicyOf(stored *policyDocument) (identity.PolicyPatch, identity.Lega
 		MaxAgeDays: stored.MaxAgeDays, HistoryCount: stored.HistoryCount,
 		MinAgeHours: stored.MinAgeHours, Methods: stored.Methods,
 		SessionMaxDays: stored.SessionMaxDays, SessionIdleMinutes: stored.SessionIdleMinutes,
-		ManagedAccounts: stored.ManagedAccounts, RotationFrom: stored.RotationFrom,
+		ManagedAccounts: stored.ManagedAccounts, PrivateHubs: stored.PrivateHubs,
+		RotationFrom: stored.RotationFrom,
 	}
 	if stored.MfaRequiredFor != nil {
 		requirement := identity.MfaRequirement(*stored.MfaRequiredFor)
@@ -152,7 +155,8 @@ func signInDocumentOf(patch identity.PolicyPatch, links identity.LegalLinks) *po
 		MaxAgeDays: patch.MaxAgeDays, HistoryCount: patch.HistoryCount,
 		MinAgeHours: patch.MinAgeHours, Methods: patch.Methods,
 		SessionMaxDays: patch.SessionMaxDays, SessionIdleMinutes: patch.SessionIdleMinutes,
-		ManagedAccounts: patch.ManagedAccounts, RotationFrom: patch.RotationFrom,
+		ManagedAccounts: patch.ManagedAccounts, PrivateHubs: patch.PrivateHubs,
+		RotationFrom: patch.RotationFrom,
 	}
 	if patch.MfaRequiredFor != nil {
 		requirement := string(*patch.MfaRequiredFor)

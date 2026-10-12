@@ -6553,7 +6553,7 @@ type InstanceSettings struct {
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
 
-	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds and `managed_accounts`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
+	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds, `managed_accounts` and `private_hubs`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 
 	// Source Where the values in force came from - the database, or the path of the file enforcing them.
@@ -7681,6 +7681,24 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PrivateHubAccess One opening of a private hub by the workspace's owner (the emergency access): who, when, until when, and why.
+type PrivateHubAccess struct {
+	EndsAt   time.Time          `json:"ends_at"`
+	HubId    openapi_types.UUID `json:"hub_id"`
+	Id       openapi_types.UUID `json:"id"`
+	OpenedAt time.Time          `json:"opened_at"`
+
+	// OpenedBy The account that opened it; null once that account is gone.
+	OpenedBy *openapi_types.UUID `json:"opened_by"`
+	Reason   string              `json:"reason"`
+}
+
+// PrivateHubAccessRequest defines model for PrivateHubAccessRequest.
+type PrivateHubAccessRequest struct {
+	// Reason Why the hub is opened. Told to every member of the hub, and kept with the hub as their record of who opened it.
+	Reason string `json:"reason"`
+}
+
 // PrivateHubSummary A private hub as an administrator sees it: whose, how big, and when it goes if it is in the trash. Deliberately without a name.
 type PrivateHubSummary struct {
 	// AttachmentBytes The bytes of the files attached to its entries.
@@ -7689,6 +7707,12 @@ type PrivateHubSummary struct {
 	// Collections Collections in it, the trashed ones included.
 	Collections int       `json:"collections"`
 	CreatedAt   time.Time `json:"created_at"`
+
+	// EmergencyAccess The caller's emergency access to this hub. `offered` is true where the caller may open it now - the workspace's owner, holding nothing in the hub, with no access of theirs running; `open_until` is the end of the caller's running access, or null.
+	EmergencyAccess struct {
+		Offered   bool       `json:"offered"`
+		OpenUntil *time.Time `json:"open_until"`
+	} `json:"emergency_access"`
 
 	// Entries Entries in it, the trashed ones included.
 	Entries int                `json:"entries"`
@@ -8641,6 +8665,9 @@ type SignInPolicy struct {
 	// Password The thirteen switches about the password itself, each at its three levels.
 	Password PasswordPolicySettings `json:"password"`
 
+	// PrivateHubs Whether people here may make private hubs. On by default; off is the stricter value. Off stops new ones only: every private hub already here stays private.
+	PrivateHubs *SignInPolicyFlag `json:"private_hubs,omitempty"`
+
 	// RotationFrom When somebody last asked everybody for a new password, or null. Set by the action rather than typed: a client that could name a moment could name one in the past and un-require a rotation it already asked for.
 	RotationFrom *time.Time `json:"rotation_from"`
 
@@ -8677,6 +8704,7 @@ type SignInPolicyChange struct {
 	MinSymbols   *int    `json:"min_symbols,omitempty"`
 	MinUppercase *int    `json:"min_uppercase,omitempty"`
 	PrivacyUrl   *string `json:"privacy_url,omitempty"`
+	PrivateHubs  *bool   `json:"private_hubs,omitempty"`
 
 	// RotationFrom The literal `now`, and nothing else: it asks every person in this workspace for a new password at their next sign-in and ends every session opened before this moment. One write, whatever the size of the workspace - no job walks accounts.
 	RotationFrom *SignInPolicyChangeRotationFrom `json:"rotation_from,omitempty"`
@@ -9626,11 +9654,14 @@ type Workspace struct {
 	// PasswordOpening The installation operator's opening of the password for this workspace, while it is in force: the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.
 	PasswordOpening *WorkspacePasswordOpening `json:"password_opening,omitempty"`
 
-	// PrivateHubsOffered Whether a client offers to make a hub private: the workspace holds more than one person whose account is not anonymised. A workspace of one has nobody to keep a hub from, and a screen that offered it would be noise. The server accepts a private hub either way.
+	// PrivateHubsOffered Whether a client offers to make a hub private: the workspace allows private hubs (`sign_in_policy.private_hubs`) and holds more than one person whose account is not anonymised. A workspace of one has nobody to keep a hub from, and a screen that offered it would be noise. Where private hubs are not allowed, the server refuses one (`containers.private_hubs_off`).
 	PrivateHubsOffered *bool `json:"private_hubs_offered,omitempty"`
 
 	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree. Kept for the clients that read it.
 	RequireAdminTotp bool `json:"require_admin_totp"`
+
+	// SeveralPeople Whether the workspace holds more than one person whose account is not anonymised - where private hubs, and the setting that allows them, mean something.
+	SeveralPeople *bool `json:"several_people,omitempty"`
 
 	// SignInPolicy How people in this workspace prove who they are. Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.
 	SignInPolicy *SignInPolicy `json:"sign_in_policy,omitempty"`
@@ -9750,6 +9781,9 @@ type FeedId = openapi_types.UUID
 
 // GroupId defines model for GroupId.
 type GroupId = openapi_types.UUID
+
+// HubId defines model for HubId.
+type HubId = openapi_types.UUID
 
 // IdempotencyKey defines model for IdempotencyKey.
 type IdempotencyKey = openapi_types.UUID
@@ -10754,6 +10788,12 @@ type ExtendDataSubjectRequestParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// OpenPrivateHubParams defines parameters for OpenPrivateHub.
+type OpenPrivateHubParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
@@ -11240,6 +11280,9 @@ type UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody = DataSubj
 // ExtendDataSubjectRequestJSONRequestBody defines body for ExtendDataSubjectRequest for application/json ContentType.
 type ExtendDataSubjectRequestJSONRequestBody = DataSubjectRequestExtension
 
+// OpenPrivateHubJSONRequestBody defines body for OpenPrivateHub for application/json ContentType.
+type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
+
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
 
@@ -11383,6 +11426,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /accounts/me (the `GetOwnAccount` operationId).
 	GetOwnAccount(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
+	//
+	// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
+	//
+	// Corresponds with GET /accounts/me/emergency-notices (the `ListEmergencyNotices` operationId).
+	ListEmergencyNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetAccount The name behind an account identifier
 	//
@@ -14893,6 +14943,33 @@ type ClientInterface interface {
 	// Corresponds with GET /private-hubs (the `ListPrivateHubs` operationId).
 	ListPrivateHubs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListPrivateHubAccesses Who opened this private hub through the emergency access, and why
+	//
+	// Every emergency access to the hub, newest first, with the person who opened it, when, until when and the reason they gave. Read by whoever reads the hub - its members, and the workspace's owner while their access runs; to everybody else the hub is not there, and this answers not found as it does.
+	//
+	// Corresponds with GET /private-hubs/{hubId}/accesses (the `ListPrivateHubAccesses` operationId).
+	ListPrivateHubAccesses(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// OpenPrivateHubWithBody Open a private hub through the emergency access
+	//
+	// The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in, for one hour, with a reason. Every member of the hub is told at once, in the same step: by mail where they have an address, and in the app whatever their mail did; the opening is in the workspace's trail. The hour is not extended, and a second access is refused while one runs (`containers.emergency_running`, naming its end); once it has ended, a new one is a new act, told again. During the hour the hub answers its opener as a hub of the workspace would, through the opener's own requests only - never into a device's copy, a calendar feed or a job.
+	// Demands a fresh step-up in the `X-Hubtask-Step-Up` header. A shared hub is refused (`containers.emergency_not_private`), and so is a private hub the owner already holds a role in (`containers.emergency_not_needed`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
+	OpenPrivateHubWithBody(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// OpenPrivateHub Open a private hub through the emergency access
+	//
+	// The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in, for one hour, with a reason. Every member of the hub is told at once, in the same step: by mail where they have an address, and in the app whatever their mail did; the opening is in the workspace's trail. The hour is not extended, and a second access is refused while one runs (`containers.emergency_running`, naming its end); once it has ended, a new one is a new act, told again. During the hour the hub answers its opener as a hub of the workspace would, through the opener's own requests only - never into a device's copy, a calendar feed or a job.
+	// Demands a fresh step-up in the `X-Hubtask-Step-Up` header. A shared hub is refused (`containers.emergency_not_private`), and so is a private hub the owner already holds a role in (`containers.emergency_not_needed`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
+	OpenPrivateHub(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, body OpenPrivateHubJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReadQuotas The workspace's quota standing
 	//
 	// Every quota as it applies to this workspace: the resolved ceiling (0 means unlimited), what is currently used where a live count exists, and the approach ratio. Needs the permission that manages structure, or the auditor's read-only configuration permission - a quota is workspace configuration, and who is near a wall is exactly what an auditor reads.
@@ -15518,6 +15595,23 @@ type ClientInterface interface {
 // Corresponds with GET /accounts/me (the `GetOwnAccount` operationId).
 func (c *Client) GetOwnAccount(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetOwnAccountRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
+//
+// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
+//
+// Corresponds with GET /accounts/me/emergency-notices (the `ListEmergencyNotices` operationId).
+func (c *Client) ListEmergencyNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListEmergencyNoticesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -22847,6 +22941,63 @@ func (c *Client) ListPrivateHubs(ctx context.Context, reqEditors ...RequestEdito
 	return c.Client.Do(req)
 }
 
+// ListPrivateHubAccesses Who opened this private hub through the emergency access, and why
+//
+// Every emergency access to the hub, newest first, with the person who opened it, when, until when and the reason they gave. Read by whoever reads the hub - its members, and the workspace's owner while their access runs; to everybody else the hub is not there, and this answers not found as it does.
+//
+// Corresponds with GET /private-hubs/{hubId}/accesses (the `ListPrivateHubAccesses` operationId).
+func (c *Client) ListPrivateHubAccesses(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPrivateHubAccessesRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// OpenPrivateHubWithBody Open a private hub through the emergency access
+//
+// The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in, for one hour, with a reason. Every member of the hub is told at once, in the same step: by mail where they have an address, and in the app whatever their mail did; the opening is in the workspace's trail. The hour is not extended, and a second access is refused while one runs (`containers.emergency_running`, naming its end); once it has ended, a new one is a new act, told again. During the hour the hub answers its opener as a hub of the workspace would, through the opener's own requests only - never into a device's copy, a calendar feed or a job.
+// Demands a fresh step-up in the `X-Hubtask-Step-Up` header. A shared hub is refused (`containers.emergency_not_private`), and so is a private hub the owner already holds a role in (`containers.emergency_not_needed`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
+func (c *Client) OpenPrivateHubWithBody(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOpenPrivateHubRequestWithBody(c.Server, hubId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// OpenPrivateHub Open a private hub through the emergency access
+//
+// The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in, for one hour, with a reason. Every member of the hub is told at once, in the same step: by mail where they have an address, and in the app whatever their mail did; the opening is in the workspace's trail. The hour is not extended, and a second access is refused while one runs (`containers.emergency_running`, naming its end); once it has ended, a new one is a new act, told again. During the hour the hub answers its opener as a hub of the workspace would, through the opener's own requests only - never into a device's copy, a calendar feed or a job.
+// Demands a fresh step-up in the `X-Hubtask-Step-Up` header. A shared hub is refused (`containers.emergency_not_private`), and so is a private hub the owner already holds a role in (`containers.emergency_not_needed`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
+func (c *Client) OpenPrivateHub(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, body OpenPrivateHubJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOpenPrivateHubRequest(c.Server, hubId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReadQuotas The workspace's quota standing
 //
 // Every quota as it applies to this workspace: the resolved ceiling (0 means unlimited), what is currently used where a live count exists, and the approach ratio. Needs the permission that manages structure, or the auditor's read-only configuration permission - a quota is workspace configuration, and who is near a wall is exactly what an auditor reads.
@@ -24012,6 +24163,33 @@ func NewGetOwnAccountRequest(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/accounts/me")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListEmergencyNoticesRequest constructs an http.Request for the ListEmergencyNotices method
+func NewListEmergencyNoticesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/emergency-notices")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -36586,6 +36764,102 @@ func NewListPrivateHubsRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListPrivateHubAccessesRequest constructs an http.Request for the ListPrivateHubAccesses method
+func NewListPrivateHubAccessesRequest(server string, hubId HubId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/private-hubs/%s/accesses", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewOpenPrivateHubRequest calls the generic OpenPrivateHub builder with application/json body
+func NewOpenPrivateHubRequest(server string, hubId HubId, params *OpenPrivateHubParams, body OpenPrivateHubJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewOpenPrivateHubRequestWithBody(server, hubId, params, "application/json", bodyReader)
+}
+
+// NewOpenPrivateHubRequestWithBody constructs an http.Request for the OpenPrivateHub method, with any body, and a specified content type
+func NewOpenPrivateHubRequestWithBody(server string, hubId HubId, params *OpenPrivateHubParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/private-hubs/%s/accesses", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewReadQuotasRequest constructs an http.Request for the ReadQuotas method
 func NewReadQuotasRequest(server string) (*http.Request, error) {
 	var err error
@@ -38464,6 +38738,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /accounts/me (the `GetOwnAccount` operationId).
 	GetOwnAccountWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetOwnAccountResult, error)
+
+	// ListEmergencyNoticesWithResponse The emergency accesses the caller was told of in the last 30 days
+	//
+	// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /accounts/me/emergency-notices (the `ListEmergencyNotices` operationId).
+	ListEmergencyNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListEmergencyNoticesResult, error)
 
 	// GetAccountWithResponse The name behind an account identifier
 	//
@@ -42320,6 +42603,35 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /private-hubs (the `ListPrivateHubs` operationId).
 	ListPrivateHubsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPrivateHubsResult, error)
 
+	// ListPrivateHubAccessesWithResponse Who opened this private hub through the emergency access, and why
+	//
+	// Every emergency access to the hub, newest first, with the person who opened it, when, until when and the reason they gave. Read by whoever reads the hub - its members, and the workspace's owner while their access runs; to everybody else the hub is not there, and this answers not found as it does.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /private-hubs/{hubId}/accesses (the `ListPrivateHubAccesses` operationId).
+	ListPrivateHubAccessesWithResponse(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*ListPrivateHubAccessesResult, error)
+
+	// OpenPrivateHubWithBodyWithResponse Open a private hub through the emergency access
+	//
+	// The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in, for one hour, with a reason. Every member of the hub is told at once, in the same step: by mail where they have an address, and in the app whatever their mail did; the opening is in the workspace's trail. The hour is not extended, and a second access is refused while one runs (`containers.emergency_running`, naming its end); once it has ended, a new one is a new act, told again. During the hour the hub answers its opener as a hub of the workspace would, through the opener's own requests only - never into a device's copy, a calendar feed or a job.
+	// Demands a fresh step-up in the `X-Hubtask-Step-Up` header. A shared hub is refused (`containers.emergency_not_private`), and so is a private hub the owner already holds a role in (`containers.emergency_not_needed`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
+	OpenPrivateHubWithBodyWithResponse(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*OpenPrivateHubResult, error)
+
+	// OpenPrivateHubWithResponse Open a private hub through the emergency access
+	//
+	// The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in, for one hour, with a reason. Every member of the hub is told at once, in the same step: by mail where they have an address, and in the app whatever their mail did; the opening is in the workspace's trail. The hour is not extended, and a second access is refused while one runs (`containers.emergency_running`, naming its end); once it has ended, a new one is a new act, told again. During the hour the hub answers its opener as a hub of the workspace would, through the opener's own requests only - never into a device's copy, a calendar feed or a job.
+	// Demands a fresh step-up in the `X-Hubtask-Step-Up` header. A shared hub is refused (`containers.emergency_not_private`), and so is a private hub the owner already holds a role in (`containers.emergency_not_needed`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
+	OpenPrivateHubWithResponse(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, body OpenPrivateHubJSONRequestBody, reqEditors ...RequestEditorFn) (*OpenPrivateHubResult, error)
+
 	// ReadQuotasWithResponse The workspace's quota standing
 	//
 	// Every quota as it applies to this workspace: the resolved ceiling (0 means unlimited), what is currently used where a live count exists, and the approach ratio. Needs the permission that manages structure, or the auditor's read-only configuration permission - a quota is workspace configuration, and who is near a wall is exactly what an auditor reads.
@@ -43024,6 +43336,54 @@ func (r GetOwnAccountResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetOwnAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListEmergencyNoticesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]PrivateHubAccess
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListEmergencyNoticesResult) GetJSON200() *[]PrivateHubAccess {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListEmergencyNoticesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListEmergencyNoticesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListEmergencyNoticesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListEmergencyNoticesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListEmergencyNoticesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -55892,6 +56252,102 @@ func (r ListPrivateHubsResult) ContentType() string {
 	return ""
 }
 
+type ListPrivateHubAccessesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]PrivateHubAccess
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPrivateHubAccessesResult) GetJSON200() *[]PrivateHubAccess {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPrivateHubAccessesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPrivateHubAccessesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPrivateHubAccessesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPrivateHubAccessesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPrivateHubAccessesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type OpenPrivateHubResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PrivateHubAccess
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r OpenPrivateHubResult) GetJSON201() *PrivateHubAccess {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r OpenPrivateHubResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r OpenPrivateHubResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r OpenPrivateHubResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r OpenPrivateHubResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r OpenPrivateHubResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadQuotasResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -57807,6 +58263,21 @@ func (c *ClientWithResponses) GetOwnAccountWithResponse(ctx context.Context, req
 		return nil, err
 	}
 	return ParseGetOwnAccountResult(rsp)
+}
+
+// ListEmergencyNoticesWithResponse The emergency accesses the caller was told of in the last 30 days
+//
+// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /accounts/me/emergency-notices (the `ListEmergencyNotices` operationId).
+func (c *ClientWithResponses) ListEmergencyNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListEmergencyNoticesResult, error) {
+	rsp, err := c.ListEmergencyNotices(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListEmergencyNoticesResult(rsp)
 }
 
 // GetAccountWithResponse The name behind an account identifier
@@ -63950,6 +64421,53 @@ func (c *ClientWithResponses) ListPrivateHubsWithResponse(ctx context.Context, r
 	return ParseListPrivateHubsResult(rsp)
 }
 
+// ListPrivateHubAccessesWithResponse Who opened this private hub through the emergency access, and why
+//
+// Every emergency access to the hub, newest first, with the person who opened it, when, until when and the reason they gave. Read by whoever reads the hub - its members, and the workspace's owner while their access runs; to everybody else the hub is not there, and this answers not found as it does.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /private-hubs/{hubId}/accesses (the `ListPrivateHubAccesses` operationId).
+func (c *ClientWithResponses) ListPrivateHubAccessesWithResponse(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*ListPrivateHubAccessesResult, error) {
+	rsp, err := c.ListPrivateHubAccesses(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPrivateHubAccessesResult(rsp)
+}
+
+// OpenPrivateHubWithBodyWithResponse Open a private hub through the emergency access
+//
+// The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in, for one hour, with a reason. Every member of the hub is told at once, in the same step: by mail where they have an address, and in the app whatever their mail did; the opening is in the workspace's trail. The hour is not extended, and a second access is refused while one runs (`containers.emergency_running`, naming its end); once it has ended, a new one is a new act, told again. During the hour the hub answers its opener as a hub of the workspace would, through the opener's own requests only - never into a device's copy, a calendar feed or a job.
+// Demands a fresh step-up in the `X-Hubtask-Step-Up` header. A shared hub is refused (`containers.emergency_not_private`), and so is a private hub the owner already holds a role in (`containers.emergency_not_needed`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
+func (c *ClientWithResponses) OpenPrivateHubWithBodyWithResponse(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*OpenPrivateHubResult, error) {
+	rsp, err := c.OpenPrivateHubWithBody(ctx, hubId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseOpenPrivateHubResult(rsp)
+}
+
+// OpenPrivateHubWithResponse Open a private hub through the emergency access
+//
+// The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in, for one hour, with a reason. Every member of the hub is told at once, in the same step: by mail where they have an address, and in the app whatever their mail did; the opening is in the workspace's trail. The hour is not extended, and a second access is refused while one runs (`containers.emergency_running`, naming its end); once it has ended, a new one is a new act, told again. During the hour the hub answers its opener as a hub of the workspace would, through the opener's own requests only - never into a device's copy, a calendar feed or a job.
+// Demands a fresh step-up in the `X-Hubtask-Step-Up` header. A shared hub is refused (`containers.emergency_not_private`), and so is a private hub the owner already holds a role in (`containers.emergency_not_needed`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /private-hubs/{hubId}/accesses (the `OpenPrivateHub` operationId).
+func (c *ClientWithResponses) OpenPrivateHubWithResponse(ctx context.Context, hubId HubId, params *OpenPrivateHubParams, body OpenPrivateHubJSONRequestBody, reqEditors ...RequestEditorFn) (*OpenPrivateHubResult, error) {
+	rsp, err := c.OpenPrivateHub(ctx, hubId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseOpenPrivateHubResult(rsp)
+}
+
 // ReadQuotasWithResponse The workspace's quota standing
 //
 // Every quota as it applies to this workspace: the resolved ceiling (0 means unlimited), what is currently used where a live count exists, and the approach ratio. Needs the permission that manages structure, or the auditor's read-only configuration permission - a quota is workspace configuration, and who is near a wall is exactly what an auditor reads.
@@ -64957,6 +65475,39 @@ func ParseGetOwnAccountResult(rsp *http.Response) (*GetOwnAccountResult, error) 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Account
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListEmergencyNoticesResult parses an HTTP response from a ListEmergencyNoticesWithResponse call
+func ParseListEmergencyNoticesResult(rsp *http.Response) (*ListEmergencyNoticesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListEmergencyNoticesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []PrivateHubAccess
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -74248,6 +74799,72 @@ func ParseListPrivateHubsResult(rsp *http.Response) (*ListPrivateHubsResult, err
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPrivateHubAccessesResult parses an HTTP response from a ListPrivateHubAccessesWithResponse call
+func ParseListPrivateHubAccessesResult(rsp *http.Response) (*ListPrivateHubAccessesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPrivateHubAccessesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []PrivateHubAccess
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseOpenPrivateHubResult parses an HTTP response from a OpenPrivateHubWithResponse call
+func ParseOpenPrivateHubResult(rsp *http.Response) (*OpenPrivateHubResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &OpenPrivateHubResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PrivateHubAccess
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

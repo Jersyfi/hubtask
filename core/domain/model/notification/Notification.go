@@ -66,13 +66,20 @@ const (
 	// preference nobody set for this purpose silence the one message that is not about something
 	// that already happened.
 	CategoryRetention Category = "RETENTION"
+	// CategoryEmergencyAccess is the workspace's owner having opened a private hub the recipient is
+	// a member of (ADR-0073 §4): who, when, until when and why.
+	//
+	// Never switched off, as the invitation is not: "the emergency access always notifies; there is
+	// no silent variant for anyone" (UC-ID-16), and a member's own preference would be one. Whether
+	// the mail names the hub stays the member's choice.
+	CategoryEmergencyAccess Category = "EMERGENCY_ACCESS"
 )
 
 // Categories is the closed set, in the order the schema's check constraint lists them.
 func Categories() []Category {
 	return []Category{
 		CategoryAssignment, CategoryMembership, CategoryComment, CategoryInvitation,
-		CategoryReminder, CategoryIntegration, CategoryRetention,
+		CategoryReminder, CategoryIntegration, CategoryRetention, CategoryEmergencyAccess,
 	}
 }
 
@@ -90,11 +97,14 @@ func (c Category) String() string { return string(c) }
 
 // Suppressible reports whether a preference may switch this category off.
 //
-// Everything but the invitation. The one category whose message is the way into the system cannot
-// be refused by a setting inside it - and the setting cannot be reached before the account is
-// usable anyway, which makes refusing it a lock nobody can open (data-protection.md §9 asks for
-// switchable notifications, not for an unreachable workspace).
-func (c Category) Suppressible() bool { return c != CategoryInvitation }
+// Everything but two. The invitation, because the one message that is the way into the system
+// cannot be refused by a setting inside it - and the setting cannot be reached before the account
+// is usable anyway, which makes refusing it a lock nobody can open (data-protection.md §9 asks for
+// switchable notifications, not for an unreachable workspace). And the emergency access, because
+// a member who could switch it off would have made the owner's opening of their hub a secret one.
+func (c Category) Suppressible() bool {
+	return c != CategoryInvitation && c != CategoryEmergencyAccess
+}
 
 // Channel is what carries a notification. Email is the only one that sends; webhook and push are
 // named in arc42 §5.2 and are not built.
@@ -180,10 +190,13 @@ type Notification struct {
 	// ItemID is the entry this is about, zero where there is none - an invitation is about the
 	// workspace. RuleID and SubscriptionID are the subjects that are not an entry: the rule the
 	// check or the failure streak switched off, the subscription the engine stopped calling. At
-	// most one of the three is set, and the table holds the same rule.
+	// most one of the four is set, and the table holds the same rule.
 	ItemID         shared.ID
 	RuleID         shared.ID
 	SubscriptionID shared.ID
+	// PrivateHubAccessID is the emergency access a member is told of: the message reads the
+	// opener, the time and the reason from it when it is rendered.
+	PrivateHubAccessID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
 	// rather than for a person.
 	ActorID   shared.ID
@@ -204,12 +217,13 @@ type NewInput struct {
 	Channel     Channel
 	EventID     shared.ID
 	ItemID      shared.ID
-	// RuleID or SubscriptionID instead of ItemID for a message about a rule or a subscription;
-	// naming two subjects is refused.
-	RuleID         shared.ID
-	SubscriptionID shared.ID
-	ActorID        shared.ID
-	At             time.Time
+	// RuleID, SubscriptionID or PrivateHubAccessID instead of ItemID for a message about a rule,
+	// a subscription or an emergency access; naming two subjects is refused.
+	RuleID             shared.ID
+	SubscriptionID     shared.ID
+	PrivateHubAccessID shared.ID
+	ActorID            shared.ID
+	At                 time.Time
 }
 
 // New writes a pending notification.
@@ -239,24 +253,25 @@ func New(in NewInput) (Notification, error) {
 	}
 
 	return Notification{
-		ID:             in.ID,
-		TenantID:       in.TenantID,
-		RecipientID:    in.RecipientID,
-		Category:       in.Category,
-		Channel:        in.Channel,
-		State:          StatePending,
-		EventID:        in.EventID,
-		ItemID:         in.ItemID,
-		RuleID:         in.RuleID,
-		SubscriptionID: in.SubscriptionID,
-		ActorID:        in.ActorID,
-		CreatedAt:      in.At,
+		ID:                 in.ID,
+		TenantID:           in.TenantID,
+		RecipientID:        in.RecipientID,
+		Category:           in.Category,
+		Channel:            in.Channel,
+		State:              StatePending,
+		EventID:            in.EventID,
+		ItemID:             in.ItemID,
+		RuleID:             in.RuleID,
+		SubscriptionID:     in.SubscriptionID,
+		PrivateHubAccessID: in.PrivateHubAccessID,
+		ActorID:            in.ActorID,
+		CreatedAt:          in.At,
 	}, nil
 }
 
 func subjectsNamed(in NewInput) int {
 	named := 0
-	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID} {
+	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID} {
 		if !id.IsZero() {
 			named++
 		}

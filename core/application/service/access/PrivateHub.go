@@ -17,8 +17,8 @@ import (
 // whatever it is, with the token scope the request names. No STRUCTURE: the person who most
 // needs a hub nobody else opens is the one without an administrator's role.
 //
-// Where the workspace allows private hubs is always, until the workspace's setting exists; that
-// setting is read here when it does, so that the question stays one question.
+// Whether the workspace allows private hubs is not asked here: *Private hubs allowed* is a setting,
+// not a permission, and the use case reads it after this answered (ADR-0073 §6).
 //
 // A refusal is recorded like every other, against the request's action.
 func (s Service) AuthorizeOwnPrivateHub(
@@ -68,7 +68,7 @@ func (s Service) Hidden(
 	if len(path) == 0 {
 		return false, nil
 	}
-	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, path)
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, path, false)
 	if err != nil {
 		return false, err
 	}

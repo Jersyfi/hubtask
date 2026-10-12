@@ -330,7 +330,9 @@ func (s StreamChanges) mayRead(
 		return visibility{}, err
 	}
 
-	allowed, err := s.Authorizer.Permits(ctx, actor, access.Request{
+	// ForACopy: what passes here lands in a device's replica and outlives an emergency access,
+	// so a running one does not count (ActorContext.Present).
+	allowed, err := s.Authorizer.Permits(ctx, actor.ForACopy(), access.Request{
 		Permission: service.PermissionRead,
 		Path:       service.ContainerScopes(container),
 	})
@@ -360,7 +362,7 @@ func (s StreamChanges) mayReadWorkspaceWide(
 	if seen, decided := resolved[shared.ID("")]; decided {
 		return seen, nil
 	}
-	allowed, err := s.Authorizer.Permits(ctx, actor, access.Request{
+	allowed, err := s.Authorizer.Permits(ctx, actor.ForACopy(), access.Request{
 		Permission: service.PermissionRead,
 		Path:       []identity.Scope{identity.TenantScope()},
 	})

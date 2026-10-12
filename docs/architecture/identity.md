@@ -542,9 +542,9 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 **Each privileged operation declares its step-up on its use case descriptor** (`StepUp`); the
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
 request, granting or revoking `OWNER`, an `admin:*` token, the workspace's `sign_in_policy` (the one
-member of `PATCH /tenant` that asks), §13's new start password, and every write of §6 (bearer
-door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's destructive modes.
-Decided, not built: a private hub's emergency access ([ADR-0073](../adr/ADR-0073-private-hubs.md)).
+member of `PATCH /tenant` that asks), §13's new start password, a private hub's emergency access
+(§22), and every write of §6 (bearer door), §8–§9, §10.5, §17.2, §19 and
+[backup-restore.md](./backup-restore.md) §8's destructive modes.
 
 ---
 
@@ -734,6 +734,42 @@ attachments, when it was made, and while it is in the trash when it went and whe
 never a name, a description or anything inside. `Workspace.private_hubs_offered` is true where the
 workspace has more than one person who can act (`USER`, neither anonymised nor deleted); a client
 offers *Private* only then, the server accepts it always.
+
+**The emergency access** (ADR-0073 §4, `OpenPrivateHub`, `POST /private-hubs/{hubId}/accesses`).
+The workspace's owner - a person, never a service account or a rule - opens a private hub they
+hold nothing in, with a fresh step-up and a reason of 1 to 500 characters, for one hour. It is not
+renewed: while one runs a second is refused (`containers.emergency_running`, 409, naming its end),
+and one after it ended is a new act. A shared hub is refused (`containers.emergency_not_private`),
+and so is one the owner holds a role in (`containers.emergency_not_needed`); anybody else is
+refused before the hub is looked up (`access.not_permitted`).
+
+* **Every member is told before anything is read.** One transaction takes the hub's row, writes the
+  access (`private_hub_access`), writes every member's notification record (category
+  `EMERGENCY_ACCESS`, never switched off, the access as its subject) with the mail's job, and the
+  trail's entry `container.emergency_access_opened` - the reason masked there, because it is
+  written to the members and the trail is read by administrators and auditors. The access counts
+  only once all of it is committed.
+* **Mail and the app.** The mail says who, from when until when in the reader's zone, and why; the
+  hub's name only where the reader lets titles travel. It travels under its own job kind,
+  `notification.emergency_access`, which a process of the previous release has no handler for, so
+  it is never sent with another category's words during a rollout. Every member is also told in
+  the app from their own record, whatever the mail did - `GET /accounts/me/emergency-notices`, the
+  last 30 days, on every page - which is how a managed account without a mailbox is told; the hub
+  lists its accesses to whoever reads it (`GET /private-hubs/{hubId}/accesses`).
+* **What it opens, and for whom.** While it runs, the authoriser judges a path through the hub as
+  shared for the opener alone, and only while they still hold `OWNER` on the workspace. It counts
+  only for a person present: a request through the REST API marks its actor so
+  (`ActorContext.Present`); the sync service takes the mark off for what lands in a device's
+  replica, and a CalDAV client, the calendar feed, a job, an AI agent and `Hidden` (rules,
+  subscriptions, notifications) never carry it. Nothing of the hub outlives the hour.
+
+**The setting** (ADR-0073 §6). *Private hubs allowed* is the identity rule's switch `private_hubs`
+(§18), on by default, off the stricter value, with the installation's and the plan's default and
+lock. Off refuses a new private hub - created or marked - with `containers.private_hubs_off` (403)
+and changes nothing else: every private hub already there stays private, is shared again by its
+owner, and opens through the emergency access. The web app draws it on the administration's
+*Private hubs* page, which is drawn wherever the workspace has more than one person
+(`Workspace.several_people`); `private_hubs_offered` is that and the switch.
 
 **The last member** (ADR-0073 §5). A member is an account, neither anonymised nor deleted, holding a
 role on the hub, on a collection in it or on an entry in one. When a revocation, or an erasure that

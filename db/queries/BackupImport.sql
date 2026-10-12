@@ -1463,6 +1463,45 @@ SELECT EXISTS (SELECT 1 FROM legal_hold WHERE id = (sqlc.arg('payload')::jsonb->
 -- name: ClearLegalHold :execrows
 DELETE FROM legal_hold;
 
+-- name: ImportPrivateHubAccess :execrows
+-- An access whose hub the restore did not bring back has nothing to describe, and is skipped
+-- rather than refused by the foreign key.
+INSERT INTO private_hub_access (
+  id,
+  tenant_id,
+  hub_id,
+  opened_by,
+  reason,
+  opened_at,
+  ends_at
+)
+SELECT
+  r.id,
+  r.tenant_id,
+  r.hub_id,
+  r.opened_by,
+  r.reason,
+  r.opened_at,
+  r.ends_at
+FROM jsonb_populate_record(
+  NULL::private_hub_access,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE EXISTS (SELECT 1 FROM container c WHERE c.id = r.hub_id)
+ON CONFLICT (id) DO UPDATE SET
+  hub_id = EXCLUDED.hub_id,
+  opened_by = EXCLUDED.opened_by,
+  reason = EXCLUDED.reason,
+  opened_at = EXCLUDED.opened_at,
+  ends_at = EXCLUDED.ends_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPrivateHubAccess :one
+SELECT EXISTS (SELECT 1 FROM private_hub_access WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearPrivateHubAccess :execrows
+DELETE FROM private_hub_access;
+
 -- name: ImportSetElement :execrows
 INSERT INTO set_element (
   tenant_id,

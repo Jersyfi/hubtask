@@ -292,8 +292,9 @@ func (r *Reader) Records(
 	file, found := fileOf(description.Manifest, path)
 	if !found {
 		// A member the manifest does not name is not read. On the optional audit trail that is
-		// the ordinary case; on anything else it is an archive somebody has added a file to.
-		if entity.Optional {
+		// the ordinary case, and on an entity format 1 gained later it is an archive from before
+		// it; on anything else it is an archive somebody has added a file to.
+		if entity.Optional || entity.Later {
 			return nil
 		}
 		return shared.ErrValidation.WithDetail(CodeChecksumMismatch).

@@ -779,6 +779,18 @@ class Client:
         """The workspace's private hubs, without their names"""
         return self._call("GET", "/private-hubs", {}, None, {}, None, "none", None, "json")
 
+    def list_private_hub_accesses(self, hub_id: str) -> dict[str, Any]:
+        """Who opened this private hub through the emergency access, and why"""
+        return self._call("GET", "/private-hubs/{hubId}/accesses", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def open_private_hub(self, hub_id: str, body: "PrivateHubAccessRequest", *, step_up: str | None = None) -> "PrivateHubAccess":
+        """Open a private hub through the emergency access"""
+        return self._call("POST", "/private-hubs/{hubId}/accesses", {"hubId": hub_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def list_emergency_notices(self) -> dict[str, Any]:
+        """The emergency accesses the caller was told of in the last 30 days"""
+        return self._call("GET", "/accounts/me/emergency-notices", {}, None, {}, None, "none", None, "json")
+
     def count_accounts_without_provider(self) -> "AccountsWithoutProvider":
         """How many people here no provider switched on here signs in"""
         return self._call("GET", "/tenant/accounts-without-provider", {}, None, {}, None, "none", None, "json")

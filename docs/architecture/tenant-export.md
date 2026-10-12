@@ -145,8 +145,9 @@ re-mints identities must rewrite exactly these).
 | 27 | `retention_policies` | `retention_policy` | `data_kind` | — |
 | 28 | `consent_records` | `consent_record` | `id` | `account_id`→accounts |
 | 29 | `legal_holds` | `legal_hold` | `id` | — |
-| 30 | `set_elements` | `set_element` | `item_id/set_name/element_id` | `item_id`→work_items |
-| 31 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
+| 30 | `private_hub_accesses` | `private_hub_access` | `id` | `hub_id`→containers, `opened_by`→accounts (an access whose hub is not restored is skipped) |
+| 31 | `set_elements` | `set_element` | `item_id/set_name/element_id` | `item_id`→work_items |
+| 32 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
 reply's comment) are ordered within the file: the referenced row comes first.
@@ -247,6 +248,8 @@ expected to keep sign-ins working. The export is handed outwards.
 * `format_version` is currently **1**, shared with the backup archive
   ([versioning-release.md](./versioning-release.md)): additive fields do not bump it, a change a
   version-1 reader would misread does.
+* A file version 1 gained later (§6: `private_hub_accesses`) is additive too: every archive written
+  since carries it, and one written before reads as holding none of its rows.
 * Readers refuse a `format_version` above what they know, and accept everything from the minimum
   readable version (currently 1) up.
 * This document is versioned with the repository; the manifest's `product_version` and

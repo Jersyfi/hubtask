@@ -319,7 +319,9 @@ test('chromium: a deep link into the editor reads each resource once, and only w
   for (const path of ['/labels', '/buckets', '/templates', '/groups', '/integrations/webhooks']) {
     assert.equal(gets.some((line) => line.includes(path)), false, `${path} is not read before a field needs it`);
   }
-  assert.ok(gets.length <= 12, `${gets.length} reads on open: ${gets.join(', ')}`);
+  // Thirteen: the frame's own reads grew by the person's AI notice and their emergency notices,
+  // each read once per frame (PH-03, PH-05) - what this bounds is the editor's.
+  assert.ok(gets.length <= 13, `${gets.length} reads on open: ${gets.join(', ')}`);
 
   // And the canvas meets the content region rather than standing in its padding: standing in it
   // draws a slab of one colour on a page of another, which reads as a border no other screen has.

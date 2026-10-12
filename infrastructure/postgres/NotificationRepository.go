@@ -72,20 +72,25 @@ func (r NotificationRepository) Insert(
 	if err != nil {
 		return false, err
 	}
+	accessID, err := optionalUUID(record.PrivateHubAccessID)
+	if err != nil {
+		return false, err
+	}
 
 	written, err := queries.InsertNotification(ctx, sqlc.InsertNotificationParams{
-		ID:             id,
-		RecipientID:    recipient,
-		Category:       string(record.Category),
-		Channel:        string(record.Channel),
-		State:          string(record.State),
-		Reason:         optionalText(record.Reason),
-		EventID:        eventID,
-		ItemID:         itemID,
-		RuleID:         ruleID,
-		SubscriptionID: subscriptionID,
-		ActorID:        actorID,
-		CreatedAt:      timestampOf(record.CreatedAt),
+		ID:                 id,
+		RecipientID:        recipient,
+		Category:           string(record.Category),
+		Channel:            string(record.Channel),
+		State:              string(record.State),
+		Reason:             optionalText(record.Reason),
+		EventID:            eventID,
+		ItemID:             itemID,
+		RuleID:             ruleID,
+		SubscriptionID:     subscriptionID,
+		PrivateHubAccessID: accessID,
+		ActorID:            actorID,
+		CreatedAt:          timestampOf(record.CreatedAt),
 	})
 	if err != nil {
 		return false, shared.ErrUnavailable.
@@ -320,27 +325,32 @@ func notificationFrom(row sqlc.Notification) (domain.Notification, error) {
 	if err != nil {
 		return domain.Notification{}, err
 	}
+	accessID, err := optionalID(row.PrivateHubAccessID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
 
 	var reason string
 	if row.Reason != nil {
 		reason = *row.Reason
 	}
 	return domain.Notification{
-		ID:             id,
-		TenantID:       tenantID,
-		RecipientID:    recipientID,
-		Category:       domain.Category(row.Category),
-		Channel:        domain.Channel(row.Channel),
-		State:          domain.State(row.State),
-		Reason:         reason,
-		EventID:        eventID,
-		ItemID:         itemID,
-		RuleID:         ruleID,
-		SubscriptionID: subscriptionID,
-		ActorID:        actorID,
-		CreatedAt:      row.CreatedAt.Time.UTC(),
-		SentAt:         optionalTime(row.SentAt),
-		Attempts:       int(row.Attempts),
+		ID:                 id,
+		TenantID:           tenantID,
+		RecipientID:        recipientID,
+		Category:           domain.Category(row.Category),
+		Channel:            domain.Channel(row.Channel),
+		State:              domain.State(row.State),
+		Reason:             reason,
+		EventID:            eventID,
+		ItemID:             itemID,
+		RuleID:             ruleID,
+		SubscriptionID:     subscriptionID,
+		PrivateHubAccessID: accessID,
+		ActorID:            actorID,
+		CreatedAt:          row.CreatedAt.Time.UTC(),
+		SentAt:             optionalTime(row.SentAt),
+		Attempts:           int(row.Attempts),
 	}, nil
 }
 

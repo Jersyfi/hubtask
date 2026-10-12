@@ -29,6 +29,7 @@
   import BarSearch from './BarSearch.svelte';
   import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
+  import EmergencyNotices from './EmergencyNotices.svelte';
   import TourGuide from './TourGuide.svelte';
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
@@ -49,6 +50,7 @@
   import { t } from '../i18n/i18n.svelte.ts';
   import { DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, primary } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
+  import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
   import type { Resolution } from '../router.ts';
 
@@ -123,6 +125,12 @@
     if (!session.isSignedIn || !isInAdministration) return;
     return untrack(() => privateHubs.open());
   });
+  // And the workspace, for whether it holds more than one person: there the row stays drawn with
+  // no private hub in it, because it is where *Private hubs allowed* is set (ADR-0073 §6).
+  $effect(() => {
+    if (!session.isSignedIn || !isInAdministration) return;
+    return untrack(() => workspace.open());
+  });
 
   // Whose list of recently opened entries this device is holding. The account's id is the key, so
   // it is adopted when the account arrives and dropped when it changes — two people sharing a
@@ -156,7 +164,8 @@
       ? {
           label: t('app.admin.nav'),
           groups: administration({
-            hasPrivateHubs: privateHubs.hasAny,
+            hasPrivateHubs: privateHubs.isReadable &&
+              (privateHubs.hasAny || workspace.workspace?.several_people === true),
             withInstallation: installationPlace({
               isInstanceReachable: manifest.isInstanceReachable,
               isAdministrationReachable: quotas.isReachable === true,
@@ -429,6 +438,8 @@
             </Banner>
           </div>
         {/if}
+        <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
+        <EmergencyNotices onnavigate={go} />
         {#if aiObjection.noticePending && aiObjection.position}
           <!-- Told once: acknowledged on the server, so it does not come back on another device. -->
           <div class="confirmed" data-ai-notice>

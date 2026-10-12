@@ -53,6 +53,29 @@ type OwnHubs interface {
 	AuthorizeOwnPrivateHub(ctx context.Context, actor appshared.ActorContext, request access.Request) error
 }
 
+// PrivateHubsRule answers whether the workspace allows new private hubs now: *Private hubs allowed*
+// at the workspace, the plan and the installation, resolved (ADR-0073 §6).
+type PrivateHubsRule interface {
+	PrivateHubsAllowed(ctx context.Context, tenantID shared.ID) (bool, error)
+}
+
+// allowPrivateHubs refuses a new private hub where the rule in force does not allow one. Every
+// private hub already there stays private; only making one is refused. A build without the rule
+// refuses rather than guessing which way the workspace decided.
+func allowPrivateHubs(ctx context.Context, rule PrivateHubsRule, tenantID shared.ID) error {
+	if rule == nil {
+		return shared.ErrInternal.WithDetail("containers.private_hubs_unwired")
+	}
+	allowed, err := rule.PrivateHubsAllowed(ctx, tenantID)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return domain.ErrPrivateHubsOff()
+	}
+	return nil
+}
+
 // Anchored is the slice of the authorisation service a list anchored to a container needs: not
 // "may I read this", but "how much of it may I read".
 //
@@ -94,15 +117,17 @@ type CreateContainer struct {
 	// OwnHubs answers who may make a private hub; Grants makes its creator its owner. Both are
 	// needed only for a private hub, and a build without them refuses one rather than making a hub
 	// nobody holds.
-	OwnHubs    OwnHubs
-	Grants     identityrepository.MembershipGrants
-	Events     outbox.Events
-	Changes    changelog.ChangeLog
-	Audit      audit.Sink
-	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
-	IDs        clock.IDGenerator
-	HLC        clock.HLCSource
+	OwnHubs OwnHubs
+	Grants  identityrepository.MembershipGrants
+	// PrivateHubs is the workspace's switch, read only for a private hub.
+	PrivateHubs PrivateHubsRule
+	Events      outbox.Events
+	Changes     changelog.ChangeLog
+	Audit       audit.Sink
+	UnitOfWork  persistence.UnitOfWork
+	Clock       clock.Clock
+	IDs         clock.IDGenerator
+	HLC         clock.HLCSource
 	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
@@ -212,7 +237,12 @@ func (h CreateContainer) authorize(
 	if h.OwnHubs == nil || h.Grants == nil {
 		return shared.ErrInternal.WithDetail("containers.private_hubs_unwired")
 	}
-	return h.OwnHubs.AuthorizeOwnPrivateHub(ctx, actor, request)
+	if err := h.OwnHubs.AuthorizeOwnPrivateHub(ctx, actor, request); err != nil {
+		return err
+	}
+	// After the permission, so that somebody who may not make one is told that rather than how
+	// the workspace is set up.
+	return allowPrivateHubs(ctx, h.PrivateHubs, actor.TenantID)
 }
 
 // ownedBy makes the creator of a private hub its owner, in the hub's own transaction: a private
