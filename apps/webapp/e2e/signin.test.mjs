@@ -992,7 +992,16 @@ test('a provider mark is drawn inline in its owner\'s colours, and nothing is fe
     const fills = (name, shape) => page.getByRole('button', { name }).locator(`svg ${shape}`)
       .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('fill')));
 
-    assert.deepEqual(await fills(/Contoso Google/, 'path'), ['#4285F4', '#34A853', '#FBBC05', '#EA4335']);
+    const google = page.getByRole('button', { name: /Contoso Google/ }).locator('svg');
+    assert.equal(await google.getAttribute('viewBox'), '10 10 20 20', 'the G is not drawn on its published grid');
+    assert.ok((await google.locator('mask path').getAttribute('d')).startsWith('M29.3987 18.1814H19.9849V22.0445H25.3598'),
+      'the G is not the published shape');
+    assert.deepEqual(await fills(/Contoso Google/, 'ellipse'), ['#3186FF', '#3186FF', '#FF4641', '#FF5B8B', '#3186FF', '#FF4641']);
+    // The two declarations the published file carries as style attributes arrive through the
+    // stylesheet - an inline style would be refused by the content security policy, and the G
+    // would lose its gradient without a word.
+    assert.match(await google.locator('.g-angular').evaluate((node) => getComputedStyle(node).backgroundImage), /conic-gradient/);
+    assert.equal(await google.locator('mask').evaluate((node) => getComputedStyle(node).maskType), 'alpha');
     assert.deepEqual(await fills(/Contoso Entra ID/, 'rect'), ['#f25022', '#00a4ef', '#7fba00', '#ffb900']);
     assert.equal(await page.getByRole('button', { name: /Contoso Entra ID/ }).locator('svg').getAttribute('viewBox'), '0 0 21 21',
       'the Microsoft symbol is not drawn on its published grid');

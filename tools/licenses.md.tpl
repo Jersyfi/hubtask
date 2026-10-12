@@ -64,7 +64,7 @@ without a row here, a row without a mark, and a mark for a preset the server doe
 
 | Mark | Preset | Source and guideline | Permitted use |
 |---|---|---|---|
-| Google "G" | `GOOGLE` | [Sign in with Google branding guidelines](https://developers.google.com/identity/branding-guidelines) | The standard "G", unaltered and in its own colours, at the start of a neutral sign-in button |
+| Google "G", from `Android + Web/SVG/Light/Theme=Light, Show text=No, Shape=Square, Platform=Android+Web.svg` in [`signin-assets.zip`](https://developers.google.com/static/identity/images/signin-assets.zip) | `GOOGLE` | [Sign in with Google branding guidelines](https://developers.google.com/identity/branding-guidelines) | The standard "G", unaltered and in its own colours, at the start of a neutral sign-in button |
 | Microsoft logo, [`ms-symbollockup_mssymbol_19.svg`](https://learn.microsoft.com/en-us/entra/identity-platform/media/howto-add-branding-in-apps/ms-symbollockup_mssymbol_19.svg) | `MICROSOFT` | [Microsoft identity platform branding guidelines](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-branding-in-apps) | The four-square logo, unaltered and in its own colours, at the start of a neutral sign-in button |
 
 
