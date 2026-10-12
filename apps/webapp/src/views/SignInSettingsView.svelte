@@ -130,6 +130,7 @@
       privacy_url: policy.legal.privacy_url.value,
       terms_url: policy.legal.terms_url.value,
       accessibility_url: policy.legal.accessibility_url.value,
+      ...(policy.legal.terms_version ? { terms_version: policy.legal.terms_version.value } : {}),
       // Absent from a server that predates it, and then not a row this form sends.
       ...(policy.managed_accounts ? { managed_accounts: policy.managed_accounts.value } : {}),
     };
@@ -569,6 +570,24 @@
               {@render linkRow('imprint_url', t('app.legal.imprint'))}
               {@render linkRow('privacy_url', t('app.legal.privacy'))}
               {@render linkRow('terms_url', t('app.legal.terms'))}
+              {#if policy.legal.terms_version}
+                <!-- The terms' version, beside its link (UC-ID-19): a change of either asks every
+                     person to agree again at their next sign-in, which the hint says before it is
+                     saved. Under the link's lock, from the link's level. -->
+                <div data-rule>
+                  <Input
+                    label={t('app.signin_settings.terms_version')}
+                    hint={t('app.signin_settings.terms_version_hint')}
+                    value={String(draft['terms_version'] ?? '')}
+                    oninput={(event) => (draft['terms_version'] = (event.currentTarget as HTMLInputElement).value)}
+                    disabledReason={lockedBecause(policy.legal.terms_version.lock)}
+                    error={refusalOf('terms_version')}
+                    maxlength={64}
+                  />
+                  {@render origin(originOf(policy.legal.terms_version, (value: string) =>
+                    value === '' ? t('app.signin_settings.no_version') : value))}
+                </div>
+              {/if}
               <!-- The fourth link, which the sign-in footer shows: without this row a workspace
                    could only have the installation's, whatever its own statement said. -->
               {@render linkRow('accessibility_url', t('app.legal.accessibility'))}

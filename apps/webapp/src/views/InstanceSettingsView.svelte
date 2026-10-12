@@ -289,7 +289,9 @@
                     checked={current?.locked === true}
                     disabledReason={row.area === 'localisation'
                       ? t('app.instance.locked_never_localisation')
-                      : undefined}
+                      : row.area === 'legal' && row.key === 'terms_version'
+                        ? t('app.instance.locked_with_terms_link')
+                        : undefined}
                     onchange={(event) =>
                       put(row.area as SettingArea, row.key, {
                         set: current?.set ?? row.setting.set,

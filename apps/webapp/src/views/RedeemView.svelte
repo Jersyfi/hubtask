@@ -29,7 +29,12 @@
   // than on the sign-in card - a person sent there would arrive without the invitation and be
   // refused by any provider that is not authoritative for their address.
 
-  import { Banner, Button, Stack } from '@hubtask/design-system/components';
+  // **The terms of use are agreed here, where there are any** (UC-ID-19 check 1). The box is not a
+  // condition of the buttons being drawn: pressing one without it says so at the box, which is
+  // what P-05 asks of a control whose refusal the card can explain. The link and version agreed
+  // to travel with the password and with the provider, so what was shown is what is stored.
+
+  import { Banner, Button, Checkbox, Stack } from '@hubtask/design-system/components';
 
   import PasswordField from '../lib/signin/PasswordField.svelte';
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
@@ -38,7 +43,7 @@
   import { oidc } from '../lib/data/oidc.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
-  import { session } from '../lib/session.svelte.ts';
+  import { session, type TermsInForce } from '../lib/session.svelte.ts';
 
   interface Props {
     /**
@@ -67,6 +72,30 @@
 
   $effect(() => signInRules.read());
 
+  /** The terms of use in force here, or none - no box and nothing to agree to (UC-ID-19 check 5). */
+  const terms = $derived.by((): TermsInForce | undefined => {
+    const legal = signInRules.legal;
+    if (!legal.terms_url) return undefined;
+    return {
+      url: legal.terms_url,
+      version: legal.terms_version,
+      set_by: legal.terms_set_by ?? 'INSTALLATION',
+    };
+  });
+  let agreed = $state(false);
+  /** Set when a button was pressed without the box ticked; cleared by ticking it. */
+  let agreementMissing = $state(false);
+  $effect(() => {
+    if (agreed) agreementMissing = false;
+  });
+
+  /** Whether the card may go on: no terms, or the box ticked - otherwise it says so at the box. */
+  function mayContinue(): boolean {
+    if (terms === undefined || agreed) return true;
+    agreementMissing = true;
+    return false;
+  }
+
   /**
    * Hands the browser to one of the workspace's providers with this invitation bound to the flow.
    *
@@ -74,7 +103,8 @@
    * shown on this card.
    */
   async function useProvider(providerId: string): Promise<void> {
-    const url = await oidc.begin(undefined, providerId, token);
+    if (!mayContinue()) return;
+    const url = await oidc.begin(undefined, providerId, token, undefined, terms);
     // Leaving this origin entirely. `assign` rather than `replace`: Back returns to this card, which
     // is where somebody who changed their mind at the provider wants to be - with the token already
     // out of the address, so the history entry carries no credential.
@@ -83,7 +113,8 @@
 
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const signedIn = await session.redeem(token, password);
+    if (!mayContinue()) return;
+    const signedIn = await session.redeem(token, password, terms);
     // Out of the component's state whatever happened.
     password = '';
     if (signedIn) onnavigate?.('/');
@@ -112,6 +143,7 @@
 {:else if signInRules.wasRead && !signInRules.hasPassword}
   <SignInCard title={t('app.redeem.provider_title')} lead={t('app.redeem.provider_intro')} {notice}>
     {#if signInRules.providers.length > 0}
+      {@render agreement()}
       {@render providers('primary')}
     {:else}
       <!-- No provider the rules name: the sign-in card says what there is, which is all this
@@ -130,6 +162,7 @@
           proof={{ kind: 'invitation', token }}
           hint={t('app.redeem.password_hint')}
         />
+        {@render agreement()}
         <Button type="submit" tone="primary" isFull {isBusy} busyLabel={t('app.redeem.working')}>
           {t('app.redeem.submit')}
         </Button>
@@ -145,6 +178,33 @@
     {/if}
   </SignInCard>
 {/if}
+
+{#snippet agreement()}
+  <!-- Only where terms are set. The link opens beside the card, as the footer's does, and the box
+       names the version agreed to, which is what the account keeps. -->
+  {#if terms}
+    <div class="agreement">
+      <a class="terms" href={terms.url} target="_blank" rel="noopener noreferrer">
+        {terms.version
+          ? t('app.terms.read_versioned', { version: terms.version })
+          : t('app.terms.read')}
+      </a>
+      <Checkbox
+        bind:checked={agreed}
+        label={terms.version
+          ? t('app.terms.agree_label_versioned', { version: terms.version })
+          : t('app.terms.agree_label')}
+        aria-invalid={agreementMissing}
+        aria-describedby={agreementMissing ? 'terms-missing' : undefined}
+      />
+      <!-- Mounted empty and filled when a button was pressed without the box: a region created
+           with its sentence is one nothing was listening to. -->
+      <p id="terms-missing" class="missing" role="alert">
+        {agreementMissing ? t('auth.terms_not_agreed') : ''}
+      </p>
+    </div>
+  {/if}
+{/snippet}
 
 {#snippet providers(tone: 'primary' | 'secondary')}
   <!-- One button per provider the rules name, each carrying this invitation (ADR-0078 §1). -->
@@ -170,4 +230,8 @@
   form { margin: 0; }
   .instead { display: grid; gap: var(--sp-100); margin-block-start: var(--sp-200); }
   .quiet { margin: 0; color: var(--text-secondary); }
+  .agreement { display: grid; gap: var(--sp-100); }
+  .terms { justify-self: start; }
+  .missing { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
+  .missing:empty { display: none; }
 </style>

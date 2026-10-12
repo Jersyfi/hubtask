@@ -71,6 +71,8 @@
   const mustChange = $derived(session.mustChangePassword);
   /** A provider arrival met an account with a password, which is proven before it is connected. */
   const mustConfirmLink = $derived(session.mustConfirmLink);
+  /** The terms of use in force are not agreed yet: the step after every proof (UC-ID-19). */
+  const termsOwed = $derived(session.mustAgreeTerms ? owed?.terms : undefined);
   let linkPassword = $state('');
   const hasRecovery = $derived(owed?.methods.includes('RECOVERY') ?? false);
   /**
@@ -149,6 +151,12 @@
     linkPassword = '';
   }
 
+  /** The TERMS step: agreeing opens the session the sign-in proved. */
+  async function agreeToTerms(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    await session.agreeToTerms();
+  }
+
   /**
    * Hands the browser to one of the workspace's providers.
    *
@@ -212,6 +220,14 @@
          `role="alert"` is `Banner`'s own for a danger tone: a refusal beside a form is heard. -->
     <Banner tone={session.problem.isServerFault ? 'warning' : 'danger'} title={session.problem.message}>
       {#if session.problem.reference}{session.problem.reference}{/if}
+    </Banner>
+  {:else if session.declinedTermsOf}
+    <!-- The terms were declined (UC-ID-19 check 3): nobody is signed in, and the card says whom to
+         ask - the workspace's administrators for its own terms, the provider for the installation's. -->
+    <Banner tone="info" title={t('app.terms.declined_title')}>
+      {t(session.declinedTermsOf === 'WORKSPACE'
+        ? 'app.terms.declined_workspace'
+        : 'app.terms.declined_installation')}
     </Banner>
   {:else if session.waitedTooLong}
     <!-- The second step's time ran out. Not a refusal of anything the reader typed: an info tone,
@@ -281,6 +297,7 @@
             session.owe(owedChange.pending_token, owedChange.methods, {
               expiresAt: owedChange.expires_at,
               passwordRules: owedChange.password_rules,
+              terms: owedChange.terms ?? undefined,
             });
           }
         }}
@@ -343,6 +360,38 @@
         <div class="row">
           <Button type="submit" tone="primary" {isBusy} busyLabel={t('app.sign_in.working')}>
             {t('app.sign_in.link_submit')}
+          </Button>
+        </div>
+      </Stack>
+    </form>
+  </SignInCard>
+{:else if termsOwed}
+  <!-- The terms of use in force, not yet agreed by this account (UC-ID-19 checks 2 and 6): after
+       every proof, whichever way in it was. Declining opens no session and says whom to ask. -->
+  <SignInCard
+    title={t('app.terms.step_title')}
+    step={{ index: 2, total: 2 }}
+    lead={t('app.terms.step_body')}
+    {notice}
+  >
+    <form onsubmit={agreeToTerms}>
+      <Stack gap="200">
+        {@render identity()}
+        <a class="terms" href={termsOwed.url} target="_blank" rel="noopener noreferrer">
+          {termsOwed.version
+            ? t('app.terms.read_versioned', { version: termsOwed.version })
+            : t('app.terms.read')}
+        </a>
+        {#if expiry}
+          <p class="expiry">{t('app.sign_in.expires_in', { remaining: expiry })}</p>
+          {@render closing()}
+        {/if}
+        <div class="row">
+          <Button type="submit" tone="primary" {isBusy} busyLabel={t('app.sign_in.working')}>
+            {t('app.terms.agree')}
+          </Button>
+          <Button tone="subtle" onclick={() => session.declineTerms()}>
+            {t('app.terms.decline')}
           </Button>
         </div>
       </Stack>
@@ -555,6 +604,8 @@
   }
 
   .forgot { margin: 0; text-align: end; }
+
+  .terms { justify-self: start; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 

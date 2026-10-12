@@ -50,6 +50,18 @@ const SET_UP = '/auth/installation:set-up';
 /** The step a rotated or tightened policy routes a right password into (`PASSWORD_CHANGE`). */
 const SET_PASSWORD = '/auth/sessions:set-password';
 const LINK = '/auth/sessions:link';
+/** The step a sign-in ends in while the terms of use in force are not agreed (UC-ID-19). */
+const AGREE_TERMS = '/auth/sessions:agree-terms';
+
+/**
+ * The terms of use a person is asked to agree to: where they are kept, their version where they
+ * have one, and who set them - the workspace or the installation - which is whom to ask about them.
+ */
+export interface TermsInForce {
+  readonly url: string;
+  readonly version?: string | null;
+  readonly set_by: 'INSTALLATION' | 'WORKSPACE';
+}
 
 export type SessionStatus = 'signed-out' | 'verifying' | 'signed-in';
 
@@ -100,6 +112,8 @@ export interface SecondFactorOwed {
    * differs: "your password was right" is not what somebody who just chose a new one should read.
    */
   readonly afterReset?: boolean;
+  /** The terms of use to agree to, where the step is `TERMS`. */
+  readonly terms?: TermsInForce;
 }
 
 class Session {
@@ -135,6 +149,11 @@ class Session {
   #ended = $state(false);
   /** Set when the second step's time ran out, so step one can say why it is back (UC-ID-02 check 2). */
   #waitedTooLong = $state(false);
+  /**
+   * Who set the terms of use the person just declined, so the card can say whom to ask
+   * (UC-ID-19 check 3). Cleared by the next attempt.
+   */
+  #declinedTermsOf = $state<TermsInForce['set_by'] | undefined>(undefined);
 
   get status(): SessionStatus {
     return this.#status;
@@ -215,7 +234,61 @@ class Session {
     this.#owed = undefined;
     this.#problem = undefined;
     this.#email = undefined;
+    this.#declinedTermsOf = undefined;
     this.#status = 'signed-out';
+  }
+
+  /** Whether the sign-in waits for the terms of use in force to be agreed (UC-ID-19). */
+  get mustAgreeTerms(): boolean {
+    return this.#owed?.methods.includes('TERMS') ?? false;
+  }
+
+  /** Who set the terms of use the person declined, until the next attempt. */
+  get declinedTermsOf(): TermsInForce['set_by'] | undefined {
+    return this.#declinedTermsOf;
+  }
+
+  /**
+   * Agrees to the terms the step names, and opens the session the sign-in proved.
+   *
+   * Terms that changed while the step was open are refused without spending the credential: the
+   * step then shows the terms now in force, from the refusal's own parameters, and the person
+   * agrees to those.
+   */
+  async agreeToTerms(): Promise<boolean> {
+    const pending = this.#pending;
+    const terms = this.#owed?.terms;
+    if (pending === undefined || terms === undefined) return false;
+    return this.#open(
+      () => engine.mutate<SessionTokens>('POST', AGREE_TERMS, {
+        pending_token: pending,
+        terms_url: terms.url,
+        ...(terms.version ? { terms_version: terms.version } : {}),
+      }),
+      {
+        keepPending: true,
+        onRefusal: (error) => {
+          const owed = this.#owed;
+          if (error.detailCode !== 'auth.terms_changed' || owed === undefined) return;
+          const url = error.params?.['url'];
+          if (!url) return;
+          this.#owed = {
+            ...owed,
+            terms: { url, version: error.params?.['version'] || undefined, set_by: terms.set_by },
+          };
+        },
+      },
+    );
+  }
+
+  /**
+   * Declines the terms: no session. The credential is dropped rather than left to expire - it can
+   * do nothing else - and the card says whom to ask.
+   */
+  declineTerms(): void {
+    const setBy = this.#owed?.terms?.set_by;
+    this.startOver();
+    this.#declinedTermsOf = setBy;
   }
 
   /**
@@ -233,15 +306,18 @@ class Session {
       providerName?: string;
       afterReset?: boolean;
       passwordRules?: unknown;
+      terms?: TermsInForce;
     } = {},
   ): void {
     this.#pending = pendingToken;
+    this.#declinedTermsOf = undefined;
     this.#owed = {
       methods,
       expiresAt: context.expiresAt,
       providerName: context.providerName,
       afterReset: context.afterReset,
       passwordRules: context.passwordRules,
+      terms: context.terms,
     };
     // A provider arrival and a reset link typed no address, so the identity line takes the one the
     // server names.
@@ -348,8 +424,12 @@ class Session {
    * It answers the same pair a sign-in answers, because the person has just proved control of the
    * mailbox — making them type the password again teaches nothing.
    */
-  async redeem(token: string, password: string): Promise<boolean> {
-    return this.#open(() => engine.mutate<SessionTokens>('POST', REDEEM, { token, password }));
+  async redeem(token: string, password: string, terms?: TermsInForce): Promise<boolean> {
+    // The terms agreed on the card, as they were shown (UC-ID-19 check 1); absent where none are set.
+    const agreed = terms
+      ? { terms_url: terms.url, ...(terms.version ? { terms_version: terms.version } : {}) }
+      : {};
+    return this.#open(() => engine.mutate<SessionTokens>('POST', REDEEM, { token, password, ...agreed }));
   }
 
   /**
@@ -368,11 +448,12 @@ class Session {
    */
   async #open(
     attempt: () => Promise<SessionTokens | SecondFactorAnswer>,
-    options: { keepPending?: boolean } = {},
+    options: { keepPending?: boolean; onRefusal?: (error: TransportError) => void } = {},
   ): Promise<boolean> {
     this.#problem = undefined;
     this.#ended = false;
     this.#waitedTooLong = false;
+    this.#declinedTermsOf = undefined;
     if (!options.keepPending) {
       this.#owed = undefined;
       this.#pending = undefined;
@@ -387,6 +468,8 @@ class Session {
           methods: answer.methods,
           expiresAt: answer.expires_at,
           passwordRules: answer.password_rules,
+          // The terms to agree to, where the step is `TERMS`.
+          ...(answer.terms ? { terms: answer.terms } : {}),
         };
         this.#pending = answer.pending_token;
         this.#status = 'signed-out';
@@ -413,6 +496,7 @@ class Session {
       this.#problem = error instanceof TransportError
         ? renderProblem(error, messages)
         : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      if (error instanceof TransportError) options.onRefusal?.(error);
       this.#discard();
       return false;
     } finally {
@@ -519,6 +603,7 @@ interface SecondFactorAnswer {
   readonly methods: readonly string[];
   readonly expires_at?: string;
   readonly password_rules?: unknown;
+  readonly terms?: TermsInForce;
 }
 
 /**
