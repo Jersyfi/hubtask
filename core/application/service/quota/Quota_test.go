@@ -88,6 +88,12 @@ type storeFake struct {
 	// instance is the installation's level, left empty by the cases that measure a workspace's
 	// own against the product's defaults.
 	instance repository.Overrides
+	// locks are the installation's locked quotas, by name.
+	locks map[string]bool
+}
+
+func (s *storeFake) InstanceLocks(context.Context) (map[string]bool, error) {
+	return s.locks, nil
 }
 
 func (s *storeFake) Overrides(context.Context) (repository.Overrides, error) {
@@ -580,8 +586,8 @@ func TestALockedCeilingIsAnsweredAsLocked(t *testing.T) {
 			overrides: repository.Overrides{Items: ceiling(100)},
 			instance: repository.Overrides{
 				ExportJobs: ceiling(3), WebhookTargets: ceiling(5), Items: ceiling(50),
-				Locked: map[string]bool{ExportJobs: true, Items: true},
 			},
+			locks: map[string]bool{ExportJobs: true, Items: true},
 		},
 		Usage:      &usageFake{},
 		Authorizer: authorizerFake{}, UnitOfWork: &unitOfWork{},

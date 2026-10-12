@@ -109,6 +109,10 @@ func Standings(
 	if err != nil {
 		return nil, err
 	}
+	locks, err := store.InstanceLocks(ctx)
+	if err != nil {
+		return nil, err
+	}
 	limits := Resolve(overrides, instance, mode)
 	zone, err := store.TimeZone(ctx)
 	if err != nil {
@@ -149,7 +153,7 @@ func Standings(
 	for _, name := range Names() {
 		standing := Standing{
 			Quota: name, Limit: limits.Of(name), Configured: configured[name],
-			Locked: instance.Locked[name] && !configured[name],
+			Locked: locks[name] && !configured[name],
 		}
 		if counter := counters[name]; counter != nil {
 			used, err := counter(ctx)

@@ -73,16 +73,12 @@ func (QuotaRepository) InstanceOverrides(ctx context.Context) (repository.Overri
 	// case: an adapter that called into the application layer would be the one thing
 	// `project-structure.md` §2 forbids, and this knowledge is the adapter's anyway.
 	fields := make(map[string]json.RawMessage, len(rows))
-	locked := map[string]bool{}
 	for _, row := range rows {
 		suffix, isQuota := strings.CutPrefix(row.Key, quotaSettingPrefix)
 		if !isQuota {
 			continue
 		}
 		fields[suffix] = row.Value
-		if row.LockOrigin != "OPEN" {
-			locked[suffix] = true
-		}
 	}
 	encoded, err := json.Marshal(fields)
 	if err != nil {
@@ -95,9 +91,28 @@ func (QuotaRepository) InstanceOverrides(ctx context.Context) (repository.Overri
 		// reasoning exactly: a value this build cannot read is the operator's to repair.
 		return repository.Overrides{}, nil
 	}
-	overrides := fromDocument(document)
-	overrides.Locked = locked
-	return overrides, nil
+	return fromDocument(document), nil
+}
+
+// InstanceLocks answers the quotas the installation locked, from the same rows' lock origin.
+func (QuotaRepository) InstanceLocks(ctx context.Context) (map[string]bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.InstanceQuotaDefaults(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the installation's quota locks: %w", err))
+	}
+	locked := map[string]bool{}
+	for _, row := range rows {
+		if suffix, isQuota := strings.CutPrefix(row.Key, quotaSettingPrefix); isQuota && row.LockOrigin != "OPEN" {
+			locked[suffix] = true
+		}
+	}
+	return locked, nil
 }
 
 // Overrides answers what the transaction's tenant configured.

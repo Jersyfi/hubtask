@@ -21,14 +21,12 @@ import (
 // Reflection over the two structs rather than a list somebody keeps: a list is the thing that was
 // already wrong.
 //
-// Two fields are the exception, by design: the workspace's own AI budget lives outside the quotas
-// key, because the operator's write replaces that key whole and the budget is not the operator's;
-// and Locked is not a ceiling at all but the installation's lock beside its ceilings, read from the
-// rows' lock origin rather than from the document.
+// One row is the exception, by design: the workspace's own AI budget lives outside the quotas key,
+// because the operator's write replaces that key whole and the budget is not the operator's.
 func TestEveryQuotaOverrideSurvivesTheDocument(t *testing.T) {
 	document := reflect.TypeOf(quotasDocument{})
 	port := reflect.TypeOf(repository.Overrides{})
-	const outside = 2 // AiOwnTokensPerDay, Locked
+	const outside = 1 // AiOwnTokensPerDay
 
 	if document.NumField()+outside != port.NumField() {
 		t.Fatalf("the document carries %d rows and the port %d", document.NumField(), port.NumField())
@@ -38,9 +36,6 @@ func TestEveryQuotaOverrideSurvivesTheDocument(t *testing.T) {
 	// hidden by the others.
 	for i := range port.NumField() {
 		name := port.Field(i).Name
-		if name == "Locked" {
-			continue
-		}
 		if name == "AiOwnTokensPerDay" {
 			if _, held := document.FieldByName(name); held {
 				t.Error("the own AI budget is in the quotas key, which the operator's write replaces")

@@ -331,10 +331,14 @@ func TestTheInstallationsLockOnACeilingReachesTheWorkspace(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if instance.ExportJobs == nil || *instance.ExportJobs != 3 || !instance.Locked["export_jobs"] {
-			t.Errorf("the locked ceiling reads %v, locked %v", instance.ExportJobs, instance.Locked)
+		locks, err := store.InstanceLocks(ctx)
+		if err != nil {
+			return err
 		}
-		if instance.Locked["webhook_targets"] {
+		if instance.ExportJobs == nil || *instance.ExportJobs != 3 || !locks["export_jobs"] {
+			t.Errorf("the locked ceiling reads %v, locked %v", instance.ExportJobs, locks)
+		}
+		if locks["webhook_targets"] {
 			t.Error("an open ceiling reads as locked")
 		}
 		return nil
