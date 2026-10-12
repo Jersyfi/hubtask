@@ -135,6 +135,52 @@ func TestTheQuotaWriteIsPartialAndAudited(t *testing.T) {
 	}
 }
 
+// UC-AI-07 check 1: the offered model's budget has an exception per workspace, set by the operator
+// like every other ceiling - stored, read back and recorded with what it was before.
+func TestTheOperatorSetsAWorkspacesAiBudget(t *testing.T) {
+	f := newQuotasFixture()
+	f.store.overrides = quotarepo.Overrides{AiTokensPerDay: hold(10_000)}
+
+	standings, err := f.handler.Execute(t.Context(), operator(), UpdateTenantQuotasCommand{
+		TenantID: lifecycleTenant,
+		Changes:  []QuotaChange{{Quota: quotaservice.AiTokensPerDay, Value: hold(500_000)}},
+	})
+	if err != nil {
+		t.Fatalf("writing: %v", err)
+	}
+	if f.store.overrides.AiTokensPerDay == nil || *f.store.overrides.AiTokensPerDay != 500_000 {
+		t.Errorf("the AI budget override reads %v", f.store.overrides.AiTokensPerDay)
+	}
+	for _, standing := range standings {
+		if standing.Quota == quotaservice.AiTokensPerDay && (standing.Limit != 500_000 || !standing.Configured) {
+			t.Errorf("the AI budget standing %+v", standing)
+		}
+	}
+	change, _ := f.audit.entries[0].Changes[quotaservice.AiTokensPerDay].(map[string]any)
+	if change["from"] != "10000" || change["to"] != "500000" {
+		t.Errorf("the trail records %+v", f.audit.entries[0].Changes)
+	}
+}
+
+// Every quota the operator may name is one the write stores - a name accepted and then dropped on
+// the way to the document reads as saved, and the trail says it moved.
+func TestEveryQuotaTheOperatorNamesIsStored(t *testing.T) {
+	for _, name := range quotaservice.OperatorNames() {
+		f := newQuotasFixture()
+		standings, err := f.handler.Execute(t.Context(), operator(), UpdateTenantQuotasCommand{
+			TenantID: lifecycleTenant, Changes: []QuotaChange{{Quota: name, Value: hold(4242)}},
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		for _, standing := range standings {
+			if standing.Quota == name && standing.Limit != 4242 {
+				t.Errorf("%s was accepted and not stored: %+v", name, standing)
+			}
+		}
+	}
+}
+
 func TestTheQuotaWriteRefusesTheUnknownAndTheNegative(t *testing.T) {
 	f := newQuotasFixture()
 	var domainErr *shared.Error
