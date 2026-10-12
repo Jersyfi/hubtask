@@ -1045,11 +1045,25 @@ func run() error {
 		Jobs: jobs, Delay: 30 * time.Second, Clock: clockadapter.System{},
 	}
 	aiProviderWriter.Reindex = embeddingSeeder
+	// Whose content stays out of AI (data-protection.md §4.1): one exclusion every path that hands
+	// content to a model reads in the transaction it reads the material in. An objection is its
+	// first reason; a restriction is added as a second source beside it.
+	keptOut := integrationservice.Exclusion{Sources: []integrationservice.KeptOutSource{
+		integrationservice.ObjectionSource{
+			Rules: &aiRules, People: postgres.NewPrivateHubRepository(), Consents: privacyStore,
+		},
+	}}
+	// The asking reads what the producer will read, with the same exclusion, so that nothing to
+	// work with is refused at once rather than queued. Set here, before any descriptor copies the
+	// cases below.
+	suggestionCases.Material = suggestionservice.CatalogueSources{
+		Catalogue: suggestionCatalogue, Profiles: profiles, Kept: keptOut,
+	}
 	// A person's own view of keeping their content out of AI, over the same rule every AI call
 	// resolves (data-protection.md §4.1).
 	aiObjectionReader := integrationservice.AiObjectionReader{
 		Rules: &aiRules, People: postgres.NewPrivateHubRepository(), Consents: privacyStore,
-		Notices: privacyStore, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		Notices: privacyStore, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 	}
 	aiSourceWriter := integrationservice.AiSourceWriter{
 		Rules: aiRules, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -1117,7 +1131,7 @@ func run() error {
 	}
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
-		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles},
+		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut},
 		Suggestions: suggestionStore, Requests: suggestionStore,
 		// An applied answer is accepted through the use case, never around it.
 		Catalogue: scopedSuggestions,
@@ -1609,7 +1623,7 @@ func run() error {
 		jumbleservice.SuggestFromJumbleEntry{
 			Writer: jumbleWriter,
 			AI:     suggestionservice.Availability{Providers: budgetedAi},
-			Queue:  jobs,
+			Queue:  jobs, Kept: keptOut,
 		}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
 			Intake:     jumbleIntake,
@@ -1765,7 +1779,7 @@ func run() error {
 				Authorizer: authorizer, UnitOfWork: unitOfWork,
 			},
 			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Kept: keptOut,
 		}.Descriptor(),
 		work.ListWorkItems{
 			Items: items, ItemLabels: itemLabels, Containers: containers,

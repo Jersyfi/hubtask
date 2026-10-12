@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
 // A person's own view of keeping their content out of AI (UC-PRV-05 checks 4, 7, 8, 9): whether
@@ -44,6 +45,7 @@ type AiObjectionReader struct {
 	People     identityrepo.People
 	Consents   privacyrepo.Consents
 	Notices    privacyrepo.AiNotices
+	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 }
@@ -180,8 +182,9 @@ func (h ReadOwnAiPosition) invoke(ctx context.Context, actor appshared.ActorCont
 	return OwnAiPositionOutput(own), nil
 }
 
-// AcknowledgeAiPosition records that the person read the notice. A read receipt rather than an
-// act: it is not audited, and acknowledging twice is acknowledging once.
+// AcknowledgeAiPosition records that the person read the notice: that they were told is part of
+// what the workspace owes them (data-protection.md §4.1), so the trail keeps it. Acknowledging
+// twice is acknowledging once.
 type AcknowledgeAiPosition struct{ Reader AiObjectionReader }
 
 // Execute records it and answers the view afterwards.
@@ -194,7 +197,19 @@ func (h AcknowledgeAiPosition) Execute(ctx context.Context, actor appshared.Acto
 	}
 	r := h.Reader
 	if err := r.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		return r.Notices.Notice(ctx, actor.AccountID, r.Clock.Now())
+		if err := r.Notices.Notice(ctx, actor.AccountID, r.Clock.Now()); err != nil {
+			return err
+		}
+		if r.Audit == nil {
+			return nil
+		}
+		return r.Audit.Append(ctx, audit.Entry{
+			TenantID: actor.TenantID, OccurredAt: r.Clock.Now(),
+			Action: AiNoticeAckAction, Outcome: audit.OutcomeSuccess, Severity: audit.SeverityInfo,
+			ActorKind: actor.Kind, ActorID: actor.AccountID, ActorLabel: actor.AccountName,
+			TargetType: aiObjectionTarget, TargetID: actor.AccountID,
+			Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+		})
 	}); err != nil {
 		return OwnAiPosition{}, err
 	}
@@ -207,11 +222,11 @@ func (h AcknowledgeAiPosition) Descriptor() usecase.Descriptor {
 		Summary: "Records that the caller read the notice that their choice to keep their content " +
 			"out of AI stopped taking effect, because the workspace made AI part of everybody's " +
 			"work. Acknowledging twice is acknowledging once.",
-		SideEffects: "Records the moment the notice was read. Nothing else changes.",
+		SideEffects: "Records the moment the notice was read, and an audit entry. Nothing else changes.",
 		TokenScope:  privacyManageScope,
 		Audit: usecase.AuditDeclaration{
 			Action: AiNoticeAckAction, TargetType: aiObjectionTarget,
-			Severity: audit.SeverityInfo, Required: false,
+			Severity: audit.SeverityInfo, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "A read receipt of a notice about the caller's own choice, not a change to an entry.",

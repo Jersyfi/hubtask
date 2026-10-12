@@ -71,8 +71,9 @@ const (
 	ActionSucceeded ActionStatus = "SUCCEEDED"
 	ActionFailed    ActionStatus = "FAILED"
 	// ActionSkipped is an action the run never reached, because `on_error: STOP` ended the run at
-	// an earlier failure. Not the same as an action that ran and did nothing - which is
-	// ActionSucceeded, because the use case decided there was nothing to do.
+	// an earlier failure - or an AI action that had nothing it may work with, its code saying so.
+	// Not the same as an action that ran and did nothing - which is ActionSucceeded, because the
+	// use case decided there was nothing to do.
 	ActionSkipped ActionStatus = "SKIPPED"
 )
 
