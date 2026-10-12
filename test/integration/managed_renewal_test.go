@@ -7,13 +7,17 @@ package integration
 
 import (
 	"context"
+	"encoding/base32"
 	"errors"
 	"testing"
 	"time"
 
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -168,5 +172,93 @@ func TestANewStartPasswordStaysInItsWorkspace(t *testing.T) {
 	_, err := renewal(ctx, t).Execute(ctx, administratorOf(tenantA), theirs.ID, "proof")
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("the use case answered %v, want not found", err)
+	}
+}
+
+// UC-ID-20 check 5, the second half: a new start password replaces the password and nothing else.
+// The factor the account armed still comes first at the next sign-in, and only its code leads on -
+// to the change the start password owes, never to a session.
+func TestARenewedStartPasswordStillAsksForTheSecondFactor(t *testing.T) {
+	ctx := context.Background()
+	sessionFixtures(ctx, t)
+	session, _, uow := realWriter(ctx, t)
+	session.Rule = identityservice.PasswordWriter{
+		Session: session,
+		Resolver: identityservice.SignInPolicyResolver{
+			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Instance:   postgres.NewInstanceSettingRepository(), UnitOfWork: uow,
+		},
+		Accounts: postgres.NewPasswordRepository(), Histories: postgres.NewPasswordRepository(),
+		WaysIn: identityservice.WaysIn{
+			Providers:  postgres.NewIdentityProviderRepository(),
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), UnitOfWork: uow,
+			Clock: clockadapter.System{},
+		},
+		Text: text.Composing{}, UnitOfWork: uow, Clock: clockadapter.System{}, IDs: session.IDs,
+	}
+	lena := managedIn(t, tenantA, freshSignInName(t))
+	signedInBefore := freshID(t)
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO session (id, tenant_id, account_id, created_at, expires_at)
+		VALUES ($1, $2, $3, now(), now() + interval '30 days')`,
+		signedInBefore.String(), tenantA.String(), lena.ID.String()); err != nil {
+		t.Fatalf("seeding the session: %v", err)
+	}
+	lenaSignedIn := appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: tenantA, AccountID: lena.ID, TokenID: signedInBefore,
+		Scopes: []string{"account:read"},
+	}
+	minted, err := identityservice.EnrollTotp{Writer: session}.Execute(ctx, lenaSignedIn,
+		identityservice.EnrollTotpCommand{})
+	if err != nil {
+		t.Fatalf("enrolling: %v", err)
+	}
+	material, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(minted.Secret.Reveal())
+	if err != nil {
+		t.Fatalf("reading the secret: %v", err)
+	}
+	armedAt := time.Now()
+	if _, err := (identityservice.ConfirmTotp{Writer: session}).Execute(ctx, lenaSignedIn,
+		identityservice.ConfirmTotpCommand{Code: domain.TotpCode(material, domain.TotpStep(armedAt))}); err != nil {
+		t.Fatalf("arming the factor: %v", err)
+	}
+
+	renew := renewal(ctx, t)
+	renew.Passwords = session.Passwords
+	issued, err := renew.Execute(ctx, administratorOf(tenantA), lena.ID, "proof")
+	if err != nil {
+		t.Fatalf("renewing: %v", err)
+	}
+
+	first, err := identityservice.SignIn{Writer: session}.Execute(ctx, identityservice.SignInCommand{
+		Identifier: lena.SignInName, Password: issued.StartPassword, TenantHeader: tenantA.String(),
+	})
+	if err != nil {
+		t.Fatalf("signing in with the new start password: %v", err)
+	}
+	if first.Pair != nil {
+		t.Fatal("the new start password alone opened a session")
+	}
+	if first.Challenge == nil || len(first.Challenge.Methods) == 0 || first.Challenge.Methods[0] != "TOTP" {
+		t.Fatalf("the first step owes %+v, want the factor's code", first.Challenge)
+	}
+
+	// The code of the next step: the one the confirmation spent is not accepted twice.
+	later := armedAt.Add(domain.TotpStepSeconds * time.Second)
+	completer := session
+	completer.Clock = clock.Fixed(later)
+	second, _, err := identityservice.CompleteSignIn{Writer: completer}.Execute(ctx,
+		identityservice.CompleteSignInCommand{
+			PendingToken: first.Challenge.Token, Code: domain.TotpCode(material, domain.TotpStep(later)),
+		})
+	if err != nil {
+		t.Fatalf("answering the factor: %v", err)
+	}
+	if second.Pair != nil {
+		t.Fatal("the factor's code opened a session on a start password")
+	}
+	if second.Challenge == nil || len(second.Challenge.Methods) != 1 ||
+		second.Challenge.Methods[0] != "PASSWORD_CHANGE" {
+		t.Fatalf("after the code the sign-in owes %+v, want the change step", second.Challenge)
 	}
 }
