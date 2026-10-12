@@ -1,0 +1,397 @@
+[2026-10-12T22:16:20.208Z] setup done, url http://localhost:18515/
+[2026-10-12T22:17:25.045Z] focus before Skip the tour: button
+[2026-10-12T22:18:30.626Z] screenshot 01-security-factor-off-desktop
+[2026-10-12T22:19:17.964Z] screenshot 01-security-factor-off-desktop
+[2026-10-12T22:20:13.289Z] tour ended for owner through PATCH /accounts/{id}/preferences: 200
+[2026-10-12T22:20:31.135Z] screenshot 01-security-factor-off-desktop
+[2026-10-12T22:20:31.202Z] UC-ID-03/1 QR images: 1 name: A code for your authenticator to scan. It holds the same secret written out beside it. visible: true secret shown as text in 8 groups of 4: yes
+[2026-10-12T22:20:31.203Z] otpauth link starts with: otpauth://totp/Hubtask:paula@d1b.example
+[2026-10-12T22:20:31.206Z] UC-ID-03/1 confirm field label "Code from your authenticator", autocomplete= one-time-code inputmode= numeric
+[2026-10-12T22:20:31.255Z] screenshot 02-setup-qr-and-secret-desktop
+[2026-10-12T22:20:31.260Z] focus before pressing Turn it on (click): input#field-udkr5qu
+[2026-10-12T22:20:31.314Z] UC-ID-03/2 Continue disabled before ticking: true
+[2026-10-12T22:20:31.756Z] UC-ID-03/2 codes shown: 10
+[2026-10-12T22:20:32.073Z] UC-ID-03/2 clipboard after Copy all ten: lines= 10 equals the ten shown: true
+[2026-10-12T22:20:32.121Z] screenshot 03-ten-codes-continue-off-desktop
+[2026-10-12T22:20:32.154Z] UC-ID-03/2 Continue disabled after ticking: false
+[2026-10-12T22:20:33.692Z] codes on page after Continue: 0
+[2026-10-12T22:20:33.717Z] screenshot 04-factor-on-desktop
+[2026-10-12T22:21:02.047Z] [desktop] UC-ID-02/7 step heading "Second factor" visible: true | identity line: false | Not you?: 1
+[2026-10-12T22:21:02.048Z] [desktop] remaining time: This sign-in waits 5:00
+[2026-10-12T22:21:02.050Z] [desktop] code field inputmode= numeric autocomplete= one-time-code
+[2026-10-12T22:21:02.099Z] screenshot 05-second-factor-step-desktop
+[2026-10-12T22:21:02.102Z] [desktop] focus before Sign in (click): input#field-dboyptu
+[2026-10-12T22:21:02.670Z] [desktop] UC-ID-02/5 wrong code -> alert: "That code did not verify. Enter the current code from your authenticator.
+
+03868a119286282f9d41edfd2edf7b98" | field value now: "" | heading still "Second factor": true | password field present: 0
+[2026-10-12T22:21:02.716Z] screenshot 06-wrong-code-desktop
+[2026-10-12T22:21:02.778Z] [desktop] signed in with the right code after a wrong one
+[2026-10-12T22:21:03.107Z] [375] UC-ID-02/7 step heading "Second factor" visible: true | identity line: false | Not you?: 1
+[2026-10-12T22:21:03.107Z] [375] remaining time: This sign-in waits 5:00
+[2026-10-12T22:21:03.109Z] [375] code field inputmode= numeric autocomplete= one-time-code
+[2026-10-12T22:21:03.112Z] [375] focus before Sign in (click): input#field-qufet7j
+[2026-10-12T22:21:03.676Z] [375] UC-ID-02/5 wrong code -> alert: "That code did not verify. Enter the current code from your authenticator.
+
+20bdb3411b01fc4e45b9b89a17473bca" | field value now: "" | heading still "Second factor": true | password field present: 0
+[2026-10-12T22:21:03.737Z] screenshot 06-wrong-code-375
+[2026-10-12T22:22:22.977Z] [desktop] focus before "I do not have my authenticator" (click): input#field-fch46zw
+[2026-10-12T22:22:23.005Z] [desktop] UC-ID-02/4 recovery field inputmode= text autocomplete= off maxlength= 
+[2026-10-12T22:22:23.007Z] [desktop] focus before paste (ControlOrMeta+V): input#field-c6t28dr
+[2026-10-12T22:22:23.322Z] [desktop] UC-ID-02/4 pasted recovery code #1 in lower case with spaces (pattern xxxx xxxx xxxx xxxx); field now shows: gvvq •••• •••• ••••
+[2026-10-12T22:22:23.367Z] screenshot 07-recovery-code-pasted-desktop
+[2026-10-12T22:22:23.431Z] [desktop] UC-ID-02/6 note: "You signed in with a recovery code. 9 of 10 left."
+[2026-10-12T22:22:23.435Z] [desktop] UC-ID-02/6 link "Replace your authenticator": 1 href= /profile/security
+[2026-10-12T22:22:23.461Z] screenshot 08-recovery-note-desktop
+[2026-10-12T22:22:25.498Z] [desktop] after the link: url= http://localhost:18515/profile/security
+[2026-10-12T22:22:25.533Z] screenshot 09-replace-authenticator-from-note-desktop
+[2026-10-12T22:22:29.971Z] [375] focus before "I do not have my authenticator" (click): input#field-4861uiv
+[2026-10-12T22:22:30.011Z] [375] UC-ID-02/4 recovery field inputmode= text autocomplete= off maxlength= 
+[2026-10-12T22:22:30.013Z] [375] focus before paste (ControlOrMeta+V): input#field-4idioo5
+[2026-10-12T22:22:30.329Z] [375] UC-ID-02/4 pasted recovery code #2 in lower case with spaces (pattern xxxx xxxx xxxx xxxx); field now shows: rllx •••• •••• ••••
+[2026-10-12T22:22:30.422Z] screenshot 07-recovery-code-pasted-375
+[2026-10-12T22:22:30.536Z] [375] UC-ID-02/6 note: "You signed in with a recovery code. 8 of 10 left."
+[2026-10-12T22:22:30.539Z] [375] UC-ID-02/6 link "Replace your authenticator": 1 href= /profile/security
+[2026-10-12T22:22:30.588Z] screenshot 08-recovery-note-375
+[2026-10-12T22:22:32.632Z] [375] after the link: url= http://localhost:18515/profile/security
+[2026-10-12T22:22:32.677Z] screenshot 09-replace-authenticator-from-note-375
+[2026-10-12T22:22:58.978Z] before:  Left: 8 of 10.
+[2026-10-12T22:22:59.447Z] UC-ID-03/4 Make new codes -> dialog: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer. / Code from your authenticator*  / Six digits, the one showing now. / Use your password / Use a recovery code / Not now / Prove it"
+[2026-10-12T22:22:59.492Z] screenshot 10-new-codes-fresh-proof-desktop
+[2026-10-12T22:24:33.651Z] before:  Left: 10 of 10.
+[2026-10-12T22:24:34.113Z] UC-ID-03/4 Make new codes -> dialog: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer. / Code from your authenticator*  / Six digits, the one showing now. / Use your password / Use a recovery code / Not now / Prove it"
+[2026-10-12T22:24:34.160Z] screenshot 10-new-codes-fresh-proof-desktop
+[2026-10-12T22:25:01.070Z] UC-ID-03/4 new codes shown: 10 | overlap with old ten: 0 | Done disabled before ticking: true
+[2026-10-12T22:25:01.096Z] screenshot 11-new-codes-shown-desktop
+[2026-10-12T22:25:01.967Z] after Done: Left: 10 of 10.
+[2026-10-12T22:25:02.775Z] UC-ID-03/4 OLD recovery code (3rd of the replaced ten) at sign-in -> alert "That code did not verify. Enter the current code from your authenticator." | field now: ""
+[2026-10-12T22:25:02.813Z] screenshot 12-old-code-refused-desktop
+[2026-10-12T22:25:02.879Z] UC-ID-03/4 NEW recovery code (1st of the new ten) -> signed in; note: "You signed in with a recovery code. 9 of 10 left."
+[2026-10-12T22:25:02.910Z] screenshot 13-new-code-accepted-desktop
+GET /accounts/me with the PAT: 200
+[2026-10-12T22:27:38.066Z] UC-ID-05 browser B signed in before the change
+[2026-10-12T22:28:03.629Z] UC-ID-05/1 password inputs on the screen before pressing: 1 | labels: ["New password*"]
+[2026-10-12T22:28:03.664Z] focus before typing: input#field-nnol4mj
+[2026-10-12T22:28:03.878Z] UC-ID-05/2 after 9 characters: At least 12 characters Not met | Not containing your email address, your name or the workspace name Met | Not a commonly used password Not met | Not the password you have now Not met
+[2026-10-12T22:28:03.936Z] screenshot 14-password-rules-partial-375
+[2026-10-12T22:28:04.999Z] UC-ID-05/2 after the whole new password: At least 12 characters Met | Not containing your email address, your name or the workspace name Met | Not a commonly used password Met | Not the password you have now Met
+[2026-10-12T22:28:05.052Z] screenshot 15-password-rules-met-375
+[2026-10-12T22:28:05.414Z] UC-ID-05/1 the proof dialog: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer. / Code from your authenticator*  / Six digits, the one showing now. / Use your password / Use a recovery code / Not now / Prove it" | password fields in it: 0
+[2026-10-12T22:28:05.469Z] screenshot 16-password-change-proof-375
+[2026-10-12T22:28:30.727Z] UC-ID-05/3 the screen says: "The password was changed. Every other session was signed out."
+[2026-10-12T22:28:30.778Z] screenshot 17-password-changed-375
+[2026-10-12T22:28:45.794Z] UC-ID-05/3 this session after reload: NOT signed in
+[2026-10-12T22:28:49.826Z] UC-ID-05/3 browser B after the change: url= http://localhost:18515/profile/sessions | sign-in card shown: true | first line: "Hubtask / to localhost:18515 / Your session ended. / Sign in to continue where you were."
+[2026-10-12T22:28:49.878Z] screenshot 18-other-browser-signed-out-desktop
+[2026-10-12T22:28:49.903Z] UC-ID-05/4 the personal access token minted before the change: GET /api/v1/accounts/me -> 200 paula@d1b.example
+[2026-10-12T22:29:05.770Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:29:05.899Z]   A response 202 POST /api/v1/auth/sessions
+[2026-10-12T22:29:05.905Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:29:05.963Z]   A response 201 POST /api/v1/auth/sessions:verify
+[2026-10-12T22:29:05.974Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:29:09.011Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:29:09.068Z]   A response 403 POST /api/v1/auth/password
+[2026-10-12T22:29:30.550Z]   A response 201 POST /api/v1/auth/step-up
+[2026-10-12T22:29:30.570Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:29:30.676Z]   A response 204 POST /api/v1/auth/password
+[2026-10-12T22:29:30.692Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:29:30.715Z] second change done (to a third password); now moving inside the app
+[2026-10-12T22:30:07.225Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:30:07.451Z]   A response 202 POST /api/v1/auth/sessions
+[2026-10-12T22:30:07.470Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:30:07.615Z]   A response 201 POST /api/v1/auth/sessions:verify
+[2026-10-12T22:30:07.621Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:30:10.711Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:30:10.763Z]   A response 403 POST /api/v1/auth/password
+[2026-10-12T22:30:30.554Z]   A response 201 POST /api/v1/auth/step-up
+[2026-10-12T22:30:30.571Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:30:30.677Z]   A response 204 POST /api/v1/auth/password
+[2026-10-12T22:30:30.696Z]   A response 200 GET /api/v1/auth/sign-in-rules
+[2026-10-12T22:30:30.718Z] second change done (to a third password); now moving inside the app
+[2026-10-12T22:30:30.753Z]   A response 200 GET /api/v1/auth/sessions
+[2026-10-12T22:30:32.268Z] UC-ID-05/3 inside the app after the change: url= http://localhost:18515/profile/sessions | session rows: 1 | sign-in card: 0
+[2026-10-12T22:30:32.299Z] screenshot 19-after-change-only-this-session-desktop
+[2026-10-12T22:30:34.335Z]   A response 200 GET /api/v1/auth/sessions
+[2026-10-12T22:30:39.350Z] after a reload: url= http://localhost:18515/profile/sessions | nav attached: 0 | sign-in card: 0 | text: "Skip to the content / Collapse the navigation / Hubtask / Search everything"
+[note] the line 'this session after reload: NOT signed in' at 22:28:45 was the probe waiting for the workspace tree, which the settings section does not draw; the second change (22:30) shows the session continuing in the app and after a reload (x-after-reload)
+[2026-10-12T22:31:13.540Z] scopes offered: ["accounts:read","accounts:write","admin:tenants","agent:destructive","ai:manage","audit:export","audit:read","automation:manage","backup:manage","backup:read","comments:write","containers:read","containers:write","identity_provider:manage","items:read","items:write","jobs:cancel","jobs:read","media:read","media:write","members:read","members:write","oauth:manage","ops:read","privacy:manage","privacy:read","quotas:read","recurrence:write","reminders:write","retention:manage","retention:read","templates:read","templates:write","trash:read","workspace:manage","workspace:read"]
+[2026-10-12T22:31:13.580Z] screenshot 20-admin-token-form-desktop
+[2026-10-12T22:31:13.630Z]   POST /auth/tokens -> 403
+[2026-10-12T22:31:13.948Z] UC-ID-17/3 web: the step-up dialog: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer. / Code from your authenticator*  / Six digits, the one showing now. / Use your password / Use a recovery code / Not now / Prove it"
+[2026-10-12T22:31:13.992Z] screenshot 21-admin-token-step-up-desktop
+[2026-10-12T22:31:30.564Z]   POST /auth/tokens -> 201
+[2026-10-12T22:31:31.108Z] UC-ID-17/3 web: requests to POST /auth/tokens: without a proof, with a step-up proof
+[2026-10-12T22:31:31.112Z] UC-ID-17/3 web: token in the page markup while the panel is open (masked?): not in markup until shown
+[2026-10-12T22:31:31.144Z] screenshot 22-admin-token-shown-once-desktop
+$ hubctl auth status   (after the password change in the browser)
+INSTALLATION             SIGNED IN   TOKEN FROM   PROFILE
+http://localhost:18515   yes         session      <walk dir>/hubctl-profile.json
+$ hubctl token ls
+hubctl: This session has been signed out.
+signed in to http://localhost:18515; the session is held in <walk dir>/hubctl-profile.json until 2026-11-11 23:32
+$ hubctl token create --name '_walk-d1b- hubctl provisioning' --scope admin:tenants --days 7   (no proof in the environment, stdin not a terminal)
+This needs proving again. Password (it will be visible): hubctl: nothing to read for "This needs proving again. Password (it will be visible):": pipe it in, or set HUBTASK_PASSWORD
+$ HUBTASK_PASSWORD=… hubctl token create --name '_walk-d1b- hubctl provisioning' --scope admin:tenants --days 7
+hubctl: proved again with the password; retrying
+ID                                     NAME                             SCOPES          EXPIRES            LAST USED   REVOKED
+01a1323e-a379-7c78-a4aa-6f82f70fef2d   _walk-d1b- hubctl provisioning   admin:tenants   2026-10-20 00:32   -           -
+hbt_pat_…(redacted)
+that is the whole credential and is shown once: store it, and revoke the token if it leaks
+$ hubctl token ls
+ID                                     NAME                                           SCOPES          EXPIRES            LAST USED          REVOKED
+01a1323e-a379-7c78-a4aa-6f82f70fef2d   _walk-d1b- hubctl provisioning                 admin:tenants   2026-10-20 00:32   -                  -
+01a1323e-1001-75b9-a70b-79922bd5b08e   _walk-d1b- provisioning                        admin:tenants   2026-11-12 00:59   -                  -
+01a13239-980d-73ed-b568-d86c173252d4   _walk-d1b- minted before the password change   accounts:read   2026-10-20 00:26   2026-10-13 00:26   -
+01a13239-6df2-7fb9-ad54-53d291041cf1   _walk-d1b- minted before the password change   items:read      2026-10-20 00:26   2026-10-13 00:26   2026-10-13 00:26
+[2026-10-12T22:32:34.757Z] screenshot 23-turn-off-offered-desktop
+[2026-10-12T22:32:35.123Z] UC-ID-03/6 Turn it off -> dialog: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer. / Code from your authenticator*  / Six digits, the one showing now. / Use your password / Use a recovery code / Not now / Prove it"
+[2026-10-12T22:32:35.166Z] screenshot 24-turn-off-fresh-proof-desktop
+[2026-10-12T22:33:01.120Z] UC-ID-03/6 after: "The second factor is off." shown; recovery count line present: false | text about codes: "Ten codes come with the second factor, and there is no second factor on this account yet. Set one up and they are shown once, at the end."
+[2026-10-12T22:33:01.139Z] screenshot 25-factor-off-codes-gone-desktop
+[2026-10-12T22:33:01.468Z] UC-ID-03/6 next sign-in: signed in after the password alone
+recovery codes rows for the owner after turning off: 0
+[2026-10-12T22:33:20.788Z] UC-ID-03/1 QR images: 1 name: A code for your authenticator to scan. It holds the same secret written out beside it. visible: true secret shown as text in 8 groups of 4: yes
+[2026-10-12T22:33:20.791Z] otpauth link starts with: otpauth://totp/Hubtask:paula@d1b.example
+[2026-10-12T22:33:20.794Z] UC-ID-03/1 confirm field label "Code from your authenticator", autocomplete= one-time-code inputmode= numeric
+[2026-10-12T22:33:20.875Z] screenshot 02-setup-qr-and-secret-375
+[2026-10-12T22:33:20.875Z] 375: page scroll width 389 viewport 375
+[2026-10-12T22:33:30.507Z] focus before pressing Turn it on (click): input#field-7y64n2k
+[2026-10-12T22:33:30.601Z] UC-ID-03/2 Continue disabled before ticking: true
+[2026-10-12T22:33:31.029Z] UC-ID-03/2 codes shown: 10
+[2026-10-12T22:33:31.345Z] UC-ID-03/2 clipboard after Copy all ten: lines= 10 equals the ten shown: true
+[2026-10-12T22:33:31.411Z] screenshot 03-ten-codes-continue-off-375
+[2026-10-12T22:33:31.443Z] UC-ID-03/2 Continue disabled after ticking: false
+[2026-10-12T22:33:32.976Z] codes on page after Continue: 0
+[2026-10-12T22:33:33.041Z] screenshot 04-factor-on-375
+[2026-10-12T22:33:48.556Z] 375 measure, sign-in code step: {"sw":375,"out":[]}
+[2026-10-12T22:34:03.625Z] 375 measure, profile security (factor on): {"sw":375,"out":["span. right=377 w=59"]}
+[2026-10-12T22:35:01.193Z] 375 measure, profile setup (secret shown): {"sw":389,"out":["span. \"Connected\" right=377 w=59","div.code.svelte-1lgl4r7 \"\" right=385 w=352","input.native.svelte-1lgl4r7 \"\" right=389 w=356","span.places.svelte-1lgl4r7 \"\" right=385 w=352","span.place.svelte-1lgl4r7 \"\" right=385 w=48","nav.bar.svelte-1jkcgw2 \"Overview Search Jumble You\" right=389 w=389","ul.svelte-1jkcgw2 \"Overview Search Jumble You\" right=389 w=389","li.svelte-1jkcgw2 \"You\" right=385 w=95","a.svelte-1jkcgw2 \"You\" right=383 w=91"]}
+[2026-10-12T22:35:31.028Z] 375 measure, profile setup (codes shown): {"sw":375,"out":["span. \"Connected\" right=377 w=59"]}
+[2026-10-12T22:35:32.081Z] re-enrolled for the rest of the walk; codes 10
+[2026-10-12T22:36:06.307Z] UC-ID-12/1 Workspace screen: switches= 0 checkboxes= 0 | mentions "second factor": false | mentions "Administrators need": false
+[2026-10-12T22:36:06.362Z] screenshot 26-workspace-screen-no-factor-switch-desktop
+[2026-10-12T22:36:07.953Z] UC-ID-12/7 controls: Minimum length=control ; Lowercase=control ; Uppercase=control ; Digits=control ; Other=control ; At least this many of the four kinds=control ; Most of the same character in a row=control ; Refuse commonly used passwords=control(locked) ; Refuse the address, the name and the workspace name inside a password=control(locked) ; Check against known breaches=control ; Expires after, in days=control ; Remember previous passwords=control ; Earliest change after, in hours=control ; Required of=control ; End a session after, in days=control ; End an idle session after=control min=null value= ; ways list items=1 ; rotation action=1
+[2026-10-12T22:36:07.964Z] UC-ID-12/1 Required of options: ["Nobody","Owners and administrators","Everyone"] value= NONE | controls on the page whose label mentions a second factor: 1
+[2026-10-12T22:36:07.969Z] UC-ID-12/6 way: "Password The only way in left. Switch another one on first. The address and a password, checked by this installation. Hubtask's default." | switch: 1 | checked: true | disabled: true
+[2026-10-12T22:36:08.053Z] screenshot 27-sign-in-rules-desktop
+[2026-10-12T22:36:34.744Z] UC-ID-12 Save with Required of = Everyone -> dialog
+[2026-10-12T22:36:34.746Z]   dialog: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer. / Code from your authenticator*  / Six digits, the one showing now. / Use your password / Use a recovery code / Not now / Prove it"
+[2026-10-12T22:37:00.549Z]    POST /api/v1/auth/step-up -> 201
+[2026-10-12T22:37:03.045Z]   after: Required of = EVERYONE | text near: "Required of / Nobody / Owners and administrators / Everyone / Everybody it applies to sets one up at their next sign-in, including you. / Set here. / Ways to sign in / Each way in, with its own switch. A switch here takes"
+[2026-10-12T22:37:03.123Z] screenshot 28-required-of-everyone-desktop
+[2026-10-12T22:37:03.987Z] UC-ID-12/3 + UC-ID-03/5 profile: "Turn the second factor off" offered: 0 | says why: "Your workspace requires a second factor, so it stays on."
+[2026-10-12T22:37:04.050Z] screenshot 29-profile-required-no-turn-off-desktop
+[2026-10-12T22:37:34.003Z] screenshot 29-profile-required-no-turn-off-375
+[2026-10-12T22:37:34.863Z] 375 sign-in screen scroll width: 375
+[2026-10-12T22:37:34.942Z] screenshot 30-sign-in-rules-factor-and-ways-375
+[2026-10-12T22:38:04.885Z] invited ben@d1b.example by link (no mail)
+[2026-10-12T22:38:06.152Z] invited carl@d1b.example by link (no mail)
+[2026-10-12T22:38:13.077Z]    POST /api/v1/auth/invitations:redeem -> 201
+[2026-10-12T22:38:36.382Z] [375] UC-ID-03/7 Ben at sign-in: heading "Second factor"; why: "Your workspace requires a second factor. Set one up now to finish signing in: it takes a minute and an authenticator app on your phone." | identity line: true | Not you?: 1
+[2026-10-12T22:38:36.449Z] screenshot 31-routed-into-setup-375
+[2026-10-12T22:38:36.536Z] [375] secret shown as text: false | QR: 0
+[2026-10-12T22:38:44.900Z] [375] UC-ID-03/7 Ben at sign-in: heading "Second factor"; why: "Your workspace requires a second factor. Set one up now to finish signing in: it takes a minute and an authenticator app on your phone." | identity line: true | Not you?: 1
+[2026-10-12T22:38:44.968Z] screenshot 31-routed-into-setup-375
+[2026-10-12T22:38:45.408Z] [375] setup during sign-in, identity line still shown: true | code field autocomplete= one-time-code
+[2026-10-12T22:38:45.482Z] screenshot 31b-routed-setup-secret-375
+[2026-10-12T22:38:45.483Z] [375] secret shown as text: true | QR: 1
+[2026-10-12T22:38:45.486Z] [375] confirm button: Turn it on
+[2026-10-12T22:38:45.537Z] [375] UC-ID-03/2 during sign-in: Continue disabled before ticking: true
+[2026-10-12T22:38:45.868Z] [375] codes shown during sign-in: 10 | Copy all ten: 1
+[2026-10-12T22:38:45.988Z] screenshot 32-routed-setup-codes-375
+[2026-10-12T22:38:45.989Z] [375] Continue disabled after ticking: false
+[2026-10-12T22:38:46.029Z] [375] Ben is in after the routed setup
+[2026-10-12T22:39:08.542Z] UC-ID-06/2 Ben row: ["Oct 13, 2026, 12:39 AM","Password and second factor","Oct 13, 2026, 12:39 AM"]
+[2026-10-12T22:39:08.543Z] UC-ID-06/2 Ben row: ["Oct 13, 2026, 12:38 AM","Password and second factor","Oct 13, 2026, 12:38 AM"]
+[2026-10-12T22:39:08.543Z] UC-ID-06/2 Ben row: ["Oct 13, 2026, 12:38 AM","Invitation","Oct 13, 2026, 12:38 AM"]
+[2026-10-12T22:39:08.571Z] screenshot 33-sessions-ben-invitation-desktop
+[2026-10-12T22:39:08.968Z] owner signed in with a recovery code (for the session list)
+[2026-10-12T22:39:34.445Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:39 AM","Password and second factor","Oct 13, 2026, 12:39 AM","—"]
+[2026-10-12T22:39:34.446Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:39 AM","Recovery code","Oct 13, 2026, 12:39 AM","—"]
+[2026-10-12T22:39:34.446Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:38 AM","Password and second factor","Oct 13, 2026, 12:38 AM","—"]
+[2026-10-12T22:39:34.446Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:37 AM","Password and second factor","Oct 13, 2026, 12:37 AM","—"]
+[2026-10-12T22:39:34.446Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:36 AM","Password and second factor","Oct 13, 2026, 12:36 AM","—"]
+[2026-10-12T22:39:34.446Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:36 AM","Password and second factor","Oct 13, 2026, 12:36 AM","—"]
+[2026-10-12T22:39:34.447Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:34 AM","Password and second factor","Oct 13, 2026, 12:34 AM","—"]
+[2026-10-12T22:39:34.447Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:34 AM","Password and second factor","Oct 13, 2026, 12:34 AM","—"]
+[2026-10-12T22:39:34.447Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:33 AM","Password","Oct 13, 2026, 12:33 AM","127.0.0.0/24"]
+[2026-10-12T22:39:34.447Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:33 AM","Password","Oct 13, 2026, 12:33 AM","127.0.0.0/24"]
+[2026-10-12T22:39:34.447Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:32 AM","Password and second factor","Oct 13, 2026, 12:32 AM","—"]
+[2026-10-12T22:39:34.447Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:32 AM","Password and second factor","Oct 13, 2026, 12:32 AM","—"]
+[2026-10-12T22:39:34.447Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:31 AM","Password and second factor","Oct 13, 2026, 12:31 AM","—"]
+[2026-10-12T22:39:34.447Z] UC-ID-06/2 owner row: ["Oct 13, 2026, 12:30 AM","Password and second factor","Oct 13, 2026, 12:30 AM","—"]
+[2026-10-12T22:39:34.447Z] UC-ID-06/2 owner: ways named in the list: ["Password and second factor","Recovery code","Password"] | rows: 14
+[2026-10-12T22:39:34.513Z] screenshot 34-sessions-owner-before-desktop
+[2026-10-12T22:39:34.515Z] UC-ID-06/4 sentence: "This ends every other session of your account, on every other device and browser. You stay signed in here."
+[2026-10-12T22:40:03.571Z] a second browser signed in (to be ended)
+[2026-10-12T22:40:34.437Z] UC-ID-06/4 [375] rows before: 3 | "This device" marked: 2
+[2026-10-12T22:40:34.437Z] 375 sessions scroll width: 375
+[2026-10-12T22:40:34.484Z] screenshot 35-sessions-before-375
+[2026-10-12T22:40:36.050Z]   no confirmation dialog: the press ends the other sessions at once
+[2026-10-12T22:40:37.556Z] UC-ID-06/4 [375] after: rows= 1 [["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36 This device","Oct 13, 2026, 12:40 AM","Password and second factor","Oct 13, 2026, 12:40 AM","—"]] | button still offered: 0 | status text: ""
+[2026-10-12T22:40:37.594Z] screenshot 36-sessions-after-sign-out-everywhere-else-375
+[2026-10-12T22:40:41.621Z] UC-ID-06/4 the other browser on its next request: "Hubtask / to localhost:18515 / Your session ended. / Sign in to continue where you were."
+[2026-10-12T22:41:13.596Z] retry goto /administration/people landed on http://localhost:18515/administration/people
+[2026-10-12T22:41:25.624Z] retry goto /administration/people landed on http://localhost:18515/administration/people
+[2026-10-12T22:41:37.646Z] retry goto /administration/people landed on http://localhost:18515/administration/people
+
+== UC-ID-04 check 1 on the wire: POST /api/v1/auth/password:forgot (no SMTP configured: features.mail=False)
+   Ben's status was set to DISABLED directly in the database for this probe: no screen disables a person.
+--- address: paula@d1b.example
+HTTP/1.1 202 Accepted
+Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+Cross-Origin-Resource-Policy: same-site
+Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+Ratelimit-Limit: 60
+Ratelimit-Remaining: 598
+Ratelimit-Reset: 1
+Referrer-Policy: no-referrer
+Server: Hubtask
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-Request-Id: 1e78cf65f60732dd18db9193ab732e0d
+Date: Mon, 12 Oct 2026 22:42:14 GMT
+Content-Length: 0
+
+
+--- address: nobody@d1b.example
+HTTP/1.1 202 Accepted
+Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+Cross-Origin-Resource-Policy: same-site
+Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+Ratelimit-Limit: 60
+Ratelimit-Remaining: 597
+Ratelimit-Reset: 2
+Referrer-Policy: no-referrer
+Server: Hubtask
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-Request-Id: 9440b94abd63acb0c6e28421daa523ff
+Date: Mon, 12 Oct 2026 22:42:14 GMT
+Content-Length: 0
+
+
+--- address: ben@d1b.example
+HTTP/1.1 202 Accepted
+Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+Cross-Origin-Resource-Policy: same-site
+Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+Ratelimit-Limit: 60
+Ratelimit-Remaining: 596
+Ratelimit-Reset: 3
+Referrer-Policy: no-referrer
+Server: Hubtask
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-Request-Id: 8c213cb5a7f12f1100b90688618b4b25
+Date: Mon, 12 Oct 2026 22:42:14 GMT
+Content-Length: 0
+
+
+--- address: carl@d1b.example
+HTTP/1.1 202 Accepted
+Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+Cross-Origin-Resource-Policy: same-site
+Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+Ratelimit-Limit: 60
+Ratelimit-Remaining: 595
+Ratelimit-Reset: 4
+Referrer-Policy: no-referrer
+Server: Hubtask
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-Request-Id: 523245eabc3280f7e7dc75fdebcfa111
+Date: Mon, 12 Oct 2026 22:42:14 GMT
+Content-Length: 0
+
+
+== diff paula vs nobody@d1b.example (Date, X-Request-Id ignored):
+6,7c6,7
+< Ratelimit-Remaining: 598
+< Ratelimit-Reset: 1
+---
+> Ratelimit-Remaining: 597
+> Ratelimit-Reset: 2
+== diff paula vs ben@d1b.example (Date, X-Request-Id ignored):
+6,7c6,7
+< Ratelimit-Remaining: 598
+< Ratelimit-Reset: 1
+---
+> Ratelimit-Remaining: 596
+> Ratelimit-Reset: 3
+== diff paula vs carl@d1b.example (Date, X-Request-Id ignored):
+6,7c6,7
+< Ratelimit-Remaining: 598
+< Ratelimit-Reset: 1
+---
+> Ratelimit-Remaining: 595
+> Ratelimit-Reset: 4
+== response times, five requests each (seconds):
+paula@d1b.example     202/0.006101 202/0.004639 202/0.003973 202/0.003945 202/0.004201 
+nobody@d1b.example    202/0.002476 202/0.002417 202/0.002366 202/0.002506 202/0.003022 
+ben@d1b.example       202/0.002891 202/0.002330 202/0.002834 202/0.002864 202/0.002881 
+carl@d1b.example      202/0.002760 202/0.002809 202/0.002878 202/0.002985 202/0.002831 
+== median response time over 30 interleaved requests each (ms): {'paula@d1b.example': 5.07, 'nobody@d1b.example': 2.36, 'ben@d1b.example': 2.76}
+[2026-10-12T22:42:41.648Z] UC-ID-04 (no SMTP) the sign-in card offers: "Hubtask / to localhost:18515 / Sign in / Email address* / Password* / Show password / Forgot your password? / Sign in"
+[2026-10-12T22:42:41.650Z]   a "forgot" control: 1
+[2026-10-12T22:42:42.691Z]   after pressing it: "Hubtask / to localhost:18515 / Reset your password / Enter the address you sign in with. If an account exists for it, a link is on its way — it works once, for thirty minutes. / Email address* / Send the link / Back to sign in"
+[2026-10-12T22:42:42.735Z] screenshot 37-sign-in-card-without-mail-desktop
+[2026-10-12T22:43:12.130Z]    PATCH /api/v1/tenant -> 403 {"type":"https://docs.hubtask.dev/errors/forbidden","title":"forbidden","status":403,"code":"forbidden","detail_code":"auth.step_up_required","params":{"methods":"PASSWORD TOTP RECOVERY"},"request_id":"13edf4055f0df3089623df26d3f7f2a0","docs":"https://docs.hubtask.dev/errors/forbidden"}
+
+[2026-10-12T22:43:30.597Z]    PATCH /api/v1/tenant -> 200 
+[2026-10-12T22:43:33.049Z] UC-ID-06/5 idle rule set to 1: field now "1" | text: "End an idle session after, in minutes / Empty means an idle session is not ended. / Set here. / Legal links / Shown in the footer of the sign-in screen. Leave one empty to use the installation's. / Imprint / Empty here and at the installation, so the sign-in screen shows non"
+[2026-10-12T22:43:33.110Z] screenshot 38-idle-rule-1-desktop
+[2026-10-12T22:44:04.417Z] UC-ID-06/5 list right after setting the idle rule to 1 minute (this sign-in included): rows=5 [["Oct 13, 2026, 12:44 AM","Password and second factor","Oct 13, 2026, 12:44 AM"],["Oct 13, 2026, 12:43 AM","Password and second factor","Oct 13, 2026, 12:43 AM"],["Oct 13, 2026, 12:41 AM","Password and second factor","Oct 13, 2026, 12:41 AM"],["Oct 13, 2026, 12:41 AM","Password and second factor","Oct 13, 2026, 12:41 AM"],["Oct 13, 2026, 12:40 AM","Password and second factor","Oct 13, 2026, 12:40 AM"]]
+[2026-10-12T22:44:04.431Z] closing every browser; waiting 150 seconds without any request on this account
+[2026-10-12T22:46:38.684Z] UC-ID-06/5 after 150 idle seconds, from a fresh sign-in: rows=5 [["Oct 13, 2026, 12:46 AM","Password and second factor","Oct 13, 2026, 12:46 AM"],["Oct 13, 2026, 12:43 AM","Password and second factor","Oct 13, 2026, 12:43 AM"],["Oct 13, 2026, 12:41 AM","Password and second factor","Oct 13, 2026, 12:41 AM"],["Oct 13, 2026, 12:41 AM","Password and second factor","Oct 13, 2026, 12:41 AM"],["Oct 13, 2026, 12:40 AM","Password and second factor","Oct 13, 2026, 12:40 AM"]]
+[2026-10-12T22:46:38.718Z] screenshot 39-sessions-after-idle-desktop
+== the owner's sessions not revoked, as the database holds them (times UTC), at 22:46:49Z:
+ created  | last_seen | idle_minutes |   expires   | hard_expires | signed_in_with 
+----------+-----------+--------------+-------------+--------------+----------------
+ 22:46:34 | 22:46:34  |            1 | 11-11 22:46 | 11-11 22:46  | PASSWORD_TOTP
+ 22:44:00 | 22:44:00  |            1 | 11-11 22:44 | 11-11 22:44  | PASSWORD_TOTP
+ 22:43:07 | 22:43:08  |              | 11-11 22:43 | 11-11 22:43  | PASSWORD_TOTP
+ 22:41:45 | 22:41:45  |              | 11-11 22:41 | 11-11 22:41  | PASSWORD_TOTP
+ 22:41:00 | 22:41:00  |              | 11-11 22:41 | 11-11 22:41  | PASSWORD_TOTP
+ 22:40:30 | 22:40:30  |              | 11-11 22:40 | 11-11 22:40  | PASSWORD_TOTP
+(6 rows)
+
+[2026-10-12T22:47:15.189Z] UC-ID-02/2 at 0 s: This sign-in waits 5:00
+[2026-10-12T22:47:20.193Z] UC-ID-02/2 at 5 s: This sign-in waits 4:54
+[2026-10-12T22:47:34.579Z] GETs drawing the screen: ["/api/v1/meta/capabilities","/api/v1/meta/health","/api/v1/tenant","/api/v1/identity-providers","/api/v1/identity-provider-presets","/api/v1/tenant/accounts-without-provider","/api/v1/accounts/me","/api/v1/containers?type=HUB&page_size=200","/api/v1/quotas","/api/v1/privacy/ai-objection","/api/v1/private-hubs","/api/v1/auth/sign-in-rules","/api/v1/stream"]
+[2026-10-12T22:47:34.582Z] history field: min= 0 max= 
+[2026-10-12T22:47:34.635Z]   PATCH /api/v1/tenant -> 403 {"type":"https://docs.hubtask.dev/errors/forbidden","title":"forbidden","status":403,"code":"forbidden","detail_code":"auth.step_up_required","params":{"methods":"PASSWORD TOTP RECOVERY"},"request_id":"5aa1ab72d439760781225783f12844be","docs":"https://docs.hubtask.dev/errors/forbidden"}
+
+[2026-10-12T22:48:00.580Z]   PATCH /api/v1/tenant -> 200 
+[2026-10-12T22:48:03.045Z] UC-ID-12/8 history = 11 and Save: field {"valid":true,"msg":"","invalid":null,"describedby":"field-6elmnmp-hint"} | text at the rule: "Remember previous passwords / 0 to 10. Each one costs a comparison when somebody sets a password. / Set here. / Earliest change after, in hours / How long a new password stands before it may be changed again. 0 is at once; a reset " | alerts: ""
+[2026-10-12T22:48:03.098Z] screenshot 42-refusal-at-the-rule-desktop
+[2026-10-12T22:48:20.197Z] UC-ID-02/2 at 65 s: This sign-in waits 3:54
+[2026-10-12T22:48:34.292Z] GETs drawing the screen: ["/api/v1/meta/capabilities","/api/v1/meta/health","/api/v1/tenant","/api/v1/identity-providers","/api/v1/identity-provider-presets","/api/v1/tenant/accounts-without-provider","/api/v1/accounts/me","/api/v1/containers?type=HUB&page_size=200","/api/v1/quotas","/api/v1/privacy/ai-objection","/api/v1/private-hubs","/api/v1/auth/sign-in-rules","/api/v1/stream"]
+[2026-10-12T22:48:34.295Z] history field: min= 1 max= 30
+[2026-10-12T22:48:35.843Z] UC-ID-12/8 End a session after, in days = 31 and Save: field {"valid":false,"msg":"Value must be less than or equal to 30.","invalid":null,"describedby":null} | text at the rule: "End a session after, in days / Hubtask's default. / End an idle session after, in minutes / Empty means an idle session is not ended. / Set here. / Legal links / Shown in the footer of the sign-in screen. Leave one empty to use the in" | alerts: ""
+[2026-10-12T22:48:35.908Z] screenshot 42-refusal-at-the-rule-desktop
+[2026-10-12T22:49:04.614Z] GETs drawing the screen: ["/api/v1/meta/capabilities","/api/v1/meta/health","/api/v1/tenant","/api/v1/identity-providers","/api/v1/identity-provider-presets","/api/v1/tenant/accounts-without-provider","/api/v1/accounts/me","/api/v1/containers?type=HUB&page_size=200","/api/v1/quotas","/api/v1/privacy/ai-objection","/api/v1/private-hubs","/api/v1/auth/sign-in-rules","/api/v1/stream"]
+[2026-10-12T22:49:04.617Z] history field: min= 12 max= 
+[2026-10-12T22:49:04.671Z]   PATCH /api/v1/tenant -> 403 {"type":"https://docs.hubtask.dev/errors/forbidden","title":"forbidden","status":403,"code":"forbidden","detail_code":"auth.step_up_required","params":{"methods":"PASSWORD TOTP RECOVERY"},"request_id":"353a8e9153932210b36f3fab40cfcb5b","docs":"https://docs.hubtask.dev/errors/forbidden"}
+
+[2026-10-12T22:49:30.586Z]   PATCH /api/v1/tenant -> 200 
+[2026-10-12T22:49:33.051Z] UC-ID-12/8 Minimum length = 2000 and Save: field {"valid":true,"msg":"","invalid":null,"describedby":null} | text at the rule: "Minimum length / Set here. / At least this many of each kind / Length protects more than kinds do. A script without upper and lower case can never meet the first two. / Lowercase / Hubtask's default. / Uppercase / Hubtask" | alerts: ""
+[2026-10-12T22:49:33.104Z] screenshot 42-refusal-at-the-rule-desktop
+stored sign_in_policy: {"min_length": 2000, "history_count": 11, "mfa_required_for": "EVERYONE", "session_idle_minutes": 1}
+[2026-10-12T22:50:41.301Z]   POST /api/v1/auth/sessions -> 202 {"expires_at":"2026-10-12T22:55:41.278243Z","methods":["TOTP","RECOVERY"],"pending_token":"hbt_mfa_…(redacted)"}
+
+[2026-10-12T22:50:44.102Z] sign-in under min_length 2000, after the password: "Hubtask / to localhost:18515 / STEP 2 OF 2 / Second factor / Your password was right. This account also asks for a code from your authenticator. / Signing in as / paula@d1b.example / Not you? / Code from your authenticator*  / Six digits, the one showing now. / This sign-in waits 4:57 / Sign in / I do not have my authenticator"
+[2026-10-12T22:50:44.150Z] screenshot 44-sign-in-under-unsatisfiable-rule-desktop
+[2026-10-12T22:50:44.244Z]   POST /api/v1/auth/sessions:verify -> 202 {"expires_at":"2026-10-12T22:55:44.227933Z","methods":["PASSWORD_CHANGE"],"password_rules":{"breach_check":false,"common_passwords":true,"context_words":true,"history_count":10,"max_repeat":0,"min_classes":0,"min_digits":0,"min_length":128,"min_lowercase":0,"min_symbols":0,"min_uppercase":0,"not_cur
+[2026-10-12T22:50:47.214Z]   after the code: "Hubtask / to localhost:18515 / STEP 2 OF 2 / Choose a new password / Your password was right, but it no longer meets this workspace's rules. Set a new one and you are in. / Signing in as / paula@d1b.example / Not you? / New password* / Show password / At least 128 characters / Not met / Not containing your email address, your name or the workspace name / Not met / Not a commonly used password / Not met / Set the password and sign in"
+[2026-10-12T22:50:47.266Z] screenshot 45-sign-in-asks-new-password-desktop
+[2026-10-12T22:51:03.047Z] owner set a password of 137 characters at the sign-in and is in
+[2026-10-12T22:51:25.192Z] UC-ID-02/2 at 250 s: This sign-in waits 0:49 | Less than a minute left. After that the sign-in starts over. | status role holding it: 1
+[2026-10-12T22:51:25.235Z] screenshot 40-less-than-a-minute-desktop
+[2026-10-12T22:51:33.047Z] rules restored: min length 12 | history 0 | idle 
+[2026-10-12T22:52:14.251Z] UC-ID-02/2 at 299 s: "Hubtask / to localhost:18515 / The sign-in waited too long / The step for your code ended, so the sign-in starts over. Your address is still here. / Sign in / Email address* / Password* / Show password / Forgot your password? / Sign in" | code field: 0 | address kept in the email field: paula@d1b.example
+[2026-10-12T22:52:14.298Z] screenshot 41-step-ran-out-desktop
+session opened by choosing a new password at sign-in: 22:51:02 signed_in_with=PASSWORD
+[2026-10-12T22:52:41.607Z] UC-ID-12/8 [375] reading the rules failed (the browser refused the two reads): text: "Administration / Sign-in / This needs a connection. It is not kept on this device, and the server cannot be reached right now. / Try again" | Try again: 1 | a busy indicator still shown: 0
+[2026-10-12T22:52:41.658Z] screenshot 46-rules-unreadable-retry-375
+[2026-10-12T22:52:41.661Z] focus before Enter on Try again: button
+[2026-10-12T22:52:41.685Z] UC-ID-12/8 after Try again: the rules are drawn
