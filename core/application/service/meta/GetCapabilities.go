@@ -394,7 +394,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// What is configured, not what is implemented. A client uses this to decide whether
 			// to offer an action at all - offering "send by email" on an installation with no
 			// SMTP server is a dead end the manifest can prevent.
-			"mail":    g.Config.Mail.Host != "",
+			"mail":    g.Config.Mail.Configured(),
 			"storage": g.Config.Storage.Kind != "",
 			"tracing": g.Config.Tracing.Enabled,
 			// Whether this installation serves the web interface at "/" (ADR-0028). A client

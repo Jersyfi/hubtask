@@ -1273,7 +1273,7 @@ func run() error {
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
-			Text: forms,
+			Text: forms, Links: invitationLinks(cfg, signInStore, unitOfWork),
 		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
@@ -3330,6 +3330,24 @@ func busBreaker(
 	})
 	registry.Register(eventbus.NewProbe(breaker, configured))
 	return breaker
+}
+
+// invitationLinks is how invitations travel on this installation: by mail where one is configured
+// (the zero value), and as a link answered once where none is - the same reading `features.mail`
+// gives every client, so the screen's promise and the server's behaviour cannot part.
+func invitationLinks(
+	cfg envport.Config, store identity.RedemptionTokenStore, unitOfWork persistenceport.UnitOfWork,
+) identity.InvitationLinks {
+	if cfg.Mail.Configured() {
+		return identity.InvitationLinks{}
+	}
+	return identity.InvitationLinks{
+		Minter: identity.MintRedemptionToken{
+			Accounts: store, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Entropy: clockadapter.CryptoRandom{},
+		},
+		BaseURL: cfg.BaseURL,
+	}
 }
 
 // buildMailSender assembles the mail port: the SMTP adapter behind a breaker and a bulkhead, and

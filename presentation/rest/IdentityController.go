@@ -49,10 +49,38 @@ func (c *RestController) InviteAccount(w http.ResponseWriter, r *http.Request, _
 			"display_name": optionalStringField(body.DisplayName),
 		})
 	}, func(out usecase.Output) {
-		account := accountResponse(out)
-		w.Header().Set("Location", APIBasePath+"/accounts/"+account.Id.String())
-		writeJSON(w, r, http.StatusCreated, account)
+		invited := invitedAccountResponse(out)
+		markShownOnce(w, invited)
+		w.Header().Set("Location", APIBasePath+"/accounts/"+invited.Id.String())
+		writeJSON(w, r, http.StatusCreated, invited)
 	})
+}
+
+// invitedAccount is the InvitedAccount schema written as the account plus the link, so that the
+// account's own fields are mapped in one place (accountResponse) rather than twice.
+type invitedAccount struct {
+	openapi.Account
+	InvitationLink *string `json:"invitation_link,omitempty"`
+}
+
+// invitedAccountResponse maps an invitation's answer, with the link where it carries one.
+func invitedAccountResponse(out usecase.Output) invitedAccount {
+	invited := invitedAccount{Account: accountResponse(out)}
+	if link := out.String("invitation_link"); link != "" {
+		invited.InvitationLink = &link
+	}
+	return invited
+}
+
+// markShownOnce marks an answer carrying the link - an installation that sends no mail - as the one
+// appearance of a credential: no-store for a cache, shown once for the idempotency record, so
+// neither keeps a copy (T-18).
+func markShownOnce(w http.ResponseWriter, invited invitedAccount) {
+	if invited.InvitationLink == nil {
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set(ShownOnceHeader, "invitation_link")
 }
 
 // CreateManagedAccount answers POST /accounts:create-managed.
