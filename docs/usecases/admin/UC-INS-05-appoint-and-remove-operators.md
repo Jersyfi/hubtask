@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator]
 deployments: [D4, D5, D6, D7]
 serves: [P-04, P-05, P-08, P-12]
-state: partial
-tasks: [SI-05, SI-17]
-checked_by: [core/application/service/admin/Instance_test.go]
+state: verified
+tasks: [SI-05, SI-17, SC-05]
+checked_by: [core/application/service/admin/Instance_test.go, test/integration/operator_roster_test.go, apps/webapp/e2e/instanceoperators.test.mjs, cmd/hubctl/AdminInstance_test.go, cmd/hubctl/AdminElevate_test.go, docs/evidence/SC-05-2026-10-12.md]
 ---
 
 # Appoint and remove the people who run the installation
@@ -44,11 +44,3 @@ yourself asks twice.
 
 * No roles among operators: every operator can do everything the installation level allows.
 * Operators never see the list of a workspace's accounts; the address is typed, not picked.
-
-## Today
-
-* Check 1: not met — the list shows account and workspace identifiers, tracked in #1061.
-* Check 3: not met — adding a colleague first ends the owner's own access on the next request, tracked in #1061.
-* Check 4: not met — an invited or disabled account can be added, tracked in #1061.
-* Check 5: not met — *Remove* has no confirmation, tracked in #1061.
-* Check 6: not met — the screen adds operators only by address, which a service account does not have (UC-INS-06), tracked in #1061.

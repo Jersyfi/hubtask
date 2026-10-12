@@ -140,7 +140,7 @@ three doors; the integration environment's recovery documented with the new comm
 
 ---
 
-## SC-05 — Operators and machines
+## SC-05 — Operators and machines · built
 
 *Depends on: SC-04.*
 
